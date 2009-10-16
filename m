@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id ED7596B004D
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 22:25:01 -0400 (EDT)
-Date: Fri, 16 Oct 2009 03:24:57 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 7/9] swap_info: swap count continuations
-In-Reply-To: <20091016102951.a4f66a19.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0910160314310.2993@sister.anvils>
-References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils>
- <Pine.LNX.4.64.0910150153560.3291@sister.anvils>
- <20091015123024.21ca3ef7.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0910160016160.11643@sister.anvils>
- <20091016102951.a4f66a19.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id AEA376B004D
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 23:06:02 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9G35xsN021093
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 16 Oct 2009 12:06:00 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9011245DE4F
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 12:05:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6146B45DE4E
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 12:05:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B8D51DB803B
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 12:05:59 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E09E61DB803E
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 12:05:58 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list() sc->isolate_pages() return value.
+In-Reply-To: <20091016022011.GA22706@localhost>
+References: <20091016111041.6ffc59c9.minchan.kim@barrios-desktop> <20091016022011.GA22706@localhost>
+Message-Id: <20091016120242.AF31.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 16 Oct 2009 12:05:58 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, hongshin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Vincent Li <root@brc.ubc.ca>, Vincent Li <macli@brc.ubc.ca>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 16 Oct 2009, KAMEZAWA Hiroyuki wrote:
-> > 
-> My concern is that small numbers of swap_map[] which has too much refcnt
-> can consume too much pages.
+> On Fri, Oct 16, 2009 at 10:10:41AM +0800, Minchan Kim wrote:
+> > Hi, Vicent. 
+> > First of all, Thanks for your effort. :)
+>  
+> That's pretty serious efforts ;)
 > 
-> If an entry is shared by 65535, 65535/128 = 512 page will be used.
-> (I'm sorry if I don't undestand implementation correctly.)
+> > But as your data said, on usual case, nr_taken_zero count is much less 
+> > than non_zero. so we could lost benefit in normal case due to compare
+> > insturction although it's trivial. 
+> > 
+> > I have no objection in this patch since overhead is not so big.
+> > But I am not sure what other guys think about it. 
+> > 
+> > How about adding unlikely following as ?
+> > 
+> > +
+> > +       if (unlikely(nr_taken == 0))
+> > +               goto done;
+> 
+> I would prefer to just remove it - to make the code simple :)
 
-Ah, you're thinking it's additive: perhaps because I use the name
-"continuation", which may give that impression - maybe there's a
-better name I can give it.
++1 me.
 
-No, it's multiplicative - just like 999 is almost a thousand, not 27.
+Thank you, Vincent. Your effort was pretty clear and good.
+but your mesurement data didn't persuade us.
 
-If an entry is shared by 65535, then it needs its original swap_map
-page (0 to 0x3e) and a continuation page (0 to 0x7f) and another
-continuation page (0 to 0x7f): if I've got my arithmetic right,
-those three pages can hold a shared count up to 1032191, for
-every one of that group of PAGE_SIZE neighbouring pages.
 
-Hugh
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
