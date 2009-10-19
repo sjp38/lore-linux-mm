@@ -1,84 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A266B0055
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 17:34:37 -0400 (EDT)
-Subject: [PATCH 5/5] Documentation: ABI: document /sys/devices/system/cpu/
-From: Alex Chiang <achiang@hp.com>
-Date: Mon, 19 Oct 2009 15:34:35 -0600
-Message-ID: <20091019213435.32729.81751.stgit@bob.kio>
-In-Reply-To: <20091019212740.32729.7171.stgit@bob.kio>
-References: <20091019212740.32729.7171.stgit@bob.kio>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C6AB56B004F
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 17:58:52 -0400 (EDT)
+Date: Tue, 20 Oct 2009 06:57:57 +0900
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
+Message-ID: <20091019215757.GC12570@think>
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera>
+ <20091014103002.GA5027@csn.ul.ie>
+ <200910141510.11059.elendil@planet.nl>
+ <200910190133.33183.elendil@planet.nl>
+ <20091019140151.GC9036@csn.ul.ie>
+ <20091019161815.GA11487@think>
+ <20091019170115.GA4593@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091019170115.GA4593@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg KH <greg@kroah.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Frans Pop <elendil@planet.nl>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This interface has been around for a long time, but hasn't been
-officially documented.
+On Mon, Oct 19, 2009 at 01:01:15PM -0400, Christoph Hellwig wrote:
+> On Tue, Oct 20, 2009 at 01:18:15AM +0900, Chris Mason wrote:
+> > Waiting doesn't make it synchronous from the elevator point of view ;)
+> > If you're using WB_SYNC_NONE, it's a async write.  WB_SYNC_ALL makes it
+> > a sync write.  I only see WB_SYNC_NONE in vmscan.c, so we should be
+> > using the async congestion wait.  (the exception is xfs which always
+> > does async writes).
+> 
+> That's only because those people who did the global sweep did not bother
+> to convert it or even tell the list about it.  I have a patch in my
+> QA queue to change it..
 
-Since I wanted to extend the ABI, I figured I would document what
-already existed.
+Yes, we just didn't realize XFS was missed.  Sorry.  I wasn't trying to
+blame xfs for being behind, just mentioning that we've got about 10
+different variables here and I'm having a hard time figuring out which
+ones to push on.
 
-Cc: Greg KH <greg@kroah.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>
-Signed-off-by: Alex Chiang <achiang@hp.com>
----
-
- Documentation/ABI/testing/sysfs-devices-cpu |   42 +++++++++++++++++++++++++++
- 1 files changed, 42 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/ABI/testing/sysfs-devices-cpu
-
-diff --git a/Documentation/ABI/testing/sysfs-devices-cpu b/Documentation/ABI/testing/sysfs-devices-cpu
-new file mode 100644
-index 0000000..9070889
---- /dev/null
-+++ b/Documentation/ABI/testing/sysfs-devices-cpu
-@@ -0,0 +1,42 @@
-+What:		/sys/devices/system/cpu/
-+Date:		October 2009
-+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-+Description:
-+		A collection of CPU attributes, including cache information,
-+		topology, and frequency. It also contains a mechanism to
-+		logically hotplug CPUs.
-+
-+		The actual attributes present are architecture and
-+		configuration dependent.
-+
-+
-+What:		/sys/devices/system/cpu/$cpu/online
-+Date:		January 2006
-+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-+Description:
-+		When CONFIG_HOTPLUG_CPU is enabled, allows the user to
-+		discover and change the online state of a CPU. To discover
-+		the state:
-+
-+		cat /sys/devices/system/cpu/$cpu/online
-+
-+		A value of 0 indicates the CPU is offline. A value of 1
-+		indicates it is online. To change the state, echo the
-+		desired new state into the file:
-+
-+		echo [0|1] > /sys/devices/system/cpu/$cpu/online
-+
-+		For more information, please read Documentation/cpu-hotplug.txt
-+
-+
-+What:		/sys/devices/system/cpu/$cpu/node
-+Date:		October 2009
-+Contact:	Linux memory management mailing list <linux-mm@kvack.org>
-+Description:
-+		When CONFIG_NUMA is enabled, a symbolic link that points
-+		to the corresponding NUMA node directory.
-+
-+		For example, the following symlink is created for cpu42
-+		in NUMA node 2:
-+
-+		/sys/devices/system/cpu/cpu42/node2 -> ../../node/node2
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
