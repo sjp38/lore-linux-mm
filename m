@@ -1,37 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6C37F6B004F
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 13:09:56 -0400 (EDT)
-Received: by fxm20 with SMTP id 20so5198256fxm.38
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2009 10:09:53 -0700 (PDT)
-Date: Mon, 19 Oct 2009 19:09:47 +0200
-From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 955A36B004F
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 16:12:34 -0400 (EDT)
+Date: Mon, 19 Oct 2009 22:12:31 +0200 (CEST)
+From: Tobias Oetiker <tobi@oetiker.ch>
 Subject: Re: [Bug #14141] order 2 page allocation failures (generic)
-Message-ID: <20091019170947.GA3782@bizet.domek.prywatny>
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910190133.33183.elendil@planet.nl> <1255912562.6824.9.camel@penberg-laptop> <200910190444.55867.elendil@planet.nl> <alpine.DEB.2.00.0910191146110.1306@sebohet.brgvxre.pu> <1255946051.5941.2.camel@penberg-laptop> <20091019140145.GA4222@bizet.domek.prywatny> <20091019140619.GD9036@csn.ul.ie>
+In-Reply-To: <20091019145954.GH9036@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.0910192211230.27123@sebohet.brgvxre.pu>
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910190133.33183.elendil@planet.nl> <1255912562.6824.9.camel@penberg-laptop> <200910190444.55867.elendil@planet.nl> <alpine.DEB.2.00.0910191146110.1306@sebohet.brgvxre.pu> <20091019133146.GB9036@csn.ul.ie>
+ <alpine.DEB.2.00.0910191538450.8526@sebohet.brgvxre.pu> <20091019140957.GE9036@csn.ul.ie> <alpine.DEB.2.00.0910191613580.8526@sebohet.brgvxre.pu> <20091019145954.GH9036@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091019140619.GD9036@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Karol Lewandowski <karol.k.lewandowski@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Tobi Oetiker <tobi@oetiker.ch>, Frans Pop <elendil@planet.nl>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org, jens.axboe@oracle.com
+Cc: Frans Pop <elendil@planet.nl>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org, jens.axboe@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 19, 2009 at 03:06:19PM +0100, Mel Gorman wrote:
-> Can you test with my kswapd patch applied and commits 373c0a7e,8aa7e847
-> reverted please?
+Hi Mel,
 
-It seems that your patch and Frans' reverts together *do* make
-difference.
+Today Mel Gorman wrote:
 
-With these patches I haven't been able to trigger failures so far
-(in about 6 attempts). I'll continue testing and let you know if
-anything changes.
+> >
+> > if you can send me a consolidated patch which does apply to
+> > 2.6.31.4 I will be glad to try ...
+> >
+>
+> Sure
+>
+> ==== CUT HERE ====
+>
+> From 6c0215af3b7c39ef7b8083ea38ca3ad93cd3f51f Mon Sep 17 00:00:00 2001
+> From: Mel Gorman <mel@csn.ul.ie>
+> Date: Mon, 19 Oct 2009 15:40:43 +0100
+> Subject: [PATCH] Kick off kswapd after direct reclaim and revert congestion changes
+>
+> The following patch is http://lkml.org/lkml/2009/10/16/89 on top of
+> 2.6.31.4 as well as patches 373c0a7e and 8aa7e847 reverted.
 
-If nothing changes this looks like fix for my problem.
+it seems to help ... the server has been running for 3 hours now
+without incident, but then again it is not as active as during the
+day, ... will report tomorrow.
 
-Thanks.  Thanks a lot!
+cheers
+tobi
+
+
+-- 
+Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
+http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
