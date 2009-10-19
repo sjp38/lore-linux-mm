@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F1676B004F
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 17:34:12 -0400 (EDT)
-Subject: [PATCH 0/5] mm: modest useability enhancements for node sysfs attrs
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CB0B6B004F
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 17:34:22 -0400 (EDT)
+Subject: [PATCH 2/5] mm: refactor register_cpu_under_node()
 From: Alex Chiang <achiang@hp.com>
-Date: Mon, 19 Oct 2009 15:34:10 -0600
-Message-ID: <20091019212740.32729.7171.stgit@bob.kio>
+Date: Mon, 19 Oct 2009 15:34:20 -0600
+Message-ID: <20091019213420.32729.45505.stgit@bob.kio>
+In-Reply-To: <20091019212740.32729.7171.stgit@bob.kio>
+References: <20091019212740.32729.7171.stgit@bob.kio>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -14,31 +16,49 @@ To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I've been poking at memory/node hotplug lately, and found myself wondering
-what node a memory section or CPU might belong to.
+By returning early if the node is not online, we can unindent the
+interesting code by one level.
 
-Yes, the information is there in sysfs, but to me, having a symlink pointing
-back to the node is so much more convenient.
+No functional change.
 
-Thanks,
-/ac
-
+Signed-off-by: Alex Chiang <achiang@hp.com>
 ---
 
-Alex Chiang (5):
-      mm: add numa node symlink for memory section in sysfs
-      mm: refactor register_cpu_under_node()
-      mm: refactor unregister_cpu_under_node()
-      mm: add numa node symlink for cpu devices in sysfs
-      Documentation: ABI: document /sys/devices/system/cpu/
+ drivers/base/node.c |   20 +++++++++++---------
+ 1 files changed, 11 insertions(+), 9 deletions(-)
 
-
- Documentation/ABI/testing/sysfs-devices-cpu    |   42 ++++++++++++++++++
- Documentation/ABI/testing/sysfs-devices-memory |   14 ++++++
- Documentation/memory-hotplug.txt               |   11 +++--
- drivers/base/node.c                            |   56 +++++++++++++++++-------
- 4 files changed, 102 insertions(+), 21 deletions(-)
- create mode 100644 Documentation/ABI/testing/sysfs-devices-cpu
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 3108b21..ef7dd22 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -227,16 +227,18 @@ struct node node_devices[MAX_NUMNODES];
+  */
+ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+ {
+-	if (node_online(nid)) {
+-		struct sys_device *obj = get_cpu_sysdev(cpu);
+-		if (!obj)
+-			return 0;
+-		return sysfs_create_link(&node_devices[nid].sysdev.kobj,
+-					 &obj->kobj,
+-					 kobject_name(&obj->kobj));
+-	 }
++	struct sys_device *obj;
+ 
+-	return 0;
++	if (!node_online(nid))
++		return 0;
++
++	obj = get_cpu_sysdev(cpu);
++	if (!obj)
++		return 0;
++
++	return sysfs_create_link(&node_devices[nid].sysdev.kobj,
++				&obj->kobj,
++				kobject_name(&obj->kobj));
+ }
+ 
+ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
