@@ -1,34 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 78A0F6B004F
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 04:06:59 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id C6DC482C2DC
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 04:11:55 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id n87sKDJfua7v for <linux-mm@kvack.org>;
-	Mon, 19 Oct 2009 04:11:51 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 6747982C3B3
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 04:11:10 -0400 (EDT)
-Date: Mon, 19 Oct 2009 03:40:55 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 1/2] page allocator: Always wake kswapd when restarting
- an allocation attempt after direct reclaim failed
-In-Reply-To: <1255689446-3858-2-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0910190340310.24325@gentwo.org>
-References: <1255689446-3858-1-git-send-email-mel@csn.ul.ie> <1255689446-3858-2-git-send-email-mel@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C63E56B004F
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2009 05:49:11 -0400 (EDT)
+Date: Mon, 19 Oct 2009 11:49:08 +0200 (CEST)
+From: Tobi Oetiker <tobi@oetiker.ch>
+Subject: Re: [Bug #14141] order 2 page allocation failures (generic)
+In-Reply-To: <200910190444.55867.elendil@planet.nl>
+Message-ID: <alpine.DEB.2.00.0910191146110.1306@sebohet.brgvxre.pu>
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910190133.33183.elendil@planet.nl> <1255912562.6824.9.camel@penberg-laptop> <200910190444.55867.elendil@planet.nl>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable <stable@kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Frans Pop <elendil@planet.nl>, reinette chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>
+To: Frans Pop <elendil@planet.nl>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org, jens.axboe@oracle.com
 List-ID: <linux-mm.kvack.org>
 
+Today Frans Pop wrote:
+
+>
+> I'm starting to think that this commit may not be directly related to high
+> order allocation failures. The fact that I'm seeing SKB allocation
+> failures earlier because of this commit could be just a side effect.
+> It could be that instead the main impact of this commit is on encrypted
+> file system and/or encrypted swap (kcryptd).
+>
+> Besides mm the commit also touches dm-crypt (and nfs/write.c, but as I'm
+> only reading from NFS that's unlikely).
+
+I have updated a fileserver to 2.6.31 today and I see page
+allocation failures from several parts of the system ... mostly nfs though ... (it is a nfs server).
+So I guess the problem must be quite generic:
 
 
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Oct 19 07:10:02 johan kernel: [23565.684110] swapper: page allocation failure. order:5, mode:0x4020 [kern.warning]
+Oct 19 07:10:02 johan kernel: [23565.684118] Pid: 0, comm: swapper Not tainted 2.6.31-02063104-generic #02063104 [kern.warning]
+Oct 19 07:10:02 johan kernel: [23565.684121] Call Trace: [kern.warning]
+Oct 19 07:10:02 johan kernel: [23565.684124]  <IRQ>  [<ffffffff810da5a2>] __alloc_pages_slowpath+0x3b2/0x4c0 [kern.warning]
+
+
+Oct 19 08:59:16 johan kernel: [30120.685647] __ratelimit: 13 callbacks suppressed [kern.warning]
+Oct 19 08:59:16 johan kernel: [30120.685654] nfsd: page allocation failure. order:5, mode:0x4020 [kern.warning]
+Oct 19 08:59:16 johan kernel: [30120.685660] Pid: 6071, comm: nfsd Not tainted 2.6.31-02063104-generic #02063104 [kern.warning]
+Oct 19 08:59:16 johan kernel: [30120.685663] Call Trace: [kern.warning]
+Oct 19 08:59:16 johan kernel: [30120.685666]  <IRQ>  [<ffffffff810da5a2>] __alloc_pages_slowpath+0x3b2/0x4c0 [kern.warning]
+
+Oct 19 09:36:31 johan kernel: [32355.708345] __ratelimit: 16 callbacks suppressed [kern.warning]
+Oct 19 09:36:31 johan kernel: [32355.708352] nfsd: page allocation failure. order:5, mode:0x4020 [kern.warning]
+Oct 19 09:36:31 johan kernel: [32355.708358] Pid: 6087, comm: nfsd Not tainted 2.6.31-02063104-generic #02063104 [kern.warning]
+Oct 19 09:36:31 johan kernel: [32355.708361] Call Trace: [kern.warning]
+Oct 19 09:36:31 johan kernel: [32355.708364]  <IRQ>  [<ffffffff810da5a2>] __alloc_pages_slowpath+0x3b2/0x4c0 [kern.warning]
+
+Oct 19 10:52:01 johan kernel: [36885.358312] __ratelimit: 31 callbacks suppressed [kern.warning]
+Oct 19 10:52:01 johan kernel: [36885.358319] nfsd: page allocation failure. order:5, mode:0x4020 [kern.warning]
+Oct 19 10:52:01 johan kernel: [36885.358325] Pid: 6057, comm: nfsd Not tainted 2.6.31-02063104-generic #02063104 [kern.warning]
+Oct 19 10:52:01 johan kernel: [36885.358327] Call Trace: [kern.warning]
+Oct 19 10:52:01 johan kernel: [36885.358331]  <IRQ>  [<ffffffff810da5a2>] __alloc_pages_slowpath+0x3b2/0x4c0 [kern.warning]
+
+Oct 19 11:12:01 johan kernel: [38085.163831] events/3: page allocation failure. order:5, mode:0x4020 [kern.warning]
+Oct 19 11:12:01 johan kernel: [38085.163840] Pid: 18, comm: events/3 Not tainted 2.6.31-02063104-generic #02063104 [kern.warning]
+Oct 19 11:12:01 johan kernel: [38085.163843] Call Trace: [kern.warning]
+Oct 19 11:12:01 johan kernel: [38085.163846]  <IRQ>  [<ffffffff810da5a2>] __alloc_pages_slowpath+0x3b2/0x4c0 [kern.warning]
+
+
+
+-- 
+Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
+http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
