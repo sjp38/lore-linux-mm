@@ -1,49 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 597896B004F
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2009 03:10:51 -0400 (EDT)
-Message-ID: <COL115-W535064AC2F576372C1BB1B9FC00@phx.gbl>
-From: Bo Liu <bo-liu@hotmail.com>
-Subject: [PATCH] try_to_unuse : remove redundant swap_count()
-Date: Tue, 20 Oct 2009 15:09:20 +0800
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BCA596B004F
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2009 03:19:38 -0400 (EDT)
+Received: by pzk27 with SMTP id 27so1852788pzk.12
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2009 00:19:37 -0700 (PDT)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] rmap : move the `out` to a more proper place
+Date: Tue, 20 Oct 2009 15:14:19 +0800
+Message-Id: <1256022859-23849-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
-Cc: hugh.dickins@tiscali.co.uk, linux-mm@kvack.org
+Cc: hugh.dickins@tiscali.co.uk, fengguang.wu@intel.com, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
+When the code jumps to the `out' ,the referenced is still zero.
+So there is no need to check it.
 
-=20
-While comparing with swcount=2Cit's no need to
-call swap_count(). Just as int set_start_mm =3D=20
-(*swap_map>=3D swcount) is ok.
-=20
-Signed-off-by: Bo Liu <bo-liu@hotmail.com>
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
 ---
-=20
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 63ce10f..2456fc6 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1152=2C7 +1152=2C7 @@ static int try_to_unuse(unsigned int type)
-      retval =3D unuse_mm(mm=2C entry=2C page)=3B
-     if (set_start_mm &&
--        swap_count(*swap_map) < swcount) {
-+         ((*swap_map) < swcount)) {
-      mmput(new_start_mm)=3B
-      atomic_inc(&mm->mm_users)=3B
-      new_start_mm =3D mm=3B
-=20
---=20
-1.6.0.6 		 	   		 =20
-_________________________________________________________________
-Windows Live Hotmail: Your friends can get your Facebook updates=2C right f=
-rom Hotmail=AE.
-http://www.microsoft.com/middleeast/windows/windowslive/see-it-in-action/so=
-cial-network-basics.aspx?ocid=3DPID23461::T:WLMTAGL:ON:WL:en-xm:SI_SB_4:092=
-009=
+ mm/rmap.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index dd43373..fe99069 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -388,9 +388,10 @@ static int page_referenced_one(struct page *page,
+ out_unmap:
+ 	(*mapcount)--;
+ 	pte_unmap_unlock(pte, ptl);
+-out:
++
+ 	if (referenced)
+ 		*vm_flags |= vma->vm_flags;
++out:
+ 	return referenced;
+ }
+ 
+-- 
+1.6.0.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
