@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E97DC6B004D
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2009 14:27:13 -0400 (EDT)
-Date: Wed, 21 Oct 2009 12:27:11 -0600
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B6AA86B004D
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2009 15:30:07 -0400 (EDT)
+Date: Wed, 21 Oct 2009 13:30:02 -0600
 From: Alex Chiang <achiang@hp.com>
-Subject: Re: [PATCH 1/5] mm: add numa node symlink for memory section in
-	sysfs
-Message-ID: <20091021182711.GI23948@ldl.fc.hp.com>
-References: <20091019212740.32729.7171.stgit@bob.kio> <20091019213415.32729.86034.stgit@bob.kio> <c18f2c2738f6a584b431324b38f21970.squirrel@webmail-b.css.fujitsu.com>
+Subject: Re: [PATCH 4/5] mm: add numa node symlink for cpu devices in sysfs
+Message-ID: <20091021193002.GI14102@ldl.fc.hp.com>
+References: <20091019212740.32729.7171.stgit@bob.kio> <20091019213430.32729.78995.stgit@bob.kio> <alpine.DEB.1.00.0910192016010.25264@chino.kir.corp.google.com> <20091020204136.GB23675@ldl.fc.hp.com> <alpine.DEB.1.00.0910201407190.27248@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <c18f2c2738f6a584b431324b38f21970.squirrel@webmail-b.css.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.1.00.0910201407190.27248@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Gary Hade <garyhade@us.ibm.com>, Badari Pulavarty <pbadari@us.ibm.com>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
-> Alex Chiang wrote:
-> > Commit c04fc586c (mm: show node to memory section relationship with
-> > symlinks in sysfs) created symlinks from nodes to memory sections, e.g.
-> >
-> > /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
-> >
-> > If you're examining the memory section though and are wondering what
-> > node it might belong to, you can find it by grovelling around in
-> > sysfs, but it's a little cumbersome.
-> >
-> > Add a reverse symlink for each memory section that points back to the
-> > node to which it belongs.
-> >
-> > Cc: Gary Hade <garyhade@us.ibm.com>
-> > Cc: Badari Pulavarty <pbadari@us.ibm.com>
-> > Cc: Ingo Molnar <mingo@elte.hu>
-> > Signed-off-by: Alex Chiang <achiang@hp.com>
+* David Rientjes <rientjes@google.com>:
+> On Tue, 20 Oct 2009, Alex Chiang wrote:
+> > * David Rientjes <rientjes@google.com>:
+> > > The return values of register_cpu_under_node() and 
+> > > unregister_cpu_under_node() are always ignored, so it would probably be 
+> > > best to convert these to be void functions.  That doesn't mean you can 
+> > > simply ignore the result of the first sysfs_create_link(), though: the 
+> > > second should probably be suppressed if the first returns an error.
+> > 
+> > I didn't want to change too much in the patch. Changing the
+> > function signature seems a bit overeager, but if you have strong
+> > feelings, I can do so.
 > 
-> 2 yeas ago, I wanted to add this symlink. But don't...because
-> some vendor's host has no 1-to-1 relationship between a memsection
-> and a node. (I don't remember precisely, sorry....s390?)
+> It's entirely up to you if you want to change them to be void.  I thought 
+> it would be cleaner if the first patch in the series would convert them to 
+> void on the basis that the return value is never actually used and then 
+> the following patches simply return on error conditions.
 
-Hm, ok. I'll cc the s390 folks in the next version of this series.
+I made the conversion as you suggested, but discovered under
+sparse that:
 
-Thanks for the pointer.
+	drivers/base/node.c: In function a??register_cpu_under_nodea??:
+	drivers/base/node.c:245: warning: ignoring return value of
+	a??sysfs_create_linka??, declared with attribute warn_unused_result
 
+I wasn't very happy with the result after doing something with
+the return value of sysfs_create_link to make sparse shutup.
+Seemed unnatural and very much had the feeling of jumping through
+hoops just to make an automated tool be quiet.
+
+So, I'll just leave [un]register_cpu_under_node() as returning
+int. It not only makes the patch feel better, but if we do ever
+want to decide to unroll due to an error in sysfs_create_link,
+we'll have the information available at the callsites.
+
+Thanks.
 /ac
 
 --
