@@ -1,65 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1829C6B006A
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2009 21:25:05 -0400 (EDT)
-Received: by gxk21 with SMTP id 21so8023928gxk.10
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2009 18:25:04 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E97DC6B004D
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2009 14:27:13 -0400 (EDT)
+Date: Wed, 21 Oct 2009 12:27:11 -0600
+From: Alex Chiang <achiang@hp.com>
+Subject: Re: [PATCH 1/5] mm: add numa node symlink for memory section in
+	sysfs
+Message-ID: <20091021182711.GI23948@ldl.fc.hp.com>
+References: <20091019212740.32729.7171.stgit@bob.kio> <20091019213415.32729.86034.stgit@bob.kio> <c18f2c2738f6a584b431324b38f21970.squirrel@webmail-b.css.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <0f7b4023bee9b7ccc47998cd517d193c.squirrel@webmail-b.css.fujitsu.com>
-References: <COL115-W535064AC2F576372C1BB1B9FC00@phx.gbl>
-	 <0f7b4023bee9b7ccc47998cd517d193c.squirrel@webmail-b.css.fujitsu.com>
-Date: Wed, 21 Oct 2009 09:25:04 +0800
-Message-ID: <dc46d49c0910201825g1b3b3987w8f9002761a64166f@mail.gmail.com>
-Subject: Re: [PATCH] try_to_unuse : remove redundant swap_count()
-From: Bob Liu <yjfpb04@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c18f2c2738f6a584b431324b38f21970.squirrel@webmail-b.css.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Bo Liu <bo-liu@hotmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Gary Hade <garyhade@us.ibm.com>, Badari Pulavarty <pbadari@us.ibm.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
->>
->> While comparing with swcount,it's no need to
->> call swap_count(). Just as int set_start_mm =
->> (*swap_map>= swcount) is ok.
->>
-> Hmm ?
-> *swap_map = (SWAP_HAS_CACHE) | count. What this change means ?
->
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+> Alex Chiang wrote:
+> > Commit c04fc586c (mm: show node to memory section relationship with
+> > symlinks in sysfs) created symlinks from nodes to memory sections, e.g.
+> >
+> > /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
+> >
+> > If you're examining the memory section though and are wondering what
+> > node it might belong to, you can find it by grovelling around in
+> > sysfs, but it's a little cumbersome.
+> >
+> > Add a reverse symlink for each memory section that points back to the
+> > node to which it belongs.
+> >
+> > Cc: Gary Hade <garyhade@us.ibm.com>
+> > Cc: Badari Pulavarty <pbadari@us.ibm.com>
+> > Cc: Ingo Molnar <mingo@elte.hu>
+> > Signed-off-by: Alex Chiang <achiang@hp.com>
+> 
+> 2 yeas ago, I wanted to add this symlink. But don't...because
+> some vendor's host has no 1-to-1 relationship between a memsection
+> and a node. (I don't remember precisely, sorry....s390?)
 
-Sorry for the wrong format, I changed to gmail.
-Because swcount is assigned value *swap_map not swap_count(*swap_map).
-So I think here should compare with *swap_map not swap_count(*swap_map).
+Hm, ok. I'll cc the s390 folks in the next version of this series.
 
-And refer to variable set_start_mm, it is inited also by comparing
-*swap_map and swcount not swap_count(*swap_map) and swcount.
-So I submited this patch.
+Thanks for the pointer.
 
-> Anyway, swap_count() macro is removed by Hugh's patch (queued in -mm)
->
-I am sorry for not notice that. So just forget about this patch.
-Thanks!
--Bo
-
-> Regards,
-> -Kame
->
->> Signed-off-by: Bo Liu <bo-liu@hotmail.com>
->> ---
->>
->> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> index 63ce10f..2456fc6 100644
->> --- a/mm/swapfile.c
->> +++ b/mm/swapfile.c
->> @@ -1152,7 +1152,7 @@ static int try_to_unuse(unsigned int type)
->>       retval = unuse_mm(mm, entry, page);
->>      if (set_start_mm &&
->> -        swap_count(*swap_map) < swcount) {
->> +         ((*swap_map) < swcount)) {
->>       mmput(new_start_mm);
->>       atomic_inc(&mm->mm_users);
->>       new_start_mm = mm;
->>
+/ac
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
