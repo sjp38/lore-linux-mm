@@ -1,43 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CBC9B6B0073
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 15:52:35 -0400 (EDT)
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id n9MJqWs5013746
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 20:52:32 +0100
-Received: from pzk27 (pzk27.prod.google.com [10.243.19.155])
-	by spaceape14.eur.corp.google.com with ESMTP id n9MJqTdi000708
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 12:52:29 -0700
-Received: by pzk27 with SMTP id 27so3849521pzk.12
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2009 12:52:28 -0700 (PDT)
-Date: Thu, 22 Oct 2009 12:52:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 4/5] mm: add numa node symlink for cpu devices in
- sysfs
-In-Reply-To: <20091022041525.15705.6794.stgit@bob.kio>
-Message-ID: <alpine.DEB.2.00.0910221252020.26631@chino.kir.corp.google.com>
-References: <20091022040814.15705.95572.stgit@bob.kio> <20091022041525.15705.6794.stgit@bob.kio>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 342C66B007B
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 17:33:59 -0400 (EDT)
+Received: by fg-out-1718.google.com with SMTP id d23so2656346fga.8
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2009 14:33:57 -0700 (PDT)
+Date: Thu, 22 Oct 2009 23:33:53 +0200
+From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
+Subject: Re: [PATCH] SLUB: Don't drop __GFP_NOFAIL completely from
+	allocate_slab() (was: Re: [Bug #14265] ifconfig: page allocation
+	failure. order:5,ode:0x8020 w/ e100)
+Message-ID: <20091022213353.GA7137@bizet.domek.prywatny>
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <COE24pZSBH.A.rP.2MTxKB@chimera> <20091021200442.GA2987@bizet.domek.prywatny> <alpine.DEB.2.00.0910211400140.20010@chino.kir.corp.google.com> <20091021212034.GB2987@bizet.domek.prywatny> <20091022102014.GL11778@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091022102014.GL11778@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Alex Chiang <achiang@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Karol Lewandowski <karol.k.lewandowski@gmail.com>, David Rientjes <rientjes@google.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Frans Pop <elendil@planet.nl>, Pekka Enberg <penberg@cs.helsinki.fi>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org, jens.axboe@oracle.com, Tobias Oetiker <tobi@oetiker.ch>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Oct 2009, Alex Chiang wrote:
+On Thu, Oct 22, 2009 at 11:20:14AM +0100, Mel Gorman wrote:
+> On Wed, Oct 21, 2009 at 11:20:34PM +0200, Karol Lewandowski wrote:
+> > > Note: slub isn't going to be a culprit in order 5 allocation failures 
+> > > since they have kmalloc passthrough to the page allocator.
+> > 
+> > However, it might change fragmentation somewhat I guess.  This might
+> > make problem more/less visible.
+> > 
+> 
+> Did you have CONFIG_KMEMCHECK set by any chance?
 
-> You can discover which CPUs belong to a NUMA node by examining
-> /sys/devices/system/node/node#/
-> 
-> However, it's not convenient to go in the other direction, when looking at
-> /sys/devices/system/cpu/cpu#/
-> 
-> Yes, you can muck about in sysfs, but adding these symlinks makes
-> life a lot more convenient.
-> 
-> Signed-off-by: Alex Chiang <achiang@hp.com>
+No, kmemcheck (and kmemleak) was always disabled.
 
-Acked-by: David Rientjes <rientjes@google.com>
+It's likely that's possible to trigger allocation failures with slab,
+I just haven't been successful at it.  Lack of good testcase is really
+problem here -- even if I can't trigger failures I can never be sure
+that these wont appear in some strange moment.
+
+BTW I'll test your patches (from another thread) shortly.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
