@@ -1,84 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FBD36B004D
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 06:20:14 -0400 (EDT)
-Date: Thu, 22 Oct 2009 11:20:14 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] SLUB: Don't drop __GFP_NOFAIL completely from
-	allocate_slab() (was: Re: [Bug #14265] ifconfig: page allocation
-	failure. order:5,ode:0x8020 w/ e100)
-Message-ID: <20091022102014.GL11778@csn.ul.ie>
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <COE24pZSBH.A.rP.2MTxKB@chimera> <20091021200442.GA2987@bizet.domek.prywatny> <alpine.DEB.2.00.0910211400140.20010@chino.kir.corp.google.com> <20091021212034.GB2987@bizet.domek.prywatny>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 30C506B004D
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 06:27:35 -0400 (EDT)
+Date: Thu, 22 Oct 2009 12:27:32 +0200 (CEST)
+From: Tobias Oetiker <tobi@oetiker.ch>
+Subject: Re: [Bug #14141] order 2 page allocation failures (generic)
+In-Reply-To: <20091020133957.GG11778@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.0910221226020.23696@sebohet.brgvxre.pu>
+References: <alpine.DEB.2.00.0910191538450.8526@sebohet.brgvxre.pu> <20091019140957.GE9036@csn.ul.ie> <alpine.DEB.2.00.0910191613580.8526@sebohet.brgvxre.pu> <20091019145954.GH9036@csn.ul.ie> <alpine.DEB.2.00.0910192211230.27123@sebohet.brgvxre.pu>
+ <alpine.DEB.2.00.0910192215450.27123@sebohet.brgvxre.pu> <20091020105746.GD11778@csn.ul.ie> <alpine.DEB.2.00.0910201338530.27123@sebohet.brgvxre.pu> <20091020125139.GF11778@csn.ul.ie> <alpine.DEB.2.00.0910201456540.27618@sebohet.brgvxre.pu>
+ <20091020133957.GG11778@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20091021212034.GB2987@bizet.domek.prywatny>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Karol Lewandowski <karol.k.lewandowski@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Frans Pop <elendil@planet.nl>, Pekka Enberg <penberg@cs.helsinki.fi>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org, jens.axboe@oracle.com, Tobias Oetiker <tobi@oetiker.ch>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Frans Pop <elendil@planet.nl>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org, jens.axboe@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 21, 2009 at 11:20:34PM +0200, Karol Lewandowski wrote:
-> On Wed, Oct 21, 2009 at 02:06:41PM -0700, David Rientjes wrote:
-> > On Wed, 21 Oct 2009, Karol Lewandowski wrote:
-> > 
-> > > commit d6849591e042bceb66f1b4513a1df6740d2ad762
-> > > Author: Karol Lewandowski <karol.k.lewandowski@gmail.com>
-> > > Date:   Wed Oct 21 21:01:20 2009 +0200
-> > > 
-> > >     SLUB: Don't drop __GFP_NOFAIL completely from allocate_slab()
-> > >     
-> > >     Commit ba52270d18fb17ce2cf176b35419dab1e43fe4a3 unconditionally
-> > >     cleared __GFP_NOFAIL flag on all allocations.
-> > >     
-> > 
-> > No, it clears __GFP_NOFAIL from the first allocation of oo_order(s->oo).  
-> > If that fails (and it's easy to fail, it has __GFP_NORETRY), another 
-> > allocation is attempted with oo_order(s->min), for which __GFP_NOFAIL 
-> > would be preserved if that's the slab cache's allocflags.
-> 
-> Right, patch is junk.
-> 
-> However, I haven't been able to trigger failures since I've switched
-> to SLAB allocator.  That patch seemed related (and wrong), but it
-> wasn't.
-> 
+Hi Mel,
 
-Interesting. Pekka, I looked for SLUB commits in the 2.6.30..2.6.31
-range for patches that might affect what order of pages SLUB allocates
-but didn't spot anything obvious. Can you think of any changes that
-might have altered how SLUB uses memory?
+Tuesday Mel Gorman wrote:
+> 4. Does the following patch help by any chance?
+>
+> Thanks
+>
+> ==== CUT HERE ====
+> vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
+>
+> When a high-order allocation fails, kswapd is kicked so that it reclaims
+> at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
+> allocations. Something has changed in recent kernels that affect the timing
+> where high-order GFP_ATOMIC allocations are now failing with more frequency,
+> particularly under pressure. This patch forces kswapd to notice sooner that
+> high-order allocations are occuring by checking when watermarks are hit early
+> and by having kswapd restart quickly when the reclaim order is increased.
+>
+> Not-signed-off-by-because-this-is-a-hatchet-job: Mel Gorman <mel@csn.ul.ie>
+> ---
 
-> > >  		 */
-> > > -		page = alloc_slab_page(flags, node, oo);
-> > > +		page = alloc_slab_page(flags | nofail, node, oo);
-> > >  		if (!page)
-> > >  			return NULL;
-> > >  
-> > > 
-> > 
-> > This does nothing.  You may have missed that the lower order allocation is 
-> > passing 'flags' (which is a union of the gfp flags passed to 
-> > allocate_slab() based on the allocation context and the cache's 
-> > allocflags), and not alloc_gfp where __GFP_NOFAIL is masked.
-> 
-> Right, I missed that.
-> 
-> > Nack.
-> > 
-> > Note: slub isn't going to be a culprit in order 5 allocation failures 
-> > since they have kmalloc passthrough to the page allocator.
-> 
-> However, it might change fragmentation somewhat I guess.  This might
-> make problem more/less visible.
-> 
+it does seem to help ... I have been running it from 6am to 12am on
+our server now and have not yet seen any issues ...
 
-Did you have CONFIG_KMEMCHECK set by any chance?
+will shout if I do ...
+
+cheers
+tobi
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
+http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
