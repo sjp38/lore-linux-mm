@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A4EA26B004D
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 11:49:15 -0400 (EDT)
-Date: Thu, 22 Oct 2009 16:49:13 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D8C016B004D
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 12:03:14 -0400 (EDT)
+Date: Thu, 22 Oct 2009 17:03:10 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/5] page allocator: Always wake kswapd when restarting
-	an allocation attempt after direct reclaim failed
-Message-ID: <20091022154913.GQ11778@csn.ul.ie>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-2-git-send-email-mel@csn.ul.ie> <84144f020910220741o51c7e3dajcfd7b78d6dbbc4eb@mail.gmail.com>
+Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
+	failures V2
+Message-ID: <20091022160310.GS11778@csn.ul.ie>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <84144f020910220747nba30d8bkc83c2569da79bd7c@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <84144f020910220741o51c7e3dajcfd7b78d6dbbc4eb@mail.gmail.com>
+In-Reply-To: <84144f020910220747nba30d8bkc83c2569da79bd7c@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 22, 2009 at 05:41:53PM +0300, Pekka Enberg wrote:
+On Thu, Oct 22, 2009 at 05:47:10PM +0300, Pekka Enberg wrote:
 > On Thu, Oct 22, 2009 at 5:22 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > If a direct reclaim makes no forward progress, it considers whether it
-> > should go OOM or not. Whether OOM is triggered or not, it may retry the
-> > application afterwards. In times past, this would always wake kswapd as well
-> > but currently, kswapd is not woken up after direct reclaim fails. For order-0
-> > allocations, this makes little difference but if there is a heavy mix of
-> > higher-order allocations that direct reclaim is failing for, it might mean
-> > that kswapd is not rewoken for higher orders as much as it did previously.
+> > Test 1: Verify your problem occurs on 2.6.32-rc5 if you can
 > >
-> > This patch wakes up kswapd when an allocation is being retried after a direct
-> > reclaim failure. It would be expected that kswapd is already awake, but
-> > this has the effect of telling kswapd to reclaim at the higher order as well.
+> > Test 2: Apply the following two patches and test again
 > >
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> >  1/5 page allocator: Always wake kswapd when restarting an allocation attempt after direct reclaim failed
+> >  2/5 page allocator: Do not allow interrupts to use ALLOC_HARDER
 > 
-> You seem to have dropped the Reviewed-by tags from me and Christoph
-> for this patch.
+> These are pretty obvious bug fixes and should go to linux-next ASAP IMHO.
 > 
 
-My apologies. I missed then when going through the old mails.
+Agreed, but I wanted to pin down where exactly we stand with this
+problem before sending patches any direction for merging.
 
-> >  mm/page_alloc.c |    2 +-
-> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > Test 5: If things are still screwed, apply the following
+> >  5/5 Revert 373c0a7e, 8aa7e847: Fix congestion_wait() sync/async vs read/write confusion
 > >
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index bf72055..dfa4362 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1817,9 +1817,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >        if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
-> >                goto nopage;
-> >
-> > +restart:
-> >        wake_all_kswapd(order, zonelist, high_zoneidx);
-> >
-> > -restart:
-> >        /*
-> >         * OK, we're below the kswapd watermark and have kicked background
-> >         * reclaim. Now things get more complex, so set up alloc_flags according
-> > --
-> > 1.6.3.3
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >
+> >        Frans Pop reports that the bulk of his problems go away when this
+> >        patch is reverted on 2.6.31. There has been some confusion on why
+> >        exactly this patch was wrong but apparently the conversion was not
+> >        complete and further work was required. It's unknown if all the
+> >        necessary work exists in 2.6.31-rc5 or not. If there are still
+> >        allocation failures and applying this patch fixes the problem,
+> >        there are still snags that need to be ironed out.
 > 
+> As explained by Jens Axboe, this changes timing but is not the source
+> of the OOMs so the revert is bogus even if it "helps" on some
+> workloads. IIRC the person who reported the revert to help things did
+> report that the OOMs did not go away, they were simply harder to
+> trigger with the revert.
+> 
+
+IIRC, there were mixed reports as to how much the revert helped.  I'm hoping
+that patches 1+2 cover the bases hence why I asked them to be tested on
+their own. Patch 2 in particular might be responsible for watermarks being
+impacted enough to cause timing problems. I left reverting with patch 5 as
+a standalone test to see how much of a factor the timing changes introduced
+are if there are still allocation problems.
 
 -- 
 Mel Gorman
