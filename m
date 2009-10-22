@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 34A876B0078
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 00:15:17 -0400 (EDT)
-Subject: [PATCH v2 2/5] mm: refactor register_cpu_under_node()
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E81CF6B007D
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2009 00:15:21 -0400 (EDT)
+Subject: [PATCH v2 3/5] mm: refactor unregister_cpu_under_node()
 From: Alex Chiang <achiang@hp.com>
-Date: Wed, 21 Oct 2009 22:15:15 -0600
-Message-ID: <20091022041515.15705.26283.stgit@bob.kio>
+Date: Wed, 21 Oct 2009 22:15:20 -0600
+Message-ID: <20091022041520.15705.206.stgit@bob.kio>
 In-Reply-To: <20091022040814.15705.95572.stgit@bob.kio>
 References: <20091022040814.15705.95572.stgit@bob.kio>
 MIME-Version: 1.0
@@ -17,35 +17,32 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 By returning early if the node is not online, we can unindent the
-interesting code by one level.
+interesting code by two levels.
 
 No functional change.
 
 Signed-off-by: Alex Chiang <achiang@hp.com>
 ---
 
- drivers/base/node.c |   20 +++++++++++---------
- 1 files changed, 11 insertions(+), 9 deletions(-)
+ drivers/base/node.c |   18 ++++++++++++------
+ 1 files changed, 12 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 3108b21..ef7dd22 100644
+index ef7dd22..ffda067 100644
 --- a/drivers/base/node.c
 +++ b/drivers/base/node.c
-@@ -227,16 +227,18 @@ struct node node_devices[MAX_NUMNODES];
-  */
- int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+@@ -243,12 +243,18 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+ 
+ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
  {
 -	if (node_online(nid)) {
 -		struct sys_device *obj = get_cpu_sysdev(cpu);
--		if (!obj)
--			return 0;
--		return sysfs_create_link(&node_devices[nid].sysdev.kobj,
--					 &obj->kobj,
+-		if (obj)
+-			sysfs_remove_link(&node_devices[nid].sysdev.kobj,
 -					 kobject_name(&obj->kobj));
--	 }
+-	}
 +	struct sys_device *obj;
- 
--	return 0;
++
 +	if (!node_online(nid))
 +		return 0;
 +
@@ -53,12 +50,12 @@ index 3108b21..ef7dd22 100644
 +	if (!obj)
 +		return 0;
 +
-+	return sysfs_create_link(&node_devices[nid].sysdev.kobj,
-+				&obj->kobj,
-+				kobject_name(&obj->kobj));
++	sysfs_remove_link(&node_devices[nid].sysdev.kobj,
++			  kobject_name(&obj->kobj));
++
+ 	return 0;
  }
  
- int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
