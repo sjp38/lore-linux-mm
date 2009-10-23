@@ -1,49 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D79EE6B004D
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2009 03:31:48 -0400 (EDT)
-Received: from ultimate100.geggus.net ([2a01:198:297:1::1])
-	by nerdhammel.gnuher.de (envelope-from
-	<lists@fuchsschwanzdomain.de>)
-	with esmtpsa (TLS1.0:RSA_AES_256_CBC_SHA1:32)
-	(Exim 4.69)
-	id 1N1Ecj-00011G-OI
-	for linux-mm@kvack.org; Fri, 23 Oct 2009 09:31:45 +0200
-Date: Fri, 23 Oct 2009 09:31:21 +0200
-From: Sven Geggus <lists@fuchsschwanzdomain.de>
-Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
-	failures V2
-Message-ID: <20091023073120.GA16987@geggus.net>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 22B9E6B004D
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2009 05:13:36 -0400 (EDT)
+Date: Fri, 23 Oct 2009 10:13:34 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/5] page allocator: Pre-emptively wake kswapd when
+	high-order watermarks are hit
+Message-ID: <20091023091334.GV11778@csn.ul.ie>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-5-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.0910221227010.21601@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1256221356-26049-1-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <alpine.DEB.2.00.0910221227010.21601@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman schrieb am Donnerstag, den 22. Oktober um 16:22 Uhr:
+On Thu, Oct 22, 2009 at 12:41:42PM -0700, David Rientjes wrote:
+> On Thu, 22 Oct 2009, Mel Gorman wrote:
+> 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 7f2aa3e..851df40 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1596,6 +1596,17 @@ try_next_zone:
+> >  	return page;
+> >  }
+> >  
+> > +static inline
+> > +void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+> > +						enum zone_type high_zoneidx)
+> > +{
+> > +	struct zoneref *z;
+> > +	struct zone *zone;
+> > +
+> > +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+> > +		wakeup_kswapd(zone, order);
+> > +}
+> > +
+> >  static inline int
+> >  should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+> >  				unsigned long pages_reclaimed)
+> > @@ -1730,18 +1741,18 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+> >  			congestion_wait(BLK_RW_ASYNC, HZ/50);
+> >  	} while (!page && (gfp_mask & __GFP_NOFAIL));
+> >  
+> > -	return page;
+> > -}
+> > -
+> > -static inline
+> > -void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+> > -						enum zone_type high_zoneidx)
+> > -{
+> > -	struct zoneref *z;
+> > -	struct zone *zone;
+> > +	/*
+> > +	 * If after a high-order allocation we are now below watermarks,
+> > +	 * pre-emptively kick kswapd rather than having the next allocation
+> > +	 * fail and have to wake up kswapd, potentially failing GFP_ATOMIC
+> > +	 * allocations or entering direct reclaim
+> > +	 */
+> > +	if (unlikely(order) && page && !zone_watermark_ok(preferred_zone, order,
+> > +				preferred_zone->watermark[ALLOC_WMARK_LOW],
+> > +				zone_idx(preferred_zone), ALLOC_WMARK_LOW))
+> > +		wake_all_kswapd(order, zonelist, high_zoneidx);
+> >  
+> > -	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+> > -		wakeup_kswapd(zone, order);
+> > +	return page;
+> >  }
+> >  
+> >  static inline int
+> 
+> Hmm, is this really supposed to be added to __alloc_pages_high_priority()?  
+> By the patch description I was expecting kswapd to be woken up 
+> preemptively whenever the preferred zone is below ALLOC_WMARK_LOW and 
+> we're known to have just allocated at a higher order, not just when 
+> current was oom killed (when we should already be freeing a _lot_ of 
+> memory soon) or is doing a higher order allocation during direct reclaim.
+> 
 
-> [No BZ ID] Kernel crash on 2.6.31.x (kcryptd: page allocation failure..)
-> 	This apparently is easily reproducible, particular in comparison to
-> 	the other reports. The point of greatest interest is that this is
-> 	order-0 GFP_ATOMIC failures. Sven, I'm hoping that you in particular
-> 	will be able to follow the tests below as you are the most likely
-> 	person to have an easily reproducible situation.
+It was a somewhat arbitrary choice to have it trigger in the event high
+priority allocations were happening frequently.
 
-I will see what I can do on the weekend. Unfortunately the crash happens on
-a somewhat important machine and afterwards the Software-RAID needs a resync
-which takes a few hours.
+> For the best coverage, it would have to be add the branch to the fastpath.  
 
-Sven
+Agreed - specifically at the end of __alloc_pages_nodemask()
+
+> That seems fine for a debugging aid and to see if progress is being made 
+> on the GFP_ATOMIC allocation issues, but doesn't seem like it should make 
+> its way to mainline, the subsequent GFP_ATOMIC allocation could already be 
+> happening and in the page allocator's slowpath at this point that this 
+> wakeup becomes unnecessary.
+> 
+> If this is moved to the fastpath, why is this wake_all_kswapd() and not
+> wakeup_kswapd(preferred_zone, order)?  Do we need to kick kswapd in all 
+> zones even though they may be free just because preferred_zone is now 
+> below the watermark?
+> 
+
+It probably makes no difference as zones are checked for their watermarks
+before any real work happens. However, even if this patch makes a difference,
+I don't want to see it merged.  At best, it is an extremely heavy-handed
+hack which is why I asked for it to be tested in isolation. It shouldn't
+be necessary at all because sort of pre-emptive waking of kswapd was never
+necessary before.
+
+> Wouldn't it be better to do this on page_zone(page) instead of 
+> preferred_zone anyway?
+> 
+
+No. The preferred_zone is the zone we should be allocating from. If we
+failed to allocate from it, it implies the watermarks are not being met
+so we want to wake it.
 
 -- 
-"Those who do not understand Unix are condemned to reinvent it, poorly"
-(Henry Spencer)
-
-/me is giggls@ircnet, http://sven.gegg.us/ on the Web
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
