@@ -1,70 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 989736B0071
-	for <linux-mm@kvack.org>; Sun, 25 Oct 2009 21:15:16 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9Q1FEEx002539
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 26 Oct 2009 10:15:14 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DDE6745DE54
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:15:13 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B548145DE4C
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:15:13 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F64FE08009
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:15:13 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CB5D1DB803F
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:15:13 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/5] page allocator: Do not allow interrupts to use ALLOC_HARDER
-In-Reply-To: <1256221356-26049-3-git-send-email-mel@csn.ul.ie>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-3-git-send-email-mel@csn.ul.ie>
-Message-Id: <20091026101420.2F53.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 26 Oct 2009 10:15:12 +0900 (JST)
+	by kanga.kvack.org (Postfix) with SMTP id 92B9C6B005A
+	for <linux-mm@kvack.org>; Sun, 25 Oct 2009 22:01:12 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9Q1vX0D019928
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 26 Oct 2009 10:57:33 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B4FE2AEA8D
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:57:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DF94845DE4E
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:57:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B95C3E38002
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:57:32 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6CB111DB803C
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:57:32 +0900 (JST)
+Date: Mon, 26 Oct 2009 10:55:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Memory overcommit
+Message-Id: <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4ADE3121.6090407@gmail.com>
+References: <hav57c$rso$1@ger.gmane.org>
+	<20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com>
+	<hb2cfu$r08$2@ger.gmane.org>
+	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>
+	<4ADE3121.6090407@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>
+To: vedran.furac@gmail.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Commit 341ce06f69abfafa31b9468410a13dbd60e2b237 altered watermark logic
-> slightly by allowing rt_tasks that are handling an interrupt to set
-> ALLOC_HARDER. This patch brings the watermark logic more in line with
-> 2.6.30.
+On Tue, 20 Oct 2009 23:52:33 +0200
+Vedran FuraA? <vedran.furac@gmail.com> wrote:
+
+> Hi and sorry for delay. Also, please CC me.
+
+> > But I agree, OOM killer should be sophisticated.
+> > Please give us a sample program/test case which causes problem.
+> > linux-mm@kvack.org may be a better place. lkml has too much traffic.
 > 
-> [rientjes@google.com: Spotted the problem]
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-> ---
->  mm/page_alloc.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+> #include <stdio.h>
+> #include <string.h>
+> #include <stdlib.h>
+> #include <unistd.h>
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index dfa4362..7f2aa3e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1769,7 +1769,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
->  		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
->  		 */
->  		alloc_flags &= ~ALLOC_CPUSET;
-> -	} else if (unlikely(rt_task(p)))
-> +	} else if (unlikely(rt_task(p)) && !in_interrupt())
->  		alloc_flags |= ALLOC_HARDER;
->  
->  	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-> -- 
-> 1.6.3.3
+> int main()
+> {
+>   char *buf;
+>   while(1) {
+>     buf = malloc (1024*1024*100);
+>     if ( buf == NULL ) {
+>       perror("malloc");
+>       getchar();
+>       exit(EXIT_FAILURE);
+>     }
+>     sleep(1);
+>     memset(buf, 1, 1024*1024*100);
+>   }
+>   return 0;
+> }
+> 
+> 
+> After running this on a typical desktop with gnome or kde, OOM killer
+> will kill 5-10 innocent processes before killing this one. Tested
+> multiple times on multiple installations.
+> 
+> Regards,
+> 
+Can I make more questions ?
 
-good catch.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+ - What's cpu ?
+ - How much memory ?
+ - Do you have swap ?
+ - What's the latest kernel version you tested?
+ - Could you show me /var/log/dmesg and /var/log/messages at OOM ?
+ 
+Thanks,
+-Kame
 
 
 
+> Vedran
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
