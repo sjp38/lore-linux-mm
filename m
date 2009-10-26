@@ -1,84 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 485926B005A
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 12:16:19 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so2288412bwz.10
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2009 09:16:16 -0700 (PDT)
-Message-ID: <4AE5CB4E.4090504@gmail.com>
-Date: Mon, 26 Oct 2009 17:16:14 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3675D6B005A
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 13:37:39 -0400 (EDT)
+Date: Mon, 26 Oct 2009 18:37:36 +0100 (CET)
+From: Tobias Oetiker <tobi@oetiker.ch>
+Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
+ failures V2
+In-Reply-To: <1256221356-26049-1-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.0910261835440.24625@wbuna.brgvxre.pu>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: Memory overcommit
-References: <hav57c$rso$1@ger.gmane.org>	<20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com>	<hb2cfu$r08$2@ger.gmane.org>	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>	<4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\\\"" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
+Hi Mel,
 
-> Can I make more questions ?
+I have no done additional tests ... and can report the following
 
-Sure
+Thursday Mel Gorman wrote:
 
->  - What's cpu ?
+>   1/5 page allocator: Always wake kswapd when restarting an allocation attempt after direct reclaim failed
+>   2/5 page allocator: Do not allow interrupts to use ALLOC_HARDER
+>
+>
+> 	These patches correct problems introduced by me during the 2.6.31-rc1
+> 	merge window. The patches were not meant to introduce any functional
+> 	changes but two were missed.
+>
+> 	If your problem goes away with just these two patches applied,
+> 	please tell me.
 
-vendor_id       : AuthenticAMD
+1+2 do not help
 
+> Test 3: If you are getting allocation failures, try with the following patch
+>
+>   3/5 vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
+>
+> 	This is a functional change that causes kswapd to notice sooner
+> 	when high-order watermarks have been hit. There have been a number
+> 	of changes in page reclaim since 2.6.30 that might have delayed
+> 	when kswapd kicks in for higher orders
+>
+> 	If your problem goes away with these three patches applied, please
+> 	tell me
 
-cpu family      : 16
+1+2+3 do not help either
 
+> Test 4: If you are still getting failures, apply the following
+>   4/5 page allocator: Pre-emptively wake kswapd when high-order watermarks are hit
+>
+> 	This patch is very heavy handed and pre-emptively kicks kswapd when
+> 	watermarks are hit. It should only be necessary if there has been
+> 	significant changes in the timing and density of page allocations
+> 	from an unknown source. Tobias, this patch is largely aimed at you.
+> 	You reported that with patches 3+4 applied that your problems went
+> 	away. I need to know if patch 3 on its own is enough or if both
+> 	are required
+>
+> 	If your problem goes away with these four patches applied, please
+> 	tell me
 
-model           : 4
+3 allone does not help
+3+4 does ...
 
-
-model name      : AMD Phenom(tm) II X3 720 Processor
-
-
-stepping        : 2
-
-
-cpu MHz         : 3314.812
-
-
-cache size      : 512 KB
-
-
->  - How much memory ?
->  - Do you have swap ?
-
-           total       used       free     shared    buffers     cached
-Mem:        3459       1452       2007          0         65        622
--/+ buffers/cache:      764       2695
-Swap:          0          0          0
-
-So, no swap. Don't need it.
-
->  - What's the latest kernel version you tested?
-
-2.6.30-2-amd64 #1 SMP (on Debian)
-
->  - Could you show me /var/log/dmesg and /var/log/messages at OOM ?
-
-It was catastrophe. :) X crashed (or killed) with all the programs, but
-my little program was alive for 20 minutes (see timestamps). And for
-that time computer was completely unusable. Couldn't even get the
-console via ssh. Rally embarrassing for a modern OS to get destroyed by
-a 5 lines of C run as an ordinary user. Luckily screen was still alive,
-oomk usually kills it also. See for yourself:
-
-dmesg: http://pastebin.com/f3f83738a
-messages: http://pastebin.com/f2091110a
-
-(CCing to lklm again... I just want people to see the logs.)
-
-Regards,
-
-Vedran
+cheers
+tobi
+-- 
+Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
+http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
