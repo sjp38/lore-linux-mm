@@ -1,51 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 566956B005A
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 03:10:39 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id n9Q7AVZM016240
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 07:10:32 GMT
-Received: from pwi18 (pwi18.prod.google.com [10.241.219.18])
-	by wpaz37.hot.corp.google.com with ESMTP id n9Q7ASq4023006
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 00:10:29 -0700
-Received: by pwi18 with SMTP id 18so3177421pwi.12
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2009 00:10:28 -0700 (PDT)
-Date: Mon, 26 Oct 2009 00:10:25 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/5] page allocator: Always wake kswapd when restarting
- an allocation attempt after direct reclaim failed
-In-Reply-To: <20091026100019.2F4A.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0910260005500.15361@chino.kir.corp.google.com>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-2-git-send-email-mel@csn.ul.ie> <20091026100019.2F4A.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 485926B005A
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 12:16:19 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so2288412bwz.10
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2009 09:16:16 -0700 (PDT)
+Message-ID: <4AE5CB4E.4090504@gmail.com>
+Date: Mon, 26 Oct 2009 17:16:14 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Memory overcommit
+References: <hav57c$rso$1@ger.gmane.org>	<20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com>	<hb2cfu$r08$2@ger.gmane.org>	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>	<4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 26 Oct 2009, KOSAKI Motohiro wrote:
+KAMEZAWA Hiroyuki wrote:
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index bf72055..5a27896 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1899,6 +1899,12 @@ rebalance:
->  	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
->  		/* Wait for some write requests to complete then retry */
->  		congestion_wait(BLK_RW_ASYNC, HZ/50);
-> +
-> +		/*
-> +		 * While we wait congestion wait, Amount of free memory can
-> +		 * be changed dramatically. Thus, we kick kswapd again.
-> +		 */
-> +		wake_all_kswapd(order, zonelist, high_zoneidx);
->  		goto rebalance;
->  	}
->  
+> Can I make more questions ?
 
-We're blocking to finish writeback of the directly reclaimed memory, why 
-do we need to wake kswapd afterwards?
+Sure
+
+>  - What's cpu ?
+
+vendor_id       : AuthenticAMD
+
+
+cpu family      : 16
+
+
+model           : 4
+
+
+model name      : AMD Phenom(tm) II X3 720 Processor
+
+
+stepping        : 2
+
+
+cpu MHz         : 3314.812
+
+
+cache size      : 512 KB
+
+
+>  - How much memory ?
+>  - Do you have swap ?
+
+           total       used       free     shared    buffers     cached
+Mem:        3459       1452       2007          0         65        622
+-/+ buffers/cache:      764       2695
+Swap:          0          0          0
+
+So, no swap. Don't need it.
+
+>  - What's the latest kernel version you tested?
+
+2.6.30-2-amd64 #1 SMP (on Debian)
+
+>  - Could you show me /var/log/dmesg and /var/log/messages at OOM ?
+
+It was catastrophe. :) X crashed (or killed) with all the programs, but
+my little program was alive for 20 minutes (see timestamps). And for
+that time computer was completely unusable. Couldn't even get the
+console via ssh. Rally embarrassing for a modern OS to get destroyed by
+a 5 lines of C run as an ordinary user. Luckily screen was still alive,
+oomk usually kills it also. See for yourself:
+
+dmesg: http://pastebin.com/f3f83738a
+messages: http://pastebin.com/f2091110a
+
+(CCing to lklm again... I just want people to see the logs.)
+
+Regards,
+
+Vedran
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
