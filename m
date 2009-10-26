@@ -1,100 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 92B9C6B005A
-	for <linux-mm@kvack.org>; Sun, 25 Oct 2009 22:01:12 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9Q1vX0D019928
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 26 Oct 2009 10:57:33 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B4FE2AEA8D
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:57:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DF94845DE4E
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:57:32 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B95C3E38002
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:57:32 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6CB111DB803C
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 10:57:32 +0900 (JST)
-Date: Mon, 26 Oct 2009 10:55:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Memory overcommit
-Message-Id: <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4ADE3121.6090407@gmail.com>
-References: <hav57c$rso$1@ger.gmane.org>
-	<20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com>
-	<hb2cfu$r08$2@ger.gmane.org>
-	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>
-	<4ADE3121.6090407@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 566956B005A
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 03:10:39 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id n9Q7AVZM016240
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 07:10:32 GMT
+Received: from pwi18 (pwi18.prod.google.com [10.241.219.18])
+	by wpaz37.hot.corp.google.com with ESMTP id n9Q7ASq4023006
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 00:10:29 -0700
+Received: by pwi18 with SMTP id 18so3177421pwi.12
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2009 00:10:28 -0700 (PDT)
+Date: Mon, 26 Oct 2009 00:10:25 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/5] page allocator: Always wake kswapd when restarting
+ an allocation attempt after direct reclaim failed
+In-Reply-To: <20091026100019.2F4A.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0910260005500.15361@chino.kir.corp.google.com>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-2-git-send-email-mel@csn.ul.ie> <20091026100019.2F4A.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: vedran.furac@gmail.com
-Cc: linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Oct 2009 23:52:33 +0200
-Vedran FuraA? <vedran.furac@gmail.com> wrote:
+On Mon, 26 Oct 2009, KOSAKI Motohiro wrote:
 
-> Hi and sorry for delay. Also, please CC me.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index bf72055..5a27896 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1899,6 +1899,12 @@ rebalance:
+>  	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
+>  		/* Wait for some write requests to complete then retry */
+>  		congestion_wait(BLK_RW_ASYNC, HZ/50);
+> +
+> +		/*
+> +		 * While we wait congestion wait, Amount of free memory can
+> +		 * be changed dramatically. Thus, we kick kswapd again.
+> +		 */
+> +		wake_all_kswapd(order, zonelist, high_zoneidx);
+>  		goto rebalance;
+>  	}
+>  
 
-> > But I agree, OOM killer should be sophisticated.
-> > Please give us a sample program/test case which causes problem.
-> > linux-mm@kvack.org may be a better place. lkml has too much traffic.
-> 
-> #include <stdio.h>
-> #include <string.h>
-> #include <stdlib.h>
-> #include <unistd.h>
-> 
-> int main()
-> {
->   char *buf;
->   while(1) {
->     buf = malloc (1024*1024*100);
->     if ( buf == NULL ) {
->       perror("malloc");
->       getchar();
->       exit(EXIT_FAILURE);
->     }
->     sleep(1);
->     memset(buf, 1, 1024*1024*100);
->   }
->   return 0;
-> }
-> 
-> 
-> After running this on a typical desktop with gnome or kde, OOM killer
-> will kill 5-10 innocent processes before killing this one. Tested
-> multiple times on multiple installations.
-> 
-> Regards,
-> 
-Can I make more questions ?
-
- - What's cpu ?
- - How much memory ?
- - Do you have swap ?
- - What's the latest kernel version you tested?
- - Could you show me /var/log/dmesg and /var/log/messages at OOM ?
- 
-Thanks,
--Kame
-
-
-
-> Vedran
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+We're blocking to finish writeback of the directly reclaimed memory, why 
+do we need to wake kswapd afterwards?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
