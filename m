@@ -1,131 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BEDB16B0073
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 22:43:03 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9R2h0vu008833
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id CF5576B0078
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 22:43:05 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9R2h2gG014552
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 27 Oct 2009 11:43:00 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BD1445DE50
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:43:00 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6982F45DE51
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:43:00 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D60E1DB8038
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:43:00 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C77051DB8045
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:42:59 +0900 (JST)
+	Tue, 27 Oct 2009 11:43:02 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6495C45DE58
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:43:02 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 43DB845DE54
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:43:02 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EC7801DB8046
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:43:01 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C3351DB8045
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:43:01 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/5] page allocator: Pre-emptively wake kswapd when high-order watermarks are hit
-In-Reply-To: <1256221356-26049-5-git-send-email-mel@csn.ul.ie>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-5-git-send-email-mel@csn.ul.ie>
-Message-Id: <20091026235032.2F78.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 5/5] ONLY-APPLY-IF-STILL-FAILING Revert 373c0a7e, 8aa7e847: Fix congestion_wait() sync/async vs read/write confusion
+In-Reply-To: <1256221356-26049-6-git-send-email-mel@csn.ul.ie>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-6-git-send-email-mel@csn.ul.ie>
+Message-Id: <20091026235628.2F7B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 27 Oct 2009 11:42:58 +0900 (JST)
+Date: Tue, 27 Oct 2009 11:42:59 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: kosaki.motohiro@jp.fujitsu.com, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> When a high-order allocation fails, kswapd is kicked so that it reclaims
-> at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
-> allocations. Something has changed in recent kernels that affect the timing
-> where high-order GFP_ATOMIC allocations are now failing with more frequency,
-> particularly under pressure.
-> 
-> This patch pre-emptively checks if watermarks have been hit after a
-> high-order allocation completes successfully. If the watermarks have been
-> reached, kswapd is woken in the hope it fixes the watermarks before the
-> next GFP_ATOMIC allocation fails.
-> 
-> Warning, this patch is somewhat of a band-aid. If this makes a difference,
-> it still implies that something has changed that is either causing more
-> GFP_ATOMIC allocations to occur (such as the case with iwlagn wireless
-> driver) or make them more likely to fail.
+> Testing by Frans Pop indicates that in the 2.6.30..2.6.31 window at
+> least that the commits 373c0a7e 8aa7e847 dramatically increased the
+> number of GFP_ATOMIC failures that were occuring within a wireless
+> driver. It was never isolated which of the changes was the exact problem
+> and it's possible it has been fixed since. If problems are still
+> occuring with GFP_ATOMIC in 2.6.31-rc5, then this patch should be
+> applied to determine if the congestion_wait() callers are still broken.
 
-hmm, I'm confused. this description addressed generic high order allocation.
-but, 
+Oops. no, please no.
+8aa7e847 is regression fixing commit. this revert indicate the regression
+occur again.
+if we really need to revert it, we need to revert 1faa16d2287 too.
+however, I doubt this commit really cause regression to iwlan. IOW,
+I agree Jens.
 
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/page_alloc.c |   33 ++++++++++++++++++++++-----------
->  1 files changed, 22 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7f2aa3e..851df40 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1596,6 +1596,17 @@ try_next_zone:
->  	return page;
->  }
->  
-> +static inline
-> +void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
-> +						enum zone_type high_zoneidx)
-> +{
-> +	struct zoneref *z;
-> +	struct zone *zone;
-> +
-> +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
-> +		wakeup_kswapd(zone, order);
-> +}
-> +
->  static inline int
->  should_alloc_retry(gfp_t gfp_mask, unsigned int order,
->  				unsigned long pages_reclaimed)
-> @@ -1730,18 +1741,18 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
-
-__alloc_pages_high_priority() is only called if ALLOC_NO_WATERMARKS.
-ALLOC_NO_WATERMARKS mean PF_MEMALLOC or TIF_MEMDIE and GFP_ATOMIC don't make
-nested alloc_pages() (= don't make PF_MEMALLOC case). 
-Then, I haven't understand why this patch improve iwlagn GFP_ATOMIC case.
-
-hmm, maybe I missed something. I see the code again tommorow.
+I hope to try reproduce this problem on my test environment. Can anyone
+please explain reproduce way?
+Is special hardware necessary?
 
 
->  			congestion_wait(BLK_RW_ASYNC, HZ/50);
->  	} while (!page && (gfp_mask & __GFP_NOFAIL));
->  
-> -	return page;
-> -}
-> -
-> -static inline
-> -void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
-> -						enum zone_type high_zoneidx)
-> -{
-> -	struct zoneref *z;
-> -	struct zone *zone;
-> +	/*
-> +	 * If after a high-order allocation we are now below watermarks,
-> +	 * pre-emptively kick kswapd rather than having the next allocation
-> +	 * fail and have to wake up kswapd, potentially failing GFP_ATOMIC
-> +	 * allocations or entering direct reclaim
-> +	 */
-> +	if (unlikely(order) && page && !zone_watermark_ok(preferred_zone, order,
-> +				preferred_zone->watermark[ALLOC_WMARK_LOW],
-> +				zone_idx(preferred_zone), ALLOC_WMARK_LOW))
-> +		wake_all_kswapd(order, zonelist, high_zoneidx);
->  
-> -	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
-> -		wakeup_kswapd(zone, order);
-> +	return page;
->  }
->  
->  static inline int
-> -- 
-> 1.6.3.3
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----------------------------------------------------
+commit 8aa7e847d834ed937a9ad37a0f2ad5b8584c1ab0
+Author: Jens Axboe <jens.axboe@oracle.com>
+Date:   Thu Jul 9 14:52:32 2009 +0200
+
+    Fix congestion_wait() sync/async vs read/write confusion
+
+    Commit 1faa16d22877f4839bd433547d770c676d1d964c accidentally broke
+    the bdi congestion wait queue logic, causing us to wait on congestion
+    for WRITE (== 1) when we really wanted BLK_RW_ASYNC (== 0) instead.
+
+    Signed-off-by: Jens Axboe <jens.axboe@oracle.com>
 
 
 
