@@ -1,64 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7ED766B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 08:54:47 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 67F386B005A
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 08:55:08 -0400 (EDT)
 From: Frans Pop <elendil@planet.nl>
-Subject: Re: [PATCH 5/5] ONLY-APPLY-IF-STILL-FAILING Revert 373c0a7e, 8aa7e847: Fix congestion_wait() sync/async vs read/write confusion
-Date: Tue, 27 Oct 2009 11:29:01 +0100
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-6-git-send-email-mel@csn.ul.ie> <20091026235628.2F7B.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20091026235628.2F7B.A69D9226@jp.fujitsu.com>
+Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
+Date: Tue, 27 Oct 2009 12:10:27 +0100
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910152142.02876.elendil@planet.nl> <1255758143.21134.1360.camel@rc-desk>
+In-Reply-To: <1255758143.21134.1360.camel@rc-desk>
 MIME-Version: 1.0
 Content-Disposition: inline
-Message-Id: <200910271129.05586.elendil@planet.nl>
+Message-Id: <200910271210.31014.elendil@planet.nl>
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: reinette chatre <reinette.chatre@intel.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, "Abbas, Mohamed" <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 27 October 2009, KOSAKI Motohiro wrote:
-> Oops. no, please no.
-> 8aa7e847 is regression fixing commit. this revert indicate the
-> regression occur again.
-> if we really need to revert it, we need to revert 1faa16d2287 too.
-> however, I doubt this commit really cause regression to iwlan. IOW,
-> I agree Jens.
+Sorry for the delay in replying.
 
-This is not intended as a patch for mainline, but just as a test to see if 
-it improves things. It may be a regression fix, but it also creates a 
-significant change in behavior during swapping in my test case.
-If a fix is needed, it will probably by different from this revert.
-Please read: http://lkml.org/lkml/2009/10/26/510.
+On Saturday 17 October 2009, reinette chatre wrote:
+> Prompted by this thread we are in process of moving allocation to paged
+> skb. This will definitely reduce the allocation size (from order 2 to
+> order 1) and hopefully help with this problem also. Could you please try
+> with the attached two patches? They are based on 2.6.32-rc4.
 
-This mail has some data: http://lkml.org/lkml/2009/10/26/455.
+Looks very good! With these patches I no longer get any SKB allocation 
+errors, even during the heaviest freezes while gitk is loading. I do still 
+get (long) music skips during the freezes, but that's not unexpected.
+AFAICT the wireless connection is stable.
 
-> I hope to try reproduce this problem on my test environment. Can anyone
-> please explain reproduce way?
+Tested on top of current mainline git: v2.6.32-rc5-81-g964fe08.
 
-Please see my mails in this thread for bug #14141: 
-http://thread.gmane.org/gmane.linux.kernel/896714
-
-You will probably need to read some of them to understand the context of 
-the two mails linked above.
-
-The most relevant ones are (all from the same thread; not sure why gmane 
-gives such weird links):
-http://article.gmane.org/gmane.linux.kernel.mm/39909
-http://article.gmane.org/gmane.linux.kernel.kernel-testers/7228
-http://article.gmane.org/gmane.linux.kernel.kernel-testers/7165
-
-> Is special hardware necessary?
-
-Not special hardware, but you may need an encrypted partition and NFS; the 
-test may need to be modified according to the amount of memory you have.
-I think it should be possible to reproduce the freezes I see while ignoring 
-the SKB allocation errors as IMO those are just a symptom, not the cause.
-So you should not need wireless.
-
-The severity of the freezes during my test often increases if the test is 
-repeated (without rebooting).
+Please add, if you feel it's appropriate, my:
+Reported-and-tested-by: Frans Pop <elendil@planet.nl>
 
 Cheers,
 FJP
