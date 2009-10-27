@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3687B6B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 09:40:45 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4726B007B
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 09:40:46 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 3/3] vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
-Date: Tue, 27 Oct 2009 13:40:33 +0000
-Message-Id: <1256650833-15516-4-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 2/3] page allocator: Do not allow interrupts to use ALLOC_HARDER
+Date: Tue, 27 Oct 2009 13:40:32 +0000
+Message-Id: <1256650833-15516-3-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1256650833-15516-1-git-send-email-mel@csn.ul.ie>
 References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,38 +13,33 @@ To: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org
 Cc: linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-When a high-order allocation fails, kswapd is kicked so that it reclaims
-at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
-allocations. Something has changed in recent kernels that affect the timing
-where high-order GFP_ATOMIC allocations are now failing with more frequency,
-particularly under pressure. This patch forces kswapd to notice sooner that
-high-order allocations are occuring.
+Commit 341ce06f69abfafa31b9468410a13dbd60e2b237 altered watermark logic
+slightly by allowing rt_tasks that are handling an interrupt to set
+ALLOC_HARDER. This patch brings the watermark logic more in line with
+2.6.30.
 
+[rientjes@google.com: Spotted the problem]
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/vmscan.c |    9 +++++++++
- 1 files changed, 9 insertions(+), 0 deletions(-)
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 64e4388..7eceb02 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2016,6 +2016,15 @@ loop_again:
- 					priority != DEF_PRIORITY)
- 				continue;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dfa4362..7f2aa3e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1769,7 +1769,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+ 		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+ 		 */
+ 		alloc_flags &= ~ALLOC_CPUSET;
+-	} else if (unlikely(rt_task(p)))
++	} else if (unlikely(rt_task(p)) && !in_interrupt())
+ 		alloc_flags |= ALLOC_HARDER;
  
-+			/*
-+			 * Exit the function now and have kswapd start over
-+			 * if it is known that higher orders are required
-+			 */
-+			if (pgdat->kswapd_max_order > order) {
-+				all_zones_ok = 1;
-+				goto out;
-+			}
-+
- 			if (!zone_watermark_ok(zone, order,
- 					high_wmark_pages(zone), end_zone, 0))
- 				all_zones_ok = 0;
+ 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
 -- 
 1.6.3.3
 
