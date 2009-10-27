@@ -1,87 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5E3226B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 13:12:50 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so469645bwz.10
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2009 10:12:48 -0700 (PDT)
-Message-ID: <4AE72A0D.9070804@gmail.com>
-Date: Tue, 27 Oct 2009 18:12:45 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5B73F6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 13:21:21 -0400 (EDT)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
+Date: Tue, 27 Oct 2009 18:21:13 +0100
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <20091027155223.GL8900@csn.ul.ie> <20091027160332.GA7776@think>
+In-Reply-To: <20091027160332.GA7776@think>
 MIME-Version: 1.0
-Subject: Re: Memory overcommit
-References: <hav57c$rso$1@ger.gmane.org>	<20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com>	<hb2cfu$r08$2@ger.gmane.org>	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>	<4ADE3121.6090407@gmail.com>	<20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>	<4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200910271821.18521.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, hugh.dickins@tiscali.co.uk, akpm@linux-foundation.org, rientjes@google.com
+To: Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
+On Tuesday 27 October 2009, Chris Mason wrote:
+> On Tue, Oct 27, 2009 at 03:52:24PM +0000, Mel Gorman wrote:
+> > > So, after the move to async/sync, a lot more pages are getting
+> > > queued for writeback - more than three times the number of pages are
+> > > queued for writeback with the vanilla kernel. This amount of
+> > > congestion might be why direct reclaimers and kswapd's timings have
+> > > changed so much.
+> >
+> > Or more accurately, the vanilla kernel has queued up a lot more pages
+> > for IO than when the patch is reverted. I'm not seeing yet why this
+> > is.
+>
+> [ sympathies over confusion about congestion...lots of variables here ]
+>
+> If wb_kupdate has been able to queue more writes it is because the
+> congestion logic isn't stopping it.  We have congestion_wait(), but
+> before calling that in the writeback paths it says: are you congested?
+> and then backs off if the answer is yes.
+>
+> Ideally, direct reclaim will never do writeback.  We want it to be able
+> to find clean pages that kupdate and friends have already processed.
+>
+> Waiting for congestion is a funny thing, it only tells us the device has
+> managed to finish some IO or that a timeout has passed.  Neither event
+> has any relation to figuring out if the IO for reclaimable pages has
+> finished.
+>
+> One option is to have the VM remember the hashed waitqueue for one of
+> the pages it direct reclaims and then wait on it.
 
-> On Mon, 26 Oct 2009 17:16:14 +0100
-> Vedran FuraA? <vedran.furac@gmail.com> wrote:
->>>  - Could you show me /var/log/dmesg and /var/log/messages at OOM ?
->> It was catastrophe. :) X crashed (or killed) with all the programs, but
->> my little program was alive for 20 minutes (see timestamps). And for
->> that time computer was completely unusable. Couldn't even get the
->> console via ssh. Rally embarrassing for a modern OS to get destroyed by
->> a 5 lines of C run as an ordinary user. Luckily screen was still alive,
->> oomk usually kills it also. See for yourself:
->>
->> dmesg: http://pastebin.com/f3f83738a
->> messages: http://pastebin.com/f2091110a
->>
->> (CCing to lklm again... I just want people to see the logs.)
->>
-> Thank you for reporting and your patience. It seems something strange
-> that your KDE programs are killed. I agree.
+What people should be aware of is the behavior of the system I see at this 
+point. I've already mentioned this in other mails, but it's probably good 
+to repeat it here.
 
-No problem. I want this to be solved as much as you do. Actually, it is
-not strange, just a buggy algorithm.
+While gitk is reading commits with vanilla .31 and .32 kernels there is at 
+some point a fairly long period (10-20 seconds) where I see:
+- a completely frozen desktop, including frozen mouse cursor
+- really very little disk activity (HD led flashes very briefly less than
+  once per second)
+- reading commits stops completely during this period
+- no music.
+After that there is a period (another 5-15 seconds) with a huge amount of 
+disk activity during which the system gradually becomes responsive again 
+and in gitk the count of commits that have been read starts increasing 
+again (without a jump in the counter which confirms that no commits were 
+read during the freeze).
 
-Run:
+I cannot really tell what the system is doing during those freezes. Because 
+of the frozen desktop I cannot for example see CPU usage. I suspect that, 
+as there is hardly any disk activity, the system must be reorganizing RAM 
+or something. But it seems quite bad that that gets "bunched up" instead 
+of happening more gradually.
 
-% ps -T -eo pid,ppid,tid,vsz,command
+With the congestion_wait() change reverted I never see these freezes, only 
+much more normal minor latencies (< 2 seconds; mostly < 0.5 seconds), 
+which is probably unavoidable during heavy swapping.
 
-You'll see that ppid of a number of processes is kdeinit, gnome-session,
-fvwm or something else depending on what one is using. All of this
-processes are started automatically during startup or manually clicking
-on a menu item or by some keyboard shortcut. OOM algorithm just sums
-memory usage of all of them and adds that ot the parent. Just plain wrong.
-
-Also, it seems it's looking at VIRT instead of RES.
-
-> I attached a scirpt for checking oom_score of all exisiting process.
-> (oom_score is a value used for selecting "bad" processs.")
-> please run if you have time.
-
-96890   21463   VirtualBox // OK
-118615  11144   kded4 // WRONG
-127455  11158   knotify4 // WRONG
-132198  1       init // WRONG
-133940  11151   ksmserver // WRONG
-134109  11224   audacious2 // Audio player, maybe
-145476  21503   VirtualBox // OK
-174939  11322   icedove-bin // thunderbird, maybe
-178015  11223   akregator // rss reader, maybe
-201043  22672   krusader  // WRONG
-212609  11187   krunner // WRONG
-256911  24252   test // culprit, malloced 1GB
-1750371 11318   run-mozilla.sh // tiny, parent of firefox threads
-2044902 11141   kdeinit4 // tiny, parent of most KDE apps
-
-> Sigh, gnome-session has twice value of mmap(1G).
-> Of course, gnome-session only uses 6M bytes of anon.
-> I wonder this is because gnome-session has many children..but need to
-
-Yes it is.
-
-Regards,
-
-Vedran
+Hth,
+FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
