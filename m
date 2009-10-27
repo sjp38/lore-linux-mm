@@ -1,60 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6205B6B005A
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 14:47:53 -0400 (EDT)
-Date: Tue, 27 Oct 2009 19:47:43 +0100
+	by kanga.kvack.org (Postfix) with SMTP id 4742F6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 15:30:20 -0400 (EDT)
+Date: Tue, 27 Oct 2009 20:30:07 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][PATCH] oom_kill: avoid depends on total_vm and use real
- RSS/swap value for oom_score (Re: Memory overcommit
-Message-ID: <20091027184743.GD5753@random.random>
-References: <4ADE3121.6090407@gmail.com>
- <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
- <4AE5CB4E.4090504@gmail.com>
- <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
- <2f11576a0910262310g7aea23c0n9bfc84c900879d45@mail.gmail.com>
- <20091027153429.b36866c4.minchan.kim@barrios-desktop>
- <20091027153626.c5a4b5be.kamezawa.hiroyu@jp.fujitsu.com>
- <28c262360910262355p3cac5c1bla4de9d42ea67fb4e@mail.gmail.com>
- <20091027164526.da6a23cb.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0910271821130.11372@sister.anvils>
+Subject: Re: RFC: Transparent Hugepage support
+Message-ID: <20091027193007.GA6043@random.random>
+References: <20091026185130.GC4868@random.random>
+ <87ljiwk8el.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0910271821130.11372@sister.anvils>
+In-Reply-To: <87ljiwk8el.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, vedran.furac@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 27, 2009 at 06:39:07PM +0000, Hugh Dickins wrote:
-> OOM (physical memory) decisions on total_vm (virtual memory) has
-> seemed weird, so it's well worth trying this approach.  Whether swap
+On Tue, Oct 27, 2009 at 07:18:26PM +0100, Andi Kleen wrote:
+> In general the best would be to just merge hugetlbfs into
+> the normal VM. It has been growing for far too long as a separate
+> "second VM" by now. This seems like a reasonable first step,
+> but some comments blow.
 
-It is weird and wrong, I strongly support fixing it once and for
-all. The oom killing should be based on physical info, total_vm is
-a very rough approximation of the real info we're interested about
-(real RAM utilization of the task).
+Problem is hugetlbfs as it stands now can't be merged... it
+deliberately takes its own paths and it tries to be as far away from
+the VM as possible. But as you said, as people tries to make hugetlbfs
+vmas "more similar to the regular vmas" hugetlbfs slowly spreads into
+the VM code defeating the whole reason why hugetlbfs magic exists
+(i.e. to be out of the way of the VM as much as possible). Trying to
+make hugetlbfs more similar to regular vmas makes the VM more complex
+while still not achieving full feature for hugetlbfs (notably
+overcommit and paging).
 
-> should be included along with rss isn't quite clear to me: I'm not
-> saying you're wrong, not at all, just that it's not quite obvious.
+> The problem is that this will interact badly with 1GB pages -- once
+> you split them up you'll never get them back, because they 
+> can't be allocated at runtime.
 
-Agreed it's not obvious. Intuitively I think only including RSS and no
-swap is best, but clearly I can't be entirely against including swap
-too as there may be scenarios where including swap provides for a
-better choice.
+1GB pages can't be handled by this code, and clearly it's not
+practical to hope 1G pages to materialize in the buddy (even if we
+were to increase the buddy so much slowing it down regular page
+allocation). Let's forget 1G pages here... we're only focused on sizes
+that can be allocated dynamically. Main problem are the 64k pages or
+such that don't fit into a pmd...
 
-My argument for not including swap is that we kill tasks to free RAM
-(we don't really care to free swap, system needs RAM at oom time).
-Freeing swap won't immediately help because no RAM is freed when swap
-is released (sure other tasks that sits huge in RAM can be moved to
-swap after swap isn't full but if we immediately killed those tasks
-that were huge in RAM in the first place we'd be better off).
+> Even for 2MB pages it can be a problem.
+> 
+> You'll likely need to fix the page table code.
 
-> I've several observations to make about bad OOM kill decisions,
-> but it's probably better that I make them in the original
-> "Memory overcommit" thread, rather than divert this thread.
-
-:)
+In terms of fragmentation split_huge_page itself won't create
+it.. unless it swaps (but then CPU performance is lost on the mapping
+anyway). We need to teach mprotect/mremap not to call split_huge_page
+true, but not to avoid fragmentation. btw, thinking at fragmentation
+generated by mnmap(last4k) I also think I found a minor bug in munmap
+if a partial part of the 2M page is unmapped (currently I'm afraid I'm
+dropping the whole 2M in that case ;), but it's trivial to
+fix... clearly not many apps are truncating 4k off a 2M mapping.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
