@@ -1,52 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 58AE66B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 12:15:18 -0400 (EDT)
-Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
-From: reinette chatre <reinette.chatre@intel.com>
-In-Reply-To: <200910271210.31014.elendil@planet.nl>
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera>
-	 <200910152142.02876.elendil@planet.nl>
-	 <1255758143.21134.1360.camel@rc-desk>
-	 <200910271210.31014.elendil@planet.nl>
-Content-Type: text/plain
-Date: Tue, 27 Oct 2009 09:15:16 -0700
-Message-Id: <1256660116.21134.9172.camel@rc-desk>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 36E916B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 12:43:15 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 0A12482C70A
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 12:49:02 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 7Vvnq11wz1S1 for <linux-mm@kvack.org>;
+	Tue, 27 Oct 2009 12:48:57 -0400 (EDT)
+Received: from V090114053VZO-1 (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 44BF582C63D
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 12:48:57 -0400 (EDT)
+Date: Tue, 27 Oct 2009 16:42:39 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: RFC: Transparent Hugepage support
+In-Reply-To: <20091026185130.GC4868@random.random>
+Message-ID: <alpine.DEB.1.10.0910271630540.20363@V090114053VZO-1>
+References: <20091026185130.GC4868@random.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, "Abbas, Mohamed" <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Frans,
+On Mon, 26 Oct 2009, Andrea Arcangeli wrote:
 
-On Tue, 2009-10-27 at 04:10 -0700, Frans Pop wrote:
-> Sorry for the delay in replying.
-> 
-> On Saturday 17 October 2009, reinette chatre wrote:
-> > Prompted by this thread we are in process of moving allocation to paged
-> > skb. This will definitely reduce the allocation size (from order 2 to
-> > order 1) and hopefully help with this problem also. Could you please try
-> > with the attached two patches? They are based on 2.6.32-rc4.
-> 
-> Looks very good! With these patches I no longer get any SKB allocation 
-> errors, even during the heaviest freezes while gitk is loading. I do still 
-> get (long) music skips during the freezes, but that's not unexpected.
-> AFAICT the wireless connection is stable.
-> 
-> Tested on top of current mainline git: v2.6.32-rc5-81-g964fe08.
-> 
-> Please add, if you feel it's appropriate, my:
-> Reported-and-tested-by: Frans Pop <elendil@planet.nl>
+> Lately I've been working to make KVM use hugepages transparently
+> without the usual restrictions of hugetlbfs. Some of the restrictions
+> I'd like to see removed:
 
-Thank you very much for testing these patches so thoroughly. They are
-both on their way upstream already so I am not able to add your
-signature at this time. Since these are pretty big changes these patches
-will be in 2.6.33.
+Transparent huge page support is something that would be useful in many
+areas. The larger memories grow the more pressing the issue will become.
 
-Reinette
+> 1) hugepages have to be swappable or the guest physical memory remains
+>    locked in RAM and can't be paged out to swap
 
+Thats not such a big issue IMHO. Paging is not necessary. Swapping is
+deadly to many performance based loads. You would abort a job anyways that
+it going to swap. On the other hand I wish we would have migration support
+(which may be contingent on swap support).
+
+> 2) if a hugepage allocation fails, regular pages should be allocated
+>    instead and mixed in the same vma without any failure and without
+>    userland noticing
+
+Wont you be running into issues with page dirtying on that level?
+
+> 3) if some task quits and more hugepages become available in the
+>    buddy, guest physical memory backed by regular pages should be
+>    relocated on hugepages automatically in regions under
+>    madvise(MADV_HUGEPAGE) (ideally event driven by waking up the
+>    kernel deamon if the order=HPAGE_SHIFT-PAGE_SHIFT list becomes not
+>    null)
+
+Oww. This sounds like a heuristic page promotion demotion scheme.
+http://www.cs.rice.edu/~jnavarro/superpages/
+We have discussed this a couple of times and there was a strong feeling
+that the heuristics are bad. But that may no longer be the case since we
+already have stuff like KSM in the kernel. Memory management may get very
+complex in the future.
+
+> The most important design choice is: always fallback to 4k allocation
+> if the hugepage allocation fails! This is the _very_ opposite of some
+> large pagecache patches that failed with -EIO back then if a 64k (or
+> similar) allocation failed...
+
+Those also had fall back logic to 4k. Does this scheme also allow I/O with
+Hugepages through the VFS layer?
+
+> Second important decision (to reduce the impact of the feature on the
+> existing pagetable handling code) is that at any time we can split an
+> hugepage into 512 regular pages and it has to be done with an
+> operation that can't fail. This way the reliability of the swapping
+> isn't decreased (no need to allocate memory when we are short on
+> memory to swap) and it's trivial to plug a split_huge_page* one-liner
+> where needed without polluting the VM. Over time we can teach
+> mprotect, mremap and friends to handle pmd_trans_huge natively without
+> calling split_huge_page*. The fact it can't fail isn't just for swap:
+> if split_huge_page would return -ENOMEM (instead of the current void)
+> we'd need to rollback the mprotect from the middle of it (ideally
+> including undoing the split_vma) which would be a big change and in
+> the very wrong direction (it'd likely be simpler not to call
+> split_huge_page at all and to teach mprotect and friends to handle
+> hugepages instead of rolling them back from the middle). In short the
+> very value of split_huge_page is that it can't fail.
+
+I dont get the point of this. What do you mean by "an operation that
+cannot fail"? Atomic section?
+
+> The default I like is that transparent hugepages are used at page
+> fault time if they're available in O(1) in the buddy. This can be
+> disabled via sysctl/sysfs setting the value to 0, and if it is
+
+The consequence of this could be a vast waste of memory if you f.e. touch
+memory only in 1 megabyte increments.
+
+Separate the patch into a patchset for easy review.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
