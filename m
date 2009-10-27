@@ -1,103 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 500F26B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 17:44:28 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id n9RLiMiR032186
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 21:44:22 GMT
-Received: from pwi18 (pwi18.prod.google.com [10.241.219.18])
-	by wpaz13.hot.corp.google.com with ESMTP id n9RLiJDg005601
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 14:44:19 -0700
-Received: by pwi18 with SMTP id 18so402891pwi.16
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2009 14:44:18 -0700 (PDT)
-Date: Tue, 27 Oct 2009 14:44:14 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm] acpi: remove NID_INVAL
-In-Reply-To: <alpine.DEB.1.00.0910081325200.6998@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.0910271442250.30270@chino.kir.corp.google.com>
-References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain> <20091008162533.23192.71981.sendpatchset@localhost.localdomain> <alpine.DEB.1.10.0910081616040.8030@gentwo.org> <alpine.DEB.1.00.0910081325200.6998@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 9C64A6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 19:34:07 -0400 (EDT)
+Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
+ failures V2
+From: reinette chatre <reinette.chatre@intel.com>
+In-Reply-To: <20091027104017.GC8900@csn.ul.ie>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie>
+	 <1256226219.21134.1493.camel@rc-desk>  <20091027104017.GC8900@csn.ul.ie>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 27 Oct 2009 16:34:05 -0700
+Message-Id: <1256686445.21134.10091.camel@rc-desk>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-numa@vger.kernel.org, Len Brown <lenb@kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Abbas, Mohamed" <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-NUMA_NO_NODE has been exported globally and thus it can replace NID_INVAL
-in the acpi code.
+On Tue, 2009-10-27 at 03:40 -0700, Mel Gorman wrote:
+> On Thu, Oct 22, 2009 at 08:43:38AM -0700, reinette chatre wrote:
+> > On Thu, 2009-10-22 at 07:22 -0700, Mel Gorman wrote:
+> > > [Bug #14141] order 2 page allocation failures in iwlagn
+> > > 	Commit 4752c93c30441f98f7ed723001b1a5e3e5619829 introduced GFP_ATOMIC
+> > > 	allocations within the wireless driver. This has caused large numbers
+> > > 	of failure reports to occur as reported by Frans Pop. Fixing this
+> > > 	requires changes to the driver if it wants to use GFP_ATOMIC which
+> > > 	is in the hands of Mohamed Abbas and Reinette Chatre. However,
+> > > 	it is very likely that it has being compounded by core mm changes
+> > > 	that this series is aimed at.
+> > 
+> > Driver has been changed to allocate paged skb for its receive buffers.
+> > This reduces amount of memory needed from order-2 to order-1. This work
+> > is significant and will thus be in 2.6.33. 
+> > 
+> 
+> What do you want to do for -stable in 2.6.31?
+> 
 
-Also removes the unused acpi_unmap_pxm_to_node() function.
+I have just posted two patches to stable. The first is to address a bug
+in which buffer loss occurs when there is an allocation failure and the
+second is what Frans has been testing that reduces the noise when these
+allocations fail. They are:
 
-Cc: Len Brown <lenb@kernel.org>
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Depends on Lee Schermerhorn's hugetlb patchset in mmotm-10132113.
+  iwlwifi: fix potential rx buffer lossA-A-A-A-A-A-A-
+de0bd50845eb5935ce3d503c5d2f565d6cb9ece1 in linux-2.6
+  iwlwifi: reduce noise when skb allocation fails
+A-A-A-A-A-A-A-f82a924cc88a5541df1d4b9d38a0968cd077a051 in linux-2.6
 
- drivers/acpi/numa.c |   23 +++++++----------------
- 1 files changed, 7 insertions(+), 16 deletions(-)
+Reinette
 
-diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
---- a/drivers/acpi/numa.c
-+++ b/drivers/acpi/numa.c
-@@ -28,6 +28,7 @@
- #include <linux/types.h>
- #include <linux/errno.h>
- #include <linux/acpi.h>
-+#include <linux/numa.h>
- #include <acpi/acpi_bus.h>
- 
- #define PREFIX "ACPI: "
-@@ -39,15 +40,15 @@ ACPI_MODULE_NAME("numa");
- static nodemask_t nodes_found_map = NODE_MASK_NONE;
- 
- /* maps to convert between proximity domain and logical node ID */
--static int pxm_to_node_map[MAX_PXM_DOMAINS]
--				= { [0 ... MAX_PXM_DOMAINS - 1] = NID_INVAL };
-+static int pxm_to_node_map[MAX_PXM_DOMAINS]				
-+			= { [0 ... MAX_PXM_DOMAINS - 1] = NUMA_NO_NODE };
- static int node_to_pxm_map[MAX_NUMNODES]
--				= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
-+			= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
- 
- int pxm_to_node(int pxm)
- {
- 	if (pxm < 0)
--		return NID_INVAL;
-+		return NUMA_NO_NODE;
- 	return pxm_to_node_map[pxm];
- }
- 
-@@ -68,9 +69,9 @@ int acpi_map_pxm_to_node(int pxm)
- {
- 	int node = pxm_to_node_map[pxm];
- 
--	if (node < 0){
-+	if (node < 0) {
- 		if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
--			return NID_INVAL;
-+			return NUMA_NO_NODE;
- 		node = first_unset_node(nodes_found_map);
- 		__acpi_map_pxm_to_node(pxm, node);
- 		node_set(node, nodes_found_map);
-@@ -79,16 +80,6 @@ int acpi_map_pxm_to_node(int pxm)
- 	return node;
- }
- 
--#if 0
--void __cpuinit acpi_unmap_pxm_to_node(int node)
--{
--	int pxm = node_to_pxm_map[node];
--	pxm_to_node_map[pxm] = NID_INVAL;
--	node_to_pxm_map[node] = PXM_INVAL;
--	node_clear(node, nodes_found_map);
--}
--#endif  /*  0  */
--
- static void __init
- acpi_table_print_srat_entry(struct acpi_subtable_header *header)
- {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
