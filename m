@@ -1,125 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BED5D6B0044
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 23:24:56 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9R3Ordq025922
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 27 Oct 2009 12:24:54 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C4F9145DE4E
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 12:24:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9801845DE4F
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 12:24:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CF771DB8038
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 12:24:53 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3429B1DB803A
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 12:24:53 +0900 (JST)
-Date: Tue, 27 Oct 2009 12:22:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Memory overcommit
-Message-Id: <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4AE5CB4E.4090504@gmail.com>
-References: <hav57c$rso$1@ger.gmane.org>
-	<20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com>
-	<hb2cfu$r08$2@ger.gmane.org>
-	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>
-	<4ADE3121.6090407@gmail.com>
-	<20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
-	<4AE5CB4E.4090504@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 65B736B0044
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 23:39:59 -0400 (EDT)
+Date: Tue, 27 Oct 2009 04:39:47 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC] [PATCH] Avoid livelock for fsync
+Message-ID: <20091027033947.GB11828@wotan.suse.de>
+References: <20091026181314.GE7233@duck.suse.cz>
 Mime-Version: 1.0
-Content-Type: multipart/mixed;
- boundary="Multipart=_Tue__27_Oct_2009_12_22_13_+0900_mF=J5nn4APaaG3/k"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091026181314.GE7233@duck.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: vedran.furac@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Jan Kara <jack@suse.cz>
+Cc: WU Fengguang <wfg@mail.ustc.edu.cn>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, hch@infradead.org, chris.mason@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
-
---Multipart=_Tue__27_Oct_2009_12_22_13_+0900_mF=J5nn4APaaG3/k
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
-On Mon, 26 Oct 2009 17:16:14 +0100
-Vedran FuraA? <vedran.furac@gmail.com> wrote:
-> >  - Could you show me /var/log/dmesg and /var/log/messages at OOM ?
+On Mon, Oct 26, 2009 at 07:13:14PM +0100, Jan Kara wrote:
+>   Hi,
 > 
-> It was catastrophe. :) X crashed (or killed) with all the programs, but
-> my little program was alive for 20 minutes (see timestamps). And for
-> that time computer was completely unusable. Couldn't even get the
-> console via ssh. Rally embarrassing for a modern OS to get destroyed by
-> a 5 lines of C run as an ordinary user. Luckily screen was still alive,
-> oomk usually kills it also. See for yourself:
-> 
-> dmesg: http://pastebin.com/f3f83738a
-> messages: http://pastebin.com/f2091110a
-> 
-> (CCing to lklm again... I just want people to see the logs.)
-> 
-Thank you for reporting and your patience. It seems something strange
-that your KDE programs are killed. I agree.
+>   on my way back from Kernel Summit, I've coded the attached patch which
+> implements livelock avoidance for write_cache_pages. We tag patches that
+> should be written in the beginning of write_cache_pages and then write
+> only tagged pages (see the patch for details). The patch is based on Nick's
+> idea.
+>   The next thing I've aimed at with this patch is a simplification of
+> current writeback code. Basically, with this patch I think we can just rip
+> out all the range_cyclic and nr_to_write (or other "fairness logic"). The
+> rationalle is following:
+>   What we want to achieve with fairness logic is that when a page is
+> dirtied, it gets written to disk within some reasonable time (like 30s or
+> so). We track dirty time on per-inode basis only because keeping it
+> per-page is simply too expensive. So in this setting fairness between
+> inodes really does not make any sence - why should be a page in a file
+> penalized and written later only because there are lots of other dirty
+> pages in the file? It is enough to make sure that we don't write one file
+> indefinitely when there are new dirty pages continuously created - and my
+> patch achieves that.
+>   So with my patch we can make write_cache_pages always write from
+> range_start (or 0) to range_end (or EOF) and write all tagged pages. Also
+> after changing balance_dirty_pages() so that a throttled process does not
+> directly submit the IO (Fengguang has the patches for this), we can
+> completely remove the nr_to_write logic because nothing really uses it
+> anymore. Thus also the requeue_io logic should go away etc...
+>   Fengguang, do you have the series somewhere publicly available? You had
+> there a plenty of changes and quite some of them are not needed when the
+> above is done. So could you maybe separate out the balance_dirty_pages
+> change and I'd base my patch and further simplifications on top of that?
+> Thanks.
 
-I attached a scirpt for checking oom_score of all exisiting process.
-(oom_score is a value used for selecting "bad" processs.")
-please run if you have time.
+Like I said (and as we concluded when I last posted my tagging patch),
+I think this idea should work fine, but there is perhaps a little bit of
+overhead/complexity so provided that we can get some numbers or show a
+real improvement in behaviour or code simplifications then I think we
+could justify the patch.
 
-This is a result of my own desktop(on virtual machine.)
-In this environ (Total memory is 1.6GBytes), mmap(1G) program is running.
-
-%check_badness.pl | sort -n | tail
---
-89924	3938	mixer_applet2
-90210	3942	tomboy
-94753	3936	clock-applet
-101994	3919	pulseaudio
-113525	4028	gnome-terminal
-127340	1	init
-128177	3871	nautilus
-151003	11515	bash
-256944	11653	mmap
-425561	3829	gnome-session
---
-Sigh, gnome-session has twice value of mmap(1G).
-Of course, gnome-session only uses 6M bytes of anon.
-I wonder this is because gnome-session has many children..but need to
-dig more. Does anyone has idea ?
-(CCed kosaki)
+I would be interested to know how it goes.
 
 Thanks,
--Kame
-
-
-
-
-
---Multipart=_Tue__27_Oct_2009_12_22_13_+0900_mF=J5nn4APaaG3/k
-Content-Type: text/x-perl;
- name="check_badness.pl"
-Content-Disposition: attachment;
- filename="check_badness.pl"
-Content-Transfer-Encoding: 7bit
-
-#!/usr/bin/perl
-
-open(LINE, "ps -A -o pid,comm | grep -v PID|") || die "can't ps";
-
-while (<LINE>) {
-	/^\s*([0-9]+)\s+(.*)$/;
-	$PID=$1;
-	$COMM=$2;
-	open(SCORE, "/proc/$PID/oom_score") || next;
-	$oom_score = <SCORE>;
-	chomp($oom_score);
-	close(SCORE);
-	print $oom_score."\t".$PID . "\t",$COMM."\n";
-}
-close(LINE);
-
---Multipart=_Tue__27_Oct_2009_12_22_13_+0900_mF=J5nn4APaaG3/k--
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
