@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A70366B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 05:18:04 -0400 (EDT)
-Date: Tue, 27 Oct 2009 10:17:58 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC] [PATCH] Avoid livelock for fsync
-Message-ID: <20091027091758.GA4285@duck.suse.cz>
-References: <20091026181314.GE7233@duck.suse.cz> <20091027033947.GB11828@wotan.suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id E1B966B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 06:38:35 -0400 (EDT)
+Date: Tue, 27 Oct 2009 10:38:30 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 3/5] vmscan: Force kswapd to take notice faster when
+	high-order watermarks are being hit
+Message-ID: <20091027103830.GB8900@csn.ul.ie>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-4-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.00.0910231042090.22373@mail.selltech.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20091027033947.GB11828@wotan.suse.de>
+In-Reply-To: <alpine.DEB.1.00.0910231042090.22373@mail.selltech.ca>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Jan Kara <jack@suse.cz>, WU Fengguang <wfg@mail.ustc.edu.cn>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, hch@infradead.org, chris.mason@oracle.com
+To: Vincent Li <root@brc.ubc.ca>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue 27-10-09 04:39:47, Nick Piggin wrote:
-> On Mon, Oct 26, 2009 at 07:13:14PM +0100, Jan Kara wrote:
-> >   on my way back from Kernel Summit, I've coded the attached patch which
-> > implements livelock avoidance for write_cache_pages. We tag patches that
-> > should be written in the beginning of write_cache_pages and then write
-> > only tagged pages (see the patch for details). The patch is based on Nick's
-> > idea.
-> >   The next thing I've aimed at with this patch is a simplification of
-> > current writeback code. Basically, with this patch I think we can just rip
-> > out all the range_cyclic and nr_to_write (or other "fairness logic"). The
-> > rationalle is following:
-> >   What we want to achieve with fairness logic is that when a page is
-> > dirtied, it gets written to disk within some reasonable time (like 30s or
-> > so). We track dirty time on per-inode basis only because keeping it
-> > per-page is simply too expensive. So in this setting fairness between
-> > inodes really does not make any sence - why should be a page in a file
-> > penalized and written later only because there are lots of other dirty
-> > pages in the file? It is enough to make sure that we don't write one file
-> > indefinitely when there are new dirty pages continuously created - and my
-> > patch achieves that.
-> >   So with my patch we can make write_cache_pages always write from
-> > range_start (or 0) to range_end (or EOF) and write all tagged pages. Also
-> > after changing balance_dirty_pages() so that a throttled process does not
-> > directly submit the IO (Fengguang has the patches for this), we can
-> > completely remove the nr_to_write logic because nothing really uses it
-> > anymore. Thus also the requeue_io logic should go away etc...
-> >   Fengguang, do you have the series somewhere publicly available? You had
-> > there a plenty of changes and quite some of them are not needed when the
-> > above is done. So could you maybe separate out the balance_dirty_pages
-> > change and I'd base my patch and further simplifications on top of that?
-> > Thanks.
+On Fri, Oct 23, 2009 at 10:52:42AM -0700, Vincent Li wrote:
 > 
-> Like I said (and as we concluded when I last posted my tagging patch),
-> I think this idea should work fine, but there is perhaps a little bit of
-> overhead/complexity so provided that we can get some numbers or show a
-> real improvement in behaviour or code simplifications then I think we
-> could justify the patch.
-  Yes, after I rebase my patch on top of Fengguang's work, I'll write also
-the cleanup patch so that we can really see, how much simpler the code gets
-and can test what advantages / disadvantages does it bring. I'll keep you
-updated.
+> I trimmed out most CC recipients while replying this message cause I don't 
+> want to fill out everybody's mailbox with my noise. :-)
+> 
 
-								Honza
+Sure.
+
+> On Thu, 22 Oct 2009, Mel Gorman wrote:
+> 
+> > When a high-order allocation fails, kswapd is kicked so that it reclaims
+> > at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
+> > allocations. Something has changed in recent kernels that affect the timing
+> > where high-order GFP_ATOMIC allocations are now failing with more frequency,
+> > particularly under pressure. This patch forces kswapd to notice sooner that
+> > high-order allocations are occuring.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  mm/vmscan.c |    9 +++++++++
+> >  1 files changed, 9 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 64e4388..cd68109 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2016,6 +2016,15 @@ loop_again:
+> >  					priority != DEF_PRIORITY)
+> >  				continue;
+> >  
+> > +			/*
+> > +			 * Exit quickly to restart if it has been indicated
+>                            ^^^^^^^^^^^^^^^^^^^^^^^ meaning exit to 
+> lable loop_again in balance_pgdat ?
+> 
+
+I think you misunderstand. What I mean is that this function should exit
+quickly so the whole kswapd loop in kswapd() starts all over again. I'm
+not referring to any label.
+
+> > +			 * that higher orders are required
+> > +			 */
+> > +			if (pgdat->kswapd_max_order > order) {
+> > +				all_zones_ok = 1;
+> > +				goto out;
+> > +			}
+> 
+> If exit quickly to loop_again, shouldn't all_zones_ok be 0 instead of 1?
+> 
+
+I don't want it to go to loop_again. I want kswapd to start from the
+beginning using the higher order.
+
+> > +
+> >  			if (!zone_watermark_ok(zone, order,
+> >  					high_wmark_pages(zone), end_zone, 0))
+> >  				all_zones_ok = 0;
+> > -- 
+> > 1.6.3.3
+> > 
+> 
+> Thanks for clarification in advance.
+> 
+
+I hope this helps.
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
