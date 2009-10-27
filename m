@@ -1,81 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5B73F6B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 13:21:21 -0400 (EDT)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
-Date: Tue, 27 Oct 2009 18:21:13 +0100
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <20091027155223.GL8900@csn.ul.ie> <20091027160332.GA7776@think>
-In-Reply-To: <20091027160332.GA7776@think>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 09F0F6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 13:41:29 -0400 (EDT)
+Received: by gv-out-0910.google.com with SMTP id l14so105856gvf.19
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2009 10:41:27 -0700 (PDT)
+Message-ID: <4AE730C2.30401@gmail.com>
+Date: Tue, 27 Oct 2009 18:41:22 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [RFC][PATCH] oom_kill: avoid depends on total_vm and use real
+ RSS/swap value for oom_score (Re: Memory overcommit
+References: <hav57c$rso$1@ger.gmane.org>	<hb2cfu$r08$2@ger.gmane.org>	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>	<4ADE3121.6090407@gmail.com>	<20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>	<4AE5CB4E.4090504@gmail.com>	<20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>	<2f11576a0910262310g7aea23c0n9bfc84c900879d45@mail.gmail.com>	<20091027153429.b36866c4.minchan.kim@barrios-desktop>	<20091027153626.c5a4b5be.kamezawa.hiroyu@jp.fujitsu.com>	<28c262360910262355p3cac5c1bla4de9d42ea67fb4e@mail.gmail.com> <20091027164526.da6a23cb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091027164526.da6a23cb.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200910271821.18521.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 27 October 2009, Chris Mason wrote:
-> On Tue, Oct 27, 2009 at 03:52:24PM +0000, Mel Gorman wrote:
-> > > So, after the move to async/sync, a lot more pages are getting
-> > > queued for writeback - more than three times the number of pages are
-> > > queued for writeback with the vanilla kernel. This amount of
-> > > congestion might be why direct reclaimers and kswapd's timings have
-> > > changed so much.
-> >
-> > Or more accurately, the vanilla kernel has queued up a lot more pages
-> > for IO than when the patch is reverted. I'm not seeing yet why this
-> > is.
->
-> [ sympathies over confusion about congestion...lots of variables here ]
->
-> If wb_kupdate has been able to queue more writes it is because the
-> congestion logic isn't stopping it.  We have congestion_wait(), but
-> before calling that in the writeback paths it says: are you congested?
-> and then backs off if the answer is yes.
->
-> Ideally, direct reclaim will never do writeback.  We want it to be able
-> to find clean pages that kupdate and friends have already processed.
->
-> Waiting for congestion is a funny thing, it only tells us the device has
-> managed to finish some IO or that a timeout has passed.  Neither event
-> has any relation to figuring out if the IO for reclaimable pages has
-> finished.
->
-> One option is to have the VM remember the hashed waitqueue for one of
-> the pages it direct reclaims and then wait on it.
+KAMEZAWA Hiroyuki wrote:
 
-What people should be aware of is the behavior of the system I see at this 
-point. I've already mentioned this in other mails, but it's probably good 
-to repeat it here.
+> On Tue, 27 Oct 2009 15:55:26 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+> 
+>>>> Hmm.
+>>>> I wonder why we consider VM size for OOM kiling.
+>>>> How about RSS size?
+>>>>
+>>> Maybe the current code assumes "Tons of swap have been generated, already" if
+>>> oom-kill is invoked. Then, just using mm->anon_rss will not be correct.
+>>>
+>>> Hm, should we count # of swap entries reference from mm ?....
+>> In Vedran case, he didn't use swap. So, Only considering vm is the problem.
+>> I think it would be better to consider both RSS + # of swap entries as
+>> Kosaki mentioned.
+>>
+> Then, maybe this kind of patch is necessary.
+> This is on 2.6.31...then I may have to rebase this to mmotom.
+> Added more CCs.
+> 
+> Vedran, I'm glad if you can test this patch.
 
-While gitk is reading commits with vanilla .31 and .32 kernels there is at 
-some point a fairly long period (10-20 seconds) where I see:
-- a completely frozen desktop, including frozen mouse cursor
-- really very little disk activity (HD led flashes very briefly less than
-  once per second)
-- reading commits stops completely during this period
-- no music.
-After that there is a period (another 5-15 seconds) with a huge amount of 
-disk activity during which the system gradually becomes responsive again 
-and in gitk the count of commits that have been read starts increasing 
-again (without a jump in the counter which confirms that no commits were 
-read during the freeze).
+Thanks for the patch! I'll test it during this week a report after that.
 
-I cannot really tell what the system is doing during those freezes. Because 
-of the frozen desktop I cannot for example see CPU usage. I suspect that, 
-as there is hardly any disk activity, the system must be reorganizing RAM 
-or something. But it seems quite bad that that gets "bunched up" instead 
-of happening more gradually.
+> Instead of total_vm, we should use anon/file/swap usage of a process, I think.
+> This patch adds mm->swap_usage and calculate oom_score based on
+>   anon_rss + file_rss + swap_usage.
 
-With the congestion_wait() change reverted I never see these freezes, only 
-much more normal minor latencies (< 2 seconds; mostly < 0.5 seconds), 
-which is probably unavoidable during heavy swapping.
+Isn't file_rss shared between processes? Sorry, I'm newbie. :)
 
-Hth,
-FJP
+% pmap $(pidof test)
+29049:   ./test
+0000000000400000      4K r-x--  /home/vedranf/dev/tmp/test
+0000000000600000      4K rw---  /home/vedranf/dev/tmp/test
+00002ba362a80000    116K r-x--  /lib/ld-2.10.1.so
+00002ba362a9d000     12K rw---    [ anon ]
+00002ba362c9c000      4K r----  /lib/ld-2.10.1.so
+00002ba362c9d000      4K rw---  /lib/ld-2.10.1.so
+00002ba362c9e000   1320K r-x--  /lib/libc-2.10.1.so
+00002ba362de8000   2044K -----  /lib/libc-2.10.1.so
+00002ba362fe7000     16K r----  /lib/libc-2.10.1.so
+00002ba362feb000      4K rw---  /lib/libc-2.10.1.so
+00002ba362fec000 1024028K rw---    [ anon ] // <-- This
+00007ffff4618000     84K rw---    [ stack ]
+00007ffff47b7000      4K r-x--    [ anon ]
+ffffffffff600000      4K r-x--    [ anon ]
+ total          1027648K
+
+I would just look at anon if that's OK (or possible).
+
+> Considering usual applications, this will be much better information than
+> total_vm.
+
+Agreed.
+
+> score   PID     name
+> 4033	3176	gnome-panel
+> 4077	3113	xinit
+> 4526	3190	python
+> 4820	3161	gnome-settings-
+> 4989	3289	gnome-terminal
+> 7105	3271	tomboy
+> 8427	3177	nautilus
+> 17549	3140	gnome-session
+> 128501	3299	bash
+> 256106	3383	mmap
+> 
+> This order is not bad, I think.
+
+Yes, this looks much better now.  Bash is only having somewhat strangely
+high score.
+
+Regards,
+
+Vedran
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
