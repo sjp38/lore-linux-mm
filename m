@@ -1,37 +1,81 @@
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
-  failures V2
-Date: Sat, 24 Oct 2009 09:48:19 +0300
-Message-ID: <4AE2A333.6060307__7798.41309781677$1256366957$gmane$org@cs.helsinki.fi>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <84144f020910220747nba30d8bkc83c2569da79bd7c@mail.gmail.com> <alpine.DEB.1.10.0910232151380.2001@V090114053VZO-1>
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
+Date: Tue, 27 Oct 2009 18:21:13 +0100
+Message-ID: <200910271821.18521.elendil__41140.4026127004$1256664093$gmane$org@planet.nl>
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <20091027155223.GL8900@csn.ul.ie> <20091027160332.GA7776@think>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Return-path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CBC0C6B004F
-	for <linux-mm@kvack.org>; Sat, 24 Oct 2009 02:49:01 -0400 (EDT)
-In-Reply-To: <alpine.DEB.1.10.0910232151380.2001@V090114053VZO-1>
+	by kanga.kvack.org (Postfix) with SMTP id 5B73F6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 13:21:21 -0400 (EDT)
+In-Reply-To: <20091027160332.GA7776@think>
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org,  " <linux-mm@kvack.org>,	akpm@linux-foundation.
+To: Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sis>
 List-Id: linux-mm.kvack.org
 
-On Thu, 22 Oct 2009, Pekka Enberg wrote:
->> These are pretty obvious bug fixes and should go to linux-next ASAP IMHO.
+On Tuesday 27 October 2009, Chris Mason wrote:
+> On Tue, Oct 27, 2009 at 03:52:24PM +0000, Mel Gorman wrote:
+> > > So, after the move to async/sync, a lot more pages are getting
+> > > queued for writeback - more than three times the number of pages are
+> > > queued for writeback with the vanilla kernel. This amount of
+> > > congestion might be why direct reclaimers and kswapd's timings have
+> > > changed so much.
+> >
+> > Or more accurately, the vanilla kernel has queued up a lot more pages
+> > for IO than when the patch is reverted. I'm not seeing yet why this
+> > is.
+>
+> [ sympathies over confusion about congestion...lots of variables here ]
+>
+> If wb_kupdate has been able to queue more writes it is because the
+> congestion logic isn't stopping it.  We have congestion_wait(), but
+> before calling that in the writeback paths it says: are you congested?
+> and then backs off if the answer is yes.
+>
+> Ideally, direct reclaim will never do writeback.  We want it to be able
+> to find clean pages that kupdate and friends have already processed.
+>
+> Waiting for congestion is a funny thing, it only tells us the device has
+> managed to finish some IO or that a timeout has passed.  Neither event
+> has any relation to figuring out if the IO for reclaimable pages has
+> finished.
+>
+> One option is to have the VM remember the hashed waitqueue for one of
+> the pages it direct reclaims and then wait on it.
 
-Christoph Lameter wrote:
-> Bug fixes go into main not linux-next. Lets make sure these fixes really
-> work and then merge.
+What people should be aware of is the behavior of the system I see at this 
+point. I've already mentioned this in other mails, but it's probably good 
+to repeat it here.
 
-Regardless, patches 1-2 and should _really_ go to Linus' tree (and 
-eventually -stable) while we figure out the rest of the problems. They 
-fix obvious regressions in the code paths and we have reports from 
-people that they help. Yes, they don't fix everything for everyone but 
-we there's no upside in holding back fixes that are simple one line 
-fixes to regressions.
+While gitk is reading commits with vanilla .31 and .32 kernels there is at 
+some point a fairly long period (10-20 seconds) where I see:
+- a completely frozen desktop, including frozen mouse cursor
+- really very little disk activity (HD led flashes very briefly less than
+  once per second)
+- reading commits stops completely during this period
+- no music.
+After that there is a period (another 5-15 seconds) with a huge amount of 
+disk activity during which the system gradually becomes responsive again 
+and in gitk the count of commits that have been read starts increasing 
+again (without a jump in the counter which confirms that no commits were 
+read during the freeze).
 
-		Pekka
+I cannot really tell what the system is doing during those freezes. Because 
+of the frozen desktop I cannot for example see CPU usage. I suspect that, 
+as there is hardly any disk activity, the system must be reorganizing RAM 
+or something. But it seems quite bad that that gets "bunched up" instead 
+of happening more gradually.
+
+With the congestion_wait() change reverted I never see these freezes, only 
+much more normal minor latencies (< 2 seconds; mostly < 0.5 seconds), 
+which is probably unavoidable during heavy swapping.
+
+Hth,
+FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
