@@ -1,87 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E1B966B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 06:38:35 -0400 (EDT)
-Date: Tue, 27 Oct 2009 10:38:30 +0000
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 040BE6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 06:40:23 -0400 (EDT)
+Date: Tue, 27 Oct 2009 10:40:17 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/5] vmscan: Force kswapd to take notice faster when
-	high-order watermarks are being hit
-Message-ID: <20091027103830.GB8900@csn.ul.ie>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256221356-26049-4-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.00.0910231042090.22373@mail.selltech.ca>
+Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
+	failures V2
+Message-ID: <20091027104017.GC8900@csn.ul.ie>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <1256226219.21134.1493.camel@rc-desk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.0910231042090.22373@mail.selltech.ca>
+In-Reply-To: <1256226219.21134.1493.camel@rc-desk>
 Sender: owner-linux-mm@kvack.org
-To: Vincent Li <root@brc.ubc.ca>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: reinette chatre <reinette.chatre@intel.com>
+Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Abbas, Mohamed" <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 23, 2009 at 10:52:42AM -0700, Vincent Li wrote:
+On Thu, Oct 22, 2009 at 08:43:38AM -0700, reinette chatre wrote:
+> On Thu, 2009-10-22 at 07:22 -0700, Mel Gorman wrote:
+> > [Bug #14141] order 2 page allocation failures in iwlagn
+> > 	Commit 4752c93c30441f98f7ed723001b1a5e3e5619829 introduced GFP_ATOMIC
+> > 	allocations within the wireless driver. This has caused large numbers
+> > 	of failure reports to occur as reported by Frans Pop. Fixing this
+> > 	requires changes to the driver if it wants to use GFP_ATOMIC which
+> > 	is in the hands of Mohamed Abbas and Reinette Chatre. However,
+> > 	it is very likely that it has being compounded by core mm changes
+> > 	that this series is aimed at.
 > 
-> I trimmed out most CC recipients while replying this message cause I don't 
-> want to fill out everybody's mailbox with my noise. :-)
-> 
-
-Sure.
-
-> On Thu, 22 Oct 2009, Mel Gorman wrote:
-> 
-> > When a high-order allocation fails, kswapd is kicked so that it reclaims
-> > at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
-> > allocations. Something has changed in recent kernels that affect the timing
-> > where high-order GFP_ATOMIC allocations are now failing with more frequency,
-> > particularly under pressure. This patch forces kswapd to notice sooner that
-> > high-order allocations are occuring.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  mm/vmscan.c |    9 +++++++++
-> >  1 files changed, 9 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 64e4388..cd68109 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2016,6 +2016,15 @@ loop_again:
-> >  					priority != DEF_PRIORITY)
-> >  				continue;
-> >  
-> > +			/*
-> > +			 * Exit quickly to restart if it has been indicated
->                            ^^^^^^^^^^^^^^^^^^^^^^^ meaning exit to 
-> lable loop_again in balance_pgdat ?
+> Driver has been changed to allocate paged skb for its receive buffers.
+> This reduces amount of memory needed from order-2 to order-1. This work
+> is significant and will thus be in 2.6.33. 
 > 
 
-I think you misunderstand. What I mean is that this function should exit
-quickly so the whole kswapd loop in kswapd() starts all over again. I'm
-not referring to any label.
-
-> > +			 * that higher orders are required
-> > +			 */
-> > +			if (pgdat->kswapd_max_order > order) {
-> > +				all_zones_ok = 1;
-> > +				goto out;
-> > +			}
-> 
-> If exit quickly to loop_again, shouldn't all_zones_ok be 0 instead of 1?
-> 
-
-I don't want it to go to loop_again. I want kswapd to start from the
-beginning using the higher order.
-
-> > +
-> >  			if (!zone_watermark_ok(zone, order,
-> >  					high_wmark_pages(zone), end_zone, 0))
-> >  				all_zones_ok = 0;
-> > -- 
-> > 1.6.3.3
-> > 
-> 
-> Thanks for clarification in advance.
-> 
-
-I hope this helps.
+What do you want to do for -stable in 2.6.31?
 
 -- 
 Mel Gorman
