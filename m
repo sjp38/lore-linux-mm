@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6811D6B0044
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 15:59:10 -0400 (EDT)
-Date: Tue, 27 Oct 2009 13:59:07 -0600
-From: Alex Chiang <achiang@hp.com>
-Subject: Re: [PATCH v2 1/5] mm: add numa node symlink for memory section in
-	sysfs
-Message-ID: <20091027195907.GJ14102@ldl.fc.hp.com>
-References: <20091022040814.15705.95572.stgit@bob.kio> <20091022041510.15705.5410.stgit@bob.kio> <alpine.DEB.2.00.0910221249030.26631@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ABF636B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 16:25:39 -0400 (EDT)
+Date: Tue, 27 Oct 2009 13:25:33 -0700
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: RFC: Transparent Hugepage support
+Message-ID: <20091027202533.GB2726@sequoia.sous-sol.org>
+References: <20091026185130.GC4868@random.random> <alpine.DEB.1.10.0910271630540.20363@V090114053VZO-1> <20091027182109.GA5753@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0910221249030.26631@chino.kir.corp.google.com>
+In-Reply-To: <20091027182109.GA5753@random.random>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: akpm@linux-foundation.org, Gary Hade <garyhade@us.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Ingo Molnar <mingo@elte.hu>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Thank you for ACKing, David.
-
-S390 guys, I cc'ed you on this patch because I heard a rumour
-that your memory sections may belong to more than one NUMA node?
-Is that true? If so, how would you like me to handle that
-situation?
-
-Any comments on this patch series would be appreciated.
-
-Thanks.
-/ac
-
-* David Rientjes <rientjes@google.com>:
-> On Wed, 21 Oct 2009, Alex Chiang wrote:
+* Andrea Arcangeli (aarcange@redhat.com) wrote:
+> On Tue, Oct 27, 2009 at 04:42:39PM -0400, Christoph Lameter wrote:
+> > > 1) hugepages have to be swappable or the guest physical memory remains
+> > >    locked in RAM and can't be paged out to swap
+> > 
+> > Thats not such a big issue IMHO. Paging is not necessary. Swapping is
+> > deadly to many performance based loads. You would abort a job anyways that
 > 
-> > Commit c04fc586c (mm: show node to memory section relationship with
-> > symlinks in sysfs) created symlinks from nodes to memory sections, e.g.
-> > 
-> > /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
-> > 
-> > If you're examining the memory section though and are wondering what
-> > node it might belong to, you can find it by grovelling around in
-> > sysfs, but it's a little cumbersome.
-> > 
-> > Add a reverse symlink for each memory section that points back to the
-> > node to which it belongs.
-> > 
-> > Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> > Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> > Cc: Gary Hade <garyhade@us.ibm.com>
-> > Cc: Badari Pulavarty <pbadari@us.ibm.com>
-> > Cc: Ingo Molnar <mingo@elte.hu>
-> > Signed-off-by: Alex Chiang <achiang@hp.com>
-> 
-> Acked-by: David Rientjes <rientjes@google.com>
-> 
-> Very helpful backlinks to memory section nodes even though I have lots of 
-> memory directories on some of my test machines :)
+> Yes, swapping is deadly to performance based loads and it should be
+> avoided as much as possible, but it's not nice when in order to get a
+> boost in guest performance when the host isn't low on memory, you lose
+> the ability to swap when the host is low on memory and all VM are
+> locked in memory like in inferior-design virtual machines that won't
+> ever support paging. When system starts swapping the manager can
+> migrate the VM to other hosts with more memory free to restore the
+> full RAM performance as soon as possible. Overcommit can be very
+> useful at maxing out RAM utilization, just like it happens for regular
+> linux tasks (few people runs with overcommit = 2 for this very
+> reason.. besides overcommit = 2 includes swap in its equation so you
+> can still max out ram by adding more free swap).
+
+It's also needed if something like glibc were to take advantage of it in
+a generic manner.
+
+thanks,
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
