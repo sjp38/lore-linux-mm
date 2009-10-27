@@ -1,43 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 67F386B005A
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 08:55:08 -0400 (EDT)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
-Date: Tue, 27 Oct 2009 12:10:27 +0100
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910152142.02876.elendil@planet.nl> <1255758143.21134.1360.camel@rc-desk>
-In-Reply-To: <1255758143.21134.1360.camel@rc-desk>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EEB76B0044
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 09:27:09 -0400 (EDT)
+Date: Tue, 27 Oct 2009 13:27:04 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
+	failures V2
+Message-ID: <20091027132704.GE8900@csn.ul.ie>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <20091024140207.GA5102@geggus.net>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200910271210.31014.elendil@planet.nl>
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20091024140207.GA5102@geggus.net>
 Sender: owner-linux-mm@kvack.org
-To: reinette chatre <reinette.chatre@intel.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, "Abbas, Mohamed" <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Sven Geggus <lists@fuchsschwanzdomain.de>
+Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Sorry for the delay in replying.
+On Sat, Oct 24, 2009 at 04:02:09PM +0200, Sven Geggus wrote:
+> Mel Gorman schrieb am Donnerstag, den 22. Oktober um 16:22 Uhr:
+> 
+> > Test 1: Verify your problem occurs on 2.6.32-rc5 if you can
+> 
+> Problem persists. RAID resync in progress :(
+> 
 
-On Saturday 17 October 2009, reinette chatre wrote:
-> Prompted by this thread we are in process of moving allocation to paged
-> skb. This will definitely reduce the allocation size (from order 2 to
-> order 1) and hopefully help with this problem also. Could you please try
-> with the attached two patches? They are based on 2.6.32-rc4.
+What about the rest of the patches, any luck?
 
-Looks very good! With these patches I no longer get any SKB allocation 
-errors, even during the heaviest freezes while gitk is loading. I do still 
-get (long) music skips during the freezes, but that's not unexpected.
-AFAICT the wireless connection is stable.
+Thanks
 
-Tested on top of current mainline git: v2.6.32-rc5-81-g964fe08.
-
-Please add, if you feel it's appropriate, my:
-Reported-and-tested-by: Frans Pop <elendil@planet.nl>
-
-Cheers,
-FJP
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
