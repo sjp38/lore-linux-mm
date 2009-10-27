@@ -1,113 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1E4426B005A
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 18:18:05 -0400 (EDT)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC failures V2
-Date: Mon, 26 Oct 2009 23:17:50 +0100
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1256221356-26049-1-git-send-email-mel@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B98FE6B0044
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2009 22:42:59 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9R2gueq014438
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 27 Oct 2009 11:42:57 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 96AF545DE50
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:42:56 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7675E45DE4E
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:42:56 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C7541DB803E
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:42:56 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 149431DB8038
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 11:42:56 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] page allocator: Always wake kswapd when restarting an allocation attempt after direct reclaim failed
+In-Reply-To: <alpine.DEB.2.00.0910260005500.15361@chino.kir.corp.google.com>
+References: <20091026100019.2F4A.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0910260005500.15361@chino.kir.corp.google.com>
+Message-Id: <20091026222159.2F72.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200910262317.55960.elendil@planet.nl>
+Date: Tue, 27 Oct 2009 11:42:55 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 22 October 2009, Mel Gorman wrote:
-> Test 1: Verify your problem occurs on 2.6.32-rc5 if you can
+> On Mon, 26 Oct 2009, KOSAKI Motohiro wrote:
+> 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index bf72055..5a27896 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1899,6 +1899,12 @@ rebalance:
+> >  	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
+> >  		/* Wait for some write requests to complete then retry */
+> >  		congestion_wait(BLK_RW_ASYNC, HZ/50);
+> > +
+> > +		/*
+> > +		 * While we wait congestion wait, Amount of free memory can
+> > +		 * be changed dramatically. Thus, we kick kswapd again.
+> > +		 */
+> > +		wake_all_kswapd(order, zonelist, high_zoneidx);
+> >  		goto rebalance;
+> >  	}
+> >  
+> 
+> We're blocking to finish writeback of the directly reclaimed memory, why 
+> do we need to wake kswapd afterwards?
 
-I've tested against 2.6.31.1 as it's easier for me to compare behaviors 
-with that than with .32. All patches applied without problems against .31.
+the same reason of "goto restart" case. that's my intention.
+if following scenario occur, it is equivalent that we didn't call wake_all_kswapd().
 
-I've also tested 2.6.31.1 with SLAB instead of SLUB, but that does not seem 
-to make a significant difference for my test.
+  1. call congestion_wait()
+  2. kswapd reclaimed lots memory and sleep
+  3. another task consume lots memory
+  4. wakeup from congestion_wait()
 
-> Test 2: Apply the following two patches and test again
->   1/5 page allocator: Always wake kswapd when restarting an allocation
->       attempt after direct reclaim failed
->   2/5 page allocator: Do not allow interrupts to use ALLOC_HARDER
+IOW, if we falled into __alloc_pages_slowpath(), we naturally expect
+next page_alloc() don't fall into slowpath. however if kswapd end to
+its work too early, this assumption isn't true.
 
-Does not look to make any difference. Possibly causes more variation in the 
-duration of the test (increases timing effects)?
-
-> Test 3: If you are getting allocation failures, try with the following
-> patch
->   3/5 vmscan: Force kswapd to take notice faster when high-order
->       watermarks are being hit
-
-Applied on top of patches 1-2. Does not look to make any difference.
-
-> Test 4: If you are still getting failures, apply the following
->   4/5 page allocator: Pre-emptively wake kswapd when high-order
->       watermarks are hit
-
-Applied on top of patches 1-3. Does not look to make any difference.
-
-> Test 5: If things are still screwed, apply the following
->   5/5 Revert 373c0a7e, 8aa7e847: Fix congestion_wait() sync/async vs
->       read/write confusion
-
-Applied on top of patches 1-4. Despite Jens' scepticism is this still the 
-patch that makes the most significant difference in my test.
-The reading of commits in gitk is much more fluent and music skips are a 
-lot less severe. But most important is that there is no long total freeze 
-of the system halfway during the reading of commits and gitk loads 
-fastest. It also gives by far the most consistent results.
-The likelyhood of SKB allocation errors during the test is a lot smaller.
-See also http://lkml.org/lkml/2009/10/26/455.
+Is this too pessimistic assumption?
 
 
-Detailed test results follow. I've done 2 test runs with each kernel (3 for 
-the last).
 
-The columns below give the following info:
-- time at which all commits have been read by gitk
-- time at which gitk fills in "branch", "follows" and "precedes" data for
-  the current commit
-- time at which there's no longer any disk activity, i.e. when gitk is
-  fully loaded and all swapping is done
-- total number of SKB allocation errors during the test
-A "freeze" during the reading of commits is indicated by an "f" (short 
-freeze) or "F" (long "hard" freeze). An "S" shows when there were SKB 
-allocation errors.
 
-		end commits	show branch	done		SKB errs
-1) vanilla .31.1
-run 1:		1:20 fFS	2:10 S		2:30		44 a)
-run 2:		1:35 FS		1:45		2:10		13
-
-2) .31.1 + patches 1-2
-run1:		2:30 fFS	2:45		3:00		58
-run2:		1:15 fS		2:00		2:20		2 a)
-
-3) .31.1 + patches 1-3
-run1:		1:00 fS		1:15		1:45		1 *)
-run2:		3:00 fFS	3:15		3:30		33
-*) unexpected; fortunate timing?
-
-4) .31.1 + patches 1-4
-run1:		1:10 ffS	1:55 S		2:20		35 a)
-run2:		3:05 fFS	3:15		3:25		36
-
-5) .31.1 + patches 1-5
-run1:		1:00		1:15		1:35		0
-run2:		0:50		1:15 S		1:45		45 *)
-run3:		1:00		1:15		1:45		0
-*) unexpected; unfortunate timing?
-
-a) fast in 1st phase; slow in 2nd and 3rd
-
-Note that without the congestion_wait() reverts occurrence of SKB errors, 
-the long freezes and time it takes for gitk to load seem roughly related; 
-with the reverts total time is not affected even with many SKB errors.
-
-Cheers,
-FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
