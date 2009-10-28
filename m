@@ -1,122 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A5E576B009A
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 23:19:57 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9S3JtVl025777
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 28 Oct 2009 12:19:55 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C4FE245DE51
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:19:54 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E81F45DE4C
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:19:54 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7677FE08002
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:19:54 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 12EE3E08003
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:19:54 +0900 (JST)
-Date: Wed, 28 Oct 2009 12:17:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Memory overcommit
-Message-Id: <20091028121722.6e93f3eb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091028113713.FD85.A69D9226@jp.fujitsu.com>
-References: <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0910271843510.11372@sister.anvils>
-	<20091028113713.FD85.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1B8F66B0078
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 23:54:08 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9S3s5Qf006698
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 28 Oct 2009 12:54:06 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AC3B145DE5B
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:54:05 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BAEC45DE53
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:54:05 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4980F1DB8043
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:54:05 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E155D1DB8040
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:54:04 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
+In-Reply-To: <20091027131905.410ec04a.akpm@linux-foundation.org>
+References: <1256650833-15516-4-git-send-email-mel@csn.ul.ie> <20091027131905.410ec04a.akpm@linux-foundation.org>
+Message-Id: <20091028115505.FD88.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 28 Oct 2009 12:54:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, vedran.furac@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com, akpm@linux-foundation.org, rientjes@google.com, aarcange@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Oct 2009 11:47:55 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> On Tue, 27 Oct 2009 13:40:33 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > When a high-order allocation fails, kswapd is kicked so that it reclaims
+> > at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
+> > allocations. Something has changed in recent kernels that affect the timing
+> > where high-order GFP_ATOMIC allocations are now failing with more frequency,
+> > particularly under pressure. This patch forces kswapd to notice sooner that
+> > high-order allocations are occuring.
+> 
+> "something has changed"?  Shouldn't we find out what that is?
 
-> > 2.  I started out running my mlock test program as root (later
-> > switched to use "ulimit -l unlimited" first).  But badness() reckons
-> > CAP_SYS_ADMIN or CAP_SYS_RESOURCE is a reason to quarter your points;
-> > and CAP_SYS_RAWIO another reason to quarter your points: so running
-> > as root makes you sixteen times less likely to be killed.  Quartering
-> > is anyway debatable, but sixteenthing seems utterly excessive to me.
+if kswapd_max_order was changed, kswapd quickly change its own reclaim
+order.
+
+old:
+  1. happen order-0 allocation
+  2. kick kswapd
+  3. happen high-order allocation
+  4. change kswapd_max_order, but kswapd continue order-0 reclaim.
+  5. kswapd end order-0 reclaim and exit balance_pgdat
+  6. kswapd() restart balance_pdgat() with high-order
+
+new:
+  1. happen order-0 allocation
+  2. kick kswapd
+  3. happen high-order allocation
+  4. change kswapd_max_order
+  5. kswapd notice it and quickly exit balance_pgdat()
+  6. kswapd() restart balance_pdgat() with high-order
+
+> 
+> > ---
+> >  mm/vmscan.c |    9 +++++++++
+> >  1 files changed, 9 insertions(+), 0 deletions(-)
 > > 
-> > I moved the CAP_SYS_RAWIO test in with the others, so it does no
-> > more than quartering; but is quartering appropriate anyway?  I did
-> > wonder if I was right to be "subverting" the fine-grained CAPs in
-> > this way, but have since seen unrelated mail from one who knows
-> > better, implying they're something of a fantasy, that su and sudo
-> > are indeed what's used in the real world.  Maybe this patch was okay.
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 64e4388..7eceb02 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2016,6 +2016,15 @@ loop_again:
+> >  					priority != DEF_PRIORITY)
+> >  				continue;
+> >  
+> > +			/*
+> > +			 * Exit the function now and have kswapd start over
+> > +			 * if it is known that higher orders are required
+> > +			 */
+> > +			if (pgdat->kswapd_max_order > order) {
+> > +				all_zones_ok = 1;
+> > +				goto out;
+> > +			}
+> > +
+> >  			if (!zone_watermark_ok(zone, order,
+> >  					high_wmark_pages(zone), end_zone, 0))
+> >  				all_zones_ok = 0;
 > 
-> I agree quartering is debatable.
-> At least, killing quartering is worth for any user, and it can be push into -stable.
-> 
-> 
-> 
-> 
-> From 27331555366c908a93c2cdd780b77e421869c5af Mon Sep 17 00:00:00 2001
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: Wed, 28 Oct 2009 11:28:39 +0900
-> Subject: [PATCH] oom: Mitigate suer-user's bonus of oom-score
-> 
-> Currently, badness calculation code of oom contemplate following bonus.
->  - Super-user have quartering oom-score
->  - CAP_SYS_RAWIO process (e.g. database) also have quartering oom-score
-> 
-> The problem is, Super-users have CAP_SYS_RAWIO too. Then, they have
-> sixteenthing bonus. it's obviously too excessive and meaningless.
-> 
-> This patch fixes it.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> So this handles the case where some concurrent thread or interrupt
+> increases pgdat->kswapd_max_order while kswapd was running
+> balance_pgdat(), yes?
 
-I'll pick this up to my series.
+Yes.
 
-Thanks,
--Kame
+> Does that actually happen much?  Enough for this patch to make any
+> useful difference?
 
-> ---
->  mm/oom_kill.c |   13 +++++--------
->  1 files changed, 5 insertions(+), 8 deletions(-)
+In typical use-case, it doesn't have so much improvement. However some
+driver use high-order allocation on interrupt context.
+It mean we need quickly reclaim before GFP_ATOMIC allocation failure.
+
+I agree these driver is ill. but...
+We can't ignore enduser bug report.
+
+
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index ea2147d..40d323d 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -152,18 +152,15 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
->  	/*
->  	 * Superuser processes are usually more important, so we make it
->  	 * less likely that we kill those.
-> -	 */
-> -	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
-> -	    has_capability_noaudit(p, CAP_SYS_RESOURCE))
-> -		points /= 4;
-> -
-> -	/*
-> -	 * We don't want to kill a process with direct hardware access.
-> +	 *
-> +	 * Plus, We don't want to kill a process with direct hardware access.
->  	 * Not only could that mess up the hardware, but usually users
->  	 * tend to only have this flag set on applications they think
->  	 * of as important.
->  	 */
-> -	if (has_capability_noaudit(p, CAP_SYS_RAWIO))
-> +	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
-> +	    has_capability_noaudit(p, CAP_SYS_RESOURCE) ||
-> +	    has_capability_noaudit(p, CAP_SYS_RAWIO))
->  		points /= 4;
->  
->  	/*
-> -- 
-> 1.6.2.5
+> If one where to whack a printk in that `if' block, how often would it
+> trigger, and under what circumstances?
 > 
 > 
-> 
-> 
-> 
+> If the -stable maintainers were to ask me "why did you send this" then
+> right now my answer would have to be "I have no idea".  Help.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
