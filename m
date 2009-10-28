@@ -1,95 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id BB3506B0044
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 09:28:18 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so1001563bwz.10
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 06:28:16 -0700 (PDT)
-Message-ID: <4AE846E8.1070303@gmail.com>
-Date: Wed, 28 Oct 2009 14:28:08 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F8F6B0044
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 10:18:12 -0400 (EDT)
+Date: Wed, 28 Oct 2009 15:18:03 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: RFC: Transparent Hugepage support
+Message-ID: <20091028141803.GQ7744@basil.fritz.box>
+References: <20091026185130.GC4868@random.random> <87ljiwk8el.fsf@basil.nowhere.org> <20091027193007.GA6043@random.random> <20091028042805.GJ7744@basil.fritz.box> <20091028120050.GD9640@random.random>
 MIME-Version: 1.0
-Subject: Re: Memory overcommit
-References: <hav57c$rso$1@ger.gmane.org> <20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com> <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com> <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091028120050.GD9640@random.random>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes wrote:
-
-> On Wed, 28 Oct 2009, Vedran Furac wrote:
+On Wed, Oct 28, 2009 at 01:00:50PM +0100, Andrea Arcangeli wrote:
+> Hi Andi,
 > 
->>> This is wrong; it doesn't "emulate oom" since oom_kill_process() always 
->>> kills a child of the selected process instead if they do not share the 
->>> same memory.  The chosen task in that case is untouched.
->> OK, I stand corrected then. Thanks! But, while testing this I lost X
->> once again and "test" survived for some time (check the timestamps):
->>
->> http://pastebin.com/d5c9d026e
->>
->> - It started by killing gkrellm(!!!)
->> - Then I lost X (kdeinit4 I guess)
->> - Then 103 seconds after the killing started, it killed "test" - the
->> real culprit.
->>
->> I mean... how?!
->>
+> On Wed, Oct 28, 2009 at 05:28:05AM +0100, Andi Kleen wrote:
+> > I think longer term the standard VM just needs to understand
+> > huge pages properly. Originally when huge pages were only
+> > considered a "Oracle hack" the separation made sense, but now
+> > with more and more use that is really not true anymore.
+> > 
+> > Also hugetlbfs is gaining more and more functionality all the time.
 > 
-> Here are the five oom kills that occurred in your log, and notice that the 
-> first four times it kills a child and not the actual task as I explained:
+> This is exactly the problem... and these days there's not just Oracle:
+> KVM, glibc needs hugepages too all the time, so it's not surprising
 
-Yes, but four times wrong.
+Why glibc? 
 
-> Those are practically happening simultaneously with very little memory 
-> being available between each oom kill.  Only later is "test" killed:
+Yes, there are quite some workloads who benefit.
+
+> > Maintaining two VMs in parallel forever seems like the wrong
+> > thing to do.
 > 
-> [97240.203228] Out of memory: kill process 5005 (test) score 256912 or a child
-> [97240.206832] Killed process 5005 (test)
+> Agreed.
 > 
-> Notice how the badness score is less than 1/4th of the others.  So while 
-> you may find it to be hogging a lot of memory, there were others that 
-> consumed much more.
-^^^^^^^^^^^^^^^^^^^^^
-
-This is just wrong. I have 3.5GB of RAM, free says that 2GB are empty
-(ignoring cache). Culprit then allocates all free memory (2GB). That
-means it is using *more* than all other processes *together*. There
-cannot be any other "that consumed much more".
-
-> You can get a more detailed understanding of this by doing
+> > Also the fragmentation avoidance heuristics got a lot better
+> > in the last years, so it's much more practical than it used to be
+> > (at least for 2MB)
 > 
-> 	echo 1 > /proc/sys/vm/oom_dump_tasks
+> "more practical at least for 2MB" is why I suggested to ignore sizes
+> like 1G. 2M is already on the largy side, and in this work we should
+
+Even without automatic allocation and the need to prereseve
+having the same application interface for 1GB pages is still useful.
+Otherwise people who want to use the 1GB pages have to do the
+special hacks again.
+
+> > x% performance advantage, but then it's likely that 1GB pages will give 
+> > another y% improvement and why should people stop at the smaller
+> > improvement?
 > 
-> before trying your testcase; it will show various information like the 
-> total_vm
+> For the reason mentioned above, sizes like 1G will likely remain
+> available only through boot-reservation and splitting an huge page to
+> be swapped would require a very expensive split_huge_page
+> function. Instead of a loop for (i=0; i<512; i++) inside a not
+> preemptive section with all pmd frozen, you will have a loop of
+> 262144... And swapping 1G page natively without splitting it, is even
+> less feasible.
 
-Looking at total_vm (VIRT in top/vsize in ps?) is completely wrong. If I
-sum up those numbers for every process running I would get:
+What I was thinking of was to have a relatively easy to use
+flag that allows an application to use prereserved GB pages
+transparently. e.g. could be done with a special command
 
-%ps -eo pid,vsize,command|awk '{ SUM += $2} END {print SUM/1024/1024}'
-14.7935
+hugepagehint 1GB app
 
-14GB. And I only have 3GB. I usually use exmap to get realistic numbers:
+Yes I realize that this is possible to some extend with libhugetlbfs
+LD_PRELOAD, but integrating it in the kernel is much saner.
 
-http://www.berthels.co.uk/exmap/doc.html
+So even if there are some restrictions it would be good to not
+ignore the 1GB pages completely.
 
-> and oom_adj value for each task at the time of oom (and the 
-> actual badness score is exported per-task via /proc/pid/oom_score in 
-> real-time).  This will also include the rss and show what the end result 
-> would be in using that value as part of the heuristic on this particular 
-> workload compared to the current implementation.
+> 
+> > Ignoring the gigantic pages now would just mean that this
+> > would need to be revised later again or that users still
+> > need to use hacks like libhugetlbfs.
+> 
+> They will still need if they want the extra y%, because 1G pages
+> simply can't be generated by the buddy allocator. I doubt we should
+> increase the MAX_ORDER from 11 to 18, it would slowdown the whole
 
-Thanks, I'll try that... but I guess that using rss would yield better
-results.
+Agreed, prereservation is still the way to go for 1GB.
 
+(although in theory a special allocation could get them without
+relying on zone alignment or buddy lists by being not O(1))
 
-Regards,
+> > Given 1GB pages for a time are harder to use on the system
+> > administrator level, but at least for applications the interfaces
+> > should be similar at least.
+> 
+> I see your point here in wanting to use the generic interface, we
+> could have the page fault in the madvise vmas that fits a 1G naturally
+> aligned region, search into a reserved region first, and if they don't
+> find the 1G page reserved they could search the buddy for 2M
+> pages. But still the problem is there's no way to swap that 1G beast
+> if we go low on memory. It's not transparent behavior, but we could
 
-Vedran
+It would need an administrator hint agreed, but if it's just a single
+hint per program it would be still "mostly transparent"
+
+> share the same madvise interface, true! I doubt we should map 1G pages
+> in tasks outside of madvised vmas, because of that ram being special
+> and reserved. In some ways hugetlbfs providing for permissions in
+
+Agreed on not doing it unconditionally, ut the advice could be per
+process or per cgroup.
+
+> For the transparent 2M pages instead if an unprivileged user end up
+> using them the whole system gains because the more people uses 2M
+> pages the less fragmentation there is in the system.
+
+Even on 2MB pages this problem exists to some point: if you explicitely
+preallocate 2MB pages to make sure some application can use them
+with hugetlbfs you don't want random applications to still the
+"guaranteed" huge pages.
+
+So some policy here would be likely needed anyways and the same
+could be used for the 1GB pages.
+
+> > > such that don't fit into a pmd...
+> > 
+> > What 64k pages? You're talking about soft pages or non x86?
+> 
+> I wasn't talking about soft pages. The whole patch here is tuned for
+
+I was just confused by the 64k number.
+
+> My worry are the archs like powerpc where a hugepage doesn't fit in a
+> pmd_trans_huge. I think x86 will fit the pmd/pud_trans_huge approach
+> in my patch even of 1G pages in the long run, so there is no actual
+> long term limitation with regard to x86. The fact is that the generic
+> pagetable code is tuned for x86 so no problem there.
+> 
+> What I am unsure about and worries me more are those archs that don't
+> use a pmd to map hugepages and to create hugetlb. I am unsure if those
+> archs will be able to take advantage of my patch with minor changes to
+> it given it is wired to pmd_trans_huge availability.
+
+I see. Some archs (like IA64 or POWER?) require special VA address
+ ranges for huge pages, for those doing it fully transparent without 
+a mmap time flag is likely hard.
+
+> 
+> > > > Even for 2MB pages it can be a problem.
+> > > > 
+> > > > You'll likely need to fix the page table code.
+> > > 
+> > > In terms of fragmentation split_huge_page itself won't create
+> > > it.. unless it swaps (but then CPU performance is lost on the mapping
+> > > anyway).
+> > 
+> > The problem is that the performance will be lost forever. So if
+> > you ever do something that only does a little temporary 
+> > swapping (like a backup run) you would be ready for a reboot.
+> > Not good.
+> 
+> Well until the background daemon calls collapse_huge_page. Also before
+> splitting the page the pmd young bit is checked and it gets huge more
+> priority than the young bit of the pte because the pmd young bit has
+> 512 higher probability of being set than the pte young bit.
+> 
+> Also note, the swapping right now generates fragmentation but later we
+> can add swap entries at the pmd level and we can stop calling
+> split_huge_page even in the swap path, to avoid swap to introduce
+> fragmentation. But we can't do everything at once...
+
+I'm still uneasy about this, it's a very clear "glass jaw"
+that might well cause serious problems in practice. Anything that requires
+regular reboots is bad.
+
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
