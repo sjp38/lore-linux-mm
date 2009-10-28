@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 984196B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 16:31:36 -0400 (EDT)
-Date: Wed, 28 Oct 2009 20:31:28 +0000 (GMT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id EF0916B005A
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 16:34:41 -0400 (EDT)
+Date: Wed, 28 Oct 2009 20:34:38 +0000 (GMT)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] try_to_unuse : remove redundant swap_count()
-In-Reply-To: <dc46d49c0910201825g1b3b3987w8f9002761a64166f@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0910282017410.19885@sister.anvils>
+Subject: [PATCH] mm: remove incorrect swap_count() from try_to_unuse()
+In-Reply-To: <Pine.LNX.4.64.0910282017410.19885@sister.anvils>
+Message-ID: <Pine.LNX.4.64.0910282031470.19885@sister.anvils>
 References: <COL115-W535064AC2F576372C1BB1B9FC00@phx.gbl>
  <0f7b4023bee9b7ccc47998cd517d193c.squirrel@webmail-b.css.fujitsu.com>
  <dc46d49c0910201825g1b3b3987w8f9002761a64166f@mail.gmail.com>
+ <Pine.LNX.4.64.0910282017410.19885@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <yjfpb04@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bo Liu <bo-liu@hotmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Bob Liu <yjfpb04@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bo Liu <bo-liu@hotmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Oct 2009, Bob Liu wrote:
-> >>
-> >> While comparing with swcount,it's no need to
-> >> call swap_count(). Just as int set_start_mm =
-> >> (*swap_map>= swcount) is ok.
-> >>
-> > Hmm ?
-> > *swap_map = (SWAP_HAS_CACHE) | count. What this change means ?
-> >
-> 
-> Sorry for the wrong format, I changed to gmail.
-> Because swcount is assigned value *swap_map not swap_count(*swap_map).
-> So I think here should compare with *swap_map not swap_count(*swap_map).
-> 
-> And refer to variable set_start_mm, it is inited also by comparing
-> *swap_map and swcount not swap_count(*swap_map) and swcount.
-> So I submited this patch.
+From: Bo Liu <bo-liu@hotmail.com>
 
-Thanks a lot for the fuller description: I mistakenly dismissed
-your patch the first time, misunderstanding what you had found.
+In try_to_unuse(), swcount is a local copy of *swap_map, including the
+SWAP_HAS_CACHE bit; but a wrong comparison against swap_count(*swap_map),
+which masks off the SWAP_HAS_CACHE bit, succeeded where it should fail.
 
-As I remarked in private mail (being smtp-challenged last week),
-what you found was worse than a redundant use of swap_count(): it
-was a wrong use of swap_count(), and caused an (easily overlooked)
-regression in swapoff's (never wonderful) performance.
+That had the effect of resetting the mm from which to start searching
+for the next swap page, to an irrelevant mm instead of to an mm in which
+this swap page had been found: which may increase search time by ~20%.
+But we're used to swapoff being slow, so never noticed the slowdown.
 
-> 
-> > Anyway, swap_count() macro is removed by Hugh's patch (queued in -mm)
+Remove that one spurious use of swap_count(): Bo Liu thought it merely
+redundant, Hugh rewrote the description since it was measurably wrong.
 
-Actually no: I removed some of the other wrappers, which were obscuring
-things for me; but swap_count() still seemed useful, so I left it.
+Signed-off-by: Bo Liu <bo-liu@hotmail.com>
+Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: stable@kernel.org
+---
 
-> >
-> I am sorry for not notice that. So just forget about this patch.
+ mm/swapfile.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-No, let's not forget it at all, it was a good find, thank you.
-Updated version of the patch comes in following mail.
-
-Hugh
+--- 2.6.32-rc5/mm/swapfile.c	2009-10-05 04:20:31.000000000 +0100
++++ linux/mm/swapfile.c	2009-10-28 19:31:43.000000000 +0000
+@@ -1151,8 +1151,7 @@ static int try_to_unuse(unsigned int typ
+ 				} else
+ 					retval = unuse_mm(mm, entry, page);
+ 
+-				if (set_start_mm &&
+-				    swap_count(*swap_map) < swcount) {
++				if (set_start_mm && *swap_map < swcount) {
+ 					mmput(new_start_mm);
+ 					atomic_inc(&mm->mm_users);
+ 					new_start_mm = mm;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
