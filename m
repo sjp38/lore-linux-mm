@@ -1,65 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2FA986B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:56:38 -0400 (EDT)
-Subject: [PATCH 2/2] Fix debug_kmap_atomic() to also handle KM_IRQ_PTE, KM_NMI, and KM_NMI_PTE
-References: <ye84opj9zgs.fsf@camel23.daimi.au.dk>
-From: Soeren Sandmann <sandmann@daimi.au.dk>
-Date: 28 Oct 2009 18:56:35 +0100
-In-Reply-To: <ye84opj9zgs.fsf@camel23.daimi.au.dk>
-Message-ID: <ye8vdhz8krw.fsf@camel23.daimi.au.dk>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id DC8056B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 14:39:08 -0400 (EDT)
+Date: Wed, 28 Oct 2009 12:39:05 -0600
+From: Alex Chiang <achiang@hp.com>
+Subject: Re: [PATCH v2 1/5] mm: add numa node symlink for memory section in
+	sysfs
+Message-ID: <20091028183905.GF22743@ldl.fc.hp.com>
+References: <20091022040814.15705.95572.stgit@bob.kio> <20091022041510.15705.5410.stgit@bob.kio> <alpine.DEB.2.00.0910221249030.26631@chino.kir.corp.google.com> <20091027195907.GJ14102@ldl.fc.hp.com> <alpine.DEB.2.00.0910271422090.22335@chino.kir.corp.google.com> <20091028083137.GA24140@osiris.boeblingen.de.ibm.com> <alpine.DEB.2.00.0910280159380.7122@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.0910280159380.7122@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl
+To: David Rientjes <rientjes@google.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Gary Hade <garyhade@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Previously calling debug_kmap_atomic() with these types would cause
-spurious warnings.
+* David Rientjes <rientjes@google.com>:
+> 
+> Alex, I think the safest thing to do in unregister_mem_sect_under_nodes() 
+> is to iterate though the section pfns and remove links to the node_device 
+> kobjs for all the distinct pfn_to_nid()'s that it encounters.
 
-Signed-off-by: S=C3=B8ren Sandmann Pedersen <sandmann@redhat.com>
----
- mm/highmem.c |   13 ++++++++++---
- 1 files changed, 10 insertions(+), 3 deletions(-)
+Am I not understanding the code? It looks like we do this
+already...
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index 33587de..9c1e627 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -432,10 +432,15 @@ void debug_kmap_atomic(enum km_type type)
- 		return;
-=20
- 	if (unlikely(in_interrupt())) {
--		if (in_irq()) {
-+		if (in_nmi()) {
-+			if (type !=3D KM_NMI && type !=3D KM_NMI_PTE) {
-+				WARN_ON(1);
-+				warn_count--;
-+			}
-+		} else if (in_irq()) {
- 			if (type !=3D KM_IRQ0 && type !=3D KM_IRQ1 &&
- 			    type !=3D KM_BIO_SRC_IRQ && type !=3D KM_BIO_DST_IRQ &&
--			    type !=3D KM_BOUNCE_READ) {
-+			    type !=3D KM_BOUNCE_READ && type !=3D KM_IRQ_PTE) {
- 				WARN_ON(1);
- 				warn_count--;
- 			}
-@@ -452,7 +457,9 @@ void debug_kmap_atomic(enum km_type type)
- 	}
-=20
- 	if (type =3D=3D KM_IRQ0 || type =3D=3D KM_IRQ1 || type =3D=3D KM_BOUNCE_R=
-EAD ||
--			type =3D=3D KM_BIO_SRC_IRQ || type =3D=3D KM_BIO_DST_IRQ) {
-+			type =3D=3D KM_BIO_SRC_IRQ || type =3D=3D KM_BIO_DST_IRQ ||
-+			type =3D=3D KM_IRQ_PTE || type =3D=3D KM_NMI ||
-+			type =3D=3D KM_NMI_PTE ) {
- 		if (!irqs_disabled()) {
- 			WARN_ON(1);
- 			warn_count--;
---=20
-1.6.5.1
+/* unregister memory section under all nodes that it spans */
+int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
+{
+	nodemask_t unlinked_nodes;
+	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+
+	if (!mem_blk)
+		return -EFAULT;
+	nodes_clear(unlinked_nodes);
+	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
+	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+		int nid;
+
+		nid = get_nid_for_pfn(pfn);
+		if (nid < 0)
+			continue;
+		if (!node_online(nid))
+			continue;
+		if (node_test_and_set(nid, unlinked_nodes))
+			continue;
+		sysfs_remove_link(&node_devices[nid].sysdev.kobj,
+			 kobject_name(&mem_blk->sysdev.kobj));
+		sysfs_remove_link(&mem_blk->sysdev.kobj,
+			 kobject_name(&node_devices[nid].sysdev.kobj));
+	}
+	return 0;
+}
+
+Thanks,
+/ac
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
