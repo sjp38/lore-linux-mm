@@ -1,38 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B519D6B0073
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:19:02 -0400 (EDT)
-Date: Wed, 28 Oct 2009 18:18:55 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: RFC: Transparent Hugepage support
-Message-ID: <20091028171855.GU7744@basil.fritz.box>
-References: <87ljiwk8el.fsf@basil.nowhere.org> <20091027193007.GA6043@random.random> <20091028042805.GJ7744@basil.fritz.box> <20091028120050.GD9640@random.random> <20091028141803.GQ7744@basil.fritz.box> <20091028154827.GF9640@random.random> <20091028160352.GS7744@basil.fritz.box> <20091028162206.GG9640@random.random> <20091028163458.GT7744@basil.fritz.box> <1256749015.5613.31.camel@aglitke>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C1F4A6B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:53:58 -0400 (EDT)
+Subject: [PATCH 0/2] Some fixes to debug_kmap_atomic()
+From: Soeren Sandmann <sandmann@daimi.au.dk>
+Date: 28 Oct 2009 18:53:55 +0100
+Message-ID: <ye84opj9zgs.fsf@camel23.daimi.au.dk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1256749015.5613.31.camel@aglitke>
 Sender: owner-linux-mm@kvack.org
-To: Adam Litke <agl@us.ibm.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mingo@elte.hu, a.p.zijlstra@chello.nl
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 28, 2009 at 11:56:55AM -0500, Adam Litke wrote:
-> > I think you need some user visible interfaces to cleanly handle existing
-> > reservations on a process base at least, otherwise you'll completely break 
-> > their semantics.
-> 
-> But we already handle explicit hugepages (with page pools and strict
-> reservations) via hugetlbfs and libhugetlbfs.  It seems you're just
-> making an argument for keeping these around (which I certainly agree
-> with).
+Hi, 
 
-That would require not supporting reservations through the transparent
-mechanism. That wouldn't be very nice semantics, because you end up
-with "glass jaw" performance always in the transparent case.
+Here are two patches that fix an issue with debug_kmap_atomic(). 
 
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+The first one is a pretty straightforward fix for a race that can
+cause an underflow, which in turn causes the stream of warnings to
+never end.
+
+The second patch extends debug_kmap_atomic() to deal with KM_IRQ_PTE,
+KM_NMI, and KM_NMI_PTE.
+
+I was seeing this because the __get_user_pages_fast() in
+arch/x86/kernel/cpu/perf_events.c ends up eventually calling
+kmap_atomic() with KM_PTE, which, with CONFIG_HIGHPTE enabled, ends up
+expanding to:
+
+#define __KM_PTE                        \
+        (in_nmi() ? KM_NMI_PTE :        \
+         in_irq() ? KM_IRQ_PTE :        \
+         KM_PTE0)
+
+and those KM_* types are not handled 
+
+For the second patch, I am basically pattern matching, so I might be
+completely wrong.
+
+
+Thanks,
+Soren
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
