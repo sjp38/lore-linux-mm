@@ -1,60 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 660B16B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 16:10:53 -0400 (EDT)
-Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
-	by smtp-out.google.com with ESMTP id n9SKAnVN029100
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:10:50 -0700
-Received: from pxi29 (pxi29.prod.google.com [10.243.27.29])
-	by spaceape9.eur.corp.google.com with ESMTP id n9SKAIGV013417
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:10:46 -0700
-Received: by pxi29 with SMTP id 29so750252pxi.1
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:10:46 -0700 (PDT)
-Date: Wed, 28 Oct 2009 13:10:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Memory overcommit
-In-Reply-To: <4AE846E8.1070303@gmail.com>
-Message-ID: <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com>
-References: <hav57c$rso$1@ger.gmane.org> <20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
- <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com>
- <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com> <4AE846E8.1070303@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 984196B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 16:31:36 -0400 (EDT)
+Date: Wed, 28 Oct 2009 20:31:28 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] try_to_unuse : remove redundant swap_count()
+In-Reply-To: <dc46d49c0910201825g1b3b3987w8f9002761a64166f@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0910282017410.19885@sister.anvils>
+References: <COL115-W535064AC2F576372C1BB1B9FC00@phx.gbl>
+ <0f7b4023bee9b7ccc47998cd517d193c.squirrel@webmail-b.css.fujitsu.com>
+ <dc46d49c0910201825g1b3b3987w8f9002761a64166f@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Vedran Furac <vedran.furac@gmail.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Bob Liu <yjfpb04@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bo Liu <bo-liu@hotmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Oct 2009, Vedran Furac wrote:
-
-> > Those are practically happening simultaneously with very little memory 
-> > being available between each oom kill.  Only later is "test" killed:
-> > 
-> > [97240.203228] Out of memory: kill process 5005 (test) score 256912 or a child
-> > [97240.206832] Killed process 5005 (test)
-> > 
-> > Notice how the badness score is less than 1/4th of the others.  So while 
-> > you may find it to be hogging a lot of memory, there were others that 
-> > consumed much more.
-> ^^^^^^^^^^^^^^^^^^^^^
+On Wed, 21 Oct 2009, Bob Liu wrote:
+> >>
+> >> While comparing with swcount,it's no need to
+> >> call swap_count(). Just as int set_start_mm =
+> >> (*swap_map>= swcount) is ok.
+> >>
+> > Hmm ?
+> > *swap_map = (SWAP_HAS_CACHE) | count. What this change means ?
+> >
 > 
-> This is just wrong. I have 3.5GB of RAM, free says that 2GB are empty
-> (ignoring cache). Culprit then allocates all free memory (2GB). That
-> means it is using *more* than all other processes *together*. There
-> cannot be any other "that consumed much more".
+> Sorry for the wrong format, I changed to gmail.
+> Because swcount is assigned value *swap_map not swap_count(*swap_map).
+> So I think here should compare with *swap_map not swap_count(*swap_map).
 > 
+> And refer to variable set_start_mm, it is inited also by comparing
+> *swap_map and swcount not swap_count(*swap_map) and swcount.
+> So I submited this patch.
 
-Just post the oom killer results after using echo 1 > 
-/proc/sys/vm/oom_dump_tasks as requested and it will clarify why those 
-tasks were chosen to kill.  It will also show the result of using rss 
-instead of total_vm and allow us to see how such a change would have 
-changed the killing order for your workload.
+Thanks a lot for the fuller description: I mistakenly dismissed
+your patch the first time, misunderstanding what you had found.
 
-> Thanks, I'll try that... but I guess that using rss would yield better
-> results.
+As I remarked in private mail (being smtp-challenged last week),
+what you found was worse than a redundant use of swap_count(): it
+was a wrong use of swap_count(), and caused an (easily overlooked)
+regression in swapoff's (never wonderful) performance.
+
 > 
+> > Anyway, swap_count() macro is removed by Hugh's patch (queued in -mm)
 
-We would know if you posted the data.
+Actually no: I removed some of the other wrappers, which were obscuring
+things for me; but swap_count() still seemed useful, so I left it.
+
+> >
+> I am sorry for not notice that. So just forget about this patch.
+
+No, let's not forget it at all, it was a good find, thank you.
+Updated version of the patch comes in following mail.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
