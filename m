@@ -1,134 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 08B8D6B007B
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 05:15:53 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id n9S9Fn2a002582
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 02:15:49 -0700
-Received: from pzk12 (pzk12.prod.google.com [10.243.19.140])
-	by wpaz29.hot.corp.google.com with ESMTP id n9S9Fkm3008987
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 02:15:47 -0700
-Received: by pzk12 with SMTP id 12so445317pzk.13
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 02:15:46 -0700 (PDT)
-Date: Wed, 28 Oct 2009 02:15:45 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-In-Reply-To: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>
-References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EAFC6B0044
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 06:24:19 -0400 (EDT)
+Date: Wed, 28 Oct 2009 10:24:13 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use
+	ALLOC_HARDER
+Message-ID: <20091028102413.GR8900@csn.ul.ie>
+References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <1256650833-15516-3-git-send-email-mel@csn.ul.ie> <20091027130924.fa903f5a.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20091027130924.fa903f5a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, vedran.furac@gmail.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>"@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Oct 2009, KAMEZAWA Hiroyuki wrote:
+On Tue, Oct 27, 2009 at 01:09:24PM -0700, Andrew Morton wrote:
+> On Tue, 27 Oct 2009 13:40:32 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > Commit 341ce06f69abfafa31b9468410a13dbd60e2b237 altered watermark logic
+> > slightly by allowing rt_tasks that are handling an interrupt to set
+> > ALLOC_HARDER. This patch brings the watermark logic more in line with
+> > 2.6.30.
+> > 
+> > [rientjes@google.com: Spotted the problem]
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> > Reviewed-by: Rik van Riel <riel@redhat.com>
+> > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > ---
+> >  mm/page_alloc.c |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index dfa4362..7f2aa3e 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1769,7 +1769,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+> >  		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+> >  		 */
+> >  		alloc_flags &= ~ALLOC_CPUSET;
+> > -	} else if (unlikely(rt_task(p)))
+> > +	} else if (unlikely(rt_task(p)) && !in_interrupt())
+> >  		alloc_flags |= ALLOC_HARDER;
+> >  
+> >  	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+> 
+> What are the runtime-observeable effects of this change?
+> 
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> It's reported that OOM-Killer kills Gnone/KDE at first...
-> And yes, we can reproduce it easily.
-> 
-> Now, oom-killer uses mm->total_vm as its base value. But in recent
-> applications, there are a big gap between VM size and RSS size.
-> Because
->   - Applications attaches much dynamic libraries. (Gnome, KDE, etc...)
->   - Applications may alloc big VM area but use small part of them.
->     (Java, and multi-threaded applications has this tendency because
->      of default-size of stack.)
-> 
-> I think using mm->total_vm as score for oom-kill is not good.
-> By the same reason, overcommit memory can't work as expected.
-> (In other words, if we depends on total_vm, using overcommit more positive
->  is a good choice.)
-> 
-> This patch uses mm->anon_rss/file_rss as base value for calculating badness.
+A reduction of high-order GFP_ATOMIC allocation failures reported 
+
+http://www.gossamer-threads.com/lists/linux/kernel/1144153
+
+> The description is a bit waffly-sounding for a -stable backportable
+> thing, IMO.  What reason do the -stable maintainers and users have to
+> believe that this patch is needed, and an improvement?
 > 
 
-How does this affect the ability of the user to tune the badness score of 
-individual threads?  It seems like there will now only be two polarizing 
-options: the equivalent of an oom_adj value of +15 or -17.  It is now 
-heavily dependent on the rss which may be unclear at the time of oom and 
-very dynamic.
+Allocation failure reports are occuring against 2.6.31.4 that did not
+occur in 2.6.30. The bug reporter observes no such allocation failures
+with this and the previous patch applied. The data is fuzzier than I'd
+like but both patches do appear to be required.
 
-I think a longer-term solution may rely more on the difference in 
-get_mm_hiwater_rss() and get_mm_rss() instead to know the difference 
-between what is resident in RAM at the time of oom compared to what has 
-been swaped.  Using this with get_mm_hiwater_vm() would produce a nice 
-picture for the pattern of each task's memory consumption.
-
-> Following is changes to OOM score(badness) on an environment with 1.6G memory
-> plus memory-eater(500M & 1G).
-> 
-> Top 10 of badness score. (The highest one is the first candidate to be killed)
-> Before
-> badness program
-> 91228	gnome-settings-
-> 94210	clock-applet
-> 103202	mixer_applet2
-> 106563	tomboy
-> 112947	gnome-terminal
-> 128944	mmap              <----------- 500M malloc
-> 129332	nautilus
-> 215476	bash              <----------- parent of 2 mallocs.
-> 256944	mmap              <----------- 1G malloc
-> 423586	gnome-session
-> 
-> After
-> badness 
-> 1911	mixer_applet2
-> 1955	clock-applet
-> 1986	xinit
-> 1989	gnome-session
-> 2293	nautilus
-> 2955	gnome-terminal
-> 4113	tomboy
-> 104163	mmap             <----------- 500M malloc.
-> 168577	bash             <----------- parent of 2 mallocs
-> 232375	mmap             <----------- 1G malloc
-> 
-> seems good for me. 
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/oom_kill.c |   10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
-> 
-> Index: mm-test-kernel/mm/oom_kill.c
-> ===================================================================
-> --- mm-test-kernel.orig/mm/oom_kill.c
-> +++ mm-test-kernel/mm/oom_kill.c
-> @@ -93,7 +93,7 @@ unsigned long badness(struct task_struct
->  	/*
->  	 * The memory size of the process is the basis for the badness.
->  	 */
-> -	points = mm->total_vm;
-> +	points = get_mm_counter(mm, anon_rss) + get_mm_counter(mm, file_rss);
->  
->  	/*
->  	 * After this unlock we can no longer dereference local variable `mm'
-> @@ -116,8 +116,12 @@ unsigned long badness(struct task_struct
->  	 */
->  	list_for_each_entry(child, &p->children, sibling) {
->  		task_lock(child);
-> -		if (child->mm != mm && child->mm)
-> -			points += child->mm->total_vm/2 + 1;
-> +		if (child->mm != mm && child->mm) {
-> +			unsigned long cpoints;
-> +			cpoints = get_mm_counter(child->mm, anon_rss);
-> +				  + get_mm_counter(child->mm, file_rss);
-
-That shouldn't compile.
-
-> +			points += cpoints/2 + 1;
-> +		}
->  		task_unlock(child);
->  	}
->  
-
-This can all be simplified by just using get_mm_rss(mm) and 
-get_mm_rss(child->mm).
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
