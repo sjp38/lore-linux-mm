@@ -1,134 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 09D9A6B0073
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 16:43:53 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id n9SKhmJW022814
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 20:43:49 GMT
-Received: from pwj11 (pwj11.prod.google.com [10.241.219.75])
-	by wpaz5.hot.corp.google.com with ESMTP id n9SKhjpk002773
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:43:45 -0700
-Received: by pwj11 with SMTP id 11so1081523pwj.20
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:43:45 -0700 (PDT)
-Date: Wed, 28 Oct 2009 13:43:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm] mm: slab allocate memory section nodemask for large
- systems
-In-Reply-To: <20091028183905.GF22743@ldl.fc.hp.com>
-Message-ID: <alpine.DEB.2.00.0910281315370.23279@chino.kir.corp.google.com>
-References: <20091022040814.15705.95572.stgit@bob.kio> <20091022041510.15705.5410.stgit@bob.kio> <alpine.DEB.2.00.0910221249030.26631@chino.kir.corp.google.com> <20091027195907.GJ14102@ldl.fc.hp.com> <alpine.DEB.2.00.0910271422090.22335@chino.kir.corp.google.com>
- <20091028083137.GA24140@osiris.boeblingen.de.ibm.com> <alpine.DEB.2.00.0910280159380.7122@chino.kir.corp.google.com> <20091028183905.GF22743@ldl.fc.hp.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D3086B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 17:47:49 -0400 (EDT)
+Date: Wed, 28 Oct 2009 14:47:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] [PATCH] Avoid livelock for fsync
+Message-Id: <20091028144731.b46a3341.akpm@linux-foundation.org>
+In-Reply-To: <20091026181314.GE7233@duck.suse.cz>
+References: <20091026181314.GE7233@duck.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Gary Hade <garyhade@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Ingo Molnar <mingo@elte.hu>, Alex Chiang <achiang@hp.com>
+To: Jan Kara <jack@suse.cz>
+Cc: WU Fengguang <wfg@mail.ustc.edu.cn>, npiggin@suse.de, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, hch@infradead.org, chris.mason@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Oct 2009, Alex Chiang wrote:
+On Mon, 26 Oct 2009 19:13:14 +0100
+Jan Kara <jack@suse.cz> wrote:
 
-> Am I not understanding the code? It looks like we do this
-> already...
+>   Hi,
 > 
-> /* unregister memory section under all nodes that it spans */
-> int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
-> {
-> 	nodemask_t unlinked_nodes;
-> 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+>   on my way back from Kernel Summit, I've coded the attached patch which
+> implements livelock avoidance for write_cache_pages. We tag patches that
+> should be written in the beginning of write_cache_pages and then write
+> only tagged pages (see the patch for details). The patch is based on Nick's
+> idea.
+>   The next thing I've aimed at with this patch is a simplification of
+> current writeback code. Basically, with this patch I think we can just rip
+> out all the range_cyclic and nr_to_write (or other "fairness logic"). The
+> rationalle is following:
+>   What we want to achieve with fairness logic is that when a page is
+> dirtied, it gets written to disk within some reasonable time (like 30s or
+> so). We track dirty time on per-inode basis only because keeping it
+> per-page is simply too expensive. So in this setting fairness between
+> inodes really does not make any sence - why should be a page in a file
+> penalized and written later only because there are lots of other dirty
+> pages in the file? It is enough to make sure that we don't write one file
+> indefinitely when there are new dirty pages continuously created - and my
+> patch achieves that.
+>   So with my patch we can make write_cache_pages always write from
+> range_start (or 0) to range_end (or EOF) and write all tagged pages. Also
+> after changing balance_dirty_pages() so that a throttled process does not
+> directly submit the IO (Fengguang has the patches for this), we can
+> completely remove the nr_to_write logic because nothing really uses it
+> anymore. Thus also the requeue_io logic should go away etc...
+>   Fengguang, do you have the series somewhere publicly available? You had
+> there a plenty of changes and quite some of them are not needed when the
+> above is done. So could you maybe separate out the balance_dirty_pages
+> change and I'd base my patch and further simplifications on top of that?
+> Thanks.
 > 
-> 	if (!mem_blk)
-> 		return -EFAULT;
-> 	nodes_clear(unlinked_nodes);
-> 	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
-> 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
-> 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
-> 		int nid;
-> 
-> 		nid = get_nid_for_pfn(pfn);
-> 		if (nid < 0)
-> 			continue;
-> 		if (!node_online(nid))
-> 			continue;
-> 		if (node_test_and_set(nid, unlinked_nodes))
-> 			continue;
-> 		sysfs_remove_link(&node_devices[nid].sysdev.kobj,
-> 			 kobject_name(&mem_blk->sysdev.kobj));
-> 		sysfs_remove_link(&mem_blk->sysdev.kobj,
-> 			 kobject_name(&node_devices[nid].sysdev.kobj));
-> 	}
-> 	return 0;
-> }
-> 
 
-That shound be sufficient with the exception that allocating nodemask_t 
-on the stack is usually dangerous because it can be extremely large; we 
-typically use NODEMASK_ALLOC() for such code.  It's had some changes in 
--mm, but since this patchset will likely be going through that tree anyway 
-we can fix it now with the patch below.
+I need to think about this.  Hard.
 
-Otherwise, it looks like the iteration is already there and will remove 
-links for memory sections bound to multiple nodes if they exist through 
-hotplug.
+So I'll defer that and nitpick the implementation instead ;)
+
+My MUA doesn't understand text/x-patch.  Please use text/plain if you
+must use attachments?
+
+	
+ /**
+> + * tag_pages_for_writeback - tag pages to be written by write_cache_pages
+> + * @mapping: address space structure to write
+> + * @start: starting page index
+> + * @end: ending page index (inclusive)
+> + *
+> + * This function scans the page range from @start to @end and tags all pages
+> + * that have DIRTY tag set with a special TOWRITE tag. The idea is that
+> + * write_cache_pages (or whoever calls this function) will then use TOWRITE tag
+> + * to identify pages eligible for writeback.  This mechanism is used to avoid
+> + * livelocking of writeback by a process steadily creating new dirty pages in
+> + * the file (thus it is important for this function to be damn quick so that it
+> + * can tag pages faster than a dirtying process can create them).
+> + */
+> +void tag_pages_for_writeback(struct address_space *mapping,
+> +			     pgoff_t start, pgoff_t end)
+> +{
+> +	struct pagevec pvec;
+> +	int nr_pages, i;
+> +	struct page *page;
+> +
+> +	pagevec_init(&pvec, 0);
+> +	while (start <= end) {
+> +		nr_pages = pagevec_lookup_tag(&pvec, mapping, &start,
+> +			      PAGECACHE_TAG_DIRTY,
+> +			      min(end - start, (pgoff_t)PAGEVEC_SIZE-1) + 1);
+> +		if (!nr_pages)
+> +			return;
+> +
+> +		spin_lock_irq(&mapping->tree_lock);
+> +		for (i = 0; i < nr_pages; i++) {
+> +			page = pvec.pages[i];
+> +			/* Raced with someone freeing the page? */
+> +			if (page->mapping != mapping)
+> +				continue;
+> +			if (page->index > end)
+> +				break;
+> +			radix_tree_tag_set(&mapping->page_tree,
+> +				page_index(page), PAGECACHE_TAG_TOWRITE);
+> +		}
+> +		spin_unlock_irq(&mapping->tree_lock);
+> +	}
+> +}
+> +EXPORT_SYMBOL(tag_pages_for_writeback);
+
+This is really inefficient.  We do a full tree descent for each dirty
+page.
+
+It would be far more efficient to do a combined lookup and set
+operation.  Bascially that's the same as pagevec_lookup_tag(), only we
+set the PAGECACHE_TAG_TOWRITE on each page instead of taking a copy
+into the pagevec.
+
+Which makes one wonder: would such an operation require ->tree_lock? 
+pagevec_lookup_tag() just uses rcu_read_lock() - what do we need to do
+to use lighter locking in the new
+radix_tree_gang_lookup_tag_slot_then_set_a_flag()?  Convert tag_set()
+and tag_clear() to atomic ops, perhaps?
 
 
-
-mm: slab allocate memory section nodemask for large systems
-
-Nodemasks should not be allocated on the stack for large systems (when it
-is larger than 256 bytes) since there is a threat of overflow.
-
-This patch causes the unregister_mem_sect_under_nodes() nodemask to be
-allocated on the stack for smaller systems and be allocated by slab for
-larger systems.
-
-GFP_KERNEL is used since remove_memory_block() can block.
-
-Cc: Gary Hade <garyhade@us.ibm.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Depends on NODEMASK_ALLOC() changes currently present only in -mm.
-
- drivers/base/node.c |   11 +++++++----
- 1 files changed, 7 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/base/node.c b/drivers/base/node.c
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -363,12 +363,14 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
- /* unregister memory section under all nodes that it spans */
- int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
- {
--	nodemask_t unlinked_nodes;
-+	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
- 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
- 
--	if (!mem_blk)
-+	if (!mem_blk) {
-+		NODEMASK_FREE(unlinked_nodes);
- 		return -EFAULT;
--	nodes_clear(unlinked_nodes);
-+	}
-+	nodes_clear(*unlinked_nodes);
- 	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
- 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
- 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
-@@ -379,13 +381,14 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
- 			continue;
- 		if (!node_online(nid))
- 			continue;
--		if (node_test_and_set(nid, unlinked_nodes))
-+		if (node_test_and_set(nid, *unlinked_nodes))
- 			continue;
- 		sysfs_remove_link(&node_devices[nid].sysdev.kobj,
- 			 kobject_name(&mem_blk->sysdev.kobj));
- 		sysfs_remove_link(&mem_blk->sysdev.kobj,
- 			 kobject_name(&node_devices[nid].sysdev.kobj));
- 	}
-+	NODEMASK_FREE(unlinked_nodes);
- 	return 0;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
