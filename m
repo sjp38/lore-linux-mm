@@ -1,65 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 470F26B0078
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 07:59:35 -0400 (EDT)
-Date: Wed, 28 Oct 2009 11:59:26 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
-	failures V2
-Message-ID: <20091028115926.GW8900@csn.ul.ie>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <20091023165810.GA4588@bizet.domek.prywatny> <20091023211239.GA6185@bizet.domek.prywatny> <9ec2d7290910240646p75b93c68v6ea1648d628a9660@mail.gmail.com> <20091028114208.GA14476@bizet.domek.prywatny>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 55A876B007E
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 08:01:13 -0400 (EDT)
+Date: Wed, 28 Oct 2009 13:00:50 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: RFC: Transparent Hugepage support
+Message-ID: <20091028120050.GD9640@random.random>
+References: <20091026185130.GC4868@random.random>
+ <87ljiwk8el.fsf@basil.nowhere.org>
+ <20091027193007.GA6043@random.random>
+ <20091028042805.GJ7744@basil.fritz.box>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091028114208.GA14476@bizet.domek.prywatny>
+In-Reply-To: <20091028042805.GJ7744@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: Karol Lewandowski <karol.k.lewandowski@gmail.com>
-Cc: Mel LKML <mel.lkml@gmail.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 28, 2009 at 12:42:08PM +0100, Karol Lewandowski wrote:
-> On Sat, Oct 24, 2009 at 02:46:56PM +0100, Mel LKML wrote:
-> > Hi,
-> 
-> Hi,
-> 
-> > On 10/23/09, Karol Lewandowski <karol.k.lewandowski@gmail.com> wrote:
-> > > On Fri, Oct 23, 2009 at 06:58:10PM +0200, Karol Lewandowski wrote:
-> 
-> > > Ok, I've tested patches 1+2+4 and bug, while very hard to trigger, is
-> > > still present. I'll test complete 1-4 patchset as time permits.
-> 
-> Sorry for silence, I've been quite busy lately.
-> 
-> 
-> > And also patch 5 please which is the revert. Patch 5 as pointed out is
-> > probably a red herring. Hwoever, it has changed the timing and made a
-> > difference for some testing so I'd like to know if it helps yours as
-> > well.
-> 
-> I've tested patches 1+2+3+4 in my normal usage scenario (do some work,
-> suspend, do work, suspend, ...) and it failed today after 4 days (== 4
-> suspend-resume cycles).
-> 
-> I'll test 1-5 now.
-> 
+Hi Andi,
 
-I was digging through commits for suspend-related changes. Rafael, is
-there any chance that some change to suspend is responsible for this
-regression? This commit for example is a vague possibility;
-c6f37f12197ac3bd2e5a35f2f0e195ae63d437de: PM/Suspend: Do not shrink memory before suspend
+On Wed, Oct 28, 2009 at 05:28:05AM +0100, Andi Kleen wrote:
+> I think longer term the standard VM just needs to understand
+> huge pages properly. Originally when huge pages were only
+> considered a "Oracle hack" the separation made sense, but now
+> with more and more use that is really not true anymore.
+> 
+> Also hugetlbfs is gaining more and more functionality all the time.
 
-I say vague because FREE_PAGE_NUMBER is so small.
+This is exactly the problem... and these days there's not just Oracle:
+KVM, glibc needs hugepages too all the time, so it's not surprising
+even hugetlbfs is gaining more generic functionality but it's still an
+awkward model with libhugetlbfs and it still has limitations that
+prevents generic use.
 
-Also, what was the behaviour of the e100 driver when suspending before
-this commit?
+> Maintaining two VMs in parallel forever seems like the wrong
+> thing to do.
 
-6905b1f1a03a48dcf115a2927f7b87dba8d5e566: Net / e100: Fix suspend of devices that cannot be power managed
+Agreed.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> Also the fragmentation avoidance heuristics got a lot better
+> in the last years, so it's much more practical than it used to be
+> (at least for 2MB)
+
+"more practical at least for 2MB" is why I suggested to ignore sizes
+like 1G. 2M is already on the largy side, and in this work we should
+focus on those sizes that can realistically be found on the buddy even
+by pure luck on a busy system sometime, and that can be reasonably
+found on the buddy if defrag heuristics shrink the cache in physical
+order. 1G will never be found by pure luck, at best it could be
+defragged but with an huge expensive defrag relocation amount of work
+which might not be justified.
+
+> > > The problem is that this will interact badly with 1GB pages -- once
+> > > you split them up you'll never get them back, because they 
+> > > can't be allocated at runtime.
+> > 
+> > 1GB pages can't be handled by this code, and clearly it's not
+> > practical to hope 1G pages to materialize in the buddy (even if we
+> 
+> That seems short sightened. You do this because 2MB pages give you
+> x% performance advantage, but then it's likely that 1GB pages will give 
+> another y% improvement and why should people stop at the smaller
+> improvement?
+
+For the reason mentioned above, sizes like 1G will likely remain
+available only through boot-reservation and splitting an huge page to
+be swapped would require a very expensive split_huge_page
+function. Instead of a loop for (i=0; i<512; i++) inside a not
+preemptive section with all pmd frozen, you will have a loop of
+262144... And swapping 1G page natively without splitting it, is even
+less feasible.
+
+> Ignoring the gigantic pages now would just mean that this
+> would need to be revised later again or that users still
+> need to use hacks like libhugetlbfs.
+
+They will still need if they want the extra y%, because 1G pages
+simply can't be generated by the buddy allocator. I doubt we should
+increase the MAX_ORDER from 11 to 18, it would slowdown the whole
+buddy without actually giving us 1G pages in a timely manner (the
+relocation work over 1G would be very expensive so not suitable for
+transparent behavior).
+
+> Given 1GB pages for a time are harder to use on the system
+> administrator level, but at least for applications the interfaces
+> should be similar at least.
+
+I see your point here in wanting to use the generic interface, we
+could have the page fault in the madvise vmas that fits a 1G naturally
+aligned region, search into a reserved region first, and if they don't
+find the 1G page reserved they could search the buddy for 2M
+pages. But still the problem is there's no way to swap that 1G beast
+if we go low on memory. It's not transparent behavior, but we could
+share the same madvise interface, true! I doubt we should map 1G pages
+in tasks outside of madvised vmas, because of that ram being special
+and reserved. In some ways hugetlbfs providing for permissions in
+order to take advantage of the reserved regions is better than
+unprivileged madvise. Not to tell the problem of clearing and copying
+of a 1G page during page fault...
+
+For the transparent 2M pages instead if an unprivileged user end up
+using them the whole system gains because the more people uses 2M
+pages the less fragmentation there is in the system.
+
+But if we'll get to a point where 1G page is feasible (or we want to
+obsolete hugetlbfs, which I doubt it will happen until we move
+transparent hugepages to tmpfs too), we can always add a
+pud_trans_huge later... Frankly the 1G pages don't worry me at all for
+the long term. Especially if we'll just manage them with a generic
+madvise(MADV_HUGEPAGE). I don't plan to nuke hugetlbfs in the very
+short term. If we get to a point where hugetlbfs has no reason to
+exist anymore we've just to add pud_trans_huge before nuking it and
+have the do_huge_anonymous_page search into the reserved 1G regions if
+the VM_HUGEPAGE is set.
+
+> > were to increase the buddy so much slowing it down regular page
+> > allocation). Let's forget 1G pages here... we're only focused on sizes
+> > that can be allocated dynamically. Main problem are the 64k pages or
+> > such that don't fit into a pmd...
+> 
+> What 64k pages? You're talking about soft pages or non x86?
+
+I wasn't talking about soft pages. The whole patch here is tuned for
+hugetlb. I tried to do prefault and to allocate hugepages and map them
+partially with ptes (kind of softpages of size a power of 2 between 8k
+and 1M both included) to avoid zeroing and copying the whole 2M during
+page faults. But it's not worth it. Whenever we deal with hugepages a
+huge tlb has always to be involved for this to be worth it. Otherwise
+it adds even more complexity and there is not enough gain (with the
+exception of speeding up the initial page fault which is not so
+important). I think those designs that preallocate hugepages and maps
+them partially with ptes are inefficient, overcomplex and bloated.
+
+My worry are the archs like powerpc where a hugepage doesn't fit in a
+pmd_trans_huge. I think x86 will fit the pmd/pud_trans_huge approach
+in my patch even of 1G pages in the long run, so there is no actual
+long term limitation with regard to x86. The fact is that the generic
+pagetable code is tuned for x86 so no problem there.
+
+What I am unsure about and worries me more are those archs that don't
+use a pmd to map hugepages and to create hugetlb. I am unsure if those
+archs will be able to take advantage of my patch with minor changes to
+it given it is wired to pmd_trans_huge availability.
+
+> > > Even for 2MB pages it can be a problem.
+> > > 
+> > > You'll likely need to fix the page table code.
+> > 
+> > In terms of fragmentation split_huge_page itself won't create
+> > it.. unless it swaps (but then CPU performance is lost on the mapping
+> > anyway).
+> 
+> The problem is that the performance will be lost forever. So if
+> you ever do something that only does a little temporary 
+> swapping (like a backup run) you would be ready for a reboot.
+> Not good.
+
+Well until the background daemon calls collapse_huge_page. Also before
+splitting the page the pmd young bit is checked and it gets huge more
+priority than the young bit of the pte because the pmd young bit has
+512 higher probability of being set than the pte young bit.
+
+Also note, the swapping right now generates fragmentation but later we
+can add swap entries at the pmd level and we can stop calling
+split_huge_page even in the swap path, to avoid swap to introduce
+fragmentation. But we can't do everything at once...
+
+> >  We need to teach mprotect/mremap not to call split_huge_page
+> > true, but not to avoid fragmentation. btw, thinking at fragmentation
+> 
+> I think they just have to be fixed properly.
+
+Sure they have in the mid term but just to speedup those syscalls and
+to avoid them to break the hugetlb speedup, fragmentation is not an
+issue there.
+
+> My suspicion is btw that there's some more code sharing possible
+> in all that VMA handling code of ther different system calls
+> (I remember thinking that when I wrote mbind() :-). Then perhaps 
+> variable page support would be easier anyways because less code needs
+> to be changed.
+
+Somebody worked in that direction with pagewalk.c, but one thing is to
+do a readonly pagetable walk, another thing is to mangle vmas and
+pmd/pte etc... So it looks hard to share there, they split vmas as a
+start and then mangles ptes (and in future pmds) around.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
