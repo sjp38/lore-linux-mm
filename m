@@ -1,68 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F9F86B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:57:03 -0400 (EDT)
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by e9.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n9SGqacC021854
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:52:36 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n9SGuwQs1032408
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:56:58 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n9SGuvih007544
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:56:57 -0400
-Subject: Re: RFC: Transparent Hugepage support
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20091028163458.GT7744@basil.fritz.box>
-References: <20091026185130.GC4868@random.random>
-	 <87ljiwk8el.fsf@basil.nowhere.org> <20091027193007.GA6043@random.random>
-	 <20091028042805.GJ7744@basil.fritz.box>
-	 <20091028120050.GD9640@random.random>
-	 <20091028141803.GQ7744@basil.fritz.box>
-	 <20091028154827.GF9640@random.random>
-	 <20091028160352.GS7744@basil.fritz.box>
-	 <20091028162206.GG9640@random.random>
-	 <20091028163458.GT7744@basil.fritz.box>
-Content-Type: text/plain
-Date: Wed, 28 Oct 2009 11:56:55 -0500
-Message-Id: <1256749015.5613.31.camel@aglitke>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3799B6B0073
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:16:03 -0400 (EDT)
+Date: Wed, 28 Oct 2009 11:15:58 -0600
+From: Alex Chiang <achiang@hp.com>
+Subject: Re: [PATCH v2 1/5] mm: add numa node symlink for memory section in
+	sysfs
+Message-ID: <20091028171558.GB22743@ldl.fc.hp.com>
+References: <20091022040814.15705.95572.stgit@bob.kio> <20091022041510.15705.5410.stgit@bob.kio> <alpine.DEB.2.00.0910221249030.26631@chino.kir.corp.google.com> <20091027195907.GJ14102@ldl.fc.hp.com> <alpine.DEB.2.00.0910271422090.22335@chino.kir.corp.google.com> <20091028083137.GA24140@osiris.boeblingen.de.ibm.com> <alpine.DEB.2.00.0910280159380.7122@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.0910280159380.7122@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Gary Hade <garyhade@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-10-28 at 17:34 +0100, Andi Kleen wrote:
-> On Wed, Oct 28, 2009 at 05:22:06PM +0100, Andrea Arcangeli wrote:
-> > I want to keep it as transparent as possible and to defer adding user
-> > visible interfaces (with the exception of MADV_HUGEPAGE equivalent to
-> > MADV_MERGEABLE for the scan daemon) initially. Even MADV_HUGEPAGE
-> > might not be necessary, even the disable/enable global flag may not be
-> > necessary but that is the absolute minimum tuning that seems
-> > useful and so there's not much risk to obsolete it.
+* David Rientjes <rientjes@google.com>:
+> On Wed, 28 Oct 2009, Heiko Carstens wrote:
 > 
-> I think you need some user visible interfaces to cleanly handle existing
-> reservations on a process base at least, otherwise you'll completely break 
-> their semantics.
+> > The short answer is: s390 doesn't support NUMA, because the hardware doesn't
+> > tell us to which node (book in s390 terms) a memory range belongs to.
+> > 
+> > Memory layout for a logical partition is striped: first x mbyte belong to
+> > node 0, next x mbyte belong to node 1, etc...
+> > 
+> > Also, since there is always a hypervisor running below Linux I don't think
+> > it would make too much sense if we would know to which node a piece of
+> > memory belongs to: if the hypervisor decides to schedule a virtual cpu of
+> > a logical partition to a different node then what?
+> > 
+> 
+> Ok, so the patchset is a no-op for s390 since it only utilizes the 
+> !CONFIG_NUMA code.
 
-But we already handle explicit hugepages (with page pools and strict
-reservations) via hugetlbfs and libhugetlbfs.  It seems you're just
-making an argument for keeping these around (which I certainly agree
-with).
+Sounds good.
 
-> sysctls that change existing semantics greatly are usually a bad idea
-> because what should the user do if they have existing applications
-> that rely on old semantics, but still want the new functionality?
+> Alex, I think the safest thing to do in unregister_mem_sect_under_nodes() 
+> is to iterate though the section pfns and remove links to the node_device 
+> kobjs for all the distinct pfn_to_nid()'s that it encounters.
 
-If you want to reserve some huge pages for a specific, corner-case
-application, allocate huge pages the way we do today and use
-libhugetlbfs.  Meanwhile, the rest of the system can benefit from this
-new interface.
+Ok, I will respin.
 
--- 
-Thanks,
-Adam
+Thanks!
+/ac
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
