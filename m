@@ -1,39 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5E6016B0093
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 20:45:28 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id d23so1434026fga.8
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2009 17:45:26 -0700 (PDT)
-Message-ID: <4AE79422.8010704@gmail.com>
-Date: Wed, 28 Oct 2009 01:45:22 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] oom_kill: avoid depends on total_vm and use real
- RSS/swap value for oom_score (Re: Memory overcommit
-References: <4ADE3121.6090407@gmail.com>	<20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>	<4AE5CB4E.4090504@gmail.com>	<20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>	<2f11576a0910262310g7aea23c0n9bfc84c900879d45@mail.gmail.com>	<20091027153429.b36866c4.minchan.kim@barrios-desktop>	<20091027153626.c5a4b5be.kamezawa.hiroyu@jp.fujitsu.com>	<28c262360910262355p3cac5c1bla4de9d42ea67fb4e@mail.gmail.com>	<20091027164526.da6a23cb.kamezawa.hiroyu@jp.fujitsu.com>	<20091027165612.4122d600.minchan.kim@barrios-desktop>	<20091027123810.GA22830@random.random> <20091028092251.8ddd1b20.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091028092251.8ddd1b20.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 28AC26B0095
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 20:57:15 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9S0kHUY031101
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 28 Oct 2009 09:46:17 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id EB0B045DE50
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 09:46:16 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CF3BD45DE4C
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 09:46:16 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B19E21DB8038
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 09:46:16 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C0A31DB803E
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 09:46:13 +0900 (JST)
+Date: Wed, 28 Oct 2009 09:43:43 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Memory overcommit
+Message-Id: <20091028094343.d59fec94.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0910271843510.11372@sister.anvils>
+References: <hav57c$rso$1@ger.gmane.org>
+	<20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com>
+	<hb2cfu$r08$2@ger.gmane.org>
+	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>
+	<4ADE3121.6090407@gmail.com>
+	<20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
+	<4AE5CB4E.4090504@gmail.com>
+	<20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0910271843510.11372@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: vedran.furac@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, rientjes@google.com, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
+On Tue, 27 Oct 2009 20:44:16 +0000 (GMT)
+Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
- > Hmm, maybe
->    anon_rss + file_rss/2 + swap_usage/4 + kosaki's time accounting change
-> can give us some better value. I'll consider what number is logical and
-> technically correct, again.
+> On Tue, 27 Oct 2009, KAMEZAWA Hiroyuki wrote:
+> > Sigh, gnome-session has twice value of mmap(1G).
+> > Of course, gnome-session only uses 6M bytes of anon.
+> > I wonder this is because gnome-session has many children..but need to
+> > dig more. Does anyone has idea ?
+> 
+> When preparing KSM unmerge to handle OOM, I looked at how the precedent
+> was handled by running a little program which mmaps an anonymous region
+> of the same size as physical memory, then tries to mlock it.  The
+> program was such an obvious candidate to be killed, I was shocked
+> by the poor decisions the OOM killer made.  Usually I ran it with
+> mem=512M, with gnome and firefox active.  Often the OOM killer killed
+> it right the first time, but went wrong when I tried it a second time
+> (I think that's because of what's already swapped out the first time).
+> 
+> I built up a patchset of fixes, but once I came to split them up for
+> submission, not one of them seemed entirely satisfactory; and Andrea's
+> fix to the KSM/mlock deadlock forced me to abandon even the first of
+> the patches (we've since then fixed the way munlocking behaves, so
+> in theory could revisit that; but Andrea disliked what I was trying
+> to do there in KSM for other reasons, so I've not touched it since).
+> I had to get on with KSM, so I set it all aside: none of the issues
+> was a recent regression.
+> 
+> I did briefly wonder about the reliance on total_vm which you're now
+> looking into, but didn't touch that at all.  Let me describe those
+> issues which I did try but fail to fix - I've no more time to deal
+> with them now than then, but ought at least to mention them to you.
+> 
+Okay, thank you for detailed information.
 
-Although my vote doesn't count, from my experience, this formula sounds
-like optimal solution. Thanks, hope it gets accepted!
 
-Regards,
+> 1.  select_bad_process() tries to avoid killing another process while
+> there's still a TIF_MEMDIE, but its loop starts by skipping !p->mm
+> processes.  However, p->mm is set to NULL well before p reaches
+> exit_mmap() to actually free the memory, and there may be significant
+> delays in between (I think exit_robust_list() gave me a hang at one
+> stage).  So in practice, even when the OOM killer selects the right
+> process to kill, there can be lots of collateral damage from it not
+> waiting long enough for that process to give up its memory.
+> 
+Hmm.
 
-Vedran
+> I tried to deal with that by moving the TIF_MEMDIE test up before
+> the p->mm test, but adding in a check on p->exit_state:
+> 		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
+> 		    !p->exit_state)
+> 			return ERR_PTR(-1UL);
+> But this is then liable to hang the system if there's some reason
+> why the selected process cannot proceed to free its memory (e.g.
+> the current KSM unmerge case).  It needs to wait "a while", but
+> give up if no progress is made, instead of hanging: originally
+> I thought that setting PF_MEMALLOC more widely in page_alloc.c,
+> and giving up on the TIF_MEMDIE if it was waiting in PF_MEMALLOC,
+> would deal with that; but we cannot be sure that waiting of memory
+> is the only reason for a holdup there (in the KSM unmerge case it's
+> waiting for an mmap_sem, and there may well be other such cases).
+> 
+ok, then, easy handling can't be a help.
 
+> 2.  I started out running my mlock test program as root (later
+> switched to use "ulimit -l unlimited" first).  But badness() reckons
+> CAP_SYS_ADMIN or CAP_SYS_RESOURCE is a reason to quarter your points;
+> and CAP_SYS_RAWIO another reason to quarter your points: so running
+> as root makes you sixteen times less likely to be killed.  Quartering
+> is anyway debatable, but sixteenthing seems utterly excessive to me.
+> 
+I can't agree that part of heuristics, either.
+
+> I moved the CAP_SYS_RAWIO test in with the others, so it does no
+> more than quartering; but is quartering appropriate anyway?  I did
+> wonder if I was right to be "subverting" the fine-grained CAPs in
+> this way, but have since seen unrelated mail from one who knows
+> better, implying they're something of a fantasy, that su and sudo
+> are indeed what's used in the real world.  Maybe this patch was okay.
+> 
+ok.
+
+
+
+> 3.  badness() has a comment above it which says:  
+>  * 5) we try to kill the process the user expects us to kill, this
+>  *    algorithm has been meticulously tuned to meet the principle
+>  *    of least surprise ... (be careful when you change it)
+> But Andrea's 2.6.11 86a4c6d9e2e43796bb362debd3f73c0e3b198efa (later
+> refined by Kurt's 2.6.16 9827b781f20828e5ceb911b879f268f78fe90815)
+> adds plenty of surprise there, by trying to factor children into the
+> calculation.  Intended to deal with forkbombs, but any reasonable
+> process whose purpose is to fork children (e.g. gnome-session)
+> becomes very vulnerable.  And whereas badness() itself goes on to
+> refine the total_vm points by various adjustments peculiar to the
+> process in question, those refinements have been ignored when
+> adding the child's total_vm/2.  (Andrea does remark that he'd
+> rather have rewritten badness() from scratch.)
+> 
+> I tried to fix this by moving the PF_OOM_ORIGIN (was PF_SWAPOFF)
+> part of the calculation up to select_bad_process(), making a
+> solo_badness() function which makes all those adjustments to
+> total_vm, then badness() itself a simple function adding half
+> the children's solo_badness()es to the process' own solo_badness().
+> But probably lots more needs doing - Andrea's rewrite?
+> 
+> 4.  In some cases those children are sharing exactly the same mm,
+> yet its total_vm is being added again and again to the points:
+> I had a nasty inner loop searching back to see if we'd already
+> counted this mm (but then, what if the different tasks sharing
+> the mm deserved different adjustments to the total_vm?).
+> 
+> 
+> I hope these notes help someone towards a better solution
+> (and be prepared to discover more on the way).  I agree with
+> Vedran that the present behaviour is pretty unimpressive, and
+> I'm puzzled as to how people can have been tinkering with
+> oom_kill.c down the years without seeing any of this.
+> 
+
+Sorry, I usually don't use X on servers and almost all recent my OOM test
+was done under memcg ;(
+Thank you for your investigation. Maybe I'll need several steps.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
