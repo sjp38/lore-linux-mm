@@ -1,40 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4B0226B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 09:02:32 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id d23so1640936fga.8
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 06:02:26 -0700 (PDT)
-Date: Wed, 28 Oct 2009 14:02:23 +0100
-From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
-Subject: Re: [PATCH 0/3] Reduce GFP_ATOMIC allocation failures, partial fix
-	V3
-Message-ID: <20091028130223.GB14476@bizet.domek.prywatny>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BB3506B0044
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 09:28:18 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so1001563bwz.10
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 06:28:16 -0700 (PDT)
+Message-ID: <4AE846E8.1070303@gmail.com>
+Date: Wed, 28 Oct 2009 14:28:08 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1256650833-15516-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: Memory overcommit
+References: <hav57c$rso$1@ger.gmane.org> <20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com> <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com> <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 27, 2009 at 01:40:30PM +0000, Mel Gorman wrote:
-> The following bug becomes very difficult to reproduce with these patches;
+David Rientjes wrote:
+
+> On Wed, 28 Oct 2009, Vedran Furac wrote:
 > 
-> [Bug #14265] ifconfig: page allocation failure. order:5, mode:0x8020 w/ e100
+>>> This is wrong; it doesn't "emulate oom" since oom_kill_process() always 
+>>> kills a child of the selected process instead if they do not share the 
+>>> same memory.  The chosen task in that case is untouched.
+>> OK, I stand corrected then. Thanks! But, while testing this I lost X
+>> once again and "test" survived for some time (check the timestamps):
+>>
+>> http://pastebin.com/d5c9d026e
+>>
+>> - It started by killing gkrellm(!!!)
+>> - Then I lost X (kdeinit4 I guess)
+>> - Then 103 seconds after the killing started, it killed "test" - the
+>> real culprit.
+>>
+>> I mean... how?!
+>>
+> 
+> Here are the five oom kills that occurred in your log, and notice that the 
+> first four times it kills a child and not the actual task as I explained:
 
-Minor clarification -- bug becomes difficult to reproduce _quickly_.
+Yes, but four times wrong.
 
-I've always saw this bug after many suspend-resume cycles (interlaved
-with "real work").  Since testing one kernel in normal usage scenario
-would take many days I've tried to immitate "real work" by lots of
-memory intensive/fragmenting processes.
+> Those are practically happening simultaneously with very little memory 
+> being available between each oom kill.  Only later is "test" killed:
+> 
+> [97240.203228] Out of memory: kill process 5005 (test) score 256912 or a child
+> [97240.206832] Killed process 5005 (test)
+> 
+> Notice how the badness score is less than 1/4th of the others.  So while 
+> you may find it to be hogging a lot of memory, there were others that 
+> consumed much more.
+^^^^^^^^^^^^^^^^^^^^^
 
-Hovewer, this bug shows itself (sooner or later) in every kernel
-except 2.6.30 (or earlier).
+This is just wrong. I have 3.5GB of RAM, free says that 2GB are empty
+(ignoring cache). Culprit then allocates all free memory (2GB). That
+means it is using *more* than all other processes *together*. There
+cannot be any other "that consumed much more".
 
-Thanks.
+> You can get a more detailed understanding of this by doing
+> 
+> 	echo 1 > /proc/sys/vm/oom_dump_tasks
+> 
+> before trying your testcase; it will show various information like the 
+> total_vm
+
+Looking at total_vm (VIRT in top/vsize in ps?) is completely wrong. If I
+sum up those numbers for every process running I would get:
+
+%ps -eo pid,vsize,command|awk '{ SUM += $2} END {print SUM/1024/1024}'
+14.7935
+
+14GB. And I only have 3GB. I usually use exmap to get realistic numbers:
+
+http://www.berthels.co.uk/exmap/doc.html
+
+> and oom_adj value for each task at the time of oom (and the 
+> actual badness score is exported per-task via /proc/pid/oom_score in 
+> real-time).  This will also include the rss and show what the end result 
+> would be in using that value as part of the heuristic on this particular 
+> workload compared to the current implementation.
+
+Thanks, I'll try that... but I guess that using rss would yield better
+results.
+
+
+Regards,
+
+Vedran
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
