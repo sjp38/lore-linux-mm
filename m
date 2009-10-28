@@ -1,181 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A2F8F6B0044
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 10:18:12 -0400 (EDT)
-Date: Wed, 28 Oct 2009 15:18:03 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: RFC: Transparent Hugepage support
-Message-ID: <20091028141803.GQ7744@basil.fritz.box>
-References: <20091026185130.GC4868@random.random> <87ljiwk8el.fsf@basil.nowhere.org> <20091027193007.GA6043@random.random> <20091028042805.GJ7744@basil.fritz.box> <20091028120050.GD9640@random.random>
+	by kanga.kvack.org (Postfix) with SMTP id C0D8B6B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 10:53:32 -0400 (EDT)
+Received: by ey-out-1920.google.com with SMTP id 5so202632eyb.6
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 07:53:30 -0700 (PDT)
+Date: Wed, 28 Oct 2009 17:53:25 +0300
+From: Cyrill Gorcunov <gorcunov@openvz.org>
+Subject: Re: [patch -mm] acpi: remove NID_INVAL
+Message-ID: <20091028145325.GA5316@lenovo>
+References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain> <20091008162533.23192.71981.sendpatchset@localhost.localdomain> <alpine.DEB.1.10.0910081616040.8030@gentwo.org> <alpine.DEB.1.00.0910081325200.6998@chino.kir.corp.google.com> <alpine.DEB.2.00.0910271442250.30270@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091028120050.GD9640@random.random>
+In-Reply-To: <alpine.DEB.2.00.0910271442250.30270@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-numa@vger.kernel.org, Len Brown <lenb@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 28, 2009 at 01:00:50PM +0100, Andrea Arcangeli wrote:
-> Hi Andi,
-> 
-> On Wed, Oct 28, 2009 at 05:28:05AM +0100, Andi Kleen wrote:
-> > I think longer term the standard VM just needs to understand
-> > huge pages properly. Originally when huge pages were only
-> > considered a "Oracle hack" the separation made sense, but now
-> > with more and more use that is really not true anymore.
-> > 
-> > Also hugetlbfs is gaining more and more functionality all the time.
-> 
-> This is exactly the problem... and these days there's not just Oracle:
-> KVM, glibc needs hugepages too all the time, so it's not surprising
+[David Rientjes - Tue, Oct 27, 2009 at 02:44:14PM -0700]
+| NUMA_NO_NODE has been exported globally and thus it can replace NID_INVAL
+| in the acpi code.
+| 
+| Also removes the unused acpi_unmap_pxm_to_node() function.
+| 
+| Cc: Len Brown <lenb@kernel.org>
+| Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+| Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+| Signed-off-by: David Rientjes <rientjes@google.com>
+| ---
+|  Depends on Lee Schermerhorn's hugetlb patchset in mmotm-10132113.
+| 
 
-Why glibc? 
+Thanks David! My Ack if needed.
 
-Yes, there are quite some workloads who benefit.
-
-> > Maintaining two VMs in parallel forever seems like the wrong
-> > thing to do.
-> 
-> Agreed.
-> 
-> > Also the fragmentation avoidance heuristics got a lot better
-> > in the last years, so it's much more practical than it used to be
-> > (at least for 2MB)
-> 
-> "more practical at least for 2MB" is why I suggested to ignore sizes
-> like 1G. 2M is already on the largy side, and in this work we should
-
-Even without automatic allocation and the need to prereseve
-having the same application interface for 1GB pages is still useful.
-Otherwise people who want to use the 1GB pages have to do the
-special hacks again.
-
-> > x% performance advantage, but then it's likely that 1GB pages will give 
-> > another y% improvement and why should people stop at the smaller
-> > improvement?
-> 
-> For the reason mentioned above, sizes like 1G will likely remain
-> available only through boot-reservation and splitting an huge page to
-> be swapped would require a very expensive split_huge_page
-> function. Instead of a loop for (i=0; i<512; i++) inside a not
-> preemptive section with all pmd frozen, you will have a loop of
-> 262144... And swapping 1G page natively without splitting it, is even
-> less feasible.
-
-What I was thinking of was to have a relatively easy to use
-flag that allows an application to use prereserved GB pages
-transparently. e.g. could be done with a special command
-
-hugepagehint 1GB app
-
-Yes I realize that this is possible to some extend with libhugetlbfs
-LD_PRELOAD, but integrating it in the kernel is much saner.
-
-So even if there are some restrictions it would be good to not
-ignore the 1GB pages completely.
-
-> 
-> > Ignoring the gigantic pages now would just mean that this
-> > would need to be revised later again or that users still
-> > need to use hacks like libhugetlbfs.
-> 
-> They will still need if they want the extra y%, because 1G pages
-> simply can't be generated by the buddy allocator. I doubt we should
-> increase the MAX_ORDER from 11 to 18, it would slowdown the whole
-
-Agreed, prereservation is still the way to go for 1GB.
-
-(although in theory a special allocation could get them without
-relying on zone alignment or buddy lists by being not O(1))
-
-> > Given 1GB pages for a time are harder to use on the system
-> > administrator level, but at least for applications the interfaces
-> > should be similar at least.
-> 
-> I see your point here in wanting to use the generic interface, we
-> could have the page fault in the madvise vmas that fits a 1G naturally
-> aligned region, search into a reserved region first, and if they don't
-> find the 1G page reserved they could search the buddy for 2M
-> pages. But still the problem is there's no way to swap that 1G beast
-> if we go low on memory. It's not transparent behavior, but we could
-
-It would need an administrator hint agreed, but if it's just a single
-hint per program it would be still "mostly transparent"
-
-> share the same madvise interface, true! I doubt we should map 1G pages
-> in tasks outside of madvised vmas, because of that ram being special
-> and reserved. In some ways hugetlbfs providing for permissions in
-
-Agreed on not doing it unconditionally, ut the advice could be per
-process or per cgroup.
-
-> For the transparent 2M pages instead if an unprivileged user end up
-> using them the whole system gains because the more people uses 2M
-> pages the less fragmentation there is in the system.
-
-Even on 2MB pages this problem exists to some point: if you explicitely
-preallocate 2MB pages to make sure some application can use them
-with hugetlbfs you don't want random applications to still the
-"guaranteed" huge pages.
-
-So some policy here would be likely needed anyways and the same
-could be used for the 1GB pages.
-
-> > > such that don't fit into a pmd...
-> > 
-> > What 64k pages? You're talking about soft pages or non x86?
-> 
-> I wasn't talking about soft pages. The whole patch here is tuned for
-
-I was just confused by the 64k number.
-
-> My worry are the archs like powerpc where a hugepage doesn't fit in a
-> pmd_trans_huge. I think x86 will fit the pmd/pud_trans_huge approach
-> in my patch even of 1G pages in the long run, so there is no actual
-> long term limitation with regard to x86. The fact is that the generic
-> pagetable code is tuned for x86 so no problem there.
-> 
-> What I am unsure about and worries me more are those archs that don't
-> use a pmd to map hugepages and to create hugetlb. I am unsure if those
-> archs will be able to take advantage of my patch with minor changes to
-> it given it is wired to pmd_trans_huge availability.
-
-I see. Some archs (like IA64 or POWER?) require special VA address
- ranges for huge pages, for those doing it fully transparent without 
-a mmap time flag is likely hard.
-
-> 
-> > > > Even for 2MB pages it can be a problem.
-> > > > 
-> > > > You'll likely need to fix the page table code.
-> > > 
-> > > In terms of fragmentation split_huge_page itself won't create
-> > > it.. unless it swaps (but then CPU performance is lost on the mapping
-> > > anyway).
-> > 
-> > The problem is that the performance will be lost forever. So if
-> > you ever do something that only does a little temporary 
-> > swapping (like a backup run) you would be ready for a reboot.
-> > Not good.
-> 
-> Well until the background daemon calls collapse_huge_page. Also before
-> splitting the page the pmd young bit is checked and it gets huge more
-> priority than the young bit of the pte because the pmd young bit has
-> 512 higher probability of being set than the pte young bit.
-> 
-> Also note, the swapping right now generates fragmentation but later we
-> can add swap entries at the pmd level and we can stop calling
-> split_huge_page even in the swap path, to avoid swap to introduce
-> fragmentation. But we can't do everything at once...
-
-I'm still uneasy about this, it's a very clear "glass jaw"
-that might well cause serious problems in practice. Anything that requires
-regular reboots is bad.
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+	-- Cyrill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
