@@ -1,112 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E63A56B0044
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 06:29:42 -0400 (EDT)
-Date: Wed, 28 Oct 2009 10:29:36 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when
-	high-order watermarks are being hit
-Message-ID: <20091028102936.GS8900@csn.ul.ie>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <1256650833-15516-4-git-send-email-mel@csn.ul.ie> <20091027131905.410ec04a.akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E5D626B0044
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 07:04:59 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9SB4upY005248
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 28 Oct 2009 20:04:56 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6876245DE4E
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 20:04:56 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B0F345DE4D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 20:04:56 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A22EEF8001
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 20:04:56 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CB901DB8040
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 20:04:55 +0900 (JST)
+Message-ID: <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>
+References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>
+    <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>
+Date: Wed, 28 Oct 2009 20:04:54 +0900 (JST)
+Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20091027131905.410ec04a.akpm@linux-foundation.org>
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, vedran.furac@gmail.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 27, 2009 at 01:19:05PM -0700, Andrew Morton wrote:
-> On Tue, 27 Oct 2009 13:40:33 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > When a high-order allocation fails, kswapd is kicked so that it reclaims
-> > at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
-> > allocations. Something has changed in recent kernels that affect the timing
-> > where high-order GFP_ATOMIC allocations are now failing with more frequency,
-> > particularly under pressure. This patch forces kswapd to notice sooner that
-> > high-order allocations are occuring.
-> > 
-> 
-> "something has changed"?  Shouldn't we find out what that is?
-> 
+David Rientjes さんは書きました：
+> On Wed, 28 Oct 2009, KAMEZAWA Hiroyuki wrote:
+>
+>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>> It's reported that OOM-Killer kills Gnone/KDE at first...
+>> And yes, we can reproduce it easily.
+>>
+>> Now, oom-killer uses mm->total_vm as its base value. But in recent
+>> applications, there are a big gap between VM size and RSS size.
+>> Because
+>>   - Applications attaches much dynamic libraries. (Gnome, KDE, etc...)
+>>   - Applications may alloc big VM area but use small part of them.
+>>     (Java, and multi-threaded applications has this tendency because
+>>      of default-size of stack.)
+>>
+>> I think using mm->total_vm as score for oom-kill is not good.
+>> By the same reason, overcommit memory can't work as expected.
+>> (In other words, if we depends on total_vm, using overcommit more
+>> positive
+>>  is a good choice.)
+>>
+>> This patch uses mm->anon_rss/file_rss as base value for calculating
+>> badness.
+>>
+>
+> How does this affect the ability of the user to tune the badness score of
+> individual threads?
+Threads ? process ?
 
-We've been trying but the answer right now is "lots". There were some
-changes in the allocator itself which were unintentional and fixed in
-patches 1 and 2 of this series. The two other major changes are
+> It seems like there will now only be two polarizing
+> options: the equivalent of an oom_adj value of +15 or -17.  It is now
+> heavily dependent on the rss which may be unclear at the time of oom and
+> very dynamic.
+>
+yes. and that's "dynamic" is good thing.
 
-iwlagn is now making high order GFP_ATOMIC allocations which didn't
-help. This is being addressed separetly and I believe the relevant
-patches are now in mainline.
+I think one of problems for oom now is that user says "oom-killer kills
+process at random." And yes, it's correct. mm->total_vm is not related
+to memory usage. Then, oom-killer seems to kill processes at random.
 
-The other major change appears to be in page writeback. Reverting
-commits 373c0a7e + 8aa7e847 significantly helps one bug reporter but
-it's still unknown as to why that is.
+For example, as Vetran shows, even if memory eater runs, processes are
+killed _at random_.
 
-The latter is still being investigated but as the patches in this series
-are known to help some bug reporters with their GFP_ATOMIC failures and
-it is being reported against latest mainline and -stable, I felt it was
-best to help some of the bug reporters now to reduce duplicate reports.
+After this patch, the biggest memory user will be the fist candidate
+and it's reasonable. Users will know "The process is killed because
+it uses much memory.", (seems not random) He can consider he should
+use oom_adj for memory eater or not.
 
-> > ---
-> >  mm/vmscan.c |    9 +++++++++
-> >  1 files changed, 9 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 64e4388..7eceb02 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2016,6 +2016,15 @@ loop_again:
-> >  					priority != DEF_PRIORITY)
-> >  				continue;
-> >  
-> > +			/*
-> > +			 * Exit the function now and have kswapd start over
-> > +			 * if it is known that higher orders are required
-> > +			 */
-> > +			if (pgdat->kswapd_max_order > order) {
-> > +				all_zones_ok = 1;
-> > +				goto out;
-> > +			}
-> > +
-> >  			if (!zone_watermark_ok(zone, order,
-> >  					high_wmark_pages(zone), end_zone, 0))
-> >  				all_zones_ok = 0;
-> 
-> So this handles the case where some concurrent thread or interrupt
-> increases pgdat->kswapd_max_order while kswapd was running
-> balance_pgdat(), yes?
-> 
 
-Right.
 
-> Does that actually happen much?  Enough for this patch to make any
-> useful difference?
-> 
+> I think a longer-term solution may rely more on the difference in
+> get_mm_hiwater_rss() and get_mm_rss() instead to know the difference
+> between what is resident in RAM at the time of oom compared to what has
+> been swaped.  Using this with get_mm_hiwater_vm() would produce a nice
+> picture for the pattern of each task's memory consumption.
+>
+Hmm, I don't want complicated calculation (it makes oom_adj usage worse.)
+but yes, bare rss may be too simple.
+Anyway, as I shown, I'll add swap statistics regardless of this patch.
+That may adds new hint.
+For example)
+   if (vm_swap_full())
+       points += mm->swap_usage
 
-Apparently, yes. Wireless drivers in particularly seem to be very
-high-order GFP_ATOMIC happy.
+>> Following is changes to OOM score(badness) on an environment with 1.6G
+>> memory
+>> plus memory-eater(500M & 1G).
+>>
+>> Top 10 of badness score. (The highest one is the first candidate to be
+>> killed)
+>> Before
+>> badness program
+>> 91228	gnome-settings-
+>> 94210	clock-applet
+>> 103202	mixer_applet2
+>> 106563	tomboy
+>> 112947	gnome-terminal
+>> 128944	mmap              <----------- 500M malloc
+>> 129332	nautilus
+>> 215476	bash              <----------- parent of 2 mallocs.
+>> 256944	mmap              <----------- 1G malloc
+>> 423586	gnome-session
+>>
+>> After
+>> badness
+>> 1911	mixer_applet2
+>> 1955	clock-applet
+>> 1986	xinit
+>> 1989	gnome-session
+>> 2293	nautilus
+>> 2955	gnome-terminal
+>> 4113	tomboy
+>> 104163	mmap             <----------- 500M malloc.
+>> 168577	bash             <----------- parent of 2 mallocs
+>> 232375	mmap             <----------- 1G malloc
+>>
+>> seems good for me.
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> ---
+>>  mm/oom_kill.c |   10 +++++++---
+>>  1 file changed, 7 insertions(+), 3 deletions(-)
+>>
+>> Index: mm-test-kernel/mm/oom_kill.c
+>> ===================================================================
+>> --- mm-test-kernel.orig/mm/oom_kill.c
+>> +++ mm-test-kernel/mm/oom_kill.c
+>> @@ -93,7 +93,7 @@ unsigned long badness(struct task_struct
+>>  	/*
+>>  	 * The memory size of the process is the basis for the badness.
+>>  	 */
+>> -	points = mm->total_vm;
+>> +	points = get_mm_counter(mm, anon_rss) + get_mm_counter(mm, file_rss);
+>>
+>>  	/*
+>>  	 * After this unlock we can no longer dereference local variable `mm'
+>> @@ -116,8 +116,12 @@ unsigned long badness(struct task_struct
+>>  	 */
+>>  	list_for_each_entry(child, &p->children, sibling) {
+>>  		task_lock(child);
+>> -		if (child->mm != mm && child->mm)
+>> -			points += child->mm->total_vm/2 + 1;
+>> +		if (child->mm != mm && child->mm) {
+>> +			unsigned long cpoints;
+>> +			cpoints = get_mm_counter(child->mm, anon_rss);
+>> +				  + get_mm_counter(child->mm, file_rss);
+>
+> That shouldn't compile.
+Oh, yes...thanks.
 
-> If one where to whack a printk in that `if' block, how often would it
-> trigger, and under what circumstances?
+>
+>> +			points += cpoints/2 + 1;
+>> +		}
+>>  		task_unlock(child);
+>>  	}
+>>
+>
+> This can all be simplified by just using get_mm_rss(mm) and
+> get_mm_rss(child->mm).
+>
+will use that.
 
-I don't know the frequency. The circumstances are "under load" when
-there are drivers depending on high-order allocations but the
-reproduction cases are unreliable.
+I'll wait until the next week to post a new patch.
+We don't need rapid way.
 
-Do you want me to slap together a patch that adds a vmstat counter for
-this? I can then ask future bug reporters to examine that counter and see
-if it really is a major factor for a lot of people or not.
+Thanks,
+-Kame
 
-> If the -stable maintainers were to ask me "why did you send this" then
-> right now my answer would have to be "I have no idea".  Help.
-> 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
