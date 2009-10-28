@@ -1,122 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1B8F66B0078
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 23:54:08 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9S3s5Qf006698
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 28 Oct 2009 12:54:06 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AC3B145DE5B
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:54:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BAEC45DE53
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:54:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4980F1DB8043
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:54:05 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E155D1DB8040
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 12:54:04 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
-In-Reply-To: <20091027131905.410ec04a.akpm@linux-foundation.org>
-References: <1256650833-15516-4-git-send-email-mel@csn.ul.ie> <20091027131905.410ec04a.akpm@linux-foundation.org>
-Message-Id: <20091028115505.FD88.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 761036B0044
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 00:09:03 -0400 (EDT)
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id n9S490Ao027306
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 21:09:00 -0700
+Received: from pwi11 (pwi11.prod.google.com [10.241.219.11])
+	by zps75.corp.google.com with ESMTP id n9S48v7S029674
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2009 21:08:57 -0700
+Received: by pwi11 with SMTP id 11so585205pwi.24
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2009 21:08:57 -0700 (PDT)
+Date: Tue, 27 Oct 2009 21:08:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Memory overcommit
+In-Reply-To: <4AE792B8.5020806@gmail.com>
+Message-ID: <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
+References: <hav57c$rso$1@ger.gmane.org> <20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
+ <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com>
+ <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 28 Oct 2009 12:54:04 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: vedran.furac@gmail.com
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 27 Oct 2009 13:40:33 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, 28 Oct 2009, Vedran Furac wrote:
+
+> > This is wrong; it doesn't "emulate oom" since oom_kill_process() always 
+> > kills a child of the selected process instead if they do not share the 
+> > same memory.  The chosen task in that case is untouched.
 > 
-> > When a high-order allocation fails, kswapd is kicked so that it reclaims
-> > at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
-> > allocations. Something has changed in recent kernels that affect the timing
-> > where high-order GFP_ATOMIC allocations are now failing with more frequency,
-> > particularly under pressure. This patch forces kswapd to notice sooner that
-> > high-order allocations are occuring.
+> OK, I stand corrected then. Thanks! But, while testing this I lost X
+> once again and "test" survived for some time (check the timestamps):
 > 
-> "something has changed"?  Shouldn't we find out what that is?
-
-if kswapd_max_order was changed, kswapd quickly change its own reclaim
-order.
-
-old:
-  1. happen order-0 allocation
-  2. kick kswapd
-  3. happen high-order allocation
-  4. change kswapd_max_order, but kswapd continue order-0 reclaim.
-  5. kswapd end order-0 reclaim and exit balance_pgdat
-  6. kswapd() restart balance_pdgat() with high-order
-
-new:
-  1. happen order-0 allocation
-  2. kick kswapd
-  3. happen high-order allocation
-  4. change kswapd_max_order
-  5. kswapd notice it and quickly exit balance_pgdat()
-  6. kswapd() restart balance_pdgat() with high-order
-
+> http://pastebin.com/d5c9d026e
 > 
-> > ---
-> >  mm/vmscan.c |    9 +++++++++
-> >  1 files changed, 9 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 64e4388..7eceb02 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2016,6 +2016,15 @@ loop_again:
-> >  					priority != DEF_PRIORITY)
-> >  				continue;
-> >  
-> > +			/*
-> > +			 * Exit the function now and have kswapd start over
-> > +			 * if it is known that higher orders are required
-> > +			 */
-> > +			if (pgdat->kswapd_max_order > order) {
-> > +				all_zones_ok = 1;
-> > +				goto out;
-> > +			}
-> > +
-> >  			if (!zone_watermark_ok(zone, order,
-> >  					high_wmark_pages(zone), end_zone, 0))
-> >  				all_zones_ok = 0;
+> - It started by killing gkrellm(!!!)
+> - Then I lost X (kdeinit4 I guess)
+> - Then 103 seconds after the killing started, it killed "test" - the
+> real culprit.
 > 
-> So this handles the case where some concurrent thread or interrupt
-> increases pgdat->kswapd_max_order while kswapd was running
-> balance_pgdat(), yes?
-
-Yes.
-
-> Does that actually happen much?  Enough for this patch to make any
-> useful difference?
-
-In typical use-case, it doesn't have so much improvement. However some
-driver use high-order allocation on interrupt context.
-It mean we need quickly reclaim before GFP_ATOMIC allocation failure.
-
-I agree these driver is ill. but...
-We can't ignore enduser bug report.
-
-
+> I mean... how?!
 > 
-> If one where to whack a printk in that `if' block, how often would it
-> trigger, and under what circumstances?
-> 
-> 
-> If the -stable maintainers were to ask me "why did you send this" then
-> right now my answer would have to be "I have no idea".  Help.
 
+Here are the five oom kills that occurred in your log, and notice that the 
+first four times it kills a child and not the actual task as I explained:
 
+[97137.724971] Out of memory: kill process 21485 (VBoxSVC) score 1564940 or a child
+[97137.725017] Killed process 21503 (VirtualBox)
+[97137.864622] Out of memory: kill process 11141 (kdeinit4) score 1196178 or a child
+[97137.864656] Killed process 11142 (klauncher)
+[97137.888146] Out of memory: kill process 11141 (kdeinit4) score 1184308 or a child
+[97137.888180] Killed process 11151 (ksmserver)
+[97137.972875] Out of memory: kill process 11141 (kdeinit4) score 1146255 or a child
+[97137.972888] Killed process 11224 (audacious2)
 
+Those are practically happening simultaneously with very little memory 
+being available between each oom kill.  Only later is "test" killed:
 
+[97240.203228] Out of memory: kill process 5005 (test) score 256912 or a child
+[97240.206832] Killed process 5005 (test)
+
+Notice how the badness score is less than 1/4th of the others.  So while 
+you may find it to be hogging a lot of memory, there were others that 
+consumed much more.
+
+You can get a more detailed understanding of this by doing
+
+	echo 1 > /proc/sys/vm/oom_dump_tasks
+
+before trying your testcase; it will show various information like the 
+total_vm and oom_adj value for each task at the time of oom (and the 
+actual badness score is exported per-task via /proc/pid/oom_score in 
+real-time).  This will also include the rss and show what the end result 
+would be in using that value as part of the heuristic on this particular 
+workload compared to the current implementation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
