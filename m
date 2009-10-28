@@ -1,104 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 966936B0044
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 00:28:14 -0400 (EDT)
-Date: Wed, 28 Oct 2009 05:28:05 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: RFC: Transparent Hugepage support
-Message-ID: <20091028042805.GJ7744@basil.fritz.box>
-References: <20091026185130.GC4868@random.random> <87ljiwk8el.fsf@basil.nowhere.org> <20091027193007.GA6043@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091027193007.GA6043@random.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4FC5B6B0044
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 00:57:56 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9S4vrqx011094
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 28 Oct 2009 13:57:54 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 795C745DE4F
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:57:53 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D14745DD70
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:57:53 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 357F3E38002
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:57:53 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C64DE1DB803E
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:57:49 +0900 (JST)
+Date: Wed, 28 Oct 2009 13:55:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Memory overcommit
+Message-Id: <20091028135519.805c4789.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
+References: <hav57c$rso$1@ger.gmane.org>
+	<20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com>
+	<hb2cfu$r08$2@ger.gmane.org>
+	<20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com>
+	<4ADE3121.6090407@gmail.com>
+	<20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
+	<4AE5CB4E.4090504@gmail.com>
+	<20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0910271843510.11372@sister.anvils>
+	<alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com>
+	<4AE78B8F.9050201@gmail.com>
+	<alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com>
+	<4AE792B8.5020806@gmail.com>
+	<alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: vedran.furac@gmail.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 27, 2009 at 08:30:07PM +0100, Andrea Arcangeli wrote:
+On Tue, 27 Oct 2009 21:08:56 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-Hi Andrea,
-
-> On Tue, Oct 27, 2009 at 07:18:26PM +0100, Andi Kleen wrote:
-> > In general the best would be to just merge hugetlbfs into
-> > the normal VM. It has been growing for far too long as a separate
-> > "second VM" by now. This seems like a reasonable first step,
-> > but some comments blow.
+> On Wed, 28 Oct 2009, Vedran Furac wrote:
 > 
-> Problem is hugetlbfs as it stands now can't be merged... it
-> deliberately takes its own paths and it tries to be as far away from
-> the VM as possible. But as you said, as people tries to make hugetlbfs
-
-I think longer term the standard VM just needs to understand
-huge pages properly. Originally when huge pages were only
-considered a "Oracle hack" the separation made sense, but now
-with more and more use that is really not true anymore.
-
-Also hugetlbfs is gaining more and more functionality all the time.
-
-Maintaining two VMs in parallel forever seems like the wrong
-thing to do.
-
-Also the fragmentation avoidance heuristics got a lot better
-in the last years, so it's much more practical than it used to be
-(at least for 2MB)
-
-> > The problem is that this will interact badly with 1GB pages -- once
-> > you split them up you'll never get them back, because they 
-> > can't be allocated at runtime.
-> 
-> 1GB pages can't be handled by this code, and clearly it's not
-> practical to hope 1G pages to materialize in the buddy (even if we
-
-That seems short sightened. You do this because 2MB pages give you
-x% performance advantage, but then it's likely that 1GB pages will give 
-another y% improvement and why should people stop at the smaller
-improvement?
-
-Ignoring the gigantic pages now would just mean that this
-would need to be revised later again or that users still
-need to use hacks like libhugetlbfs.
-
-Given 1GB pages for a time are harder to use on the system
-administrator level, but at least for applications the interfaces
-should be similar at least.
-
-> were to increase the buddy so much slowing it down regular page
-> allocation). Let's forget 1G pages here... we're only focused on sizes
-> that can be allocated dynamically. Main problem are the 64k pages or
-> such that don't fit into a pmd...
-
-What 64k pages? You're talking about soft pages or non x86?
-> 
-> > Even for 2MB pages it can be a problem.
+> > > This is wrong; it doesn't "emulate oom" since oom_kill_process() always 
+> > > kills a child of the selected process instead if they do not share the 
+> > > same memory.  The chosen task in that case is untouched.
 > > 
-> > You'll likely need to fix the page table code.
+> > OK, I stand corrected then. Thanks! But, while testing this I lost X
+> > once again and "test" survived for some time (check the timestamps):
+> > 
+> > http://pastebin.com/d5c9d026e
+> > 
+> > - It started by killing gkrellm(!!!)
+> > - Then I lost X (kdeinit4 I guess)
+> > - Then 103 seconds after the killing started, it killed "test" - the
+> > real culprit.
+> > 
+> > I mean... how?!
+> > 
 > 
-> In terms of fragmentation split_huge_page itself won't create
-> it.. unless it swaps (but then CPU performance is lost on the mapping
-> anyway).
+> Here are the five oom kills that occurred in your log, and notice that the 
+> first four times it kills a child and not the actual task as I explained:
+> 
+> [97137.724971] Out of memory: kill process 21485 (VBoxSVC) score 1564940 or a child
+> [97137.725017] Killed process 21503 (VirtualBox)
+> [97137.864622] Out of memory: kill process 11141 (kdeinit4) score 1196178 or a child
+> [97137.864656] Killed process 11142 (klauncher)
+> [97137.888146] Out of memory: kill process 11141 (kdeinit4) score 1184308 or a child
+> [97137.888180] Killed process 11151 (ksmserver)
+> [97137.972875] Out of memory: kill process 11141 (kdeinit4) score 1146255 or a child
+> [97137.972888] Killed process 11224 (audacious2)
+> 
+> Those are practically happening simultaneously with very little memory 
+> being available between each oom kill.  Only later is "test" killed:
+> 
+> [97240.203228] Out of memory: kill process 5005 (test) score 256912 or a child
+> [97240.206832] Killed process 5005 (test)
+> 
+> Notice how the badness score is less than 1/4th of the others.  So while 
+> you may find it to be hogging a lot of memory, there were others that 
+> consumed much more.
 
-The problem is that the performance will be lost forever. So if
-you ever do something that only does a little temporary 
-swapping (like a backup run) you would be ready for a reboot.
-Not good.
+not related to child-parent problem.
 
->  We need to teach mprotect/mremap not to call split_huge_page
-> true, but not to avoid fragmentation. btw, thinking at fragmentation
+Seeing this number more.
+==
+[97137.709272] Active_anon:671487 active_file:82 inactive_anon:132316
+[97137.709273]  inactive_file:82 unevictable:50 dirty:0 writeback:0 unstable:0
+[97137.709273]  free:6122 slab:17179 mapped:30661 pagetables:8052 bounce:0
+==
 
-I think they just have to be fixed properly.
+acitve_file + inactive_file is very low. Almost all pages are for anon.
+But "mapped(NR_FILE_MAPPED)" is a little high. This implies remaining file caches
+are mapped by many processes OR some mega bytes of shmem is used.
 
-My suspicion is btw that there's some more code sharing possible
-in all that VMA handling code of ther different system calls
-(I remember thinking that when I wrote mbind() :-). Then perhaps 
-variable page support would be easier anyways because less code needs
-to be changed.
+# of pagetables is 8052, this means
+  8052x4096/8*4k bytes = 16Gbytes of mapped area.
 
--Andi
+Total available memory is near to be active/inactive + slab 
+671487+82+132316+82+50+6122+17179+8052=835370x4k= 3.2Gbytes ?
+(this system is swapless)
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Then, considering the pmap kosaki shows,
+I guess killed ones had big total_vm but has not much real rss,
+and no helps for oom.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
