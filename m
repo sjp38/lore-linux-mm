@@ -1,95 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 571676B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 15:49:27 -0400 (EDT)
-Date: Wed, 28 Oct 2009 12:47:56 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when
- high-order watermarks are being hit
-Message-Id: <20091028124756.7af44b6b.akpm@linux-foundation.org>
-In-Reply-To: <20091028102936.GS8900@csn.ul.ie>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie>
-	<1256650833-15516-4-git-send-email-mel@csn.ul.ie>
-	<20091027131905.410ec04a.akpm@linux-foundation.org>
-	<20091028102936.GS8900@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 660B16B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 16:10:53 -0400 (EDT)
+Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
+	by smtp-out.google.com with ESMTP id n9SKAnVN029100
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:10:50 -0700
+Received: from pxi29 (pxi29.prod.google.com [10.243.27.29])
+	by spaceape9.eur.corp.google.com with ESMTP id n9SKAIGV013417
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:10:46 -0700
+Received: by pxi29 with SMTP id 29so750252pxi.1
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 13:10:46 -0700 (PDT)
+Date: Wed, 28 Oct 2009 13:10:43 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Memory overcommit
+In-Reply-To: <4AE846E8.1070303@gmail.com>
+Message-ID: <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com>
+References: <hav57c$rso$1@ger.gmane.org> <20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
+ <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com>
+ <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com> <4AE846E8.1070303@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: Vedran Furac <vedran.furac@gmail.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Oct 2009 10:29:36 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, 28 Oct 2009, Vedran Furac wrote:
 
-> On Tue, Oct 27, 2009 at 01:19:05PM -0700, Andrew Morton wrote:
-> > On Tue, 27 Oct 2009 13:40:33 +0000
-> > Mel Gorman <mel@csn.ul.ie> wrote:
+> > Those are practically happening simultaneously with very little memory 
+> > being available between each oom kill.  Only later is "test" killed:
 > > 
-> > > When a high-order allocation fails, kswapd is kicked so that it reclaims
-> > > at a higher-order to avoid direct reclaimers stall and to help GFP_ATOMIC
-> > > allocations. Something has changed in recent kernels that affect the timing
-> > > where high-order GFP_ATOMIC allocations are now failing with more frequency,
-> > > particularly under pressure. This patch forces kswapd to notice sooner that
-> > > high-order allocations are occuring.
-> > > 
+> > [97240.203228] Out of memory: kill process 5005 (test) score 256912 or a child
+> > [97240.206832] Killed process 5005 (test)
 > > 
-> > "something has changed"?  Shouldn't we find out what that is?
-> > 
+> > Notice how the badness score is less than 1/4th of the others.  So while 
+> > you may find it to be hogging a lot of memory, there were others that 
+> > consumed much more.
+> ^^^^^^^^^^^^^^^^^^^^^
 > 
-> We've been trying but the answer right now is "lots". There were some
-> changes in the allocator itself which were unintentional and fixed in
-> patches 1 and 2 of this series. The two other major changes are
+> This is just wrong. I have 3.5GB of RAM, free says that 2GB are empty
+> (ignoring cache). Culprit then allocates all free memory (2GB). That
+> means it is using *more* than all other processes *together*. There
+> cannot be any other "that consumed much more".
 > 
-> iwlagn is now making high order GFP_ATOMIC allocations which didn't
-> help. This is being addressed separetly and I believe the relevant
-> patches are now in mainline.
+
+Just post the oom killer results after using echo 1 > 
+/proc/sys/vm/oom_dump_tasks as requested and it will clarify why those 
+tasks were chosen to kill.  It will also show the result of using rss 
+instead of total_vm and allow us to see how such a change would have 
+changed the killing order for your workload.
+
+> Thanks, I'll try that... but I guess that using rss would yield better
+> results.
 > 
-> The other major change appears to be in page writeback. Reverting
-> commits 373c0a7e + 8aa7e847 significantly helps one bug reporter but
-> it's still unknown as to why that is.
 
-Peculiar.  Those changes are fairly remote from large-order-GFP_ATOMIC
-allocations.
-
-> ...
->
-> Wireless drivers in particularly seem to be very
-> high-order GFP_ATOMIC happy.
-
-It would be nice if we could find a way of preventing people from
-attempting high-order atomic allocations in the first place - it's a bit
-of a trap.
-
-Maybe add a runtime warning which is suppressable by GFP_NOWARN (or a
-new flag), then either fix existing callers or, after review, add the
-flag.
-
-Of course, this might just end up with people adding these hopeless
-allocation attempts and just setting the nowarn flag :(
-
-> > If one where to whack a printk in that `if' block, how often would it
-> > trigger, and under what circumstances?
-> 
-> I don't know the frequency. The circumstances are "under load" when
-> there are drivers depending on high-order allocations but the
-> reproduction cases are unreliable.
-> 
-> Do you want me to slap together a patch that adds a vmstat counter for
-> this? I can then ask future bug reporters to examine that counter and see
-> if it really is a major factor for a lot of people or not.
-
-Something like that, if it will help us understand what's going on.  I
-don't see a permanent need for that instrumentation but while this
-problem is still in the research stage, sure, lard it up with debug
-stuff?
-
-
-
-It's very important to understand _why_ the VM got worse.  And, of
-course, to fix that up.  But, separately, we should find a way of
-preventing developers from using these very unreliable allocations.
+We would know if you posted the data.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
