@@ -1,100 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C27696B004D
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 06:37:22 -0400 (EDT)
-Date: Thu, 29 Oct 2009 11:36:58 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: RFC: Transparent Hugepage support
-Message-ID: <20091029103658.GJ9640@random.random>
-References: <20091026185130.GC4868@random.random>
- <87ljiwk8el.fsf@basil.nowhere.org>
- <20091027193007.GA6043@random.random>
- <20091028042805.GJ7744@basil.fritz.box>
- <20091029094344.GA1068@elte.hu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 09C626B004D
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 07:01:52 -0400 (EDT)
+Received: by bwz7 with SMTP id 7so2272042bwz.6
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2009 04:01:50 -0700 (PDT)
+Message-ID: <4AE97618.6060607@gmail.com>
+Date: Thu, 29 Oct 2009 12:01:44 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091029094344.GA1068@elte.hu>
+Subject: Re: Memory overcommit
+References: <hav57c$rso$1@ger.gmane.org> <20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com> <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com> <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com> <4AE846E8.1070303@gmail.com> <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com> <4AE9068B.7030504@gmail.com> <alpine.DEB.2.00.0910290132320.11476@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.0910290132320.11476@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello Ingo, Andi, everyone,
+David Rientjes wrote:
 
-On Thu, Oct 29, 2009 at 10:43:44AM +0100, Ingo Molnar wrote:
+> On Thu, 29 Oct 2009, Vedran Furac wrote:
 > 
-> * Andi Kleen <andi@firstfloor.org> wrote:
+>>> We would know if you posted the data.
+>> I need to find some free time to destroy a session on a computer which I
+>> use for work. You could easily test it yourself also as this doesn't
+>> happen only to me.
+>>
+>> Anyways, here it is... this time it started with ntpd:
+>>
+>> http://pastebin.com/f3f9674a0
+>>
 > 
-> > > 1GB pages can't be handled by this code, and clearly it's not 
-> > > practical to hope 1G pages to materialize in the buddy (even if we
-> > 
-> > That seems short sightened. You do this because 2MB pages give you x% 
-> > performance advantage, but then it's likely that 1GB pages will give 
-> > another y% improvement and why should people stop at the smaller 
-> > improvement?
-> > 
-> > Ignoring the gigantic pages now would just mean that this would need 
-> > to be revised later again or that users still need to use hacks like 
-> > libhugetlbfs.
-> 
-> I've read the patch and have read through this discussion and you are 
-> missing the big point that it's best to do such things gradually - one 
-> step at a time.
-> 
-> Just like we went from 2 level pagetables to 3 level pagetables, then to 
-> 4 level pagetables - and we might go to 5 level pagetables in the 
-> future. We didnt go from 2 level pagetables to 5 level page tables in 
-> one go, despite predictions clearly pointing out the exponentially 
-> increasing need for RAM.
+> That oom log shows 12 ooms but no tasks actually appear to be getting 
+> killed (there're no "Killed process 1234 (task)" found).  Do you have any 
+> idea why?
 
-I totally agree with your assessment.
+That's /var/log/messages. I posted it and not dmesg because whole log
+didn't fit dmesg buffer, here is waht i have (compare timestamps):
 
-> So your obsession with 1GB pages is misguided. If indeed transparent 
-> largepages give us real benefits we can extend it to do transparent 
-> gbpages as well - should we ever want to. There's nothing 'shortsighted' 
-> about being gradual - the change is already ambitious enough as-is, and 
-> brings very clear benefits to a difficult, decade-old problem no other 
-> person was able to address.
-> 
-> In fact introducing transparent 2MBpages makes 1GB pages support 
-> _easier_ to merge: as at that point we'll already have a (finally..) 
-> successful hugetlb facility happility used by an increasing range of 
-> applications.
+% dmesg|grep -i kill
 
-Agreed.
+[ 1493.064458] Out of memory: kill process 6304 (kdeinit4) score 1190231
+or a child
+[ 1493.064467] Killed process 6409 (konqueror)
+[ 1493.261149] knotify4 invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1493.261166]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1493.276528] Out of memory: kill process 6304 (kdeinit4) score 1161265
+or a child
+[ 1493.276538] Killed process 6411 (krusader)
+[ 1499.221160] akregator invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1499.221178]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1499.236431] Out of memory: kill process 6304 (kdeinit4) score 1067593
+or a child
+[ 1499.236441] Killed process 6412 (irexec)
+[ 1499.370192] firefox-bin invoked oom-killer: gfp_mask=0x201da,
+order=0, oomkilladj=0
+[ 1499.370209]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1499.385417] Out of memory: kill process 6304 (kdeinit4) score 1066861
+or a child
+[ 1499.385427] Killed process 6420 (xchm)
+[ 1499.458304] kio_file invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1499.458333]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1499.458367]  [<ffffffff81120900>] ? d_kill+0x5c/0x7c
+[ 1499.473573] Out of memory: kill process 6304 (kdeinit4) score 1043690
+or a child
+[ 1499.473582] Killed process 6425 (kio_file)
+[ 1500.250746] korgac invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1500.250765]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1500.266186] Out of memory: kill process 6304 (kdeinit4) score 1020350
+or a child
+[ 1500.266196] Killed process 6464 (icedove)
+[ 1500.349355] syslog-ng invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1500.349371]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1500.364689] Out of memory: kill process 6304 (kdeinit4) score 1019864
+or a child
+[ 1500.364699] Killed process 6477 (kio_http)
+[ 1500.452151] kded4 invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1500.452167]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1500.452196]  [<ffffffff81120900>] ? d_kill+0x5c/0x7c
+[ 1500.467307] Out of memory: kill process 6304 (kdeinit4) score 993142
+or a child
+[ 1500.467316] Killed process 6478 (kio_http)
+[ 1500.780222] akregator invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1500.780239]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1500.796280] Out of memory: kill process 6304 (kdeinit4) score 966331
+or a child
+[ 1500.796290] Killed process 6484 (kio_http)
+[ 1501.065374] syslog-ng invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1501.065390]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1501.080579] Out of memory: kill process 6304 (kdeinit4) score 939434
+or a child
+[ 1501.080587] Killed process 6486 (kio_http)
+[ 1501.381188] knotify4 invoked oom-killer: gfp_mask=0x201da, order=0,
+oomkilladj=0
+[ 1501.381204]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1501.396338] Out of memory: kill process 6304 (kdeinit4) score 912691
+or a child
+[ 1501.396346] Killed process 6487 (firefox-bin)
+[ 1502.661294] icedove-bin invoked oom-killer: gfp_mask=0x201da,
+order=0, oomkilladj=0
+[ 1502.661311]  [<ffffffff810d6dd7>] ? oom_kill_process+0x9a/0x264
+[ 1502.676563] Out of memory: kill process 7580 (test) score 708945 or a
+child
+[ 1502.676575] Killed process 7580 (test)
 
-> Hugetlbfs's big problem was always that it wasnt transparent and hence 
-> wasnt gradual for applications. It was an opt-in and constituted an 
-> interface/ABI change - that is always a big barrier to app adoption.
-> 
-> So i give Andrea's patch a very big thumbs up - i hope it gets reviewed 
-> in fine detail and added to -mm ASAP. Our lack of decent, automatic 
-> hugepage support is sticking out like a sore thumb and is hurting us in 
-> high-performance setups. If largepage support within Linux has a chance, 
-> this might be the way to do it.
 
-Thanks a lot for your review!
+> Can you explain why Xorg is preferred as a baseline to kill rather than 
+> krunner in your example?
 
-> A small comment regarding the patch itself: i think it could be 
-> simplified further by eliminating CONFIG_TRANSPARENT_HUGEPAGE and by 
-> making it a natural feature of hugepage support. If the code is correct 
-> i cannot see any scenario under which i wouldnt want a hugepage enabled 
-> kernel i'm booting to not have transparent hugepage support as well.
+Krunner is a small app for running other apps and do similar things. It
+shouldn't use a lot of memory. OTOH, Xorg has to hold all the pixmaps
+and so on. That was expected result. Fist Xorg, then firefox and
+thunderbird.
 
-The two reasons why I added a config option are:
-
-1) because it was easy enough, gcc is smart enough to eliminate the
-external calls so I didn't need to add ifdefs with the exception of
-returning 0 from pmd_trans_huge and pmd_trans_frozen. I only had to
-make the exports of huge_memory.c visible unconditionally so it doesn't
-warn, after that I don't need to build and link huge_memory.o.
-
-2) to avoid breaking build of archs not implementing pmd_trans_huge
-and that may never be able to take advantage of it
-
-But we could move CONFIG_TRANSPARENT_HUGEPAGE to an arch define forced
-to Y on x86-64 and N on power.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
