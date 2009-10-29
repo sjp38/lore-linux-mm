@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FCC16B004D
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 15:54:00 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id n9TJrua6029270
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 19:53:56 GMT
-Received: from gv-out-0910.google.com (gvdc6.prod.google.com [10.16.130.6])
-	by wpaz21.hot.corp.google.com with ESMTP id n9TJrraN006954
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 12:53:53 -0700
-Received: by gv-out-0910.google.com with SMTP id c6so378801gvd.6
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2009 12:53:53 -0700 (PDT)
-Date: Thu, 29 Oct 2009 12:53:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Memory overcommit
-In-Reply-To: <4AE97861.1070902@gmail.com>
-Message-ID: <alpine.DEB.2.00.0910291248480.2276@chino.kir.corp.google.com>
-References: <hav57c$rso$1@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com> <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com> <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com>
- <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com> <20091028135519.805c4789.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0910272205200.7507@chino.kir.corp.google.com> <20091028150536.674abe68.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.0910272311001.15462@chino.kir.corp.google.com> <20091028152015.3d383cd6.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0910290136000.11476@chino.kir.corp.google.com> <4AE97861.1070902@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 1EF2E6B004D
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 19:44:13 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9TNiAUL006551
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 30 Oct 2009 08:44:10 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 494EF45DE7A
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:44:10 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1761F45DE70
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:44:10 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EFF081DB8040
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:44:09 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 909141DB803F
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:44:09 +0900 (JST)
+Date: Fri, 30 Oct 2009 08:41:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
+Message-Id: <20091030084134.fc968a90.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.0910290232000.21298@chino.kir.corp.google.com>
+References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>
+	<abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com>
+	<20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com>
+	<20091029174632.8110976c.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0910290156560.16347@chino.kir.corp.google.com>
+	<20091029181650.979bf95c.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0910290232000.21298@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: vedran.furac@gmail.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, vedran.furac@gmail.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Oct 2009, Vedran Furac wrote:
-
-> But then you should rename OOM killer to TRIPK:
-> Totally Random Innocent Process Killer
+On Thu, 29 Oct 2009 02:44:45 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
+> >   Then,
+> >   - I'd like to drop file_rss.
+> >   - I'd like to take swap_usage into acccount.
+> >   - I'd like to remove cpu_time bonus. runtime bonus is much more important.
+> >   - I'd like to remove penalty from children. To do that, fork-bomb detector
+> >     is necessary.
+> >   - nice bonus is bad. (We have oom_adj instead of this.) It should be
+> >     if (task_nice(p) < 0)
+> > 	points /= 2;
+> >     But we have "root user" bonus already. We can remove this line.
+> > 
+> > After above, much more simple selection, easy-to-understand,  will be done.
+> > 
 > 
+> Agreed, I think we'll need to rewrite most of the heuristic from scratch.
 
-The randomness here is the order of the child list when the oom killer 
-selects a task, based on the badness score, and then tries to kill a child 
-with a different mm before the parent.
+I'd like to post total redesgin of oom-killer in the next week.
+plz wait.
 
-The problem you identified in http://pastebin.com/f3f9674a0, however, is a 
-forkbomb issue where the badness score should never have been so high for 
-kdeinit4 compared to "test".  That's directly proportional to adding the 
-scores of all disjoint child total_vm values into the badness score for 
-the parent and then killing the children instead.
-
-That's the problem, not using total_vm as a baseline.  Replacing that with 
-rss is not going to solve the issue and reducing the user's ability to 
-specify a rough oom priority from userspace is simply not an option.
-
-> If you have OOM situation and Xorg is the first, that means it's leaking
-> memory badly and the system is probably already frozen/FUBAR. Killing
-> krunner in that situation wouldn't do any good. From a user perspective,
-> nothing changes, system is still FUBAR and (s)he would probably reboot
-> cursing linux in the process.
-> 
-
-It depends on what you're running, we need to be able to have the option 
-of protecting very large tasks on production servers.  Imagine if "test" 
-here is actually a critical application that we need to protect, its 
-not solely mlocked anonymous memory, but still kill if it is leaking 
-memory beyond your approximate 2.5GB.  How do you do that when using rss 
-as the baseline?
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
