@@ -1,86 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 151706B004D
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:56:16 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 087AE82CE08
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 11:02:15 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id gLC3ppssfrRm for <linux-mm@kvack.org>;
-	Thu, 29 Oct 2009 11:02:08 -0400 (EDT)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id A814282CDEA
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 11:01:41 -0400 (EDT)
-Date: Thu, 29 Oct 2009 14:55:08 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id AB57C6B004D
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 12:00:19 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e33.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n9TFvhMC002926
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 09:57:43 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n9TFxu8s131996
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 09:59:58 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n9TFw6e1011551
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 09:58:06 -0600
 Subject: Re: RFC: Transparent Hugepage support
-In-Reply-To: <20091027182109.GA5753@random.random>
-Message-ID: <alpine.DEB.1.10.0910291451240.18197@V090114053VZO-1>
-References: <20091026185130.GC4868@random.random> <alpine.DEB.1.10.0910271630540.20363@V090114053VZO-1> <20091027182109.GA5753@random.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1256741656.5613.15.camel@aglitke>
+References: <20091026185130.GC4868@random.random>
+	 <87ljiwk8el.fsf@basil.nowhere.org> <20091027193007.GA6043@random.random>
+	 <20091028042805.GJ7744@basil.fritz.box>
+	 <20091028120050.GD9640@random.random>
+	 <20091028141803.GQ7744@basil.fritz.box>  <1256741656.5613.15.camel@aglitke>
+Content-Type: text/plain
+Date: Thu, 29 Oct 2009 08:59:53 -0700
+Message-Id: <1256831993.26826.11.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 27 Oct 2009, Andrea Arcangeli wrote:
+On Wed, 2009-10-28 at 09:54 -0500, Adam Litke wrote:
+> PowerPC does not require specific virtual addresses for huge pages, but
+> does require that a consistent page size be used for each slice of the
+> virtual address space.  Slices are 256M in size from 0 to 4G and 1TB in
+> size above 1TB while huge pages are 64k, 16M, or 16G.  Unless the PPC
+> guys can work some more magic with their mmu, split_huge_page() in its
+> current form just plain won't work on PowerPC.
 
-> Agreed, migration is important on numa systems as much as swapping is
-> important on regular hosts, and this patch allows both in the very
-> same way with a few liner addition (that is a noop and doesn't modify
-> the kernel binary when CONFIG_TRANSPARENT_HUGEPAGE=N). The hugepages
-> in this patch should already relocatable just fine with move_pages (I
-> say "should" because I didn't test move_pages yet ;).
+One answer, at least in the beginning, would be to just ignore this
+detail.  Try to make 16MB pages wherever possible, probably even as 16MB
+pages in the Linux pagetables.  But, we can't promote the MMU to use
+them until get get a 256MB or 1TB chunk.  It will definitely mean some
+ppc-specific bits when we're changing the segment mapping size, but it's
+not impossible.
 
-Another NUMA issue is how MPOL_INTERLEAVE would work with this.
-MPOL_INTERLEAVE would cause the spreading of a sequence of pages over a
-series of nodes. If you coalesce to one huge page then that cannot be done
-anymore.
+That's not going to do any good for the desktop-type users.  But, it
+should be just fine for the HPC or JVM folks.  It restricts the users
+pretty severely, but it gives us *something*.
 
+There will be some benefit to using a 16MB Linux page and pte even if we
+can't back it with 16MB MMU pages, anyway.  Remember, a big chunk of the
+benefit of using 64k pages can be seen even on systems with no 64k
+hardware pages.
 
-> > Wont you be running into issues with page dirtying on that level?
->
-> Not sure I follow what the problem should be. At the moment when
-> pmd_trans_huge is true, the dirty bit is meaningless (hugepages at the
-> moment are splitted in place into regular pages before they can be
-> converted to swapcache, only after an hugepage becomes swapcache its
-> dirty bit on the pte becomes meaningful to handle the case of an
-> exclusive swapcache mapped writeable into a single pte and marked
-> clean to be able to swap it out at zerocost if memory pressure returns
-> and to avoid a cow if the page is written to before it is paged out
-> again), but the accessed bit is already handled just fine at the pmd
-> level.
-
-May not be a problem as long as you dont allow fs operations with these
-pages.
-
-> > Those also had fall back logic to 4k. Does this scheme also allow I/O with
->
-> Well maybe I remember your patches wrong, or I might have not followed
-> later developments but I was quite sure to remember when we discussed
-> it, the reason of the -EIO failure was the fs had softblocksize bigger
-> than 4k... and in general fs can't handle blocksize bigger than the
-> PAGE_CACHE_SIZE... In effect the core trouble wasnt' the large
-> pagecache but the fact the fs wanted a blocksize larger than
-> PAGE_SIZE, despite not being able to handle it, if the block was
-> splitted in multiple 4k not contiguous areas.
-
-The patches modified the page cache logic to determine the page size from
-the page structs.
-
-> > I dont get the point of this. What do you mean by "an operation that
-> > cannot fail"? Atomic section?
->
-> In short I mean it cannot return -ENOMEM (and an additional bonus is
-> that I managed it not to require scheduling or blocking
-> operations). The idea is that you can plug it anywhere with a one
-> liner and your code becomes hugepage compatible (sure it would run
-> faster if you were to teach to your code to handle pmd_trans_huge
-> natively but we can't do it all at once :).
-
-We need to know some more detail about the conversion.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
