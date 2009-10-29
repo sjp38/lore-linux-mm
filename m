@@ -1,105 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5720C6B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 22:31:49 -0400 (EDT)
-Received: by ywh26 with SMTP id 26so1442120ywh.12
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 19:31:47 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A2EFF6B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 23:05:51 -0400 (EDT)
+Received: by bwz7 with SMTP id 7so1891576bwz.6
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2009 20:05:49 -0700 (PDT)
+Message-ID: <4AE9068B.7030504@gmail.com>
+Date: Thu, 29 Oct 2009 04:05:47 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
 MIME-Version: 1.0
-In-Reply-To: <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>
-	 <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>
-	 <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com>
-	 <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 29 Oct 2009 11:31:47 +0900
-Message-ID: <28c262360910281931n57a3792elcf10ce0ff3f59815@mail.gmail.com>
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: Memory overcommit
+References: <hav57c$rso$1@ger.gmane.org> <20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com> <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com> <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com> <4AE846E8.1070303@gmail.com> <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, vedran.furac@gmail.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 29, 2009 at 10:00 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> I'll wait until the next week to post a new patch.
->> We don't need rapid way.
->>
-> I wrote above...but for my mental health, this is bug-fixed version.
-> Sorry for my carelessness. David, thank you for your review.
-> Regards,
-> -Kame
-> =3D=3D
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> It's reported that OOM-Killer kills Gnone/KDE at first...
-> And yes, we can reproduce it easily.
->
-> Now, oom-killer uses mm->total_vm as its base value. But in recent
-> applications, there are a big gap between VM size and RSS size.
-> Because
-> =A0- Applications attaches much dynamic libraries. (Gnome, KDE, etc...)
-> =A0- Applications may alloc big VM area but use small part of them.
-> =A0 =A0(Java, and multi-threaded applications has this tendency because
-> =A0 =A0 of default-size of stack.)
->
-> I think using mm->total_vm as score for oom-kill is not good.
-> By the same reason, overcommit memory can't work as expected.
-> (In other words, if we depends on total_vm, using overcommit more positiv=
-e
-> =A0is a good choice.)
->
-> This patch uses mm->anon_rss/file_rss as base value for calculating badne=
-ss.
->
-> Following is changes to OOM score(badness) on an environment with 1.6G me=
-mory
-> plus memory-eater(500M & 1G).
->
-> Top 10 of badness score. (The highest one is the first candidate to be ki=
-lled)
-> Before
-> badness program
-> 91228 =A0 gnome-settings-
-> 94210 =A0 clock-applet
-> 103202 =A0mixer_applet2
-> 106563 =A0tomboy
-> 112947 =A0gnome-terminal
-> 128944 =A0mmap =A0 =A0 =A0 =A0 =A0 =A0 =A0<----------- 500M malloc
-> 129332 =A0nautilus
-> 215476 =A0bash =A0 =A0 =A0 =A0 =A0 =A0 =A0<----------- parent of 2 malloc=
-s.
-> 256944 =A0mmap =A0 =A0 =A0 =A0 =A0 =A0 =A0<----------- 1G malloc
-> 423586 =A0gnome-session
->
-> After
-> badness
-> 1911 =A0 =A0mixer_applet2
-> 1955 =A0 =A0clock-applet
-> 1986 =A0 =A0xinit
-> 1989 =A0 =A0gnome-session
-> 2293 =A0 =A0nautilus
-> 2955 =A0 =A0gnome-terminal
-> 4113 =A0 =A0tomboy
-> 104163 =A0mmap =A0 =A0 =A0 =A0 =A0 =A0 <----------- 500M malloc.
-> 168577 =A0bash =A0 =A0 =A0 =A0 =A0 =A0 <----------- parent of 2 mallocs
-> 232375 =A0mmap =A0 =A0 =A0 =A0 =A0 =A0 <----------- 1G malloc
->
-> seems good for me. Maybe we can tweak this patch more,
-> but this one will be a good one as a start point.
->
-> Changelog: 2009/10/29
-> =A0- use get_mm_rss() instead of get_mm_counter()
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+David Rientjes wrote:
 
-Let's start from this.
+> We would know if you posted the data.
 
---=20
-Kind regards,
-Minchan Kim
+I need to find some free time to destroy a session on a computer which I
+use for work. You could easily test it yourself also as this doesn't
+happen only to me.
+
+Anyways, here it is... this time it started with ntpd:
+
+http://pastebin.com/f3f9674a0
+
+Regards,
+
+Vedran
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
