@@ -1,85 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1C2676B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 19:40:43 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 98AAC6B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 20:33:11 -0400 (EDT)
 Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9SNeesq028002
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9T0X9Un017297
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 29 Oct 2009 08:40:40 +0900
+	Thu, 29 Oct 2009 09:33:09 +0900
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D11045DE57
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 08:40:40 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DADF45DE4E
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 09:33:09 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CA7745DE51
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 08:40:40 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A4C345DE51
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 09:33:09 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 45F611DB803C
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 08:40:40 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E713A1DB8038
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 08:40:39 +0900 (JST)
-Date: Thu, 29 Oct 2009 08:38:01 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 13BC01DB803A
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 09:33:09 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 845EB1DB8038
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 09:33:08 +0900 (JST)
+Date: Thu, 29 Oct 2009 09:30:13 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: remove incorrect swap_count() from try_to_unuse()
-Message-Id: <20091029083801.c720b9d0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0910282031470.19885@sister.anvils>
-References: <COL115-W535064AC2F576372C1BB1B9FC00@phx.gbl>
-	<0f7b4023bee9b7ccc47998cd517d193c.squirrel@webmail-b.css.fujitsu.com>
-	<dc46d49c0910201825g1b3b3987w8f9002761a64166f@mail.gmail.com>
-	<Pine.LNX.4.64.0910282017410.19885@sister.anvils>
-	<Pine.LNX.4.64.0910282031470.19885@sister.anvils>
+Subject: [BUGFIX][PATCH] memcg: fix wrong pointer initialization at page
+ migration when memcg is disabled.
+Message-Id: <20091029093013.cd58f3a5.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Liu <yjfpb04@gmail.com>, Bo Liu <bo-liu@hotmail.com>, linux-mm@kvack.org
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Lee.Schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Oct 2009 20:34:38 +0000 (GMT)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-> From: Bo Liu <bo-liu@hotmail.com>
-> 
-> In try_to_unuse(), swcount is a local copy of *swap_map, including the
-> SWAP_HAS_CACHE bit; but a wrong comparison against swap_count(*swap_map),
-> which masks off the SWAP_HAS_CACHE bit, succeeded where it should fail.
-> 
-Ah, okay...
+Lee Schermerhorn reported that he saw bad pointer dereference
+in mem_cgroup_end_migration() when he disabled memcg by boot option.
 
-> That had the effect of resetting the mm from which to start searching
-> for the next swap page, to an irrelevant mm instead of to an mm in which
-> this swap page had been found: which may increase search time by ~20%.
-> But we're used to swapoff being slow, so never noticed the slowdown.
-> 
-> Remove that one spurious use of swap_count(): Bo Liu thought it merely
-> redundant, Hugh rewrote the description since it was measurably wrong.
-> 
-> Signed-off-by: Bo Liu <bo-liu@hotmail.com>
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> Cc: stable@kernel.org
+memcg's page migration logic works as
 
-Sorry for my misunderstanding.
+	mem_cgroup_prepare_migration(page, &ptr);
+	do page migration
+	mem_cgroup_end_migration(page, ptr);
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Now, ptr is not initialized in prepare_migration when memcg is disabled
+by boot option. This causes panic in end_migration. This patch fixes it.
 
-> ---
-> 
->  mm/swapfile.c |    3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> --- 2.6.32-rc5/mm/swapfile.c	2009-10-05 04:20:31.000000000 +0100
-> +++ linux/mm/swapfile.c	2009-10-28 19:31:43.000000000 +0000
-> @@ -1151,8 +1151,7 @@ static int try_to_unuse(unsigned int typ
->  				} else
->  					retval = unuse_mm(mm, entry, page);
->  
-> -				if (set_start_mm &&
-> -				    swap_count(*swap_map) < swcount) {
-> +				if (set_start_mm && *swap_map < swcount) {
->  					mmput(new_start_mm);
->  					atomic_inc(&mm->mm_users);
->  					new_start_mm = mm;
+Reported-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Balbir Singh <balbir@in.ibm.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+Index: linux-2.6.32-rc5/mm/memcontrol.c
+===================================================================
+--- linux-2.6.32-rc5.orig/mm/memcontrol.c
++++ linux-2.6.32-rc5/mm/memcontrol.c
+@@ -1990,7 +1990,8 @@ int mem_cgroup_prepare_migration(struct 
+ 	struct page_cgroup *pc;
+ 	struct mem_cgroup *mem = NULL;
+ 	int ret = 0;
+-
++	/* this pointer will be checked at end_migration */
++	*ptr = NULL;
+ 	if (mem_cgroup_disabled())
+ 		return 0;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
