@@ -1,131 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 97C266B004D
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 21:03:16 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 94FC66B004D
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2009 21:08:03 -0400 (EDT)
 Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9T13DWQ023457
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9T180tl032290
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 29 Oct 2009 10:03:14 +0900
+	Thu, 29 Oct 2009 10:08:00 +0900
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8948445DE62
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:03:13 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 07F2545DE51
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:08:00 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A5CD45DE51
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:03:13 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D1B2A45DE4F
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:07:59 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3795F1DB8042
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:03:13 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B8D7A8F8008
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:07:59 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D22941DB803F
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:03:12 +0900 (JST)
-Date: Thu, 29 Oct 2009 10:00:42 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F81D8F8006
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 10:07:59 +0900 (JST)
+Date: Thu, 29 Oct 2009 10:05:30 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-Message-Id: <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com>
-References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>
-	<abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix wrong pointer initialization at page
+ migration when memcg is disabled.
+Message-Id: <20091029100530.c8bafc53.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091029095051.7812e5ad.nishimura@mxp.nes.nec.co.jp>
+References: <20091029093013.cd58f3a5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091029095051.7812e5ad.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, vedran.furac@gmail.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Lee.Schermerhorn@hp.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> I'll wait until the next week to post a new patch.
-> We don't need rapid way.
+On Thu, 29 Oct 2009 09:50:51 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > Index: linux-2.6.32-rc5/mm/memcontrol.c
+> > ===================================================================
+> > --- linux-2.6.32-rc5.orig/mm/memcontrol.c
+> > +++ linux-2.6.32-rc5/mm/memcontrol.c
+> > @@ -1990,7 +1990,8 @@ int mem_cgroup_prepare_migration(struct 
+> >  	struct page_cgroup *pc;
+> >  	struct mem_cgroup *mem = NULL;
+> >  	int ret = 0;
+> > -
+> > +	/* this pointer will be checked at end_migration */
+> > +	*ptr = NULL;
+> >  	if (mem_cgroup_disabled())
+> >  		return 0;
+> >  
+> > 
+> I thought unmap_and_move() itself initializes "mem" to NULL, but it doesn't...
+> I personaly prefer initializing "mem" to NULL in unmap_and_move(), but anyway
+> I think this patch is also correct.
 > 
-I wrote above...but for my mental health, this is bug-fixed version.
-Sorry for my carelessness. David, thank you for your review.
-Regards,
--Kame
+> 	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> 
+Ok, here
+> And I think we should send a fix for this bug to -stable too.
+I think so, too.
+
+
 ==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Lee Schermerhorn reported that he saw bad pointer dereference
+in mem_cgroup_end_migration() when he disabled memcg by boot option.
 
-It's reported that OOM-Killer kills Gnone/KDE at first...
-And yes, we can reproduce it easily.
+memcg's page migration logic works as
 
-Now, oom-killer uses mm->total_vm as its base value. But in recent
-applications, there are a big gap between VM size and RSS size.
-Because
-  - Applications attaches much dynamic libraries. (Gnome, KDE, etc...)
-  - Applications may alloc big VM area but use small part of them.
-    (Java, and multi-threaded applications has this tendency because
-     of default-size of stack.)
+	mem_cgroup_prepare_migration(page, &ptr);
+	do page migration
+	mem_cgroup_end_migration(page, ptr);
 
-I think using mm->total_vm as score for oom-kill is not good.
-By the same reason, overcommit memory can't work as expected.
-(In other words, if we depends on total_vm, using overcommit more positive
- is a good choice.)
-
-This patch uses mm->anon_rss/file_rss as base value for calculating badness.
-
-Following is changes to OOM score(badness) on an environment with 1.6G memory
-plus memory-eater(500M & 1G).
-
-Top 10 of badness score. (The highest one is the first candidate to be killed)
-Before
-badness program
-91228	gnome-settings-
-94210	clock-applet
-103202	mixer_applet2
-106563	tomboy
-112947	gnome-terminal
-128944	mmap              <----------- 500M malloc
-129332	nautilus
-215476	bash              <----------- parent of 2 mallocs.
-256944	mmap              <----------- 1G malloc
-423586	gnome-session
-
-After
-badness 
-1911	mixer_applet2
-1955	clock-applet
-1986	xinit
-1989	gnome-session
-2293	nautilus
-2955	gnome-terminal
-4113	tomboy
-104163	mmap             <----------- 500M malloc.
-168577	bash             <----------- parent of 2 mallocs
-232375	mmap             <----------- 1G malloc
-
-seems good for me. Maybe we can tweak this patch more,
-but this one will be a good one as a start point.
+Now, ptr is not initialized when memcg is disabled by boot option.
+This patch fixes it.
 
 Changelog: 2009/10/29
- - use get_mm_rss() instead of get_mm_counter()
+ - modified "fix" from memcontrol.c to migrate.c
 
+
+Reported-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Balbir Singh <balbir@in.ibm.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/oom_kill.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/migrate.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: mm-test-kernel/mm/oom_kill.c
+Index: linux-2.6.32-rc5/mm/migrate.c
 ===================================================================
---- mm-test-kernel.orig/mm/oom_kill.c
-+++ mm-test-kernel/mm/oom_kill.c
-@@ -93,7 +93,7 @@ unsigned long badness(struct task_struct
- 	/*
- 	 * The memory size of the process is the basis for the badness.
- 	 */
--	points = mm->total_vm;
-+	points = get_mm_rss(mm);
+--- linux-2.6.32-rc5.orig/mm/migrate.c
++++ linux-2.6.32-rc5/mm/migrate.c
+@@ -602,7 +602,7 @@ static int unmap_and_move(new_page_t get
+ 	struct page *newpage = get_new_page(page, private, &result);
+ 	int rcu_locked = 0;
+ 	int charge = 0;
+-	struct mem_cgroup *mem;
++	struct mem_cgroup *mem = NULL;
  
- 	/*
- 	 * After this unlock we can no longer dereference local variable `mm'
-@@ -117,7 +117,7 @@ unsigned long badness(struct task_struct
- 	list_for_each_entry(child, &p->children, sibling) {
- 		task_lock(child);
- 		if (child->mm != mm && child->mm)
--			points += child->mm->total_vm/2 + 1;
-+			points += get_mm_rss(child->mm)/2 + 1;
- 		task_unlock(child);
- 	}
- 
-
+ 	if (!newpage)
+ 		return -ENOMEM;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
