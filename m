@@ -1,60 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5BC086B004D
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 10:41:17 -0400 (EDT)
-Received: by bwz7 with SMTP id 7so3865058bwz.6
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2009 07:41:15 -0700 (PDT)
-Message-ID: <4AEAFB08.8050305@gmail.com>
-Date: Fri, 30 Oct 2009 15:41:12 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 099F86B004D
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 11:13:27 -0400 (EDT)
+Received: by bwz7 with SMTP id 7so3901509bwz.6
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:13:25 -0700 (PDT)
+Message-ID: <4AEB0291.4080003@gmail.com>
+Date: Fri, 30 Oct 2009 16:13:21 +0100
 From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
 Reply-To: vedran.furac@gmail.com
 MIME-Version: 1.0
 Subject: Re: Memory overcommit
-References: <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com> <4AE846E8.1070303@gmail.com> <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com> <4AE9068B.7030504@gmail.com> <alpine.DEB.2.00.0910290132320.11476@chino.kir.corp.google.com> <4AE97618.6060607@gmail.com> <alpine.DEB.2.00.0910291225460.27732@chino.kir.corp.google.com> <4AEAEFDD.5060009@gmail.com> <20091030141250.GQ9640@random.random>
-In-Reply-To: <20091030141250.GQ9640@random.random>
+References: <hav57c$rso$1@ger.gmane.org> <alpine.DEB.2.00.0910291225460.27732@chino.kir.corp.google.com> <4AEAEFDD.5060009@gmail.com> <200910300808.38450.tfjellstrom@shaw.ca>
+In-Reply-To: <200910300808.38450.tfjellstrom@shaw.ca>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+To: tfjellstrom@shaw.ca
+Cc: linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
+Thomas Fjellstrom wrote:
 
-> On Fri, Oct 30, 2009 at 02:53:33PM +0100, Vedran FuraA? wrote:
->> % free -m
->>           total       used       free     shared    buffers     cached
->> Mem:      3458        3429         29          0        102       1119
+>> malloc: Cannot allocate memory /* Great, no OOM, but: */
+>> 
+>> % free -m total       used       free     shared    buffers cached
+>> Mem:      3458        3429         29          0        102 1119
 >> -/+ buffers/cache:    2207       1251
->>
->> There's plenty of memory available. Shouldn't cache be automatically
->> dropped (this question was in my original mail, hence the subject)?
+>> 
+>> There's plenty of memory available. Shouldn't cache be 
+>> automatically dropped (this question was in my original mail, hence
+>>  the subject)?
+>> 
 > 
-> This is not about cache, cache amount is physical, this about
-> virtual amount that can only go in ram or swap (at any later time,
-> current time is irrelevant) vs "ram + swap".
+> I think this is the MOST serious issue related to the oom killer. For
+> some reason it refuses to drop pages before trying to kill. When it
+> should drop cache, THEN kill if needed.
 
-Oh... so this is because apps "reserve" (Committed_AS?) more then they
-currently need.
+This isn't about OOM, but situation when you turn off overcommit. I was
+jumping to conclusion here. You can drop caches manually with:
+# echo 1 > /proc/sys/vm/drop_caches
 
-> In short add more swap if
-> you don't like overcommit and check grep Commit /proc/meminfo in case
-> this is accounting bug...
+but you still get: "malloc: Cannot allocate memory" even if almost
+nothing is cached:
 
-A the time of "malloc: Cannot allocate memory":
+        total       used       free     shared    buffers     cached
+Mem:    3458       2210       1248          0          3          90
+-/+ buffers/cache: 2116       1342
 
-CommitLimit:     3364440 kB
-Committed_AS:    3240200 kB
-
-So probably everything is ok (and free is misleading). Overcommit is
-unfortunately necessary if I want to be able to use all my memory.
-
-Btw. http://www.redhat.com/advice/tips/meminfo.html says Committed_AS is
-a (gu)estimate. Hope it is a good (not to high) guesstimate. :)
-
-Regards,
-
-Vedran
+As for not dropping pages by kernel before killing, I don't know nothing
+about it. It happens so fast and I never tried to measure it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
