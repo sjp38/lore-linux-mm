@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A1DA36B005A
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 11:16:01 -0400 (EDT)
-Date: Fri, 30 Oct 2009 16:15:44 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 300D26B004D
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 12:24:37 -0400 (EDT)
+Date: Fri, 30 Oct 2009 16:24:26 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 Subject: Re: Memory overcommit
-Message-ID: <20091030151544.GR9640@random.random>
+In-Reply-To: <20091030151544.GR9640@random.random>
+Message-ID: <Pine.LNX.4.64.0910301558050.3974@sister.anvils>
 References: <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
- <4AE846E8.1070303@gmail.com>
- <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com>
- <4AE9068B.7030504@gmail.com>
- <alpine.DEB.2.00.0910290132320.11476@chino.kir.corp.google.com>
- <4AE97618.6060607@gmail.com>
- <alpine.DEB.2.00.0910291225460.27732@chino.kir.corp.google.com>
- <4AEAEFDD.5060009@gmail.com>
- <20091030141250.GQ9640@random.random>
- <4AEAFB08.8050305@gmail.com>
+ <4AE846E8.1070303@gmail.com> <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com>
+ <4AE9068B.7030504@gmail.com> <alpine.DEB.2.00.0910290132320.11476@chino.kir.corp.google.com>
+ <4AE97618.6060607@gmail.com> <alpine.DEB.2.00.0910291225460.27732@chino.kir.corp.google.com>
+ <4AEAEFDD.5060009@gmail.com> <20091030141250.GQ9640@random.random>
+ <4AEAFB08.8050305@gmail.com> <20091030151544.GR9640@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4AEAFB08.8050305@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Vedran =?utf-8?B?RnVyYcSN?= <vedran.furac@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: =?UTF-8?Q?Vedran_Fura=C4=8D?= <vedran.furac@gmail.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 30, 2009 at 03:41:12PM +0100, Vedran FuraA? wrote:
-> Oh... so this is because apps "reserve" (Committed_AS?) more then they
-> currently need.
-
-They don't actually reserve, they end up "reserving" if overcommit is
-set to 2 (OVERCOMMIT_NEVER)... Apps aren't reserving, more likely they
-simply avoid a flood of mmap when a single one is enough to map an
-huge MAP_PRIVATE region like shared libs that you may only execute
-partially (this is why total_vm is usually much bigger than real ram
-mapped by pagetables represented in rss). But those shared libs are
-99% pageable and they don't need to stay in swap or ram, so
-overcommit-as greatly overstimates the actual needs even if shared lib
-loading wouldn't be 64bit optimized (i.e. large and a single one).
-
-> A the time of "malloc: Cannot allocate memory":
+On Fri, 30 Oct 2009, Andrea Arcangeli wrote:
 > 
-> CommitLimit:     3364440 kB
-> Committed_AS:    3240200 kB
-> 
-> So probably everything is ok (and free is misleading). Overcommit is
-> unfortunately necessary if I want to be able to use all my memory.
+> It is a guess in the sense to guarantee no ENOMEM it has to take into
+> account the worst possible case, that is all shared lib MAP_PRIVATE
+> mappings are cowed, which is very far from reality.
 
-Add more swap.
+A MAP_PRIVATE area is only counted into Committed_AS when it is or
+has in the past been PROT_WRITE.  I think it's up to the ELF header
+of the shared library whether a section is PROT_WRITE or not; but it
+looks like many are not, so Committed_AS should be (a little) nearer
+reality than you fear.
 
-> Btw. http://www.redhat.com/advice/tips/meminfo.html says Committed_AS is
-> a (gu)estimate. Hope it is a good (not to high) guesstimate. :)
+Though we do account for Committed_AS, even while allowing overcommit,
+we do not at present account for Committed_AS per mm.  Seeing David
+and KAMEZAWA-san debating over total_vm versus rss versus anon_rss,
+I wonder whether such a "commit" count might be a better measure for
+OOM choices (but shmem is as usual awkward: though accounted just once
+in Committed_AS, it would probably have to be accounted to every mm
+that maps it).  Just an idea to throw into the mix.
 
-It is a guess in the sense to guarantee no ENOMEM it has to take into
-account the worst possible case, that is all shared lib MAP_PRIVATE
-mappings are cowed, which is very far from reality. Other than that
-the overcommitas should exactly match all mmapped possibly writeable
-space that can only fit in ram+swap, so from that point of view it's
-not a guessed number (modulo the smp read out of order). The only
-guess is how much slab, cache and other stuff is freeable, which
-doesn't provide true perfection to OVERCOMMIT_NEVER.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
