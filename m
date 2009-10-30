@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0DCC86B0073
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 10:12:59 -0400 (EDT)
-Date: Fri, 30 Oct 2009 15:12:50 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Memory overcommit
-Message-ID: <20091030141250.GQ9640@random.random>
-References: <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com>
- <4AE792B8.5020806@gmail.com>
- <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
- <4AE846E8.1070303@gmail.com>
- <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com>
- <4AE9068B.7030504@gmail.com>
- <alpine.DEB.2.00.0910290132320.11476@chino.kir.corp.google.com>
- <4AE97618.6060607@gmail.com>
- <alpine.DEB.2.00.0910291225460.27732@chino.kir.corp.google.com>
- <4AEAEFDD.5060009@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 809616B004D
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 10:23:57 -0400 (EDT)
+Received: by fg-out-1718.google.com with SMTP id d23so1346626fga.8
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2009 07:23:55 -0700 (PDT)
+Date: Fri, 30 Oct 2009 15:23:50 +0100
+From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
+Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
+	failures V2
+Message-ID: <20091030142350.GA9343@bizet.domek.prywatny>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <20091023165810.GA4588@bizet.domek.prywatny> <20091023211239.GA6185@bizet.domek.prywatny> <9ec2d7290910240646p75b93c68v6ea1648d628a9660@mail.gmail.com> <20091028114208.GA14476@bizet.domek.prywatny> <20091028115926.GW8900@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4AEAEFDD.5060009@gmail.com>
+In-Reply-To: <20091028115926.GW8900@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Vedran =?utf-8?B?RnVyYcSN?= <vedran.furac@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mel LKML <mel.lkml@gmail.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 30, 2009 at 02:53:33PM +0100, Vedran FuraA? wrote:
-> % free -m
->           total       used       free     shared    buffers     cached
-> Mem:      3458        3429         29          0        102       1119
-> -/+ buffers/cache:    2207       1251
-> 
-> There's plenty of memory available. Shouldn't cache be automatically
-> dropped (this question was in my original mail, hence the subject)?
+On Wed, Oct 28, 2009 at 11:59:26AM +0000, Mel Gorman wrote:
+> On Wed, Oct 28, 2009 at 12:42:08PM +0100, Karol Lewandowski wrote:
+> > On Sat, Oct 24, 2009 at 02:46:56PM +0100, Mel LKML wrote:
+> > I've tested patches 1+2+3+4 in my normal usage scenario (do some work,
+> > suspend, do work, suspend, ...) and it failed today after 4 days (== 4
+> > suspend-resume cycles).
+> > 
+> > I'll test 1-5 now.
 
-This is not about cache, cache amount is physical, this about
-virtual amount that can only go in ram or swap (at any later time,
-current time is irrelevant) vs "ram + swap". In short add more swap if
-you don't like overcommit and check grep Commit /proc/meminfo in case
-this is accounting bug...
+2.6.32-rc5 with patches 1-5 fails too.
+
+
+> Also, what was the behaviour of the e100 driver when suspending before
+> this commit?
+> 
+> 6905b1f1a03a48dcf115a2927f7b87dba8d5e566: Net / e100: Fix suspend of devices that cannot be power managed
+
+This was discussed before with e100 maintainers and Rafael.  Reverting
+this patch didn't change anything.
+
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
