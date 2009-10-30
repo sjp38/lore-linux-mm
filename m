@@ -1,154 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 155746B004D
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 05:39:16 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9U9dE8n024641
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 30 Oct 2009 18:39:14 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E36FD45DE4D
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 18:39:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C13AF45DD75
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 18:39:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ABC8C1DB803B
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 18:39:13 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 55033E18006
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 18:39:10 +0900 (JST)
-Date: Fri, 30 Oct 2009 18:36:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3FBC66B004D
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 09:53:39 -0400 (EDT)
+Received: by fg-out-1718.google.com with SMTP id d23so1334334fga.8
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2009 06:53:36 -0700 (PDT)
+Message-ID: <4AEAEFDD.5060009@gmail.com>
+Date: Fri, 30 Oct 2009 14:53:33 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
+MIME-Version: 1.0
 Subject: Re: Memory overcommit
-Message-Id: <20091030183638.1125c987.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.0910300200170.18076@chino.kir.corp.google.com>
-References: <hav57c$rso$1@ger.gmane.org>
-	<20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0910271843510.11372@sister.anvils>
-	<alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com>
-	<4AE78B8F.9050201@gmail.com>
-	<alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com>
-	<4AE792B8.5020806@gmail.com>
-	<alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
-	<20091028135519.805c4789.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0910272205200.7507@chino.kir.corp.google.com>
-	<20091028150536.674abe68.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0910272311001.15462@chino.kir.corp.google.com>
-	<20091028152015.3d383cd6.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0910290136000.11476@chino.kir.corp.google.com>
-	<4AE97861.1070902@gmail.com>
-	<alpine.DEB.2.00.0910291248480.2276@chino.kir.corp.google.com>
-	<20091030084836.5428e085.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0910300200170.18076@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <hav57c$rso$1@ger.gmane.org> <20091013120840.a844052d.kamezawa.hiroyu@jp.fujitsu.com> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com> <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com> <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com> <4AE846E8.1070303@gmail.com> <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com> <4AE9068B.7030504@gmail.com> <alpine.DEB.2.00.0910290132320.11476@chino.kir.corp.google.com> <4AE97618.6060607@gmail.com> <alpine.DEB.2.00.0910291225460.27732@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.0910291225460.27732@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: vedran.furac@gmail.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 30 Oct 2009 02:10:37 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+David Rientjes wrote:
 
-> >    - The kernel can't know the program is bad or not. just guess it.
-> 
-> Totally irrelevant, given your fourth point about /proc/pid/oom_adj.  We 
-> can tell the kernel what we'd like the oom killer behavior should be if 
-> the situation arises.
-> 
+> Ok, so this is the forkbomb problem by adding half of each child's 
+> total_vm into the badness score of the parent.  We should address this 
+> completely seperately by addressing that specific part of the heuristic, 
+> not changing what we consider to be a baseline.
+> thunderbird.
+>
+> You're making all these claims and assertions based _solely_ on the theory 
+> that killing the application with the most resident RAM is always the 
+> optimal solution.  That's just not true, especially if we're just 
+> allocating small numbers of order-0 memory.
 
-My point is that the server cannot distinguish memory leak from intentional
-memory usage. No other than that.
+Well, you are kernel hacker, not me. You know how linux mm works much
+more than I do. I just reported a, what I think is a big problem, which
+needs to be solved ASAP (2.6.33). I'm afraid that we'll just talk much
+and nothing will be done with solution/fix postponed indefinitely. Not
+sure if you are interested, but I tested this on windowsxp also, and
+nothing bad happens there, system continues to function properly.
 
+For 2-3 years I had memory overcommit turn off. I didn't get any OOM,
+but sometimes Java didn't work and it seems that because of some kernel
+weirdness (or misunderstanding on my part) I couldn't use all the
+available memory:
 
+# echo 2 > /proc/sys/vm/overcommit_memory
 
-> >    - Then, there is no "correct" OOM-Killer other than fork-bomb killer.
-> 
-> Well of course there is, you're seeing this is a WAY too simplistic 
-> manner.  If we are oom, we want to be able to influence how the oom killer 
-> behaves and respond to that situation.  You are proposing that we change 
-> the baseline for how the oom killer selects tasks which we use CONSTANTLY 
-> as part of our normal production environment.  I'd appreciate it if you'd 
-> take it a little more seriously.
-> 
-Yes, I'm serious.
+# echo 95 > /proc/sys/vm/overcommit_ratio
+% ./test  /* malloc in loop as before */
+malloc: Cannot allocate memory /* Great, no OOM, but: */
 
-In this summer, at lunch with a daily linux user, I was said
-"you, enterprise guys, don't consider desktop or laptop problem at all."
-yes, I use only servers. My customer uses server, too. My first priority
-is always on server users.
-But, for this time, I wrote reply to Vedran and try to fix desktop problem.
-Even if current logic works well for servers, "KDE/GNOME is killed" problem
-seems to be serious. And this may be a problem for EMBEDED people, I guess.
+% free -m
+          total       used       free     shared    buffers     cached
+Mem:      3458        3429         29          0        102       1119
+-/+ buffers/cache:    2207       1251
 
+There's plenty of memory available. Shouldn't cache be automatically
+dropped (this question was in my original mail, hence the subject)?
 
-> >    - User has a knob as oom_adj. This is very strong.
-> > 
-> 
-> Agreed.
-> 
-This and memcg are very useful. But everone says "bad workaround" ;(
-Maybe only servers can use these functions.
+All this frustrated not only me, but a great number of users on our
+local Croatian linux usenet newsgroup with some of them pointing that as
+the reason they use solaris. And so on...
 
-> > Then, there is only "reasonable" or "easy-to-understand" OOM-Kill.
-> > "Current biggest memory eater is killed" sounds reasonable, easy to
-> > understand. And if total_vm works well, overcommit_guess should catch it.
-> > Please improve overcommit_guess if you want to stay on total_vm.
-> > 
-> 
-> I don't necessarily want to stay on total_vm, but I also don't want to 
-> move to rss as a baseline, as you would probably agree.
-> 
-I'll rewrite all. I'll not rely only on rss. There are several situations
-and we need some more information than we have know. I'll have to implement
-ways to gather information before chaging badness.
+> Much better is to allow the user to decide at what point, regardless of 
+> swap usage, their application is using much more memory than expected or 
+> required.  They can do that right now pretty well with /proc/pid/oom_adj 
+> without this outlandish claim that they should be expected to know the rss 
+> of their applications at the time of oom to effectively tune oom_adj.
 
+Believe me, barely a few developers use oom_adj for their applications,
+and probably almost none of the end users. What should they do, every
+time they start an application, go to console and set the oom_adj. You
+cannot expect them to do that.
 
-> We disagree about a very fundamental principle: you are coming from a 
-> perspective of always wanting to kill the biggest resident memory eater 
-> even for a single order-0 allocation that fails and I'm coming from a 
-> perspective of wanting to ensure that our machines know how the oom killer 
-> will react when it is used. 
-yes.
+> What would you suggest?  A script that sits in a loop checking each task's 
+> current rss from /proc/pid/stat or their current oom priority though 
+> /proc/pid/oom_score and adjusting oom_adj preemptively just in case the 
+> oom killer is invoked in the next second?
 
-> Moving to rss reduces the ability of the user to specify an expected oom
-> priority other than polarizing it by either 
-> disabling it completely with an oom_adj value of -17 or choosing the 
-> definite next victim with +15.  That's my objection to it: the user cannot 
-> possibly be expected to predict what proportion of each application's 
-> memory will be resident at the time of oom.
-> 
-I can say the same thing to total_vm size. total_vm size doesn't include any
-good information for oom situation. And tweaking based on that not-useful
-parameter will make things worse.
-
-For oom_adj tweak, we may need other technique other than "shift".
-If I've wrote oom_adj, I'll write it as
-
-   /proc/<pid>/guarantee_nooom_size
-
-  #echo 3G > /proc/<pid>/guarantee_nooom_size
-
-  Then, 3G bytes of this process's memory usage will not be accounted to badness.
-
-I'm not sure I can add new interface or replace oom_adj, now.
-But to do this, current chilren's score problem etc...should be fixed.
-
-> I understand you want to totally rewrite the oom killer for whatever 
-> reason, but I think you need to spend a lot more time understanding the 
-> needs that the Linux community has for its behavior instead of insisting 
-> on your point of view.
-> 
-yes, use more time. I don't think all of changes can be in quick work.
-
-To be honest, this is a part of work to implement "custom oom handler" cgroup.
-Before going further, I'd like to fix current problem.
-
-Thanks,
--Kame
-
+:)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
