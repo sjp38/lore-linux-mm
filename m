@@ -1,84 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B59746B004D
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 19:51:13 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9TNpACW003441
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1D6E16B004D
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2009 20:43:19 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9U0hGjc016174
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 30 Oct 2009 08:51:11 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A609845DE7B
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:51:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B00E45DE79
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:51:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 600E31DB803F
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:51:10 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EAE901DB8037
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 08:51:09 +0900 (JST)
-Date: Fri, 30 Oct 2009 08:48:36 +0900
+	Fri, 30 Oct 2009 09:43:16 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5651145DE51
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 09:43:16 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A5D845DE4F
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 09:43:16 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C7922E08003
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 09:43:15 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7704A1DB803E
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2009 09:43:12 +0900 (JST)
+Date: Fri, 30 Oct 2009 09:40:37 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Memory overcommit
-Message-Id: <20091030084836.5428e085.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.0910291248480.2276@chino.kir.corp.google.com>
-References: <hav57c$rso$1@ger.gmane.org>
-	<4ADE3121.6090407@gmail.com>
-	<20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com>
-	<4AE5CB4E.4090504@gmail.com>
-	<20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0910271843510.11372@sister.anvils>
-	<alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com>
-	<4AE78B8F.9050201@gmail.com>
-	<alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com>
-	<4AE792B8.5020806@gmail.com>
-	<alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com>
-	<20091028135519.805c4789.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0910272205200.7507@chino.kir.corp.google.com>
-	<20091028150536.674abe68.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0910272311001.15462@chino.kir.corp.google.com>
-	<20091028152015.3d383cd6.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0910290136000.11476@chino.kir.corp.google.com>
-	<4AE97861.1070902@gmail.com>
-	<alpine.DEB.2.00.0910291248480.2276@chino.kir.corp.google.com>
+Subject: Re: RFC: Transparent Hugepage support
+Message-Id: <20091030094037.9e0118d8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091029103658.GJ9640@random.random>
+References: <20091026185130.GC4868@random.random>
+	<87ljiwk8el.fsf@basil.nowhere.org>
+	<20091027193007.GA6043@random.random>
+	<20091028042805.GJ7744@basil.fritz.box>
+	<20091029094344.GA1068@elte.hu>
+	<20091029103658.GJ9640@random.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: vedran.furac@gmail.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Oct 2009 12:53:42 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+On Thu, 29 Oct 2009 11:36:58 +0100
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-> > If you have OOM situation and Xorg is the first, that means it's leaking
-> > memory badly and the system is probably already frozen/FUBAR. Killing
-> > krunner in that situation wouldn't do any good. From a user perspective,
-> > nothing changes, system is still FUBAR and (s)he would probably reboot
-> > cursing linux in the process.
-> > 
+> > A small comment regarding the patch itself: i think it could be 
+> > simplified further by eliminating CONFIG_TRANSPARENT_HUGEPAGE and by 
+> > making it a natural feature of hugepage support. If the code is correct 
+> > i cannot see any scenario under which i wouldnt want a hugepage enabled 
+> > kernel i'm booting to not have transparent hugepage support as well.
 > 
-> It depends on what you're running, we need to be able to have the option 
-> of protecting very large tasks on production servers.  Imagine if "test" 
-> here is actually a critical application that we need to protect, its 
-> not solely mlocked anonymous memory, but still kill if it is leaking 
-> memory beyond your approximate 2.5GB.  How do you do that when using rss 
-> as the baseline?
+> The two reasons why I added a config option are:
+> 
+> 1) because it was easy enough, gcc is smart enough to eliminate the
+> external calls so I didn't need to add ifdefs with the exception of
+> returning 0 from pmd_trans_huge and pmd_trans_frozen. I only had to
+> make the exports of huge_memory.c visible unconditionally so it doesn't
+> warn, after that I don't need to build and link huge_memory.o.
+> 
+> 2) to avoid breaking build of archs not implementing pmd_trans_huge
+> and that may never be able to take advantage of it
+> 
+> But we could move CONFIG_TRANSPARENT_HUGEPAGE to an arch define forced
+> to Y on x86-64 and N on power.
 
-As I wrote repeatedly,
+Ah, please keep CONFIG_TRANSPARENT_HUGEPAGE for a while.
+Now, memcg don't handle hugetlbfs because it's special and cannot be freed by
+the kernel, only users can free it. But this new transparent-hugepage seems to
+be designed as that the kernel can free it for memory reclaiming.
+So, I'd like to handle this in memcg transparently.
 
-   - OOM-Killer itselfs is bad thing, bad situation.
-   - The kernel can't know the program is bad or not. just guess it.
-   - Then, there is no "correct" OOM-Killer other than fork-bomb killer.
-   - User has a knob as oom_adj. This is very strong.
-
-Then, there is only "reasonable" or "easy-to-understand" OOM-Kill.
-"Current biggest memory eater is killed" sounds reasonable, easy to
-understand. And if total_vm works well, overcommit_guess should catch it.
-Please improve overcommit_guess if you want to stay on total_vm.
-
+But it seems I need several changes to support this new rule.
+I'm glad if this new huge page depends on !CONFIG_CGROUP_MEM_RES_CTRL for a
+while.
 
 Thanks,
 -Kame
