@@ -1,64 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E329B6B006A
-	for <linux-mm@kvack.org>; Sat, 31 Oct 2009 17:29:33 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D09CD6B006A
+	for <linux-mm@kvack.org>; Sat, 31 Oct 2009 17:33:09 -0400 (EDT)
 Subject: Re: RFC: Transparent Hugepage support
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20091026185130.GC4868@random.random>
+In-Reply-To: <1256741656.5613.15.camel@aglitke>
 References: <20091026185130.GC4868@random.random>
+	 <87ljiwk8el.fsf@basil.nowhere.org> <20091027193007.GA6043@random.random>
+	 <20091028042805.GJ7744@basil.fritz.box>
+	 <20091028120050.GD9640@random.random>
+	 <20091028141803.GQ7744@basil.fritz.box>  <1256741656.5613.15.camel@aglitke>
 Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 01 Nov 2009 08:29:27 +1100
-Message-ID: <1257024567.7907.17.camel@pasglop>
+Date: Sun, 01 Nov 2009 08:32:37 +1100
+Message-ID: <1257024757.7907.19.camel@pasglop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-10-26 at 19:51 +0100, Andrea Arcangeli wrote:
-> Hello,
+On Wed, 2009-10-28 at 09:54 -0500, Adam Litke wrote:
 > 
-> Lately I've been working to make KVM use hugepages transparently
-> without the usual restrictions of hugetlbfs. Some of the restrictions
-> I'd like to see removed:
-> 
-> 1) hugepages have to be swappable or the guest physical memory remains
->    locked in RAM and can't be paged out to swap
-> 
-> 2) if a hugepage allocation fails, regular pages should be allocated
->    instead and mixed in the same vma without any failure and without
->    userland noticing
+> PowerPC does not require specific virtual addresses for huge pages, but
+> does require that a consistent page size be used for each slice of the
+> virtual address space.  Slices are 256M in size from 0 to 4G and 1TB in
+> size above 1TB while huge pages are 64k, 16M, or 16G.  Unless the PPC
+> guys can work some more magic with their mmu, split_huge_page() in its
+> current form just plain won't work on PowerPC.  That doesn't even take
+> into account the (already discussed) page table layout differences
+> between x86 and ppc: http://linux-mm.org/PageTableStructure . 
 
-This isn't possible on all architectures. Some archs have "segment"
-constraints which mean only one page size per such "segment". Server
-ppc's for example (segment size being either 256M or 1T depending on the
-CPU).
+Note: this is server powerpc's. Embedded ones are more flexible but on
+server we have this limitation and not much we can do about it.
 
-> 3) if some task quits and more hugepages become available in the
->    buddy, guest physical memory backed by regular pages should be
->    relocated on hugepages automatically in regions under
->    madvise(MADV_HUGEPAGE) (ideally event driven by waking up the
->    kernel deamon if the order=HPAGE_SHIFT-PAGE_SHIFT list becomes not
->    null)
-> 
-> The first (and more tedious) part of this work requires allowing the
-> VM to handle anonymous hugepages mixed with regular pages
-> transparently on regular anonymous vmas. This is what this patch tries
-> to achieve in the least intrusive possible way. We want hugepages and
-> hugetlb to be used in a way so that all applications can benefit
-> without changes (as usual we leverage the KVM virtualization design:
-> by improving the Linux VM at large, KVM gets the performance boost too).
-> 
-> The most important design choice is: always fallback to 4k allocation
-> if the hugepage allocation fails! This is the _very_ opposite of some
-> large pagecache patches that failed with -EIO back then if a 64k (or
-> similar) allocation failed...
+Note also that the "slice" sizes are a SW thing. HW segments are either
+256M or 1T (the later being supported only on some processors), and
+linux maintains that concept of "slices" in order to simplify the
+tracking of said segments and to use 1T when available.
 
-Precisely because the approach cannot work on all architectures ?
-
-Cheers,
 Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
