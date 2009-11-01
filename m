@@ -1,97 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E149F6B004D
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 17:00:22 -0500 (EST)
-Message-ID: <4AEE0536.6020605@crca.org.au>
-Date: Mon, 02 Nov 2009 09:01:26 +1100
-From: Nigel Cunningham <ncunningham@crca.org.au>
-MIME-Version: 1.0
-Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic
- and unify it
-References: <20091101234614.F401.A69D9226@jp.fujitsu.com> <20091102000855.F404.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20091102000855.F404.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id AAEA46B004D
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 17:13:01 -0500 (EST)
+From: Jiri Slaby <jirislaby@gmail.com>
+Subject: [PATCH 1/1] MM: slqb, fix per_cpu access
+Date: Sun,  1 Nov 2009 23:12:58 +0100
+Message-Id: <1257113578-1584-1-git-send-email-jirislaby@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: npiggin@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+We cannot use the same local variable name as the declared per_cpu
+variable since commit "percpu: remove per_cpu__ prefix."
 
-KOSAKI Motohiro wrote:
-> shrink_all_zone() was introduced by commit d6277db4ab (swsusp: rework
-> memory shrinker) for hibernate performance improvement. and sc.swap_cluster_max
-> was introduced by commit a06fe4d307 (Speed freeing memory for suspend).
-> 
-> commit a06fe4d307 said
-> 
->    Without the patch:
->    Freed  14600 pages in  1749 jiffies = 32.61 MB/s (Anomolous!)
->    Freed  88563 pages in 14719 jiffies = 23.50 MB/s
->    Freed 205734 pages in 32389 jiffies = 24.81 MB/s
-> 
->    With the patch:
->    Freed  68252 pages in   496 jiffies = 537.52 MB/s
->    Freed 116464 pages in   569 jiffies = 798.54 MB/s
->    Freed 209699 pages in   705 jiffies = 1161.89 MB/s
-> 
-> At that time, their patch was pretty worth. However, Modern Hardware
-> trend and recent VM improvement broke its worth. From several reason,
-> I think we should remove shrink_all_zones() at all.
-> 
-> detail:
-> 
-> 1) Old days, shrink_zone()'s slowness was mainly caused by stupid io-throttle
->   at no i/o congestion.
->   but current shrink_zone() is sane, not slow.
-> 
-> 2) shrink_all_zone() try to shrink all pages at a time. but it doesn't works
->   fine on numa system.
->   example)
->     System has 4GB memory and each node have 2GB. and hibernate need 1GB.
-> 
->     optimal)
->        steal 500MB from each node.
->     shrink_all_zones)
->        steal 1GB from node-0.
+Otherwise we would see crashes like:
+general protection fault: 0000 [#1] SMP
+last sysfs file:
+CPU 1
+Modules linked in:
+Pid: 1, comm: swapper Tainted: G        W  2.6.32-rc5-mm1_64 #860
+RIP: 0010:[<ffffffff8142ff94>]  [<ffffffff8142ff94>] start_cpu_timer+0x2b/0x87
+...
 
-I haven't given much thought to numa awareness in hibernate code, but I
-can say that the shrink_all_memory interface is woefully inadequate as
-far as zone awareness goes. Since lowmem needs to be atomically restored
-before we can restore highmem, we really need to be able to ask for a
-particular number of pages of a particular zone type to be freed.
+Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+---
+ mm/slqb.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
->   Oh, Cache balancing logic was broken. ;)
->   Unfortunately, Desktop system moved ahead NUMA at nowadays.
->   (Side note, if hibernate require 2GB, shrink_all_zones() never success
->    on above machine)
-> 
-> 3) if the node has several I/O flighting pages, shrink_all_zones() makes
->   pretty bad result.
-> 
->   schenario) hibernate need 1GB
-> 
->   1) shrink_all_zones() try to reclaim 1GB from Node-0
->   2) but it only reclaimed 990MB
->   3) stupidly, shrink_all_zones() try to reclaim 1GB from Node-1
->   4) it reclaimed 990MB
-> 
->   Oh, well. it reclaimed twice much than required.
->   In the other hand, current shrink_zone() has sane baling out logic.
->   then, it doesn't make overkill reclaim. then, we lost shrink_zones()'s risk.
-
-Yes, this is bad.
-
-> 4) SplitLRU VM always keep active/inactive ratio very carefully. inactive list only
->   shrinking break its assumption. it makes unnecessary OOM risk. it obviously suboptimal.
-
-I don't follow your logic here. Without being a mm expert, I'd imagine
-that it shouldn't matter that much if most of the inactive list gets freed.
-
-Regards,
-
-Nigel
+diff --git a/mm/slqb.c b/mm/slqb.c
+index e745d9a..27f5025 100644
+--- a/mm/slqb.c
++++ b/mm/slqb.c
+@@ -2770,16 +2770,16 @@ static DEFINE_PER_CPU(struct delayed_work, cache_trim_work);
+ 
+ static void __cpuinit start_cpu_timer(int cpu)
+ {
+-	struct delayed_work *cache_trim_work = &per_cpu(cache_trim_work, cpu);
++	struct delayed_work *_cache_trim_work = &per_cpu(cache_trim_work, cpu);
+ 
+ 	/*
+ 	 * When this gets called from do_initcalls via cpucache_init(),
+ 	 * init_workqueues() has already run, so keventd will be setup
+ 	 * at that time.
+ 	 */
+-	if (keventd_up() && cache_trim_work->work.func == NULL) {
+-		INIT_DELAYED_WORK(cache_trim_work, cache_trim_worker);
+-		schedule_delayed_work_on(cpu, cache_trim_work,
++	if (keventd_up() && _cache_trim_work->work.func == NULL) {
++		INIT_DELAYED_WORK(_cache_trim_work, cache_trim_worker);
++		schedule_delayed_work_on(cpu, _cache_trim_work,
+ 					__round_jiffies_relative(HZ, cpu));
+ 	}
+ }
+-- 
+1.6.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
