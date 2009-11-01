@@ -1,32 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 804716B007D
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 10:12:34 -0500 (EST)
-Message-ID: <4AEDA55C.8000500@redhat.com>
-Date: Sun, 01 Nov 2009 10:12:28 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 214C36B007E
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 10:13:09 -0500 (EST)
+Date: Mon, 2 Nov 2009 00:13:04 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCHv2 5/5][nit fix] vmscan Make consistent of reclaim bale out between do_try_to_free_page and shrink_zone
+In-Reply-To: <20091101234614.F401.A69D9226@jp.fujitsu.com>
+References: <20091101234614.F401.A69D9226@jp.fujitsu.com>
+Message-Id: <20091102001210.F40D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic
- and unify it
-References: <20091101234614.F401.A69D9226@jp.fujitsu.com> <20091102000855.F404.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20091102000855.F404.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/01/2009 10:09 AM, KOSAKI Motohiro wrote:
+Fix small inconsistent of ">" and ">=".
 
-> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Cc: Rafael J. Wysocki<rjw@sisk.pl>
-> Cc: Rik van Riel<riel@redhat.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmscan.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7bdf4f0..e6ea011 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1632,7 +1632,7 @@ static void shrink_zone(int priority, struct zone *zone,
+ 		 * with multiple processes reclaiming pages, the total
+ 		 * freeing target can get unreasonably large.
+ 		 */
+-		if (nr_reclaimed > nr_to_reclaim && priority < DEF_PRIORITY)
++		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
+ 			break;
+ 	}
+ 
 -- 
-All rights reversed.
+1.6.2.5
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
