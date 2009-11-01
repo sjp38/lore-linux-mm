@@ -1,23 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A420C6B004D
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 16:37:00 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic and unify it
-Date: Sun, 1 Nov 2009 22:38:13 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E149F6B004D
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 17:00:22 -0500 (EST)
+Message-ID: <4AEE0536.6020605@crca.org.au>
+Date: Mon, 02 Nov 2009 09:01:26 +1100
+From: Nigel Cunningham <ncunningham@crca.org.au>
+MIME-Version: 1.0
+Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic
+ and unify it
 References: <20091101234614.F401.A69D9226@jp.fujitsu.com> <20091102000855.F404.A69D9226@jp.fujitsu.com>
 In-Reply-To: <20091102000855.F404.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Message-Id: <200911012238.13083.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 01 November 2009, KOSAKI Motohiro wrote:
+Hi.
+
+KOSAKI Motohiro wrote:
 > shrink_all_zone() was introduced by commit d6277db4ab (swsusp: rework
 > memory shrinker) for hibernate performance improvement. and sc.swap_cluster_max
 > was introduced by commit a06fe4d307 (Speed freeing memory for suspend).
@@ -53,7 +55,13 @@ On Sunday 01 November 2009, KOSAKI Motohiro wrote:
 >        steal 500MB from each node.
 >     shrink_all_zones)
 >        steal 1GB from node-0.
-> 
+
+I haven't given much thought to numa awareness in hibernate code, but I
+can say that the shrink_all_memory interface is woefully inadequate as
+far as zone awareness goes. Since lowmem needs to be atomically restored
+before we can restore highmem, we really need to be able to ask for a
+particular number of pages of a particular zone type to be freed.
+
 >   Oh, Cache balancing logic was broken. ;)
 >   Unfortunately, Desktop system moved ahead NUMA at nowadays.
 >   (Side note, if hibernate require 2GB, shrink_all_zones() never success
@@ -72,24 +80,18 @@ On Sunday 01 November 2009, KOSAKI Motohiro wrote:
 >   Oh, well. it reclaimed twice much than required.
 >   In the other hand, current shrink_zone() has sane baling out logic.
 >   then, it doesn't make overkill reclaim. then, we lost shrink_zones()'s risk.
-> 
+
+Yes, this is bad.
+
 > 4) SplitLRU VM always keep active/inactive ratio very carefully. inactive list only
 >   shrinking break its assumption. it makes unnecessary OOM risk. it obviously suboptimal.
-> 
-> Then, This patch changed shrink_all_memory() to only the wrapper function of 
-> do_try_to_free_pages(). it bring good reviewability and debuggability, and solve 
-> above problems.
-> 
-> side note: Reclaim logic unificication makes two good side effect.
->  - Fix recursive reclaim bug on shrink_all_memory().
->    it did forgot to use PF_MEMALLOC. it mean the system be able to stuck into deadlock.
->  - Now, shrink_all_memory() got lockdep awareness. it bring good debuggability.
 
-As I said previously, I don't really see a reason to keep shrink_all_memory().
+I don't follow your logic here. Without being a mm expert, I'd imagine
+that it shouldn't matter that much if most of the inactive list gets freed.
 
-Do you think that removing it will result in performance degradation?
+Regards,
 
-Rafael
+Nigel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
