@@ -1,45 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 214C36B007E
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 10:13:09 -0500 (EST)
-Date: Mon, 2 Nov 2009 00:13:04 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCHv2 5/5][nit fix] vmscan Make consistent of reclaim bale out between do_try_to_free_page and shrink_zone
-In-Reply-To: <20091101234614.F401.A69D9226@jp.fujitsu.com>
-References: <20091101234614.F401.A69D9226@jp.fujitsu.com>
-Message-Id: <20091102001210.F40D.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 32B216B004D
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 12:52:04 -0500 (EST)
+Message-ID: <4AEDCAA6.8050301@redhat.com>
+Date: Sun, 01 Nov 2009 12:51:34 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCHv2 3/5] vmscan: Stop zone_reclaim()'s wrong swap_cluster_max
+ usage
+References: <20091101234614.F401.A69D9226@jp.fujitsu.com> <20091102000951.F407.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091102000951.F407.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Fix small inconsistent of ">" and ">=".
+On 11/01/2009 10:11 AM, KOSAKI Motohiro wrote:
+> In old days, we didn't have sc.nr_to_reclaim and it brought
+> sc.swap_cluster_max misuse.
+>
+> huge sc.swap_cluster_max might makes unnecessary OOM and
+> no performance benefit.
+>
+> Now, we can remove above dangerous one.
+>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7bdf4f0..e6ea011 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1632,7 +1632,7 @@ static void shrink_zone(int priority, struct zone *zone,
- 		 * with multiple processes reclaiming pages, the total
- 		 * freeing target can get unreasonably large.
- 		 */
--		if (nr_reclaimed > nr_to_reclaim && priority < DEF_PRIORITY)
-+		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
- 			break;
- 	}
- 
 -- 
-1.6.2.5
-
-
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
