@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id AACD86B004D
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 02:35:39 -0500 (EST)
-Date: Sun, 1 Nov 2009 08:35:27 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use
- ALLOC_HARDER
-Message-ID: <20091101073527.GB32720@elf.ucw.cz>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie>
- <1256650833-15516-3-git-send-email-mel@csn.ul.ie>
- <20091027130924.fa903f5a.akpm@linux-foundation.org>
- <alpine.DEB.2.00.0910271411530.9183@chino.kir.corp.google.com>
- <20091031184054.GB1475@ucw.cz>
- <alpine.DEB.2.00.0910311248490.13829@chino.kir.corp.google.com>
- <20091031201158.GB29536@elf.ucw.cz>
- <alpine.DEB.2.00.0910311413160.25524@chino.kir.corp.google.com>
- <20091031222905.GA32720@elf.ucw.cz>
- <4AECC04B.9060808@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 48A506B004D
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 05:56:06 -0500 (EST)
+Date: Sun, 1 Nov 2009 11:56:01 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: RFC: Transparent Hugepage support
+Message-ID: <20091101105601.GE11981@random.random>
+References: <20091026185130.GC4868@random.random>
+ <alpine.DEB.1.10.0910271630540.20363@V090114053VZO-1>
+ <20091027182109.GA5753@random.random>
+ <20091027202533.GB2726@sequoia.sous-sol.org>
+ <alpine.DEB.1.10.0910291450580.18197@V090114053VZO-1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4AECC04B.9060808@redhat.com>
+In-Reply-To: <alpine.DEB.1.10.0910291450580.18197@V090114053VZO-1>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, kernel-testers@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Chris Wright <chrisw@sous-sol.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> > I believe it would be better to simply remove it.
-> 
-> You are against trying to give the realtime tasks a best effort
-> advantage at memory allocation?
+Hello Christoph,
 
-Yes. Those memory reserves were for kernel, GPF_ATOMIC and stuff. Now
-realtime tasks are allowed to eat into them. That feels wrong.
+On Thu, Oct 29, 2009 at 02:51:11PM -0400, Christoph Lameter wrote:
+> How would glibc do that?
 
-"realtime" tasks are not automatically "more important".
+So the first important thing is to start the mapping at 2M aligned
+virtual address. Second important thing is to always do sbrk
+increments in 2M chunks and mmap extensions in 2M chunks with a mmap
+on the next 2M (mremap right now calls split_huge_page but later we
+will teach mremap and mprotect not to call split_huge_page and to
+handle the pmd_trans_huge natively so they can run a bit faster).
 
-> Realtime apps often *have* to allocate memory on the kernel side,
-> because they use network system calls, etc...
+With those two precautions all page faults will be guaranteed to map
+2M pages if they're available (and then fragmentation will decrease
+too as 2M pages will be retained in the mappings).
 
-So what? As soon as they do that, they lose any guarantees, anyway.
-									Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Even after split_huge_page, the pte will point to the same 2M page as
+before. And when task is killed all 2M pages will be recombined in the
+buddy. Page coloring will also be still guaranteed (up to the 512th
+color of course) even after split_huge_page run.
+
+But if split_huge_page is called because munmap is unmapping just a 4k
+piece of a 2M page, then split_huge_page will be called to free just
+that 4k piece so fragmentation will be created. So the last precaution
+that glibc should use is to munmap (or madvise_dontneed) in 2M chunks
+naturally aligned to make sure not to create unnecessary
+fragmentation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
