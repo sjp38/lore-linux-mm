@@ -1,91 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C36946B004D
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 08:30:20 -0500 (EST)
-Received: by iwn5 with SMTP id 5so3083985iwn.11
-        for <linux-mm@kvack.org>; Sun, 01 Nov 2009 05:30:19 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id CE59F6B004D
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 09:45:19 -0500 (EST)
+Message-ID: <4AED9EB4.5080601@redhat.com>
+Date: Sun, 01 Nov 2009 09:44:04 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com>
-References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>
-	 <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>
-	 <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com>
-	 <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>
-	 <alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com>
-Date: Sun, 1 Nov 2009 22:29:37 +0900
-Message-ID: <2f11576a0911010529t688ed152qbb72c87c85869c45@mail.gmail.com>
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use ALLOC_HARDER
+References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <1256650833-15516-3-git-send-email-mel@csn.ul.ie> <20091027130924.fa903f5a.akpm@linux-foundation.org> <alpine.DEB.2.00.0910271411530.9183@chino.kir.corp.google.com> <20091031184054.GB1475@ucw.cz> <alpine.DEB.2.00.0910311248490.13829@chino.kir.corp.google.com> <20091031201158.GB29536@elf.ucw.cz> <alpine.DEB.2.00.0910311413160.25524@chino.kir.corp.google.com> <20091031222905.GA32720@elf.ucw.cz> <4AECC04B.9060808@redhat.com> <20091101073527.GB32720@elf.ucw.cz>
+In-Reply-To: <20091101073527.GB32720@elf.ucw.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, vedran.furac@gmail.com
+To: Pavel Machek <pavel@ucw.cz>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, kernel-testers@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> This patch would pick the memory hogging task, "test", first everytime
-> just like the current implementation does. =A0It would then prefer Xorg,
-> icedove-bin, and ktorrent next as a starting point.
+On 11/01/2009 02:35 AM, Pavel Machek wrote:
+>>> I believe it would be better to simply remove it.
+>>
+>> You are against trying to give the realtime tasks a best effort
+>> advantage at memory allocation?
 >
-> Admittedly, there are other heuristics that the oom killer uses to create
-> a badness score. =A0But since this patch is only changing the baseline fr=
-om
-> mm->total_vm to get_mm_rss(mm), its behavior in this test case do not
-> match the patch description.
+> Yes. Those memory reserves were for kernel, GPF_ATOMIC and stuff. Now
+> realtime tasks are allowed to eat into them. That feels wrong.
 >
-> The vast majority of the other ooms have identical top 8 candidates:
+> "realtime" tasks are not automatically "more important".
 >
-> total_vm
-> 673222 test
-> 195695 krunner
-> 168881 plasma-desktop
-> 130567 ktorrent
-> 127081 knotify4
-> 125881 icedove-bin
-> 123036 akregator
-> 121869 firefox-bin
+>> Realtime apps often *have* to allocate memory on the kernel side,
+>> because they use network system calls, etc...
 >
-> rss
-> 672271 test
-> 42192 Xorg
-> 30763 firefox-bin
-> 13292 icedove-bin
-> 10208 ktorrent
-> 9260 akregator
-> 8859 plasma-desktop
-> 7528 krunner
->
-> firefox-bin seems much more preferred in this case than total_vm, but Xor=
-g
-> still ranks very high with this patch compared to the current
-> implementation.
+> So what? As soon as they do that, they lose any guarantees, anyway.
 
-Hi David,
+They might lose the absolute guarantee, but that's no reason
+not to give it our best effort!
 
-I'm very interesting your pointing out. thanks good testing.
-So, I'd like to clarify your point a bit.
-
-following are badness list on my desktop environment (x86_64 6GB mem).
-it show Xorg have pretty small badness score. Do you know why such
-different happen?
-
-
-score    pid        comm
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D
-56382   3241    run-mozilla.sh
-23345   3289    run-mozilla.sh
-21461   3050    gnome-do
-20079   2867    gnome-session
-14016   3258    firefox
-9212    3306    firefox
-8468    3115    gnome-do
-6902    3325    emacs
-6783    3212    tomboy
-4865    2968    python
-4861    2948    nautilus
-4221    1       init
-(snip about 100line)
-548     2590    Xorg
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
