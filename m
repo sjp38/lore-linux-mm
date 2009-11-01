@@ -1,42 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CE59F6B004D
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 09:45:19 -0500 (EST)
-Message-ID: <4AED9EB4.5080601@redhat.com>
-Date: Sun, 01 Nov 2009 09:44:04 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 940C96B004D
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 10:08:48 -0500 (EST)
+Date: Mon, 2 Nov 2009 00:08:44 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCHv2 1/5] vmscan: separate sc.swap_cluster_max and sc.nr_max_reclaim
+Message-Id: <20091101234614.F401.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use ALLOC_HARDER
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <1256650833-15516-3-git-send-email-mel@csn.ul.ie> <20091027130924.fa903f5a.akpm@linux-foundation.org> <alpine.DEB.2.00.0910271411530.9183@chino.kir.corp.google.com> <20091031184054.GB1475@ucw.cz> <alpine.DEB.2.00.0910311248490.13829@chino.kir.corp.google.com> <20091031201158.GB29536@elf.ucw.cz> <alpine.DEB.2.00.0910311413160.25524@chino.kir.corp.google.com> <20091031222905.GA32720@elf.ucw.cz> <4AECC04B.9060808@redhat.com> <20091101073527.GB32720@elf.ucw.cz>
-In-Reply-To: <20091101073527.GB32720@elf.ucw.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@ucw.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, kernel-testers@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On 11/01/2009 02:35 AM, Pavel Machek wrote:
->>> I believe it would be better to simply remove it.
->>
->> You are against trying to give the realtime tasks a best effort
->> advantage at memory allocation?
->
-> Yes. Those memory reserves were for kernel, GPF_ATOMIC and stuff. Now
-> realtime tasks are allowed to eat into them. That feels wrong.
->
-> "realtime" tasks are not automatically "more important".
->
->> Realtime apps often *have* to allocate memory on the kernel side,
->> because they use network system calls, etc...
->
-> So what? As soon as they do that, they lose any guarantees, anyway.
+Currently, sc.scap_cluster_max has double meanings.
 
-They might lose the absolute guarantee, but that's no reason
-not to give it our best effort!
+ 1) reclaim batch size as isolate_lru_pages()'s argument
+ 2) reclaim baling out thresolds
 
+The two meanings pretty unrelated. Thus, Let's separate it.
+this patch doesn't change any behavior.
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rafael J. Wysocki <rjw@sisk.pl>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ mm/vmscan.c |   21 +++++++++++++++------
+ 1 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f805958..6a3eb9f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -55,6 +55,9 @@ struct scan_control {
+ 	/* Number of pages freed so far during a call to shrink_zones() */
+ 	unsigned long nr_reclaimed;
+ 
++	/* How many pages shrink_list() should reclaim */
++	unsigned long nr_to_reclaim;
++
+ 	/* This context's GFP mask */
+ 	gfp_t gfp_mask;
+ 
+@@ -1585,6 +1588,7 @@ static void shrink_zone(int priority, struct zone *zone,
+ 	enum lru_list l;
+ 	unsigned long nr_reclaimed = sc->nr_reclaimed;
+ 	unsigned long swap_cluster_max = sc->swap_cluster_max;
++	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 	int noswap = 0;
+ 
+@@ -1634,8 +1638,7 @@ static void shrink_zone(int priority, struct zone *zone,
+ 		 * with multiple processes reclaiming pages, the total
+ 		 * freeing target can get unreasonably large.
+ 		 */
+-		if (nr_reclaimed > swap_cluster_max &&
+-			priority < DEF_PRIORITY && !current_is_kswapd())
++		if (nr_reclaimed > nr_to_reclaim && priority < DEF_PRIORITY)
+ 			break;
+ 	}
+ 
+@@ -1733,6 +1736,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 	struct zoneref *z;
+ 	struct zone *zone;
+ 	enum zone_type high_zoneidx = gfp_zone(sc->gfp_mask);
++	unsigned long writeback_threshold;
+ 
+ 	delayacct_freepages_start();
+ 
+@@ -1768,7 +1772,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 			}
+ 		}
+ 		total_scanned += sc->nr_scanned;
+-		if (sc->nr_reclaimed >= sc->swap_cluster_max) {
++		if (sc->nr_reclaimed >= sc->nr_to_reclaim) {
+ 			ret = sc->nr_reclaimed;
+ 			goto out;
+ 		}
+@@ -1780,8 +1784,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		 * that's undesirable in laptop mode, where we *want* lumpy
+ 		 * writeout.  So in laptop mode, write out the whole world.
+ 		 */
+-		if (total_scanned > sc->swap_cluster_max +
+-					sc->swap_cluster_max / 2) {
++		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
++		if (total_scanned > writeback_threshold) {
+ 			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned);
+ 			sc->may_writepage = 1;
+ 		}
+@@ -1827,6 +1831,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.gfp_mask = gfp_mask,
+ 		.may_writepage = !laptop_mode,
+ 		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+ 		.swappiness = vm_swappiness,
+@@ -1885,6 +1890,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+ 		.may_unmap = 1,
+ 		.may_swap = !noswap,
+ 		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+ 		.swappiness = swappiness,
+ 		.order = 0,
+ 		.mem_cgroup = mem_cont,
+@@ -1932,6 +1938,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+ 		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.nr_to_reclaim = ULONG_MAX,
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
+ 		.mem_cgroup = NULL,
+@@ -2549,7 +2556,9 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+ 		.may_swap = 1,
+ 		.swap_cluster_max = max_t(unsigned long, nr_pages,
+-					SWAP_CLUSTER_MAX),
++				       SWAP_CLUSTER_MAX),
++		.nr_to_reclaim = max_t(unsigned long, nr_pages,
++				       SWAP_CLUSTER_MAX),
+ 		.gfp_mask = gfp_mask,
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
 -- 
-All rights reversed.
+1.6.2.5
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
