@@ -1,129 +1,299 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 940C96B004D
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 10:08:48 -0500 (EST)
-Date: Mon, 2 Nov 2009 00:08:44 +0900 (JST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 11DB26B0062
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 10:09:47 -0500 (EST)
+Date: Mon, 2 Nov 2009 00:09:44 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCHv2 1/5] vmscan: separate sc.swap_cluster_max and sc.nr_max_reclaim
-Message-Id: <20091101234614.F401.A69D9226@jp.fujitsu.com>
+Subject: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic and unify it
+In-Reply-To: <20091101234614.F401.A69D9226@jp.fujitsu.com>
+References: <20091101234614.F401.A69D9226@jp.fujitsu.com>
+Message-Id: <20091102000855.F404.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Currently, sc.scap_cluster_max has double meanings.
+shrink_all_zone() was introduced by commit d6277db4ab (swsusp: rework
+memory shrinker) for hibernate performance improvement. and sc.swap_cluster_max
+was introduced by commit a06fe4d307 (Speed freeing memory for suspend).
 
- 1) reclaim batch size as isolate_lru_pages()'s argument
- 2) reclaim baling out thresolds
+commit a06fe4d307 said
 
-The two meanings pretty unrelated. Thus, Let's separate it.
-this patch doesn't change any behavior.
+   Without the patch:
+   Freed  14600 pages in  1749 jiffies = 32.61 MB/s (Anomolous!)
+   Freed  88563 pages in 14719 jiffies = 23.50 MB/s
+   Freed 205734 pages in 32389 jiffies = 24.81 MB/s
+
+   With the patch:
+   Freed  68252 pages in   496 jiffies = 537.52 MB/s
+   Freed 116464 pages in   569 jiffies = 798.54 MB/s
+   Freed 209699 pages in   705 jiffies = 1161.89 MB/s
+
+At that time, their patch was pretty worth. However, Modern Hardware
+trend and recent VM improvement broke its worth. From several reason,
+I think we should remove shrink_all_zones() at all.
+
+detail:
+
+1) Old days, shrink_zone()'s slowness was mainly caused by stupid io-throttle
+  at no i/o congestion.
+  but current shrink_zone() is sane, not slow.
+
+2) shrink_all_zone() try to shrink all pages at a time. but it doesn't works
+  fine on numa system.
+  example)
+    System has 4GB memory and each node have 2GB. and hibernate need 1GB.
+
+    optimal)
+       steal 500MB from each node.
+    shrink_all_zones)
+       steal 1GB from node-0.
+
+  Oh, Cache balancing logic was broken. ;)
+  Unfortunately, Desktop system moved ahead NUMA at nowadays.
+  (Side note, if hibernate require 2GB, shrink_all_zones() never success
+   on above machine)
+
+3) if the node has several I/O flighting pages, shrink_all_zones() makes
+  pretty bad result.
+
+  schenario) hibernate need 1GB
+
+  1) shrink_all_zones() try to reclaim 1GB from Node-0
+  2) but it only reclaimed 990MB
+  3) stupidly, shrink_all_zones() try to reclaim 1GB from Node-1
+  4) it reclaimed 990MB
+
+  Oh, well. it reclaimed twice much than required.
+  In the other hand, current shrink_zone() has sane baling out logic.
+  then, it doesn't make overkill reclaim. then, we lost shrink_zones()'s risk.
+
+4) SplitLRU VM always keep active/inactive ratio very carefully. inactive list only
+  shrinking break its assumption. it makes unnecessary OOM risk. it obviously suboptimal.
+
+Then, This patch changed shrink_all_memory() to only the wrapper function of 
+do_try_to_free_pages(). it bring good reviewability and debuggability, and solve 
+above problems.
+
+side note: Reclaim logic unificication makes two good side effect.
+ - Fix recursive reclaim bug on shrink_all_memory().
+   it did forgot to use PF_MEMALLOC. it mean the system be able to stuck into deadlock.
+ - Now, shrink_all_memory() got lockdep awareness. it bring good debuggability.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Rafael J. Wysocki <rjw@sisk.pl>
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
 ---
- mm/vmscan.c |   21 +++++++++++++++------
- 1 files changed, 15 insertions(+), 6 deletions(-)
+ mm/vmscan.c |  156 +++++++++++------------------------------------------------
+ 1 files changed, 28 insertions(+), 128 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f805958..6a3eb9f 100644
+index 6a3eb9f..9862c04 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -55,6 +55,9 @@ struct scan_control {
- 	/* Number of pages freed so far during a call to shrink_zones() */
- 	unsigned long nr_reclaimed;
+@@ -58,6 +58,8 @@ struct scan_control {
+ 	/* How many pages shrink_list() should reclaim */
+ 	unsigned long nr_to_reclaim;
  
-+	/* How many pages shrink_list() should reclaim */
-+	unsigned long nr_to_reclaim;
++	unsigned long hibernation_mode;
 +
  	/* This context's GFP mask */
  	gfp_t gfp_mask;
  
-@@ -1585,6 +1588,7 @@ static void shrink_zone(int priority, struct zone *zone,
- 	enum lru_list l;
- 	unsigned long nr_reclaimed = sc->nr_reclaimed;
- 	unsigned long swap_cluster_max = sc->swap_cluster_max;
-+	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
- 	int noswap = 0;
+@@ -1748,7 +1750,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 	if (scanning_global_lru(sc)) {
+ 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
  
-@@ -1634,8 +1638,7 @@ static void shrink_zone(int priority, struct zone *zone,
- 		 * with multiple processes reclaiming pages, the total
- 		 * freeing target can get unreasonably large.
- 		 */
--		if (nr_reclaimed > swap_cluster_max &&
--			priority < DEF_PRIORITY && !current_is_kswapd())
-+		if (nr_reclaimed > nr_to_reclaim && priority < DEF_PRIORITY)
- 			break;
+-			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
++			if (!sc->hibernation_mode &&
++			    !cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 				continue;
+ 
+ 			lru_pages += zone_reclaimable_pages(zone);
+@@ -1791,7 +1794,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		}
+ 
+ 		/* Take a nap, wait for some writeback to complete */
+-		if (sc->nr_scanned && priority < DEF_PRIORITY - 2)
++		if (!sc->hibernation_mode && sc->nr_scanned &&
++		    priority < DEF_PRIORITY - 2)
+ 			congestion_wait(BLK_RW_ASYNC, HZ/10);
  	}
+ 	/* top priority shrink_zones still had more to do? don't OOM, then */
+@@ -2262,148 +2266,44 @@ unsigned long zone_reclaimable_pages(struct zone *zone)
  
-@@ -1733,6 +1736,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	struct zoneref *z;
- 	struct zone *zone;
- 	enum zone_type high_zoneidx = gfp_zone(sc->gfp_mask);
-+	unsigned long writeback_threshold;
+ #ifdef CONFIG_HIBERNATION
+ /*
+- * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
+- * from LRU lists system-wide, for given pass and priority.
+- *
+- * For pass > 3 we also try to shrink the LRU lists that contain a few pages
+- */
+-static void shrink_all_zones(unsigned long nr_pages, int prio,
+-				      int pass, struct scan_control *sc)
+-{
+-	struct zone *zone;
+-	unsigned long nr_reclaimed = 0;
+-	struct zone_reclaim_stat *reclaim_stat;
+-
+-	for_each_populated_zone(zone) {
+-		enum lru_list l;
+-
+-		if (zone_is_all_unreclaimable(zone) && prio != DEF_PRIORITY)
+-			continue;
+-
+-		for_each_evictable_lru(l) {
+-			enum zone_stat_item ls = NR_LRU_BASE + l;
+-			unsigned long lru_pages = zone_page_state(zone, ls);
+-
+-			/* For pass = 0, we don't shrink the active list */
+-			if (pass == 0 && (l == LRU_ACTIVE_ANON ||
+-						l == LRU_ACTIVE_FILE))
+-				continue;
+-
+-			reclaim_stat = get_reclaim_stat(zone, sc);
+-			reclaim_stat->nr_saved_scan[l] +=
+-						(lru_pages >> prio) + 1;
+-			if (reclaim_stat->nr_saved_scan[l]
+-						>= nr_pages || pass > 3) {
+-				unsigned long nr_to_scan;
+-
+-				reclaim_stat->nr_saved_scan[l] = 0;
+-				nr_to_scan = min(nr_pages, lru_pages);
+-				nr_reclaimed += shrink_list(l, nr_to_scan, zone,
+-								sc, prio);
+-				if (nr_reclaimed >= nr_pages) {
+-					sc->nr_reclaimed += nr_reclaimed;
+-					return;
+-				}
+-			}
+-		}
+-	}
+-	sc->nr_reclaimed += nr_reclaimed;
+-}
+-
+-/*
+- * Try to free `nr_pages' of memory, system-wide, and return the number of
++ * Try to free `nr_to_reclaim' of memory, system-wide, and return the number of
+  * freed pages.
+  *
+  * Rather than trying to age LRUs the aim is to preserve the overall
+  * LRU order by reclaiming preferentially
+  * inactive > active > active referenced > active mapped
+  */
+-unsigned long shrink_all_memory(unsigned long nr_pages)
++unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ {
+-	unsigned long lru_pages, nr_slab;
+-	int pass;
+ 	struct reclaim_state reclaim_state;
+ 	struct scan_control sc = {
+-		.gfp_mask = GFP_KERNEL,
+-		.may_unmap = 0,
++		.gfp_mask = GFP_HIGHUSER_MOVABLE,
++		.may_swap = 1,
++		.may_unmap = 1,
+ 		.may_writepage = 1,
++		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.nr_to_reclaim = nr_to_reclaim,
++		.hibernation_mode = 1,
++		.swappiness = vm_swappiness,
++		.order = 0,
+ 		.isolate_pages = isolate_pages_global,
+-		.nr_reclaimed = 0,
+ 	};
++	struct zonelist * zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
++	struct task_struct *p = current;
++	unsigned long nr_reclaimed;
  
- 	delayacct_freepages_start();
+-	current->reclaim_state = &reclaim_state;
+-
+-	lru_pages = global_reclaimable_pages();
+-	nr_slab = global_page_state(NR_SLAB_RECLAIMABLE);
+-	/* If slab caches are huge, it's better to hit them first */
+-	while (nr_slab >= lru_pages) {
+-		reclaim_state.reclaimed_slab = 0;
+-		shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
+-		if (!reclaim_state.reclaimed_slab)
+-			break;
+-
+-		sc.nr_reclaimed += reclaim_state.reclaimed_slab;
+-		if (sc.nr_reclaimed >= nr_pages)
+-			goto out;
+-
+-		nr_slab -= reclaim_state.reclaimed_slab;
+-	}
+-
+-	/*
+-	 * We try to shrink LRUs in 5 passes:
+-	 * 0 = Reclaim from inactive_list only
+-	 * 1 = Reclaim from active list but don't reclaim mapped
+-	 * 2 = 2nd pass of type 1
+-	 * 3 = Reclaim mapped (normal reclaim)
+-	 * 4 = 2nd pass of type 3
+-	 */
+-	for (pass = 0; pass < 5; pass++) {
+-		int prio;
+-
+-		/* Force reclaiming mapped pages in the passes #3 and #4 */
+-		if (pass > 2)
+-			sc.may_unmap = 1;
+-
+-		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
+-			unsigned long nr_to_scan = nr_pages - sc.nr_reclaimed;
+-
+-			sc.nr_scanned = 0;
+-			sc.swap_cluster_max = nr_to_scan;
+-			shrink_all_zones(nr_to_scan, prio, pass, &sc);
+-			if (sc.nr_reclaimed >= nr_pages)
+-				goto out;
+-
+-			reclaim_state.reclaimed_slab = 0;
+-			shrink_slab(sc.nr_scanned, sc.gfp_mask,
+-				    global_reclaimable_pages());
+-			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
+-			if (sc.nr_reclaimed >= nr_pages)
+-				goto out;
+-
+-			if (sc.nr_scanned && prio < DEF_PRIORITY - 2)
+-				congestion_wait(BLK_RW_ASYNC, HZ / 10);
+-		}
+-	}
+-
+-	/*
+-	 * If sc.nr_reclaimed = 0, we could not shrink LRUs, but there may be
+-	 * something in slab caches
+-	 */
+-	if (!sc.nr_reclaimed) {
+-		do {
+-			reclaim_state.reclaimed_slab = 0;
+-			shrink_slab(nr_pages, sc.gfp_mask,
+-				    global_reclaimable_pages());
+-			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
+-		} while (sc.nr_reclaimed < nr_pages &&
+-				reclaim_state.reclaimed_slab > 0);
+-	}
++	p->flags |= PF_MEMALLOC;
++	lockdep_set_current_reclaim_state(sc.gfp_mask);
++	reclaim_state.reclaimed_slab = 0;
++	p->reclaim_state = &reclaim_state;
  
-@@ -1768,7 +1772,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 			}
- 		}
- 		total_scanned += sc->nr_scanned;
--		if (sc->nr_reclaimed >= sc->swap_cluster_max) {
-+		if (sc->nr_reclaimed >= sc->nr_to_reclaim) {
- 			ret = sc->nr_reclaimed;
- 			goto out;
- 		}
-@@ -1780,8 +1784,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		 * that's undesirable in laptop mode, where we *want* lumpy
- 		 * writeout.  So in laptop mode, write out the whole world.
- 		 */
--		if (total_scanned > sc->swap_cluster_max +
--					sc->swap_cluster_max / 2) {
-+		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
-+		if (total_scanned > writeback_threshold) {
- 			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned);
- 			sc->may_writepage = 1;
- 		}
-@@ -1827,6 +1831,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 		.gfp_mask = gfp_mask,
- 		.may_writepage = !laptop_mode,
- 		.swap_cluster_max = SWAP_CLUSTER_MAX,
-+		.nr_to_reclaim = SWAP_CLUSTER_MAX,
- 		.may_unmap = 1,
- 		.may_swap = 1,
- 		.swappiness = vm_swappiness,
-@@ -1885,6 +1890,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- 		.may_unmap = 1,
- 		.may_swap = !noswap,
- 		.swap_cluster_max = SWAP_CLUSTER_MAX,
-+		.nr_to_reclaim = SWAP_CLUSTER_MAX,
- 		.swappiness = swappiness,
- 		.order = 0,
- 		.mem_cgroup = mem_cont,
-@@ -1932,6 +1938,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
- 		.may_unmap = 1,
- 		.may_swap = 1,
- 		.swap_cluster_max = SWAP_CLUSTER_MAX,
-+		.nr_to_reclaim = ULONG_MAX,
- 		.swappiness = vm_swappiness,
- 		.order = order,
- 		.mem_cgroup = NULL,
-@@ -2549,7 +2556,9 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
- 		.may_swap = 1,
- 		.swap_cluster_max = max_t(unsigned long, nr_pages,
--					SWAP_CLUSTER_MAX),
-+				       SWAP_CLUSTER_MAX),
-+		.nr_to_reclaim = max_t(unsigned long, nr_pages,
-+				       SWAP_CLUSTER_MAX),
- 		.gfp_mask = gfp_mask,
- 		.swappiness = vm_swappiness,
- 		.order = order,
++	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+ 
+-out:
+-	current->reclaim_state = NULL;
++	p->reclaim_state = NULL;
++	lockdep_clear_current_reclaim_state();
++	p->flags &= ~PF_MEMALLOC;
+ 
+-	return sc.nr_reclaimed;
++	return nr_reclaimed;
+ }
+ #endif /* CONFIG_HIBERNATION */
+ 
 -- 
 1.6.2.5
 
