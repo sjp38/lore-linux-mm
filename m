@@ -1,120 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 596BA6B0044
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 17:19:37 -0500 (EST)
-Subject: Re: Filtering bits in set_pte_at()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.64.0911021256330.32400@sister.anvils>
-References: <1256957081.6372.344.camel@pasglop>
-	 <Pine.LNX.4.64.0911021256330.32400@sister.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 03 Nov 2009 09:19:27 +1100
-Message-ID: <1257200367.7907.50.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9E7486B0044
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 17:28:27 -0500 (EST)
+Date: Tue, 3 Nov 2009 00:25:51 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: [PATCHv6 0/3] vhost: a kernel-level virtio server
+Message-ID: <20091102222551.GA15184@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org
+To: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-11-02 at 13:27 +0000, Hugh Dickins wrote:
-> On Sat, 31 Oct 2009, Benjamin Herrenschmidt wrote:
-> 
-> > Hi folks !
-> > 
-> > So I have a little problem on powerpc ... :-)
-> 
-> Thanks a lot for running this by us.
+Rusty, ok, I think I've addressed your comments so far here.  In
+particular I have added write logging for live migration, indirect
+buffers and virtio net header (enables gso).  I'd like this to go
+into linux-next, through your tree, and hopefully 2.6.33.
+What do you think?
 
-Heh, I though you may have been bored :-)
+---
 
-> I've not looked to see if there are more such issues in arch/powerpc
-> itself, but those instances you mention are the only ones I managed
-> to find: uses of update_mmu_cache() and that hugetlb_cow() one.
+This implements vhost: a kernel-level backend for virtio,
+The main motivation for this work is to reduce virtualization
+overhead for virtio by removing system calls on data path,
+without guest changes. For virtio-net, this removes up to
+4 system calls per packet: vm exit for kick, reentry for kick,
+iothread wakeup for packet, interrupt injection for packet.
 
-Right, that's all I spotted so far
+This driver is pretty minimal, but it's fully functional (including
+migration support interfaces), and already shows performance (especially
+latency) improvement over userspace.
 
-> The hugetlb_cow() one involves not set_pte_at() but set_huge_pte_at(),
-> so you'd want to change that too?  And presumably set_pte_at_notify()?
-> It all seems a lot of tedium, when so very few places are interested
-> in the pte after they've set it.
+Some more detailed description attached to the patch itself.
 
-We need to change set_huge_pte_at() too. Currently, David fixed the
-problem in a local tree by making hugetlb_cow() re-read the PTE . 
+The patches apply to both 2.6.32-rc5 and kvm.git.  I'd like them to go
+into linux-next if possible.  Please comment.
 
-set_pte_at_notify() would probably be similar, I'm not too familiar with
-its usage scenario yet to be honest.
+Changelog from v5:
+- tun support
+- backends with virtio net header support (enables GSO, checksum etc)
+- 32 bit compat fixed
+- support indirect buffers, tx exit mitigation,
+  tx interrupt mitigation
+- support write logging (allows migration without virtio ring code in userspace)
 
-> > What do you suggest we do here ? Among the options at hand:
-> > 
-> >  - Ugly but would probably "just work" with the last amount of changes:
-> > we could make set_pte_at() be a macro on powerpc that modifies it's PTE
-> > value argument :-) (I -did- warn it was ugly !)
-> 
-> I'm not keen on that one :)
+Changelog from v4:
+- disable rx notification when have rx buffers
+- addressed all comments from Rusty's review
+- copy bugfixes from lguest commits:
+	ebf9a5a99c1a464afe0b4dfa64416fc8b273bc5c
+	e606490c440900e50ccf73a54f6fc6150ff40815
 
-Yeah. Me neither :-)
+Changelog from v3:
+- checkpatch fixes
 
-> >  - Another one slightly less bad that would require more work but mostly
-> > mechanical arch header updates would be to make set_pte_at() return the
-> > new value of the PTE, and thus change the callsites to something like:
-> > 
-> > 	entry = set_pte_at(mm, addr, ptep, entry)
-> 
-> I prefer that, but it still seems more trouble than it's worth.
+Changelog from v2:
+- Comments on RCU usage
+- Compat ioctl support
+- Make variable static
+- Copied more idiomatic english from Rusty
 
-Right. I was hoping you might have a better idea :-)
+Changes from v1:
+- Move use_mm/unuse_mm from fs/aio.c to mm instead of copying.
+- Reorder code to avoid need for forward declarations
+- Kill a couple of debugging printks
 
-> And though I prefer it to set_pte_at(mm, addr, ptep, &entry)
-> (which would anyway complicate many of the callsites), it might
-> unnecessarily increase the codesize for all architectures (depends
-> on whether gcc notices entry isn't used afterwards anyway).
+Michael S. Tsirkin (3):
+  tun: export underlying socket
+  mm: export use_mm/unuse_mm to modules
+  vhost_net: a kernel-level virtio server
 
-Macro or static inlines back to __set_pte_at(..., entry) in those archs
-would probably take care of avoiding the bloat but still a lot of churn.
-> >
-> >  - Any other idea ? We could use another PTE bit (_PAGE_HWEXEC), in
-> > fact, we used to, but we are really short on PTE bits nowadays and I
-> > freed that one up to get _PAGE_SPECIAL... _PAGE_EXEC is trivial to
-> > "recover" from ptep_set_access_flags() on an exec fault or from the VM
-> > prot.
-> 
-> No, please don't go ransacking your PTE for a sparish bit.
-
-Yeah, the whole exercise for me was initially to -save- PTE bits :-)
-
-> You're being a very good citizen to want to bring this so forcefully
-> to the attention of any user of set_pte_at(); but given how few care,
-> and the other such functions you'd want to change too, am I being
-> disgracefully lazy to suggest that you simply change the occasional
-> 
-> 		update_mmu_cache(vma, address, pte);
-> to
-> 		/* powerpc's set_pte_at might have adjusted the pte */
-> 		update_mmu_cache(vma, address, *ptep);
-> 
-> ?  Which would make no difference to those architectures whose
-> update_mmu_cache() is an empty macro.  And fix the mm/hugetlb.c
-> instance in a similar way?
-
-That would do fine. In fact, I've always been slightly annoyed by
-set_pte_at() not taking the PTE pointer for other reasons such as on
-64-K pages, we have a "hidden" part of the PTE that is at PTE address +
-32K, or we may want to get to the PTE page for some reason (some arch
-store things there) etc...
-
-IE. update_mmu_cache() would be more generally useful if it took the
-ptep instead of the pte. Of course, I'm sure some embedded archs are
-going to cry for the added load here ... 
-
-I like your idea. I'll look into doing a patch converting it and will
-post it here.
-
-Thanks !
-
-Cheers,
-Ben.
-
+ MAINTAINERS                |   10 +
+ arch/x86/kvm/Kconfig       |    1 +
+ drivers/Makefile           |    1 +
+ drivers/net/tun.c          |  101 ++++-
+ drivers/vhost/Kconfig      |   11 +
+ drivers/vhost/Makefile     |    2 +
+ drivers/vhost/net.c        |  634 +++++++++++++++++++++++++++++
+ drivers/vhost/vhost.c      |  968 ++++++++++++++++++++++++++++++++++++++++++++
+ drivers/vhost/vhost.h      |  158 +++++++
+ include/linux/Kbuild       |    1 +
+ include/linux/if_tun.h     |   14 +
+ include/linux/miscdevice.h |    1 +
+ include/linux/vhost.h      |  126 ++++++
+ mm/mmu_context.c           |    3 +
+ 14 files changed, 2012 insertions(+), 19 deletions(-)
+ create mode 100644 drivers/vhost/Kconfig
+ create mode 100644 drivers/vhost/Makefile
+ create mode 100644 drivers/vhost/net.c
+ create mode 100644 drivers/vhost/vhost.c
+ create mode 100644 drivers/vhost/vhost.h
+ create mode 100644 include/linux/vhost.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
