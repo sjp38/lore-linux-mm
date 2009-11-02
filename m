@@ -1,96 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7AA8A6B0062
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 12:42:23 -0500 (EST)
-Date: Mon, 2 Nov 2009 19:42:08 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH 02/11] Add "handle page fault" PV helper.
-Message-ID: <20091102174208.GJ27911@redhat.com>
-References: <1257076590-29559-1-git-send-email-gleb@redhat.com>
- <1257076590-29559-3-git-send-email-gleb@redhat.com>
- <20091102092214.GB8933@elte.hu>
- <20091102160410.GF27911@redhat.com>
- <20091102161248.GB15423@elte.hu>
- <20091102162234.GH27911@redhat.com>
- <20091102162941.GC14544@elte.hu>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D9B3F6B0062
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 14:02:28 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic and unify it
+Date: Mon, 2 Nov 2009 20:03:52 +0100
+References: <20091102000855.F404.A69D9226@jp.fujitsu.com> <200911012238.13083.rjw@sisk.pl> <20091103002506.8869.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091103002506.8869.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091102162941.GC14544@elte.hu>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200911022003.52125.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, =?utf-8?B?RnLDqWTDqXJpYw==?= Weisbecker <fweisbec@gmail.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 02, 2009 at 05:29:41PM +0100, Ingo Molnar wrote:
-> 
-> * Gleb Natapov <gleb@redhat.com> wrote:
-> 
-> > On Mon, Nov 02, 2009 at 05:12:48PM +0100, Ingo Molnar wrote:
+On Monday 02 November 2009, KOSAKI Motohiro wrote:
+> > > Then, This patch changed shrink_all_memory() to only the wrapper function of 
+> > > do_try_to_free_pages(). it bring good reviewability and debuggability, and solve 
+> > > above problems.
 > > > 
-> > > * Gleb Natapov <gleb@redhat.com> wrote:
-> > > 
-> > > > On Mon, Nov 02, 2009 at 10:22:14AM +0100, Ingo Molnar wrote:
-> > > > > 
-> > > > > * Gleb Natapov <gleb@redhat.com> wrote:
-> > > > > 
-> > > > > > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> > > > > > index f4cee90..14707dc 100644
-> > > > > > --- a/arch/x86/mm/fault.c
-> > > > > > +++ b/arch/x86/mm/fault.c
-> > > > > > @@ -952,6 +952,9 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
-> > > > > >  	int write;
-> > > > > >  	int fault;
-> > > > > >  
-> > > > > > +	if (arch_handle_page_fault(regs, error_code))
-> > > > > > +		return;
-> > > > > > +
-> > > > > 
-> > > > > This patch is not acceptable unless it's done cleaner. Currently we 
-> > > > > already have 3 callbacks in do_page_fault() (kmemcheck, mmiotrace, 
-> > > > > notifier), and this adds a fourth one. Please consolidate them into a 
-> > > > > single callback site, this is a hotpath on x86.
-> > > > > 
-> > > > This call is patched out by paravirt patching mechanism so overhead 
-> > > > should be zero for non paravirt cases. [...]
-> > > 
-> > > arch_handle_page_fault() isnt upstream yet - precisely what is the 
-> > > instruction sequence injected into do_page_fault() in the patched-out 
-> > > case?
+> > > side note: Reclaim logic unificication makes two good side effect.
+> > >  - Fix recursive reclaim bug on shrink_all_memory().
+> > >    it did forgot to use PF_MEMALLOC. it mean the system be able to stuck into deadlock.
+> > >  - Now, shrink_all_memory() got lockdep awareness. it bring good debuggability.
 > > 
-> > It is introduced by the same patch. The instruction inserted is:
-> >  xor %rax, %rax
+> > As I said previously, I don't really see a reason to keep shrink_all_memory().
+> > 
+> > Do you think that removing it will result in performance degradation?
 > 
-> ok.
+> Hmm...
+> Probably, I misunderstood your mention. I thought you suggested to kill
+> all hibernation specific reclaim code. I did. It's no performance degression.
+> (At least, I didn't observe)
 > 
-> My observations still stand:
+> But, if you hope to kill shrink_all_memory() function itsef, the short answer is,
+> it's impossible.
 > 
-> > > > [...] What do you want to achieve by consolidate them into single 
-> > > > callback? [...]
-> > > 
-> > > Less bloat in a hotpath and a shared callback infrastructure.
-> > > 
-> > > > [...] I mean the code will still exist and will have to be executed on 
-> > > > every #PF. Is the goal to move them out of line?
-> > > 
-> > > The goal is to have a single callback site for all the users - which 
-> > > call-site is patched out ideally - on non-paravirt too if needed. Most 
-> > > of these callbacks/notifier-chains have are inactive most of the time.
-> > > 
-> > > I.e. a very low overhead 'conditional callback' facility, and a single 
-> > > one - not just lots of them sprinkled around the code.
-> 
-> looks like a golden opportunity to get this right.
->
-Three existing callbacks are: kmemcheck, mmiotrace, notifier. Two
-of them kmemcheck, mmiotrace are enabled only for debugging, should
-not be performance concern. And notifier call sites (two of them)
-are deliberately, as explained by comment, not at the function entry,
-so can't be unified with others. (And kmemcheck also has two different
-call site BTW)
+> Current VM reclaim code need some preparetion to caller, and there are existing in
+> both alloc_pages_slowpath() and try_to_free_pages(). We can't omit its preparation.
 
---
-			Gleb.
+Well, my grepping for 'shrink_all_memory' throughout the entire kernel source
+code seems to indicate that hibernate_preallocate_memory() is the only current
+user of it.  I may be wrong, but I doubt it, unless some new users have been
+added since 2.6.31.
+
+In case I'm not wrong, it should be safe to drop it from
+hibernate_preallocate_memory(), because it's there for performance reasons
+only.  Now, since hibernate_preallocate_memory() appears to be the only user of
+it, it should be safe to drop it entirely.
+
+> Please see following shrink_all_memory() code. it's pretty small. it only have
+> few vmscan preparation. I don't think it is hard to maintainance.
+
+No, it's not, but I'm really not sure it's worth keeping.
+
+Thanks,
+Rafael
+
+
+> =====================================================
+> unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+> {
+>         struct reclaim_state reclaim_state;
+>         struct scan_control sc = {
+>                 .gfp_mask = GFP_HIGHUSER_MOVABLE,
+>                 .may_swap = 1,
+>                 .may_unmap = 1,
+>                 .may_writepage = 1,
+>                 .nr_to_reclaim = nr_to_reclaim,
+>                 .hibernation_mode = 1,
+>                 .swappiness = vm_swappiness,
+>                 .order = 0,
+>                 .isolate_pages = isolate_pages_global,
+>         };
+>         struct zonelist * zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
+>         struct task_struct *p = current;
+>         unsigned long nr_reclaimed;
+> 
+>         p->flags |= PF_MEMALLOC;
+>         lockdep_set_current_reclaim_state(sc.gfp_mask);
+>         reclaim_state.reclaimed_slab = 0;
+>         p->reclaim_state = &reclaim_state;
+> 
+>         nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+> 
+>         p->reclaim_state = NULL;
+>         lockdep_clear_current_reclaim_state();
+>         p->flags &= ~PF_MEMALLOC;
+> 
+>         return nr_reclaimed;
+> }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
