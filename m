@@ -1,55 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0C9666B007E
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 11:43:16 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E84A682C7CC
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 11:49:40 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id Lu+T5-Ow25Zs for <linux-mm@kvack.org>;
-	Mon,  2 Nov 2009 11:49:40 -0500 (EST)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 86E4A82C523
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 11:49:33 -0500 (EST)
-Date: Mon, 2 Nov 2009 11:42:36 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use
- ALLOC_HARDER
-In-Reply-To: <4AECCF6A.4020206@redhat.com>
-Message-ID: <alpine.DEB.1.10.0911021139100.24535@V090114053VZO-1>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <1256650833-15516-3-git-send-email-mel@csn.ul.ie> <20091027130924.fa903f5a.akpm@linux-foundation.org> <alpine.DEB.2.00.0910271411530.9183@chino.kir.corp.google.com> <20091031184054.GB1475@ucw.cz>
- <alpine.DEB.2.00.0910311248490.13829@chino.kir.corp.google.com> <20091031201158.GB29536@elf.ucw.cz> <4AECCF6A.4020206@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BF6396B007E
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 11:50:39 -0500 (EST)
+Date: Mon, 2 Nov 2009 16:50:33 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: [PATCH] mm: remove incorrect swap_count() from try_to_unuse()
+Message-ID: <Pine.LNX.4.64.0911021646020.23159@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Stephan von Krawczynski <skraw@ithnet.com>, kernel-testers@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Bo Liu <bo-liu@hotmail.com>, Bob Liu <yjfpb04@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 31 Oct 2009, Rik van Riel wrote:
+From: Bo Liu <bo-liu@hotmail.com>
 
-> On 10/31/2009 04:11 PM, Pavel Machek wrote:
->
-> > But we can't guarantee that enough memory will be ready in the
-> > reserves. So if realtime task relies on it, it is broken, and will
-> > fail to meet its deadlines from time to time.
->
-> Any realtime task that does networking (which may be the
-> majority of realtime tasks) relies on the kernel memory
-> allocator.
+In try_to_unuse(), swcount is a local copy of *swap_map, including the
+SWAP_HAS_CACHE bit; but a wrong comparison against swap_count(*swap_map),
+which masks off the SWAP_HAS_CACHE bit, succeeded where it should fail.
 
-What is realtime in this scenario? There are no guarantees that reclaim
-wont have to occur. There are no guarantees anymore and therefore you
-cannot really call this realtime.
+That had the effect of resetting the mm from which to start searching
+for the next swap page, to an irrelevant mm instead of to an mm in which
+this swap page had been found: which may increase search time by ~20%.
+But we're used to swapoff being slow, so never noticed the slowdown.
 
-Is realtime anything more than: "I want to have my patches merged"?
+Remove that one spurious use of swap_count(): Bo Liu thought it merely
+redundant, Hugh rewrote the description since it was measurably wrong.
 
-Give some criteria as to what realtime is please. I am all for decreasing
-kernel latencies. But some of this work is adding bloat and increasing
-overhead.
+Signed-off-by: Bo Liu <bo-liu@hotmail.com>
+Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: stable@kernel.org
+---
 
+ mm/swapfile.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
+--- 2.6.32-rc5/mm/swapfile.c	2009-10-05 04:20:31.000000000 +0100
++++ linux/mm/swapfile.c	2009-10-28 19:31:43.000000000 +0000
+@@ -1151,8 +1151,7 @@ static int try_to_unuse(unsigned int typ
+ 				} else
+ 					retval = unuse_mm(mm, entry, page);
+ 
+-				if (set_start_mm &&
+-				    swap_count(*swap_map) < swcount) {
++				if (set_start_mm && *swap_map < swcount) {
+ 					mmput(new_start_mm);
+ 					atomic_inc(&mm->mm_users);
+ 					new_start_mm = mm;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
