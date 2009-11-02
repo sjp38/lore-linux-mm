@@ -1,66 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CB30C6B004D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 04:45:09 -0500 (EST)
-From: Jiri Slaby <jirislaby@gmail.com>
-Subject: [PATCH 1/1] MM: swapfile, fix crash on double swapon
-Date: Mon,  2 Nov 2009 10:45:03 +0100
-Message-Id: <1257155103-9189-1-git-send-email-jirislaby@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 536B96B004D
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 05:42:14 -0500 (EST)
+Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
+	by smtp-out.google.com with ESMTP id nA2Ag9sP016979
+	for <linux-mm@kvack.org>; Mon, 2 Nov 2009 02:42:10 -0800
+Received: from pzk6 (pzk6.prod.google.com [10.243.19.134])
+	by spaceape13.eur.corp.google.com with ESMTP id nA2Ag5GW021854
+	for <linux-mm@kvack.org>; Mon, 2 Nov 2009 02:42:06 -0800
+Received: by pzk6 with SMTP id 6so6951108pzk.29
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2009 02:42:05 -0800 (PST)
+Date: Mon, 2 Nov 2009 02:42:03 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
+In-Reply-To: <2f11576a0911010529t688ed152qbb72c87c85869c45@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.0911020237440.13146@chino.kir.corp.google.com>
+References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com> <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com> <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com> <2f11576a0911010529t688ed152qbb72c87c85869c45@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, vedran.furac@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Double swapon on a device causes a crash:
-BUG: unable to handle kernel NULL pointer dereference at (null)
-IP: [<ffffffff810af160>] sys_swapon+0x1f0/0xc60
-PGD 1dc0b067 PUD 1dc09067 PMD 0
-Oops: 0000 [#1] SMP
-last sysfs file:
-CPU 1
-Modules linked in:
-Pid: 562, comm: swapon Tainted: G        W  2.6.32-rc5-mm1_64 #867
-RIP: 0010:[<ffffffff810af160>]  [<ffffffff810af160>] sys_swapon+0x1f0/0xc60
-...
+On Sun, 1 Nov 2009, KOSAKI Motohiro wrote:
 
-It is due to swap_info_struct->first_swap_extent.list not being
-initialized. ->next is NULL in such a situation and
-destroy_swap_extents fails to iterate over the list with the BUG
-above.
+> > total_vm
+> > 673222 test
+> > 195695 krunner
+> > 168881 plasma-desktop
+> > 130567 ktorrent
+> > 127081 knotify4
+> > 125881 icedove-bin
+> > 123036 akregator
+> > 121869 firefox-bin
+> >
+> > rss
+> > 672271 test
+> > 42192 Xorg
+> > 30763 firefox-bin
+> > 13292 icedove-bin
+> > 10208 ktorrent
+> > 9260 akregator
+> > 8859 plasma-desktop
+> > 7528 krunner
+> >
+> > firefox-bin seems much more preferred in this case than total_vm, but Xorg
+> > still ranks very high with this patch compared to the current
+> > implementation.
+> 
+> Hi David,
+> 
+> I'm very interesting your pointing out. thanks good testing.
+> So, I'd like to clarify your point a bit.
+> 
+> following are badness list on my desktop environment (x86_64 6GB mem).
+> it show Xorg have pretty small badness score. Do you know why such
+> different happen?
+> 
 
-Introduced by swap_info-include-first_swap_extent.patch. Revert the
-INIT_LIST_HEAD move.
+I don't know specifically what's different on your machine than Vedran's, 
+my data is simply a collection of the /proc/sys/vm/oom_dump_tasks output 
+from Vedran's oom log.
 
-Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>
----
- mm/swapfile.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+I guess we could add a call to badness() for the oom_dump_tasks tasklist 
+dump to get a clearer picture so we know the score for each thread group 
+leader.  Anything else would be speculation at this point, though.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 93e71cf..26ef6a2 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1313,7 +1313,6 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
- 	if (start_page == 0) {
- 		se = &sis->first_swap_extent;
- 		sis->curr_swap_extent = se;
--		INIT_LIST_HEAD(&se->list);
- 		se->start_page = 0;
- 		se->nr_pages = nr_pages;
- 		se->start_block = start_block;
-@@ -1769,6 +1768,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		kfree(p);
- 		goto out;
- 	}
-+	INIT_LIST_HEAD(&p->first_swap_extent.list);
- 	if (type >= nr_swapfiles) {
- 		p->type = type;
- 		swap_info[type] = p;
--- 
-1.6.4.2
+> score    pid        comm
+> ==============================
+> 56382   3241    run-mozilla.sh
+> 23345   3289    run-mozilla.sh
+> 21461   3050    gnome-do
+> 20079   2867    gnome-session
+> 14016   3258    firefox
+> 9212    3306    firefox
+> 8468    3115    gnome-do
+> 6902    3325    emacs
+> 6783    3212    tomboy
+> 4865    2968    python
+> 4861    2948    nautilus
+> 4221    1       init
+> (snip about 100line)
+> 548     2590    Xorg
+> 
+
+Are these scores with your rss patch or without?  If it's without the 
+patch, this is understandable since Xorg didn't appear highly in Vedran's 
+log either.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
