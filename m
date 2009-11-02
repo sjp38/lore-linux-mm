@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 803766B004D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 02:28:56 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA27SsGT003946
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 23CA96B0062
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 02:29:53 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA27To6l004341
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 2 Nov 2009 16:28:54 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CF91345DE5D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:28:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9398345DE53
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:28:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 62996E1800A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:28:53 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E4D8F1DB805F
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:28:52 +0900 (JST)
-Date: Mon, 2 Nov 2009 16:26:17 +0900
+	Mon, 2 Nov 2009 16:29:50 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E73845DE51
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:29:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E112C45DE4F
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:29:49 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C2A4D1DB803A
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:29:49 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 68F2D1DB803C
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:29:49 +0900 (JST)
+Date: Mon, 2 Nov 2009 16:27:16 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][-mm][PATCH 3/6] oom-killer: count lowmem rss
-Message-Id: <20091102162617.9d07e05f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][-mm][PATCH 4/6] oom-killer: fork bomb detector
+Message-Id: <20091102162716.e7803741.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,239 +34,370 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Count lowmem rss per mm_struct. Lowmem here means...
+This patch implements an easy fork-bomb detector.
 
-   for NUMA, pages in a zone < policy_zone.
-   for HIGHMEM x86, pages in NORMAL zone.
-   for others, all pages are lowmem.
+Now, fork-bomb detecting logic checks sum of all children's total_vm. But
+it tends to estimate badly and task lauchters are easily killed by mistake.
 
-Now, lower_zone_protection[] works very well for protecting lowmem but
-possiblity of lowmem-oom is not 0 even if under good protection in the kernel.
-(As fact, it's can be configured by sysctl. When we keep it high, there
- will be tons of not-for-use memory but system will be protected against
- rare event of lowmem-oom.)
-Considering a x86 system with 2G of memory, NORMAL is 856MB and HIGHMEM is 1.1GB
-...we can't keep lower_zone_protection too high.
+This patch uses new algorithm.
 
-This patch counts num of lowmem used for user process's page-cache memory.
-Later patch will use this vaule for OOM calculation.
+At first, check select_bad_process() to scan from the newest process.
+For each process, if runtime is below FORK_BOMB_RUNTIME_THRESH(5min),
+a process gets score +1 and adds sum all children score to itself.
+By this, we can check size of recently created process tree.
+
+If process tree is enough large (> 12.5% of nr_procs), we assume it as
+fork-bomb and kill it. 12.5% seems small but we're under OOM situation
+and this is not small number.
+
+BTW, checking fork-bomb only at oom means that this check is done
+only after most of processes are swapped out. Hmm..is there good
+place to add a hook ?
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/mempolicy.h |   21 +++++++++++++++++++++
- include/linux/mm_types.h  |    1 +
- mm/memory.c               |   32 ++++++++++++++++++++++++++------
- mm/rmap.c                 |    2 ++
- mm/swapfile.c             |    2 ++
- 5 files changed, 52 insertions(+), 6 deletions(-)
+ include/linux/memcontrol.h |    5 +
+ include/linux/mm_types.h   |    2 
+ include/linux/sched.h      |    8 ++
+ mm/memcontrol.c            |    7 ++
+ mm/oom_kill.c              |  149 ++++++++++++++++++++++++++++++++++-----------
+ 5 files changed, 137 insertions(+), 34 deletions(-)
 
-Index: mmotm-2.6.32-Nov2/include/linux/mempolicy.h
-===================================================================
---- mmotm-2.6.32-Nov2.orig/include/linux/mempolicy.h
-+++ mmotm-2.6.32-Nov2/include/linux/mempolicy.h
-@@ -240,6 +240,13 @@ static inline int vma_migratable(struct 
- 	return 1;
- }
- 
-+static inline int is_lowmem_page(struct page *page)
-+{
-+	if (unlikely(page_zonenum(page) < policy_zone))
-+		return 1;
-+	return 0;
-+}
-+
- #else
- 
- struct mempolicy {};
-@@ -356,6 +363,20 @@ static inline int mpol_to_str(char *buff
- }
- #endif
- 
-+#ifdef CONFIG_HIGHMEM
-+static inline int is_lowmem_page(struct page *page)
-+{
-+	if (page_zonenum(page) == ZONE_HIGHMEM)
-+		return 0;
-+	return 1;
-+}
-+#else
-+static inline int is_lowmem_page(struct page *page)
-+{
-+	return 1;
-+}
-+#endif
-+
- #endif /* CONFIG_NUMA */
- #endif /* __KERNEL__ */
- 
 Index: mmotm-2.6.32-Nov2/include/linux/mm_types.h
 ===================================================================
 --- mmotm-2.6.32-Nov2.orig/include/linux/mm_types.h
 +++ mmotm-2.6.32-Nov2/include/linux/mm_types.h
-@@ -229,6 +229,7 @@ struct mm_struct {
- 	mm_counter_t _file_rss;
- 	mm_counter_t _anon_rss;
- 	mm_counter_t _swap_usage;
-+	mm_counter_t _low_rss;
+@@ -289,6 +289,8 @@ struct mm_struct {
+ #ifdef CONFIG_MMU_NOTIFIER
+ 	struct mmu_notifier_mm *mmu_notifier_mm;
+ #endif
++	/* For OOM, fork-bomb detector */
++	unsigned long bomb_score;
+ };
  
- 	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
- 	unsigned long hiwater_vm;	/* High-water virtual memory usage */
-Index: mmotm-2.6.32-Nov2/mm/memory.c
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+Index: mmotm-2.6.32-Nov2/include/linux/sched.h
 ===================================================================
---- mmotm-2.6.32-Nov2.orig/mm/memory.c
-+++ mmotm-2.6.32-Nov2/mm/memory.c
-@@ -376,8 +376,9 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
+--- mmotm-2.6.32-Nov2.orig/include/linux/sched.h
++++ mmotm-2.6.32-Nov2/include/linux/sched.h
+@@ -2176,6 +2176,14 @@ static inline unsigned long wait_task_in
+ #define for_each_process(p) \
+ 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
+ 
++/*
++ * This function is for scanning list in reverse order. But, this is not
++ * RCU safe. lock(tasklist_lock) should be held. This is good when you want to
++ * find younger processes early.
++ */
++#define for_each_process_reverse(p) \
++	list_for_each_entry_reverse(p, &init_task.tasks, tasks)
++
+ extern bool current_is_single_threaded(void);
+ 
+ /*
+Index: mmotm-2.6.32-Nov2/mm/oom_kill.c
+===================================================================
+--- mmotm-2.6.32-Nov2.orig/mm/oom_kill.c
++++ mmotm-2.6.32-Nov2/mm/oom_kill.c
+@@ -79,7 +79,6 @@ static unsigned long __badness(struct ta
+ {
+ 	unsigned long points, cpu_time, run_time;
+ 	struct mm_struct *mm;
+-	struct task_struct *child;
+ 	int oom_adj = p->signal->oom_adj;
+ 	struct task_cputime task_time;
+ 	unsigned long utime;
+@@ -112,21 +111,6 @@ static unsigned long __badness(struct ta
+ 		return ULONG_MAX;
+ 
+ 	/*
+-	 * Processes which fork a lot of child processes are likely
+-	 * a good choice. We add half the vmsize of the children if they
+-	 * have an own mm. This prevents forking servers to flood the
+-	 * machine with an endless amount of children. In case a single
+-	 * child is eating the vast majority of memory, adding only half
+-	 * to the parents will make the child our kill candidate of choice.
+-	 */
+-	list_for_each_entry(child, &p->children, sibling) {
+-		task_lock(child);
+-		if (child->mm != mm && child->mm)
+-			points += get_mm_rss(child->mm)/2 + 1;
+-		task_unlock(child);
+-	}
+-
+-	/*
+ 	 * CPU time is in tens of seconds and run time is in thousands
+          * of seconds. There is no particular reason for this other than
+          * that it turned out to work very well in practice.
+@@ -262,24 +246,92 @@ static inline enum oom_constraint guess_
+ #endif
+ 
+ /*
++ * Easy fork-bomb detector.
++ */
++/* 5 minutes for non-forkbomb processes */
++#define FORK_BOMB_RUNTIME_THRESH (5 * 60)
++
++static bool check_fork_bomb(struct task_struct *p, int uptime, int nr_procs)
++{
++	struct task_struct *child;
++	int runtime = uptime - p->start_time.tv_sec;
++	int bomb_score;
++	struct mm_struct *mm;
++	bool ret = false;
++
++	if (runtime > FORK_BOMB_RUNTIME_THRESH)
++		return ret;
++	/*
++	 * Because we search from newer processes, we can calculate tree's score
++	 * just by calculating children's score.
++	 */
++	mm = get_task_mm(p);
++	if (!mm)
++		return ret;
++
++	bomb_score = 0;
++	list_for_each_entry(child, &p->children, sibling) {
++		task_lock(child);
++		if (child->mm && child->mm != mm)
++			bomb_score += child->mm->bomb_score;
++		task_unlock(child);
++	}
++	mm->bomb_score = bomb_score + 1;
++	/*
++	 * Now, we estimated the size of process tree, which is recently
++	 * created. If it's big, we treat it as fork-bomb. This is heuristics
++	 * but we set this as 12.5% of all procs we do scan.
++	 * This number may be a little small..but we're under OOM situation.
++	 *
++	 * Discussion: On HIGHMEM system, this number should be smaller ?..
++	 */
++	if (bomb_score > nr_procs/8) {
++		ret = true;
++		printk(KERN_WARNING "Possible fork-bomb detected : %d(%s)",
++			p->pid, p->comm);
++	}
++	mmput(mm);
++	return ret;
++}
++
++/*
+  * Simple selection loop. We chose the process with the highest
+  * number of 'points'. We expect the caller will lock the tasklist.
+  *
+  * (not docbooked, we don't want this one cluttering up the manual)
+  */
++
+ static struct task_struct *select_bad_process(unsigned long *ppoints,
+-					      enum oom_constraint constraint,
+-					      struct mem_cgroup *mem)
++	enum oom_constraint constraint, struct mem_cgroup *mem, int *fork_bomb)
+ {
+ 	struct task_struct *p;
+ 	struct task_struct *chosen = NULL;
+ 	struct timespec uptime;
++	int nr_proc;
++
+ 	*ppoints = 0;
++	*fork_bomb = 0;
+ 
+ 	do_posix_clock_monotonic_gettime(&uptime);
+-	for_each_process(p) {
++	switch (constraint) {
++	case CONSTRAINT_MEMCG:
++		/* This includes # of threads...but...*/
++		nr_proc = memory_cgroup_task_count(mem);
++		break;
++	default:
++		nr_proc = nr_processes();
++		break;
++	}
++	/*
++	 * We're under read_lock(&tasklist_lock). At OOM, what we doubt is
++	 * young processes....considring fork-bomb. Then, we scan task list
++	 * in reverse order. (This is safe because we're under lock.
++	 */
++	for_each_process_reverse(p) {
+ 		unsigned long points;
+ 
++		if (*ppoints == ULONG_MAX)
++			break;
+ 		/*
+ 		 * skip kernel threads and tasks which have already released
+ 		 * their mm.
+@@ -324,11 +376,17 @@ static struct task_struct *select_bad_pr
+ 
+ 		if (p->signal->oom_adj == OOM_DISABLE)
+ 			continue;
+-
+-		points = __badness(p, uptime.tv_sec, constraint, mem);
+-		if (points > *ppoints || !chosen) {
++		if (check_fork_bomb(p, uptime.tv_sec, nr_proc)) {
+ 			chosen = p;
+-			*ppoints = points;
++			*ppoints = ULONG_MAX;
++			*fork_bomb = 1;
++		}
++		if (*ppoints < ULONG_MAX) {
++			points = __badness(p, uptime.tv_sec, constraint, mem);
++			if (points > *ppoints || !chosen) {
++				chosen = p;
++				*ppoints = points;
++			}
+ 		}
+ 	}
+ 
+@@ -448,9 +506,17 @@ static int oom_kill_task(struct task_str
  	return 0;
  }
  
--static inline void
--add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss, int swap_usage)
++static int is_forkbomb_family(struct task_struct *c, struct task_struct *p)
++{
++	for (c = c->real_parent; c != &init_task; c = c->real_parent)
++		if (c == p)
++			return 1;
++	return 0;
++}
 +
-+static inline void add_mm_rss(struct mm_struct *mm,
-+	int file_rss, int anon_rss, int swap_usage, int low_rss)
+ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+-			    unsigned long points, struct mem_cgroup *mem,
+-			    const char *message)
++		    unsigned long points, struct mem_cgroup *mem,int fork_bomb,
++		    const char *message)
  {
- 	if (file_rss)
- 		add_mm_counter(mm, file_rss, file_rss);
-@@ -385,6 +386,8 @@ add_mm_rss(struct mm_struct *mm, int fil
- 		add_mm_counter(mm, anon_rss, anon_rss);
- 	if (swap_usage)
- 		add_mm_counter(mm, swap_usage, swap_usage);
-+	if (low_rss)
-+		add_mm_counter(mm, low_rss, low_rss);
- }
+ 	struct task_struct *c;
  
- /*
-@@ -638,6 +641,8 @@ copy_one_pte(struct mm_struct *dst_mm, s
- 		get_page(page);
- 		page_dup_rmap(page);
- 		rss[PageAnon(page)]++;
-+		if (is_lowmem_page(page))
-+			rss[3]++;
+@@ -468,12 +534,25 @@ static int oom_kill_process(struct task_
+ 
+ 	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
+ 					message, task_pid_nr(p), p->comm, points);
+-
+-	/* Try to kill a child first */
++	if (fork_bomb) {
++		printk(KERN_ERR "possible fork-bomb is detected. kill them\n");
++		/* We need to kill the youngest one, at least */
++		rcu_read_lock();
++		for_each_process_reverse(c) {
++			if (c == p)
++				break;
++			if (is_forkbomb_family(c, p)) {
++				oom_kill_task(c);
++				break;
++			}
++		}
++		rcu_read_unlock();
++	}
++	/* Try to kill a child first. If fork-bomb, kill all. */
+ 	list_for_each_entry(c, &p->children, sibling) {
+ 		if (c->mm == p->mm)
+ 			continue;
+-		if (!oom_kill_task(c))
++		if (!oom_kill_task(c) && !fork_bomb)
+ 			return 0;
+ 	}
+ 	return oom_kill_task(p);
+@@ -483,18 +562,19 @@ static int oom_kill_process(struct task_
+ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+ {
+ 	unsigned long points = 0;
++	int fork_bomb = 0;
+ 	struct task_struct *p;
+ 
+ 	read_lock(&tasklist_lock);
+ retry:
+-	p = select_bad_process(&points, CONSTRAINT_MEMCG, mem);
++	p = select_bad_process(&points, CONSTRAINT_MEMCG, mem, &fork_bomb);
+ 	if (PTR_ERR(p) == -1UL)
+ 		goto out;
+ 
+ 	if (!p)
+ 		p = current;
+ 
+-	if (oom_kill_process(p, gfp_mask, 0, points, mem,
++	if (oom_kill_process(p, gfp_mask, 0, points, mem, fork_bomb,
+ 				"Memory cgroup out of memory"))
+ 		goto retry;
+ out:
+@@ -574,9 +654,10 @@ static void __out_of_memory(gfp_t gfp_ma
+ {
+ 	struct task_struct *p;
+ 	unsigned long points;
++	int fork_bomb;
+ 
+ 	if (sysctl_oom_kill_allocating_task)
+-		if (!oom_kill_process(current, gfp_mask, order, 0, NULL,
++		if (!oom_kill_process(current, gfp_mask, order, 0, NULL, 0,
+ 				"Out of memory (oom_kill_allocating_task)"))
+ 			return;
+ retry:
+@@ -584,7 +665,7 @@ retry:
+ 	 * Rambo mode: Shoot down a process and hope it solves whatever
+ 	 * issues we may have.
+ 	 */
+-	p = select_bad_process(&points, constraint, NULL);
++	p = select_bad_process(&points, constraint, NULL, &fork_bomb);
+ 
+ 	if (PTR_ERR(p) == -1UL)
+ 		return;
+@@ -596,7 +677,7 @@ retry:
+ 		panic("Out of memory and no killable processes...\n");
  	}
  
- out_set_pte:
-@@ -653,11 +658,11 @@ static int copy_pte_range(struct mm_stru
- 	pte_t *src_pte, *dst_pte;
- 	spinlock_t *src_ptl, *dst_ptl;
- 	int progress = 0;
--	int rss[3];
-+	int rss[4];
- 	swp_entry_t entry = (swp_entry_t){0};
+-	if (oom_kill_process(p, gfp_mask, order, points, NULL,
++	if (oom_kill_process(p, gfp_mask, order, points, NULL, fork_bomb,
+ 			     "Out of memory"))
+ 		goto retry;
+ }
+@@ -679,7 +760,7 @@ void out_of_memory(struct zonelist *zone
  
- again:
--	rss[2] = rss[1] = rss[0] = 0;
-+	rss[3] = rss[2] = rss[1] = rss[0] = 0;
- 	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
- 	if (!dst_pte)
- 		return -ENOMEM;
-@@ -693,7 +698,7 @@ again:
- 	arch_leave_lazy_mmu_mode();
- 	spin_unlock(src_ptl);
- 	pte_unmap_nested(orig_src_pte);
--	add_mm_rss(dst_mm, rss[0], rss[1], rss[2]);
-+	add_mm_rss(dst_mm, rss[0], rss[1], rss[2], rss[3]);
- 	pte_unmap_unlock(orig_dst_pte, dst_ptl);
- 	cond_resched();
- 
-@@ -824,6 +829,7 @@ static unsigned long zap_pte_range(struc
- 	int file_rss = 0;
- 	int anon_rss = 0;
- 	int swap_usage = 0;
-+	int low_rss = 0;
- 
- 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	arch_enter_lazy_mmu_mode();
-@@ -878,6 +884,8 @@ static unsigned long zap_pte_range(struc
- 					mark_page_accessed(page);
- 				file_rss--;
- 			}
-+			if (is_lowmem_page(page))
-+				low_rss--;
- 			page_remove_rmap(page);
- 			if (unlikely(page_mapcount(page) < 0))
- 				print_bad_pte(vma, addr, ptent, page);
-@@ -904,7 +912,7 @@ static unsigned long zap_pte_range(struc
- 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
- 	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
- 
--	add_mm_rss(mm, file_rss, anon_rss, swap_usage);
-+	add_mm_rss(mm, file_rss, anon_rss, swap_usage, low_rss);
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(pte - 1, ptl);
- 
-@@ -1539,6 +1547,8 @@ static int insert_page(struct vm_area_st
- 	/* Ok, finally just insert the thing.. */
- 	get_page(page);
- 	inc_mm_counter(mm, file_rss);
-+	if (is_lowmem_page(page))
-+		inc_mm_counter(mm, low_rss);
- 	page_add_file_rmap(page);
- 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
- 
-@@ -2179,6 +2189,10 @@ gotten:
- 			}
- 		} else
- 			inc_mm_counter(mm, anon_rss);
-+		if (old_page && is_lowmem_page(old_page))
-+			dec_mm_counter(mm, low_rss);
-+		if (is_lowmem_page(new_page))
-+			inc_mm_counter(mm, low_rss);
- 		flush_cache_page(vma, address, pte_pfn(orig_pte));
- 		entry = mk_pte(new_page, vma->vm_page_prot);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-@@ -2607,6 +2621,8 @@ static int do_swap_page(struct mm_struct
- 
- 	inc_mm_counter(mm, anon_rss);
- 	dec_mm_counter(mm, swap_usage);
-+	if (is_lowmem_page(page))
-+		inc_mm_counter(mm, low_rss);
- 	pte = mk_pte(page, vma->vm_page_prot);
- 	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
- 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-@@ -2691,6 +2707,8 @@ static int do_anonymous_page(struct mm_s
- 		goto release;
- 
- 	inc_mm_counter(mm, anon_rss);
-+	if (is_lowmem_page(page))
-+		inc_mm_counter(mm, low_rss);
- 	page_add_new_anon_rmap(page, vma, address);
- setpte:
- 	set_pte_at(mm, address, page_table, entry);
-@@ -2854,6 +2872,8 @@ static int __do_fault(struct mm_struct *
- 				get_page(dirty_page);
- 			}
- 		}
-+		if (is_lowmem_page(page))
-+			inc_mm_counter(mm, low_rss);
- 		set_pte_at(mm, address, page_table, entry);
- 
- 		/* no need to invalidate: a not-present page won't be cached */
-Index: mmotm-2.6.32-Nov2/mm/rmap.c
+ 	switch (constraint) {
+ 	case CONSTRAINT_MEMORY_POLICY:
+-		oom_kill_process(current, gfp_mask, order, 0, NULL,
++		oom_kill_process(current, gfp_mask, order, 0, NULL, 0,
+ 				"No available memory (MPOL_BIND)");
+ 		break;
+ 	case CONSTRAINT_LOWMEM:
+Index: mmotm-2.6.32-Nov2/include/linux/memcontrol.h
 ===================================================================
---- mmotm-2.6.32-Nov2.orig/mm/rmap.c
-+++ mmotm-2.6.32-Nov2/mm/rmap.c
-@@ -854,6 +854,8 @@ static int try_to_unmap_one(struct page 
- 	} else
- 		dec_mm_counter(mm, file_rss);
+--- mmotm-2.6.32-Nov2.orig/include/linux/memcontrol.h
++++ mmotm-2.6.32-Nov2/include/linux/memcontrol.h
+@@ -126,6 +126,7 @@ void mem_cgroup_update_file_mapped(struc
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 						gfp_t gfp_mask, int nid,
+ 						int zid);
++int memory_cgroup_task_count(struct mem_cgroup *mem);
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct mem_cgroup;
  
-+	if (is_lowmem_page(page))
-+		dec_mm_counter(mm, low_rss);
+@@ -299,6 +300,10 @@ unsigned long mem_cgroup_soft_limit_recl
+ 	return 0;
+ }
  
- 	page_remove_rmap(page);
- 	page_cache_release(page);
-Index: mmotm-2.6.32-Nov2/mm/swapfile.c
++static int memory_cgroup_task_count(struct mem_cgroup *mem)
++{
++	return 0;
++}
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #endif /* _LINUX_MEMCONTROL_H */
+Index: mmotm-2.6.32-Nov2/mm/memcontrol.c
 ===================================================================
---- mmotm-2.6.32-Nov2.orig/mm/swapfile.c
-+++ mmotm-2.6.32-Nov2/mm/swapfile.c
-@@ -838,6 +838,8 @@ static int unuse_pte(struct vm_area_stru
+--- mmotm-2.6.32-Nov2.orig/mm/memcontrol.c
++++ mmotm-2.6.32-Nov2/mm/memcontrol.c
+@@ -1223,6 +1223,13 @@ static void record_last_oom(struct mem_c
+ 	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
+ }
  
- 	inc_mm_counter(vma->vm_mm, anon_rss);
- 	dec_mm_counter(vma->vm_mm, swap_usage);
-+	if (is_lowmem_page(page))
-+		inc_mm_counter(vma->vm_mm, low_rss);
- 	get_page(page);
- 	set_pte_at(vma->vm_mm, addr, pte,
- 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
++int memory_cgroup_task_count(struct mem_cgroup *mem)
++{
++	struct cgroup *cg = mem->css.cgroup;
++
++	return cgroup_task_count(cg);
++}
++
+ /*
+  * Currently used to update mapped file statistics, but the routine can be
+  * generalized to update other statistics as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
