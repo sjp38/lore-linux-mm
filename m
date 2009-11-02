@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 686E86B006A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 12:17:08 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 9F13182C5B9
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 12:23:32 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 5PHSs50rlRwm for <linux-mm@kvack.org>;
-	Mon,  2 Nov 2009 12:23:28 -0500 (EST)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id D25BE82C902
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 12:16:39 -0500 (EST)
-Date: Mon, 2 Nov 2009 12:09:45 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC][-mm][PATCH 3/6] oom-killer: count lowmem rss
-In-Reply-To: <20091102162617.9d07e05f.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.10.0911021209180.2028@V090114053VZO-1>
-References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com> <20091102162617.9d07e05f.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 404FB6B006A
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 12:33:01 -0500 (EST)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
+Date: Mon, 2 Nov 2009 18:32:54 +0100
+References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <20091028124756.7af44b6b.akpm@linux-foundation.org> <20091102160534.GA22046@csn.ul.ie>
+In-Reply-To: <20091102160534.GA22046@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200911021832.59035.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, aarcange@redhat.com, akpm@linux-foundation.org, minchan.kim@gmail.com, rientjes@google.com, vedran.furac@gmail.com, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+On Monday 02 November 2009, Mel Gorman wrote:
+> vmscan: Help debug kswapd issues by counting number of rewakeups and
+> premature sleeps
+>
+> There is a growing amount of anedotal evidence that high-order atomic
+> allocation failures have been increasing since 2.6.31-rc1. The two
+> strongest possibilities are a marked increase in the number of
+> GFP_ATOMIC allocations and alterations in timing. Debugging printk
+> patches have shown for example that kswapd is sleeping for shorter
+> intervals and going to sleep when watermarks are still not being met.
+>
+> This patch adds two kswapd counters to help identify if timing is an
+> issue. The first counter kswapd_highorder_rewakeup counts the number of
+> times that kswapd stops reclaiming at one order and restarts at a higher
+> order. The second counter kswapd_slept_prematurely counts the number of
+> times kswapd went to sleep when the high watermark was not met.
 
-I dont think this patch will work in !NUMA but its useful there too. Can
-you make this work in general?
-
+What testing would you like done with this patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
