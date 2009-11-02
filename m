@@ -1,77 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4FC306B006A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 07:35:37 -0500 (EST)
-Received: by iwn5 with SMTP id 5so3305607iwn.11
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2009 04:35:36 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2585D6B006A
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 07:38:34 -0500 (EST)
+Message-ID: <4AEED2C6.6030508@redhat.com>
+Date: Mon, 02 Nov 2009 14:38:30 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.0911020237440.13146@chino.kir.corp.google.com>
-References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>
-	 <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>
-	 <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com>
-	 <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>
-	 <alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com>
-	 <2f11576a0911010529t688ed152qbb72c87c85869c45@mail.gmail.com>
-	 <alpine.DEB.2.00.0911020237440.13146@chino.kir.corp.google.com>
-Date: Mon, 2 Nov 2009 21:35:35 +0900
-Message-ID: <2f11576a0911020435n103538d0p9d2afed4d39b4726@mail.gmail.com>
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 03/11] Handle asynchronous page fault in a PV guest.
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-4-git-send-email-gleb@redhat.com>
+In-Reply-To: <1257076590-29559-4-git-send-email-gleb@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>, vedran.furac@gmail.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
->> Hi David,
->>
->> I'm very interesting your pointing out. thanks good testing.
->> So, I'd like to clarify your point a bit.
->>
->> following are badness list on my desktop environment (x86_64 6GB mem).
->> it show Xorg have pretty small badness score. Do you know why such
->> different happen?
+On 11/01/2009 01:56 PM, Gleb Natapov wrote:
+> Asynchronous page fault notifies vcpu that page it is trying to access
+> is swapped out by a host. In response guest puts a task that caused the
+> fault to sleep until page is swapped in again. When missing page is
+> brought back into the memory guest is notified and task resumes execution.
 >
-> I don't know specifically what's different on your machine than Vedran's,
-> my data is simply a collection of the /proc/sys/vm/oom_dump_tasks output
-> from Vedran's oom log.
+> diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+> index 90708b7..61e2aa3 100644
+> --- a/arch/x86/include/asm/kvm_para.h
+> +++ b/arch/x86/include/asm/kvm_para.h
+> @@ -52,6 +52,9 @@ struct kvm_mmu_op_release_pt {
 >
-> I guess we could add a call to badness() for the oom_dump_tasks tasklist
-> dump to get a clearer picture so we know the score for each thread group
-> leader.  Anything else would be speculation at this point, though.
+>   #define KVM_PV_SHM_FEATURES_ASYNC_PF		(1<<  0)
 >
->> score    pid        comm
->> ==============================
->> 56382   3241    run-mozilla.sh
->> 23345   3289    run-mozilla.sh
->> 21461   3050    gnome-do
->> 20079   2867    gnome-session
->> 14016   3258    firefox
->> 9212    3306    firefox
->> 8468    3115    gnome-do
->> 6902    3325    emacs
->> 6783    3212    tomboy
->> 4865    2968    python
->> 4861    2948    nautilus
->> 4221    1       init
->> (snip about 100line)
->> 548     2590    Xorg
->>
+> +#define KVM_PV_REASON_PAGE_NP 1
+> +#define KVM_PV_REASON_PAGE_READY 2
+>    
+
+_NOT_PRESENT would improve readability.
+
+> +static void apf_task_wait(struct task_struct *tsk, u64 token)
+>   {
+> +	u64 key = hash_64(token, KVM_TASK_SLEEP_HASHBITS);
+> +	struct kvm_task_sleep_head *b =&async_pf_sleepers[key];
+> +	struct kvm_task_sleep_node n, *e;
+> +	DEFINE_WAIT(wait);
+> +
+> +	spin_lock(&b->lock);
+> +	e = _find_apf_task(b, token);
+> +	if (e) {
+> +		/* dummy entry exist ->  wake up was delivered ahead of PF */
+> +		hlist_del(&e->link);
+> +		kfree(e);
+> +		spin_unlock(&b->lock);
+> +		return;
+> +	}
+> +
+> +	n.token = token;
+> +	init_waitqueue_head(&n.wq);
+> +	hlist_add_head(&n.link,&b->list);
+> +	spin_unlock(&b->lock);
+> +
+> +	for (;;) {
+> +		prepare_to_wait(&n.wq,&wait, TASK_UNINTERRUPTIBLE);
+> +		if (hlist_unhashed(&n.link))
+> +			break;
+>    
+
+Don't you need locking here?  At least for the implied memory barriers.
+
+> +		schedule();
+> +	}
+> +	finish_wait(&n.wq,&wait);
+> +
+> +	return;
+> +}
+> +
+> +static void apf_task_wake(u64 token)
+> +{
+> +	u64 key = hash_64(token, KVM_TASK_SLEEP_HASHBITS);
+> +	struct kvm_task_sleep_head *b =&async_pf_sleepers[key];
+> +	struct kvm_task_sleep_node *n;
+> +
+> +	spin_lock(&b->lock);
+> +	n = _find_apf_task(b, token);
+> +	if (!n) {
+> +		/* PF was not yet handled. Add dummy entry for the token */
+> +		n = kmalloc(sizeof(*n), GFP_ATOMIC);
+> +		if (!n) {
+> +			printk(KERN_EMERG"async PF can't allocate memory\n");
+>    
+
+Worrying.  We could have an emergency pool of one node per cpu, and 
+disable apf if we use it until it's returned.  But that's a lot of 
+complexity for an edge case, so a simpler solution would be welcome.
+
+> +int kvm_handle_pf(struct pt_regs *regs, unsigned long error_code)
+> +{
+> +	u64 reason, token;
+>   	struct kvm_vcpu_pv_shm *pv_shm =
+>   		per_cpu(kvm_vcpu_pv_shm, smp_processor_id());
 >
-> Are these scores with your rss patch or without?  If it's without the
-> patch, this is understandable since Xorg didn't appear highly in Vedran's
-> log either.
+>   	if (!pv_shm)
+> -		return;
+> +		return 0;
+> +
+> +	reason = pv_shm->reason;
+> +	pv_shm->reason = 0;
+> +
+> +	token = pv_shm->param;
+> +
+> +	switch (reason) {
+> +	default:
+> +		return 0;
+> +	case KVM_PV_REASON_PAGE_NP:
+> +		/* real page is missing. */
+> +		apf_task_wait(current, token);
+> +		break;
+> +	case KVM_PV_REASON_PAGE_READY:
+> +		apf_task_wake(token);
+> +		break;
+> +	}
+>    
 
-Oh, I'm sorry. I mesured with rss patch.
-Then, I haven't understand what makes Xorg bad score.
+Ah, reason is not a bitmask but an enumerator.  __u32 is more friendly 
+to i386 in that case.
 
-Hmm...
-Vedran,  Can you please post following command result?
+Much of the code here is arch independent and would work well on non-x86 
+kvm ports.  But we can always lay the burden of moving it on the non-x86 
+maintainers.
 
-# cat /proc/`pidof Xorg`/smaps
-
-
-I hope to undestand the issue clearly before modify any code.
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
