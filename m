@@ -1,65 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 778B96B006A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 03:41:49 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA28fkS5031072
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 2 Nov 2009 17:41:46 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5822945DE51
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 17:41:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 345AE45DE4D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 17:41:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DA741DB803F
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 17:41:46 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C5AC41DB803A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 17:41:45 +0900 (JST)
-Date: Mon, 2 Nov 2009 17:39:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][-mm][PATCH 4/6] oom-killer: fork bomb detector
-Message-Id: <20091102173912.601790b0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091102162716.e7803741.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091102162716.e7803741.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 37D8C6B006A
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 03:49:27 -0500 (EST)
+From: Jiri Slaby <jirislaby@gmail.com>
+Subject: [PATCH 1/1] MM: slqb, fix per_cpu access
+Date: Mon,  2 Nov 2009 09:49:23 +0100
+Message-Id: <1257151763-11507-1-git-send-email-jirislaby@gmail.com>
+In-Reply-To: <4AEE5EA2.6010905@kernel.org>
+References: <4AEE5EA2.6010905@kernel.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, aarcange@redhat.com, akpm@linux-foundation.org, minchan.kim@gmail.com, rientjes@google.com, vedran.furac@gmail.com, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: npiggin@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Nov 2009 16:27:16 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> -
-> -	/* Try to kill a child first */
-> +	if (fork_bomb) {
-> +		printk(KERN_ERR "possible fork-bomb is detected. kill them\n");
-> +		/* We need to kill the youngest one, at least */
-> +		rcu_read_lock();
-> +		for_each_process_reverse(c) {
-> +			if (c == p)
-> +				break;
-> +			if (is_forkbomb_family(c, p)) {
-> +				oom_kill_task(c);
-> +				break;
-> +			}
-> +		}
-> +		rcu_read_unlock();
-> +	}
+We cannot use the same local variable name as the declared per_cpu
+variable since commit "percpu: remove per_cpu__ prefix."
 
-Kosaki said we should kill all under tree and "break" is unnecessay here.
-I nearly agree with him..after some experiments.
+Otherwise we would see crashes like:
+general protection fault: 0000 [#1] SMP
+last sysfs file:
+CPU 1
+Modules linked in:
+Pid: 1, comm: swapper Tainted: G        W  2.6.32-rc5-mm1_64 #860
+RIP: 0010:[<ffffffff8142ff94>]  [<ffffffff8142ff94>] start_cpu_timer+0x2b/0x87
+...
 
-But it seems the biggest problem is latecy by swap-out...before deciding OOM
-....
+Use slqb_ prefix for the global variable so that we don't collide
+even with the rest of the kernel (s390 and alpha need this).
 
-Thanks,
--Kame
+Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+---
+ mm/slqb.c |   10 ++++++----
+ 1 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/mm/slqb.c b/mm/slqb.c
+index e745d9a..e4bb53f 100644
+--- a/mm/slqb.c
++++ b/mm/slqb.c
+@@ -2766,11 +2766,12 @@ out:
+ 	schedule_delayed_work(work, round_jiffies_relative(3*HZ));
+ }
+ 
+-static DEFINE_PER_CPU(struct delayed_work, cache_trim_work);
++static DEFINE_PER_CPU(struct delayed_work, slqb_cache_trim_work);
+ 
+ static void __cpuinit start_cpu_timer(int cpu)
+ {
+-	struct delayed_work *cache_trim_work = &per_cpu(cache_trim_work, cpu);
++	struct delayed_work *cache_trim_work = &per_cpu(slqb_cache_trim_work,
++			cpu);
+ 
+ 	/*
+ 	 * When this gets called from do_initcalls via cpucache_init(),
+@@ -3136,8 +3137,9 @@ static int __cpuinit slab_cpuup_callback(struct notifier_block *nfb,
+ 
+ 	case CPU_DOWN_PREPARE:
+ 	case CPU_DOWN_PREPARE_FROZEN:
+-		cancel_rearming_delayed_work(&per_cpu(cache_trim_work, cpu));
+-		per_cpu(cache_trim_work, cpu).work.func = NULL;
++		cancel_rearming_delayed_work(&per_cpu(slqb_cache_trim_work,
++					cpu));
++		per_cpu(slqb_cache_trim_work, cpu).work.func = NULL;
+ 		break;
+ 
+ 	case CPU_UP_CANCELED:
+-- 
+1.6.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
