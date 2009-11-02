@@ -1,164 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B546B009A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 15:37:00 -0500 (EST)
-Date: Mon, 2 Nov 2009 20:36:55 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when
-	high-order watermarks are being hit
-Message-ID: <20091102203654.GD22046@csn.ul.ie>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <20091028124756.7af44b6b.akpm@linux-foundation.org> <20091102160534.GA22046@csn.ul.ie> <200911021832.59035.elendil@planet.nl> <20091102173837.GB22046@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C0CA96B009C
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 15:47:29 -0500 (EST)
+Date: Mon, 2 Nov 2009 13:47:26 -0700
+From: Alex Chiang <achiang@hp.com>
+Subject: Re: [patch -mm] mm: slab allocate memory section nodemask for
+	large systems
+Message-ID: <20091102204726.GG5525@ldl.fc.hp.com>
+References: <20091022040814.15705.95572.stgit@bob.kio> <20091022041510.15705.5410.stgit@bob.kio> <alpine.DEB.2.00.0910221249030.26631@chino.kir.corp.google.com> <20091027195907.GJ14102@ldl.fc.hp.com> <alpine.DEB.2.00.0910271422090.22335@chino.kir.corp.google.com> <20091028083137.GA24140@osiris.boeblingen.de.ibm.com> <alpine.DEB.2.00.0910280159380.7122@chino.kir.corp.google.com> <20091028183905.GF22743@ldl.fc.hp.com> <alpine.DEB.2.00.0910281315370.23279@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091102173837.GB22046@csn.ul.ie>
+In-Reply-To: <alpine.DEB.2.00.0910281315370.23279@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Gary Hade <garyhade@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 02, 2009 at 05:38:38PM +0000, Mel Gorman wrote:
-> On Mon, Nov 02, 2009 at 06:32:54PM +0100, Frans Pop wrote:
-> > On Monday 02 November 2009, Mel Gorman wrote:
-> > > vmscan: Help debug kswapd issues by counting number of rewakeups and
-> > > premature sleeps
-> > >
-> > > There is a growing amount of anedotal evidence that high-order atomic
-> > > allocation failures have been increasing since 2.6.31-rc1. The two
-> > > strongest possibilities are a marked increase in the number of
-> > > GFP_ATOMIC allocations and alterations in timing. Debugging printk
-> > > patches have shown for example that kswapd is sleeping for shorter
-> > > intervals and going to sleep when watermarks are still not being met.
-> > >
-> > > This patch adds two kswapd counters to help identify if timing is an
-> > > issue. The first counter kswapd_highorder_rewakeup counts the number of
-> > > times that kswapd stops reclaiming at one order and restarts at a higher
-> > > order. The second counter kswapd_slept_prematurely counts the number of
-> > > times kswapd went to sleep when the high watermark was not met.
+Hi Andrew,
+
+* David Rientjes <rientjes@google.com>:
+> On Wed, 28 Oct 2009, Alex Chiang wrote:
+> 
+> > Am I not understanding the code? It looks like we do this
+> > already...
 > > 
-> > What testing would you like done with this patch?
+> > /* unregister memory section under all nodes that it spans */
+> > int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
+> > {
+> > 	nodemask_t unlinked_nodes;
+> > 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+> > 
+> > 	if (!mem_blk)
+> > 		return -EFAULT;
+> > 	nodes_clear(unlinked_nodes);
+> > 	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
+> > 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+> > 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+> > 		int nid;
+> > 
+> > 		nid = get_nid_for_pfn(pfn);
+> > 		if (nid < 0)
+> > 			continue;
+> > 		if (!node_online(nid))
+> > 			continue;
+> > 		if (node_test_and_set(nid, unlinked_nodes))
+> > 			continue;
+> > 		sysfs_remove_link(&node_devices[nid].sysdev.kobj,
+> > 			 kobject_name(&mem_blk->sysdev.kobj));
+> > 		sysfs_remove_link(&mem_blk->sysdev.kobj,
+> > 			 kobject_name(&node_devices[nid].sysdev.kobj));
+> > 	}
+> > 	return 0;
+> > }
 > > 
 > 
-> Same reproduction as before except post what the contents of
-> /proc/vmstat were after the problem was triggered.
+> That shound be sufficient with the exception that allocating nodemask_t 
+> on the stack is usually dangerous because it can be extremely large; we 
+> typically use NODEMASK_ALLOC() for such code.  It's had some changes in 
+> -mm, but since this patchset will likely be going through that tree anyway 
+> we can fix it now with the patch below.
 > 
+> Otherwise, it looks like the iteration is already there and will remove 
+> links for memory sections bound to multiple nodes if they exist through 
+> hotplug.
 
-In the event there is a positive count for kswapd_slept_prematurely after
-the error is produced, can you also check if the following patch makes a
-difference and what the contents of vmstat are please? It alters how kswapd
-behaves and when it goes to sleep.
+Any comments on this patch series?
 
-Thanks
+Turns out that Kame-san's fear about a memory section spanning
+several nodes on certain architectures (S390) isn't really
+applicable and even if it were, we have code to handle situation
+anyway.
 
-==== CUT HERE ====
-vmscan: Have kswapd sleep for a short interval and double check it should be asleep
+Kame-san was generally supportive of these convenience symlinks
+although he did not give a formal ACK.
 
-After kswapd balances all zones in a pgdat, it goes to sleep. In the event
-of no IO congestion, kswapd can go to sleep very shortly after the high
-watermark was reached. If there are a constant stream of allocations from
-parallel processes, it can mean that kswapd went to sleep too quickly and
-the high watermark is not being maintained for sufficient length time.
+David has given an ACK on the two patches that do real work, as
+well as supplied the below patch.
 
-This patch makes kswapd go to sleep as a two-stage process. It first
-tries to sleep for HZ/10. If it is woken up by another process or the
-high watermark is no longer met, it's considered a premature sleep and
-kswapd continues work. Otherwise it goes fully to sleep.
+I can respin this series once more, including David's Acked-by:
+and adding his patch if that makes life easier for you.
 
-This adds more counters to distinguish between fast and slow breaches of
-watermarks. A "fast" premature sleep is one where the low watermark was
-hit in a very short time after kswapd going to sleep. A "slow" premature
-sleep indicates that the high watermark was breached after a very short
-interval.
+Thanks,
+/ac
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/vmstat.h |    3 ++-
- mm/vmscan.c            |   31 +++++++++++++++++++++++++++----
- mm/vmstat.c            |    3 ++-
- 3 files changed, 31 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 2e0d18d..f344878 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -40,7 +40,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		PGSCAN_ZONE_RECLAIM_FAILED,
- #endif
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
--		KSWAPD_HIGHORDER_REWAKEUP, KSWAPD_PREMATURE_SLEEP,
-+		KSWAPD_HIGHORDER_REWAKEUP,
-+		KSWAPD_PREMATURE_FAST, KSWAPD_PREMATURE_SLOW,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 11a69a8..70aeb05 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1905,10 +1905,14 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- #endif
- 
- /* is kswapd sleeping prematurely? */
--static int sleeping_prematurely(int order)
-+static int sleeping_prematurely(int order, long remaining)
- {
- 	struct zone *zone;
- 
-+	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
-+	if (remaining)
-+		return 1;
-+
- 	/* If after HZ/10, a zone is below the high mark, it's premature */
- 	for_each_populated_zone(zone)
- 		if (!zone_watermark_ok(zone, order, high_wmark_pages(zone),
-@@ -2209,9 +2213,28 @@ static int kswapd(void *p)
- 			order = new_order;
- 		} else {
- 			if (!freezing(current)) {
--				if (sleeping_prematurely(order))
--					count_vm_event(KSWAPD_PREMATURE_SLEEP);
--				schedule();
-+				long remaining = 0;
-+
-+				/* Try to sleep for a short interval */
-+				if (!sleeping_prematurely(order, remaining)) {
-+					remaining = schedule_timeout(HZ/10);
-+					finish_wait(&pgdat->kswapd_wait, &wait);
-+					prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-+				}
-+
-+				/*
-+				 * After a short sleep, check if it was a
-+				 * premature sleep. If not, then go fully
-+				 * to sleep until explicitly woken up
-+				 */
-+				if (!sleeping_prematurely(order, remaining))
-+					schedule();
-+				else {
-+					if (remaining)
-+						count_vm_event(KSWAPD_PREMATURE_FAST);
-+					else
-+						count_vm_event(KSWAPD_PREMATURE_SLOW);
-+				}
- 			}
- 
- 			order = pgdat->kswapd_max_order;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index fa881c5..47a6914 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -684,7 +684,8 @@ static const char * const vmstat_text[] = {
- 	"kswapd_steal",
- 	"kswapd_inodesteal",
- 	"kswapd_highorder_rewakeup",
--	"kswapd_slept_prematurely",
-+	"kswapd_slept_prematurely_fast",
-+	"kswapd_slept_prematurely_slow",
- 	"pageoutrun",
- 	"allocstall",
- 
--- 
-1.6.3.3
+> mm: slab allocate memory section nodemask for large systems
+> 
+> Nodemasks should not be allocated on the stack for large systems (when it
+> is larger than 256 bytes) since there is a threat of overflow.
+> 
+> This patch causes the unregister_mem_sect_under_nodes() nodemask to be
+> allocated on the stack for smaller systems and be allocated by slab for
+> larger systems.
+> 
+> GFP_KERNEL is used since remove_memory_block() can block.
+> 
+> Cc: Gary Hade <garyhade@us.ibm.com>
+> Cc: Badari Pulavarty <pbadari@us.ibm.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  Depends on NODEMASK_ALLOC() changes currently present only in -mm.
+> 
+>  drivers/base/node.c |   11 +++++++----
+>  1 files changed, 7 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -363,12 +363,14 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
+>  /* unregister memory section under all nodes that it spans */
+>  int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
+>  {
+> -	nodemask_t unlinked_nodes;
+> +	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
+>  	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+>  
+> -	if (!mem_blk)
+> +	if (!mem_blk) {
+> +		NODEMASK_FREE(unlinked_nodes);
+>  		return -EFAULT;
+> -	nodes_clear(unlinked_nodes);
+> +	}
+> +	nodes_clear(*unlinked_nodes);
+>  	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
+>  	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+>  	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+> @@ -379,13 +381,14 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
+>  			continue;
+>  		if (!node_online(nid))
+>  			continue;
+> -		if (node_test_and_set(nid, unlinked_nodes))
+> +		if (node_test_and_set(nid, *unlinked_nodes))
+>  			continue;
+>  		sysfs_remove_link(&node_devices[nid].sysdev.kobj,
+>  			 kobject_name(&mem_blk->sysdev.kobj));
+>  		sysfs_remove_link(&mem_blk->sysdev.kobj,
+>  			 kobject_name(&node_devices[nid].sysdev.kobj));
+>  	}
+> +	NODEMASK_FREE(unlinked_nodes);
+>  	return 0;
+>  }
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
