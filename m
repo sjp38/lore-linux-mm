@@ -1,78 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2DCC16B004D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 18:37:16 -0500 (EST)
-Received: by ewy19 with SMTP id 19so2827178ewy.4
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2009 15:37:14 -0800 (PST)
-Date: Tue, 3 Nov 2009 08:34:16 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCHv2 1/5] vmscan: separate sc.swap_cluster_max and
- sc.nr_max_reclaim
-Message-Id: <20091103083416.a09dac3b.minchan.kim@barrios-desktop>
-In-Reply-To: <20091103001211.8866.A69D9226@jp.fujitsu.com>
-References: <20091101234614.F401.A69D9226@jp.fujitsu.com>
-	<20091102093517.32021780.minchan.kim@barrios-desktop>
-	<20091103001211.8866.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 344BA6B004D
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 18:45:50 -0500 (EST)
+Date: Mon, 2 Nov 2009 23:45:44 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: Filtering bits in set_pte_at()
+In-Reply-To: <1257200367.7907.50.camel@pasglop>
+Message-ID: <Pine.LNX.4.64.0911022342070.30581@sister.anvils>
+References: <1256957081.6372.344.camel@pasglop>  <Pine.LNX.4.64.0911021256330.32400@sister.anvils>
+ <1257200367.7907.50.camel@pasglop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Nov 2009 00:35:30 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> Hi
+On Tue, 3 Nov 2009, Benjamin Herrenschmidt wrote:
+> On Mon, 2009-11-02 at 13:27 +0000, Hugh Dickins wrote:
 > 
-> > > @@ -1932,6 +1938,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
-> > >  		.may_unmap = 1,
-> > >  		.may_swap = 1,
-> > >  
-> > 		.swap_cluster_max = SWAP_CLUSTER_MAX,
-> > Or add comment in here. 
+> > You're being a very good citizen to want to bring this so forcefully
+> > to the attention of any user of set_pte_at(); but given how few care,
+> > and the other such functions you'd want to change too, am I being
+> > disgracefully lazy to suggest that you simply change the occasional
 > > 
-> > 'kswapd doesn't want to be bailed out while reclaim.'
+> > 		update_mmu_cache(vma, address, pte);
+> > to
+> > 		/* powerpc's set_pte_at might have adjusted the pte */
+> > 		update_mmu_cache(vma, address, *ptep);
+> > 
+> > ?  Which would make no difference to those architectures whose
+> > update_mmu_cache() is an empty macro.  And fix the mm/hugetlb.c
+> > instance in a similar way?
 > 
-> OK, reasonable.
-> How about this?
+> That would do fine. In fact, I've always been slightly annoyed by
+> set_pte_at() not taking the PTE pointer for other reasons such as on
+> 64-K pages, we have a "hidden" part of the PTE that is at PTE address +
+> 32K, or we may want to get to the PTE page for some reason (some arch
+> store things there) etc...
 > 
->
+> IE. update_mmu_cache() would be more generally useful if it took the
+> ptep instead of the pte. Of course, I'm sure some embedded archs are
+> going to cry for the added load here ... 
 > 
-> ---
->  mm/vmscan.c |    4 ++++
->  1 files changed, 4 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 7fb3435..84e4da0 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1930,6 +1930,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
->  		.gfp_mask = GFP_KERNEL,
->  		.may_unmap = 1,
->  		.may_swap = 1,
-> +		/*
-> +		 * kswapd doesn't want to be bailed out while reclaim. because
-> +		 * we want to put equal scanning pressure on each zone.
-> +		 */
->  		.nr_to_reclaim = ULONG_MAX,
->  		.swappiness = vm_swappiness,
->  		.order = order,
-> -- 
-> 1.6.2.5
-> 
+> I like your idea. I'll look into doing a patch converting it and will
+> post it here.
 
+Well, I wasn't proposing
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-It looks good than mine.
-Thanks, Kosaki. :)
+		update_mmu_cache(vma, address, ptep);
+but
+		update_mmu_cache(vma, address, *ptep);
 
+which may not meet your future idea, but is much less churn for now
+i.e. no change to any of the arch's update_mmu_cache(),
+just a change to some of its callsites.
 
-
--- 
-Kind regards,
-Minchan Kim
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
