@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 944096B0062
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 10:24:42 -0500 (EST)
-Message-ID: <4AEEF9AE.1090904@kernel.org>
-Date: Tue, 03 Nov 2009 00:24:30 +0900
-From: Tejun Heo <tj@kernel.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id EF3466B007B
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 10:31:47 -0500 (EST)
+Received: by gv-out-0910.google.com with SMTP id l14so560410gvf.19
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2009 07:31:45 -0800 (PST)
+Message-ID: <4AEEFB5D.9080009@gmail.com>
+Date: Mon, 02 Nov 2009 16:31:41 +0100
+From: Jiri Slaby <jirislaby@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/1] MM: slqb, fix per_cpu access
-References: <4AEE5EA2.6010905@kernel.org> <1257151763-11507-1-git-send-email-jirislaby@gmail.com>
-In-Reply-To: <1257151763-11507-1-git-send-email-jirislaby@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+References: <1257113578-1584-1-git-send-email-jirislaby@gmail.com> <200911022353.30524.rusty@rustcorp.com.au>
+In-Reply-To: <200911022353.30524.rusty@rustcorp.com.au>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: npiggin@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Christoph Lameter <cl@linux-foundation.org>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: npiggin@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-2009e?? 11i?? 02i? 1/4  17:49, Jiri Slaby wrote:
-> We cannot use the same local variable name as the declared per_cpu
-> variable since commit "percpu: remove per_cpu__ prefix."
+On 11/02/2009 02:23 PM, Rusty Russell wrote:
+>> --- a/mm/slqb.c
+>> +++ b/mm/slqb.c
+>> @@ -2770,16 +2770,16 @@ static DEFINE_PER_CPU(struct delayed_work, cache_trim_work);
+>>  
+>>  static void __cpuinit start_cpu_timer(int cpu)
+>>  {
+>> -	struct delayed_work *cache_trim_work = &per_cpu(cache_trim_work, cpu);
+>> +	struct delayed_work *_cache_trim_work = &per_cpu(cache_trim_work, cpu);
+>>  
+>>  	/*
+>>  	 * When this gets called from do_initcalls via cpucache_init(),
+>>  	 * init_workqueues() has already run, so keventd will be setup
+>>  	 * at that time.
+>>  	 */
+>> -	if (keventd_up() && cache_trim_work->work.func == NULL) {
+>> -		INIT_DELAYED_WORK(cache_trim_work, cache_trim_worker);
+>> -		schedule_delayed_work_on(cpu, cache_trim_work,
+>> +	if (keventd_up() && _cache_trim_work->work.func == NULL) {
+>> +		INIT_DELAYED_WORK(_cache_trim_work, cache_trim_worker);
+>> +		schedule_delayed_work_on(cpu, _cache_trim_work,
+>>  					__round_jiffies_relative(HZ, cpu));
 > 
-> Otherwise we would see crashes like:
-> general protection fault: 0000 [#1] SMP
-> last sysfs file:
-> CPU 1
-> Modules linked in:
-> Pid: 1, comm: swapper Tainted: G        W  2.6.32-rc5-mm1_64 #860
-> RIP: 0010:[<ffffffff8142ff94>]  [<ffffffff8142ff94>] start_cpu_timer+0x2b/0x87
-> ...
+> How about calling the local var "trim"?
 > 
-> Use slqb_ prefix for the global variable so that we don't collide
-> even with the rest of the kernel (s390 and alpha need this).
-> 
-> Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
-> Cc: Nick Piggin <npiggin@suse.de>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Rusty Russell <rusty@rustcorp.com.au>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
+> This actually makes the code more readable, IMHO.
 
-Acked-by: Tejun Heo <tj@kernel.org>
+Please ignore this version of the patch. After this I sent a new one
+which changes the global var name.
 
-Thanks.
-
--- 
-tejun
+So the local variable is untouched there. If you want me to perform the
+cleanup, let me know. In any case I'd make it trim_work instead of trim
+which makes more sense to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
