@@ -1,100 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 623766B007B
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 02:00:59 -0500 (EST)
-Received: by pwj10 with SMTP id 10so2107869pwj.6
-        for <linux-mm@kvack.org>; Sun, 01 Nov 2009 23:00:57 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 139A96B004D
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 02:07:25 -0500 (EST)
+Date: Mon, 2 Nov 2009 09:07:20 +0200
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH 01/11] Add shared memory hypercall to PV Linux guest.
+Message-ID: <20091102070720.GF29477@redhat.com>
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com>
+ <1257076590-29559-2-git-send-email-gleb@redhat.com>
+ <4AEE5FA3.1020104@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20091102155543.E60E.A69D9226@jp.fujitsu.com>
-References: <20091102005218.8352.A69D9226@jp.fujitsu.com>
-	 <20091102135640.93de7c2a.minchan.kim@barrios-desktop>
-	 <20091102155543.E60E.A69D9226@jp.fujitsu.com>
-Date: Mon, 2 Nov 2009 16:00:57 +0900
-Message-ID: <28c262360911012300h4535118ewd65238c746b91a52@mail.gmail.com>
-Subject: Re: OOM killer, page fault
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4AEE5FA3.1020104@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Norbert Preining <preining@logic.at>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 2, 2009 at 3:59 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Mon, =A02 Nov 2009 13:24:06 +0900 (JST)
->> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->>
->> > Hi,
->> >
->> > (Cc to linux-mm)
->> >
->> > Wow, this is very strange log.
->> >
->> > > Dear all,
->> > >
->> > > (please Cc)
->> > >
->> > > With 2.6.32-rc5 I got that one:
->> > > [13832.210068] Xorg invoked oom-killer: gfp_mask=3D0x0, order=3D0, o=
-om_adj=3D0
->> >
->> > order =3D 0
->>
->> I think this problem results from 'gfp_mask =3D 0x0'.
->> Is it possible?
->>
->> If it isn't H/W problem, Who passes gfp_mask with 0x0?
->> It's culpit.
->>
->> Could you add BUG_ON(gfp_mask =3D=3D 0x0) in __alloc_pages_nodemask's he=
-ad?
->
-> No.
-> In page fault case, gfp_mask show meaningless value. Please ignore it.
-> pagefault_out_of_memory() always pass gfp_mask=3D=3D0 to oom.
->
->
-> mm/oom_kill.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> void pagefault_out_of_memory(void)
-> {
-> =A0 =A0 =A0 =A0unsigned long freed =3D 0;
->
-> =A0 =A0 =A0 =A0blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> =A0 =A0 =A0 =A0if (freed > 0)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* Got some memory back in the last second=
-. */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
->
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * If this is from memcg, oom-killer is already invoked.
-> =A0 =A0 =A0 =A0 * and not worth to go system-wide-oom.
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0if (mem_cgroup_oom_called(current))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto rest_and_return;
->
-> =A0 =A0 =A0 =A0if (sysctl_panic_on_oom)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0panic("out of memory from page fault. pani=
-c_on_oom is selected.\n");
->
-> =A0 =A0 =A0 =A0read_lock(&tasklist_lock);
-> =A0 =A0 =A0 =A0__out_of_memory(0, 0); =A0 =A0 =A0 <---- here!
-> =A0 =A0 =A0 =A0read_unlock(&tasklist_lock);
->
->
+On Sun, Nov 01, 2009 at 11:27:15PM -0500, Rik van Riel wrote:
+> On 11/01/2009 06:56 AM, Gleb Natapov wrote:
+> >Add hypercall that allows guest and host to setup per cpu shared
+> >memory.
+> 
+> While it is pretty obvious that we should implement
+> the asynchronous pagefaults for KVM, so a swap-in
+> of a page the host swapped out does not stall the
+> entire virtual CPU, I believe that adding extra
+> data accesses at context switch time may not be
+> the best tradeoff.
+> 
+> It may be better to simply tell the guest what
+> address is faulting (or give the guest some other
+> random unique number as a token).  Then, once the
+> host brings that page into memory, we can send a
+> signal to the guest with that same token.
+> 
+> The problem of finding the task(s) associated with
+> that token can be left to the guest.  A little more
+> complexity on the guest side, but probably worth it
+> if we can avoid adding cost to the context switch
+> path.
+> 
+This is precisely what this series implements. The function below
+is leftover from previous implementation, not used by the rest of the
+patch and removed by a later patch. Just a left over from rebase. Sorry
+about that. Will be fixed for future submissions.
 
-Yeb. Kame already noticed it. :)
-Thanks for pointing me out, again.
+> >+static void kvm_end_context_switch(struct task_struct *next)
+> >+{
+> >+	struct kvm_vcpu_pv_shm *pv_shm =
+> >+		per_cpu(kvm_vcpu_pv_shm, smp_processor_id());
+> >+
+> >+	if (!pv_shm)
+> >+		return;
+> >+
+> >+	pv_shm->current_task = (u64)next;
+> >+}
+> >+
+> 
+> 
+> 
+> -- 
+> All rights reversed.
 
-I already suggested another patch.
-What do you think about it?
-
-
---=20
-Kind regards,
-Minchan Kim
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
