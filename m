@@ -1,53 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 021696B009F
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 15:54:01 -0500 (EST)
-Received: from spaceape12.eur.corp.google.com (spaceape12.eur.corp.google.com [172.28.16.146])
-	by smtp-out.google.com with ESMTP id nA2Krr1Z007128
-	for <linux-mm@kvack.org>; Mon, 2 Nov 2009 12:53:54 -0800
-Received: from pwi12 (pwi12.prod.google.com [10.241.219.12])
-	by spaceape12.eur.corp.google.com with ESMTP id nA2KroAs022549
-	for <linux-mm@kvack.org>; Mon, 2 Nov 2009 12:53:51 -0800
-Received: by pwi12 with SMTP id 12so2291462pwi.5
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2009 12:53:50 -0800 (PST)
-Date: Mon, 2 Nov 2009 12:53:46 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use
- ALLOC_HARDER
-In-Reply-To: <alpine.DEB.1.10.0911021139100.24535@V090114053VZO-1>
-Message-ID: <alpine.DEB.2.00.0911021249470.22525@chino.kir.corp.google.com>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <1256650833-15516-3-git-send-email-mel@csn.ul.ie> <20091027130924.fa903f5a.akpm@linux-foundation.org> <alpine.DEB.2.00.0910271411530.9183@chino.kir.corp.google.com> <20091031184054.GB1475@ucw.cz>
- <alpine.DEB.2.00.0910311248490.13829@chino.kir.corp.google.com> <20091031201158.GB29536@elf.ucw.cz> <4AECCF6A.4020206@redhat.com> <alpine.DEB.1.10.0911021139100.24535@V090114053VZO-1>
+	by kanga.kvack.org (Postfix) with SMTP id 7EEAE6B006A
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:18:43 -0500 (EST)
+Message-ID: <4AEF4CF1.3020500@crca.org.au>
+Date: Tue, 03 Nov 2009 08:19:45 +1100
+From: Nigel Cunningham <ncunningham@crca.org.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic
+ and unify it
+References: <20091102000855.F404.A69D9226@jp.fujitsu.com> <4AEE0536.6020605@crca.org.au> <20091103002520.886C.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091103002520.886C.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Stephan von Krawczynski <skraw@ithnet.com>, kernel-testers@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Nov 2009, Christoph Lameter wrote:
+Hi.
 
-> What is realtime in this scenario? There are no guarantees that reclaim
-> wont have to occur. There are no guarantees anymore and therefore you
-> cannot really call this realtime.
+KOSAKI Motohiro wrote:
+>> I haven't given much thought to numa awareness in hibernate code, but I
+>> can say that the shrink_all_memory interface is woefully inadequate as
+>> far as zone awareness goes. Since lowmem needs to be atomically restored
+>> before we can restore highmem, we really need to be able to ask for a
+>> particular number of pages of a particular zone type to be freed.
 > 
+> Honestly, I am not suspend/hibernation expert. Can I ask why caller need to know
+> per-zone number of freed pages information? if hibernation don't need highmem.
+> following incremental patch prevent highmem reclaim perfectly. Is it enough?
 
-Realtime in this scenario is anything with a priority of MAX_RT_PRIO or 
-lower.
+(Disclaimer: I don't think about highmem a lot any more, and might have
+forgotten some of the details, or swsusp's algorithms might have
+changed. Rafael might need to correct some of this...)
 
-> Is realtime anything more than: "I want to have my patches merged"?
+Imagine that you have a system with 1000 pages of lowmem and 5000 pages
+of highmem. Of these, 950 lowmem pages are in use and 500 highmem pages
+are in use.
+
+In order to to be able to save an image, we need to be able to do an
+atomic copy of those lowmem pages.
+
+You might think that we could just copy everything into the spare
+highmem pages, but we can't because mapping and unmapping the highmem
+pages as we copy the data will leave us with an inconsistent copy.
+Depending on the configuration, it might (for example) have one page -
+say on in the pagetables - reflecting one page being kmapped and another
+page - containing the variables that record what kmap slots are used,
+for example - recording a different page being kmapped.
+
+What we do, then, is seek to atomically copy the lowmem pages to lowmem.
+That requires, however, that we have at least half of the lowmem pages
+free. So, then, we need a function that lets us free lowmem pages only.
+
+I hope that makes it clearer.
+
+> ---
+>  mm/vmscan.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index e6ea011..7fb3435 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2265,7 +2265,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+>  {
+>  	struct reclaim_state reclaim_state;
+>  	struct scan_control sc = {
+> -		.gfp_mask = GFP_HIGHUSER_MOVABLE,
+> +		.gfp_mask = GFP_KERNEL,
+>  		.may_swap = 1,
+>  		.may_unmap = 1,
+>  		.may_writepage = 1,
 
-These allocations are not using ~__GFP_WAIT for a reason, they can block 
-on direct reclaim.
+I don't think so. I think what we really need is:
 
-But we're convoluting this issue _way_ more than it needs to be.  We have 
-used ALLOC_HARDER for these tasks as a convenience for over four years.  
-The fix here is to address an omittion in the page allocator refactoring 
-code that went into 2.6.31 that dropped the check for !in_interrupt().
+shrink_memory_type(gfp_mask, pages_needed)
 
-If you'd like to raise the concern about the rt exemption being given 
-ALLOC_HARDER, then it is seperate from this fix.
+That is, a function that would let us say "Free 489 pages of lowmem" or
+"Free 983 pages of highmem" or "Free 340 pages of any kind of memory".
+(The later might be used if we just want to free some pages because the
+image as it stands is too big for the storage available).
+
+Regards,
+
+Nigel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
