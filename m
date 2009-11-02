@@ -1,71 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id F39F26B004D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 18:11:33 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA2NBVWb001766
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 3 Nov 2009 08:11:31 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DA6345DE50
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 08:11:31 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DCB6145DE4E
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 08:11:30 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C4B5D1DB8040
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 08:11:30 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DE231DB803E
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 08:11:30 +0900 (JST)
-Message-ID: <244dc9813cd8dbb5e1ce1eafa61e9e2b.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <alpine.DEB.1.10.0911021209180.2028@V090114053VZO-1>
-References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com>
-    <20091102162617.9d07e05f.kamezawa.hiroyu@jp.fujitsu.com>
-    <alpine.DEB.1.10.0911021209180.2028@V090114053VZO-1>
-Date: Tue, 3 Nov 2009 08:11:29 +0900 (JST)
-Subject: Re: [RFC][-mm][PATCH 3/6] oom-killer: count lowmem rss
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E9D706B0044
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 18:31:30 -0500 (EST)
+Received: by ewy19 with SMTP id 19so2823415ewy.4
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2009 15:31:28 -0800 (PST)
+Date: Tue, 3 Nov 2009 08:28:29 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: OOM killer, page fault
+Message-Id: <20091103082829.db0b1e33.minchan.kim@barrios-desktop>
+In-Reply-To: <Pine.LNX.4.64.0911021556020.12937@sister.anvils>
+References: <20091030063216.GA30712@gamma.logic.tuwien.ac.at>
+	<20091102005218.8352.A69D9226@jp.fujitsu.com>
+	<20091102135640.93de7c2a.minchan.kim@barrios-desktop>
+	<20091102140216.02567ff8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091102150110.74f8a601.minchan.kim@barrios-desktop>
+	<Pine.LNX.4.64.0911021556020.12937@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, aarcange@redhat.com, akpm@linux-foundation.org, minchan.kim@gmail.com, rientjes@google.com, vedran.furac@gmail.com, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Norbert Preining <preining@logic.at>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
->
-> I dont think this patch will work in !NUMA but its useful there too. Can
-> you make this work in general?
->
-for NUMA
-==
-+static inline int is_lowmem_page(struct page *page)
-+{
-+	if (unlikely(page_zonenum(page) < policy_zone))
-+		return 1;
-+	return 0;
-+}
-==
+Hi, Hugh. 
 
-is used. Doesn't this work well ?
-This check means
-It enough memory:
-   On my ia64 box ZONE_DMA(<4G), x86-64 box(GFP_DMA32) is caught
-If small memory (typically < 4G)
-   ia64 box no lowmem, x86-64 box GPF_DMA is caught
-If all zones are policy zone (ppc)
-   no lowmem zone.
+On Mon, 2 Nov 2009 16:26:56 +0000 (GMT)
+Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-Because "amount of memory" changes the situation "which is lowmem?",
-I used policy zone. If this usage is not appropriate, I'll add some new.
+> On Mon, 2 Nov 2009, Minchan Kim wrote:
+> > On Mon, 2 Nov 2009 14:02:16 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > 
+> > > Maybe some code returns VM_FAULT_OOM by mistake and pagefault_oom_killer()
+> > > is called. digging mm/memory.c is necessary...
+> > > 
+> > > I wonder why...now is this code
+> > > ===
+> > > static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> > >                 unsigned long address, pte_t *page_table, pmd_t *pmd,
+> > >                 unsigned int flags, pte_t orig_pte)
+> > > {
+> > >         pgoff_t pgoff;
+> > > 
+> > >         flags |= FAULT_FLAG_NONLINEAR;
+> > > 
+> > > 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
+> > >                 return 0;
+> > > 
+> > >         if (unlikely(!(vma->vm_flags & VM_NONLINEAR))) {
+> > >                 /*
+> > >                  * Page table corrupted: show pte and kill process.
+> > >                  */
+> > >                 print_bad_pte(vma, address, orig_pte, NULL);
+> > >                 return VM_FAULT_OOM;
+> > >         }
+> > > 
+> > >         pgoff = pte_to_pgoff(orig_pte);
+> > >         return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
+> > > }
+> > > ==
+> > > Then, OOM...is this really OOM ?
+> > 
+> > It seems that the goal is to kill process by OOM trick as comment said.
+> > 
+> > I found It results from Hugh's commit 65500d234e74fc4e8f18e1a429bc24e51e75de4a.
+> > I think it's not a real OOM. 
+> > 
+> > BTW, If it is culpit in this case, print_bad_pte should have remained any log. :)
+> 
+> Yes, the chances are that this is not related to Norbert's problem.
+> But thank you for reminding me of that not-very-nice hack of mine.
+> 
+> It was kind-of valid at the time that I wrote it (2.6.15), when
+> VM_FAULT_OOM did kill the faulting process.  But since then the fault
+> path has rightly been changed (in x86 at least, I didn't check the rest)
+> to let the OOM killer decide who to kill: so now there's a danger that
+> a pagetable corruption there will instead kill some unrelated process.
+> 
+> Being lazy, I'm inclined simply to change that to VM_FAULT_SIGBUS now:
+> which doesn't actually guarantee that the process will be killed, but
+> should be better than just repeatedly re-faulting on the entry.  (I
+> don't much want to SIGKILL current since mm might not be current's.)
+> 
+> That aberrant use of VM_FAULT_OOM has recently been copied into
+> do_swap_page() (the first instance; the second instance is right -
+> hmm, well, the second instance is normally right, but I guess it
+> also covers pagetable corruption cases which we can't distinguish
+> there; oh well) and should be corrected there too.
+> 
+> Does VM_FAULT_SIGBUS sound good enough to you?
 
-BTW, is it better to export this value from somewhere ?
+I am Okay. 
+First of all, we have to prevent innocent process killing.
+Second, although it returns SIGBUS, we can distinguish it from normal SIGBUS
+by bad pte log.
+Third, we don't want to add new VM_FAULT_XXX as possible as. :)
 
-Thanks,
--Kame
 
+> 
+> Hugh
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
