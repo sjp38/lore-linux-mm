@@ -1,112 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 293576B004D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 06:48:33 -0500 (EST)
-Received: by ewy19 with SMTP id 19so2140214ewy.4
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2009 03:48:30 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 429126B004D
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 07:18:57 -0500 (EST)
+Message-ID: <4AEECE2E.2050609@redhat.com>
+Date: Mon, 02 Nov 2009 14:18:54 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1257151763-11507-1-git-send-email-jirislaby@gmail.com>
-References: <4AEE5EA2.6010905@kernel.org>
-	 <1257151763-11507-1-git-send-email-jirislaby@gmail.com>
-Date: Mon, 2 Nov 2009 19:48:30 +0800
-Message-ID: <a8e1da0911020348m177420d2gd1aa25bdf8d53b03@mail.gmail.com>
-Subject: Re: [PATCH 1/1] MM: slqb, fix per_cpu access
-From: Dave Young <hidave.darkstar@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 01/11] Add shared memory hypercall to PV Linux guest.
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-2-git-send-email-gleb@redhat.com>
+In-Reply-To: <1257076590-29559-2-git-send-email-gleb@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: npiggin@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>, Christoph Lameter <cl@linux-foundation.org>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 2, 2009 at 4:49 PM, Jiri Slaby <jirislaby@gmail.com> wrote:
-> We cannot use the same local variable name as the declared per_cpu
-> variable since commit "percpu: remove per_cpu__ prefix."
+On 11/01/2009 01:56 PM, Gleb Natapov wrote:
+> Add hypercall that allows guest and host to setup per cpu shared
+> memory.
 >
-> Otherwise we would see crashes like:
-> general protection fault: 0000 [#1] SMP
-> last sysfs file:
-> CPU 1
-> Modules linked in:
-> Pid: 1, comm: swapper Tainted: G =C2=A0 =C2=A0 =C2=A0 =C2=A0W =C2=A02.6.3=
-2-rc5-mm1_64 #860
-> RIP: 0010:[<ffffffff8142ff94>] =C2=A0[<ffffffff8142ff94>] start_cpu_timer=
-+0x2b/0x87
-> ...
->
-> Use slqb_ prefix for the global variable so that we don't collide
-> even with the rest of the kernel (s390 and alpha need this).
->
-> Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
-> Cc: Nick Piggin <npiggin@suse.de>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Rusty Russell <rusty@rustcorp.com.au>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
+>    
 
-Tested-by: Dave Young <hidave.darkstar@gmail.com>
+Better to set this up as an MSR (with bit zero enabling, bits 1-5 
+features, and 64-byte alignment).  This allows auto-reset on INIT and 
+live migration using the existing MSR save/restore infrastructure.
 
-> ---
-> =C2=A0mm/slqb.c | =C2=A0 10 ++++++----
-> =C2=A01 files changed, 6 insertions(+), 4 deletions(-)
+>   arch/x86/include/asm/kvm_host.h |    3 +
+>   arch/x86/include/asm/kvm_para.h |   11 +++++
+>   arch/x86/kernel/kvm.c           |   82 +++++++++++++++++++++++++++++++++++++++
+>   arch/x86/kernel/setup.c         |    1 +
+>   arch/x86/kernel/smpboot.c       |    3 +
+>   arch/x86/kvm/x86.c              |   70 +++++++++++++++++++++++++++++++++
+>   include/linux/kvm.h             |    1 +
+>   include/linux/kvm_para.h        |    4 ++
+>   8 files changed, 175 insertions(+), 0 deletions(-)
+>    
+
+Please separate into guest and host patches.
+
+> +#define KVM_PV_SHM_VERSION 1
+>    
+
+versions = bad, feature bits = good
+
+> +
+> +#define KVM_PV_SHM_FEATURES_ASYNC_PF		(1<<  0)
+> +
+> +struct kvm_vcpu_pv_shm {
+> +	__u64 features;
+> +	__u64 reason;
+> +	__u64 param;
+> +};
+> +
+>    
+
+Some documentation for this?
+
+Also, the name should reflect the pv pagefault use.  For other uses we 
+can register other areas.
+
+>   #define MMU_QUEUE_SIZE 1024
 >
-> diff --git a/mm/slqb.c b/mm/slqb.c
-> index e745d9a..e4bb53f 100644
-> --- a/mm/slqb.c
-> +++ b/mm/slqb.c
-> @@ -2766,11 +2766,12 @@ out:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0schedule_delayed_work(work, round_jiffies_rela=
-tive(3*HZ));
-> =C2=A0}
+> @@ -37,6 +41,7 @@ struct kvm_para_state {
+>   };
 >
-> -static DEFINE_PER_CPU(struct delayed_work, cache_trim_work);
-> +static DEFINE_PER_CPU(struct delayed_work, slqb_cache_trim_work);
->
-> =C2=A0static void __cpuinit start_cpu_timer(int cpu)
-> =C2=A0{
-> - =C2=A0 =C2=A0 =C2=A0 struct delayed_work *cache_trim_work =3D &per_cpu(=
-cache_trim_work, cpu);
-> + =C2=A0 =C2=A0 =C2=A0 struct delayed_work *cache_trim_work =3D &per_cpu(=
-slqb_cache_trim_work,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 cpu);
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * When this gets called from do_initcalls via=
- cpucache_init(),
-> @@ -3136,8 +3137,9 @@ static int __cpuinit slab_cpuup_callback(struct not=
-ifier_block *nfb,
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0case CPU_DOWN_PREPARE:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0case CPU_DOWN_PREPARE_FROZEN:
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cancel_rearming_delaye=
-d_work(&per_cpu(cache_trim_work, cpu));
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 per_cpu(cache_trim_wor=
-k, cpu).work.func =3D NULL;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cancel_rearming_delaye=
-d_work(&per_cpu(slqb_cache_trim_work,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cpu));
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 per_cpu(slqb_cache_tri=
-m_work, cpu).work.func =3D NULL;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0break;
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0case CPU_UP_CANCELED:
-> --
-> 1.6.4.2
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =C2=A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =C2=A0http://www.tux.org/lkml/
->
+>   static DEFINE_PER_CPU(struct kvm_para_state, para_state);
+> +static DEFINE_PER_CPU(struct kvm_vcpu_pv_shm *, kvm_vcpu_pv_shm);
+>    
+
+Easier to put the entire structure here, not a pointer.
+
+> +
+> +static int kvm_pv_reboot_notify(struct notifier_block *nb,
+> +				unsigned long code, void *unused)
+> +{
+> +	if (code == SYS_RESTART)
+> +		on_each_cpu(kvm_pv_unregister_shm, NULL, 1);
+> +	return NOTIFY_DONE;
+> +}
+> +
+> +static struct notifier_block kvm_pv_reboot_nb = {
+> +        .notifier_call = kvm_pv_reboot_notify,
+> +};
+>    
+
+Is this called on kexec, or do we need another hook?
+
+> +static int kvm_pv_setup_shm(struct kvm_vcpu *vcpu, unsigned long gpa,
+> +			    unsigned long size, unsigned long version,
+> +			    unsigned long *ret)
+> +{
+> +	addr = gfn_to_hva(vcpu->kvm, gfn);
+> +	if (kvm_is_error_hva(addr))
+> +		return -EFAULT;
+> +
+> +	/* pin page with pv shared memory */
+> +	down_read(&mm->mmap_sem);
+> +	r = get_user_pages(current, mm, addr, 1, 1, 0,&vcpu->arch.pv_shm_page,
+> +			   NULL);
+> +	up_read(&mm->mmap_sem);
+>    
+
+This fails if the memory area straddles a page boundary.  Aligning would 
+solve this.  I prefer using put_user() though than a permanent 
+get_user_pages().
 
 
-
---=20
-Regards
-dave
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
