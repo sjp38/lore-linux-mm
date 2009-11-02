@@ -1,32 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8FD3B6B007E
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 14:05:32 -0500 (EST)
-Message-ID: <4AEF2D78.5060607@redhat.com>
-Date: Mon, 02 Nov 2009 14:05:28 -0500
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 447006B0087
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 14:33:56 -0500 (EST)
+Message-ID: <4AEF3419.1050200@redhat.com>
+Date: Mon, 02 Nov 2009 21:33:45 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/11] Add get_user_pages() variant that fails if major
- fault is required.
-References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-6-git-send-email-gleb@redhat.com>
-In-Reply-To: <1257076590-29559-6-git-send-email-gleb@redhat.com>
+Subject: Re: [PATCH 02/11] Add "handle page fault" PV helper.
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-3-git-send-email-gleb@redhat.com> <20091102092214.GB8933@elte.hu> <4AEF2D0A.4070807@redhat.com>
+In-Reply-To: <4AEF2D0A.4070807@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On 11/01/2009 06:56 AM, Gleb Natapov wrote:
-> This patch add get_user_pages() variant that only succeeds if getting
-> a reference to a page doesn't require major fault.
+On 11/02/2009 09:03 PM, Rik van Riel wrote:
+>> This patch is not acceptable unless it's done cleaner. Currently we
+>> already have 3 callbacks in do_page_fault() (kmemcheck, mmiotrace,
+>> notifier), and this adds a fourth one.
 >
-> Signed-off-by: Gleb Natapov<gleb@redhat.com>
+>
+> There's another alternative - add our own exception vector
+> for async page faults.  Not sure if that is warranted though,
+> especially if we already have other callbacks in do_page_fault()
+> and we can consolidate them.
+>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+We can't add an exception vector since all the existing ones are either 
+taken or reserved.  We can try to use an interrupt vector as an 
+exception, but that becomes messy, and I'm not sure hardware will allow 
+us to inject an interrupt when interrupts are disabled.
 
 -- 
-All rights reversed.
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
