@@ -1,49 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 951326B0062
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 10:19:24 -0500 (EST)
-Message-ID: <4AEEF878.2090805@redhat.com>
-Date: Mon, 02 Nov 2009 17:19:20 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 944096B0062
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 10:24:42 -0500 (EST)
+Message-ID: <4AEEF9AE.1090904@kernel.org>
+Date: Tue, 03 Nov 2009 00:24:30 +0900
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/11] Add "wait for page" hypercall.
-References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-9-git-send-email-gleb@redhat.com> <4AEED907.5030306@redhat.com> <20091102151320.GC27911@redhat.com>
-In-Reply-To: <20091102151320.GC27911@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 1/1] MM: slqb, fix per_cpu access
+References: <4AEE5EA2.6010905@kernel.org> <1257151763-11507-1-git-send-email-jirislaby@gmail.com>
+In-Reply-To: <1257151763-11507-1-git-send-email-jirislaby@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: npiggin@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/02/2009 05:13 PM, Gleb Natapov wrote:
-> On Mon, Nov 02, 2009 at 03:05:11PM +0200, Avi Kivity wrote:
->    
->> On 11/01/2009 01:56 PM, Gleb Natapov wrote:
->>      
->>> We want to be able to inject async pagefault into guest event if a guest
->>> is not executing userspace code. But in this case guest may receive
->>> async page fault in non-sleepable context. In this case it will be
->>> able to make "wait for page" hypercall vcpu will be put to sleep until
->>> page is swapped in and guest can continue without reschedule.
->>>        
->> What's wrong with just 'hlt' and checking in the guest?
->>
->>      
-> Halting here will leave vcpu with interrupt disabled and this will prevent
-> "wake up" signal delivery.
+2009e?? 11i?? 02i? 1/4  17:49, Jiri Slaby wrote:
+> We cannot use the same local variable name as the declared per_cpu
+> variable since commit "percpu: remove per_cpu__ prefix."
+> 
+> Otherwise we would see crashes like:
+> general protection fault: 0000 [#1] SMP
+> last sysfs file:
+> CPU 1
+> Modules linked in:
+> Pid: 1, comm: swapper Tainted: G        W  2.6.32-rc5-mm1_64 #860
+> RIP: 0010:[<ffffffff8142ff94>]  [<ffffffff8142ff94>] start_cpu_timer+0x2b/0x87
+> ...
+> 
+> Use slqb_ prefix for the global variable so that we don't collide
+> even with the rest of the kernel (s390 and alpha need this).
+> 
+> Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
+> Cc: Nick Piggin <npiggin@suse.de>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Rusty Russell <rusty@rustcorp.com.au>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
 
-Page faults can be delivered with interrupts disabled.
+Acked-by: Tejun Heo <tj@kernel.org>
 
->   Enabling interrupts is also not an options
-> since we can't be sure that vcpu can process interrupt at this point.
->    
-
-That's too bad, allowing interrupts in this context can help maintain 
-responsiveness.
+Thanks.
 
 -- 
-error compiling committee.c: too many arguments to function
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
