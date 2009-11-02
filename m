@@ -1,52 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8A26B006A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 12:38:47 -0500 (EST)
-Date: Mon, 2 Nov 2009 17:38:38 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when
-	high-order watermarks are being hit
-Message-ID: <20091102173837.GB22046@csn.ul.ie>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <20091028124756.7af44b6b.akpm@linux-foundation.org> <20091102160534.GA22046@csn.ul.ie> <200911021832.59035.elendil@planet.nl>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7AA8A6B0062
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 12:42:23 -0500 (EST)
+Date: Mon, 2 Nov 2009 19:42:08 +0200
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH 02/11] Add "handle page fault" PV helper.
+Message-ID: <20091102174208.GJ27911@redhat.com>
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com>
+ <1257076590-29559-3-git-send-email-gleb@redhat.com>
+ <20091102092214.GB8933@elte.hu>
+ <20091102160410.GF27911@redhat.com>
+ <20091102161248.GB15423@elte.hu>
+ <20091102162234.GH27911@redhat.com>
+ <20091102162941.GC14544@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200911021832.59035.elendil@planet.nl>
+In-Reply-To: <20091102162941.GC14544@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, =?utf-8?B?RnLDqWTDqXJpYw==?= Weisbecker <fweisbec@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 02, 2009 at 06:32:54PM +0100, Frans Pop wrote:
-> On Monday 02 November 2009, Mel Gorman wrote:
-> > vmscan: Help debug kswapd issues by counting number of rewakeups and
-> > premature sleeps
-> >
-> > There is a growing amount of anedotal evidence that high-order atomic
-> > allocation failures have been increasing since 2.6.31-rc1. The two
-> > strongest possibilities are a marked increase in the number of
-> > GFP_ATOMIC allocations and alterations in timing. Debugging printk
-> > patches have shown for example that kswapd is sleeping for shorter
-> > intervals and going to sleep when watermarks are still not being met.
-> >
-> > This patch adds two kswapd counters to help identify if timing is an
-> > issue. The first counter kswapd_highorder_rewakeup counts the number of
-> > times that kswapd stops reclaiming at one order and restarts at a higher
-> > order. The second counter kswapd_slept_prematurely counts the number of
-> > times kswapd went to sleep when the high watermark was not met.
+On Mon, Nov 02, 2009 at 05:29:41PM +0100, Ingo Molnar wrote:
 > 
-> What testing would you like done with this patch?
+> * Gleb Natapov <gleb@redhat.com> wrote:
 > 
+> > On Mon, Nov 02, 2009 at 05:12:48PM +0100, Ingo Molnar wrote:
+> > > 
+> > > * Gleb Natapov <gleb@redhat.com> wrote:
+> > > 
+> > > > On Mon, Nov 02, 2009 at 10:22:14AM +0100, Ingo Molnar wrote:
+> > > > > 
+> > > > > * Gleb Natapov <gleb@redhat.com> wrote:
+> > > > > 
+> > > > > > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> > > > > > index f4cee90..14707dc 100644
+> > > > > > --- a/arch/x86/mm/fault.c
+> > > > > > +++ b/arch/x86/mm/fault.c
+> > > > > > @@ -952,6 +952,9 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+> > > > > >  	int write;
+> > > > > >  	int fault;
+> > > > > >  
+> > > > > > +	if (arch_handle_page_fault(regs, error_code))
+> > > > > > +		return;
+> > > > > > +
+> > > > > 
+> > > > > This patch is not acceptable unless it's done cleaner. Currently we 
+> > > > > already have 3 callbacks in do_page_fault() (kmemcheck, mmiotrace, 
+> > > > > notifier), and this adds a fourth one. Please consolidate them into a 
+> > > > > single callback site, this is a hotpath on x86.
+> > > > > 
+> > > > This call is patched out by paravirt patching mechanism so overhead 
+> > > > should be zero for non paravirt cases. [...]
+> > > 
+> > > arch_handle_page_fault() isnt upstream yet - precisely what is the 
+> > > instruction sequence injected into do_page_fault() in the patched-out 
+> > > case?
+> > 
+> > It is introduced by the same patch. The instruction inserted is:
+> >  xor %rax, %rax
+> 
+> ok.
+> 
+> My observations still stand:
+> 
+> > > > [...] What do you want to achieve by consolidate them into single 
+> > > > callback? [...]
+> > > 
+> > > Less bloat in a hotpath and a shared callback infrastructure.
+> > > 
+> > > > [...] I mean the code will still exist and will have to be executed on 
+> > > > every #PF. Is the goal to move them out of line?
+> > > 
+> > > The goal is to have a single callback site for all the users - which 
+> > > call-site is patched out ideally - on non-paravirt too if needed. Most 
+> > > of these callbacks/notifier-chains have are inactive most of the time.
+> > > 
+> > > I.e. a very low overhead 'conditional callback' facility, and a single 
+> > > one - not just lots of them sprinkled around the code.
+> 
+> looks like a golden opportunity to get this right.
+>
+Three existing callbacks are: kmemcheck, mmiotrace, notifier. Two
+of them kmemcheck, mmiotrace are enabled only for debugging, should
+not be performance concern. And notifier call sites (two of them)
+are deliberately, as explained by comment, not at the function entry,
+so can't be unified with others. (And kmemcheck also has two different
+call site BTW)
 
-Same reproduction as before except post what the contents of
-/proc/vmstat were after the problem was triggered.
-
-Thanks
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
