@@ -1,67 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1A8F76B0089
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 14:56:46 -0500 (EST)
-Subject: Re: Memory overcommit
-Received: by mail-bw0-f215.google.com with SMTP id 7so7287751bwz.6
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2009 11:56:45 -0800 (PST)
-Message-ID: <4AEF3979.9090306@gmail.com>
-Date: Mon, 02 Nov 2009 20:56:41 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EB9706B0099
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 15:30:41 -0500 (EST)
+Date: Mon, 2 Nov 2009 20:30:34 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
+	failures V2
+Message-ID: <20091102203034.GC22046@csn.ul.ie>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <20091023165810.GA4588@bizet.domek.prywatny> <20091023211239.GA6185@bizet.domek.prywatny> <9ec2d7290910240646p75b93c68v6ea1648d628a9660@mail.gmail.com> <20091028114208.GA14476@bizet.domek.prywatny> <20091028115926.GW8900@csn.ul.ie> <20091030142350.GA9343@bizet.domek.prywatny>
 MIME-Version: 1.0
-References: <hav57c$rso$1@ger.gmane.org> <hb2cfu$r08$2@ger.gmane.org> <20091014135119.e1baa07f.kamezawa.hiroyu@jp.fujitsu.com> <4ADE3121.6090407@gmail.com> <20091026105509.f08eb6a3.kamezawa.hiroyu@jp.fujitsu.com> <4AE5CB4E.4090504@gmail.com> <20091027122213.f3d582b2.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0910271843510.11372@sister.anvils> <alpine.DEB.2.00.0910271351140.9183@chino.kir.corp.google.com> <4AE78B8F.9050201@gmail.com> <alpine.DEB.2.00.0910271723180.17615@chino.kir.corp.google.com> <4AE792B8.5020806@gmail.com> <alpine.DEB.2.00.0910272047430.8988@chino.kir.corp.google.com> <4AE846E8.1070303@gmail.com> <alpine.DEB.2.00.0910281307370.23279@chino.kir.corp.google.com> <4AE9068B.7030504@gmail.com> <alpine.DEB.2.00.0910290132320.11476@chino.kir.corp.google.com> <4AE97618.6060607@gmail.com> <alpine.DEB.2.00.0910291225460.27732@chino.kir.corp.google.com> <4AEAEFDD.5060009@gmail.com> <alpine.DEB.2.00.0910301232180.1090@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.0910301232180.1090@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20091030142350.GA9343@bizet.domek.prywatny>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, minchan.kim@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Karol Lewandowski <karol.k.lewandowski@gmail.com>
+Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes wrote:
-
-> On Fri, 30 Oct 2009, Vedran Furac wrote:
+On Fri, Oct 30, 2009 at 03:23:50PM +0100, Karol Lewandowski wrote:
+> On Wed, Oct 28, 2009 at 11:59:26AM +0000, Mel Gorman wrote:
+> > On Wed, Oct 28, 2009 at 12:42:08PM +0100, Karol Lewandowski wrote:
+> > > On Sat, Oct 24, 2009 at 02:46:56PM +0100, Mel LKML wrote:
+> > > I've tested patches 1+2+3+4 in my normal usage scenario (do some work,
+> > > suspend, do work, suspend, ...) and it failed today after 4 days (== 4
+> > > suspend-resume cycles).
+> > > 
+> > > I'll test 1-5 now.
 > 
->> Well, you are kernel hacker, not me. You know how linux mm works much
->> more than I do. I just reported a, what I think is a big problem, which
->> needs to be solved ASAP (2.6.33).
+> 2.6.32-rc5 with patches 1-5 fails too.
 > 
-> The oom killer heuristics have not been changed recently, why is this 
-> suddenly a problem that needs to be immediately addressed?  The heuristics 
-> you've been referring to have been used for at least three years.
-
-It isn't "suddenly a problem", but only a problem, big long time
-problem. If it is three years old, then it should have been addressed
-asap three years ago (and we would not need to talk about it now,
-hopefully).
-
-> However, I don't think we can simply change the baseline (like the rss 
-> change which has been added to -mm (??)) and consider it a major 
-> improvement when it severely impacts how system administrators are able to 
-> tune the badness heuristic from userspace via /proc/pid/oom_adj.  I'm sure 
-> you'd agree that user input is important in this matter and so that we 
-> should maximize that ability rather than make it more difficult.  That's 
-> my main criticism of the suggestions thus far (and, sorry, but I have to 
-> look out for production server interests here: you can't take away our 
-> ability to influence oom badness scoring just because other simple 
-> heuristics may be more understandable).
 > 
-> What would be better, and what I think we'll end up with, is a root 
-> selectable heuristic so that production servers and desktop machines can 
-> use different heuristics to make oom kill selections.  We already have 
-> /proc/sys/vm/oom_kill_allocating_task which I added 1-2 years ago to 
-> address concerns specifically of SGI and their enormously long tasklist 
-> scans.  This would be variation on that idea and would include different 
-> simplistic behaviors (such as always killing the most memory hogging task, 
-> killing the most recently started task by the same uid, etc), and leave 
-> the default heuristic much the same as currently.
+> > Also, what was the behaviour of the e100 driver when suspending before
+> > this commit?
+> > 
+> > 6905b1f1a03a48dcf115a2927f7b87dba8d5e566: Net / e100: Fix suspend of devices that cannot be power managed
+> 
+> This was discussed before with e100 maintainers and Rafael.  Reverting
+> this patch didn't change anything.
+> 
 
-OK, agreed. Did you take a look at the set of patches Kame sent today?
+Does applying the following on top make any difference?
 
-Regards,
+==== CUT HERE ====
+PM: Shrink memory before suspend
 
-Vedran
+This is a partial revert of c6f37f12197ac3bd2e5a35f2f0e195ae63d437de. It
+is an outside possibility for fixing the e100 bug where an order-5
+allocation is failing during resume. The commit notes that the shrinking
+of memory should be unnecessary but maybe it is in error.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+
+diff --git a/kernel/power/suspend.c b/kernel/power/suspend.c
+index 6f10dfc..4f6ae64 100644
+--- a/kernel/power/suspend.c
++++ b/kernel/power/suspend.c
+@@ -23,6 +23,9 @@ const char *const pm_states[PM_SUSPEND_MAX] = {
+ 	[PM_SUSPEND_MEM]	= "mem",
+ };
+ 
++/* This is just an arbitrary number */
++#define FREE_PAGE_NUMBER (100)
++
+ static struct platform_suspend_ops *suspend_ops;
+ 
+ /**
+@@ -78,6 +81,7 @@ static int suspend_test(int level)
+ static int suspend_prepare(void)
+ {
+ 	int error;
++	unsigned int free_pages;
+ 
+ 	if (!suspend_ops || !suspend_ops->enter)
+ 		return -EPERM;
+@@ -92,10 +96,24 @@ static int suspend_prepare(void)
+ 	if (error)
+ 		goto Finish;
+ 
+-	error = suspend_freeze_processes();
++	if (suspend_freeze_processes()) {
++		error = -EAGAIN;
++		goto Thaw;
++	}
++
++	free_pages = global_page_state(NR_FREE_PAGES);
++	if (free_pages < FREE_PAGE_NUMBER) {
++		pr_debug("PM: free some memory\n");
++		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
++		if (nr_free_pages() < FREE_PAGE_NUMBER) {
++			error = -ENOMEM;
++			printk(KERN_ERR "PM: No enough memory\n");
++		}
++	}
+ 	if (!error)
+ 		return 0;
+ 
++ Thaw:
+ 	suspend_thaw_processes();
+ 	usermodehelper_enable();
+  Finish:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
