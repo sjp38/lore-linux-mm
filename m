@@ -1,60 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id ECDAC6B006A
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 23:27:18 -0500 (EST)
-Message-ID: <4AEE5FA3.1020104@redhat.com>
-Date: Sun, 01 Nov 2009 23:27:15 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 01/11] Add shared memory hypercall to PV Linux guest.
-References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-2-git-send-email-gleb@redhat.com>
-In-Reply-To: <1257076590-29559-2-git-send-email-gleb@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9FED16B004D
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2009 23:59:19 -0500 (EST)
+Received: by gxk21 with SMTP id 21so2339871gxk.10
+        for <linux-mm@kvack.org>; Sun, 01 Nov 2009 20:59:18 -0800 (PST)
+Date: Mon, 2 Nov 2009 13:56:40 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: OOM killer, page fault
+Message-Id: <20091102135640.93de7c2a.minchan.kim@barrios-desktop>
+In-Reply-To: <20091102005218.8352.A69D9226@jp.fujitsu.com>
+References: <20091030063216.GA30712@gamma.logic.tuwien.ac.at>
+	<20091102005218.8352.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Norbert Preining <preining@logic.at>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/01/2009 06:56 AM, Gleb Natapov wrote:
-> Add hypercall that allows guest and host to setup per cpu shared
-> memory.
+On Mon,  2 Nov 2009 13:24:06 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-While it is pretty obvious that we should implement
-the asynchronous pagefaults for KVM, so a swap-in
-of a page the host swapped out does not stall the
-entire virtual CPU, I believe that adding extra
-data accesses at context switch time may not be
-the best tradeoff.
+> Hi,
+> 
+> (Cc to linux-mm)
+> 
+> Wow, this is very strange log.
+> 
+> > Dear all,
+> > 
+> > (please Cc)
+> > 
+> > With 2.6.32-rc5 I got that one:
+> > [13832.210068] Xorg invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0
+> 
+> order = 0
 
-It may be better to simply tell the guest what
-address is faulting (or give the guest some other
-random unique number as a token).  Then, once the
-host brings that page into memory, we can send a
-signal to the guest with that same token.
+I think this problem results from 'gfp_mask = 0x0'.
+Is it possible?
 
-The problem of finding the task(s) associated with
-that token can be left to the guest.  A little more
-complexity on the guest side, but probably worth it
-if we can avoid adding cost to the context switch
-path.
+If it isn't H/W problem, Who passes gfp_mask with 0x0?
+It's culpit. 
 
-> +static void kvm_end_context_switch(struct task_struct *next)
-> +{
-> +	struct kvm_vcpu_pv_shm *pv_shm =
-> +		per_cpu(kvm_vcpu_pv_shm, smp_processor_id());
-> +
-> +	if (!pv_shm)
-> +		return;
-> +
-> +	pv_shm->current_task = (u64)next;
-> +}
-> +
+Could you add BUG_ON(gfp_mask == 0x0) in __alloc_pages_nodemask's head?
 
+---
+
+/*
+ * This is the 'heart' of the zoned buddy allocator.
+ */
+struct page *
+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+                        struct zonelist *zonelist, nodemask_t *nodemask)
+{
+        enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+        struct zone *preferred_zone;
+        struct page *page;
+        int migratetype = allocflags_to_migratetype(gfp_mask);
+
++	BUG_ON(gfp_mask == 0x0);
+        gfp_mask &= gfp_allowed_mask;
+
+        lockdep_trace_alloc(gfp_mask);
+
+        might_sleep_if(gfp_mask & __GFP_WAIT);
+
+        if (should_fail_alloc_page(gfp_mask, order))
+                return NULL;
 
 
 -- 
-All rights reversed.
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
