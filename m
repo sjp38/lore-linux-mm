@@ -1,75 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 37D8C6B006A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 03:49:27 -0500 (EST)
-From: Jiri Slaby <jirislaby@gmail.com>
-Subject: [PATCH 1/1] MM: slqb, fix per_cpu access
-Date: Mon,  2 Nov 2009 09:49:23 +0100
-Message-Id: <1257151763-11507-1-git-send-email-jirislaby@gmail.com>
-In-Reply-To: <4AEE5EA2.6010905@kernel.org>
-References: <4AEE5EA2.6010905@kernel.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 91F646B006A
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 04:22:27 -0500 (EST)
+Date: Mon, 2 Nov 2009 10:22:14 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 02/11] Add "handle page fault" PV helper.
+Message-ID: <20091102092214.GB8933@elte.hu>
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-3-git-send-email-gleb@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1257076590-29559-3-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: npiggin@suse.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Tejun Heo <tj@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>, Christoph Lameter <cl@linux-foundation.org>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-We cannot use the same local variable name as the declared per_cpu
-variable since commit "percpu: remove per_cpu__ prefix."
 
-Otherwise we would see crashes like:
-general protection fault: 0000 [#1] SMP
-last sysfs file:
-CPU 1
-Modules linked in:
-Pid: 1, comm: swapper Tainted: G        W  2.6.32-rc5-mm1_64 #860
-RIP: 0010:[<ffffffff8142ff94>]  [<ffffffff8142ff94>] start_cpu_timer+0x2b/0x87
-...
+* Gleb Natapov <gleb@redhat.com> wrote:
 
-Use slqb_ prefix for the global variable so that we don't collide
-even with the rest of the kernel (s390 and alpha need this).
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index f4cee90..14707dc 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -952,6 +952,9 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+>  	int write;
+>  	int fault;
+>  
+> +	if (arch_handle_page_fault(regs, error_code))
+> +		return;
+> +
 
-Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Christoph Lameter <cl@linux-foundation.org>
----
- mm/slqb.c |   10 ++++++----
- 1 files changed, 6 insertions(+), 4 deletions(-)
+This patch is not acceptable unless it's done cleaner. Currently we 
+already have 3 callbacks in do_page_fault() (kmemcheck, mmiotrace, 
+notifier), and this adds a fourth one. Please consolidate them into a 
+single callback site, this is a hotpath on x86.
 
-diff --git a/mm/slqb.c b/mm/slqb.c
-index e745d9a..e4bb53f 100644
---- a/mm/slqb.c
-+++ b/mm/slqb.c
-@@ -2766,11 +2766,12 @@ out:
- 	schedule_delayed_work(work, round_jiffies_relative(3*HZ));
- }
- 
--static DEFINE_PER_CPU(struct delayed_work, cache_trim_work);
-+static DEFINE_PER_CPU(struct delayed_work, slqb_cache_trim_work);
- 
- static void __cpuinit start_cpu_timer(int cpu)
- {
--	struct delayed_work *cache_trim_work = &per_cpu(cache_trim_work, cpu);
-+	struct delayed_work *cache_trim_work = &per_cpu(slqb_cache_trim_work,
-+			cpu);
- 
- 	/*
- 	 * When this gets called from do_initcalls via cpucache_init(),
-@@ -3136,8 +3137,9 @@ static int __cpuinit slab_cpuup_callback(struct notifier_block *nfb,
- 
- 	case CPU_DOWN_PREPARE:
- 	case CPU_DOWN_PREPARE_FROZEN:
--		cancel_rearming_delayed_work(&per_cpu(cache_trim_work, cpu));
--		per_cpu(cache_trim_work, cpu).work.func = NULL;
-+		cancel_rearming_delayed_work(&per_cpu(slqb_cache_trim_work,
-+					cpu));
-+		per_cpu(slqb_cache_trim_work, cpu).work.func = NULL;
- 		break;
- 
- 	case CPU_UP_CANCELED:
--- 
-1.6.4.2
+And please always Cc: the x86 maintainers to patches that touch x86 
+code.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
