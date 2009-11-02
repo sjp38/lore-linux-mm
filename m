@@ -1,90 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7EEAE6B006A
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 16:18:43 -0500 (EST)
-Message-ID: <4AEF4CF1.3020500@crca.org.au>
-Date: Tue, 03 Nov 2009 08:19:45 +1100
-From: Nigel Cunningham <ncunningham@crca.org.au>
-MIME-Version: 1.0
-Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic
- and unify it
-References: <20091102000855.F404.A69D9226@jp.fujitsu.com> <4AEE0536.6020605@crca.org.au> <20091103002520.886C.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20091103002520.886C.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 596BA6B0044
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 17:19:37 -0500 (EST)
+Subject: Re: Filtering bits in set_pte_at()
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <Pine.LNX.4.64.0911021256330.32400@sister.anvils>
+References: <1256957081.6372.344.camel@pasglop>
+	 <Pine.LNX.4.64.0911021256330.32400@sister.anvils>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 03 Nov 2009 09:19:27 +1100
+Message-ID: <1257200367.7907.50.camel@pasglop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
-
-KOSAKI Motohiro wrote:
->> I haven't given much thought to numa awareness in hibernate code, but I
->> can say that the shrink_all_memory interface is woefully inadequate as
->> far as zone awareness goes. Since lowmem needs to be atomically restored
->> before we can restore highmem, we really need to be able to ask for a
->> particular number of pages of a particular zone type to be freed.
+On Mon, 2009-11-02 at 13:27 +0000, Hugh Dickins wrote:
+> On Sat, 31 Oct 2009, Benjamin Herrenschmidt wrote:
 > 
-> Honestly, I am not suspend/hibernation expert. Can I ask why caller need to know
-> per-zone number of freed pages information? if hibernation don't need highmem.
-> following incremental patch prevent highmem reclaim perfectly. Is it enough?
-
-(Disclaimer: I don't think about highmem a lot any more, and might have
-forgotten some of the details, or swsusp's algorithms might have
-changed. Rafael might need to correct some of this...)
-
-Imagine that you have a system with 1000 pages of lowmem and 5000 pages
-of highmem. Of these, 950 lowmem pages are in use and 500 highmem pages
-are in use.
-
-In order to to be able to save an image, we need to be able to do an
-atomic copy of those lowmem pages.
-
-You might think that we could just copy everything into the spare
-highmem pages, but we can't because mapping and unmapping the highmem
-pages as we copy the data will leave us with an inconsistent copy.
-Depending on the configuration, it might (for example) have one page -
-say on in the pagetables - reflecting one page being kmapped and another
-page - containing the variables that record what kmap slots are used,
-for example - recording a different page being kmapped.
-
-What we do, then, is seek to atomically copy the lowmem pages to lowmem.
-That requires, however, that we have at least half of the lowmem pages
-free. So, then, we need a function that lets us free lowmem pages only.
-
-I hope that makes it clearer.
-
-> ---
->  mm/vmscan.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+> > Hi folks !
+> > 
+> > So I have a little problem on powerpc ... :-)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index e6ea011..7fb3435 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2265,7 +2265,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
->  {
->  	struct reclaim_state reclaim_state;
->  	struct scan_control sc = {
-> -		.gfp_mask = GFP_HIGHUSER_MOVABLE,
-> +		.gfp_mask = GFP_KERNEL,
->  		.may_swap = 1,
->  		.may_unmap = 1,
->  		.may_writepage = 1,
+> Thanks a lot for running this by us.
 
-I don't think so. I think what we really need is:
+Heh, I though you may have been bored :-)
 
-shrink_memory_type(gfp_mask, pages_needed)
+> I've not looked to see if there are more such issues in arch/powerpc
+> itself, but those instances you mention are the only ones I managed
+> to find: uses of update_mmu_cache() and that hugetlb_cow() one.
 
-That is, a function that would let us say "Free 489 pages of lowmem" or
-"Free 983 pages of highmem" or "Free 340 pages of any kind of memory".
-(The later might be used if we just want to free some pages because the
-image as it stands is too big for the storage available).
+Right, that's all I spotted so far
 
-Regards,
+> The hugetlb_cow() one involves not set_pte_at() but set_huge_pte_at(),
+> so you'd want to change that too?  And presumably set_pte_at_notify()?
+> It all seems a lot of tedium, when so very few places are interested
+> in the pte after they've set it.
 
-Nigel
+We need to change set_huge_pte_at() too. Currently, David fixed the
+problem in a local tree by making hugetlb_cow() re-read the PTE . 
+
+set_pte_at_notify() would probably be similar, I'm not too familiar with
+its usage scenario yet to be honest.
+
+> > What do you suggest we do here ? Among the options at hand:
+> > 
+> >  - Ugly but would probably "just work" with the last amount of changes:
+> > we could make set_pte_at() be a macro on powerpc that modifies it's PTE
+> > value argument :-) (I -did- warn it was ugly !)
+> 
+> I'm not keen on that one :)
+
+Yeah. Me neither :-)
+
+> >  - Another one slightly less bad that would require more work but mostly
+> > mechanical arch header updates would be to make set_pte_at() return the
+> > new value of the PTE, and thus change the callsites to something like:
+> > 
+> > 	entry = set_pte_at(mm, addr, ptep, entry)
+> 
+> I prefer that, but it still seems more trouble than it's worth.
+
+Right. I was hoping you might have a better idea :-)
+
+> And though I prefer it to set_pte_at(mm, addr, ptep, &entry)
+> (which would anyway complicate many of the callsites), it might
+> unnecessarily increase the codesize for all architectures (depends
+> on whether gcc notices entry isn't used afterwards anyway).
+
+Macro or static inlines back to __set_pte_at(..., entry) in those archs
+would probably take care of avoiding the bloat but still a lot of churn.
+> >
+> >  - Any other idea ? We could use another PTE bit (_PAGE_HWEXEC), in
+> > fact, we used to, but we are really short on PTE bits nowadays and I
+> > freed that one up to get _PAGE_SPECIAL... _PAGE_EXEC is trivial to
+> > "recover" from ptep_set_access_flags() on an exec fault or from the VM
+> > prot.
+> 
+> No, please don't go ransacking your PTE for a sparish bit.
+
+Yeah, the whole exercise for me was initially to -save- PTE bits :-)
+
+> You're being a very good citizen to want to bring this so forcefully
+> to the attention of any user of set_pte_at(); but given how few care,
+> and the other such functions you'd want to change too, am I being
+> disgracefully lazy to suggest that you simply change the occasional
+> 
+> 		update_mmu_cache(vma, address, pte);
+> to
+> 		/* powerpc's set_pte_at might have adjusted the pte */
+> 		update_mmu_cache(vma, address, *ptep);
+> 
+> ?  Which would make no difference to those architectures whose
+> update_mmu_cache() is an empty macro.  And fix the mm/hugetlb.c
+> instance in a similar way?
+
+That would do fine. In fact, I've always been slightly annoyed by
+set_pte_at() not taking the PTE pointer for other reasons such as on
+64-K pages, we have a "hidden" part of the PTE that is at PTE address +
+32K, or we may want to get to the PTE page for some reason (some arch
+store things there) etc...
+
+IE. update_mmu_cache() would be more generally useful if it took the
+ptep instead of the pte. Of course, I'm sure some embedded archs are
+going to cry for the added load here ... 
+
+I like your idea. I'll look into doing a patch converting it and will
+post it here.
+
+Thanks !
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
