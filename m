@@ -1,81 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E776A6B004D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 11:30:03 -0500 (EST)
-Date: Mon, 2 Nov 2009 17:29:41 +0100
-From: Ingo Molnar <mingo@elte.hu>
+	by kanga.kvack.org (Postfix) with SMTP id 19DFA6B004D
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 11:32:13 -0500 (EST)
+Date: Mon, 2 Nov 2009 18:31:48 +0200
+From: Gleb Natapov <gleb@redhat.com>
 Subject: Re: [PATCH 02/11] Add "handle page fault" PV helper.
-Message-ID: <20091102162941.GC14544@elte.hu>
-References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-3-git-send-email-gleb@redhat.com> <20091102092214.GB8933@elte.hu> <20091102160410.GF27911@redhat.com> <20091102161248.GB15423@elte.hu> <20091102162234.GH27911@redhat.com>
+Message-ID: <20091102163148.GI27911@redhat.com>
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com>
+ <1257076590-29559-3-git-send-email-gleb@redhat.com>
+ <20091102092214.GB8933@elte.hu>
+ <20091102160410.GF27911@redhat.com>
+ <20091102161248.GB15423@elte.hu>
+ <20091102162234.GH27911@redhat.com>
+ <20091102162941.GC14544@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091102162234.GH27911@redhat.com>
+In-Reply-To: <20091102162941.GC14544@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, =?utf-8?B?RnLDqWTDqXJpYw==?= Weisbecker <fweisbec@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-
-* Gleb Natapov <gleb@redhat.com> wrote:
-
-> On Mon, Nov 02, 2009 at 05:12:48PM +0100, Ingo Molnar wrote:
-> > 
-> > * Gleb Natapov <gleb@redhat.com> wrote:
-> > 
-> > > On Mon, Nov 02, 2009 at 10:22:14AM +0100, Ingo Molnar wrote:
-> > > > 
-> > > > * Gleb Natapov <gleb@redhat.com> wrote:
-> > > > 
-> > > > > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> > > > > index f4cee90..14707dc 100644
-> > > > > --- a/arch/x86/mm/fault.c
-> > > > > +++ b/arch/x86/mm/fault.c
-> > > > > @@ -952,6 +952,9 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
-> > > > >  	int write;
-> > > > >  	int fault;
-> > > > >  
-> > > > > +	if (arch_handle_page_fault(regs, error_code))
-> > > > > +		return;
-> > > > > +
-> > > > 
-> > > > This patch is not acceptable unless it's done cleaner. Currently we 
-> > > > already have 3 callbacks in do_page_fault() (kmemcheck, mmiotrace, 
-> > > > notifier), and this adds a fourth one. Please consolidate them into a 
-> > > > single callback site, this is a hotpath on x86.
-> > > > 
-> > > This call is patched out by paravirt patching mechanism so overhead 
-> > > should be zero for non paravirt cases. [...]
-> > 
-> > arch_handle_page_fault() isnt upstream yet - precisely what is the 
-> > instruction sequence injected into do_page_fault() in the patched-out 
-> > case?
+On Mon, Nov 02, 2009 at 05:29:41PM +0100, Ingo Molnar wrote:
 > 
-> It is introduced by the same patch. The instruction inserted is:
->  xor %rax, %rax
-
-ok.
-
-My observations still stand:
-
-> > > [...] What do you want to achieve by consolidate them into single 
-> > > callback? [...]
+> * Gleb Natapov <gleb@redhat.com> wrote:
+> 
+> > On Mon, Nov 02, 2009 at 05:12:48PM +0100, Ingo Molnar wrote:
+> > > 
+> > > * Gleb Natapov <gleb@redhat.com> wrote:
+> > > 
+> > > > On Mon, Nov 02, 2009 at 10:22:14AM +0100, Ingo Molnar wrote:
+> > > > > 
+> > > > > * Gleb Natapov <gleb@redhat.com> wrote:
+> > > > > 
+> > > > > > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> > > > > > index f4cee90..14707dc 100644
+> > > > > > --- a/arch/x86/mm/fault.c
+> > > > > > +++ b/arch/x86/mm/fault.c
+> > > > > > @@ -952,6 +952,9 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+> > > > > >  	int write;
+> > > > > >  	int fault;
+> > > > > >  
+> > > > > > +	if (arch_handle_page_fault(regs, error_code))
+> > > > > > +		return;
+> > > > > > +
+> > > > > 
+> > > > > This patch is not acceptable unless it's done cleaner. Currently we 
+> > > > > already have 3 callbacks in do_page_fault() (kmemcheck, mmiotrace, 
+> > > > > notifier), and this adds a fourth one. Please consolidate them into a 
+> > > > > single callback site, this is a hotpath on x86.
+> > > > > 
+> > > > This call is patched out by paravirt patching mechanism so overhead 
+> > > > should be zero for non paravirt cases. [...]
+> > > 
+> > > arch_handle_page_fault() isnt upstream yet - precisely what is the 
+> > > instruction sequence injected into do_page_fault() in the patched-out 
+> > > case?
 > > 
-> > Less bloat in a hotpath and a shared callback infrastructure.
-> > 
-> > > [...] I mean the code will still exist and will have to be executed on 
-> > > every #PF. Is the goal to move them out of line?
-> > 
-> > The goal is to have a single callback site for all the users - which 
-> > call-site is patched out ideally - on non-paravirt too if needed. Most 
-> > of these callbacks/notifier-chains have are inactive most of the time.
-> > 
-> > I.e. a very low overhead 'conditional callback' facility, and a single 
-> > one - not just lots of them sprinkled around the code.
+> > It is introduced by the same patch. The instruction inserted is:
+> >  xor %rax, %rax
+> 
+> ok.
+> 
+> My observations still stand:
+> 
+> > > > [...] What do you want to achieve by consolidate them into single 
+> > > > callback? [...]
+> > > 
+> > > Less bloat in a hotpath and a shared callback infrastructure.
+> > > 
+> > > > [...] I mean the code will still exist and will have to be executed on 
+> > > > every #PF. Is the goal to move them out of line?
+> > > 
+> > > The goal is to have a single callback site for all the users - which 
+> > > call-site is patched out ideally - on non-paravirt too if needed. Most 
+> > > of these callbacks/notifier-chains have are inactive most of the time.
+> > > 
+> > > I.e. a very low overhead 'conditional callback' facility, and a single 
+> > > one - not just lots of them sprinkled around the code.
+> 
+> looks like a golden opportunity to get this right.
+> 
+I'll look into it. Expect questions from me ;)
 
-looks like a golden opportunity to get this right.
-
-	Ingo
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
