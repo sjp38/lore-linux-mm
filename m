@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A45276B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 15:24:09 -0500 (EST)
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id nA3KO62s011800
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:24:06 -0800
-Received: from pwi12 (pwi12.prod.google.com [10.241.219.12])
-	by zps19.corp.google.com with ESMTP id nA3KLWld012756
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:24:03 -0800
-Received: by pwi12 with SMTP id 12so2994218pwi.25
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2009 12:24:03 -0800 (PST)
-Date: Tue, 3 Nov 2009 12:24:01 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 203C96B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 15:29:52 -0500 (EST)
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id nA3KTiK7003147
+	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 20:29:44 GMT
+Received: from pzk34 (pzk34.prod.google.com [10.243.19.162])
+	by spaceape14.eur.corp.google.com with ESMTP id nA3KTftE010093
+	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:29:42 -0800
+Received: by pzk34 with SMTP id 34so4396662pzk.11
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2009 12:29:41 -0800 (PST)
+Date: Tue, 3 Nov 2009 12:29:39 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][-mm][PATCH 3/6] oom-killer: count lowmem rss
-In-Reply-To: <20091102162617.9d07e05f.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0911031220170.25890@chino.kir.corp.google.com>
-References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com> <20091102162617.9d07e05f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][-mm][PATCH 5/6] oom-killer: check last total_vm
+ expansion
+In-Reply-To: <20091102162837.405783f3.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0911031224270.25890@chino.kir.corp.google.com>
+References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com> <20091102162837.405783f3.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,24 +28,20 @@ On Mon, 2 Nov 2009, KAMEZAWA Hiroyuki wrote:
 
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Count lowmem rss per mm_struct. Lowmem here means...
+> At considering oom-kill algorithm, we can't avoid to take runtime
+> into account. But this can adds too big bonus to slow-memory-leaker.
+> For adding penalty to slow-memory-leaker, we record jiffies of
+> the last mm->hiwater_vm expansion. That catches processes which leak
+> memory periodically.
 > 
->    for NUMA, pages in a zone < policy_zone.
->    for HIGHMEM x86, pages in NORMAL zone.
->    for others, all pages are lowmem.
-> 
-> Now, lower_zone_protection[] works very well for protecting lowmem but
-> possiblity of lowmem-oom is not 0 even if under good protection in the kernel.
-> (As fact, it's can be configured by sysctl. When we keep it high, there
->  will be tons of not-for-use memory but system will be protected against
->  rare event of lowmem-oom.)
 
-Right, lowmem isn't addressed currently by the oom killer.  Adding this 
-constraint will probably make the heuristics much harder to write and 
-understand.  It's not always clear that we want to kill a task using 
-lowmem just because another task needs some, for instance.  Do you think 
-we'll need a way to defer killing any task is no task is heuristically 
-found to be hogging lowmem?
+No, it doesn't, it simply measures the last time the hiwater mark was 
+increased.  That could have increased by a single page in the last tick 
+with no increase in memory consumption over the past year and then its 
+unfairly biased against for quiet_time in the new oom kill heuristic 
+(patch 6).  Using this as part of the badness scoring is ill conceived 
+because it doesn't necessarily indicate a memory leaking task, just one 
+that has recently allocated memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
