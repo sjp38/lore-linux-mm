@@ -1,39 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A5E5B6B004D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 23:57:19 -0500 (EST)
-Message-ID: <4AEFB823.4040607@redhat.com>
-Date: Tue, 03 Nov 2009 06:57:07 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2DAE36B004D
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 00:15:15 -0500 (EST)
+Message-ID: <4AEFBC5E.7020300@redhat.com>
+Date: Tue, 03 Nov 2009 07:15:10 +0200
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/11] Add "handle page fault" PV helper.
-References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-3-git-send-email-gleb@redhat.com> <20091102092214.GB8933@elte.hu> <4AEF2D0A.4070807@redhat.com> <4AEF3419.1050200@redhat.com> <4AEF6CC3.4000508@redhat.com>
-In-Reply-To: <4AEF6CC3.4000508@redhat.com>
+Subject: Re: [PATCH 01/11] Add shared memory hypercall to PV Linux guest.
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-2-git-send-email-gleb@redhat.com> <4AEECE2E.2050609@redhat.com> <20091102161809.GG27911@redhat.com>
+In-Reply-To: <20091102161809.GG27911@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/03/2009 01:35 AM, Rik van Riel wrote:
->> We can't add an exception vector since all the existing ones are either
->> taken or reserved.
->
->
-> I believe some are reserved for operating system use.
+On 11/02/2009 06:18 PM, Gleb Natapov wrote:
+>>> +#define KVM_PV_SHM_VERSION 1
+>>>        
+>> versions = bad, feature bits = good
+>>
+>>      
+> I have both! Do you want me to drop version?
+>    
 
-Table 6-1 says:
+Yes.  Once a kernel is released you can't realistically change the version.
 
-   9 |  | Coprocessor Segment Overrun (reserved)  |  Fault |  No  | 
-Floating-point instruction.2
-   15 |  a?? |  (Intel reserved. Do not use.) |   | No |
-   20-31 |  a?? | Intel reserved. Do not use.  |
-   32-255 |  a??  | User Defined (Non-reserved) Interrupts |  Interrupt  
-|   | External interrupt or INT n instruction.
+>> Some documentation for this?
+>>
+>> Also, the name should reflect the pv pagefault use.  For other uses
+>> we can register other areas.
+>>
+>>      
+> I wanted it to be generic, but I am fine with making it apf specific.
+> It will allow to make it smaller too.
+>    
 
-So we can only use 32-255, but these are not fault-like exceptions that 
-can be delivered with interrupts disabled.
+Maybe we can squeeze it into the page-fault error code?
+
+>> would solve this.  I prefer using put_user() though than a permanent
+>> get_user_pages().
+>>
+>>      
+> I want to prevent it from been swapped out.
+>    
+
+Since you don't prevent the page fault handler or code from being 
+swapped out, you don't get anything out of it.
 
 -- 
 Do not meddle in the internals of kernels, for they are subtle and quick to panic.
