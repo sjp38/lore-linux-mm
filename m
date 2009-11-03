@@ -1,104 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E7F136B006A
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 08:14:46 -0500 (EST)
-Date: Tue, 3 Nov 2009 21:14:34 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC] [PATCH] Avoid livelock for fsync
-Message-ID: <20091103131434.GA9648@localhost>
-References: <20091026181314.GE7233@duck.suse.cz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3951C6B004D
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 09:00:46 -0500 (EST)
+Date: Tue, 3 Nov 2009 23:00:41 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic and unify it
+In-Reply-To: <200911022003.52125.rjw@sisk.pl>
+References: <20091103002506.8869.A69D9226@jp.fujitsu.com> <200911022003.52125.rjw@sisk.pl>
+Message-Id: <20091103141200.0B3C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091026181314.GE7233@duck.suse.cz>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, hch@infradead.org, chris.mason@oracle.com, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Jan,
-
-Sorry for being late! - for some reason I was just able to see your email.
-
-On Mon, Oct 26, 2009 at 07:13:14PM +0100, Jan Kara wrote:
->   Hi,
+> On Monday 02 November 2009, KOSAKI Motohiro wrote:
+> > > > Then, This patch changed shrink_all_memory() to only the wrapper function of 
+> > > > do_try_to_free_pages(). it bring good reviewability and debuggability, and solve 
+> > > > above problems.
+> > > > 
+> > > > side note: Reclaim logic unificication makes two good side effect.
+> > > >  - Fix recursive reclaim bug on shrink_all_memory().
+> > > >    it did forgot to use PF_MEMALLOC. it mean the system be able to stuck into deadlock.
+> > > >  - Now, shrink_all_memory() got lockdep awareness. it bring good debuggability.
+> > > 
+> > > As I said previously, I don't really see a reason to keep shrink_all_memory().
+> > > 
+> > > Do you think that removing it will result in performance degradation?
+> > 
+> > Hmm...
+> > Probably, I misunderstood your mention. I thought you suggested to kill
+> > all hibernation specific reclaim code. I did. It's no performance degression.
+> > (At least, I didn't observe)
+> > 
+> > But, if you hope to kill shrink_all_memory() function itsef, the short answer is,
+> > it's impossible.
+> > 
+> > Current VM reclaim code need some preparetion to caller, and there are existing in
+> > both alloc_pages_slowpath() and try_to_free_pages(). We can't omit its preparation.
 > 
->   on my way back from Kernel Summit, I've coded the attached patch which
-> implements livelock avoidance for write_cache_pages. We tag patches that
-> should be written in the beginning of write_cache_pages and then write
-> only tagged pages (see the patch for details). The patch is based on Nick's
-> idea.
+> Well, my grepping for 'shrink_all_memory' throughout the entire kernel source
+> code seems to indicate that hibernate_preallocate_memory() is the only current
+> user of it.  I may be wrong, but I doubt it, unless some new users have been
+> added since 2.6.31.
+> 
+> In case I'm not wrong, it should be safe to drop it from
+> hibernate_preallocate_memory(), because it's there for performance reasons
+> only.  Now, since hibernate_preallocate_memory() appears to be the only user of
+> it, it should be safe to drop it entirely.
 
-Yes, tagging is a very fine grained way for livelock avoidance.
-However I doubt this patch can achieve the simplification goals
-listed below..
+Hmmm...
+I've try the dropping shrink_all_memory() today. but I've got bad result.
 
->   The next thing I've aimed at with this patch is a simplification of
-> current writeback code. Basically, with this patch I think we can just rip
-> out all the range_cyclic and nr_to_write (or other "fairness logic"). The
-> rationalle is following:
->   What we want to achieve with fairness logic is that when a page is
-> dirtied, it gets written to disk within some reasonable time (like 30s or
+In 3 times test, result were
 
-Right.
+ 2 times: kernel hang-up ;)
+ 1 time:   success, but make slower than with shrink_all_memory() about 100x times.
 
-> so). We track dirty time on per-inode basis only because keeping it
-> per-page is simply too expensive. So in this setting fairness between
 
-Right.
+Did you try to drop it yourself on your machine? Is this success?
 
-> inodes really does not make any sence - why should be a page in a file
-> penalized and written later only because there are lots of other dirty
-> pages in the file? It is enough to make sure that we don't write one file
-> indefinitely when there are new dirty pages continuously created - and my
-> patch achieves that.
 
-This is a big policy change. Imagine dirty files A=4GB, B=C=D=1MB.
-With current policy, it could be
 
-        sync 4MB of A
-        sync B
-        sync C
-        sync D
-        sync 4MB of A
-        sync 4MB of A
-        ...
+> > Please see following shrink_all_memory() code. it's pretty small. it only have
+> > few vmscan preparation. I don't think it is hard to maintainance.
+> 
+> No, it's not, but I'm really not sure it's worth keeping.
 
-And you want to change to
 
-        sync A (all 4GB)
-        sync B
-        sync C
-        sync D
-
-This means the writeback of B,C,D won't be able to start at 30s, but
-delayed to 80s because of A. This is not entirely fair. IMHO writeback
-of big files shall not delay small files too much. 
-
->   So with my patch we can make write_cache_pages always write from
-> range_start (or 0) to range_end (or EOF) and write all tagged pages. Also
-> after changing balance_dirty_pages() so that a throttled process does not
-> directly submit the IO (Fengguang has the patches for this), we can
-> completely remove the nr_to_write logic because nothing really uses it
-> anymore. Thus also the requeue_io logic should go away etc...
-
-For the above reason I think we should think twice on removing
-nr_to_write and requeue_io()..
-
->   Fengguang, do you have the series somewhere publicly available? You had
-> there a plenty of changes and quite some of them are not needed when the
-> above is done. So could you maybe separate out the balance_dirty_pages
-> change and I'd base my patch and further simplifications on top of that?
-> Thanks.
-
-Sorry I don't maintain a public git tree. However it's a good idea to
-break down the big patchset to smaller pieces, and submit/review them
-bits by bits.
-
-I'm on leave tomorrow and will do that after coming back.
-
-Thanks,
-Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
