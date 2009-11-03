@@ -1,45 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 20E316B0062
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 10:44:39 -0500 (EST)
-Date: Tue, 3 Nov 2009 11:55:43 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E69936B004D
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 11:04:15 -0500 (EST)
+Date: Tue, 3 Nov 2009 12:18:29 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: RFC: Transparent Hugepage support
-Message-ID: <20091103105543.GH11981@random.random>
+Message-ID: <20091103111829.GJ11981@random.random>
 References: <20091026185130.GC4868@random.random>
- <87ljiwk8el.fsf@basil.nowhere.org>
- <20091027193007.GA6043@random.random>
- <20091028042805.GJ7744@basil.fritz.box>
- <20091029094344.GA1068@elte.hu>
- <20091029103658.GJ9640@random.random>
- <20091030094037.9e0118d8.kamezawa.hiroyu@jp.fujitsu.com>
+ <1257024567.7907.17.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091030094037.9e0118d8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1257024567.7907.17.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 30, 2009 at 09:40:37AM +0900, KAMEZAWA Hiroyuki wrote:
-> Ah, please keep CONFIG_TRANSPARENT_HUGEPAGE for a while.
-> Now, memcg don't handle hugetlbfs because it's special and cannot be freed by
-> the kernel, only users can free it. But this new transparent-hugepage seems to
-> be designed as that the kernel can free it for memory reclaiming.
-> So, I'd like to handle this in memcg transparently.
+On Sun, Nov 01, 2009 at 08:29:27AM +1100, Benjamin Herrenschmidt wrote:
+> This isn't possible on all architectures. Some archs have "segment"
+> constraints which mean only one page size per such "segment". Server
+> ppc's for example (segment size being either 256M or 1T depending on the
+> CPU).
+
+Hmm 256M is already too large for a transparent allocation. It will
+require reservation and hugetlbfs to me actually seems a perfect fit
+for this hardware limitation. The software limits of hugetlbfs matches
+the hardware limit perfectly and it already provides all necessary
+permission and reservation features needed to deal with extremely huge
+page sizes that probabilistically would never be found in the buddy
+(even if we were to extend it to make it not impossible). That are
+hugely expensive to defrag dynamically even if we could [and we can't
+hope to defrag many of those because of slab]. Just in case it's not
+obvious the probability we can defrag degrades exponentially with the
+increase of the hugepagesize (which also means 256M is already orders
+of magnitude more realistic to function than than 1G). Clearly if we
+increase slab to allocate with a front allocator in 256M chunk then
+our probability increases substantially, but to make something
+realistic there's at minimum an order of 10000 times between
+hugepagesize and total ram size. I.e. if 2M page makes some
+probabilistic sense with slab front-allocating 2M pages on a 64G
+system, for 256M pages to make an equivalent sense, system would
+require minimum 8Terabyte of ram. If pages were 1G sized system would
+require 32 Terabyte of ram (and the bigger overhead and trouble we
+would have considering some allocation would still happen in 4k ptes
+and the fixed overhead of relocating those 4k ranges would be much
+bigger if the hugepage size is a lot bigger than 2M and the regular
+page size is still 4k).
+
+> > The most important design choice is: always fallback to 4k allocation
+> > if the hugepage allocation fails! This is the _very_ opposite of some
+> > large pagecache patches that failed with -EIO back then if a 64k (or
+> > similar) allocation failed...
 > 
-> But it seems I need several changes to support this new rule.
-> I'm glad if this new huge page depends on !CONFIG_CGROUP_MEM_RES_CTRL for a
-> while.
+> Precisely because the approach cannot work on all architectures ?
 
-Yeah the accounting (not just memcg) should be checked.. I didn't pay
-too much attention to stats at this point.
-
-But we want to fix it fast instead of making the two options mutually
-exclusive.. Where are the pages de-accounted when they are freed?
-Accounting seems to require just two one liners
-calling mem_cgroup_newpage_charge.
+I thought the main reason for those patches was to allow a fs
+blocksize bigger than PAGE_SIZE, a PAGE_CACHE_SIZE of 64k would allow
+for a 64k fs blocksize without much fs changes. But yes, if the mmu
+can't fallback, then software can't fallback either and so it impedes
+the transparent design on those architectures... To me hugetlbfs looks
+as best as you can get on those mmu.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
