@@ -1,91 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4C0E46B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 13:51:56 -0500 (EST)
-Message-ID: <4AF07BB7.1020802@gmail.com>
-Date: Tue, 03 Nov 2009 19:51:35 +0100
-From: Eric Dumazet <eric.dumazet@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
-References: <cover.1257267892.git.mst@redhat.com> <20091103172422.GD5591@redhat.com> <4AF0708B.4020406@gmail.com> <4AF07199.2020601@gmail.com> <4AF072EE.9020202@gmail.com>
-In-Reply-To: <4AF072EE.9020202@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B099B6B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 14:11:03 -0500 (EST)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e31.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id nA3J3xkt028889
+	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:03:59 -0700
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nA3JAZ9I146458
+	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:10:36 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nA3JAY1Z012056
+	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:10:34 -0700
+Subject: Re: RFC: Transparent Hugepage support
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20091103111829.GJ11981@random.random>
+References: <20091026185130.GC4868@random.random>
+	 <1257024567.7907.17.camel@pasglop>  <20091103111829.GJ11981@random.random>
+Content-Type: text/plain
+Date: Tue, 03 Nov 2009 11:10:32 -0800
+Message-Id: <1257275432.31972.2712.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gregory Haskins <gregory.haskins@gmail.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Gregory Haskins a ecrit :
-> Gregory Haskins wrote:
->> Eric Dumazet wrote:
->>> Michael S. Tsirkin a ecrit :
->>>> +static void handle_tx(struct vhost_net *net)
->>>> +{
->>>> +	struct vhost_virtqueue *vq = &net->dev.vqs[VHOST_NET_VQ_TX];
->>>> +	unsigned head, out, in, s;
->>>> +	struct msghdr msg = {
->>>> +		.msg_name = NULL,
->>>> +		.msg_namelen = 0,
->>>> +		.msg_control = NULL,
->>>> +		.msg_controllen = 0,
->>>> +		.msg_iov = vq->iov,
->>>> +		.msg_flags = MSG_DONTWAIT,
->>>> +	};
->>>> +	size_t len, total_len = 0;
->>>> +	int err, wmem;
->>>> +	size_t hdr_size;
->>>> +	struct socket *sock = rcu_dereference(vq->private_data);
->>>> +	if (!sock)
->>>> +		return;
->>>> +
->>>> +	wmem = atomic_read(&sock->sk->sk_wmem_alloc);
->>>> +	if (wmem >= sock->sk->sk_sndbuf)
->>>> +		return;
->>>> +
->>>> +	use_mm(net->dev.mm);
->>>> +	mutex_lock(&vq->mutex);
->>>> +	vhost_no_notify(vq);
->>>> +
->>> using rcu_dereference() and mutex_lock() at the same time seems wrong, I suspect
->>> that your use of RCU is not correct.
->>>
->>> 1) rcu_dereference() should be done inside a read_rcu_lock() section, and
->>>    we are not allowed to sleep in such a section.
->>>    (Quoting Documentation/RCU/whatisRCU.txt :
->>>      It is illegal to block while in an RCU read-side critical section, )
->>>
->>> 2) mutex_lock() can sleep (ie block)
->>>
->>
->> Michael,
->>   I warned you that this needed better documentation ;)
->>
->> Eric,
->>   I think I flagged this once before, but Michael convinced me that it
->> was indeed "ok", if but perhaps a bit unconventional.  I will try to
->> find the thread.
->>
->> Kind Regards,
->> -Greg
->>
+On Tue, 2009-11-03 at 12:18 +0100, Andrea Arcangeli wrote:
+> On Sun, Nov 01, 2009 at 08:29:27AM +1100, Benjamin Herrenschmidt wrote:
+> > This isn't possible on all architectures. Some archs have "segment"
+> > constraints which mean only one page size per such "segment". Server
+> > ppc's for example (segment size being either 256M or 1T depending on the
+> > CPU).
 > 
-> Here it is:
-> 
-> http://lkml.org/lkml/2009/8/12/173
-> 
+> Hmm 256M is already too large for a transparent allocation. It will
+> require reservation and hugetlbfs to me actually seems a perfect fit
+> for this hardware limitation. The software limits of hugetlbfs matches
+> the hardware limit perfectly and it already provides all necessary
+> permission and reservation features needed to deal with extremely huge
+> page sizes that probabilistically would never be found in the buddy
+> (even if we were to extend it to make it not impossible).
 
-Yes, this doesnt convince me at all, and could be a precedent for a wrong RCU use.
-People wanting to use RCU do a grep on kernel sources to find how to correctly
-use RCU.
+POWER is pretty unusual in its mmu.  These 256MB (or 1TB) segments are
+the granularity with which we must make the choice about page size, but
+they *aren't* the page size itself.
 
-Michael, please use existing locking/barrier mechanisms, and not pretend to use RCU.
+We can fill that 256MB segment with any 16MB pages from all over the
+physical address space, but we just can't *mix* 4k and 16MB mappings in
+the same 256MB virtual area.
 
-Some automatic tools might barf later.
+16*16MB pages are going to be hard to get, but they are much much easier
+to get than 1 256MB page.  But, remember that most ppc64 systems have a
+64k page, so the 16MB page is actually only an order-8 allocation.
+x86-64's huge pages are order-9.  So, it sucks, but allocating the pages
+themselves isn't that big of an issue.  It's getting a big enough
+virtual bunch of them together without any small pages in the segment.
 
-For example, we could add a debugging facility to check that rcu_dereference() is used
-in an appropriate context, ie conflict with existing mutex_lock() debugging facility.
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
