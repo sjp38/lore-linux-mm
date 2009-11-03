@@ -1,116 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F1946B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 17:55:44 -0500 (EST)
-Date: Tue, 3 Nov 2009 15:54:41 -0700
-From: Alex Chiang <achiang@hp.com>
-Subject: [PATCH] page-types: decode flags directly from command line
-Message-ID: <20091103225441.GB4087@grease>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3EA4E6B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 18:09:13 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA3N9Apu003614
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 4 Nov 2009 08:09:10 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1105845DE55
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:09:10 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D1DC945DE4E
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:09:09 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id ACBEBE1800A
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:09:09 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DC1AE1800F
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:09:09 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
+In-Reply-To: <4AEF394A.4050102@gmail.com>
+References: <2f11576a0911020435n103538d0p9d2afed4d39b4726@mail.gmail.com> <4AEF394A.4050102@gmail.com>
+Message-Id: <20091104002903.0B4D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Wed,  4 Nov 2009 08:09:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: vedran.furac@gmail.com
+Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Teach page-types to decode page flags directly from the command
-line.
+> KOSAKI Motohiro wrote:
+> 
+> > Oh, I'm sorry. I mesured with rss patch.
+> > Then, I haven't understand what makes Xorg bad score.
+> > 
+> > Hmm...
+> > Vedran,  Can you please post following command result?
+> > 
+> > # cat /proc/`pidof Xorg`/smaps
+> > 
+> > I hope to undestand the issue clearly before modify any code.
+> 
+> No problem:
+> 
+> http://pastebin.com/d66972025 (long)
+> 
+> Xorg is from debian unstable.
 
-Why is this useful? For instance, if you're using memory hotplug
-and see this in /var/log/messages:
+Hmm...
 
-	kernel: removing from LRU failed 3836dd0/1/1e00000000000400
+Your Xorg have pretty large heap. I'm not sure why it happen.
+(ATI video card issue?)
+Unfortunatelly, It is showed as normal large heap from kernel. then,
+I doubt kernel can distinguish X from other process. Probably
+oom-adj is most reasonable option....
 
-It would be nice to decode those page flags without staring at
-the source.
+-------------------------------------------------
+[heap]
+Size:             433812 kB
+Rss:              433304 kB
+Pss:              433304 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:       280 kB
+Private_Dirty:    433024 kB
+Referenced:       415656 kB
+Swap:                  0 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
 
-Example usage and output:
 
-linux-2.6/Documentation/vm$ ./page-types -d 0x1e00000000000400
-             flags	page-count       MB  symbolic-flags			long-symbolic-flags
-0x1e00000000000400	         1        0  __________B_______________________buddy
-             total	         1        0
 
-Signed-off-by: Alex Chiang <achiang@hp.com>
----
- page-types.c |   26 ++++++++++++++++++++++++--
- 1 file changed, 24 insertions(+), 2 deletions(-)
----
-diff --git a/Documentation/vm/page-types.c b/Documentation/vm/page-types.c
-index 3ec4f2a..a55c624 100644
---- a/Documentation/vm/page-types.c
-+++ b/Documentation/vm/page-types.c
-@@ -674,6 +674,7 @@ static void usage(void)
- 	printf(
- "page-types [options]\n"
- "            -r|--raw                  Raw mode, for kernel developers\n"
-+"            -d|--decode  flags        Decode a single page's flags\n"
- "            -a|--addr    addr-spec    Walk a range of pages\n"
- "            -b|--bits    bits-spec    Walk pages with specified bits\n"
- "            -p|--pid     pid          Walk process address space\n"
-@@ -682,10 +683,12 @@ static void usage(void)
- #endif
- "            -l|--list                 Show page details in ranges\n"
- "            -L|--list-each            Show page details one by one\n"
--"            -N|--no-summary           Don't show summay info\n"
-+"            -N|--no-summary           Don't show summary info\n"
- "            -X|--hwpoison             hwpoison pages\n"
- "            -x|--unpoison             unpoison pages\n"
- "            -h|--help                 Show this usage message\n"
-+"flags:\n"
-+"            0x0000000000000400        A single page's flags, e.g.\n"
- "addr-spec:\n"
- "            N                         one page at offset N (unit: pages)\n"
- "            N+M                       pages range from N to N+M-1\n"
-@@ -884,12 +887,28 @@ static void parse_bits_mask(const char *optarg)
- 	add_bits_filter(mask, bits);
- }
- 
-+static void decode_flags_and_exit(const char *optarg)
-+{
-+	uint64_t flags;
-+
-+	flags = parse_number(optarg);
-+
-+	opt_list = 0;
-+	opt_hwpoison = 0;
-+	opt_unpoison = 0;
-+
-+	add_page(0, 0, flags);
-+	show_summary();
-+
-+	exit(0);
-+}
- 
- static struct option opts[] = {
- 	{ "raw"       , 0, NULL, 'r' },
- 	{ "pid"       , 1, NULL, 'p' },
- 	{ "file"      , 1, NULL, 'f' },
- 	{ "addr"      , 1, NULL, 'a' },
-+	{ "decode"    , 1, NULL, 'd' },
- 	{ "bits"      , 1, NULL, 'b' },
- 	{ "list"      , 0, NULL, 'l' },
- 	{ "list-each" , 0, NULL, 'L' },
-@@ -907,7 +926,7 @@ int main(int argc, char *argv[])
- 	page_size = getpagesize();
- 
- 	while ((c = getopt_long(argc, argv,
--				"rp:f:a:b:lLNXxh", opts, NULL)) != -1) {
-+				"rp:f:a:b:d:lLNXxh", opts, NULL)) != -1) {
- 		switch (c) {
- 		case 'r':
- 			opt_raw = 1;
-@@ -924,6 +943,9 @@ int main(int argc, char *argv[])
- 		case 'b':
- 			parse_bits_mask(optarg);
- 			break;
-+		case 'd':
-+			decode_flags_and_exit(optarg);
-+			break;
- 		case 'l':
- 			opt_list = 1;
- 			break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
