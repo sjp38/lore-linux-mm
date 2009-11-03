@@ -1,79 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3EA4E6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 18:09:13 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA3N9Apu003614
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 4 Nov 2009 08:09:10 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1105845DE55
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:09:10 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D1DC945DE4E
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:09:09 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id ACBEBE1800A
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:09:09 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DC1AE1800F
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:09:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-In-Reply-To: <4AEF394A.4050102@gmail.com>
-References: <2f11576a0911020435n103538d0p9d2afed4d39b4726@mail.gmail.com> <4AEF394A.4050102@gmail.com>
-Message-Id: <20091104002903.0B4D.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id CBC566B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 18:30:03 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id D746F82C572
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 18:36:35 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id OaqxD7P0az+2 for <linux-mm@kvack.org>;
+	Tue,  3 Nov 2009 18:36:29 -0500 (EST)
+Received: from V090114053VZO-1 (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id DE73382D557
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 12:17:37 -0500 (EST)
+Date: Tue, 3 Nov 2009 12:10:04 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use
+ ALLOC_HARDER
+In-Reply-To: <alpine.DEB.2.00.0911021249470.22525@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.1.10.0911031208150.21943@V090114053VZO-1>
+References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <1256650833-15516-3-git-send-email-mel@csn.ul.ie> <20091027130924.fa903f5a.akpm@linux-foundation.org> <alpine.DEB.2.00.0910271411530.9183@chino.kir.corp.google.com> <20091031184054.GB1475@ucw.cz>
+ <alpine.DEB.2.00.0910311248490.13829@chino.kir.corp.google.com> <20091031201158.GB29536@elf.ucw.cz> <4AECCF6A.4020206@redhat.com> <alpine.DEB.1.10.0911021139100.24535@V090114053VZO-1> <alpine.DEB.2.00.0911021249470.22525@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed,  4 Nov 2009 08:09:08 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: vedran.furac@gmail.com
-Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Pavel Machek <pavel@ucw.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Stephan von Krawczynski <skraw@ithnet.com>, kernel-testers@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> KOSAKI Motohiro wrote:
-> 
-> > Oh, I'm sorry. I mesured with rss patch.
-> > Then, I haven't understand what makes Xorg bad score.
-> > 
-> > Hmm...
-> > Vedran,  Can you please post following command result?
-> > 
-> > # cat /proc/`pidof Xorg`/smaps
-> > 
-> > I hope to undestand the issue clearly before modify any code.
-> 
-> No problem:
-> 
-> http://pastebin.com/d66972025 (long)
-> 
-> Xorg is from debian unstable.
+On Mon, 2 Nov 2009, David Rientjes wrote:
 
-Hmm...
+> Realtime in this scenario is anything with a priority of MAX_RT_PRIO or
+> lower.
 
-Your Xorg have pretty large heap. I'm not sure why it happen.
-(ATI video card issue?)
-Unfortunatelly, It is showed as normal large heap from kernel. then,
-I doubt kernel can distinguish X from other process. Probably
-oom-adj is most reasonable option....
-
--------------------------------------------------
-[heap]
-Size:             433812 kB
-Rss:              433304 kB
-Pss:              433304 kB
-Shared_Clean:          0 kB
-Shared_Dirty:          0 kB
-Private_Clean:       280 kB
-Private_Dirty:    433024 kB
-Referenced:       415656 kB
-Swap:                  0 kB
-KernelPageSize:        4 kB
-MMUPageSize:           4 kB
-
-
-
+If you dont know what "realtime" is then we cannot really implement
+"realtime" behavior in the page allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
