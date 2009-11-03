@@ -1,62 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D9E8F6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 16:11:12 -0500 (EST)
-Message-ID: <4AF09CB2.9030500@crca.org.au>
-Date: Wed, 04 Nov 2009 08:12:18 +1100
-From: Nigel Cunningham <ncunningham@crca.org.au>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 71F4D6B0062
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 16:11:31 -0500 (EST)
+Message-ID: <4AF09C70.6090505@gmail.com>
+Date: Tue, 03 Nov 2009 22:11:12 +0100
+From: Eric Dumazet <eric.dumazet@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic
- and unify it
-References: <20091102000855.F404.A69D9226@jp.fujitsu.com> <20091103002520.886C.A69D9226@jp.fujitsu.com> <4AEF4CF1.3020500@crca.org.au> <200911031230.20344.rjw@sisk.pl>
-In-Reply-To: <200911031230.20344.rjw@sisk.pl>
+Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
+References: <cover.1257267892.git.mst@redhat.com> <20091103172422.GD5591@redhat.com> <4AF0708B.4020406@gmail.com> <4AF07199.2020601@gmail.com> <4AF072EE.9020202@gmail.com> <4AF07BB7.1020802@gmail.com> <20091103195841.GB6669@redhat.com>
+In-Reply-To: <20091103195841.GB6669@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Gregory Haskins <gregory.haskins@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Rafael.
-
-Rafael J. Wysocki wrote:
-> On Monday 02 November 2009, Nigel Cunningham wrote:
->> Hi.
+Michael S. Tsirkin a ecrit :
 > 
-> Hi,
+> Paul, you acked this previously. Should I add you acked-by line so
+> people calm down?  If you would rather I replace
+> rcu_dereference/rcu_assign_pointer with rmb/wmb, I can do this.
+> Or maybe patch Documentation to explain this RCU usage?
 > 
->> KOSAKI Motohiro wrote:
->>>> I haven't given much thought to numa awareness in hibernate code, but I
->>>> can say that the shrink_all_memory interface is woefully inadequate as
->>>> far as zone awareness goes. Since lowmem needs to be atomically restored
->>>> before we can restore highmem, we really need to be able to ask for a
->>>> particular number of pages of a particular zone type to be freed.
->>> Honestly, I am not suspend/hibernation expert. Can I ask why caller need to know
->>> per-zone number of freed pages information? if hibernation don't need highmem.
->>> following incremental patch prevent highmem reclaim perfectly. Is it enough?
->> (Disclaimer: I don't think about highmem a lot any more, and might have
->> forgotten some of the details, or swsusp's algorithms might have
->> changed. Rafael might need to correct some of this...)
->>
->> Imagine that you have a system with 1000 pages of lowmem and 5000 pages
->> of highmem. Of these, 950 lowmem pages are in use and 500 highmem pages
->> are in use.
->>
->> In order to to be able to save an image, we need to be able to do an
->> atomic copy of those lowmem pages.
->>
->> You might think that we could just copy everything into the spare
->> highmem pages, but we can't because mapping and unmapping the highmem
->> pages as we copy the data will leave us with an inconsistent copy.
-> 
-> This isn't the case any more for the mainline hibernate code.  We use highmem
-> for storing image data as well as lowmem.
 
-Highmem for storing copies of lowmem pages?
+So you believe I am over-reacting to this dubious use of RCU ?
 
-Regards,
+RCU documentation is already very complex, we dont need to add yet another
+subtle use, and makes it less readable.
 
-Nigel
+It seems you use 'RCU api' in drivers/vhost/net.c as convenient macros :
+
+#define rcu_dereference(p)     ({ \
+                                typeof(p) _________p1 = ACCESS_ONCE(p); \
+                                smp_read_barrier_depends(); \
+                                (_________p1); \
+                                })
+
+#define rcu_assign_pointer(p, v) \
+        ({ \
+                if (!__builtin_constant_p(v) || \
+                    ((v) != NULL)) \
+                        smp_wmb(); \
+                (p) = (v); \
+        })
+
+
+There are plenty regular uses of smp_wmb() in kernel, not related to Read Copy Update,
+there is nothing wrong to use barriers with appropriate comments.
+
+(And you already use mb(), wmb(), rmb(), smp_wmb() in your patch)
+
+
+BTW there is at least one locking bug in vhost_net_set_features()
+
+Apparently, mutex_unlock() doesnt trigger a fault if mutex is not locked
+by current thread... even with DEBUG_MUTEXES / DEBUG_LOCK_ALLOC
+
+
+static void vhost_net_set_features(struct vhost_net *n, u64 features)
+{
+       size_t hdr_size = features & (1 << VHOST_NET_F_VIRTIO_NET_HDR) ?
+               sizeof(struct virtio_net_hdr) : 0;
+       int i;
+<<!>>  mutex_unlock(&n->dev.mutex);
+       n->dev.acked_features = features;
+       smp_wmb();
+       for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
+               mutex_lock(&n->vqs[i].mutex);
+               n->vqs[i].hdr_size = hdr_size;
+               mutex_unlock(&n->vqs[i].mutex);
+       }
+       mutex_unlock(&n->dev.mutex);
+       vhost_net_flush(n);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
