@@ -1,79 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 71F4D6B0062
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 16:11:31 -0500 (EST)
-Message-ID: <4AF09C70.6090505@gmail.com>
-Date: Tue, 03 Nov 2009 22:11:12 +0100
-From: Eric Dumazet <eric.dumazet@gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1F11D6B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 16:50:35 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic and unify it
+Date: Tue, 3 Nov 2009 22:51:53 +0100
+References: <20091103002506.8869.A69D9226@jp.fujitsu.com> <200911022003.52125.rjw@sisk.pl> <20091103141200.0B3C.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091103141200.0B3C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
-References: <cover.1257267892.git.mst@redhat.com> <20091103172422.GD5591@redhat.com> <4AF0708B.4020406@gmail.com> <4AF07199.2020601@gmail.com> <4AF072EE.9020202@gmail.com> <4AF07BB7.1020802@gmail.com> <20091103195841.GB6669@redhat.com>
-In-Reply-To: <20091103195841.GB6669@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200911032251.53790.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Gregory Haskins <gregory.haskins@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Michael S. Tsirkin a ecrit :
+On Tuesday 03 November 2009, KOSAKI Motohiro wrote:
+> > On Monday 02 November 2009, KOSAKI Motohiro wrote:
+> > > > > Then, This patch changed shrink_all_memory() to only the wrapper function of 
+> > > > > do_try_to_free_pages(). it bring good reviewability and debuggability, and solve 
+> > > > > above problems.
+> > > > > 
+> > > > > side note: Reclaim logic unificication makes two good side effect.
+> > > > >  - Fix recursive reclaim bug on shrink_all_memory().
+> > > > >    it did forgot to use PF_MEMALLOC. it mean the system be able to stuck into deadlock.
+> > > > >  - Now, shrink_all_memory() got lockdep awareness. it bring good debuggability.
+> > > > 
+> > > > As I said previously, I don't really see a reason to keep shrink_all_memory().
+> > > > 
+> > > > Do you think that removing it will result in performance degradation?
+> > > 
+> > > Hmm...
+> > > Probably, I misunderstood your mention. I thought you suggested to kill
+> > > all hibernation specific reclaim code. I did. It's no performance degression.
+> > > (At least, I didn't observe)
+> > > 
+> > > But, if you hope to kill shrink_all_memory() function itsef, the short answer is,
+> > > it's impossible.
+> > > 
+> > > Current VM reclaim code need some preparetion to caller, and there are existing in
+> > > both alloc_pages_slowpath() and try_to_free_pages(). We can't omit its preparation.
+> > 
+> > Well, my grepping for 'shrink_all_memory' throughout the entire kernel source
+> > code seems to indicate that hibernate_preallocate_memory() is the only current
+> > user of it.  I may be wrong, but I doubt it, unless some new users have been
+> > added since 2.6.31.
+> > 
+> > In case I'm not wrong, it should be safe to drop it from
+> > hibernate_preallocate_memory(), because it's there for performance reasons
+> > only.  Now, since hibernate_preallocate_memory() appears to be the only user of
+> > it, it should be safe to drop it entirely.
 > 
-> Paul, you acked this previously. Should I add you acked-by line so
-> people calm down?  If you would rather I replace
-> rcu_dereference/rcu_assign_pointer with rmb/wmb, I can do this.
-> Or maybe patch Documentation to explain this RCU usage?
+> Hmmm...
+> I've try the dropping shrink_all_memory() today. but I've got bad result.
 > 
+> In 3 times test, result were
+> 
+>  2 times: kernel hang-up ;)
+>  1 time:   success, but make slower than with shrink_all_memory() about 100x times.
+> 
+> 
+> Did you try to drop it yourself on your machine? Is this success?
 
-So you believe I am over-reacting to this dubious use of RCU ?
+Generally, yes, but the performance was hit really badly.
 
-RCU documentation is already very complex, we dont need to add yet another
-subtle use, and makes it less readable.
+So, the conclusion is that we need shrink_all_memory() for things to work,
+which is kind of interesting.
 
-It seems you use 'RCU api' in drivers/vhost/net.c as convenient macros :
+In that case, please feel free to add Acked-by: Rafael J. Wysocki <rjw@sisk.pl>
+to the patch.
 
-#define rcu_dereference(p)     ({ \
-                                typeof(p) _________p1 = ACCESS_ONCE(p); \
-                                smp_read_barrier_depends(); \
-                                (_________p1); \
-                                })
-
-#define rcu_assign_pointer(p, v) \
-        ({ \
-                if (!__builtin_constant_p(v) || \
-                    ((v) != NULL)) \
-                        smp_wmb(); \
-                (p) = (v); \
-        })
-
-
-There are plenty regular uses of smp_wmb() in kernel, not related to Read Copy Update,
-there is nothing wrong to use barriers with appropriate comments.
-
-(And you already use mb(), wmb(), rmb(), smp_wmb() in your patch)
-
-
-BTW there is at least one locking bug in vhost_net_set_features()
-
-Apparently, mutex_unlock() doesnt trigger a fault if mutex is not locked
-by current thread... even with DEBUG_MUTEXES / DEBUG_LOCK_ALLOC
-
-
-static void vhost_net_set_features(struct vhost_net *n, u64 features)
-{
-       size_t hdr_size = features & (1 << VHOST_NET_F_VIRTIO_NET_HDR) ?
-               sizeof(struct virtio_net_hdr) : 0;
-       int i;
-<<!>>  mutex_unlock(&n->dev.mutex);
-       n->dev.acked_features = features;
-       smp_wmb();
-       for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
-               mutex_lock(&n->vqs[i].mutex);
-               n->vqs[i].hdr_size = hdr_size;
-               mutex_unlock(&n->vqs[i].mutex);
-       }
-       mutex_unlock(&n->dev.mutex);
-       vhost_net_flush(n);
-}
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
