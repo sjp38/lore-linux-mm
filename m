@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B099B6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 14:11:03 -0500 (EST)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e31.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id nA3J3xkt028889
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:03:59 -0700
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nA3JAZ9I146458
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:10:36 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nA3JAY1Z012056
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 12:10:34 -0700
-Subject: Re: RFC: Transparent Hugepage support
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20091103111829.GJ11981@random.random>
-References: <20091026185130.GC4868@random.random>
-	 <1257024567.7907.17.camel@pasglop>  <20091103111829.GJ11981@random.random>
-Content-Type: text/plain
-Date: Tue, 03 Nov 2009 11:10:32 -0800
-Message-Id: <1257275432.31972.2712.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 10B2C6B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 14:47:36 -0500 (EST)
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id nA3JlU5o005492
+	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 19:47:31 GMT
+Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
+	by zps38.corp.google.com with ESMTP id nA3JlRvD017153
+	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 11:47:28 -0800
+Received: by pwj6 with SMTP id 6so2915159pwj.22
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2009 11:47:27 -0800 (PST)
+Date: Tue, 3 Nov 2009 11:47:23 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][-mm][PATCH 2/6] oom-killer: count swap usage per
+ process.
+In-Reply-To: <20091102162526.c985c5a8.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0911031144390.11821@chino.kir.corp.google.com>
+References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com> <20091102162526.c985c5a8.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, minchan.kim@gmail.com, vedran.furac@gmail.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-11-03 at 12:18 +0100, Andrea Arcangeli wrote:
-> On Sun, Nov 01, 2009 at 08:29:27AM +1100, Benjamin Herrenschmidt wrote:
-> > This isn't possible on all architectures. Some archs have "segment"
-> > constraints which mean only one page size per such "segment". Server
-> > ppc's for example (segment size being either 256M or 1T depending on the
-> > CPU).
+On Mon, 2 Nov 2009, KAMEZAWA Hiroyuki wrote:
+
+> Now, anon_rss and file_rss is counted as RSS and exported via /proc.
+> RSS usage is important information but one more information which
+> is often asked by users is "usage of swap".(user support team said.)
 > 
-> Hmm 256M is already too large for a transparent allocation. It will
-> require reservation and hugetlbfs to me actually seems a perfect fit
-> for this hardware limitation. The software limits of hugetlbfs matches
-> the hardware limit perfectly and it already provides all necessary
-> permission and reservation features needed to deal with extremely huge
-> page sizes that probabilistically would never be found in the buddy
-> (even if we were to extend it to make it not impossible).
+> This patch counts swap entry usage per process and show it via
+> /proc/<pid>/status. I think status file is robust against new entry.
+> Then, it is the first candidate..
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-POWER is pretty unusual in its mmu.  These 256MB (or 1TB) segments are
-the granularity with which we must make the choice about page size, but
-they *aren't* the page size itself.
+Acked-by; David Rientjes <rientjes@google.com>
 
-We can fill that 256MB segment with any 16MB pages from all over the
-physical address space, but we just can't *mix* 4k and 16MB mappings in
-the same 256MB virtual area.
+Thanks!  I think this should be added to -mm now while the remainder of 
+your patchset is developed and reviewed, it's helpful as an independent 
+change.
 
-16*16MB pages are going to be hard to get, but they are much much easier
-to get than 1 256MB page.  But, remember that most ppc64 systems have a
-64k page, so the 16MB page is actually only an order-8 allocation.
-x86-64's huge pages are order-9.  So, it sucks, but allocating the pages
-themselves isn't that big of an issue.  It's getting a big enough
-virtual bunch of them together without any small pages in the segment.
+> Index: mmotm-2.6.32-Nov2/fs/proc/task_mmu.c
+> ===================================================================
+> --- mmotm-2.6.32-Nov2.orig/fs/proc/task_mmu.c
+> +++ mmotm-2.6.32-Nov2/fs/proc/task_mmu.c
+> @@ -17,7 +17,7 @@
+>  void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  {
+>  	unsigned long data, text, lib;
+> -	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
+> +	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss, swap;
+>  
+>  	/*
+>  	 * Note: to minimize their overhead, mm maintains hiwater_vm and
+> @@ -36,6 +36,8 @@ void task_mem(struct seq_file *m, struct
+>  	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
+>  	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
+>  	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
+> +
+> +	swap = get_mm_counter(mm, swap_usage);
+>  	seq_printf(m,
+>  		"VmPeak:\t%8lu kB\n"
+>  		"VmSize:\t%8lu kB\n"
 
--- Dave
+Not sure about this newline though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
