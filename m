@@ -1,39 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 099336B004D
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 04:23:52 -0500 (EST)
-Subject: Re: Kmemleak for mips
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <43e72e890911020907m7cfc48edpd300243de7af36ed@mail.gmail.com>
-References: <43e72e890911020907m7cfc48edpd300243de7af36ed@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 03 Nov 2009 09:23:47 +0000
-Message-Id: <1257240227.22183.3.camel@pc1117.cambridge.arm.com>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D12656B004D
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 06:29:09 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCHv2 2/5] vmscan: Kill hibernation specific reclaim logic and unify it
+Date: Tue, 3 Nov 2009 12:30:20 +0100
+References: <20091102000855.F404.A69D9226@jp.fujitsu.com> <20091103002520.886C.A69D9226@jp.fujitsu.com> <4AEF4CF1.3020500@crca.org.au>
+In-Reply-To: <4AEF4CF1.3020500@crca.org.au>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200911031230.20344.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: "Luis R. Rodriguez" <mcgrof@gmail.com>
-Cc: subscriptions@stroomer.com, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, "John W. Linville" <linville@tuxdriver.com>, linux-kernel@vger.kernel.org
+To: Nigel Cunningham <ncunningham@crca.org.au>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-11-02 at 09:07 -0800, Luis R. Rodriguez wrote:
-> Curious what the limitations are on restricting kmemleak to non-mips
-> archs. I have a user and situation [1] where this could be helpful [1]
-> in debugging an issue. The user reports he cannot enable it on mips.
+On Monday 02 November 2009, Nigel Cunningham wrote:
+> Hi.
 
-It may just work but cannot be enabled because I cannot test kmemleak on
-such hardware. In general you need to make sure that the _sdata/_edata
-and __bss_start/__bss_stop symbols are defined. If there are other ways
-of allocating memory than the standard API, it would need additional
-hooks. Some false-positives specific to MIPS may need to be annotated
-(usually with kmemleak_not_leak).
+Hi,
 
-(btw, you could also merge the kmemleak.git tree on git.kernel.org as it
-has improvements on the rate of false positives; the patches will be
-pushed in 2.6.33-rc1)
+> KOSAKI Motohiro wrote:
+> >> I haven't given much thought to numa awareness in hibernate code, but I
+> >> can say that the shrink_all_memory interface is woefully inadequate as
+> >> far as zone awareness goes. Since lowmem needs to be atomically restored
+> >> before we can restore highmem, we really need to be able to ask for a
+> >> particular number of pages of a particular zone type to be freed.
+> > 
+> > Honestly, I am not suspend/hibernation expert. Can I ask why caller need to know
+> > per-zone number of freed pages information? if hibernation don't need highmem.
+> > following incremental patch prevent highmem reclaim perfectly. Is it enough?
+> 
+> (Disclaimer: I don't think about highmem a lot any more, and might have
+> forgotten some of the details, or swsusp's algorithms might have
+> changed. Rafael might need to correct some of this...)
+> 
+> Imagine that you have a system with 1000 pages of lowmem and 5000 pages
+> of highmem. Of these, 950 lowmem pages are in use and 500 highmem pages
+> are in use.
+> 
+> In order to to be able to save an image, we need to be able to do an
+> atomic copy of those lowmem pages.
+> 
+> You might think that we could just copy everything into the spare
+> highmem pages, but we can't because mapping and unmapping the highmem
+> pages as we copy the data will leave us with an inconsistent copy.
 
--- 
-Catalin
+This isn't the case any more for the mainline hibernate code.  We use highmem
+for storing image data as well as lowmem.
+
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
