@@ -1,106 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DBF2F6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 18:57:51 -0500 (EST)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nA3Ns5Yt012927
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 18:54:05 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nA3Nvikd107566
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 18:57:44 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nA3Nvh6M000765
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 18:57:44 -0500
-Date: Tue, 3 Nov 2009 15:57:44 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
-Message-ID: <20091103235744.GF6726@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <cover.1257267892.git.mst@redhat.com> <20091103172422.GD5591@redhat.com> <4AF0708B.4020406@gmail.com> <4AF07199.2020601@gmail.com> <4AF072EE.9020202@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4AF072EE.9020202@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 572F26B0062
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 18:58:46 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA3NwhCU028838
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 4 Nov 2009 08:58:43 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E863D45DE53
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:58:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B7AA845DE4D
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:58:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 547D31DB8038
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:58:41 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 78CAC1DB8040
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:58:40 +0900 (JST)
+Date: Wed, 4 Nov 2009 08:56:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][-mm][PATCH 0/6] oom-killer: total renewal
+Message-Id: <20091104085604.f6e8b162.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.0911031229590.25890@chino.kir.corp.google.com>
+References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0911031229590.25890@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gregory Haskins <gregory.haskins@gmail.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, "Michael S. Tsirkin" <mst@redhat.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com
+To: David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, minchan.kim@gmail.com, vedran.furac@gmail.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 03, 2009 at 01:14:06PM -0500, Gregory Haskins wrote:
-> Gregory Haskins wrote:
-> > Eric Dumazet wrote:
-> >> Michael S. Tsirkin a ecrit :
-> >>> +static void handle_tx(struct vhost_net *net)
-> >>> +{
-> >>> +	struct vhost_virtqueue *vq = &net->dev.vqs[VHOST_NET_VQ_TX];
-> >>> +	unsigned head, out, in, s;
-> >>> +	struct msghdr msg = {
-> >>> +		.msg_name = NULL,
-> >>> +		.msg_namelen = 0,
-> >>> +		.msg_control = NULL,
-> >>> +		.msg_controllen = 0,
-> >>> +		.msg_iov = vq->iov,
-> >>> +		.msg_flags = MSG_DONTWAIT,
-> >>> +	};
-> >>> +	size_t len, total_len = 0;
-> >>> +	int err, wmem;
-> >>> +	size_t hdr_size;
-> >>> +	struct socket *sock = rcu_dereference(vq->private_data);
-> >>> +	if (!sock)
-> >>> +		return;
-> >>> +
-> >>> +	wmem = atomic_read(&sock->sk->sk_wmem_alloc);
-> >>> +	if (wmem >= sock->sk->sk_sndbuf)
-> >>> +		return;
-> >>> +
-> >>> +	use_mm(net->dev.mm);
-> >>> +	mutex_lock(&vq->mutex);
-> >>> +	vhost_no_notify(vq);
-> >>> +
-> >> using rcu_dereference() and mutex_lock() at the same time seems wrong, I suspect
-> >> that your use of RCU is not correct.
-> >>
-> >> 1) rcu_dereference() should be done inside a read_rcu_lock() section, and
-> >>    we are not allowed to sleep in such a section.
-> >>    (Quoting Documentation/RCU/whatisRCU.txt :
-> >>      It is illegal to block while in an RCU read-side critical section, )
-> >>
-> >> 2) mutex_lock() can sleep (ie block)
-> >>
+On Tue, 3 Nov 2009 12:34:13 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
+
+> On Mon, 2 Nov 2009, KAMEZAWA Hiroyuki wrote:
+> 
+> > Hi, as discussed in "Memory overcommit" threads, I started rewrite.
 > > 
+> > This is just for showing "I started" (not just chating or sleeping ;)
 > > 
-> > Michael,
-> >   I warned you that this needed better documentation ;)
+> > All implemtations are not fixed yet. So feel free to do any comments.
+> > This set is for minimum change set, I think. Some more rich functions
+> > can be implemented based on this.
 > > 
-> > Eric,
-> >   I think I flagged this once before, but Michael convinced me that it
-> > was indeed "ok", if but perhaps a bit unconventional.  I will try to
-> > find the thread.
+> > All patches are against "mm-of-the-moment snapshot 2009-11-01-10-01"
 > > 
-> > Kind Regards,
-> > -Greg
+> > Patches are organized as
+> > 
+> > (1) pass oom-killer more information, classification and fix mempolicy case.
+> > (2) counting swap usage
+> > (3) counting lowmem usage
+> > (4) fork bomb detector/killer
+> > (5) check expansion of total_vm
+> > (6) rewrite __badness().
+> > 
+> > passed small tests on x86-64 boxes.
 > > 
 > 
-> Here it is:
+> Thanks for looking into improving the oom killer!
 > 
-> http://lkml.org/lkml/2009/8/12/173
+Thank you for review.
 
-What was happening in that case was that the rcu_dereference()
-was being used in a workqueue item.  The role of rcu_read_lock()
-was taken on be the start of execution of the workqueue item, of
-rcu_read_unlock() by the end of execution of the workqueue item, and
-of synchronize_rcu() by flush_workqueue().  This does work, at least
-assuming that flush_workqueue() operates as advertised, which it appears
-to at first glance.
+> I think it would be easier to merge the four different concepts you have 
+> here:
+> 
+>  - counting for swap usage (patch 2),
+> 
+>  - oom killer constraint reorganization (patches 1 and 3),
+> 
+>  - fork bomb detector (patch 4), and 
+> 
+>  - heuristic changes (patches 5 and 6)
+> 
+> into seperate patchsets and get them merged one at a time.
 
-The above code looks somewhat different, however -- I don't see
-handle_tx() being executed in the context of a work queue.  Instead
-it appears to be in an interrupt handler.
+yes, I will do so. I think we share total view of final image.
 
-So what is the story?  Using synchronize_irq() or some such?
+> I think patch 2 can easily be merged into -mm now, and patches 1 and 3 could
+> be merged after cleaned up. 
+ok, maybe patch 1 should be separated more.
 
-							Thanx, Paul
+>We'll probably need more discussion on the rest.
+> 
+agreed.
+
+> Patches 1 and 6 have whitespace damage, btw.
+Oh, will fix.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
