@@ -1,49 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 224016B004D
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 20:22:36 -0500 (EST)
-Subject: Re: Filtering bits in set_pte_at()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.64.0911022342070.30581@sister.anvils>
-References: <1256957081.6372.344.camel@pasglop>
-	 <Pine.LNX.4.64.0911021256330.32400@sister.anvils>
-	 <1257200367.7907.50.camel@pasglop>
-	 <Pine.LNX.4.64.0911022342070.30581@sister.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 03 Nov 2009 12:22:26 +1100
-Message-ID: <1257211346.7907.60.camel@pasglop>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 087F16B004D
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2009 23:27:43 -0500 (EST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Message-Id: <200911031457.39368.rusty@rustcorp.com.au>
+Date: Tue, 3 Nov 2009 14:57:39 +1030
+Subject: [PATCH 7/14] cpumask: avoid deprecated function in mm/slab.c
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-11-02 at 23:45 +0000, Hugh Dickins wrote:
-> > IE. update_mmu_cache() would be more generally useful if it took the
-> > ptep instead of the pte. Of course, I'm sure some embedded archs are
-> > going to cry for the added load here ... 
-> > 
-> > I like your idea. I'll look into doing a patch converting it and
-> will
-> > post it here.
-> 
-> Well, I wasn't proposing
-> 
->                 update_mmu_cache(vma, address, ptep);
-> but
->                 update_mmu_cache(vma, address, *ptep);
-> 
-> which may not meet your future idea, but is much less churn for now
-> i.e. no change to any of the arch's update_mmu_cache(),
-> just a change to some of its callsites. 
 
-I see... but if we go that way, I think we may as well do the whole
-churn... I'll have a look at how bad it is.
+These days we use cpumask_empty() which takes a pointer.
 
-Cheers,
-Ben.
+Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
+---
+ mm/slab.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/mm/slab.c b/mm/slab.c
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1120,7 +1120,7 @@ static void __cpuinit cpuup_canceled(lon
+ 		if (nc)
+ 			free_block(cachep, nc->entry, nc->avail, node);
+ 
+-		if (!cpus_empty(*mask)) {
++		if (!cpumask_empty(mask)) {
+ 			spin_unlock_irq(&l3->list_lock);
+ 			goto free_array_cache;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
