@@ -1,45 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6BB2A6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 21:03:07 -0500 (EST)
-Received: by bwz7 with SMTP id 7so9013069bwz.6
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2009 18:03:05 -0800 (PST)
-Date: Wed, 4 Nov 2009 03:03:01 +0100
-From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
-Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
-	failures V2
-Message-ID: <20091104020301.GA7037@bizet.domek.prywatny>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <20091023165810.GA4588@bizet.domek.prywatny> <20091023211239.GA6185@bizet.domek.prywatny> <9ec2d7290910240646p75b93c68v6ea1648d628a9660@mail.gmail.com> <20091028114208.GA14476@bizet.domek.prywatny> <20091028115926.GW8900@csn.ul.ie> <20091030142350.GA9343@bizet.domek.prywatny> <20091102203034.GC22046@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6F4B76B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 21:06:04 -0500 (EST)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
+Date: Wed, 4 Nov 2009 03:05:55 +0100
+References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <200911040101.50194.elendil@planet.nl> <20091104011811.GG22046@csn.ul.ie>
+In-Reply-To: <20091104011811.GG22046@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20091102203034.GC22046@csn.ul.ie>
+Message-Id: <200911040305.59352.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Karol Lewandowski <karol.k.lewandowski@gmail.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 02, 2009 at 08:30:34PM +0000, Mel Gorman wrote:
-> Does applying the following on top make any difference?
-> 
-> ==== CUT HERE ====
-> PM: Shrink memory before suspend
+On Wednesday 04 November 2009, Mel Gorman wrote:
+> > If you'd like me to test with the congestion_wait() revert on top of
+> > this for comparison, please let me know.
+>
+> No, there is resistance to rolling back the congestion_wait() changes
 
-No, this patch didn't change anything either.
+I've never promoted the revert as a solution. It just shows the cause of a 
+regression.
 
-IIRC I get failures while free(1) shows as much as 20MB free RAM
-(ie. without buffers/caches).  Additionaly nr_free_pages (from
-/proc/vmstat) stays at about 800-1000 under heavy memory pressure
-(gitk on full linux repository).
+> from what I gather because they were introduced for sane reasons. The
+> consequence is just that the reliability of high-order atomics are
+> impacted because more processes are making forward progress where
+> previously they would have waited until kswapd had done work. Your
+> driver has already been fixed in this regard and maybe it's a case that
+> the other atomic users simply have to be fixed to "not do that".
 
+The problem is that although my driver has been fixed so that it no longer 
+causes the SKB allocation errors, the also rather serious behavior change 
+where due to swapping my 3rd gitk takes up to twice as long to load with 
+desktop freezes of up 45 seconds or so is still there.
 
---- babbling follows ---
+Although that's somewhat separate from the issue that started this whole 
+investigation, I still feel that should be sorted out as well.
 
-Hmm, I wonder if it's really timing issue then wouldn't be the case
-that lowering swappiness sysctl would make problem more visible?
-I've vm.swappiness=15, would testing with higher value make any sense?
+The congestion_wait() change, even if theoretically valid, introduced a 
+very real regression IMO. Such long desktop freezes during swapping should 
+be avoided; .30 and earlier simply behaved a whole lot better in the same 
+situation.
 
-Thanks.
+Cheers,
+FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
