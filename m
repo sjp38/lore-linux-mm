@@ -1,82 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6316B0044
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 15:40:11 -0500 (EST)
-Date: Wed, 4 Nov 2009 13:40:08 -0700
-From: Alex Chiang <achiang@hp.com>
-Subject: Re: [PATCH] page-types: decode flags directly from command line
-Message-ID: <20091104204008.GA8211@ldl.fc.hp.com>
-References: <20091103225441.GB4087@grease> <20091104121832.GB26504@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A501B6B0044
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 15:57:27 -0500 (EST)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
+Date: Wed, 4 Nov 2009 21:57:21 +0100
+References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <200911040305.59352.elendil@planet.nl> <20091104154853.GM22046@csn.ul.ie>
+In-Reply-To: <20091104154853.GM22046@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20091104121832.GB26504@localhost>
+Message-Id: <200911042157.25020.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, "Li, Haicheng" <haicheng.li@intel.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Fengguang,
+On Wednesday 04 November 2009, Mel Gorman wrote:
+> Agreed. I'll start from scratch again trying to reproduce what you're
+> seeing locally. I'll try breaking my network card so that it's making
+> high-order atomics and see where I get. Machines that were previously
+> tied up are now free so I might have a better chance.
 
-* Wu Fengguang <fengguang.wu@intel.com>:
-> On Wed, Nov 04, 2009 at 06:54:41AM +0800, Alex Chiang wrote:
-> > Why is this useful? For instance, if you're using memory hotplug
-> > and see this in /var/log/messages:
-> > 
-> > 	kernel: removing from LRU failed 3836dd0/1/1e00000000000400
-> > 
-> > It would be nice to decode those page flags without staring at
-> > the source.
-> 
-> In fact it's more than decode - encoding is also possible with the
-> _same_ code! So maybe "-d" and help message will not be all that
-> appropriate.
+Hmmm. IMO you're looking at this from the wrong side. You don't need to 
+break your network card because the SKB problems are only the *result* of 
+the change, not the *cause*.
 
-I'm sorry, I don't understand this use case, so I'm not sure what
-you're asking me to do.
+I can reproduce the desktop freeze just as easily when I'm using wired 
+(e1000e) networking and when I'm not streaming music at all, but just 
+loading that 3rd gitk instance.
 
-You're saying that a use case would be something like:
+So it's not
+  "I get a desktop freeze because of high order allocations from wireless
+   during swapping",
+but
+  "during very heavy swapping on a system with an encrypted LMV volume
+   group containing (encrypted) fs and (encrytpted) swap, the swapping
+   gets into some semi-stalled state *causing* a long desktop freeze
+   and, if there also happens to be some process trying higher order
+   allocations, failures of those allocations".
 
-	./page-types --encode referenced,mmap
-	0x0000000000000004
+I have tried to indicate this in the past, but it may have gotten lost in 
+the complexity of the issue.
 
-?
+An important clue is still IMO that during the first part of the freezes 
+there is very little disk activity for a long time. Why would that be when 
+the system is supposed to be swapping like hell?
 
-If that's what you're asking for, I guess I'm not sure why that's
-so useful, but then again, I'm a vm n00b so there are probably
-lots of things I don't understand. ;)
-
-> > Example usage and output:
-> > 
-> > linux-2.6/Documentation/vm$ ./page-types -d 0x1e00000000000400
-> >              flags	page-count       MB  symbolic-flags			long-symbolic-flags
-> > 0x1e00000000000400	         1        0  __________B_______________________buddy
-> >              total	         1        0
-> 
-> The output is a bit redundant - so does the code. Could you simplify
-> them a bit?
-
-Well, the code is redundant, but add_page() / show_summary() is a
-simple sequence.
-
-In contrast, I think I'd have to modify walk_addr_ranges() and
-maybe walk_pfn() to do something special when we don't really
-want to do any address space walking, and simply want to
-decode/encode some user input.
-
-Maybe I don't understand you fully? Could you give me a better
-idea of what you're looking for?
-
-As for the output, I'm just reusing show_summary(). Maybe we
-don't need the flags, page-count, and MB columns, but again, the
-patch would be more intrusisive because we'd have to teach
-show_summary() about the special case.
-
-Anyway, I'm happy to make changes closer to what you're looking
-for, but I'd like some more guidance as to what you're expecting.
-
-Thanks,
-/ac
+Cheers,
+FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
