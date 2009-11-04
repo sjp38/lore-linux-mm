@@ -1,103 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 763566B0044
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 07:00:15 -0500 (EST)
-Date: Wed, 4 Nov 2009 13:57:29 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B90286B0044
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 07:07:09 -0500 (EST)
+Date: Wed, 4 Nov 2009 14:04:14 +0200
 From: "Michael S. Tsirkin" <mst@redhat.com>
 Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
-Message-ID: <20091104115729.GD8398@redhat.com>
-References: <cover.1257267892.git.mst@redhat.com> <20091103172422.GD5591@redhat.com> <4AF0708B.4020406@gmail.com> <4AF07199.2020601@gmail.com> <4AF072EE.9020202@gmail.com> <20091103235744.GF6726@linux.vnet.ibm.com>
+Message-ID: <20091104120414.GE8398@redhat.com>
+References: <cover.1257267892.git.mst@redhat.com> <20091103172422.GD5591@redhat.com> <4AF0708B.4020406@gmail.com> <4AF07199.2020601@gmail.com> <4AF072EE.9020202@gmail.com> <4AF07BB7.1020802@gmail.com> <20091103195841.GB6669@redhat.com> <4AF09C70.6090505@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20091103235744.GF6726@linux.vnet.ibm.com>
+In-Reply-To: <4AF09C70.6090505@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Gregory Haskins <gregory.haskins@gmail.com>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Gregory Haskins <gregory.haskins@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 03, 2009 at 03:57:44PM -0800, Paul E. McKenney wrote:
-> On Tue, Nov 03, 2009 at 01:14:06PM -0500, Gregory Haskins wrote:
-> > Gregory Haskins wrote:
-> > > Eric Dumazet wrote:
-> > >> Michael S. Tsirkin a ecrit :
-> > >>> +static void handle_tx(struct vhost_net *net)
-> > >>> +{
-> > >>> +	struct vhost_virtqueue *vq = &net->dev.vqs[VHOST_NET_VQ_TX];
-> > >>> +	unsigned head, out, in, s;
-> > >>> +	struct msghdr msg = {
-> > >>> +		.msg_name = NULL,
-> > >>> +		.msg_namelen = 0,
-> > >>> +		.msg_control = NULL,
-> > >>> +		.msg_controllen = 0,
-> > >>> +		.msg_iov = vq->iov,
-> > >>> +		.msg_flags = MSG_DONTWAIT,
-> > >>> +	};
-> > >>> +	size_t len, total_len = 0;
-> > >>> +	int err, wmem;
-> > >>> +	size_t hdr_size;
-> > >>> +	struct socket *sock = rcu_dereference(vq->private_data);
-> > >>> +	if (!sock)
-> > >>> +		return;
-> > >>> +
-> > >>> +	wmem = atomic_read(&sock->sk->sk_wmem_alloc);
-> > >>> +	if (wmem >= sock->sk->sk_sndbuf)
-> > >>> +		return;
-> > >>> +
-> > >>> +	use_mm(net->dev.mm);
-> > >>> +	mutex_lock(&vq->mutex);
-> > >>> +	vhost_no_notify(vq);
-> > >>> +
-> > >> using rcu_dereference() and mutex_lock() at the same time seems wrong, I suspect
-> > >> that your use of RCU is not correct.
-> > >>
-> > >> 1) rcu_dereference() should be done inside a read_rcu_lock() section, and
-> > >>    we are not allowed to sleep in such a section.
-> > >>    (Quoting Documentation/RCU/whatisRCU.txt :
-> > >>      It is illegal to block while in an RCU read-side critical section, )
-> > >>
-> > >> 2) mutex_lock() can sleep (ie block)
-> > >>
-> > > 
-> > > 
-> > > Michael,
-> > >   I warned you that this needed better documentation ;)
-> > > 
-> > > Eric,
-> > >   I think I flagged this once before, but Michael convinced me that it
-> > > was indeed "ok", if but perhaps a bit unconventional.  I will try to
-> > > find the thread.
-> > > 
-> > > Kind Regards,
-> > > -Greg
-> > > 
+On Tue, Nov 03, 2009 at 10:11:12PM +0100, Eric Dumazet wrote:
+> Michael S. Tsirkin a ecrit :
 > > 
-> > Here it is:
+> > Paul, you acked this previously. Should I add you acked-by line so
+> > people calm down?  If you would rather I replace
+> > rcu_dereference/rcu_assign_pointer with rmb/wmb, I can do this.
+> > Or maybe patch Documentation to explain this RCU usage?
 > > 
-> > http://lkml.org/lkml/2009/8/12/173
 > 
-> What was happening in that case was that the rcu_dereference()
-> was being used in a workqueue item.  The role of rcu_read_lock()
-> was taken on be the start of execution of the workqueue item, of
-> rcu_read_unlock() by the end of execution of the workqueue item, and
-> of synchronize_rcu() by flush_workqueue().  This does work, at least
-> assuming that flush_workqueue() operates as advertised, which it appears
-> to at first glance.
+> So you believe I am over-reacting to this dubious use of RCU ?
 > 
-> The above code looks somewhat different, however -- I don't see
-> handle_tx() being executed in the context of a work queue.  Instead
-> it appears to be in an interrupt handler.
-> So what is the story?  Using synchronize_irq() or some such?
+> RCU documentation is already very complex, we dont need to add yet another
+> subtle use, and makes it less readable.
 > 
-> 							Thanx, Paul
+> It seems you use 'RCU api' in drivers/vhost/net.c as convenient macros :
+> 
+> #define rcu_dereference(p)     ({ \
+>                                 typeof(p) _________p1 = ACCESS_ONCE(p); \
+>                                 smp_read_barrier_depends(); \
+>                                 (_________p1); \
+>                                 })
+> 
+> #define rcu_assign_pointer(p, v) \
+>         ({ \
+>                 if (!__builtin_constant_p(v) || \
+>                     ((v) != NULL)) \
+>                         smp_wmb(); \
+>                 (p) = (v); \
+>         })
+> 
+> 
+> There are plenty regular uses of smp_wmb() in kernel, not related to Read Copy Update,
+> there is nothing wrong to use barriers with appropriate comments.
 
-No, there has been no change (I won't be able to use a mutex in an
-interrupt handler, will I?).  handle_tx is still called in the context
-of a work queue: either from handle_tx_kick or from handle_tx_net which
-are work queue items.
+Well, what I do has classic RCU characteristics: readers do not take
+locks, writers take a lock and flush after update. This is why I believe
+rcu_dereference and rcu_assign_pointer are more appropriate here than
+open-coding barriers.
 
-Can you ack this usage please?
+Before deciding whether it's a good idea to open-code barriers
+instead, I would like to hear Paul's opinion.
+
+> 
+> (And you already use mb(), wmb(), rmb(), smp_wmb() in your patch)
+
+Yes, virtio guest pretty much forces this, there's no way to share
+a lock with the guest.
+
+> BTW there is at least one locking bug in vhost_net_set_features()
+> 
+> Apparently, mutex_unlock() doesnt trigger a fault if mutex is not locked
+> by current thread... even with DEBUG_MUTEXES / DEBUG_LOCK_ALLOC
+> 
+> 
+> static void vhost_net_set_features(struct vhost_net *n, u64 features)
+> {
+>        size_t hdr_size = features & (1 << VHOST_NET_F_VIRTIO_NET_HDR) ?
+>                sizeof(struct virtio_net_hdr) : 0;
+>        int i;
+> <<!>>  mutex_unlock(&n->dev.mutex);
+>        n->dev.acked_features = features;
+>        smp_wmb();
+>        for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
+>                mutex_lock(&n->vqs[i].mutex);
+>                n->vqs[i].hdr_size = hdr_size;
+>                mutex_unlock(&n->vqs[i].mutex);
+>        }
+>        mutex_unlock(&n->dev.mutex);
+>        vhost_net_flush(n);
+> }
+
+Thanks very much for spotting this! Will fix.
 
 -- 
 MST
