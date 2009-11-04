@@ -1,45 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EE67B6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 19:14:11 -0500 (EST)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: Page alloc problems with 2.6.32-rc kernels
-Date: Wed, 4 Nov 2009 01:14:07 +0100
-References: <20091102122010.GA5552@gibson.comsick.at>
-In-Reply-To: <20091102122010.GA5552@gibson.comsick.at>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AE2316B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 19:24:51 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA40OnBb001918
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 4 Nov 2009 09:24:49 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28F0345DE5D
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 09:24:49 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0893645DE57
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 09:24:49 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E49A11DB803C
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 09:24:48 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 97E3E1DB8038
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 09:24:48 +0900 (JST)
+Date: Wed, 4 Nov 2009 09:22:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][-mm][PATCH 3/6] oom-killer: count lowmem rss
+Message-Id: <20091104092213.02f27075.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.0911031220170.25890@chino.kir.corp.google.com>
+References: <20091102162244.9425e49b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091102162617.9d07e05f.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0911031220170.25890@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200911040114.08879.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Michael Guntsche <mike@it-loops.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, minchan.kim@gmail.com, vedran.furac@gmail.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-Adding a few more CCs.
+On Tue, 3 Nov 2009 12:24:01 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-On Monday 02 November 2009, Michael Guntsche wrote:
-> > I have the server running with all with patches applied and it runs
-> > without any issues. Since adding patch5 seems to make a difference I
-> > will revert 1-4 and only apply patch 5 to see if it work too. I will
-> > report back as soon as I have news.
->
-> Current status of my tests here. With only patch 5 applied (the revert)
-> I am not able to reproduce the problem. Reading through the ml archives
-> I noticed that this revert is somewhat controversial since it seems to
-> fix other bugs. Is it possible that reverting those fixes just hide the
-> bug I am seeing instead of fixing it?
+> On Mon, 2 Nov 2009, KAMEZAWA Hiroyuki wrote:
+> 
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > Count lowmem rss per mm_struct. Lowmem here means...
+> > 
+> >    for NUMA, pages in a zone < policy_zone.
+> >    for HIGHMEM x86, pages in NORMAL zone.
+> >    for others, all pages are lowmem.
+> > 
+> > Now, lower_zone_protection[] works very well for protecting lowmem but
+> > possiblity of lowmem-oom is not 0 even if under good protection in the kernel.
+> > (As fact, it's can be configured by sysctl. When we keep it high, there
+> >  will be tons of not-for-use memory but system will be protected against
+> >  rare event of lowmem-oom.)
+> 
+> Right, lowmem isn't addressed currently by the oom killer.  Adding this 
+> constraint will probably make the heuristics much harder to write and 
+> understand.  It's not always clear that we want to kill a task using 
+> lowmem just because another task needs some, for instance.
+The same  can be said against all oom-kill ;)
 
-Thanks Michael. That means we now have two cases where reverting the 
-congestion_wait() changes from .31-rc3 (8aa7e847d8 + 373c0a7ed3) makes a 
-clear and significant difference.
+> Do you think we'll need a way to defer killing any task is no task is
+> heuristically found to be hogging lowmem?
 
-I wonder if more effort could/should be made on this aspect.
+Yes, I think so. But my position is a bit different.
 
-Cheers,
-FJP
+In typical x86-32 server case, which has 4-8G memory, most of memory usage
+is highmem. So, if we have no knowledge of lowmem, multiple innocent processes
+will be killed in every 30 secs of oom-kill. 
+
+My final goal is migrating lowmem pages to highmem as kswapd-migraion or
+oom-migration. Total rewrite for this will be required in future.
+
+Thanks,
+-Kame
+
+
+
+
+Thanks,
+-Kame
+
+
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
