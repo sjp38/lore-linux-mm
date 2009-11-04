@@ -1,63 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 510736B0089
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 08:44:48 -0500 (EST)
-Date: Wed, 4 Nov 2009 15:41:47 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
-Message-ID: <20091104134146.GE8920@redhat.com>
-References: <cover.1257267892.git.mst@redhat.com> <20091103172422.GD5591@redhat.com> <878wema6o0.fsf@basil.nowhere.org> <20091104121009.GF8398@redhat.com> <20091104125957.GL31511@one.firstfloor.org> <20091104130828.GC8920@redhat.com> <20091104131533.GM31511@one.firstfloor.org> <20091104131735.GD8920@redhat.com> <20091104133728.GN31511@one.firstfloor.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 969FA6B0044
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 10:49:00 -0500 (EST)
+Date: Wed, 4 Nov 2009 15:48:53 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when
+	high-order watermarks are being hit
+Message-ID: <20091104154853.GM22046@csn.ul.ie>
+References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <200911040101.50194.elendil@planet.nl> <20091104011811.GG22046@csn.ul.ie> <200911040305.59352.elendil@planet.nl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20091104133728.GN31511@one.firstfloor.org>
+In-Reply-To: <200911040305.59352.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Frans Pop <elendil@planet.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 04, 2009 at 02:37:28PM +0100, Andi Kleen wrote:
-> On Wed, Nov 04, 2009 at 03:17:36PM +0200, Michael S. Tsirkin wrote:
-> > On Wed, Nov 04, 2009 at 02:15:33PM +0100, Andi Kleen wrote:
-> > > On Wed, Nov 04, 2009 at 03:08:28PM +0200, Michael S. Tsirkin wrote:
-> > > > On Wed, Nov 04, 2009 at 01:59:57PM +0100, Andi Kleen wrote:
-> > > > > > Fine?
-> > > > > 
-> > > > > I cannot say -- are there paths that could drop the device beforehand?
-> > > > 
-> > > > Do you mean drop the mm reference?
-> > > 
-> > > No the reference to the device, which owns the mm for you.
-> > 
-> > The device is created when file is open and destroyed
-> > when file is closed. So I think the fs code handles the
-> > reference counting for me: it won't call file cleanup
-> > callback while some userspace process has the file open.
-> > Right?
+On Wed, Nov 04, 2009 at 03:05:55AM +0100, Frans Pop wrote:
+> On Wednesday 04 November 2009, Mel Gorman wrote:
+> > > If you'd like me to test with the congestion_wait() revert on top of
+> > > this for comparison, please let me know.
+> >
+> > No, there is resistance to rolling back the congestion_wait() changes
 > 
-> Yes.
+> I've never promoted the revert as a solution. It just shows the cause of a 
+> regression.
 > 
-> But the semantics when someone inherits such a fd through exec
-> or through file descriptor passing would be surely "interesting"
-> You would still do IO on the old VM.
-> 
-> I guess it would be a good way to confuse memory accounting schemes 
-> or administrators @)
-> It would be all saner if this was all a single atomic step.
-> 
-> -Andi
 
-I have this atomic actually. A child process will first thing
-do SET_OWNER: this is required before any other operation.
+Yeah, I still haven't managed to figure out what exactly is wrong in there
+other than "something changed with timing" and writeback behaves differently. I
+still don't know the why of it because I haven't digged into that area in
+depth in the past and failed at reproducing this. "My desktop is fine" :/
 
-SET_OWNER atomically (under mutex) does two things:
-- check that there is no other owner
-- get mm and set current process as owner
+> > from what I gather because they were introduced for sane reasons. The
+> > consequence is just that the reliability of high-order atomics are
+> > impacted because more processes are making forward progress where
+> > previously they would have waited until kswapd had done work. Your
+> > driver has already been fixed in this regard and maybe it's a case that
+> > the other atomic users simply have to be fixed to "not do that".
+> 
+> The problem is that although my driver has been fixed so that it no longer 
+> causes the SKB allocation errors, the also rather serious behavior change 
+> where due to swapping my 3rd gitk takes up to twice as long to load with 
+> desktop freezes of up 45 seconds or so is still there.
+> 
+> Although that's somewhat separate from the issue that started this whole 
+> investigation, I still feel that should be sorted out as well.
+> 
 
-I hope this addresses your concern?
+You're right. That behaviour sucks.
+
+> The congestion_wait() change, even if theoretically valid, introduced a 
+> very real regression IMO. Such long desktop freezes during swapping should 
+> be avoided; .30 and earlier simply behaved a whole lot better in the same 
+> situation.
+> 
+
+Agreed. I'll start from scratch again trying to reproduce what you're seeing
+locally. I'll try breaking my network card so that it's making high-order
+atomics and see where I get. Machines that were previously tied up are now
+free so I might have a better chance.
 
 -- 
-MST
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
