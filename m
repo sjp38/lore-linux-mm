@@ -1,52 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C627F6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 21:00:53 -0500 (EST)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id nA420ncQ026498
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 18:00:49 -0800
-Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
-	by wpaz21.hot.corp.google.com with ESMTP id nA420G6Q008417
-	for <linux-mm@kvack.org>; Tue, 3 Nov 2009 18:00:46 -0800
-Received: by pwj9 with SMTP id 9so2884267pwj.21
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2009 18:00:46 -0800 (PST)
-Date: Tue, 3 Nov 2009 18:00:43 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm] mm: slab allocate memory section nodemask for large
- systems
-In-Reply-To: <20091102204726.GG5525@ldl.fc.hp.com>
-Message-ID: <alpine.DEB.2.00.0911031759350.1187@chino.kir.corp.google.com>
-References: <20091022040814.15705.95572.stgit@bob.kio> <20091022041510.15705.5410.stgit@bob.kio> <alpine.DEB.2.00.0910221249030.26631@chino.kir.corp.google.com> <20091027195907.GJ14102@ldl.fc.hp.com> <alpine.DEB.2.00.0910271422090.22335@chino.kir.corp.google.com>
- <20091028083137.GA24140@osiris.boeblingen.de.ibm.com> <alpine.DEB.2.00.0910280159380.7122@chino.kir.corp.google.com> <20091028183905.GF22743@ldl.fc.hp.com> <alpine.DEB.2.00.0910281315370.23279@chino.kir.corp.google.com>
- <20091102204726.GG5525@ldl.fc.hp.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6BB2A6B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 21:03:07 -0500 (EST)
+Received: by bwz7 with SMTP id 7so9013069bwz.6
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2009 18:03:05 -0800 (PST)
+Date: Wed, 4 Nov 2009 03:03:01 +0100
+From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
+Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
+	failures V2
+Message-ID: <20091104020301.GA7037@bizet.domek.prywatny>
+References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <20091023165810.GA4588@bizet.domek.prywatny> <20091023211239.GA6185@bizet.domek.prywatny> <9ec2d7290910240646p75b93c68v6ea1648d628a9660@mail.gmail.com> <20091028114208.GA14476@bizet.domek.prywatny> <20091028115926.GW8900@csn.ul.ie> <20091030142350.GA9343@bizet.domek.prywatny> <20091102203034.GC22046@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091102203034.GC22046@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Alex Chiang <achiang@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Gary Hade <garyhade@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Ingo Molnar <mingo@elte.hu>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Karol Lewandowski <karol.k.lewandowski@gmail.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Nov 2009, Alex Chiang wrote:
+On Mon, Nov 02, 2009 at 08:30:34PM +0000, Mel Gorman wrote:
+> Does applying the following on top make any difference?
+> 
+> ==== CUT HERE ====
+> PM: Shrink memory before suspend
 
-> Any comments on this patch series?
-> 
-> Turns out that Kame-san's fear about a memory section spanning
-> several nodes on certain architectures (S390) isn't really
-> applicable and even if it were, we have code to handle situation
-> anyway.
-> 
-> Kame-san was generally supportive of these convenience symlinks
-> although he did not give a formal ACK.
-> 
-> David has given an ACK on the two patches that do real work, as
-> well as supplied the below patch.
-> 
-> I can respin this series once more, including David's Acked-by:
-> and adding his patch if that makes life easier for you.
-> 
+No, this patch didn't change anything either.
 
-It's probably in Andrew's queue after getting back from the kernel summit, 
-it would be best to wait a week or so.
+IIRC I get failures while free(1) shows as much as 20MB free RAM
+(ie. without buffers/caches).  Additionaly nr_free_pages (from
+/proc/vmstat) stays at about 800-1000 under heavy memory pressure
+(gitk on full linux repository).
+
+
+--- babbling follows ---
+
+Hmm, I wonder if it's really timing issue then wouldn't be the case
+that lowering swappiness sysctl would make problem more visible?
+I've vm.swappiness=15, would testing with higher value make any sense?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
