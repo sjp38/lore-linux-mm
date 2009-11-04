@@ -1,71 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 969FA6B0044
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 10:49:00 -0500 (EST)
-Date: Wed, 4 Nov 2009 15:48:53 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when
-	high-order watermarks are being hit
-Message-ID: <20091104154853.GM22046@csn.ul.ie>
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <200911040101.50194.elendil@planet.nl> <20091104011811.GG22046@csn.ul.ie> <200911040305.59352.elendil@planet.nl>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7D53F6B0044
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 10:55:33 -0500 (EST)
+Date: Wed, 4 Nov 2009 17:52:34 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: [PATCHv8 0/3] vhost: a kernel-level virtio server
+Message-ID: <20091104155234.GA32673@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200911040305.59352.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 04, 2009 at 03:05:55AM +0100, Frans Pop wrote:
-> On Wednesday 04 November 2009, Mel Gorman wrote:
-> > > If you'd like me to test with the congestion_wait() revert on top of
-> > > this for comparison, please let me know.
-> >
-> > No, there is resistance to rolling back the congestion_wait() changes
-> 
-> I've never promoted the revert as a solution. It just shows the cause of a 
-> regression.
-> 
+Ok, I think I've addressed all comments so far here.
+Rusty, I'd like this to go into linux-next, through your tree, and
+hopefully 2.6.33.  What do you think?
 
-Yeah, I still haven't managed to figure out what exactly is wrong in there
-other than "something changed with timing" and writeback behaves differently. I
-still don't know the why of it because I haven't digged into that area in
-depth in the past and failed at reproducing this. "My desktop is fine" :/
+---
 
-> > from what I gather because they were introduced for sane reasons. The
-> > consequence is just that the reliability of high-order atomics are
-> > impacted because more processes are making forward progress where
-> > previously they would have waited until kswapd had done work. Your
-> > driver has already been fixed in this regard and maybe it's a case that
-> > the other atomic users simply have to be fixed to "not do that".
-> 
-> The problem is that although my driver has been fixed so that it no longer 
-> causes the SKB allocation errors, the also rather serious behavior change 
-> where due to swapping my 3rd gitk takes up to twice as long to load with 
-> desktop freezes of up 45 seconds or so is still there.
-> 
-> Although that's somewhat separate from the issue that started this whole 
-> investigation, I still feel that should be sorted out as well.
-> 
+This implements vhost: a kernel-level backend for virtio,
+The main motivation for this work is to reduce virtualization
+overhead for virtio by removing system calls on data path,
+without guest changes. For virtio-net, this removes up to
+4 system calls per packet: vm exit for kick, reentry for kick,
+iothread wakeup for packet, interrupt injection for packet.
 
-You're right. That behaviour sucks.
+This driver is pretty minimal, but it's fully functional (including
+migration support interfaces), and already shows performance (especially
+latency) improvement over userspace.
 
-> The congestion_wait() change, even if theoretically valid, introduced a 
-> very real regression IMO. Such long desktop freezes during swapping should 
-> be avoided; .30 and earlier simply behaved a whole lot better in the same 
-> situation.
-> 
+Some more detailed description attached to the patch itself.
 
-Agreed. I'll start from scratch again trying to reproduce what you're seeing
-locally. I'll try breaking my network card so that it's making high-order
-atomics and see where I get. Machines that were previously tied up are now
-free so I might have a better chance.
+The patches apply to both 2.6.32-rc6 and kvm.git.  I'd like them to go
+into linux-next if possible.  Please comment.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Changelog from v7:
+- Add note on RCU usage, mirroring this in vhost/vhost.h
+- Fix locking typo noted by Eric Dumazet
+- Fix warnings on 32 bit
+
+Changelog from v6:
+- review comments by Daniel Walker addressed
+- checkpatch cleanup
+- fix build on 32 bit
+- maintainers entry corrected
+
+Changelog from v5:
+- tun support
+- backends with virtio net header support (enables GSO, checksum etc)
+- 32 bit compat fixed
+- support indirect buffers, tx exit mitigation,
+  tx interrupt mitigation
+- support write logging (allows migration without virtio ring code in userspace)
+
+Changelog from v4:
+- disable rx notification when have rx buffers
+- addressed all comments from Rusty's review
+- copy bugfixes from lguest commits:
+	ebf9a5a99c1a464afe0b4dfa64416fc8b273bc5c
+	e606490c440900e50ccf73a54f6fc6150ff40815
+
+Changelog from v3:
+- checkpatch fixes
+
+Changelog from v2:
+- Comments on RCU usage
+- Compat ioctl support
+- Make variable static
+- Copied more idiomatic english from Rusty
+
+Changes from v1:
+- Move use_mm/unuse_mm from fs/aio.c to mm instead of copying.
+- Reorder code to avoid need for forward declarations
+- Kill a couple of debugging printks
+
+Michael S. Tsirkin (3):
+  tun: export underlying socket
+  mm: export use_mm/unuse_mm to modules
+  vhost_net: a kernel-level virtio server
+
+ MAINTAINERS                |    9 +
+ arch/x86/kvm/Kconfig       |    1 +
+ drivers/Makefile           |    1 +
+ drivers/net/tun.c          |  101 ++++-
+ drivers/vhost/Kconfig      |   11 +
+ drivers/vhost/Makefile     |    2 +
+ drivers/vhost/net.c        |  633 +++++++++++++++++++++++++++++
+ drivers/vhost/vhost.c      |  970 ++++++++++++++++++++++++++++++++++++++++++++
+ drivers/vhost/vhost.h      |  158 +++++++
+ include/linux/Kbuild       |    1 +
+ include/linux/if_tun.h     |   14 +
+ include/linux/miscdevice.h |    1 +
+ include/linux/vhost.h      |  126 ++++++
+ mm/mmu_context.c           |    3 +
+ 14 files changed, 2012 insertions(+), 19 deletions(-)
+ create mode 100644 drivers/vhost/Kconfig
+ create mode 100644 drivers/vhost/Makefile
+ create mode 100644 drivers/vhost/net.c
+ create mode 100644 drivers/vhost/vhost.c
+ create mode 100644 drivers/vhost/vhost.h
+ create mode 100644 include/linux/vhost.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
