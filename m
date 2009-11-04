@@ -1,54 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6F4B76B0044
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 21:06:04 -0500 (EST)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when high-order watermarks are being hit
-Date: Wed, 4 Nov 2009 03:05:55 +0100
-References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <200911040101.50194.elendil@planet.nl> <20091104011811.GG22046@csn.ul.ie>
-In-Reply-To: <20091104011811.GG22046@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 58B1A6B0044
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2009 21:08:20 -0500 (EST)
+Date: Wed, 4 Nov 2009 02:08:15 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 3/3] vmscan: Force kswapd to take notice faster when
+	high-order watermarks are being hit
+Message-ID: <20091104020815.GH22046@csn.ul.ie>
+References: <1256650833-15516-1-git-send-email-mel@csn.ul.ie> <200911032301.59662.elendil@planet.nl> <20091103220808.GF22046@csn.ul.ie> <200911040101.50194.elendil@planet.nl> <20091104011811.GG22046@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200911040305.59352.elendil@planet.nl>
+In-Reply-To: <20091104011811.GG22046@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
+To: Frans Pop <elendil@planet.nl>
 Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 04 November 2009, Mel Gorman wrote:
-> > If you'd like me to test with the congestion_wait() revert on top of
-> > this for comparison, please let me know.
->
-> No, there is resistance to rolling back the congestion_wait() changes
+On Wed, Nov 04, 2009 at 01:18:11AM +0000, Mel Gorman wrote:
+> > From vmstat for .31.1:
+> > kswapd_highorder_rewakeup 20
+> > kswapd_slept_prematurely_fast 307
+> > kswapd_slept_prematurely_slow 105
+> > 
+> 
+> This is useful.
+> 
+> The high premature_fast shows that after kswapd apparently finishes its work,
+> the high waterwater marks are being breached very quickly (the fast counter
+> being positive). The "slow" counter is even worse. Your machine is getting
+> from the high to low watermark quickly without kswapd noticing and processes
+> depending on the atomics are not waiting long enough.
+> 
 
-I've never promoted the revert as a solution. It just shows the cause of a 
-regression.
+Sorry, that should have been
 
-> from what I gather because they were introduced for sane reasons. The
-> consequence is just that the reliability of high-order atomics are
-> impacted because more processes are making forward progress where
-> previously they would have waited until kswapd had done work. Your
-> driver has already been fixed in this regard and maybe it's a case that
-> the other atomic users simply have to be fixed to "not do that".
+ The premature_fast shows that after kswapd finishes its work, the low
+ waterwater marks are being breached very quickly as kswapd is being rewoken
+ up. The "slow" counter is slightly worse. Just after kswapd sleeps, the
+ high watermark is being breached again.
 
-The problem is that although my driver has been fixed so that it no longer 
-causes the SKB allocation errors, the also rather serious behavior change 
-where due to swapping my 3rd gitk takes up to twice as long to load with 
-desktop freezes of up 45 seconds or so is still there.
+Either counter being positive implies that kswapd is having to do too
+much work while parallel allocators are chewing up the high-order pages
+quickly. The effect of the patch should still be to delay the rate high-order
+pages are consumed but it assumes there are enough high-order requests that
+can go to sleep.
 
-Although that's somewhat separate from the issue that started this whole 
-investigation, I still feel that should be sorted out as well.
+Mentioning sleep, I'm going to get some.
 
-The congestion_wait() change, even if theoretically valid, introduced a 
-very real regression IMO. Such long desktop freezes during swapping should 
-be avoided; .30 and earlier simply behaved a whole lot better in the same 
-situation.
-
-Cheers,
-FJP
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
