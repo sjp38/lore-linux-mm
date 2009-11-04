@@ -1,38 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 602A16B0044
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 02:18:05 -0500 (EST)
-Date: Wed, 4 Nov 2009 08:17:50 +0100
-From: Michael Guntsche <mike@it-loops.com>
-Subject: Re: Page alloc problems with 2.6.32-rc kernels
-Message-ID: <20091104071750.GA19287@gibson.comsick.at>
-References: <20091102122010.GA5552@gibson.comsick.at>
- <200911040114.08879.elendil@planet.nl>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FACB6B0044
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 02:46:15 -0500 (EST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH 1/1] MM: slqb, fix per_cpu access
+Date: Wed, 4 Nov 2009 18:15:52 +1030
+References: <1257113578-1584-1-git-send-email-jirislaby@gmail.com> <200911022353.30524.rusty@rustcorp.com.au> <4AEEFB5D.9080009@gmail.com>
+In-Reply-To: <4AEEFB5D.9080009@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200911040114.08879.elendil@planet.nl>
+Content-Type: Text/Plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200911041815.53431.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: npiggin@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 04 Nov 09 01:14, Frans Pop wrote:
-> Thanks Michael. That means we now have two cases where reverting the 
-> congestion_wait() changes from .31-rc3 (8aa7e847d8 + 373c0a7ed3) makes a 
-> clear and significant difference.
+On Tue, 3 Nov 2009 02:01:41 am Jiri Slaby wrote:
+> >> -	struct delayed_work *cache_trim_work = &per_cpu(cache_trim_work, cpu);
+> >> +	struct delayed_work *_cache_trim_work = &per_cpu(cache_trim_work, cpu);
+> >>  
+> >>  	/*
+> >>  	 * When this gets called from do_initcalls via cpucache_init(),
+> >>  	 * init_workqueues() has already run, so keventd will be setup
+> >>  	 * at that time.
+> >>  	 */
+> >> -	if (keventd_up() && cache_trim_work->work.func == NULL) {
+> >> -		INIT_DELAYED_WORK(cache_trim_work, cache_trim_worker);
+> >> -		schedule_delayed_work_on(cpu, cache_trim_work,
+> >> +	if (keventd_up() && _cache_trim_work->work.func == NULL) {
+> >> +		INIT_DELAYED_WORK(_cache_trim_work, cache_trim_worker);
+> >> +		schedule_delayed_work_on(cpu, _cache_trim_work,
+> >>  					__round_jiffies_relative(HZ, cpu));
+> > 
+> > How about calling the local var "trim"?
+> > 
+> > This actually makes the code more readable, IMHO.
 > 
-> I wonder if more effort could/should be made on this aspect.
+> Please ignore this version of the patch. After this I sent a new one
+> which changes the global var name.
 
-Good morning Frans,
+OK, sure.  It's not worth changing unless you were doing a rename anyway.
 
-As a cross check I reverted the revert here and tried to reproduce the
-problem again. It is a lot harder to trigger for me now (I was not able
-to reproduce it yet). I did update my local git tree though, can you
-reproduce this problem on your side with current git?
+> So the local variable is untouched there. If you want me to perform the
+> cleanup, let me know. In any case I'd make it trim_work instead of trim
+> which makes more sense to me.
 
-Kind regards,
-Michael
+This is getting pedantic and marginal, but the word "work" already appears
+everywhere this var is used.  Either "XXX->work", or "INIT_DELAYED_WORK(XXX"
+or "scheduled_delayed_work_on(cpu, XXX".
+
+That's why I think the word "work" in unnecessary.
+
+Hope that clarifies why I preferred "trim".
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
