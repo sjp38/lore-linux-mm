@@ -1,67 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1C0326B0044
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 03:22:58 -0500 (EST)
-Message-ID: <4AF28B49.7000509@redhat.com>
-Date: Thu, 05 Nov 2009 10:22:33 +0200
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 02/11] Add "handle page fault" PV helper.
-References: <1257076590-29559-1-git-send-email-gleb@redhat.com> <1257076590-29559-3-git-send-email-gleb@redhat.com> <20091102092214.GB8933@elte.hu> <4AEF2D0A.4070807@redhat.com> <4AEF3419.1050200@redhat.com> <4AEF6CC3.4000508@redhat.com> <4AEFB823.4040607@redhat.com> <0A882F4D99BBF6449D58E61AAFD7EDD6339E7098@pdsmsx502.ccr.corp.intel.com>
-In-Reply-To: <0A882F4D99BBF6449D58E61AAFD7EDD6339E7098@pdsmsx502.ccr.corp.intel.com>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 8bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 985A06B0044
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 03:27:41 -0500 (EST)
+Date: Thu, 5 Nov 2009 09:27:35 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [MM] Remove rss batching from copy_page_range()
+Message-ID: <20091105082735.GP31511@one.firstfloor.org>
+References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1> <alpine.DEB.1.10.0911041415480.7409@V090114053VZO-1> <87my3280mb.fsf@basil.nowhere.org> <alpine.DEB.1.10.0911041640340.17859@V090114053VZO-1>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0911041640340.17859@V090114053VZO-1>
 Sender: owner-linux-mm@kvack.org
-To: "Tian, Kevin" <kevin.tian@intel.com>
-Cc: Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Gleb Natapov <gleb@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/05/2009 08:44 AM, Tian, Kevin wrote:
->> From: Avi Kivity
->> Sent: 2009Ae11OA3EO 12:57
->>
->> On 11/03/2009 01:35 AM, Rik van Riel wrote:
->>     
->>>> We can't add an exception vector since all the existing 
->>>>         
->> ones are either
->>     
->>>> taken or reserved.
->>>>         
->>>
->>> I believe some are reserved for operating system use.
->>>       
->> Table 6-1 says:
->>
->>   9 |  | Coprocessor Segment Overrun (reserved)  |  Fault |  No  | 
->> Floating-point instruction.2
->>   15 |  !a |  (Intel reserved. Do not use.) |   | No |
->>   20-31 |  !a | Intel reserved. Do not use.  |
->>   32-255 |  !a  | User Defined (Non-reserved) Interrupts |  Interrupt  
->> |   | External interrupt or INT n instruction.
->>
->> So we can only use 32-255, but these are not fault-like 
->> exceptions that 
->> can be delivered with interrupts disabled.
->>
->>     
-> would you really want to inject a fault-like exception here? Fault
-> is architurally synchronous event while here apf is more like an 
-> asynchronous interrupt as it's not caused by guest itself. If 
-> guest is with interrupt disabled, preemption won't happen and 
-> apf path just ends up "wait for page" hypercall to waste cycles.
->   
+On Wed, Nov 04, 2009 at 05:02:12PM -0500, Christoph Lameter wrote:
+> On Wed, 4 Nov 2009, Andi Kleen wrote:
+> 
+> > > With per cpu counters in mm there is no need for batching
+> > > mm counter updates anymore. Update counters directly while
+> > > copying pages.
+> >
+> > Hmm, but with all the inlining with some luck the local
+> > counters will be in registers. That will never be the case
+> > with the per cpu counters.
+> 
+> The function is too big for that to occur and the counters have to be
 
-An async page fault is, despite its name, synchronous, since it is
-associated with an instruction. It must either be delivered immediately
-or not at all.
+If it's only called once then gcc doesn't care about size.
 
-It's true that in kernel mode you can't do much with an apf if
-interrupts are disabled, but you still want to receive apfs for user
-mode with interrupts disabled (for example due to interrupt shadow).
+> preserved across function calls. The code is shorter with the patch
+> applied:
 
--- 
-error compiling committee.c: too many arguments to function
+I see. Thanks for the data.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
