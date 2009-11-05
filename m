@@ -1,66 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7985C6B0078
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 15:21:30 -0500 (EST)
-Subject: [PATCH v2 3/3] page-types: exit early when invoked with -d|--describe
-From: Alex Chiang <achiang@hp.com>
-Date: Thu, 05 Nov 2009 13:21:26 -0700
-Message-ID: <20091105202126.25492.84269.stgit@bob.kio>
-In-Reply-To: <20091105201846.25492.52935.stgit@bob.kio>
-References: <20091105201846.25492.52935.stgit@bob.kio>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E3886B0044
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 15:40:08 -0500 (EST)
+Received: from list by lo.gmane.org with local (Exim 4.50)
+	id 1N697k-0007Lv-FB
+	for linux-mm@kvack.org; Thu, 05 Nov 2009 21:40:04 +0100
+Received: from office.weekscomputing.com ([89.105.122.66])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2009 21:40:04 +0100
+Received: from jody+lkml by office.weekscomputing.com with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2009 21:40:04 +0100
+From: Jody Belka <jody+lkml@jj79.org>
+Subject: Re: OOM killer, page fault
+Date: Thu, 5 Nov 2009 20:37:56 +0000 (UTC)
+Message-ID: <loom.20091105T213323-393@post.gmane.org>
+References: <20091030063216.GA30712@gamma.logic.tuwien.ac.at> <20091102005218.8352.A69D9226@jp.fujitsu.com> <20091102135640.93de7c2a.minchan.kim@barrios-desktop> <28c262360911012300h4535118ewd65238c746b91a52@mail.gmail.com> <20091102155543.E60E.A69D9226@jp.fujitsu.com> <20091102140216.02567ff8.kamezawa.hiroyu@jp.fujitsu.com> <20091102141917.GJ2116@gamma.logic.tuwien.ac.at> <28c262360911020640k3f9dfcdct2cac6cc1d193144d@mail.gmail.com> <20091105132109.GA12676@gamma.logic.tuwien.ac.at>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, fengguang.wu@intel.com
-Cc: Haicheng Li <haicheng.li@intel.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On a system with large amount of memory (256GB), invoking page-types
-can take quite a long time, which is unreasonable considering the user
-only wants a description of the flags:
+Norbert Preining <preining <at> logic.at> writes:
+> Don't ask me why, please, and I don't have a serial/net console so that
+> I can tell you more, but the booting hangs badly at:
 
-	# time ./page-types -d 0x10
-	0x0000000000000010	____D_____________________________	dirty
+<snip>
 
-	real	0m34.285s
-	user	0m1.966s
-	sys	0m32.313s
+> 
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 7e91b5f..47e4b15 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -2713,7 +2713,11 @@ static int __do_fault(struct mm_struct *mm,
+> > struct vm_area_struct *vma,
+> >        vmf.page = NULL;
+> > 
+> >        ret = vma->vm_ops->fault(vma, &vmf);
+> > -       if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+> > +       if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
+> > +               printk(KERN_DEBUG "vma->vm_ops->fault : 0x%lx\n",
+> > vma->vm_ops->fault);
+> > +               WARN_ON(1);
+> > +
+> > +       }
+> >                return ret;
+> > 
+> >        if (unlikely(PageHWPoison(vmf.page))) {
+> 
 
-This is because we still walk the entire address range.
+Erm, could it not be due to the "return ret;" line being moved outside of the
+if(), so that it always executes?
 
-Exiting early seems like a reasonble solution:
 
-# time ./page-types -d 0x10
-	0x0000000000000010	____D_____________________________	dirty
+J
 
-	real	0m0.007s
-	user	0m0.001s
-	sys	0m0.005s
-
-Cc: Andi Kleen <andi@firstfloor.org>
-Cc: Haicheng Li <haicheng.li@intel.com>
-Signed-off-by: Alex Chiang <achiang@hp.com>
----
-
- Documentation/vm/page-types.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
-
-diff --git a/Documentation/vm/page-types.c b/Documentation/vm/page-types.c
-index 9c09eb5..9cf50ab 100644
---- a/Documentation/vm/page-types.c
-+++ b/Documentation/vm/page-types.c
-@@ -940,9 +940,8 @@ int main(int argc, char *argv[])
- 			parse_bits_mask(optarg);
- 			break;
- 		case 'd':
--			opt_no_summary = 1;
- 			describe_flags(optarg);
--			break;
-+			exit(0);
- 		case 'l':
- 			opt_list = 1;
- 			break;
+ps, sending this through gmane, don't know if it'll keep cc's or not, so
+apologies if not. please cc me on any replies
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
