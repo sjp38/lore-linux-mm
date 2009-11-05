@@ -1,109 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C1C9F6B0044
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 21:14:59 -0500 (EST)
-Date: Thu, 5 Nov 2009 10:14:56 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] page-types: decode flags directly from command line
-Message-ID: <20091105021456.GA9328@localhost>
-References: <20091103225441.GB4087@grease> <20091104121832.GB26504@localhost> <20091104204008.GA8211@ldl.fc.hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091104204008.GA8211@ldl.fc.hp.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B84606B0044
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 21:31:27 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA52VPXq005764
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 5 Nov 2009 11:31:25 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 008F22AF1A1
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 11:31:25 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D4E911EF093
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 11:31:24 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 75F0C1DB803A
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 11:31:24 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A549EE38003
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 11:31:20 +0900 (JST)
+Date: Thu, 5 Nov 2009 11:28:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] show per-process swap usage via procfs
+Message-Id: <20091105112844.b57e02f6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091105082357.54D3.A69D9226@jp.fujitsu.com>
+References: <20091104152426.eacc894f.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.1.10.0911041414560.7409@V090114053VZO-1>
+	<20091105082357.54D3.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alex Chiang <achiang@hp.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, "Li, Haicheng" <haicheng.li@intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Alex,
+On Thu,  5 Nov 2009 08:25:28 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-It's easier to illustrate the idea with example and code :)
-
-# Documentation/vm/page-types -d 0x10,anon
-0x0000000000001010      ____D_______a_____________________      dirty,anonymous
-
-
-+static void describe_flags(const char *optarg)
-+{
-+	uint64_t flags = parse_flag_names(optarg, 0);
-+
-+	printf("0x%016llx\t%s\t%s\n",
-+	       (unsigned long long)flags,
-+	       page_flag_name(flags),
-+	       page_flag_longname(flags));
-+}
- 
-+		case 'd':
-+			opt_no_summary = 1;
-+			describe_flags(optarg);
-+			break;
+> > On Wed, 4 Nov 2009, KAMEZAWA Hiroyuki wrote:
+> > 
+> > > Now, anon_rss and file_rss is counted as RSS and exported via /proc.
+> > > RSS usage is important information but one more information which
+> > > is often asked by users is "usage of swap".(user support team said.)
+> > 
+> > Hmmm... Could we do some rework of the counters first so that they are per
+> > cpu?
+> 
+> per-cpu swap counter?
+> It seems overkill effort....
+> 
+I nearly agree with you.
 
 Thanks,
-Fengguang
-
-On Thu, Nov 05, 2009 at 04:40:08AM +0800, Alex Chiang wrote:
-> Hi Fengguang,
-> 
-> * Wu Fengguang <fengguang.wu@intel.com>:
-> > On Wed, Nov 04, 2009 at 06:54:41AM +0800, Alex Chiang wrote:
-> > > Why is this useful? For instance, if you're using memory hotplug
-> > > and see this in /var/log/messages:
-> > > 
-> > > 	kernel: removing from LRU failed 3836dd0/1/1e00000000000400
-> > > 
-> > > It would be nice to decode those page flags without staring at
-> > > the source.
-> > 
-> > In fact it's more than decode - encoding is also possible with the
-> > _same_ code! So maybe "-d" and help message will not be all that
-> > appropriate.
-> 
-> I'm sorry, I don't understand this use case, so I'm not sure what
-> you're asking me to do.
-> 
-> You're saying that a use case would be something like:
-> 
-> 	./page-types --encode referenced,mmap
-> 	0x0000000000000004
-> 
-> ?
-> 
-> If that's what you're asking for, I guess I'm not sure why that's
-> so useful, but then again, I'm a vm n00b so there are probably
-> lots of things I don't understand. ;)
-> 
-> > > Example usage and output:
-> > > 
-> > > linux-2.6/Documentation/vm$ ./page-types -d 0x1e00000000000400
-> > >              flags	page-count       MB  symbolic-flags			long-symbolic-flags
-> > > 0x1e00000000000400	         1        0  __________B_______________________buddy
-> > >              total	         1        0
-> > 
-> > The output is a bit redundant - so does the code. Could you simplify
-> > them a bit?
-> 
-> Well, the code is redundant, but add_page() / show_summary() is a
-> simple sequence.
-> 
-> In contrast, I think I'd have to modify walk_addr_ranges() and
-> maybe walk_pfn() to do something special when we don't really
-> want to do any address space walking, and simply want to
-> decode/encode some user input.
-> 
-> Maybe I don't understand you fully? Could you give me a better
-> idea of what you're looking for?
-> 
-> As for the output, I'm just reusing show_summary(). Maybe we
-> don't need the flags, page-count, and MB columns, but again, the
-> patch would be more intrusisive because we'd have to teach
-> show_summary() about the special case.
-> 
-> Anyway, I'm happy to make changes closer to what you're looking
-> for, but I'd like some more guidance as to what you're expecting.
-> 
-> Thanks,
-> /ac
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
