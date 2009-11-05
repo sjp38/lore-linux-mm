@@ -1,486 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 36A626B0044
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 20:19:38 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA51JPog007163
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 5 Nov 2009 10:19:25 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id ED8D645DE54
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 10:19:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id BEC7645DE4F
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 10:19:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A04F5E1800B
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 10:19:24 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 486881DB803C
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 10:19:24 +0900 (JST)
-Date: Thu, 5 Nov 2009 10:16:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [MM] Make mm counters per cpu instead of atomic
-Message-Id: <20091105101650.45204e4e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
-References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 12D406B0044
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2009 20:21:12 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA51LAiA008012
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 5 Nov 2009 10:21:10 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 240D145DE58
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 10:21:10 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BBE3045DE50
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 10:21:09 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 908111DB803C
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 10:21:09 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 15EC51DB803E
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 10:21:09 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: strange OOM receiving a wireless network packet on a SLUB system
+In-Reply-To: <87zl71lt7l.fsf_-_@spindle.srvr.nix>
+References: <c7a347a10911041421u35b102behe0ed2d94506680c1@mail.gmail.com> <87zl71lt7l.fsf_-_@spindle.srvr.nix>
+Message-Id: <20091105094611.2081.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu,  5 Nov 2009 10:21:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>
+To: Nix <nix@esperi.org.uk>
+Cc: kosaki.motohiro@jp.fujitsu.com, TuxOnIce users' list <tuxonice-users@lists.tuxonice.net>, Linux-Kernel-Mailing-List <linux-kernel@vger.kernel.org>, dominik.stadler@gmx.at, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Nov 2009 14:14:41 -0500 (EST)
-Christoph Lameter <cl@linux-foundation.org> wrote:
+Hi
 
-> From: Christoph Lameter <cl@linux-foundation.org>
-> Subject: Make mm counters per cpu
-> 
-> Changing the mm counters to per cpu counters is possible after the introduction
-> of the generic per cpu operations (currently in percpu and -next).
-> 
-> With that the contention on the counters in mm_struct can be avoided. The
-> USE_SPLIT_PTLOCKS case distinction can go away. Larger SMP systems do not
-> need to perform atomic updates to mm counters anymore. Various code paths
-> can be simplified since per cpu counter updates are fast and batching
-> of counter updates is no longer needed.
-> 
-> One price to pay for these improvements is the need to scan over all percpu
-> counters when the actual count values are needed.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-> 
+(cc to linux-mm)
 
-Hmm, I don't fully understand _new_ percpu but...
-In logical (even if not realistic), x86-32 supports up to 512 ? cpus in Kconfig.
-BIGSMP.
+> On 4 Nov 2009, Dominik Stadler stated:
+> > I just saw a very similar thing happening to me here, ThinkPad T500, Ubuntu
+> > 9.10, latest 3.0.1+TOI-Kernel from Karmic-PPA, I  have some other weirdness
+> > as well which I am not sure if TOI-related or Karmic, will do some
+> > Divide-And-Conquer analysis next to find out the root cause of these and
+> > report back.
+> >
+> > $ uname -a
+> > Linux XXXXXX 2.6.31-15-generic #49+tuxonice2-Ubuntu SMP Sat Oct 31 01:46:15
+> > UTC 2009 x86_64 GNU/Linux
+> >
+> > This is what I got just now:
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] swapper: page allocation
+> > failure. order:2, mode:0x4020
 
-Then, if 65536 process runs, this consumes
+This is only page allocation failure. not OOM.
+We don't gurantee GFP_ATOMIC allocation success.
 
-65536(nr_proc) * 8 (size) * 512(cpus) = 256MBytes.
+> 
+> That doesn't really look similar to me (not a decompressor -22 error).
+> To me it looks more like you ran out of memory, or at least ran very close
+> to out: an order-2 allocation is not enormous (16Kb on x86) and should
+> definitely work after everything's been chucked out. (mode 0x4020 implies
+> a compound-page GFP_ATOMIC allocation, so it couldn't swap, but it
+> could certainly discard clean pages.)
 
-But x86's vmalloc area just has 80? MBytes. I (and my customers) don't have
-this kind of exteme machine, but cpus tend to be many-core (and still support
-32bit mode), now.
+No. GFP_ATOMIC can't discard clean pages, anyway. because irq-context don't
+tolerate from reclaim latency.
 
-If 32, 64 cpus,
-65536 * 8 * 32 = 16MB
-65536 * 8 * 32 = 32MB
+> 
+> Did this happen at suspension time, resumption time,or what? It looks
+> like the kernel hadn't been up for long, so I guess we can rule out
+> really really bad arena fragmentation... but it was long enough that I
+> guess this was at suspension time?
+>
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Pid: 0, comm: swapper
+> > Tainted: G         C 2.6.31-15-generic #49+tuxonice2-Ubuntu
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Call
+> > Trace:
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  <IRQ>
+> > [<ffffffff810f1abc>]
+> > __alloc_pages_slowpath+0x4cc/0x4e0
+> > 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  [<ffffffff810f1c1e>]
+> > __alloc_pages_nodemask+0x14e/0x150
+> > 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  [<ffffffff811230ca>]
+> > kmalloc_large_node+0x5a/0xb0
+> > 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  [<ffffffff81127275>]
+> > __kmalloc_node_track_caller+0x135/0x180
+> 
+> This is SLUB stuff. Is SLUB production-ready yet? (I haven't been
+> following it.)
+> 
+> (Networking, wireless, SLUB, no idea where to Cc this. I'll just Cc LKML
+> and see if anyone notices :) )
 
-And if I add swap_usage,
-65536 * 12 * 32 = 24MB.
+SLUB is perfectly stable and usable for production.
 
-It's influenced by the number of deivces attached to the sysytem but
-people will see more -ENOMEM.
+> 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  [<ffffffffa0245899>] ?
+> > iwl_rx_allocate+0x1a9/0x230
+> > [iwlcore]
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  [<ffffffff8144088b>]
+> > __alloc_skb+0x7b/0x180
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  [<ffffffffa0245899>]
+> > iwl_rx_allocate+0x1a9/0x230
+> > [iwlcore]
+> 
+> Wireless network packet reception leading to OOM. Not TuxOnIce, I'd say.
+> Certainly not the same problem as me: I don't even *have* any wireless
+> hardware (with my RSI, laptops might as well have razor blades on their
+> keys).
+> 
+> (Why does it need a 16Kb contiguous region anyway?
 
-It seems this consumption/footprint is very big.
-
-Thanks,
--Kame
+Dunno ;)
 
 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  [<ffffffff81010e12>] ?
+> > cpu_idle+0xb2/0x100
+> 
+> Idle, not suspending...
+> 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Active_anon:365111
+> > active_file:88612 inactive_anon:162361
+> 
+> Lots of inactive pages. Why were none chucked out?
+> 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  inactive_file:243222
+> > unevictable:4 dirty:214598 writeback:320 unstable:0
+> 
+> 214000+ dirty pages seems awfully high.
+> 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178]  free:6876 slab:51582
+> > mapped:40147 pagetables:8440 bounce:0
+> 
+> 6876 free pages, a reasonable-enough figure, yet it couldn't find four
+> in a row to receive a network packet? Seems unlikely.
+> 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Node 0 DMA free:15644kB
+> > min:28kB low:32kB high:40kB active_anon:12kB inactive_anon:32kB
+> > active_file:4kB inactive_file:208kB unevictable:0kB present:15336kB
+> > pages_scanned:0 all_unreclaimable? no
+> > 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] lowmem_reserve[]: 0 2958
+> > 3905 3905
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Node 0 DMA32 free:10124kB
+> > min:6044kB low:7552kB high:9064kB active_anon:1223088kB
+> > inactive_anon:367500kB active_file:218036kB inactive_file:833596kB
+> > unevictable:16kB present:3029636kB pages_scanned:0 all_unreclaimable?
+> > no
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] lowmem_reserve[]: 0 0 946
+> > 946
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Node 0 Normal free:1736kB
+> > min:1932kB low:2412kB high:2896kB active_anon:237344kB
+> > inactive_anon:281912kB active_file:136408kB inactive_file:139084kB
+> > unevictable:0kB present:969600kB pages_scanned:0 all_unreclaimable?
+> > no
+> 
+> Again, heaps of inactive.
+
+On normal zone, free(1736kB) < min(1932kB). It mean we can't use normal zone.
+On DMA32 zone, free(10124kB) < min(6044kB) + lowmem_reserve(946*4kB).
+It mean we can't use DMA32 zone too.
+Of cource, DMA zone is protected by lowmem_reserve too.
+
+It's normal memory shortage.
+
+> 
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] lowmem_reserve[]: 0 0 0
+> > 0
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Node 0 DMA: 7*4kB 4*8kB
+> > 2*16kB 2*32kB 2*64kB 2*128kB 3*256kB 2*512kB 3*1024kB 3*2048kB 1*4096kB 15644kB
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Node 0 DMA32: 2249*4kB
+> > 35*8kB 1*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 0*1024kB 0*2048kB
+> > 0*4096kB = 10124kB
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Node 0 Normal: 132*4kB
+> > 127*8kB 2*16kB 1*32kB 0*64kB 1*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB
+> > 0*4096kB = 1736kB
+
+All zones have order-2 contenious memory.
 
 
+The conclusion is, the system is not so fragmentaion. but It doesn't have
+enough memory.
+Maybe, the system is under temporal memory pressure. you don't need care it.
+It automatically restored soon.
 
-> ---
->  fs/proc/task_mmu.c       |   14 +++++++++-
->  include/linux/mm_types.h |   16 ++++--------
->  include/linux/sched.h    |   61 ++++++++++++++++++++---------------------------
->  kernel/fork.c            |   25 ++++++++++++++-----
->  mm/filemap_xip.c         |    2 -
->  mm/fremap.c              |    2 -
->  mm/init-mm.c             |    3 ++
->  mm/memory.c              |   20 +++++++--------
->  mm/rmap.c                |   10 +++----
->  mm/swapfile.c            |    2 -
->  10 files changed, 84 insertions(+), 71 deletions(-)
+
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] 390803 total pagecache
+> > pages
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] 12039 pages in swap
+> > cache
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Swap cache stats: add
+> > 41296, delete 29257, find
+> > 4825/7516
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Free swap  8330844kB
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] Total swap 8393952kB
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] 1032192 pages
+> > RAM
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] 76928 pages
+> > reserved
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] 488347 pages
+> > shared
+> >
+> > Nov  4 22:40:22 dstathink kernel: [39835.951178] 596692 pages non-shared
 > 
-> Index: linux-2.6/include/linux/mm_types.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/mm_types.h	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/include/linux/mm_types.h	2009-11-04 13:13:42.000000000 -0600
-> @@ -24,11 +24,10 @@ struct address_space;
-> 
->  #define USE_SPLIT_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
-> 
-> -#if USE_SPLIT_PTLOCKS
-> -typedef atomic_long_t mm_counter_t;
-> -#else  /* !USE_SPLIT_PTLOCKS */
-> -typedef unsigned long mm_counter_t;
-> -#endif /* !USE_SPLIT_PTLOCKS */
-> +struct mm_counter {
-> +	long file;
-> +	long anon;
-> +};
-> 
->  /*
->   * Each physical page in the system has a struct page associated with
-> @@ -223,11 +222,8 @@ struct mm_struct {
->  						 * by mmlist_lock
->  						 */
-> 
-> -	/* Special counters, in some configurations protected by the
-> -	 * page_table_lock, in other configurations by being atomic.
-> -	 */
-> -	mm_counter_t _file_rss;
-> -	mm_counter_t _anon_rss;
-> +	/* Special percpu counters */
-> +	struct mm_counter *rss;
-> 
->  	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
->  	unsigned long hiwater_vm;	/* High-water virtual memory usage */
-> Index: linux-2.6/include/linux/sched.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/sched.h	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/include/linux/sched.h	2009-11-04 13:13:42.000000000 -0600
-> @@ -385,41 +385,32 @@ arch_get_unmapped_area_topdown(struct fi
->  extern void arch_unmap_area(struct mm_struct *, unsigned long);
->  extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
-> 
-> -#if USE_SPLIT_PTLOCKS
-> -/*
-> - * The mm counters are not protected by its page_table_lock,
-> - * so must be incremented atomically.
-> - */
-> -#define set_mm_counter(mm, member, value) atomic_long_set(&(mm)->_##member, value)
-> -#define get_mm_counter(mm, member) ((unsigned long)atomic_long_read(&(mm)->_##member))
-> -#define add_mm_counter(mm, member, value) atomic_long_add(value, &(mm)->_##member)
-> -#define inc_mm_counter(mm, member) atomic_long_inc(&(mm)->_##member)
-> -#define dec_mm_counter(mm, member) atomic_long_dec(&(mm)->_##member)
-> -
-> -#else  /* !USE_SPLIT_PTLOCKS */
-> -/*
-> - * The mm counters are protected by its page_table_lock,
-> - * so can be incremented directly.
-> - */
-> -#define set_mm_counter(mm, member, value) (mm)->_##member = (value)
-> -#define get_mm_counter(mm, member) ((mm)->_##member)
-> -#define add_mm_counter(mm, member, value) (mm)->_##member += (value)
-> -#define inc_mm_counter(mm, member) (mm)->_##member++
-> -#define dec_mm_counter(mm, member) (mm)->_##member--
-> -
-> -#endif /* !USE_SPLIT_PTLOCKS */
-> -
-> -#define get_mm_rss(mm)					\
-> -	(get_mm_counter(mm, file_rss) + get_mm_counter(mm, anon_rss))
-> -#define update_hiwater_rss(mm)	do {			\
-> -	unsigned long _rss = get_mm_rss(mm);		\
-> -	if ((mm)->hiwater_rss < _rss)			\
-> -		(mm)->hiwater_rss = _rss;		\
-> -} while (0)
-> -#define update_hiwater_vm(mm)	do {			\
-> -	if ((mm)->hiwater_vm < (mm)->total_vm)		\
-> -		(mm)->hiwater_vm = (mm)->total_vm;	\
-> -} while (0)
-> +static inline unsigned long get_mm_rss(struct mm_struct *mm)
-> +{
-> +	int cpu;
-> +	unsigned long r = 0;
-> +
-> +	for_each_possible_cpu(cpu) {
-> +		struct mm_counter *c = per_cpu_ptr(mm->rss, cpu);
-> +
-> +		r = c->file + c->anon;
-> +	}
-> +
-> +	return r;
-> +}
-> +
-> +static inline void update_hiwater_rss(struct mm_struct *mm)
-> +{
-> +	unsigned long _rss = get_mm_rss(mm);
-> +	if (mm->hiwater_rss < _rss)
-> +		mm->hiwater_rss = _rss;
-> +}
-> +
-> +static inline void update_hiwater_vm(struct mm_struct *mm)
-> +{
-> +	if (mm->hiwater_vm < mm->total_vm)
-> +		mm->hiwater_vm = mm->total_vm;
-> +}
-> 
->  static inline unsigned long get_mm_hiwater_rss(struct mm_struct *mm)
->  {
-> Index: linux-2.6/kernel/fork.c
-> ===================================================================
-> --- linux-2.6.orig/kernel/fork.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/kernel/fork.c	2009-11-04 13:14:19.000000000 -0600
-> @@ -444,6 +444,8 @@ static void mm_init_aio(struct mm_struct
-> 
->  static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
->  {
-> +	int cpu;
-> +
->  	atomic_set(&mm->mm_users, 1);
->  	atomic_set(&mm->mm_count, 1);
->  	init_rwsem(&mm->mmap_sem);
-> @@ -452,8 +454,11 @@ static struct mm_struct * mm_init(struct
->  		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
->  	mm->core_state = NULL;
->  	mm->nr_ptes = 0;
-> -	set_mm_counter(mm, file_rss, 0);
-> -	set_mm_counter(mm, anon_rss, 0);
-> +	for_each_possible_cpu(cpu) {
-> +		struct mm_counter *m;
-> +
-> +		memset(m, sizeof(struct mm_counter), 0);
-> +	}
->  	spin_lock_init(&mm->page_table_lock);
->  	mm->free_area_cache = TASK_UNMAPPED_BASE;
->  	mm->cached_hole_size = ~0UL;
-> @@ -480,7 +485,13 @@ struct mm_struct * mm_alloc(void)
->  	mm = allocate_mm();
->  	if (mm) {
->  		memset(mm, 0, sizeof(*mm));
-> -		mm = mm_init(mm, current);
-> +		mm->rss = alloc_percpu(struct mm_counter);
-> +		if (mm->rss)
-> +			mm = mm_init(mm, current);
-> +		else {
-> +			free_mm(mm);
-> +			mm = NULL;
-> +		}
->  	}
->  	return mm;
->  }
-> @@ -496,6 +507,7 @@ void __mmdrop(struct mm_struct *mm)
->  	mm_free_pgd(mm);
->  	destroy_context(mm);
->  	mmu_notifier_mm_destroy(mm);
-> +	free_percpu(mm->rss);
->  	free_mm(mm);
->  }
->  EXPORT_SYMBOL_GPL(__mmdrop);
-> @@ -631,6 +643,9 @@ struct mm_struct *dup_mm(struct task_str
->  		goto fail_nomem;
-> 
->  	memcpy(mm, oldmm, sizeof(*mm));
-> +	mm->rss = alloc_percpu(struct mm_counter);
-> +	if (!mm->rss)
-> +		goto fail_nomem;
-> 
->  	/* Initializing for Swap token stuff */
->  	mm->token_priority = 0;
-> @@ -661,15 +676,13 @@ free_pt:
->  	mm->binfmt = NULL;
->  	mmput(mm);
-> 
-> -fail_nomem:
-> -	return NULL;
-> -
->  fail_nocontext:
->  	/*
->  	 * If init_new_context() failed, we cannot use mmput() to free the mm
->  	 * because it calls destroy_context()
->  	 */
->  	mm_free_pgd(mm);
-> +fail_nomem:
->  	free_mm(mm);
->  	return NULL;
->  }
-> Index: linux-2.6/fs/proc/task_mmu.c
-> ===================================================================
-> --- linux-2.6.orig/fs/proc/task_mmu.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/fs/proc/task_mmu.c	2009-11-04 13:13:42.000000000 -0600
-> @@ -65,11 +65,21 @@ unsigned long task_vsize(struct mm_struc
->  int task_statm(struct mm_struct *mm, int *shared, int *text,
->  	       int *data, int *resident)
->  {
-> -	*shared = get_mm_counter(mm, file_rss);
-> +	int cpu;
-> +	int anon_rss = 0;
-> +	int file_rss = 0;
-> +
-> +	for_each_possible_cpu(cpu) {
-> +		struct mm_counter *c = per_cpu_ptr(mm->rss, cpu);
-> +
-> +		anon_rss += c->anon;
-> +		file_rss += c->file;
-> +	}
-> +	*shared = file_rss;
->  	*text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK))
->  								>> PAGE_SHIFT;
->  	*data = mm->total_vm - mm->shared_vm;
-> -	*resident = *shared + get_mm_counter(mm, anon_rss);
-> +	*resident = *shared + anon_rss;
->  	return mm->total_vm;
->  }
-> 
-> Index: linux-2.6/mm/filemap_xip.c
-> ===================================================================
-> --- linux-2.6.orig/mm/filemap_xip.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/mm/filemap_xip.c	2009-11-04 13:13:42.000000000 -0600
-> @@ -194,7 +194,7 @@ retry:
->  			flush_cache_page(vma, address, pte_pfn(*pte));
->  			pteval = ptep_clear_flush_notify(vma, address, pte);
->  			page_remove_rmap(page);
-> -			dec_mm_counter(mm, file_rss);
-> +			__this_cpu_dec(mm->rss->file);
->  			BUG_ON(pte_dirty(pteval));
->  			pte_unmap_unlock(pte, ptl);
->  			page_cache_release(page);
-> Index: linux-2.6/mm/fremap.c
-> ===================================================================
-> --- linux-2.6.orig/mm/fremap.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/mm/fremap.c	2009-11-04 13:13:42.000000000 -0600
-> @@ -40,7 +40,7 @@ static void zap_pte(struct mm_struct *mm
->  			page_remove_rmap(page);
->  			page_cache_release(page);
->  			update_hiwater_rss(mm);
-> -			dec_mm_counter(mm, file_rss);
-> +			__this_cpu_dec(mm->rss->file);
->  		}
->  	} else {
->  		if (!pte_file(pte))
-> Index: linux-2.6/mm/memory.c
-> ===================================================================
-> --- linux-2.6.orig/mm/memory.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/mm/memory.c	2009-11-04 13:13:42.000000000 -0600
-> @@ -379,9 +379,9 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
->  static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
->  {
->  	if (file_rss)
-> -		add_mm_counter(mm, file_rss, file_rss);
-> +		__this_cpu_add(mm->rss->file, file_rss);
->  	if (anon_rss)
-> -		add_mm_counter(mm, anon_rss, anon_rss);
-> +		__this_cpu_add(mm->rss->anon, anon_rss);
->  }
-> 
->  /*
-> @@ -1512,7 +1512,7 @@ static int insert_page(struct vm_area_st
-> 
->  	/* Ok, finally just insert the thing.. */
->  	get_page(page);
-> -	inc_mm_counter(mm, file_rss);
-> +	__this_cpu_inc(mm->rss->file);
->  	page_add_file_rmap(page);
->  	set_pte_at(mm, addr, pte, mk_pte(page, prot));
-> 
-> @@ -2148,11 +2148,11 @@ gotten:
->  	if (likely(pte_same(*page_table, orig_pte))) {
->  		if (old_page) {
->  			if (!PageAnon(old_page)) {
-> -				dec_mm_counter(mm, file_rss);
-> -				inc_mm_counter(mm, anon_rss);
-> +				__this_cpu_dec(mm->rss->file);
-> +				__this_cpu_inc(mm->rss->anon);
->  			}
->  		} else
-> -			inc_mm_counter(mm, anon_rss);
-> +			__this_cpu_inc(mm->rss->anon);
->  		flush_cache_page(vma, address, pte_pfn(orig_pte));
->  		entry = mk_pte(new_page, vma->vm_page_prot);
->  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> @@ -2579,7 +2579,7 @@ static int do_swap_page(struct mm_struct
->  	 * discarded at swap_free().
->  	 */
-> 
-> -	inc_mm_counter(mm, anon_rss);
-> +	__this_cpu_inc(mm->rss->anon);
->  	pte = mk_pte(page, vma->vm_page_prot);
->  	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
->  		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-> @@ -2663,7 +2663,7 @@ static int do_anonymous_page(struct mm_s
->  	if (!pte_none(*page_table))
->  		goto release;
-> 
-> -	inc_mm_counter(mm, anon_rss);
-> +	__this_cpu_inc(mm->rss->anon);
->  	page_add_new_anon_rmap(page, vma, address);
->  setpte:
->  	set_pte_at(mm, address, page_table, entry);
-> @@ -2817,10 +2817,10 @@ static int __do_fault(struct mm_struct *
->  		if (flags & FAULT_FLAG_WRITE)
->  			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
->  		if (anon) {
-> -			inc_mm_counter(mm, anon_rss);
-> +			__this_cpu_inc(mm->rss->anon);
->  			page_add_new_anon_rmap(page, vma, address);
->  		} else {
-> -			inc_mm_counter(mm, file_rss);
-> +			__this_cpu_inc(mm->rss->file);
->  			page_add_file_rmap(page);
->  			if (flags & FAULT_FLAG_WRITE) {
->  				dirty_page = page;
-> Index: linux-2.6/mm/rmap.c
-> ===================================================================
-> --- linux-2.6.orig/mm/rmap.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/mm/rmap.c	2009-11-04 13:13:42.000000000 -0600
-> @@ -809,9 +809,9 @@ static int try_to_unmap_one(struct page
-> 
->  	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
->  		if (PageAnon(page))
-> -			dec_mm_counter(mm, anon_rss);
-> +			__this_cpu_dec(mm->rss->anon);
->  		else
-> -			dec_mm_counter(mm, file_rss);
-> +			__this_cpu_dec(mm->rss->file);
->  		set_pte_at(mm, address, pte,
->  				swp_entry_to_pte(make_hwpoison_entry(page)));
->  	} else if (PageAnon(page)) {
-> @@ -829,7 +829,7 @@ static int try_to_unmap_one(struct page
->  					list_add(&mm->mmlist, &init_mm.mmlist);
->  				spin_unlock(&mmlist_lock);
->  			}
-> -			dec_mm_counter(mm, anon_rss);
-> +			__this_cpu_dec(mm->rss->anon);
->  		} else if (PAGE_MIGRATION) {
->  			/*
->  			 * Store the pfn of the page in a special migration
-> @@ -847,7 +847,7 @@ static int try_to_unmap_one(struct page
->  		entry = make_migration_entry(page, pte_write(pteval));
->  		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
->  	} else
-> -		dec_mm_counter(mm, file_rss);
-> +		__this_cpu_dec(mm->rss->file);
-> 
-> 
->  	page_remove_rmap(page);
-> @@ -967,7 +967,7 @@ static int try_to_unmap_cluster(unsigned
-> 
->  		page_remove_rmap(page);
->  		page_cache_release(page);
-> -		dec_mm_counter(mm, file_rss);
-> +		__this_cpu_dec(mm->rss->file);
->  		(*mapcount)--;
->  	}
->  	pte_unmap_unlock(pte - 1, ptl);
-> Index: linux-2.6/mm/swapfile.c
-> ===================================================================
-> --- linux-2.6.orig/mm/swapfile.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/mm/swapfile.c	2009-11-04 13:13:42.000000000 -0600
-> @@ -831,7 +831,7 @@ static int unuse_pte(struct vm_area_stru
->  		goto out;
->  	}
-> 
-> -	inc_mm_counter(vma->vm_mm, anon_rss);
-> +	__this_cpu_inc(vma->vm_mm->rss->anon);
->  	get_page(page);
->  	set_pte_at(vma->vm_mm, addr, pte,
->  		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
-> Index: linux-2.6/mm/init-mm.c
-> ===================================================================
-> --- linux-2.6.orig/mm/init-mm.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/mm/init-mm.c	2009-11-04 13:13:42.000000000 -0600
-> @@ -8,6 +8,8 @@
->  #include <asm/atomic.h>
->  #include <asm/pgtable.h>
-> 
-> +DEFINE_PER_CPU(struct mm_counter, init_mm_counters);
-> +
->  struct mm_struct init_mm = {
->  	.mm_rb		= RB_ROOT,
->  	.pgd		= swapper_pg_dir,
-> @@ -17,4 +19,5 @@ struct mm_struct init_mm = {
->  	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
->  	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
->  	.cpu_vm_mask	= CPU_MASK_ALL,
-> +	.rss		= &init_mm_counters,
->  };
-> 
+> OK, I don't know why this failed, but I'm an mm neophyte running on pure
+> grep. Any ideas from anyone with an actual clue in this area? (I know OOM
+> is all the rage right now, so maybe this will garner some attention :) )
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
