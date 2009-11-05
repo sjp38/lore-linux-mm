@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 50DD56B0044
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 15:52:24 -0500 (EST)
-Subject: Re: [RFC MM] Accessors for mm locking
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9662F6B0044
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 15:56:22 -0500 (EST)
+Subject: Re: Subject: [RFC MM] mmap_sem scaling: Use mutex and percpu counter instead
 From: Andi Kleen <andi@firstfloor.org>
 References: <alpine.DEB.1.10.0911051417370.24312@V090114053VZO-1>
-Date: Thu, 05 Nov 2009 21:52:12 +0100
-In-Reply-To: <alpine.DEB.1.10.0911051417370.24312@V090114053VZO-1> (Christoph Lameter's message of "Thu, 5 Nov 2009 14:19:25 -0500 (EST)")
-Message-ID: <87vdho7kzn.fsf@basil.nowhere.org>
+	<alpine.DEB.1.10.0911051419320.24312@V090114053VZO-1>
+Date: Thu, 05 Nov 2009 21:56:18 +0100
+In-Reply-To: <alpine.DEB.1.10.0911051419320.24312@V090114053VZO-1> (Christoph Lameter's message of "Thu, 5 Nov 2009 14:20:47 -0500 (EST)")
+Message-ID: <87r5sc7kst.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -17,35 +18,30 @@ List-ID: <linux-mm.kvack.org>
 
 Christoph Lameter <cl@linux-foundation.org> writes:
 
-> From: Christoph Lameter <cl@linux-foundation.org>
-> Subject: [RFC MM] Accessors for mm locking
+> Instead of a rw semaphore use a mutex and a per cpu counter for the number
+> of the current readers. read locking then becomes very cheap requiring only
+> the increment of a per cpu counter.
 >
-> Scaling of MM locking has been a concern for a long time. With the arrival of
-> high thread counts in average business systems we may finally have to do
-> something about that.
+> Write locking is more expensive since the writer must scan the percpu array
+> and wait until all readers are complete. Since the readers are not holding
+> semaphores we have no wait queue from which the writer could wakeup. In this
+> draft we simply wait for one millisecond between scans of the percpu
+> array. A different solution must be found there.
 
-Thanks for starting to think about that. Yes, this is definitely
-something that needs to be addressed.
+I'm not sure making all writers more expensive is really a good idea.
 
-> Index: linux-2.6/arch/x86/mm/fault.c
-> ===================================================================
-> --- linux-2.6.orig/arch/x86/mm/fault.c	2009-11-05 13:02:35.000000000 -0600
-> +++ linux-2.6/arch/x86/mm/fault.c	2009-11-05 13:02:41.000000000 -0600
-> @@ -758,7 +758,7 @@ __bad_area(struct pt_regs *regs, unsigne
->  	 * Something tried to access memory that isn't in our memory map..
->  	 * Fix it, but check if it's kernel or user first..
->  	 */
-> -	up_read(&mm->mmap_sem);
-> +	mm_reader_unlock(mm);
+For example it will definitely impact the AIM7 multi brk() issue
+or the mysql allocation case, which are all writer intensive. I assume
+doing a lot of mmaps/brks in parallel is not that uncommon.
 
-My assumption was that a suitable scalable lock (or rather multi locks) 
-would need to know about the virtual address, or at least the VMA. 
-As in doing range locking for different address space areas.
+My thinking was more that we simply need per VMA locking or
+some other per larger address range locking. Unfortunately that
+needs changes in a lot of users that mess with the VMA lists
+(perhaps really needs some better abstractions for VMA list management
+first)
 
-So this simple abstraction doesn't seem to be enough to really experiment?
-
-Or what did you have in mind for improving the locking without using
-ranges?
+That said also addressing the convoying issues in the current
+semaphores would be a good idea, which is what your patch does.
 
 -Andi
 
