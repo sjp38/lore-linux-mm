@@ -1,82 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D70356B0044
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 03:05:02 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA68503Q025669
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 14C266B0044
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 03:55:22 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA68tKHF007789
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 6 Nov 2009 17:05:00 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A8A5E45DE6E
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 17:04:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D64A45DE60
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 17:04:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 405E81DB803A
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 17:04:59 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C368C1DB803B
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 17:04:58 +0900 (JST)
-Date: Fri, 6 Nov 2009 17:02:25 +0900
+	Fri, 6 Nov 2009 17:55:20 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B59E45DE64
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 17:55:20 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BDE745DE4F
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 17:55:20 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D4381DF8001
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 17:55:20 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AE1781DB803F
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 17:55:19 +0900 (JST)
+Date: Fri, 6 Nov 2009 17:52:42 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 2/8] memcg: move memcg_tasklist mutex
-Message-Id: <20091106170225.0e8bd880.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091106164934.b34d342f.nishimura@mxp.nes.nec.co.jp>
-References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
-	<20091106141149.9c7e94d5.nishimura@mxp.nes.nec.co.jp>
-	<20091106145459.351b407f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091106164934.b34d342f.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH 0/2] memcg make use of new percpu implementations
+Message-Id: <20091106175242.6e13ee29.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Nov 2009 16:49:34 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Hi,
 
-> If there is no such a lock:
-> 
->   Assume cgroup foo has exceeded its limit and is about to triggering oom.
->   1. Process A, which has been in cgroup baa and uses large memory,
->      is just moved to cgroup foo. Process A can be the candidates for being killed.
->   2. Process B, which has been in cgroup foo and uses large memory,
->      is just moved from cgroup foo. Process B can be excluded from the candidates for
->      being killed. 
-> 
-> Hmm, but considering more, those race window exist anyway even if we holds a lock,
-> because try_charge decides wether it should trigger oom or not outside of the lock.
-> 
-yes, that's point.
+Recent updates on dynamic percpu allocation looks good and I tries to rewrite
+memcg's poor implementation of percpu status counter.
+(It's not NUMA-aware ...)
+Thanks for great works.
+
+For this time. I added Christoph to CC because I'm not fully sure my usage of
+__this_cpu_xxx is correct...I'm glad if you check the usage when you have time.
 
 
-> If this recharge feature is enabled, I think those problems might be avoided by doing like:
-> 
-> __mem_cgroup_try_charge()
-> {
-> 	...
-> 	if (oom) {
-> 		mutex_lock(&memcg_tasklist);
-> 		if (unlikely(mem_cgroup_check_under_limit)) {
-> 			mutex_unlock(&memcg_tasklist);
-> 			continue
-> 		}
-> 		mem_cgroup_out_of_memory();
-> 		mutex_unlock(&memcg_tasklist);
-> 		record_last_oom();
-> 	}
-> 	...
-> }
-> 
-> but it makes codes more complex and the recharge feature isn't necessarily enabled.
-> 
-> Well, I personally think we can remove these locks completely and make codes simpler.
-> What do you think ?
+Patch 1/2 is just clean up (prepare for patch 2/2)
+Patch 2/2 is for percpu.
 
-I myself vote for removing this lock ;)
+Tested on my 8cpu box and works well.
+Pathcesa are against the latest mmotm.
 
 Thanks,
 -Kame
