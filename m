@@ -1,97 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 211A86B004D
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:55:08 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id B20E782C4A9
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:01:56 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 4r8uYYz+xKgP for <linux-mm@kvack.org>;
-	Fri,  6 Nov 2009 14:01:56 -0500 (EST)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 8AEBC82C475
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:01:50 -0500 (EST)
-Date: Fri, 6 Nov 2009 13:53:35 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [RFC MM] mmap_sem scaling: only scan cpus used by an mm
-In-Reply-To: <20091106073946.GV31511@one.firstfloor.org>
-Message-ID: <alpine.DEB.1.10.0911061352320.22205@V090114053VZO-1>
-References: <alpine.DEB.1.10.0911051417370.24312@V090114053VZO-1> <alpine.DEB.1.10.0911051419320.24312@V090114053VZO-1> <87r5sc7kst.fsf@basil.nowhere.org> <alpine.DEB.1.10.0911051558220.7668@V090114053VZO-1> <20091106073946.GV31511@one.firstfloor.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 67CB76B004D
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:03:31 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA6J3SR7031640
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Sat, 7 Nov 2009 04:03:28 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D367C45DE4F
+	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 04:03:27 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9124D45DE52
+	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 04:03:27 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 36709EF8027
+	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 04:03:27 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C997EF8049
+	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 04:03:18 +0900 (JST)
+Message-ID: <da621335371fccd6cfb3d8d7c0c2bf3a.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <alpine.DEB.1.10.0911061231580.5187@V090114053VZO-1>
+References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
+    <20091104234923.GA25306@redhat.com>
+    <alpine.DEB.1.10.0911051004360.25718@V090114053VZO-1>
+    <alpine.DEB.1.10.0911051035100.25718@V090114053VZO-1>
+    <20091106101106.8115e0f1.kamezawa.hiroyu@jp.fujitsu.com>
+    <20091106122344.51118116.kamezawa.hiroyu@jp.fujitsu.com>
+    <alpine.DEB.1.10.0911061231580.5187@V090114053VZO-1>
+Date: Sat, 7 Nov 2009 04:03:17 +0900 (JST)
+Subject: Re: [MM] Make mm counters per cpu instead of atomic V2
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-One way to reduce the cost of the writer lock is to track the cpus used
-and loop over the processors in that bitmap.
+Christoph Lameter wrote:
+> On Fri, 6 Nov 2009, KAMEZAWA Hiroyuki wrote:
+>
+>> BTW, can't we have single-thread-mode for this counter ?
+>> Usual program's read-side will get much benefit.....
+>
+> Thanks for the measurements.
+>
+> A single thread mode would be good. Ideas on how to add that would be
+> appreciated.
+>
 
----
- arch/x86/include/asm/mmu_context.h |    1 +
- include/linux/mm_types.h           |    3 ++-
- kernel/fork.c                      |    2 ++
- mm/init-mm.c                       |    1 +
- 4 files changed, 6 insertions(+), 1 deletion(-)
+Maybe there are some ways....At brief thought....
+==
+struct usage_counter {
+    long rss;
+    long file;
+}
 
-Index: linux-2.6/arch/x86/include/asm/mmu_context.h
-===================================================================
---- linux-2.6.orig/arch/x86/include/asm/mmu_context.h	2009-11-06 12:26:24.000000000 -0600
-+++ linux-2.6/arch/x86/include/asm/mmu_context.h	2009-11-06 12:26:36.000000000 -0600
-@@ -43,6 +43,7 @@ static inline void switch_mm(struct mm_s
- 		percpu_write(cpu_tlbstate.active_mm, next);
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
-+		cpumask_set_cpu(cpu, &next->cpus_used);
 
- 		/* Re-load page tables */
- 		load_cr3(next->pgd);
-Index: linux-2.6/include/linux/mm_types.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_types.h	2009-11-06 12:26:35.000000000 -0600
-+++ linux-2.6/include/linux/mm_types.h	2009-11-06 12:26:36.000000000 -0600
-@@ -241,6 +241,7 @@ struct mm_struct {
- 	struct linux_binfmt *binfmt;
+struct mm_struct {
+    ....
+    atomic_long_t  rss;   /* only updated when usage_counter is NULL */
+    atomic_long_t  file;  /* only updated when usage_counter is NULL */
+    struct usage_counter *usage;  /* percpu counter used when
+                                     multi-threaded */
+    .....
+}
 
- 	cpumask_t cpu_vm_mask;
-+	cpumask_t cpus_used;
+And allocate mm->usage only when the first CLONE_THREAD is specified.
 
- 	/* Architecture-specific MM context */
- 	mm_context_t context;
-@@ -291,7 +292,7 @@ static inline int mm_has_reader(struct m
- {
- 	int cpu;
+if (mm->usage)
+    access per cpu
+else
+    atomic_long_xxx
 
--	for_each_possible_cpu(cpu)
-+	for_each_cpu(cpu, &mm->cpus_used)
- 		if (per_cpu(mm->rss->readers, cpu))
- 			return 1;
+and read operation will be
 
-Index: linux-2.6/mm/init-mm.c
-===================================================================
---- linux-2.6.orig/mm/init-mm.c	2009-11-06 12:26:35.000000000 -0600
-+++ linux-2.6/mm/init-mm.c	2009-11-06 12:26:36.000000000 -0600
-@@ -19,5 +19,6 @@ struct mm_struct init_mm = {
- 	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
- 	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
- 	.cpu_vm_mask	= CPU_MASK_ALL,
-+	.cpus_used	= CPU_MASK_ALL,
- 	.rss		= &init_mm_counters,
- };
-Index: linux-2.6/kernel/fork.c
-===================================================================
---- linux-2.6.orig/kernel/fork.c	2009-11-06 12:26:35.000000000 -0600
-+++ linux-2.6/kernel/fork.c	2009-11-06 12:26:40.000000000 -0600
-@@ -297,6 +297,8 @@ static int dup_mmap(struct mm_struct *mm
- 	mm->cached_hole_size = ~0UL;
- 	mm->map_count = 0;
- 	cpumask_clear(mm_cpumask(mm));
-+	cpumask_clear(&mm->cpus_used);
-+	cpumask_set_cpu(smp_processor_id(), &mm->cpus_used);
- 	mm->mm_rb = RB_ROOT;
- 	rb_link = &mm->mm_rb.rb_node;
- 	rb_parent = NULL;
+    val = atomic_read(mm->rss);
+    if (mm->usage)
+        for_each_possible_cpu()....
+==
+Does "if" seems too costly ?
+
+If this idea is bad, I think moving mm_counter to task_struct from
+mm_struct and doing slow-sync is an idea instead of percpu.
+
+for example
+
+struct task_struct {
+    ....
+    mm_counter_t temp_counter;
+    ....
+};
+
+struct mm_struct {
+    .....
+    atomic_long_t rss;
+    atomic_long_t file;
+};
+
+And adds temp_counter's value to mm_struct at some good point....before
+sleep ?
+kswapd and reclaim routine can update mm_struct's counter, directly.
+Readers just read mm_struct's counter.
+
+Thanks,
+-Kame
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
