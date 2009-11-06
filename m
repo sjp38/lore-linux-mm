@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8436B0044
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 10:18:59 -0500 (EST)
-Date: Fri, 6 Nov 2009 16:18:50 +0100
-Subject: Re: OOM killer, page fault
-Message-ID: <20091106151850.GC3816@gamma.logic.tuwien.ac.at>
-References: <20091102155543.E60E.A69D9226@jp.fujitsu.com> <20091102140216.02567ff8.kamezawa.hiroyu@jp.fujitsu.com> <20091102141917.GJ2116@gamma.logic.tuwien.ac.at> <28c262360911020640k3f9dfcdct2cac6cc1d193144d@mail.gmail.com> <20091105132109.GA12676@gamma.logic.tuwien.ac.at> <loom.20091105T213323-393@post.gmane.org> <28c262360911051418r1aefbff6oa54a63d887c0ea48@mail.gmail.com> <20091106000113.GE22289@gamma.logic.tuwien.ac.at> <20091106133833.GA23151@gamma.logic.tuwien.ac.at> <28c262360911060714h16cf55dfibbecc090c76341ab@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 90C4E6B0062
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 10:19:32 -0500 (EST)
+Received: by pzk34 with SMTP id 34so748498pzk.11
+        for <linux-mm@kvack.org>; Fri, 06 Nov 2009 07:19:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <28c262360911060714h16cf55dfibbecc090c76341ab@mail.gmail.com>
-From: Norbert Preining <preining@logic.at>
+In-Reply-To: <20091106134030.a94665d1.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20091104152426.eacc894f.kamezawa.hiroyu@jp.fujitsu.com>
+	 <28c262360911050711k47a63896xe4915157664cb822@mail.gmail.com>
+	 <20091106084806.7503b165.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20091106134030.a94665d1.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Sat, 7 Nov 2009 00:19:30 +0900
+Message-ID: <28c262360911060719y45f4b58ex2f13853f0d142656@mail.gmail.com>
+Subject: Re: [PATCH] show per-process swap usage via procfs v2
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Jody Belka <jody+lkml@jj79.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, cl@linux-foundation.org, akpm@linux-foundation.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-recompiling and retrying ...
+On Fri, Nov 6, 2009 at 1:40 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Now, anon_rss and file_rss is counted as RSS and exported via /proc.
+> RSS usage is important information but one more information which
+> is often asked by users is "usage of swap".(user support team said.)
+>
+> This patch counts swap entry usage per process and show it via
+> /proc/<pid>/status. I think status file is robust against new entry.
+> Then, it is the first candidate..
+>
+> =A0After this, /proc/<pid>/status includes following line
+> =A0<snip>
+> =A0VmPeak: =A0 315360 kB
+> =A0VmSize: =A0 315360 kB
+> =A0VmLck: =A0 =A0 =A0 =A0 0 kB
+> =A0VmHWM: =A0 =A0180452 kB
+> =A0VmRSS: =A0 =A0180452 kB
+> =A0VmData: =A0 311624 kB
+> =A0VmStk: =A0 =A0 =A0 =A084 kB
+> =A0VmExe: =A0 =A0 =A0 =A0 4 kB
+> =A0VmLib: =A0 =A0 =A01568 kB
+> =A0VmPTE: =A0 =A0 =A0 640 kB
+> =A0VmSwap: =A0 131240 kB <=3D=3D=3D new information
+>
+> Note:
+> =A0Because this patch catches swap_pte on page table, this will
+> =A0not catch shmem's swapout. It's already accounted in per-shmem
+> =A0inode and we don't need to do more.
+>
+> Changelog: 2009/11/06
+> =A0- fixed bad use of is_migration_entry. Now, non_swap_entry() is used.
+> Changelog: 2009/11/03
+> =A0- clean up.
+> =A0- fixed initialization bug at fork (init_mm())
+>
+> Acked-by: Acked-by; David Rientjes <rientjes@google.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-On Sa, 07 Nov 2009, Minchan Kim wrote:
-> +           printk(KERN_DEBUG "fault handler : 0x%lx\n", vma->vm_ops->fault);
-
-BTW:
-	m/memory.c:2722: warning: format a??%lxa?? expects type a??long unsigned inta??, but argument 2 has type a??int (* const)(struct vm_area_struct *, struct vm_fault *)a??
-
-Best wishes
-
-Norbert
-
--------------------------------------------------------------------------------
-Dr. Norbert Preining                                        Associate Professor
-JAIST Japan Advanced Institute of Science and Technology   preining@jaist.ac.jp
-Vienna University of Technology                               preining@logic.at
-Debian Developer (Debian TeX Task Force)                    preining@debian.org
-gpg DSA: 0x09C5B094      fp: 14DF 2E6C 0307 BE6D AD76  A9C0 D2BF 4AA3 09C5 B094
--------------------------------------------------------------------------------
-LOWTHER (vb.)
-(Of a large group of people who have been to the cinema together.) To
-stand aimlessly about on the pavement and argue about whatever to go
-and eat either a Chinese meal nearby or an Indian meal at a restaurant
-which somebody says is very good but isn't certain where it is, or
-have a drink and think about it, or just go home, or have a Chinese
-meal nearby - until by the time agreement is reached everything is
-shut.
-			--- Douglas Adams, The Meaning of Liff
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
