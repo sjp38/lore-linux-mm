@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BF43D6B0062
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 00:30:45 -0500 (EST)
-Date: Fri, 6 Nov 2009 14:11:49 +0900
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C0676B0062
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 00:31:23 -0500 (EST)
+Date: Fri, 6 Nov 2009 14:12:19 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mmotm 2/8] memcg: move memcg_tasklist mutex
-Message-Id: <20091106141149.9c7e94d5.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 3/8] memcg: add mem_cgroup_cancel_charge()
+Message-Id: <20091106141219.25f83e6f.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
 References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -16,74 +16,87 @@ To: linux-mm <linux-mm@kvack.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-memcg_tasklist was introduced to serialize mem_cgroup_out_of_memory() and
-mem_cgroup_move_task() to ensure tasks cannot be moved to another cgroup
-during select_bad_process().
+There are some places calling both res_counter_uncharge() and css_put()
+to cancel the charge and the refcnt we have got by mem_cgroup_tyr_charge().
 
-task_in_mem_cgroup(), which can be called by select_bad_process(), will check
-whether a task is in the mem_cgroup or not by dereferencing task->cgroups
-->subsys[]. So, it would be desirable to change task->cgroups
-(rcu_assign_pointer() in cgroup_attach_task() does it) with memcg_tasklist held.
+This patch introduces mem_cgroup_cancel_charge() and call it in those places.
 
-Now that we can define cancel_attach(), we can safely release memcg_tasklist
-on fail path even if we hold memcg_tasklist in can_attach(). So let's move
-mutex_lock/unlock() of memcg_tasklist.
-
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
- mm/memcontrol.c |   22 ++++++++++++++++++++--
- 1 files changed, 20 insertions(+), 2 deletions(-)
+ mm/memcontrol.c |   38 ++++++++++++++++++--------------------
+ 1 files changed, 18 insertions(+), 20 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4bd3451..d3b2ac0 100644
+index d3b2ac0..05e837c 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3395,18 +3395,34 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
+@@ -1500,6 +1500,21 @@ nomem:
+ }
+ 
+ /*
++ * Somemtimes we have to undo a charge we got by try_charge().
++ * This function is for that and do uncharge, put css's refcnt.
++ * gotten by try_charge().
++ */
++static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
++{
++	if (!mem_cgroup_is_root(mem)) {
++		res_counter_uncharge(&mem->res, PAGE_SIZE);
++		if (do_swap_account)
++			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
++	}
++	css_put(&mem->css);
++}
++
++/*
+  * A helper function to get mem_cgroup from ID. must be called under
+  * rcu_read_lock(). The caller must check css_is_removed() or some if
+  * it's concern. (dropping refcnt from swap can be called against removed
+@@ -1565,12 +1580,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+ 	lock_page_cgroup(pc);
+ 	if (unlikely(PageCgroupUsed(pc))) {
+ 		unlock_page_cgroup(pc);
+-		if (!mem_cgroup_is_root(mem)) {
+-			res_counter_uncharge(&mem->res, PAGE_SIZE);
+-			if (do_swap_account)
+-				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+-		}
+-		css_put(&mem->css);
++		mem_cgroup_cancel_charge(mem);
+ 		return;
+ 	}
+ 
+@@ -1734,14 +1744,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
+ cancel:
+ 	put_page(page);
+ uncharge:
+-	/* drop extra refcnt by try_charge() */
+-	css_put(&parent->css);
+-	/* uncharge if move fails */
+-	if (!mem_cgroup_is_root(parent)) {
+-		res_counter_uncharge(&parent->res, PAGE_SIZE);
+-		if (do_swap_account)
+-			res_counter_uncharge(&parent->memsw, PAGE_SIZE);
+-	}
++	mem_cgroup_cancel_charge(parent);
  	return ret;
  }
  
-+static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-+				struct cgroup *cgroup,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+	mutex_lock(&memcg_tasklist);
-+	return 0;
-+}
-+
-+static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
-+				struct cgroup *cgroup,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+	mutex_unlock(&memcg_tasklist);
-+}
-+
- static void mem_cgroup_move_task(struct cgroup_subsys *ss,
- 				struct cgroup *cont,
- 				struct cgroup *old_cont,
- 				struct task_struct *p,
- 				bool threadgroup)
- {
--	mutex_lock(&memcg_tasklist);
-+	mutex_unlock(&memcg_tasklist);
- 	/*
- 	 * FIXME: It's better to move charges of this process from old
- 	 * memcg to new memcg. But it's just on TODO-List now.
- 	 */
--	mutex_unlock(&memcg_tasklist);
+@@ -1957,12 +1960,7 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
+ 		return;
+ 	if (!mem)
+ 		return;
+-	if (!mem_cgroup_is_root(mem)) {
+-		res_counter_uncharge(&mem->res, PAGE_SIZE);
+-		if (do_swap_account)
+-			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+-	}
+-	css_put(&mem->css);
++	mem_cgroup_cancel_charge(mem);
  }
  
- struct cgroup_subsys mem_cgroup_subsys = {
-@@ -3416,6 +3432,8 @@ struct cgroup_subsys mem_cgroup_subsys = {
- 	.pre_destroy = mem_cgroup_pre_destroy,
- 	.destroy = mem_cgroup_destroy,
- 	.populate = mem_cgroup_populate,
-+	.can_attach = mem_cgroup_can_attach,
-+	.cancel_attach = mem_cgroup_cancel_attach,
- 	.attach = mem_cgroup_move_task,
- 	.early_init = 0,
- 	.use_id = 1,
+ static void
 -- 
 1.5.6.1
 
