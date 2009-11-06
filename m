@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 143B16B0044
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 00:30:11 -0500 (EST)
-Date: Fri, 6 Nov 2009 14:11:06 +0900
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id BF43D6B0062
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 00:30:45 -0500 (EST)
+Date: Fri, 6 Nov 2009 14:11:49 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mmotm 1/8] cgroup: introduce cancel_attach()
-Message-Id: <20091106141106.a2bd995a.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 2/8] memcg: move memcg_tasklist mutex
+Message-Id: <20091106141149.9c7e94d5.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
 References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -16,133 +16,74 @@ To: linux-mm <linux-mm@kvack.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds cancel_attach() operation to struct cgroup_subsys.
-cancel_attach() can be used when can_attach() operation prepares something
-for the subsys, but we should rollback what can_attach() operation has prepared
-if attach task fails after we've succeeded in can_attach().
+memcg_tasklist was introduced to serialize mem_cgroup_out_of_memory() and
+mem_cgroup_move_task() to ensure tasks cannot be moved to another cgroup
+during select_bad_process().
+
+task_in_mem_cgroup(), which can be called by select_bad_process(), will check
+whether a task is in the mem_cgroup or not by dereferencing task->cgroups
+->subsys[]. So, it would be desirable to change task->cgroups
+(rcu_assign_pointer() in cgroup_attach_task() does it) with memcg_tasklist held.
+
+Now that we can define cancel_attach(), we can safely release memcg_tasklist
+on fail path even if we hold memcg_tasklist in can_attach(). So let's move
+mutex_lock/unlock() of memcg_tasklist.
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
- Documentation/cgroups/cgroups.txt |   13 +++++++++++-
- include/linux/cgroup.h            |    2 +
- kernel/cgroup.c                   |   38 ++++++++++++++++++++++++++++++------
- 3 files changed, 45 insertions(+), 8 deletions(-)
+ mm/memcontrol.c |   22 ++++++++++++++++++++--
+ 1 files changed, 20 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/cgroups/cgroups.txt b/Documentation/cgroups/cgroups.txt
-index 0b33bfe..c86947c 100644
---- a/Documentation/cgroups/cgroups.txt
-+++ b/Documentation/cgroups/cgroups.txt
-@@ -536,10 +536,21 @@ returns an error, this will abort the attach operation.  If a NULL
- task is passed, then a successful result indicates that *any*
- unspecified task can be moved into the cgroup. Note that this isn't
- called on a fork. If this method returns 0 (success) then this should
--remain valid while the caller holds cgroup_mutex. If threadgroup is
-+remain valid while the caller holds cgroup_mutex and it is ensured that either
-+attach() or cancel_attach() will be called in futer. If threadgroup is
- true, then a successful result indicates that all threads in the given
- thread's threadgroup can be moved together.
- 
-+void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-+	       struct task_struct *task, bool threadgroup)
-+(cgroup_mutex held by caller)
-+
-+Called when a task attach operation has failed after can_attach() has succeeded.
-+A subsystem whose can_attach() has some side-effects should provide this
-+function, so that the subsytem can implement a rollback. If not, not necessary.
-+This will be called only about subsystems whose can_attach() operation have
-+succeeded.
-+
- void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 	    struct cgroup *old_cgrp, struct task_struct *task,
- 	    bool threadgroup)
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 0008dee..d4cc200 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -427,6 +427,8 @@ struct cgroup_subsys {
- 	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
- 	int (*can_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 			  struct task_struct *tsk, bool threadgroup);
-+	void (*cancel_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-+			  struct task_struct *tsk, bool threadgroup);
- 	void (*attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 			struct cgroup *old_cgrp, struct task_struct *tsk,
- 			bool threadgroup);
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 0249f4b..e443742 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -1539,7 +1539,7 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
- int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- {
- 	int retval = 0;
--	struct cgroup_subsys *ss;
-+	struct cgroup_subsys *ss, *failed_ss = NULL;
- 	struct cgroup *oldcgrp;
- 	struct css_set *cg;
- 	struct css_set *newcg;
-@@ -1553,8 +1553,16 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	for_each_subsys(root, ss) {
- 		if (ss->can_attach) {
- 			retval = ss->can_attach(ss, cgrp, tsk, false);
--			if (retval)
--				return retval;
-+			if (retval) {
-+				/*
-+				 * Remember at which subsystem we've failed in
-+				 * can_attach() to call cancel_attach() only
-+				 * against subsystems whose attach() have
-+				 * succeeded(see below).
-+				 */
-+				failed_ss = ss;
-+				goto out;
-+			}
- 		}
- 	}
- 
-@@ -1568,14 +1576,17 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	 */
- 	newcg = find_css_set(cg, cgrp);
- 	put_css_set(cg);
--	if (!newcg)
--		return -ENOMEM;
-+	if (!newcg) {
-+		retval = -ENOMEM;
-+		goto out;
-+	}
- 
- 	task_lock(tsk);
- 	if (tsk->flags & PF_EXITING) {
- 		task_unlock(tsk);
- 		put_css_set(newcg);
--		return -ESRCH;
-+		retval = -ESRCH;
-+		goto out;
- 	}
- 	rcu_assign_pointer(tsk->cgroups, newcg);
- 	task_unlock(tsk);
-@@ -1601,7 +1612,20 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	 * is no longer empty.
- 	 */
- 	cgroup_wakeup_rmdir_waiter(cgrp);
--	return 0;
-+out:
-+	if (retval)
-+		for_each_subsys(root, ss) {
-+			if (ss == failed_ss)
-+				/*
-+				 * This means can_attach() of this subsystem
-+				 * have failed, so we don't need to call
-+				 * cancel_attach() against rests of subsystems.
-+				 */
-+				break;
-+			if (ss->cancel_attach)
-+				ss->cancel_attach(ss, cgrp, tsk, false);
-+		}
-+	return retval;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4bd3451..d3b2ac0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3395,18 +3395,34 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
+ 	return ret;
  }
  
- /*
++static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
++				struct cgroup *cgroup,
++				struct task_struct *p,
++				bool threadgroup)
++{
++	mutex_lock(&memcg_tasklist);
++	return 0;
++}
++
++static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
++				struct cgroup *cgroup,
++				struct task_struct *p,
++				bool threadgroup)
++{
++	mutex_unlock(&memcg_tasklist);
++}
++
+ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
+ 				struct cgroup *cont,
+ 				struct cgroup *old_cont,
+ 				struct task_struct *p,
+ 				bool threadgroup)
+ {
+-	mutex_lock(&memcg_tasklist);
++	mutex_unlock(&memcg_tasklist);
+ 	/*
+ 	 * FIXME: It's better to move charges of this process from old
+ 	 * memcg to new memcg. But it's just on TODO-List now.
+ 	 */
+-	mutex_unlock(&memcg_tasklist);
+ }
+ 
+ struct cgroup_subsys mem_cgroup_subsys = {
+@@ -3416,6 +3432,8 @@ struct cgroup_subsys mem_cgroup_subsys = {
+ 	.pre_destroy = mem_cgroup_pre_destroy,
+ 	.destroy = mem_cgroup_destroy,
+ 	.populate = mem_cgroup_populate,
++	.can_attach = mem_cgroup_can_attach,
++	.cancel_attach = mem_cgroup_cancel_attach,
+ 	.attach = mem_cgroup_move_task,
+ 	.early_init = 0,
+ 	.use_id = 1,
 -- 
 1.5.6.1
 
