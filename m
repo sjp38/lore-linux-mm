@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9BD1A6B0044
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 07:58:49 -0500 (EST)
-Received: from relay2.suse.de (mail2.suse.de [195.135.221.8])
-	by mx2.suse.de (Postfix) with ESMTP id 3C2CA79727
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:58:47 +0100 (CET)
-Subject: CONFIG_STRICT_DEVMEM broken
-From: Petr Tesarik <ptesarik@suse.cz>
-Content-Type: text/plain
-Date: Fri, 06 Nov 2009 13:58:46 +0100
-Message-Id: <1257512326.6288.91.camel@nathan.suse.cz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 93DF26B0044
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 08:38:42 -0500 (EST)
+Date: Fri, 6 Nov 2009 14:38:33 +0100
+Subject: Re: OOM killer, page fault
+Message-ID: <20091106133833.GA23151@gamma.logic.tuwien.ac.at>
+References: <20091102135640.93de7c2a.minchan.kim@barrios-desktop> <28c262360911012300h4535118ewd65238c746b91a52@mail.gmail.com> <20091102155543.E60E.A69D9226@jp.fujitsu.com> <20091102140216.02567ff8.kamezawa.hiroyu@jp.fujitsu.com> <20091102141917.GJ2116@gamma.logic.tuwien.ac.at> <28c262360911020640k3f9dfcdct2cac6cc1d193144d@mail.gmail.com> <20091105132109.GA12676@gamma.logic.tuwien.ac.at> <loom.20091105T213323-393@post.gmane.org> <28c262360911051418r1aefbff6oa54a63d887c0ea48@mail.gmail.com> <20091106000113.GE22289@gamma.logic.tuwien.ac.at>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091106000113.GE22289@gamma.logic.tuwien.ac.at>
+From: Norbert Preining <preining@logic.at>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Jody Belka <jody+lkml@jj79.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi Kim,
 
-I found a problem with /dev/mem mappings. Both mmap() and mmap2() can be
-given a value for offset which is beyond the physical range supported by
-the architecture. The value is then passed down to remap_pte_range(),
-and depending on the implementation of pfn_pte(), the layout of the page
-table entry itself and other arch-specific details, the PTE can map to
-an existing page.
+On Fr, 06 Nov 2009, preining wrote:
+> Recompiling already and trying to recreate the oom-killer boom.
 
-On non-PAE i386 the PFN can overflow the 32-bit PTE, so the highest bits
-are ignored.
-On ia64, the PTE is 64-bit, but bits 53-63 of the PTE are ignored by the
-CPU, so it is also possible to wrap around the physical range.
-On x86_64, it is possible to set the reserved bits 40-51, causing a Page
-Fault. You can also modify the available bits 52-62, or the NX bit.
-On s/390 (31-bit), it's possible to set bit 31. I can't remember what
-that does, and I don't currently have an s/390 which I could crash, but
-this bit should be always 0.
+Well, after rebooting into that kernel I get *loads*, every few seconds,
+of warnings in the log. Hard to sort out what is real. Is that expected?
 
-This can become a problem on x86 with PAT enabled, where we cannot
-tolerate cache aliasing, but it's still possible create aliases by using
-a large enough PFN.
+Excerpt from the log:
+[ 2077.753841] vma->vm_ops->fault : 0xffffffff811df4bd
+[ 2077.753842] ------------[ cut here ]------------
+[ 2077.753845] WARNING: at mm/memory.c:2722 __do_fault+0x89/0x382()
+[ 2077.753847] Hardware name: VGN-Z11VN_B
+...
+[ 2077.753880] Pid: 4892, comm: Xorg Tainted: G        W  2.6.32-rc6 #5
+[ 2077.753881] Call Trace:
+[ 2077.753884]  [<ffffffff8108c6cc>] ? __do_fault+0x89/0x382
+[ 2077.753887]  [<ffffffff8108c6cc>] ? __do_fault+0x89/0x382
+[ 2077.753889]  [<ffffffff8103ae54>] ? warn_slowpath_common+0x77/0xa3
+[ 2077.753892]  [<ffffffff8108c6cc>] ? __do_fault+0x89/0x382
+[ 2077.753895]  [<ffffffff81341a82>] ? _spin_unlock+0x23/0x2f
+[ 2077.753898]  [<ffffffff8108e5d0>] ? handle_mm_fault+0x2b9/0x608
+[ 2077.753900]  [<ffffffff810af792>] ? do_vfs_ioctl+0x443/0x47b
+[ 2077.753903]  [<ffffffff81026759>] ? do_page_fault+0x25f/0x27b
+[ 2077.753906]  [<ffffffff81341e8f>] ? page_fault+0x1f/0x30
+[ 2077.753908] ---[ end trace d3324ef5061f0136 ]---
 
-IMO the root cause is that pfn_pte() assumes that the PFN is valid, but
-in the case of /dev/mem it originates directly from user-space, so the
-assumption may be wrong.
+hundreds/thousands of them.
 
-I'm not sure how to fix this. It would be nice to return -EINVAL in
-mmap_mem() and read_mem() if the physical range is not available on the
-architecture, but:
+And even without starting anything else. Is that what you want?
+My syslog file has grown to some hundred megabytes ...
 
-1. There doesn't seem to be a per-arch macro that could be used to
-   determine the allowed range.
-2. Some architectures seem not to have a fixed limit.
-3. You may argue that this is "broken by design", and the application
-   should never map such areas from /dev/mem.
 
-Any comments?
-Petr Tesarik
+Best wishes
 
+Norbert
+
+-------------------------------------------------------------------------------
+Dr. Norbert Preining                                        Associate Professor
+JAIST Japan Advanced Institute of Science and Technology   preining@jaist.ac.jp
+Vienna University of Technology                               preining@logic.at
+Debian Developer (Debian TeX Task Force)                    preining@debian.org
+gpg DSA: 0x09C5B094      fp: 14DF 2E6C 0307 BE6D AD76  A9C0 D2BF 4AA3 09C5 B094
+-------------------------------------------------------------------------------
+LARGOWARD (n.)
+Motorists' name for the kind of pedestrian who stands beside a main
+road and waves on the traffic, as if it's their right of way.
+			--- Douglas Adams, The Meaning of Liff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
