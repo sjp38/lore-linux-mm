@@ -1,269 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 421636B0044
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 23:43:14 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA64hBIW032681
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 6 Nov 2009 13:43:11 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B868C2AEA82
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:43:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 57E7B1F7047
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:43:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF5F0E18004
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:43:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B060E18009
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:43:05 +0900 (JST)
-Date: Fri, 6 Nov 2009 13:40:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] show per-process swap usage via procfs v2
-Message-Id: <20091106134030.a94665d1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091106084806.7503b165.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091104152426.eacc894f.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262360911050711k47a63896xe4915157664cb822@mail.gmail.com>
-	<20091106084806.7503b165.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FA376B0044
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2009 23:59:23 -0500 (EST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCHv8 3/3] vhost_net: a kernel-level virtio server
+Date: Fri, 6 Nov 2009 15:29:17 +1030
+References: <cover.1257349249.git.mst@redhat.com> <20091104155724.GD32673@redhat.com>
+In-Reply-To: <20091104155724.GD32673@redhat.com>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200911061529.17500.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, cl@linux-foundation.org, akpm@linux-foundation.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, s.hetze@linux-ag.com, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, 5 Nov 2009 02:27:24 am Michael S. Tsirkin wrote:
+> What it is: vhost net is a character device that can be used to reduce
+> the number of system calls involved in virtio networking.
 
-Now, anon_rss and file_rss is counted as RSS and exported via /proc.
-RSS usage is important information but one more information which
-is often asked by users is "usage of swap".(user support team said.)
+Hi Michael,
 
-This patch counts swap entry usage per process and show it via
-/proc/<pid>/status. I think status file is robust against new entry.
-Then, it is the first candidate..
+   Now everyone else has finally kicked all the tires and it seems to pass,
+I've done a fairly complete review.  Generally, it's really nice; just one
+bug and a few minor suggestions for polishing.
 
- After this, /proc/<pid>/status includes following line
- <snip>
- VmPeak:   315360 kB
- VmSize:   315360 kB
- VmLck:         0 kB
- VmHWM:    180452 kB
- VmRSS:    180452 kB
- VmData:   311624 kB
- VmStk:        84 kB
- VmExe:         4 kB
- VmLib:      1568 kB
- VmPTE:       640 kB
- VmSwap:   131240 kB <=== new information
+> +/* Caller must have TX VQ lock */
+> +static void tx_poll_stop(struct vhost_net *net)
+> +{
+> +	if (likely(net->tx_poll_state != VHOST_NET_POLL_STARTED))
+> +		return;
 
-Note:
-  Because this patch catches swap_pte on page table, this will
-  not catch shmem's swapout. It's already accounted in per-shmem
-  inode and we don't need to do more.
+likely?  Really?
 
-Changelog: 2009/11/06
- - fixed bad use of is_migration_entry. Now, non_swap_entry() is used.
-Changelog: 2009/11/03
- - clean up.
- - fixed initialization bug at fork (init_mm())
+> +	for (;;) {
+> +		head = vhost_get_vq_desc(&net->dev, vq, vq->iov, &out, &in,
+> +					 NULL, NULL);
 
-Acked-by: Acked-by; David Rientjes <rientjes@google.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- fs/proc/task_mmu.c       |    9 ++++++---
- include/linux/mm_types.h |    1 +
- kernel/fork.c            |    1 +
- mm/memory.c              |   30 +++++++++++++++++++++---------
- mm/rmap.c                |    1 +
- mm/swapfile.c            |    1 +
- 6 files changed, 31 insertions(+), 12 deletions(-)
+Danger!  You need an arg to vhost_get_vq_desc to tell it the max desc size
+you can handle.  Otherwise, it's only limited by ring size, and a malicious
+guest can overflow you here, and below:
 
-Index: mmotm-2.6.32-Nov2/include/linux/mm_types.h
-===================================================================
---- mmotm-2.6.32-Nov2.orig/include/linux/mm_types.h
-+++ mmotm-2.6.32-Nov2/include/linux/mm_types.h
-@@ -228,6 +228,7 @@ struct mm_struct {
- 	 */
- 	mm_counter_t _file_rss;
- 	mm_counter_t _anon_rss;
-+	mm_counter_t _swap_usage;
- 
- 	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
- 	unsigned long hiwater_vm;	/* High-water virtual memory usage */
-Index: mmotm-2.6.32-Nov2/mm/memory.c
-===================================================================
---- mmotm-2.6.32-Nov2.orig/mm/memory.c
-+++ mmotm-2.6.32-Nov2/mm/memory.c
-@@ -376,12 +376,15 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
- 	return 0;
- }
- 
--static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
-+static inline void
-+add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss, int swap_usage)
- {
- 	if (file_rss)
- 		add_mm_counter(mm, file_rss, file_rss);
- 	if (anon_rss)
- 		add_mm_counter(mm, anon_rss, anon_rss);
-+	if (swap_usage)
-+		add_mm_counter(mm, swap_usage, swap_usage);
- }
- 
- /*
-@@ -597,7 +600,9 @@ copy_one_pte(struct mm_struct *dst_mm, s
- 						 &src_mm->mmlist);
- 				spin_unlock(&mmlist_lock);
- 			}
--			if (is_write_migration_entry(entry) &&
-+			if (!non_swap_entry(entry))
-+				rss[2]++;
-+			else if (is_write_migration_entry(entry) &&
- 					is_cow_mapping(vm_flags)) {
- 				/*
- 				 * COW mappings require pages in both parent
-@@ -648,11 +653,11 @@ static int copy_pte_range(struct mm_stru
- 	pte_t *src_pte, *dst_pte;
- 	spinlock_t *src_ptl, *dst_ptl;
- 	int progress = 0;
--	int rss[2];
-+	int rss[3];
- 	swp_entry_t entry = (swp_entry_t){0};
- 
- again:
--	rss[1] = rss[0] = 0;
-+	rss[2] = rss[1] = rss[0] = 0;
- 	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
- 	if (!dst_pte)
- 		return -ENOMEM;
-@@ -688,7 +693,7 @@ again:
- 	arch_leave_lazy_mmu_mode();
- 	spin_unlock(src_ptl);
- 	pte_unmap_nested(orig_src_pte);
--	add_mm_rss(dst_mm, rss[0], rss[1]);
-+	add_mm_rss(dst_mm, rss[0], rss[1], rss[2]);
- 	pte_unmap_unlock(orig_dst_pte, dst_ptl);
- 	cond_resched();
- 
-@@ -818,6 +823,7 @@ static unsigned long zap_pte_range(struc
- 	spinlock_t *ptl;
- 	int file_rss = 0;
- 	int anon_rss = 0;
-+	int swap_usage = 0;
- 
- 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	arch_enter_lazy_mmu_mode();
-@@ -887,13 +893,18 @@ static unsigned long zap_pte_range(struc
- 		if (pte_file(ptent)) {
- 			if (unlikely(!(vma->vm_flags & VM_NONLINEAR)))
- 				print_bad_pte(vma, addr, ptent, NULL);
--		} else if
--		  (unlikely(!free_swap_and_cache(pte_to_swp_entry(ptent))))
--			print_bad_pte(vma, addr, ptent, NULL);
-+		} else {
-+			swp_entry_t ent = pte_to_swp_entry(ptent);
-+
-+			if (!non_swap_entry(ent))
-+				swap_usage--;
-+			if (unlikely(!free_swap_and_cache(ent)))
-+				print_bad_pte(vma, addr, ptent, NULL);
-+		}
- 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
- 	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
- 
--	add_mm_rss(mm, file_rss, anon_rss);
-+	add_mm_rss(mm, file_rss, anon_rss, swap_usage);
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(pte - 1, ptl);
- 
-@@ -2595,6 +2606,7 @@ static int do_swap_page(struct mm_struct
- 	 */
- 
- 	inc_mm_counter(mm, anon_rss);
-+	dec_mm_counter(mm, swap_usage);
- 	pte = mk_pte(page, vma->vm_page_prot);
- 	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
- 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-Index: mmotm-2.6.32-Nov2/mm/swapfile.c
-===================================================================
---- mmotm-2.6.32-Nov2.orig/mm/swapfile.c
-+++ mmotm-2.6.32-Nov2/mm/swapfile.c
-@@ -837,6 +837,7 @@ static int unuse_pte(struct vm_area_stru
- 	}
- 
- 	inc_mm_counter(vma->vm_mm, anon_rss);
-+	dec_mm_counter(vma->vm_mm, swap_usage);
- 	get_page(page);
- 	set_pte_at(vma->vm_mm, addr, pte,
- 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
-Index: mmotm-2.6.32-Nov2/fs/proc/task_mmu.c
-===================================================================
---- mmotm-2.6.32-Nov2.orig/fs/proc/task_mmu.c
-+++ mmotm-2.6.32-Nov2/fs/proc/task_mmu.c
-@@ -17,7 +17,7 @@
- void task_mem(struct seq_file *m, struct mm_struct *mm)
- {
- 	unsigned long data, text, lib;
--	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
-+	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss, swap;
- 
- 	/*
- 	 * Note: to minimize their overhead, mm maintains hiwater_vm and
-@@ -36,6 +36,7 @@ void task_mem(struct seq_file *m, struct
- 	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
- 	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
- 	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
-+	swap = get_mm_counter(mm, swap_usage);
- 	seq_printf(m,
- 		"VmPeak:\t%8lu kB\n"
- 		"VmSize:\t%8lu kB\n"
-@@ -46,7 +47,8 @@ void task_mem(struct seq_file *m, struct
- 		"VmStk:\t%8lu kB\n"
- 		"VmExe:\t%8lu kB\n"
- 		"VmLib:\t%8lu kB\n"
--		"VmPTE:\t%8lu kB\n",
-+		"VmPTE:\t%8lu kB\n"
-+		"VmSwap:\t%8lu kB\n",
- 		hiwater_vm << (PAGE_SHIFT-10),
- 		(total_vm - mm->reserved_vm) << (PAGE_SHIFT-10),
- 		mm->locked_vm << (PAGE_SHIFT-10),
-@@ -54,7 +56,8 @@ void task_mem(struct seq_file *m, struct
- 		total_rss << (PAGE_SHIFT-10),
- 		data << (PAGE_SHIFT-10),
- 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
--		(PTRS_PER_PTE*sizeof(pte_t)*mm->nr_ptes) >> 10);
-+		(PTRS_PER_PTE*sizeof(pte_t)*mm->nr_ptes) >> 10,
-+		swap << (PAGE_SHIFT - 10));
- }
- 
- unsigned long task_vsize(struct mm_struct *mm)
-Index: mmotm-2.6.32-Nov2/mm/rmap.c
-===================================================================
---- mmotm-2.6.32-Nov2.orig/mm/rmap.c
-+++ mmotm-2.6.32-Nov2/mm/rmap.c
-@@ -834,6 +834,7 @@ static int try_to_unmap_one(struct page 
- 				spin_unlock(&mmlist_lock);
- 			}
- 			dec_mm_counter(mm, anon_rss);
-+			inc_mm_counter(mm, swap_usage);
- 		} else if (PAGE_MIGRATION) {
- 			/*
- 			 * Store the pfn of the page in a special migration
-Index: mmotm-2.6.32-Nov2/kernel/fork.c
-===================================================================
---- mmotm-2.6.32-Nov2.orig/kernel/fork.c
-+++ mmotm-2.6.32-Nov2/kernel/fork.c
-@@ -454,6 +454,7 @@ static struct mm_struct * mm_init(struct
- 	mm->nr_ptes = 0;
- 	set_mm_counter(mm, file_rss, 0);
- 	set_mm_counter(mm, anon_rss, 0);
-+	set_mm_counter(mm, swap_usage, 0);
- 	spin_lock_init(&mm->page_table_lock);
- 	mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	mm->cached_hole_size = ~0UL;
+> +		/* Skip header. TODO: support TSO. */
+> +		s = move_iovec_hdr(vq->iov, vq->hdr, hdr_size, out);
+...
+> +
+> +	use_mm(net->dev.mm);
+> +	mutex_lock(&vq->mutex);
+> +	vhost_no_notify(vq);
 
+I prefer a name like "vhost_disable_notify()".
+
+> +		/* OK, now we need to know about added descriptors. */
+> +		if (head == vq->num && vhost_notify(vq))
+> +			/* They could have slipped one in as we were doing that:
+> +			 * check again. */
+> +			continue;
+> +		/* Nothing new?  Wait for eventfd to tell us they refilled. */
+> +		if (head == vq->num)
+> +			break;
+> +		/* We don't need to be notified again. */
+> +		vhost_no_notify(vq);
+
+Similarly, vhost_enable_notify.  This one is particularly misleading since
+it doesn't actually notify anything!
+
+In particular, this code would be neater as:
+
+	if (head == vq->num) {
+		if (vhost_enable_notify(vq)) {
+			/* Try again, they could have slipped one in. */
+			continue;
+		}
+		/* Nothing more to do. */
+		break;
+	}
+	vhost_disable_notify(vq);
+
+Now, AFAICT vhost_notify()/enable_notify() would be better rewritten to
+return true only when there's more pending.  Saves a loop around here most
+of the time.  Also, the vhost_no_notify/vhost_disable_notify() can be moved
+out of the loop entirely.  (It could be under an if (unlikely(enabled)), not
+sure if it's worth it).
+
+> +		len = err;
+> +		err = memcpy_toiovec(vq->hdr, (unsigned char *)&hdr, hdr_size);
+
+That unsigned char * arg to memcpy_toiovec is annoying.  A patch might be
+nice, separate from this effort.
+
+> +static int vhost_net_open(struct inode *inode, struct file *f)
+> +{
+> +	struct vhost_net *n = kzalloc(sizeof *n, GFP_KERNEL);
+> +	int r;
+> +	if (!n)
+> +		return -ENOMEM;
+> +	f->private_data = n;
+> +	n->vqs[VHOST_NET_VQ_TX].handle_kick = handle_tx_kick;
+> +	n->vqs[VHOST_NET_VQ_RX].handle_kick = handle_rx_kick;
+
+I have a personal dislike of calloc for structures.  In userspace, it's
+because valgrind can't spot uninitialized fields.  These days a similar
+argument applies in the kernel, because we have KMEMCHECK now.  If someone
+adds a field to the struct and forgets to initialize it, we can spot it.
+
+> +static void vhost_net_enable_vq(struct vhost_net *n, int index)
+> +{
+> +	struct socket *sock = n->vqs[index].private_data;
+
+OK, I can't help but this that presenting the vqs as an array doesn't buy
+us very much.  Esp. if you change vhost_dev_init to take a NULL-terminated
+varargs.  I think readability would improve.  It means passing a vq around
+rather than an index.
+
+Not completely sure it'll be a win tho.
+
+> +static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
+> +{
+> +	struct socket *sock, *oldsock = NULL;
+...
+> +	sock = get_socket(fd);
+> +	if (IS_ERR(sock)) {
+> +		r = PTR_ERR(sock);
+> +		goto done;
+> +	}
+> +
+> +	/* start polling new socket */
+> +	oldsock = vq->private_data;
+...
+> +done:
+> +	mutex_unlock(&n->dev.mutex);
+> +	if (oldsock) {
+> +		vhost_net_flush_vq(n, index);
+> +		fput(oldsock->file);
+
+I dislike this style; I prefer multiple different goto points, one for when
+oldsock is set, and one for when it's not.
+
+That way, gcc warns us about uninitialized variables if we get it wrong.
+
+> +static long vhost_net_reset_owner(struct vhost_net *n)
+> +{
+> +	struct socket *tx_sock = NULL;
+> +	struct socket *rx_sock = NULL;
+> +	long r;
+
+This should be called "err", since that's what it is.
+
+> +static void vhost_net_set_features(struct vhost_net *n, u64 features)
+> +{
+> +	size_t hdr_size = features & (1 << VHOST_NET_F_VIRTIO_NET_HDR) ?
+> +		sizeof(struct virtio_net_hdr) : 0;
+> +	int i;
+> +	mutex_lock(&n->dev.mutex);
+> +	n->dev.acked_features = features;
+
+Why is this called "acked_features"?  Not just "features"?  I expected
+to see code which exposed these back to userspace, and didn't.
+
+> +	case VHOST_GET_FEATURES:
+> +		features = VHOST_FEATURES;
+> +		return put_user(features, featurep);
+> +	case VHOST_ACK_FEATURES:
+> +		r = get_user(features, featurep);
+> +		/* No features for now */
+> +		if (r < 0)
+> +			return r;
+> +		if (features & ~VHOST_FEATURES)
+> +			return -EOPNOTSUPP;
+> +		vhost_net_set_features(n, features);
+
+OK, from the userspace POV it's "get features" then "ack features".  But
+I think "VHOST_SET_FEATURES" is more consistent, despite this usage.
+
+> +	switch (ioctl) {
+> +	case VHOST_SET_VRING_NUM:
+
+I haven't looked at your userspace implementation, but does a generic
+VHOST_SET_VRING_STATE & VHOST_GET_VRING_STATE with a struct make more
+sense?  It'd be simpler here, but not sure if it'd be simpler to use?
+
+(Not the fd-setting ioctls of course)
+
+> +	case VHOST_SET_VRING_LOG:
+> +		r = copy_from_user(&a, argp, sizeof a);
+> +		if (r < 0)
+> +			break;
+> +		if (a.padding) {
+> +			r = -EOPNOTSUPP;
+> +			break;
+> +		}
+> +		if (a.user_addr == VHOST_VRING_LOG_DISABLE) {
+> +			vq->log_used = false;
+> +			break;
+> +		}
+> +		if (a.user_addr & (sizeof *vq->used->ring - 1)) {
+> +			r = -EINVAL;
+> +			break;
+> +		}
+> +		vq->log_used = true;
+> +		vq->log_addr = a.user_addr;
+> +		break;
+
+For future reference, this is *exactly* the kind of thing which would have
+been nice as a followup patch.  Easy to separate, easy to review, not critical
+to the core.
+
+> +/* TODO: This is really inefficient.  We need something like get_user()
+> + * (instruction directly accesses the data, with an exception table entry
+> + * returning -EFAULT). See Documentation/x86/exception-tables.txt.
+> + */
+> +static int set_bit_to_user(int nr, void __user *addr)
+> +{
+
+I guess we won't be dealing with many contiguous pages, otherwise we could
+get a cheap speedup making this set_bits_to_user(int nr, int num_bits...).
+
+> +/* Each buffer in the virtqueues is actually a chain of descriptors.  This
+> + * function returns the next descriptor in the chain,
+> + * or -1 if we're at the end. */
+> +static unsigned next_desc(struct vring_desc *desc)
+> +{
+> +	unsigned int next;
+> +
+> +	/* If this descriptor says it doesn't chain, we're done. */
+> +	if (!(desc->flags & VRING_DESC_F_NEXT))
+> +		return -1;
+
+Hmm, prefer s/-1/-1U/ in comment, here, and below.  Clarifies a bit.
+
+> +/* After we've used one of their buffers, we tell them about it.  We'll then
+> + * want to send them an interrupt, using vq->call. */
+
+This comment has too much cut & paste:
+	... want to notify the guest, using the eventfd */
+
+> +/* This actually sends the interrupt for this virtqueue */
+> +void vhost_trigger_irq(struct vhost_dev *dev, struct vhost_virtqueue *vq)
+> +{
+
+Rename vhost_notify_eventfd() or something, and fix comments?
+
+> +enum {
+> +	VHOST_NET_MAX_SG = MAX_SKB_FRAGS + 2,
+
++2?  Believable, but is it correct?
+
+> +/* Poll a file (eventfd or socket) */
+> +/* Note: there's nothing vhost specific about this structure. */
+> +struct vhost_poll {
+
+This comment really helped while reading the code.  Kudos!
+
+Thanks!
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
