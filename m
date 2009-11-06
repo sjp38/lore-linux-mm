@@ -1,58 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CBF0C6B0044
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 06:15:19 -0500 (EST)
-Date: Fri, 6 Nov 2009 12:15:14 +0100
-From: Tobias Diedrich <ranma@tdiedrich.de>
-Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
-	failures V2
-Message-ID: <20091106111514.GB5387@yumi.tdiedrich.de>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <20091106060323.GA5528@yumi.tdiedrich.de> <20091106092447.GC25926@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091106092447.GC25926@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9BD1A6B0044
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 07:58:49 -0500 (EST)
+Received: from relay2.suse.de (mail2.suse.de [195.135.221.8])
+	by mx2.suse.de (Postfix) with ESMTP id 3C2CA79727
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:58:47 +0100 (CET)
+Subject: CONFIG_STRICT_DEVMEM broken
+From: Petr Tesarik <ptesarik@suse.cz>
+Content-Type: text/plain
+Date: Fri, 06 Nov 2009 13:58:46 +0100
+Message-Id: <1257512326.6288.91.camel@nathan.suse.cz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Reinette Chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mohamed Abbas <mohamed.abbas@intel.com>, Jens Axboe <jens.axboe@oracle.com>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Stephan von Krawczynski <skraw@ithnet.com>, Kernel Testers List <kernel-testers@vger.kernel.org>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On Fri, Nov 06, 2009 at 07:03:23AM +0100, Tobias Diedrich wrote:
-> > Mel Gorman wrote:
-> > > [No BZ ID] Kernel crash on 2.6.31.x (kcryptd: page allocation failure..)
-> > > 	This apparently is easily reproducible, particular in comparison to
-> > > 	the other reports. The point of greatest interest is that this is
-> > > 	order-0 GFP_ATOMIC failures. Sven, I'm hoping that you in particular
-> > > 	will be able to follow the tests below as you are the most likely
-> > > 	person to have an easily reproducible situation.
-> > 
-> > I've also seen order-0 failures on 2.6.31.5:
-> > Note that this is with a one process hogging and mlocking memory and
-> > min_free_kbytes reduced to 100 to reproduce the problem more easily.
-> > 
-> 
-> Is that a vanilla, with patches 1-3 applied or both?
-That was on vanilla 2.6.31.5.
+Hi,
 
-I tried 2.6.31.5 before with patches 1+2 and netconsole enabled and
-still got the order-1 failures (apparently I get order-1 failures
-with netconsole and order-0 failures without).
+I found a problem with /dev/mem mappings. Both mmap() and mmap2() can be
+given a value for offset which is beyond the physical range supported by
+the architecture. The value is then passed down to remap_pte_range(),
+and depending on the implementation of pfn_pte(), the layout of the page
+table entry itself and other arch-specific details, the PTE can map to
+an existing page.
 
-> > I tried bisecting the issue, but in the end without memory pressure
-> > I can't reproduce it reliably and with the above mentioned pressure
-> > I get allocation failures even on 2.6.30.o
-> 
-> To be honest, it's not entirely unexpected with min_free_kbytes set that
-> low. The system should cope with a certain amount of pressure but with
-> pressure and a low min_free_kbytes, the system will simply be reacting
-> too late to free memory in the non-atomic paths.
-Maybe I should try again on 2.6.30 without netconsole und try
-increasing min_free_kbytes until the allocation failures
-disappear and try to bisect again with that setting...
+On non-PAE i386 the PFN can overflow the 32-bit PTE, so the highest bits
+are ignored.
+On ia64, the PTE is 64-bit, but bits 53-63 of the PTE are ignored by the
+CPU, so it is also possible to wrap around the physical range.
+On x86_64, it is possible to set the reserved bits 40-51, causing a Page
+Fault. You can also modify the available bits 52-62, or the NX bit.
+On s/390 (31-bit), it's possible to set bit 31. I can't remember what
+that does, and I don't currently have an s/390 which I could crash, but
+this bit should be always 0.
 
--- 
-Tobias						PGP: http://8ef7ddba.uguu.de
+This can become a problem on x86 with PAT enabled, where we cannot
+tolerate cache aliasing, but it's still possible create aliases by using
+a large enough PFN.
+
+IMO the root cause is that pfn_pte() assumes that the PFN is valid, but
+in the case of /dev/mem it originates directly from user-space, so the
+assumption may be wrong.
+
+I'm not sure how to fix this. It would be nice to return -EINVAL in
+mmap_mem() and read_mem() if the physical range is not available on the
+architecture, but:
+
+1. There doesn't seem to be a per-arch macro that could be used to
+   determine the allowed range.
+2. Some architectures seem not to have a fixed limit.
+3. You may argue that this is "broken by design", and the application
+   should never map such areas from /dev/mem.
+
+Any comments?
+Petr Tesarik
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
