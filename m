@@ -1,137 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C55A36B004D
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:44:42 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA6IieOl008751
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 7 Nov 2009 03:44:40 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D607D45DE4F
-	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 03:44:39 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AB3A845DE3E
-	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 03:44:39 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D3E51DB8038
-	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 03:44:39 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B7C01DB803F
-	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 03:44:36 +0900 (JST)
-Message-ID: <6aea93183b4d3582d4e3f1550f4695fe.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <alpine.DEB.1.10.0911061220410.5187@V090114053VZO-1>
-References: <20091106175242.6e13ee29.kamezawa.hiroyu@jp.fujitsu.com>
-    <20091106175545.b97ee867.kamezawa.hiroyu@jp.fujitsu.com>
-    <alpine.DEB.1.10.0911061220410.5187@V090114053VZO-1>
-Date: Sat, 7 Nov 2009 03:44:35 +0900 (JST)
-Subject: Re: [PATCH 2/2] memcg : rewrite percpu countings with new
- interfaces
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 211A86B004D
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 13:55:08 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id B20E782C4A9
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:01:56 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 4r8uYYz+xKgP for <linux-mm@kvack.org>;
+	Fri,  6 Nov 2009 14:01:56 -0500 (EST)
+Received: from V090114053VZO-1 (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 8AEBC82C475
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:01:50 -0500 (EST)
+Date: Fri, 6 Nov 2009 13:53:35 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: [RFC MM] mmap_sem scaling: only scan cpus used by an mm
+In-Reply-To: <20091106073946.GV31511@one.firstfloor.org>
+Message-ID: <alpine.DEB.1.10.0911061352320.22205@V090114053VZO-1>
+References: <alpine.DEB.1.10.0911051417370.24312@V090114053VZO-1> <alpine.DEB.1.10.0911051419320.24312@V090114053VZO-1> <87r5sc7kst.fsf@basil.nowhere.org> <alpine.DEB.1.10.0911051558220.7668@V090114053VZO-1> <20091106073946.GV31511@one.firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Fri, 6 Nov 2009, KAMEZAWA Hiroyuki wrote:
->> -		__mem_cgroup_stat_reset_safe(cpustat, MEMCG_EVENTS);
->> +		__this_cpu_write(mem->cpustat->count[MEMCG_EVENTS], 0);
->>  		ret = true;
->>  	}
->> -	put_cpu();
->>  	return ret;
->
-> If you want to use the __this_cpu_xx versions then you need to manage
-> preempt on your own.
->
-Ah, I see. I understand I haven't understood.
+One way to reduce the cost of the writer lock is to track the cpus used
+and loop over the processors in that bitmap.
 
-> You need to keep preempt_disable/enable here because otherwise the per
-> cpu variable zeroed may be on a different cpu than the per cpu variable
-> where you got the value from.
->
-Thank you. I think I can do well in the next version.
+---
+ arch/x86/include/asm/mmu_context.h |    1 +
+ include/linux/mm_types.h           |    3 ++-
+ kernel/fork.c                      |    2 ++
+ mm/init-mm.c                       |    1 +
+ 4 files changed, 6 insertions(+), 1 deletion(-)
 
+Index: linux-2.6/arch/x86/include/asm/mmu_context.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/mmu_context.h	2009-11-06 12:26:24.000000000 -0600
++++ linux-2.6/arch/x86/include/asm/mmu_context.h	2009-11-06 12:26:36.000000000 -0600
+@@ -43,6 +43,7 @@ static inline void switch_mm(struct mm_s
+ 		percpu_write(cpu_tlbstate.active_mm, next);
+ #endif
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
++		cpumask_set_cpu(cpu, &next->cpus_used);
 
->> +static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
->> +		enum mem_cgroup_stat_index idx)
->> +{
->> +	struct mem_cgroup_stat_cpu *cstat;
->> +	int cpu;
->> +	s64 ret = 0;
->> +
->> +	for_each_possible_cpu(cpu) {
->> +		cstat = per_cpu_ptr(mem->cpustat, cpu);
->> +		ret += cstat->count[idx];
->> +	}
->
-> 	== ret += per_cpu(mem->cpustat->cstat->count[idx], cpu)
->
-Hmm, Hmm. Will use that.
+ 		/* Re-load page tables */
+ 		load_cr3(next->pgd);
+Index: linux-2.6/include/linux/mm_types.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_types.h	2009-11-06 12:26:35.000000000 -0600
++++ linux-2.6/include/linux/mm_types.h	2009-11-06 12:26:36.000000000 -0600
+@@ -241,6 +241,7 @@ struct mm_struct {
+ 	struct linux_binfmt *binfmt;
 
->>  static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
->>  					 bool charge)
->>  {
->>  	int val = (charge) ? 1 : -1;
->> -	struct mem_cgroup_stat *stat = &mem->stat;
->> -	struct mem_cgroup_stat_cpu *cpustat;
->> -	int cpu = get_cpu();
->>
->> -	cpustat = &stat->cpustat[cpu];
->> -	__mem_cgroup_stat_add_safe(cpustat, MEMCG_NR_SWAP, val);
->> -	put_cpu();
->> +	__this_cpu_add(mem->cpustat->count[MEMCG_NR_SWAP], val);
->>  }
->
-> You do not disable preempt on your own so you have to use
->
-> 	this_cpu_add()
->
-> There is no difference between __this_cpu_add and this_cpu_add on x86 but
-> they will differ on platforms that do not have atomic per cpu
-> instructions. The fallback for this_cpu_add is to protect the add with
-> preempt_disable()/enable. The fallback fro __this_cpu_add is just to rely
-> on the caller to ensure that preempt is disabled somehow.
->
-Ok.
+ 	cpumask_t cpu_vm_mask;
++	cpumask_t cpus_used;
 
+ 	/* Architecture-specific MM context */
+ 	mm_context_t context;
+@@ -291,7 +292,7 @@ static inline int mm_has_reader(struct m
+ {
+ 	int cpu;
 
->> -	/*
->> -	 * Preemption is already disabled, we don't need get_cpu()
->> -	 */
->> -	cpu = smp_processor_id();
->> -	stat = &mem->stat;
->> -	cpustat = &stat->cpustat[cpu];
->> -
->> -	__mem_cgroup_stat_add_safe(cpustat, MEMCG_NR_FILE_MAPPED, val);
->> +	__this_cpu_add(mem->cpustat->count[MEMCG_NR_FILE_MAPPED], val);
->
-> Remove __
->
->
->> @@ -1650,16 +1597,11 @@ static int mem_cgroup_move_account(struc
->>
->>  	page = pc->page;
->>  	if (page_mapped(page) && !PageAnon(page)) {
->> -		cpu = smp_processor_id();
->>  		/* Update mapped_file data for mem_cgroup "from" */
->> -		stat = &from->stat;
->> -		cpustat = &stat->cpustat[cpu];
->> -		__mem_cgroup_stat_add_safe(cpustat, MEMCG_NR_FILE_MAPPED, -1);
->> +		__this_cpu_dec(from->cpustat->count[MEMCG_NR_FILE_MAPPED]);
->
-> You can keep it here since the context already has preempt disabled it
-> seems.
->
-Thank you for kindly review.
+-	for_each_possible_cpu(cpu)
++	for_each_cpu(cpu, &mm->cpus_used)
+ 		if (per_cpu(mm->rss->readers, cpu))
+ 			return 1;
 
-Regards,
--Kame
-
-
+Index: linux-2.6/mm/init-mm.c
+===================================================================
+--- linux-2.6.orig/mm/init-mm.c	2009-11-06 12:26:35.000000000 -0600
++++ linux-2.6/mm/init-mm.c	2009-11-06 12:26:36.000000000 -0600
+@@ -19,5 +19,6 @@ struct mm_struct init_mm = {
+ 	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
+ 	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
+ 	.cpu_vm_mask	= CPU_MASK_ALL,
++	.cpus_used	= CPU_MASK_ALL,
+ 	.rss		= &init_mm_counters,
+ };
+Index: linux-2.6/kernel/fork.c
+===================================================================
+--- linux-2.6.orig/kernel/fork.c	2009-11-06 12:26:35.000000000 -0600
++++ linux-2.6/kernel/fork.c	2009-11-06 12:26:40.000000000 -0600
+@@ -297,6 +297,8 @@ static int dup_mmap(struct mm_struct *mm
+ 	mm->cached_hole_size = ~0UL;
+ 	mm->map_count = 0;
+ 	cpumask_clear(mm_cpumask(mm));
++	cpumask_clear(&mm->cpus_used);
++	cpumask_set_cpu(smp_processor_id(), &mm->cpus_used);
+ 	mm->mm_rb = RB_ROOT;
+ 	rb_link = &mm->mm_rb.rb_node;
+ 	rb_parent = NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
