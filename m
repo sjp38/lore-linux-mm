@@ -1,40 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D89156B0044
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 00:01:24 -0500 (EST)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
-Date: Fri, 6 Nov 2009 15:31:20 +1030
-References: <cover.1257267892.git.mst@redhat.com> <20091104115729.GD8398@redhat.com> <20091104172542.GC6736@linux.vnet.ibm.com>
-In-Reply-To: <20091104172542.GC6736@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F289A6B0044
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 00:29:16 -0500 (EST)
+Date: Fri, 6 Nov 2009 14:10:11 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 0/8] memcg: recharge at task move
+Message-Id: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <200911061531.20299.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: paulmck@linux.vnet.ibm.com
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, Gregory Haskins <gregory.haskins@gmail.com>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, s.hetze@linux-ag.com
+To: linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Nov 2009 03:55:42 am Paul E. McKenney wrote:
-> On Wed, Nov 04, 2009 at 01:57:29PM +0200, Michael S. Tsirkin wrote:
-> > Can you ack this usage please?
-> 
-> I thought I had done so in my paragraph above, but if you would like
-> something a bit more formal...
+Hi.
 
-<snip verbose super-ack with qualifications>
+In current memcg, charges associated with a task aren't moved to the new cgroup
+at task move. These patches are for this feature, that is, for recharging to
+the new cgroup and, of course, uncharging from old cgroup at task move.
 
-That's great guys.  And yes, this is a kind of read-copy-update.  And no,
-there's nothing wrong with it.
+Current virsion supports only recharge of non-shared(mapcount == 1) anonymous pages
+and swaps of those pages. I think it's enough as a first step.
 
-But it's still nasty to use half an API.  If it were a few places I would
-have open-coded it with a comment, or wrapped it.  As it is, I don't think
-that would be a win.
+[1/8] cgroup: introduce cancel_attach()
+[2/8] memcg: move memcg_tasklist mutex
+[3/8] memcg: add mem_cgroup_cancel_charge()
+[4/8] memcg: cleanup mem_cgroup_move_parent()
+[5/8] memcg: add interface to recharge at task move
+[6/8] memcg: recharge charges of anonymous page
+[7/8] memcg: avoid oom during recharge at task move
+[8/8] memcg: recharge charges of anonymous swap
 
-Cheers,
-Rusty.
+2 is dependent on 1 and 4 is dependent on 3.
+3 and 4 are just for cleanups.
+5-8 are the body of this feature.
+
+Major Changes from Oct13:
+- removed "[RFC]".
+- rebased on mmotm-2009-11-01-10-01.
+- dropped support for file cache and shmem/tmpfs(revisit in future).
+- Updated Documentation/cgroup/memory.txt.
+
+TODO:
+- add support for file cache, shmem/tmpfs, and shared(mapcount > 1) pages.
+- implement madvise(2) to let users decide the target vma for recharge.
+
+Any comments or suggestions would be welcome.
+
+
+Thanks,
+Dasiuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
