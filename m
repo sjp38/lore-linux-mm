@@ -1,40 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D4A436B0062
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 12:34:17 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 5D6DC82C3EC
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 12:41:06 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 7bOYwxQGduiH for <linux-mm@kvack.org>;
-	Fri,  6 Nov 2009 12:41:06 -0500 (EST)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id C872082C48D
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 12:40:56 -0500 (EST)
-Date: Fri, 6 Nov 2009 12:32:48 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [MM] Make mm counters per cpu instead of atomic V2
-In-Reply-To: <20091106122344.51118116.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.10.0911061231580.5187@V090114053VZO-1>
-References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1> <20091104234923.GA25306@redhat.com> <alpine.DEB.1.10.0911051004360.25718@V090114053VZO-1> <alpine.DEB.1.10.0911051035100.25718@V090114053VZO-1> <20091106101106.8115e0f1.kamezawa.hiroyu@jp.fujitsu.com>
- <20091106122344.51118116.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DE6236B004D
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 12:44:46 -0500 (EST)
+Date: Fri, 6 Nov 2009 18:44:39 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: Subject: [RFC MM] mmap_sem scaling: Use mutex and percpu
+	counter instead
+Message-ID: <20091106174439.GB819@basil.fritz.box>
+References: <alpine.DEB.1.10.0911051417370.24312@V090114053VZO-1> <alpine.DEB.1.10.0911051419320.24312@V090114053VZO-1> <87r5sc7kst.fsf@basil.nowhere.org> <alpine.DEB.1.10.0911051558220.7668@V090114053VZO-1> <20091106073946.GV31511@one.firstfloor.org> <alpine.DEB.1.10.0911061208370.5187@V090114053VZO-1>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0911061208370.5187@V090114053VZO-1>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Dave Jones <davej@redhat.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Nov 2009, KAMEZAWA Hiroyuki wrote:
+On Fri, Nov 06, 2009 at 12:08:54PM -0500, Christoph Lameter wrote:
+> On Fri, 6 Nov 2009, Andi Kleen wrote:
+> 
+> > Yes but all the major calls still take mmap_sem, which is not ranged.
+> 
+> But exactly that issue is addressed by this patch!
 
-> BTW, can't we have single-thread-mode for this counter ?
-> Usual program's read-side will get much benefit.....
+Major calls = mmap, brk, etc.
 
-Thanks for the measurements.
+Only for page faults, not for anything that takes it for write.
 
-A single thread mode would be good. Ideas on how to add that would be
-appreciated.
+Anyways the better reader lock is a step in the right direction, but
+I have my doubts it's a good idea to make write really slow here.
+
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
