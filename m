@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0F2776B004D
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:47:24 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2A2506B004D
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:49:12 -0500 (EST)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 2C4B482C4AB
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:54:14 -0500 (EST)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 377B982C421
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:56:01 -0500 (EST)
 Received: from smtp.ultrahosting.com ([74.213.175.253])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id AhyOA5vzTu6N for <linux-mm@kvack.org>;
-	Fri,  6 Nov 2009 14:54:14 -0500 (EST)
+	with ESMTP id aFdHG8FYZ5Ax for <linux-mm@kvack.org>;
+	Fri,  6 Nov 2009 14:56:01 -0500 (EST)
 Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 0A2C582C4BB
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:54:08 -0500 (EST)
-Date: Fri, 6 Nov 2009 14:45:58 -0500 (EST)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 5F2F882C4BF
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 14:55:50 -0500 (EST)
+Date: Fri, 6 Nov 2009 14:47:52 -0500 (EST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC MM] mmap_sem scaling: only scan cpus used by an mm
-In-Reply-To: <20091106191448.GD819@basil.fritz.box>
-Message-ID: <alpine.DEB.1.10.0911061443120.21579@V090114053VZO-1>
-References: <alpine.DEB.1.10.0911051417370.24312@V090114053VZO-1> <alpine.DEB.1.10.0911051419320.24312@V090114053VZO-1> <87r5sc7kst.fsf@basil.nowhere.org> <alpine.DEB.1.10.0911051558220.7668@V090114053VZO-1> <20091106073946.GV31511@one.firstfloor.org>
- <alpine.DEB.1.10.0911061352320.22205@V090114053VZO-1> <20091106191448.GD819@basil.fritz.box>
+Subject: Re: [MM] Make mm counters per cpu instead of atomic V2
+In-Reply-To: <ffef0f18fe9ae9948d0db7fb4b0a0341.squirrel@webmail-b.css.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0911061446480.28386@V090114053VZO-1>
+References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>    <20091104234923.GA25306@redhat.com>    <alpine.DEB.1.10.0911051004360.25718@V090114053VZO-1>    <alpine.DEB.1.10.0911051035100.25718@V090114053VZO-1>    <20091106101106.8115e0f1.kamezawa.hiroyu@jp.fujitsu.com>
+    <20091106122344.51118116.kamezawa.hiroyu@jp.fujitsu.com>    <alpine.DEB.1.10.0911061231580.5187@V090114053VZO-1>    <da621335371fccd6cfb3d8d7c0c2bf3a.squirrel@webmail-b.css.fujitsu.com>    <alpine.DEB.1.10.0911061409310.15636@V090114053VZO-1>
+ <ffef0f18fe9ae9948d0db7fb4b0a0341.squirrel@webmail-b.css.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Dave Jones <davej@redhat.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Nov 2009, Andi Kleen wrote:
+On Sat, 7 Nov 2009, KAMEZAWA Hiroyuki wrote:
 
-> On Fri, Nov 06, 2009 at 01:53:35PM -0500, Christoph Lameter wrote:
-> > One way to reduce the cost of the writer lock is to track the cpus used
-> > and loop over the processors in that bitmap.
->
-> Can't you use the same mask as is used for TLB flushing?
+> > If we just have one thread: Do we need atomic access at all?
+> >
+> Unfortunately, kswapd/vmscan touch this.
 
-They are clearing the cpus that are no longer in use. We could use the
-same mask if we would transfer the counters but for that we would need to
-make sure that no concurrent user of the counters is out there. Probably
-too expensive to do.
-
+Right. And those can also occur from another processor that the process
+never has run on before. Argh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
