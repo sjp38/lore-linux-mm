@@ -1,52 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4CB286B004D
-	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 14:16:15 -0500 (EST)
-Received: by bwz7 with SMTP id 7so2430519bwz.6
-        for <linux-mm@kvack.org>; Sat, 07 Nov 2009 11:16:13 -0800 (PST)
-Message-ID: <4AF5C779.7000909@gmail.com>
-Date: Sat, 07 Nov 2009 20:16:09 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
+	by kanga.kvack.org (Postfix) with ESMTP id C23C26B006A
+	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 23:10:05 -0500 (EST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
+Date: Sun, 8 Nov 2009 14:39:59 +1030
+References: <cover.1257267892.git.mst@redhat.com> <200911061531.20299.rusty@rustcorp.com.au> <20091106163007.GC6746@linux.vnet.ibm.com>
+In-Reply-To: <20091106163007.GC6746@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-References: <2f11576a0911020435n103538d0p9d2afed4d39b4726@mail.gmail.com> <4AEF394A.4050102@gmail.com> <20091104002903.0B4D.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20091104002903.0B4D.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200911081439.59770.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>
+To: paulmck@linux.vnet.ibm.com
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Gregory Haskins <gregory.haskins@gmail.com>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, s.hetze@linux-ag.com
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
+On Sat, 7 Nov 2009 03:00:07 am Paul E. McKenney wrote:
+> On Fri, Nov 06, 2009 at 03:31:20PM +1030, Rusty Russell wrote:
+> > But it's still nasty to use half an API.  If it were a few places I would
+> > have open-coded it with a comment, or wrapped it.  As it is, I don't think
+> > that would be a win.
+> 
+> So would it help to have a rcu_read_lock_workqueue() and
+> rcu_read_unlock_workqueue() that checked nesting and whether they were
+> actually running in the context of a workqueue item?  Or did you have
+> something else in mind?  Or am I misjudging the level of sarcasm in
+> your reply?  ;-)
 
-> Your Xorg have pretty large heap. I'm not sure why it happen. (ATI
-> video card issue?)
+You read correctly.  If we get a second user, creating an API makes sense.
 
-It is ATI (fglrx), but I don't know if it is driver's issue or not. I
-have a lot of apps running, firefox with high number of tabs and so on.
-It adds up probably.
-
-> Unfortunatelly, It is showed as normal large heap from kernel. then, 
-> I doubt kernel can distinguish X from other process. Probably oom-adj
-> is most reasonable option....
->
-> -------------------------------------------------
-> [heap]
-> Size:             433812 kB
-> Rss:              433304 kB
-> Pss:              433304 kB
-> Shared_Clean:          0 kB
-> Shared_Dirty:          0 kB
-> Private_Clean:       280 kB
-> Private_Dirty:    433024 kB
-> Referenced:       415656 kB
-> Swap:                  0 kB
-> KernelPageSize:        4 kB
-> MMUPageSize:           4 kB
-
-
+Thanks,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
