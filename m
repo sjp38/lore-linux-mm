@@ -1,38 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C23C26B006A
-	for <linux-mm@kvack.org>; Sat,  7 Nov 2009 23:10:05 -0500 (EST)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCHv7 3/3] vhost_net: a kernel-level virtio server
-Date: Sun, 8 Nov 2009 14:39:59 +1030
-References: <cover.1257267892.git.mst@redhat.com> <200911061531.20299.rusty@rustcorp.com.au> <20091106163007.GC6746@linux.vnet.ibm.com>
-In-Reply-To: <20091106163007.GC6746@linux.vnet.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B60CC6B0078
+	for <linux-mm@kvack.org>; Sun,  8 Nov 2009 06:37:06 -0500 (EST)
+Date: Sun, 8 Nov 2009 12:36:54 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 02/11] Add "handle page fault" PV helper.
+Message-ID: <20091108113654.GO11372@elte.hu>
+References: <1257076590-29559-1-git-send-email-gleb@redhat.com>
+ <1257076590-29559-3-git-send-email-gleb@redhat.com>
+ <20091102092214.GB8933@elte.hu>
+ <20091102160410.GF27911@redhat.com>
+ <20091102161248.GB15423@elte.hu>
+ <20091102162234.GH27911@redhat.com>
+ <20091102162941.GC14544@elte.hu>
+ <20091102174208.GJ27911@redhat.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200911081439.59770.rusty@rustcorp.com.au>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091102174208.GJ27911@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: paulmck@linux.vnet.ibm.com
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, Gregory Haskins <gregory.haskins@gmail.com>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, s.hetze@linux-ag.com
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Fr??d??ric Weisbecker <fweisbec@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 7 Nov 2009 03:00:07 am Paul E. McKenney wrote:
-> On Fri, Nov 06, 2009 at 03:31:20PM +1030, Rusty Russell wrote:
-> > But it's still nasty to use half an API.  If it were a few places I would
-> > have open-coded it with a comment, or wrapped it.  As it is, I don't think
-> > that would be a win.
-> 
-> So would it help to have a rcu_read_lock_workqueue() and
-> rcu_read_unlock_workqueue() that checked nesting and whether they were
-> actually running in the context of a workqueue item?  Or did you have
-> something else in mind?  Or am I misjudging the level of sarcasm in
-> your reply?  ;-)
 
-You read correctly.  If we get a second user, creating an API makes sense.
+* Gleb Natapov <gleb@redhat.com> wrote:
 
-Thanks,
-Rusty.
+> On Mon, Nov 02, 2009 at 05:29:41PM +0100, Ingo Molnar wrote:
+> > 
+> > * Gleb Natapov <gleb@redhat.com> wrote:
+> > 
+> > > On Mon, Nov 02, 2009 at 05:12:48PM +0100, Ingo Molnar wrote:
+> > > > 
+> > > > * Gleb Natapov <gleb@redhat.com> wrote:
+> > > > 
+> > > > > On Mon, Nov 02, 2009 at 10:22:14AM +0100, Ingo Molnar wrote:
+> > > > > > 
+> > > > > > * Gleb Natapov <gleb@redhat.com> wrote:
+> > > > > > 
+> > > > > > > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> > > > > > > index f4cee90..14707dc 100644
+> > > > > > > --- a/arch/x86/mm/fault.c
+> > > > > > > +++ b/arch/x86/mm/fault.c
+> > > > > > > @@ -952,6 +952,9 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+> > > > > > >  	int write;
+> > > > > > >  	int fault;
+> > > > > > >  
+> > > > > > > +	if (arch_handle_page_fault(regs, error_code))
+> > > > > > > +		return;
+> > > > > > > +
+> > > > > > 
+> > > > > > This patch is not acceptable unless it's done cleaner. Currently we 
+> > > > > > already have 3 callbacks in do_page_fault() (kmemcheck, mmiotrace, 
+> > > > > > notifier), and this adds a fourth one. Please consolidate them into a 
+> > > > > > single callback site, this is a hotpath on x86.
+> > > > > > 
+> > > > > This call is patched out by paravirt patching mechanism so overhead 
+> > > > > should be zero for non paravirt cases. [...]
+> > > > 
+> > > > arch_handle_page_fault() isnt upstream yet - precisely what is the 
+> > > > instruction sequence injected into do_page_fault() in the patched-out 
+> > > > case?
+> > > 
+> > > It is introduced by the same patch. The instruction inserted is:
+> > >  xor %rax, %rax
+> > 
+> > ok.
+> > 
+> > My observations still stand:
+> > 
+> > > > > [...] What do you want to achieve by consolidate them into single 
+> > > > > callback? [...]
+> > > > 
+> > > > Less bloat in a hotpath and a shared callback infrastructure.
+> > > > 
+> > > > > [...] I mean the code will still exist and will have to be executed on 
+> > > > > every #PF. Is the goal to move them out of line?
+> > > > 
+> > > > The goal is to have a single callback site for all the users - which 
+> > > > call-site is patched out ideally - on non-paravirt too if needed. Most 
+> > > > of these callbacks/notifier-chains have are inactive most of the time.
+> > > > 
+> > > > I.e. a very low overhead 'conditional callback' facility, and a single 
+> > > > one - not just lots of them sprinkled around the code.
+> > 
+> > looks like a golden opportunity to get this right.
+> >
+> Three existing callbacks are: kmemcheck, mmiotrace, notifier. Two
+> of them kmemcheck, mmiotrace are enabled only for debugging, should
+> not be performance concern. And notifier call sites (two of them)
+> are deliberately, as explained by comment, not at the function entry,
+> so can't be unified with others. (And kmemcheck also has two different
+> call site BTW)
+
+We want mmiotrace to be generic distro capable so the overhead when the 
+hook is not used is of concern.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
