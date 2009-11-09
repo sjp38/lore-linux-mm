@@ -1,67 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 945056B004D
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 06:58:33 -0500 (EST)
-Date: Mon, 9 Nov 2009 13:55:48 +0200
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4389E6B004D
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 12:24:44 -0500 (EST)
+Date: Mon, 9 Nov 2009 19:21:58 +0200
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv8 3/3] vhost_net: a kernel-level virtio server
-Message-ID: <20091109115548.GA2368@redhat.com>
-References: <cover.1257349249.git.mst@redhat.com> <200911061529.17500.rusty@rustcorp.com.au> <20091108113516.GA19016@redhat.com> <200911091647.29655.rusty@rustcorp.com.au>
+Subject: [PATCHv9 0/3] vhost: a kernel-level virtio server
+Message-ID: <20091109172158.GA4724@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200911091647.29655.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, s.hetze@linux-ag.com, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 09, 2009 at 04:47:29PM +1030, Rusty Russell wrote:
-> Actually, this looks wrong to me:
-> 
-> +	case VHOST_SET_VRING_BASE:
-> ...
-> +		vq->avail_idx = vq->last_avail_idx = s.num;
-> 
-> The last_avail_idx is part of the state of the driver.  It needs to be saved
-> and restored over susp/resume.  The only reason it's not in the ring itself
-> is because I figured the other side doesn't need to see it (which is true, but
-> missed debugging opportunities as well as man-in-the-middle issues like this
-> one).  I had a patch which put this field at the end of the ring, I might
-> resurrect it to avoid this problem.  This is backwards compatible with all
-> implementations.  See patch at end.
-> 
-> I would drop avail_idx altogether: get_user is basically free, and simplifies
-> a lot.  As most state is in the ring, all you need is an ioctl to save/restore
-> the last_avail_idx.
+Ok, I think I've addressed all comments so far here, and it still seems
+to work :).  Please take a look.  I basically ended up accepting all
+Rusty's suggestions, except I did not get rid of avail_idx field in vq:
+I don't (yet?) understand what's wrong with it, if any, and it seems
+required for correct implementation of notify on empty. I tried
+adding comment where it's changed to clarify the intent.
 
-I remembered another reason for caching head in avail_idx.  Basically,
-avail index could change between when I poll for descriptors and when I
-want to notify guest.
+Rusty, thanks very much for the review.  I didn't split the logging code
+out as you indicated that it's not necessary at this point.
 
-So we could have:
-	- poll descriptors until empty
-	- notify
-		detects not empty so does not notify
+---
 
-And the way to solve it would be to return flag from
-notify telling us to restart the polling loop.
+This implements vhost: a kernel-level backend for virtio,
+The main motivation for this work is to reduce virtualization
+overhead for virtio by removing system calls on data path,
+without guest changes. For virtio-net, this removes up to
+4 system calls per packet: vm exit for kick, reentry for kick,
+iothread wakeup for packet, interrupt injection for packet.
 
-But, this will be more code, on data path, than
-what happens today where I simply keep state
-from descriptor polling and use that to notify.
+This driver is pretty minimal, but it's fully functional (including
+migration support interfaces), and already shows performance (especially
+latency) improvement over userspace.
 
-I also suspect that somehow this race in practice can not create
-deadlocks ... but I prefer to avoid it, these things are very tricky: if
-I see an empty ring, and stop processing descriptors, I want to trigger
-notify on empty.
+Some more detailed description attached to the patch itself.
 
-So if we want to avoid keeping "empty" state, IMO the best way would be
-to pass a flag to vhost_signal that tells it that ring is empty.
-Makes sense?
+The patches apply to both 2.6.32-rc6 and kvm.git.  I'd like them to go
+into linux-next if possible.  Please comment.
 
--- 
-MST
+Changelog from v8:
+- typo in error message
+- more checks for vq size (must be power of 2)
+
+  From Rusty's review:
+- don't hardcode iov size
+- rename no_notify disable_notify
+- rearrange loop
+- convert irq trigger language to signal eventfd
+- make vhost_enable_notify return status
+- -1 -> -1U
+- get rid of kzalloc
+- better comment on vail_idx
+- convert vq index to vq usage
+- rename ACK->SET
+- merge vring addresses into a single struct
+- some comments and cosmetic changes
+
+Changelog from v7:
+- Add note on RCU usage, mirroring this in vhost/vhost.h
+- Fix locking typo noted by Eric Dumazet
+- Fix warnings on 32 bit
+
+Changelog from v6:
+- review comments by Daniel Walker addressed
+- checkpatch cleanup
+- fix build on 32 bit
+- maintainers entry corrected
+
+Changelog from v5:
+- tun support
+- backends with virtio net header support (enables GSO, checksum etc)
+- 32 bit compat fixed
+- support indirect buffers, tx exit mitigation,
+  tx interrupt mitigation
+- support write logging (allows migration without virtio ring code in userspace)
+
+Changelog from v4:
+- disable rx notification when have rx buffers
+- addressed all comments from Rusty's review
+- copy bugfixes from lguest commits:
+	ebf9a5a99c1a464afe0b4dfa64416fc8b273bc5c
+	e606490c440900e50ccf73a54f6fc6150ff40815
+
+Changelog from v3:
+- checkpatch fixes
+
+Changelog from v2:
+- Comments on RCU usage
+- Compat ioctl support
+- Make variable static
+- Copied more idiomatic english from Rusty
+
+Changes from v1:
+- Move use_mm/unuse_mm from fs/aio.c to mm instead of copying.
+- Reorder code to avoid need for forward declarations
+- Kill a couple of debugging printks
+
+Michael S. Tsirkin (3):
+  tun: export underlying socket
+  mm: export use_mm/unuse_mm to modules
+  vhost_net: a kernel-level virtio server
+
+ MAINTAINERS                |    9 +
+ arch/x86/kvm/Kconfig       |    1 +
+ drivers/Makefile           |    1 +
+ drivers/net/tun.c          |  101 ++++-
+ drivers/vhost/Kconfig      |   11 +
+ drivers/vhost/Makefile     |    2 +
+ drivers/vhost/net.c        |  648 +++++++++++++++++++++++++++++
+ drivers/vhost/vhost.c      |  965 ++++++++++++++++++++++++++++++++++++++++++++
+ drivers/vhost/vhost.h      |  159 ++++++++
+ include/linux/Kbuild       |    1 +
+ include/linux/if_tun.h     |   14 +
+ include/linux/miscdevice.h |    1 +
+ include/linux/vhost.h      |  130 ++++++
+ mm/mmu_context.c           |    3 +
+ 14 files changed, 2027 insertions(+), 19 deletions(-)
+ create mode 100644 drivers/vhost/Kconfig
+ create mode 100644 drivers/vhost/Makefile
+ create mode 100644 drivers/vhost/net.c
+ create mode 100644 drivers/vhost/vhost.c
+ create mode 100644 drivers/vhost/vhost.h
+ create mode 100644 include/linux/vhost.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
