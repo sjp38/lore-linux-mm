@@ -1,46 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DD1F6B004D
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 05:11:35 -0500 (EST)
-Date: Mon, 9 Nov 2009 10:11:28 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use
-	ALLOC_HARDER
-Message-ID: <20091109101128.GB6657@csn.ul.ie>
-References: <alpine.DEB.2.00.0910271411530.9183@chino.kir.corp.google.com> <20091031184054.GB1475@ucw.cz> <alpine.DEB.2.00.0910311248490.13829@chino.kir.corp.google.com> <20091031201158.GB29536@elf.ucw.cz> <4AECCF6A.4020206@redhat.com> <alpine.DEB.1.10.0911021139100.24535@V090114053VZO-1> <alpine.DEB.2.00.0911021249470.22525@chino.kir.corp.google.com> <alpine.DEB.1.10.0911031208150.21943@V090114053VZO-1> <alpine.DEB.2.00.0911031739380.1187@chino.kir.corp.google.com> <20091104090140.GA14694@elf.ucw.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 945056B004D
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 06:58:33 -0500 (EST)
+Date: Mon, 9 Nov 2009 13:55:48 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCHv8 3/3] vhost_net: a kernel-level virtio server
+Message-ID: <20091109115548.GA2368@redhat.com>
+References: <cover.1257349249.git.mst@redhat.com> <200911061529.17500.rusty@rustcorp.com.au> <20091108113516.GA19016@redhat.com> <200911091647.29655.rusty@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091104090140.GA14694@elf.ucw.cz>
+In-Reply-To: <200911091647.29655.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@ucw.cz>
-Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Stephan von Krawczynski <skraw@ithnet.com>, kernel-testers@vger.kernel.org
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, s.hetze@linux-ag.com, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 04, 2009 at 10:01:40AM +0100, Pavel Machek wrote:
+On Mon, Nov 09, 2009 at 04:47:29PM +1030, Rusty Russell wrote:
+> Actually, this looks wrong to me:
 > 
-> > I hope we can move this to another thread if people would like to remove 
-> > this exemption completely instead of talking about this trivial fix, which 
-> > I doubt there's any objection to.
+> +	case VHOST_SET_VRING_BASE:
+> ...
+> +		vq->avail_idx = vq->last_avail_idx = s.num;
 > 
-> I'm arguing that this "trivial fix" is wrong, and that you should just
-> remove those two lines.
+> The last_avail_idx is part of the state of the driver.  It needs to be saved
+> and restored over susp/resume.  The only reason it's not in the ring itself
+> is because I figured the other side doesn't need to see it (which is true, but
+> missed debugging opportunities as well as man-in-the-middle issues like this
+> one).  I had a patch which put this field at the end of the ring, I might
+> resurrect it to avoid this problem.  This is backwards compatible with all
+> implementations.  See patch at end.
 > 
-> If going into reserves from interrupts hurts, doing that from task
-> context will hurt, too. "realtime" task should not be normally allowed
-> to "hurt" the system like that.
-> 									Pavel
+> I would drop avail_idx altogether: get_user is basically free, and simplifies
+> a lot.  As most state is in the ring, all you need is an ioctl to save/restore
+> the last_avail_idx.
 
-As David points out, it has been the behaviour of the system for 4 years
-and removing it should be made as a separate decision and not in the
-guise of a fix. In the particular case causing concern, there are a lot
-more allocations from interrupt due to network receive than there are
-from the activities of tasks with a high priority.
+I remembered another reason for caching head in avail_idx.  Basically,
+avail index could change between when I poll for descriptors and when I
+want to notify guest.
+
+So we could have:
+	- poll descriptors until empty
+	- notify
+		detects not empty so does not notify
+
+And the way to solve it would be to return flag from
+notify telling us to restart the polling loop.
+
+But, this will be more code, on data path, than
+what happens today where I simply keep state
+from descriptor polling and use that to notify.
+
+I also suspect that somehow this race in practice can not create
+deadlocks ... but I prefer to avoid it, these things are very tricky: if
+I see an empty ring, and stop processing descriptors, I want to trigger
+notify on empty.
+
+So if we want to avoid keeping "empty" state, IMO the best way would be
+to pass a flag to vhost_signal that tells it that ring is empty.
+Makes sense?
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
