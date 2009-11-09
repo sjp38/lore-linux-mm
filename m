@@ -1,166 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 689E06B004D
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 01:58:07 -0500 (EST)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id nA96w0h3002900
-	for <linux-mm@kvack.org>; Mon, 9 Nov 2009 12:28:00 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nA96w0Cq2797820
-	for <linux-mm@kvack.org>; Mon, 9 Nov 2009 12:28:00 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nA96w0wr002963
-	for <linux-mm@kvack.org>; Mon, 9 Nov 2009 12:28:00 +0530
-Date: Mon, 9 Nov 2009 12:27:59 +0530
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 78A2C6B004D
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 02:04:29 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp05.in.ibm.com (8.14.3/8.13.1) with ESMTP id nA974NX7030627
+	for <linux-mm@kvack.org>; Mon, 9 Nov 2009 12:34:23 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nA974N7O1708178
+	for <linux-mm@kvack.org>; Mon, 9 Nov 2009 12:34:23 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nA974NLo010837
+	for <linux-mm@kvack.org>; Mon, 9 Nov 2009 18:04:23 +1100
+Date: Mon, 9 Nov 2009 12:34:21 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH -mmotm 1/8] cgroup: introduce cancel_attach()
-Message-ID: <20091109065759.GC3042@balbir.in.ibm.com>
+Subject: Re: [PATCH 0/2] memcg make use of new percpu implementations
+Message-ID: <20091109070421.GD3042@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
- <20091106141106.a2bd995a.nishimura@mxp.nes.nec.co.jp>
+References: <20091106175242.6e13ee29.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20091106141106.a2bd995a.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20091106175242.6e13ee29.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-11-06 14:11:06]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-11-06 17:52:42]:
 
-> This patch adds cancel_attach() operation to struct cgroup_subsys.
-> cancel_attach() can be used when can_attach() operation prepares something
-> for the subsys, but we should rollback what can_attach() operation has prepared
-> if attach task fails after we've succeeded in can_attach().
+> Hi,
 > 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> ---
->  Documentation/cgroups/cgroups.txt |   13 +++++++++++-
->  include/linux/cgroup.h            |    2 +
->  kernel/cgroup.c                   |   38 ++++++++++++++++++++++++++++++------
->  3 files changed, 45 insertions(+), 8 deletions(-)
+> Recent updates on dynamic percpu allocation looks good and I tries to rewrite
+> memcg's poor implementation of percpu status counter.
+> (It's not NUMA-aware ...)
+> Thanks for great works.
 > 
-> diff --git a/Documentation/cgroups/cgroups.txt b/Documentation/cgroups/cgroups.txt
-> index 0b33bfe..c86947c 100644
-> --- a/Documentation/cgroups/cgroups.txt
-> +++ b/Documentation/cgroups/cgroups.txt
-> @@ -536,10 +536,21 @@ returns an error, this will abort the attach operation.  If a NULL
->  task is passed, then a successful result indicates that *any*
->  unspecified task can be moved into the cgroup. Note that this isn't
->  called on a fork. If this method returns 0 (success) then this should
-> -remain valid while the caller holds cgroup_mutex. If threadgroup is
-> +remain valid while the caller holds cgroup_mutex and it is ensured that either
-> +attach() or cancel_attach() will be called in futer. If threadgroup is
->  true, then a successful result indicates that all threads in the given
->  thread's threadgroup can be moved together.
+> For this time. I added Christoph to CC because I'm not fully sure my usage of
+> __this_cpu_xxx is correct...I'm glad if you check the usage when you have time.
 > 
-> +void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> +	       struct task_struct *task, bool threadgroup)
-> +(cgroup_mutex held by caller)
-> +
-> +Called when a task attach operation has failed after can_attach() has succeeded.
-> +A subsystem whose can_attach() has some side-effects should provide this
-> +function, so that the subsytem can implement a rollback. If not, not necessary.
-> +This will be called only about subsystems whose can_attach() operation have
-> +succeeded.
-> +
->  void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
->  	    struct cgroup *old_cgrp, struct task_struct *task,
->  	    bool threadgroup)
-> diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-> index 0008dee..d4cc200 100644
-> --- a/include/linux/cgroup.h
-> +++ b/include/linux/cgroup.h
-> @@ -427,6 +427,8 @@ struct cgroup_subsys {
->  	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
->  	int (*can_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
->  			  struct task_struct *tsk, bool threadgroup);
-> +	void (*cancel_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> +			  struct task_struct *tsk, bool threadgroup);
->  	void (*attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
->  			struct cgroup *old_cgrp, struct task_struct *tsk,
->  			bool threadgroup);
-> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-> index 0249f4b..e443742 100644
-> --- a/kernel/cgroup.c
-> +++ b/kernel/cgroup.c
-> @@ -1539,7 +1539,7 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
->  int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
->  {
->  	int retval = 0;
-> -	struct cgroup_subsys *ss;
-> +	struct cgroup_subsys *ss, *failed_ss = NULL;
->  	struct cgroup *oldcgrp;
->  	struct css_set *cg;
->  	struct css_set *newcg;
-> @@ -1553,8 +1553,16 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
->  	for_each_subsys(root, ss) {
->  		if (ss->can_attach) {
->  			retval = ss->can_attach(ss, cgrp, tsk, false);
-> -			if (retval)
-> -				return retval;
-> +			if (retval) {
-> +				/*
-> +				 * Remember at which subsystem we've failed in
-> +				 * can_attach() to call cancel_attach() only
-> +				 * against subsystems whose attach() have
-> +				 * succeeded(see below).
-> +				 */
-> +				failed_ss = ss;
+> 
+> Patch 1/2 is just clean up (prepare for patch 2/2)
+> Patch 2/2 is for percpu.
+> 
+> Tested on my 8cpu box and works well.
+> Pathcesa are against the latest mmotm.
 
-failed_ss is global? Is it a marker into an array of subsystems? Don't
-we need more than one failed_ss for each failed subsystem? Or do we
-find the first failed subsystem, cancel_attach and fail all
-migrations?
-
-> +				goto out;
-> +			}
->  		}
->  	}
-> 
-> @@ -1568,14 +1576,17 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
->  	 */
->  	newcg = find_css_set(cg, cgrp);
->  	put_css_set(cg);
-> -	if (!newcg)
-> -		return -ENOMEM;
-> +	if (!newcg) {
-> +		retval = -ENOMEM;
-> +		goto out;
-> +	}
-> 
->  	task_lock(tsk);
->  	if (tsk->flags & PF_EXITING) {
->  		task_unlock(tsk);
->  		put_css_set(newcg);
-> -		return -ESRCH;
-> +		retval = -ESRCH;
-> +		goto out;
->  	}
->  	rcu_assign_pointer(tsk->cgroups, newcg);
->  	task_unlock(tsk);
-> @@ -1601,7 +1612,20 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
->  	 * is no longer empty.
->  	 */
->  	cgroup_wakeup_rmdir_waiter(cgrp);
-> -	return 0;
-> +out:
-> +	if (retval)
-> +		for_each_subsys(root, ss) {
-> +			if (ss == failed_ss)
-> +				/*
-> +				 * This means can_attach() of this subsystem
-> +				 * have failed, so we don't need to call
-> +				 * cancel_attach() against rests of subsystems.
-> +				 */
-> +				break;
-> +			if (ss->cancel_attach)
-> +				ss->cancel_attach(ss, cgrp, tsk, false);
-> +		}
-> +	return retval;
->  }
-> 
+How do the test results look? DO you see a significant boost? BTW,
+I've been experimenting a bit with the earlier percpu counter patches,
+I might post an iteration once I have some good results.
 
 -- 
 	Balbir
