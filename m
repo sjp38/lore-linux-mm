@@ -1,81 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0AAE56B004D
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 03:38:49 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nA98clkB003872
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 9 Nov 2009 17:38:47 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3672245DE53
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 17:38:47 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DC31A45DE52
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 17:38:46 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id AD85EE1800C
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 17:38:46 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 64EA81DB803C
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 17:38:46 +0900 (JST)
-Date: Mon, 9 Nov 2009 17:36:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] memcg : rewrite percpu countings with new
- interfaces
-Message-Id: <20091109173610.3d23daf2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091109070737.GE3042@balbir.in.ibm.com>
-References: <20091106175242.6e13ee29.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091106175545.b97ee867.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091109070737.GE3042@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DD1F6B004D
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2009 05:11:35 -0500 (EST)
+Date: Mon, 9 Nov 2009 10:11:28 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/3] page allocator: Do not allow interrupts to use
+	ALLOC_HARDER
+Message-ID: <20091109101128.GB6657@csn.ul.ie>
+References: <alpine.DEB.2.00.0910271411530.9183@chino.kir.corp.google.com> <20091031184054.GB1475@ucw.cz> <alpine.DEB.2.00.0910311248490.13829@chino.kir.corp.google.com> <20091031201158.GB29536@elf.ucw.cz> <4AECCF6A.4020206@redhat.com> <alpine.DEB.1.10.0911021139100.24535@V090114053VZO-1> <alpine.DEB.2.00.0911021249470.22525@chino.kir.corp.google.com> <alpine.DEB.1.10.0911031208150.21943@V090114053VZO-1> <alpine.DEB.2.00.0911031739380.1187@chino.kir.corp.google.com> <20091104090140.GA14694@elf.ucw.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20091104090140.GA14694@elf.ucw.cz>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Stephan von Krawczynski <skraw@ithnet.com>, kernel-testers@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Nov 2009 12:37:37 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
- 
-> > after==
-> >  Performance counter stats for './runpause.sh' (5 runs):
-> > 
-> >   474919.429670  task-clock-msecs         #      7.896 CPUs    ( +-   0.013% )
-> >        36520440  page-faults              #      0.077 M/sec   ( +-   1.854% )
-> >      3109834751  cache-references         #      6.548 M/sec   ( +-   0.276% )
-> >      1053275160  cache-misses             #      2.218 M/sec   ( +-   0.036% )
-> > 
-> >    60.146585280  seconds time elapsed   ( +-   0.019% )
-> > 
-> > This test is affected by cpu-utilization but I think more improvements
-> > will be found in bigger system.
-> >
+On Wed, Nov 04, 2009 at 10:01:40AM +0100, Pavel Machek wrote:
 > 
-> Hi, Kamezawa-San,
+> > I hope we can move this to another thread if people would like to remove 
+> > this exemption completely instead of talking about this trivial fix, which 
+> > I doubt there's any objection to.
 > 
-> Could you please post the IPC results as well? 
+> I'm arguing that this "trivial fix" is wrong, and that you should just
+> remove those two lines.
 > 
-Because PREEMPT=n, no differnce between v1/v2, basically.
+> If going into reserves from interrupts hurts, doing that from task
+> context will hurt, too. "realtime" task should not be normally allowed
+> to "hurt" the system like that.
+> 									Pavel
 
-Here.
-==
- Performance counter stats for './runpause.sh' (5 runs):
+As David points out, it has been the behaviour of the system for 4 years
+and removing it should be made as a separate decision and not in the
+guise of a fix. In the particular case causing concern, there are a lot
+more allocations from interrupt due to network receive than there are
+from the activities of tasks with a high priority.
 
-  475884.969949  task-clock-msecs         #      7.913 CPUs    ( +-   0.005% )
-       36592060  page-faults              #      0.077 M/sec   ( +-   0.301% )
-     3037784893  cache-references         #      6.383 M/sec   ( +-   0.361% )  (scaled from 99.71%)
-     1130761297  cache-misses             #      2.376 M/sec   ( +-   0.244% )  (scaled from 98.24%)
-
-   60.136803969  seconds time elapsed   ( +-   0.006% )
-==
-
-But this program is highly affected by cpu utilization etc...
-
-Thanks,
--Kame
-
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
