@@ -1,89 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C20AC6B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 01:21:15 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D5E8F6B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 02:24:29 -0500 (EST)
 Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAA6LD9k010601
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAA7OQWq018239
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 10 Nov 2009 15:21:13 +0900
+	Tue, 10 Nov 2009 16:24:27 +0900
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E482345DE50
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 15:21:12 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B30D345DE52
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 16:24:26 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C4F4445DE4F
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 15:21:12 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BF8945DE4F
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 16:24:26 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB0961DB803E
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 15:21:12 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 618981DB803F
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 15:21:12 +0900 (JST)
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C7181DB803E
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 16:24:26 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 051961DB803C
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 16:24:23 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Subject: [RFC MM] mmap_sem scaling: Use mutex and percpu counter instead
-In-Reply-To: <alpine.DEB.1.10.0911061249170.5187@V090114053VZO-1>
-References: <20091106174439.GB819@basil.fritz.box> <alpine.DEB.1.10.0911061249170.5187@V090114053VZO-1>
-Message-Id: <20091110151145.3615.A69D9226@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask v2
+In-Reply-To: <20091106090202.dc2472b3.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20091104170944.cef988c7.kamezawa.hiroyu@jp.fujitsu.com> <20091106090202.dc2472b3.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20091110162121.361B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 10 Nov 2009 15:21:11 +0900 (JST)
+Date: Tue, 10 Nov 2009 16:24:22 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, cl@linux-foundation.org, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 6 Nov 2009, Andi Kleen wrote:
-> 
-> > On Fri, Nov 06, 2009 at 12:08:54PM -0500, Christoph Lameter wrote:
-> > > On Fri, 6 Nov 2009, Andi Kleen wrote:
-> > >
-> > > > Yes but all the major calls still take mmap_sem, which is not ranged.
-> > >
-> > > But exactly that issue is addressed by this patch!
-> >
-> > Major calls = mmap, brk, etc.
-> 
-> Those are rare. More frequently are for faults, get_user_pages and
-> the like operations that are frequent.
-> 
-> brk depends on process wide settings and has to be
-> serialized using a processor wide locks.
-> 
-> mmap and other address space local modification may be able to avoid
-> taking mmap write lock by taking the read lock and then locking the
-> ptls in the page struct relevant to the address space being modified.
-> 
-> This is also enabled by this patchset.
+Hi
 
-Andi, Why do you ignore fork? fork() hold mmap_sem write-side lock and
-it is one of critical path.
-Ah yes, I know HPC workload doesn't call fork() so frequently, I mean
-typical desktop and small server case.
+> ===================================================================
+> --- mmotm-2.6.32-Nov2.orig/mm/oom_kill.c
+> +++ mmotm-2.6.32-Nov2/mm/oom_kill.c
+> @@ -196,27 +196,40 @@ unsigned long badness(struct task_struct
+>  /*
+>   * Determine the type of allocation constraint.
+>   */
+> +#ifdef CONFIG_NUMA
+>  static inline enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+> -						    gfp_t gfp_mask)
+> +				    gfp_t gfp_mask, nodemask_t *nodemask)
+>  {
+> -#ifdef CONFIG_NUMA
+>  	struct zone *zone;
+>  	struct zoneref *z;
+>  	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+> -	nodemask_t nodes = node_states[N_HIGH_MEMORY];
+> +	int ret = CONSTRAINT_NONE;
+>  
+> -	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+> -		if (cpuset_zone_allowed_softwall(zone, gfp_mask))
+> -			node_clear(zone_to_nid(zone), nodes);
+> -		else
+> +	/*
+> + 	 * The nodemask here is a nodemask passed to alloc_pages(). Now,
+> + 	 * cpuset doesn't use this nodemask for its hardwall/softwall/hierarchy
+> + 	 * feature. Then, only mempolicy use this nodemask.
+> + 	 */
+> +	if (nodemask && nodes_equal(*nodemask, node_states[N_HIGH_MEMORY]))
+> +		ret = CONSTRAINT_MEMORY_POLICY;
 
-I agree with cristoph halfly. if the issue is only in mmap, it isn't
-so important.
-
-Probably, I haven't catch your mention.
-
-
-Plus, most critical mmap_sem issue is not locking cost itself. In stree workload,
-the procss grabbing mmap_sem frequently sleep. and fair rw-semaphoe logic
-frequently prevent reader side locking.
-At least, this improvement doesn't help google like workload.
-
-Thanks.
+!nodes_equal() ?
 
 
-> > Only for page faults, not for anything that takes it for write.
-> >
-> > Anyways the better reader lock is a step in the right direction, but
-> > I have my doubts it's a good idea to make write really slow here.
-> 
-> The bigger the system the larger the problems with mmap. This is one key
-> scaling issue important for the VM. We can work on that. I have a patch
-> here that restricts the per cpu checks to only those cpus on which the
-> process has at some times run before.
+> +
+> +	/* Check this allocation failure is caused by cpuset's wall function */
+> +	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> +			high_zoneidx, nodemask)
+> +		if (!cpuset_zone_allowed_softwall(zone, gfp_mask))
+>  			return CONSTRAINT_CPUSET;
 
+If cpuset and MPOL_BIND are both used, Probably CONSTRAINT_MEMORY_POLICY is
+better choice.
+
+
+
+>  
+> -	if (!nodes_empty(nodes))
+> -		return CONSTRAINT_MEMORY_POLICY;
+> -#endif
+> +	/* __GFP_THISNODE never calls OOM.*/
+>  
+> +	return ret;
+> +}
+> +#else
+> +static inline enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+> +				gfp_t gfp_mask, nodemask_t *nodemask)
+> +{
+>  	return CONSTRAINT_NONE;
+>  }
+> +#endif
 
 
 --
