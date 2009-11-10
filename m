@@ -1,69 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 96C6D6B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 17:02:51 -0500 (EST)
-Date: Tue, 10 Nov 2009 22:02:46 +0000 (GMT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C32326B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 17:06:51 -0500 (EST)
+Date: Tue, 10 Nov 2009 22:06:49 +0000 (GMT)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 5/6] mm: stop ptlock enlarging struct page
+Subject: [PATCH 6/6] mm: sigbus instead of abusing oom
 In-Reply-To: <Pine.LNX.4.64.0911102142570.2272@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0911102200480.2816@sister.anvils>
+Message-ID: <Pine.LNX.4.64.0911102202500.2816@sister.anvils>
 References: <Pine.LNX.4.64.0911102142570.2272@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CONFIG_DEBUG_SPINLOCK adds 12 or 16 bytes to a 32- or 64-bit spinlock_t,
-and CONFIG_DEBUG_LOCK_ALLOC adds another 12 or 24 bytes to it: lockdep
-enables both of those, and CONFIG_LOCK_STAT adds 8 or 16 bytes to that.
+When do_nonlinear_fault() realizes that the page table must have been
+corrupted for it to have been called, it does print_bad_pte() and
+returns ... VM_FAULT_OOM, which is hard to understand.
 
-When 2.6.15 placed the split page table lock inside struct page (usually
-sized 32 or 56 bytes), only CONFIG_DEBUG_SPINLOCK was a possibility, and
-we ignored the enlargement (but fitted in CONFIG_GENERIC_LOCKBREAK's 4
-by letting the spinlock_t occupy both page->private and page->mapping).
+It made some sense when I did it for 2.6.15, when do_page_fault()
+just killed the current process; but nowadays it lets the OOM killer
+decide who to kill - so page table corruption in one process would
+be liable to kill another.
 
-Should these debugging options be allowed to double the size of a struct
-page, when only one minority use of the page (as a page table) needs to
-fit a spinlock in there?  Perhaps not.
+Change it to return VM_FAULT_SIGBUS instead: that doesn't guarantee
+that the process will be killed, but is good enough for such a rare
+abnormality, accompanied as it is by the "BUG: Bad page map" message.
 
-Take the easy way out: switch off SPLIT_PTLOCK_CPUS when DEBUG_SPINLOCK
-or DEBUG_LOCK_ALLOC is in force.  I've sometimes tried to be cleverer,
-kmallocing a cacheline for the spinlock when it doesn't fit, but given
-up each time.  Falling back to mm->page_table_lock (as we do when ptlock
-is not split) lets lockdep check out the strictest path anyway.
-
-And now that some arches allow 8192 cpus, use 999999 for infinity.
-
-(What has this got to do with KSM swapping?  It doesn't care about the
-size of struct page, but may care about random junk in page->mapping -
-to be explained separately later.)
+And recent HWPOISON work has copied that code into do_swap_page(),
+when it finds an impossible swap entry: fix that to VM_FAULT_SIGBUS too.
 
 Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 ---
+This one has nothing whatever to do with KSM swapping,
+just something that KAMEZAWA-san and Minchan noticed recently.
 
- mm/Kconfig |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ mm/memory.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
---- mm4/mm/Kconfig	2009-11-04 10:52:58.000000000 +0000
-+++ mm5/mm/Kconfig	2009-11-04 10:53:13.000000000 +0000
-@@ -161,11 +161,13 @@ config PAGEFLAGS_EXTENDED
- # Default to 4 for wider testing, though 8 might be more appropriate.
- # ARM's adjust_pte (unused if VIPT) depends on mm-wide page_table_lock.
- # PA-RISC 7xxx's spinlock_t would enlarge struct page from 32 to 44 bytes.
-+# DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC spinlock_t also enlarge struct page.
- #
- config SPLIT_PTLOCK_CPUS
- 	int
--	default "4096" if ARM && !CPU_CACHE_VIPT
--	default "4096" if PARISC && !PA20
-+	default "999999" if ARM && !CPU_CACHE_VIPT
-+	default "999999" if PARISC && !PA20
-+	default "999999" if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC
- 	default "4"
+--- mm5/mm/memory.c	2009-11-02 12:32:34.000000000 +0000
++++ mm6/mm/memory.c	2009-11-07 14:44:58.000000000 +0000
+@@ -2529,7 +2529,7 @@ static int do_swap_page(struct mm_struct
+ 			ret = VM_FAULT_HWPOISON;
+ 		} else {
+ 			print_bad_pte(vma, address, orig_pte, NULL);
+-			ret = VM_FAULT_OOM;
++			ret = VM_FAULT_SIGBUS;
+ 		}
+ 		goto out;
+ 	}
+@@ -2925,7 +2925,7 @@ static int do_nonlinear_fault(struct mm_
+ 		 * Page table corrupted: show pte and kill process.
+ 		 */
+ 		print_bad_pte(vma, address, orig_pte, NULL);
+-		return VM_FAULT_OOM;
++		return VM_FAULT_SIGBUS;
+ 	}
  
- #
+ 	pgoff = pte_to_pgoff(orig_pte);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
