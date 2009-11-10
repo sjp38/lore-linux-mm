@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E16C16B006A
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 17:37:06 -0500 (EST)
-Subject: [PATCH v3 5/5] Documentation: ABI: /sys/devices/system/cpu/cpu#/node
-From: Alex Chiang <achiang@hp.com>
-Date: Tue, 10 Nov 2009 15:37:04 -0700
-Message-ID: <20091110223704.25636.78808.stgit@bob.kio>
-In-Reply-To: <20091110223154.25636.48462.stgit@bob.kio>
-References: <20091110223154.25636.48462.stgit@bob.kio>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F39A6B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 17:45:14 -0500 (EST)
+Date: Tue, 10 Nov 2009 14:44:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [MM] Make mm counters per cpu instead of atomic V2
+Message-Id: <20091110144438.dbab0ba8.akpm@linux-foundation.org>
+In-Reply-To: <20091106101106.8115e0f1.kamezawa.hiroyu@jp.fujitsu.com>
+References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
+	<20091104234923.GA25306@redhat.com>
+	<alpine.DEB.1.10.0911051004360.25718@V090114053VZO-1>
+	<alpine.DEB.1.10.0911051035100.25718@V090114053VZO-1>
+	<20091106101106.8115e0f1.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg KH <greg@kroah.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Dave Jones <davej@redhat.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Describe NUMA node symlink created for CPUs when CONFIG_NUMA is set.
+On Fri, 6 Nov 2009 10:11:06 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Cc: Greg KH <greg@kroah.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>
-Signed-off-by: Alex Chiang <achiang@hp.com>
----
+> On Thu, 5 Nov 2009 10:36:06 -0500 (EST)
+> Christoph Lameter <cl@linux-foundation.org> wrote:
+> 
+> > From: Christoph Lameter <cl@linux-foundation.org>
+> > Subject: Make mm counters per cpu V2
+> > 
+> > Changing the mm counters to per cpu counters is possible after the introduction
+> > of the generic per cpu operations (currently in percpu and -next).
+> > 
+> > With that the contention on the counters in mm_struct can be avoided. The
+> > USE_SPLIT_PTLOCKS case distinction can go away. Larger SMP systems do not
+> > need to perform atomic updates to mm counters anymore. Various code paths
+> > can be simplified since per cpu counter updates are fast and batching
+> > of counter updates is no longer needed.
+> > 
+> > One price to pay for these improvements is the need to scan over all percpu
+> > counters when the actual count values are needed.
+> > 
+> > V1->V2
+> > - Remove useless and buggy per cpu counter initialization.
+> >   alloc_percpu already zeros the values.
+> > 
+> > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> > 
+> Thanks. My small concern is read-side.
 
- Documentation/ABI/testing/sysfs-devices-system-cpu |   14 ++++++++++++++
- 1 files changed, 14 insertions(+), 0 deletions(-)
+Me too.
 
-diff --git a/Documentation/ABI/testing/sysfs-devices-system-cpu b/Documentation/ABI/testing/sysfs-devices-system-cpu
-index 5aace16..1671634 100644
---- a/Documentation/ABI/testing/sysfs-devices-system-cpu
-+++ b/Documentation/ABI/testing/sysfs-devices-system-cpu
-@@ -94,6 +94,20 @@ Description:	Discover and change the online state of a CPU.
- 		For more information, please read Documentation/cpu-hotplug.txt
- 
- 
-+What:		/sys/devices/system/cpu/cpu#/node
-+Date:		October 2009
-+Contact:	Linux memory management mailing list <linux-mm@kvack.org>
-+Description:	Discover NUMA node a CPU belongs to
-+
-+		When CONFIG_NUMA is enabled, a symbolic link that points
-+		to the corresponding NUMA node directory.
-+
-+		For example, the following symlink is created for cpu42
-+		in NUMA node 2:
-+
-+		/sys/devices/system/cpu/cpu42/node2 -> ../../node/node2
-+
-+
- What:		/sys/devices/system/cpu/cpu#/topology/core_id
- 		/sys/devices/system/cpu/cpu#/topology/core_siblings
- 		/sys/devices/system/cpu/cpu#/topology/core_siblings_list
+For example, with 1000 possible CPUs (possible, not present and not
+online), and 1000 processes, ps(1) will have to wallow through a
+million cachelines in task_statm().
+
+And then we have get_mm_rs(), which now will hit 1000 cachelines.  And
+get_mm_rs() is called (via
+account_user_time()->acct_update_integrals()) from the clock tick.
+
+Adding a thousand cache misses to the timer interrupt is the sort of
+thing which makes people unhappy?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
