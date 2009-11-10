@@ -1,57 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5F2FE6B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 15:22:50 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 950E582C5A1
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 15:22:48 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id kkr82ZytG3l6 for <linux-mm@kvack.org>;
-	Tue, 10 Nov 2009 15:22:48 -0500 (EST)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id DB20482C522
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 15:22:43 -0500 (EST)
-Date: Tue, 10 Nov 2009 15:20:41 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: Subject: [RFC MM] mmap_sem scaling: Use mutex and percpu counter
-  instead
-In-Reply-To: <28c262360911062019q254f7541lbdc3d94491a69bd6@mail.gmail.com>
-Message-ID: <alpine.DEB.1.10.0911101519250.14300@V090114053VZO-1>
-References: <alpine.DEB.1.10.0911051417370.24312@V090114053VZO-1>  <alpine.DEB.1.10.0911051419320.24312@V090114053VZO-1>  <28c262360911060741x3f7ab0a2k15be645e287e05ac@mail.gmail.com>  <alpine.DEB.1.10.0911061209520.5187@V090114053VZO-1>
- <28c262360911062019q254f7541lbdc3d94491a69bd6@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EE2546B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 15:51:46 -0500 (EST)
+Date: Tue, 10 Nov 2009 12:51:31 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch -mm] mm: slab allocate memory section nodemask for large
+ systems
+Message-Id: <20091110125131.30376c03.akpm@linux-foundation.org>
+In-Reply-To: <20091102204726.GG5525@ldl.fc.hp.com>
+References: <20091022040814.15705.95572.stgit@bob.kio>
+	<20091022041510.15705.5410.stgit@bob.kio>
+	<alpine.DEB.2.00.0910221249030.26631@chino.kir.corp.google.com>
+	<20091027195907.GJ14102@ldl.fc.hp.com>
+	<alpine.DEB.2.00.0910271422090.22335@chino.kir.corp.google.com>
+	<20091028083137.GA24140@osiris.boeblingen.de.ibm.com>
+	<alpine.DEB.2.00.0910280159380.7122@chino.kir.corp.google.com>
+	<20091028183905.GF22743@ldl.fc.hp.com>
+	<alpine.DEB.2.00.0910281315370.23279@chino.kir.corp.google.com>
+	<20091102204726.GG5525@ldl.fc.hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: Alex Chiang <achiang@hp.com>
+Cc: David Rientjes <rientjes@google.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Gary Hade <garyhade@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 7 Nov 2009, Minchan Kim wrote:
+On Mon, 2 Nov 2009 13:47:26 -0700
+Alex Chiang <achiang@hp.com> wrote:
 
-> On Sat, Nov 7, 2009 at 2:10 AM, Christoph Lameter
-> <cl@linux-foundation.org> wrote:
-> > On Sat, 7 Nov 2009, Minchan Kim wrote:
-> >
-> >> How about change from 'mm_readers' to 'is_readers' to improve your
-> >> goal 'scalibility'?
-> >
-> > Good idea. Thanks. Next rev will use your suggestion.
-> >
-> > Any creative thoughts on what to do about the 1 millisecond wait period?
-> >
->
-> Hmm,
-> it would be importatn to prevent livelock for reader to hold lock
-> continuously before
-> hodling writer than 1 msec write ovhead.
+> I can respin this series once more, including David's Acked-by:
+> and adding his patch if that makes life easier for you.
 
-Livelock because there are too frequent readers?
+Yes, please redo and resend.
 
-We could just keep the mutex locked to ensure that no new readers arrive.
+The prerequisite Documentation/ patches are a bit of a mess - some have
+been cherrypicked into Greg's tree I believe and some haven't.  So
+please also send out whatever is needed to bring linux-next up to date.
 
-> First of all, After we solve it, second step is that optimize write
-> overhead, I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
