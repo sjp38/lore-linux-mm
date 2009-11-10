@@ -1,105 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8D2396B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 03:19:47 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAA8JjAd005085
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 10 Nov 2009 17:19:45 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 425F245DE56
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 17:19:45 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A14245DE52
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 17:19:45 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DDDAE1DB803F
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 17:19:44 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A6851DB8043
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 17:19:44 +0900 (JST)
-Date: Tue, 10 Nov 2009 17:17:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with
- nodemask v2
-Message-Id: <20091110171704.3800f081.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091110170338.9f3bb417.nishimura@mxp.nes.nec.co.jp>
-References: <20091110162121.361B.A69D9226@jp.fujitsu.com>
-	<20091110162445.c6db7521.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091110163419.361E.A69D9226@jp.fujitsu.com>
-	<20091110164055.a1b44a4b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091110170338.9f3bb417.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E66E86B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 04:19:58 -0500 (EST)
+Date: Tue, 10 Nov 2009 10:19:53 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: Subject: [RFC MM] mmap_sem scaling: Use mutex and percpu
+	counter instead
+Message-ID: <20091110091953.GA2373@basil.fritz.box>
+References: <20091106174439.GB819@basil.fritz.box> <alpine.DEB.1.10.0911061249170.5187@V090114053VZO-1> <20091110151145.3615.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091110151145.3615.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, cl@linux-foundation.org, rientjes@google.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Nov 2009 17:03:38 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Tue, 10 Nov 2009 16:40:55 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 10 Nov 2009 16:39:02 +0900 (JST)
-> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue, Nov 10, 2009 at 03:21:11PM +0900, KOSAKI Motohiro wrote:
+> > On Fri, 6 Nov 2009, Andi Kleen wrote:
 > > 
-> > > > > > +
-> > > > > > +	/* Check this allocation failure is caused by cpuset's wall function */
-> > > > > > +	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-> > > > > > +			high_zoneidx, nodemask)
-> > > > > > +		if (!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> > > > > >  			return CONSTRAINT_CPUSET;
-> > > > > 
-> > > > > If cpuset and MPOL_BIND are both used, Probably CONSTRAINT_MEMORY_POLICY is
-> > > > > better choice.
-> > > > 
-> > > > No. this memory allocation is failed by limitation of cpuset's alloc mask.
-> > > > Not from mempolicy.
-> > > 
-> > > But CONSTRAINT_CPUSET doesn't help to free necessary node memory. It isn't
-> > > your fault. original code is wrong too. but I hope we should fix it.
-> > > 
-> I think so too.
+> > > On Fri, Nov 06, 2009 at 12:08:54PM -0500, Christoph Lameter wrote:
+> > > > On Fri, 6 Nov 2009, Andi Kleen wrote:
+> > > >
+> > > > > Yes but all the major calls still take mmap_sem, which is not ranged.
+> > > >
+> > > > But exactly that issue is addressed by this patch!
+> > >
+> > > Major calls = mmap, brk, etc.
+> > 
+> > Those are rare. More frequently are for faults, get_user_pages and
+> > the like operations that are frequent.
+> > 
+> > brk depends on process wide settings and has to be
+> > serialized using a processor wide locks.
+> > 
+> > mmap and other address space local modification may be able to avoid
+> > taking mmap write lock by taking the read lock and then locking the
+> > ptls in the page struct relevant to the address space being modified.
+> > 
+> > This is also enabled by this patchset.
 > 
-> > Hmm, maybe fair enough.
-> > 
-> > My 3rd version will use "kill always current(CONSTRAINT_MEMPOLICY does this)
-> > if it uses mempolicy" logic.
-> > 
-> "if it uses mempoicy" ?
-> You mean "kill allways current if memory allocation has failed by limitation of
-> cpuset's mask"(i.e. CONSTRAINT_CPUSET case) ?
-> 
+> Andi, Why do you ignore fork? fork() hold mmap_sem write-side lock and
+> it is one of critical path.
 
-No. "kill always current process if memory allocation uses mempolicy"
-regardless of cpuset. If the task doesn't use mempolicy allocation,
-usual CONSTRAINT_CPUSET/CONSTRAINT_NONE oom handler will be invoked.
+I have not seen profile logs where fork was critical. But that's not saying
+that it can't be.  But fork is so intrusive that locking it fine grained
+is probably very hard.
 
-Now, without patch, CONSTRAINT_MEMPOLICY is not returned at all. I'd
-like to limit the scope of this patch to return it. If it's returned,
-current will be killed.
+> Plus, most critical mmap_sem issue is not locking cost itself. In stree workload,
+> the procss grabbing mmap_sem frequently sleep. and fair rw-semaphoe logic
+> frequently prevent reader side locking.
+> At least, this improvement doesn't help google like workload.
 
-Finally, we'll have to consinder "how to manage oom under cpuset"
-problem, again. It's not handled in good way, now.
+Not helping is not too bad, the problem I had was just that it makes
+writers even slower. 
 
-The main problems are...
-   - Cpuset allows intersection of nodes among groups. 
-   - Task can be migrated to other cpuset withoug moving memory.
-   - We don't have per-node-rss information per task.
-
-Then,
-   - We have to scan all tasks.
-   - We have to invoke Totally-Random-Innocent-Task-Killer and pray that
-     someone bad will be killed.
-
-IMHO, "find correct one" is too heavy to the kernel (under cpuset).
-If we can have notifier to userland, some daemon can check numa_maps of all
-tasks and will do something reasonbale.
-
-
-Thanks,
--Kame
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
