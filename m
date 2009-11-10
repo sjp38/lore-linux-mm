@@ -1,64 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E66E86B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 04:19:58 -0500 (EST)
-Date: Tue, 10 Nov 2009 10:19:53 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: Subject: [RFC MM] mmap_sem scaling: Use mutex and percpu
-	counter instead
-Message-ID: <20091110091953.GA2373@basil.fritz.box>
-References: <20091106174439.GB819@basil.fritz.box> <alpine.DEB.1.10.0911061249170.5187@V090114053VZO-1> <20091110151145.3615.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id BB42A6B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 06:39:26 -0500 (EST)
+Date: Tue, 10 Nov 2009 13:36:37 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCHv9 3/3] vhost_net: a kernel-level virtio server
+Message-ID: <20091110113637.GB6989@redhat.com>
+References: <cover.1257786516.git.mst@redhat.com> <20091109172230.GD4724@redhat.com> <200911101349.09783.rusty@rustcorp.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091110151145.3615.A69D9226@jp.fujitsu.com>
+In-Reply-To: <200911101349.09783.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, s.hetze@linux-ag.com, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 10, 2009 at 03:21:11PM +0900, KOSAKI Motohiro wrote:
-> > On Fri, 6 Nov 2009, Andi Kleen wrote:
-> > 
-> > > On Fri, Nov 06, 2009 at 12:08:54PM -0500, Christoph Lameter wrote:
-> > > > On Fri, 6 Nov 2009, Andi Kleen wrote:
-> > > >
-> > > > > Yes but all the major calls still take mmap_sem, which is not ranged.
-> > > >
-> > > > But exactly that issue is addressed by this patch!
-> > >
-> > > Major calls = mmap, brk, etc.
-> > 
-> > Those are rare. More frequently are for faults, get_user_pages and
-> > the like operations that are frequent.
-> > 
-> > brk depends on process wide settings and has to be
-> > serialized using a processor wide locks.
-> > 
-> > mmap and other address space local modification may be able to avoid
-> > taking mmap write lock by taking the read lock and then locking the
-> > ptls in the page struct relevant to the address space being modified.
-> > 
-> > This is also enabled by this patchset.
+On Tue, Nov 10, 2009 at 01:49:09PM +1030, Rusty Russell wrote:
+> One fix:
 > 
-> Andi, Why do you ignore fork? fork() hold mmap_sem write-side lock and
-> it is one of critical path.
+> vhost: fix TUN=m VHOST_NET=y
+> 
+> 	drivers/built-in.o: In function `get_tun_socket':
+> 	net.c:(.text+0x15436e): undefined reference to `tun_get_socket'
+> 
+> Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
+> ---
+>  drivers/vhost/Kconfig |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/vhost/Kconfig b/drivers/vhost/Kconfig
+> --- a/drivers/vhost/Kconfig
+> +++ b/drivers/vhost/Kconfig
+> @@ -1,6 +1,6 @@
+>  config VHOST_NET
+>  	tristate "Host kernel accelerator for virtio net (EXPERIMENTAL)"
+> -	depends on NET && EVENTFD && EXPERIMENTAL
+> +	depends on NET && EVENTFD && TUN && EXPERIMENTAL
+>  	---help---
+>  	  This kernel module can be loaded in host kernel to accelerate
+>  	  guest networking with virtio_net. Not to be confused with virtio_net
 
-I have not seen profile logs where fork was critical. But that's not saying
-that it can't be.  But fork is so intrusive that locking it fine grained
-is probably very hard.
+In fact, vhost can be built with TUN=n VHOST_NET=y as well
+(tun_get_socket is stubbed out in that case).
+So I think this is better (it looks strange
+until you realize that for tristate variables
+boolean logic math does not apply):
 
-> Plus, most critical mmap_sem issue is not locking cost itself. In stree workload,
-> the procss grabbing mmap_sem frequently sleep. and fair rw-semaphoe logic
-> frequently prevent reader side locking.
-> At least, this improvement doesn't help google like workload.
+--->
 
-Not helping is not too bad, the problem I had was just that it makes
-writers even slower. 
+From: Michael S. Tsirkin <mst@redhat.com>
+Subject: vhost: fix TUN=m VHOST_NET=y
 
--Andi
+    drivers/built-in.o: In function `get_tun_socket':
+    net.c:(.text+0x15436e): undefined reference to `tun_get_socket'
+
+If tun is a module, vhost must be a module, too.
+If tun is built-in or disabled, vhost can be built-in.
+
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+
+---
+
+diff --git a/drivers/vhost/Kconfig b/drivers/vhost/Kconfig
+index 9f409f4..9e93553 100644
+--- a/drivers/vhost/Kconfig
++++ b/drivers/vhost/Kconfig
+@@ -1,6 +1,6 @@
+ config VHOST_NET
+ 	tristate "Host kernel accelerator for virtio net (EXPERIMENTAL)"
+-	depends on NET && EVENTFD && EXPERIMENTAL
++	depends on NET && EVENTFD && (TUN || !TUN) && EXPERIMENTAL
+ 	---help---
+ 	  This kernel module can be loaded in host kernel to accelerate
+ 	  guest networking with virtio_net. Not to be confused with virtio_net
+
+
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
