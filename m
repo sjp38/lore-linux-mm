@@ -1,123 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A26FE6B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 18:51:16 -0500 (EST)
-Date: Wed, 11 Nov 2009 08:44:35 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mmotm 2/8] memcg: move memcg_tasklist mutex
-Message-Id: <20091111084435.4686ba4f.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20091110191423.GD3314@balbir.in.ibm.com>
-References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
-	<20091106141149.9c7e94d5.nishimura@mxp.nes.nec.co.jp>
-	<20091110191423.GD3314@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 714486B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 18:58:58 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAANwtGf026393
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 11 Nov 2009 08:58:55 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A5B145DE53
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 08:58:55 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A414445DE56
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 08:58:51 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 93C061DB8038
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 08:58:50 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 66E961DB8044
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 08:58:49 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: + oom-kill-show-virtual-size-and-rss-information-of-the-killed-process.patch added to -mm tree
+In-Reply-To: <alpine.DEB.2.00.0911101522020.14504@chino.kir.corp.google.com>
+References: <200911102159.nAALx4ds016632@imap1.linux-foundation.org> <alpine.DEB.2.00.0911101522020.14504@chino.kir.corp.google.com>
+Message-Id: <20091111085345.FD21.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 11 Nov 2009 08:58:48 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Nov 2009 00:44:23 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-11-06 14:11:49]:
+(cc to linux-mm instead mm-commit)
+
+> On Tue, 10 Nov 2009, akpm@linux-foundation.org wrote:
 > 
-> > memcg_tasklist was introduced to serialize mem_cgroup_out_of_memory() and
-> > mem_cgroup_move_task() to ensure tasks cannot be moved to another cgroup
-> > during select_bad_process().
-> > 
-> > task_in_mem_cgroup(), which can be called by select_bad_process(), will check
-> > whether a task is in the mem_cgroup or not by dereferencing task->cgroups
-> > ->subsys[]. So, it would be desirable to change task->cgroups
-> > (rcu_assign_pointer() in cgroup_attach_task() does it) with memcg_tasklist held.
-> > 
-> > Now that we can define cancel_attach(), we can safely release memcg_tasklist
-> > on fail path even if we hold memcg_tasklist in can_attach(). So let's move
-> > mutex_lock/unlock() of memcg_tasklist.
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > ---
-> >  mm/memcontrol.c |   22 ++++++++++++++++++++--
-> >  1 files changed, 20 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 4bd3451..d3b2ac0 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -3395,18 +3395,34 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
-> >  	return ret;
+> > diff -puN mm/oom_kill.c~oom-kill-show-virtual-size-and-rss-information-of-the-killed-process mm/oom_kill.c
+> > --- a/mm/oom_kill.c~oom-kill-show-virtual-size-and-rss-information-of-the-killed-process
+> > +++ a/mm/oom_kill.c
+> > @@ -352,6 +352,8 @@ static void dump_header(gfp_t gfp_mask, 
+> >  		dump_tasks(mem);
 > >  }
-> > 
-> > +static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-> > +				struct cgroup *cgroup,
-> > +				struct task_struct *p,
-> > +				bool threadgroup)
-> > +{
-> > +	mutex_lock(&memcg_tasklist);
-> > +	return 0;
-> > +}
+> >  
+> > +#define K(x) ((x) << (PAGE_SHIFT-10))
 > > +
-> > +static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
-> > +				struct cgroup *cgroup,
-> > +				struct task_struct *p,
-> > +				bool threadgroup)
-> > +{
-> > +	mutex_unlock(&memcg_tasklist);
-> > +}
-> > +
-> >  static void mem_cgroup_move_task(struct cgroup_subsys *ss,
-> >  				struct cgroup *cont,
-> >  				struct cgroup *old_cont,
-> >  				struct task_struct *p,
-> >  				bool threadgroup)
-> >  {
-> > -	mutex_lock(&memcg_tasklist);
-> > +	mutex_unlock(&memcg_tasklist);
-> 
-> What does this mean for nesting? I think the API's are called with
-> cgroup_mutex held, so memcg_tasklist nests under cgroup_mutex right?
-Yes.
-
-> Could you please document that at the mutex declaration point.
-I'm going to remove this mutex completely. It's no use as I said
-in another mail(http://marc.info/?l=linux-mm&m=125749423314702&w=2).
-
-> Shouldn't you be removing the FIXME as well?
-> 
-I remove this FIXME comment in [5/8] :)
-This patch itself has nothing to do with this recharge feature.
-
-
-Thanks,
-Daisuke Nishimura.
-
+> >  /*
+> >   * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
+> >   * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
+> > @@ -371,9 +373,16 @@ static void __oom_kill_task(struct task_
+> >  		return;
+> >  	}
+> >  
+> > -	if (verbose)
+> > -		printk(KERN_ERR "Killed process %d (%s)\n",
+> > -				task_pid_nr(p), p->comm);
+> > +	if (verbose) {
+> > +		task_lock(p);
+> > +		printk(KERN_ERR "Killed process %d (%s) "
+> > +		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+> > +		       task_pid_nr(p), p->comm,
+> > +		       K(p->mm->total_vm),
+> > +		       K(get_mm_counter(p->mm, anon_rss)),
+> > +		       K(get_mm_counter(p->mm, file_rss)));
+> > +		task_unlock(p);
+> > +	}
+> >  
 > >  	/*
-> >  	 * FIXME: It's better to move charges of this process from old
-> >  	 * memcg to new memcg. But it's just on TODO-List now.
-> >  	 */
-> > -	mutex_unlock(&memcg_tasklist);
-> >  }
-> > 
-> >  struct cgroup_subsys mem_cgroup_subsys = {
-> > @@ -3416,6 +3432,8 @@ struct cgroup_subsys mem_cgroup_subsys = {
-> >  	.pre_destroy = mem_cgroup_pre_destroy,
-> >  	.destroy = mem_cgroup_destroy,
-> >  	.populate = mem_cgroup_populate,
-> > +	.can_attach = mem_cgroup_can_attach,
-> > +	.cancel_attach = mem_cgroup_cancel_attach,
-> >  	.attach = mem_cgroup_move_task,
-> >  	.early_init = 0,
-> >  	.use_id = 1,
-> > -- 
-> > 1.5.6.1
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >  	 * We give our sacrificial lamb high priority and access to
 > 
-> -- 
-> 	Balbir
+> There's a race there which can dereference a NULL p->mm.
+> 
+> p->mm is protected by task_lock(), but there's no check added here that 
+> ensures p->mm is still valid.  The previous check for !p->mm in 
+> __oom_kill_task() is not protected by task_lock(), so there's a race:
+> 
+> 	select_bad_process()
+> 	oom_kill_process(p)
+> 					do_exit()
+> 					exit_signals(p) /* PF_EXITING */
+> 	oom_kill_task(p)
+> 	__oom_kill_task(p)
+> 					exit_mm(p)
+> 					task_lock(p)
+> 					p->mm = NULL
+> 					task_unlock(p)
+> 	printk() of p->mm->total_vm
+> 
+
+Nice catch!
+
+
+
+> Please merge this as a fix.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -367,22 +367,23 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
+>  		return;
+>  	}
+>  
+> +	task_lock(p);
+>  	if (!p->mm) {
+>  		WARN_ON(1);
+> -		printk(KERN_WARNING "tried to kill an mm-less task!\n");
+> +		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
+> +			task_pid_nr(p), p->comm);
+
+This adding pid and comm are you new feature.
+I hope andrew remain your signed-off-by to merged patch.
+otherthings, looks pretty godd to me.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+
+> +		task_unlock(p);
+>  		return;
+>  	}
+>  
+> -	if (verbose) {
+> -		task_lock(p);
+> +	if (verbose)
+>  		printk(KERN_ERR "Killed process %d (%s) "
+>  		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+>  		       task_pid_nr(p), p->comm,
+>  		       K(p->mm->total_vm),
+>  		       K(get_mm_counter(p->mm, anon_rss)),
+>  		       K(get_mm_counter(p->mm, file_rss)));
+> -		task_unlock(p);
+> -	}
+> +	task_unlock(p);
+>  
+>  	/*
+>  	 * We give our sacrificial lamb high priority and access to
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
