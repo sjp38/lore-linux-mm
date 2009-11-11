@@ -1,80 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4AA606B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 21:36:46 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAB2aif5005133
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 11 Nov 2009 11:36:44 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 376B045DE55
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:36:44 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F86145DE52
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:36:44 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id EE24EE1800B
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:36:43 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A8F5F1DB803F
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:36:43 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask v3
-In-Reply-To: <20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091110171704.3800f081.kamezawa.hiroyu@jp.fujitsu.com> <20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com>
-Message-Id: <20091111113559.FD4D.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E29EF6B006A
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 21:40:12 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAB2eAv1006324
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 11 Nov 2009 11:40:10 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D7C145DE61
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:40:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AA80C45DE4F
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:40:08 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 897DE1DB8042
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:40:06 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 054A3E38003
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:40:03 +0900 (JST)
+Date: Wed, 11 Nov 2009 11:37:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 6/6] mm: sigbus instead of abusing oom
+Message-Id: <20091111113719.589e61d7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0911102202500.2816@sister.anvils>
+References: <Pine.LNX.4.64.0911102142570.2272@sister.anvils>
+	<Pine.LNX.4.64.0911102202500.2816@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed, 11 Nov 2009 11:36:42 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, cl@linux-foundation.org, rientjes@google.com
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
-> 
-> Fixing node-oriented allocation handling in oom-kill.c
-> I myself think this as bugfix not as ehnancement.
-> 
-> In these days, things are changed as
->   - alloc_pages() eats nodemask as its arguments, __alloc_pages_nodemask().
->   - mempolicy don't maintain its own private zonelists.
->   (And cpuset doesn't use nodemask for __alloc_pages_nodemask())
-> 
-> But, current oom-killer's doesn't handle nodemask and it's wrong.
-> 
-> This patch does
->   - check nodemask, if nodemask && nodemask doesn't cover all
->     node_states[N_HIGH_MEMORY], this is CONSTRAINT_MEMORY_POLICY.
->   - Scan all zonelist under nodemask, if it hits cpuset's wall
->     this faiulre is from cpuset.
-> And
->   - modifies the caller of out_of_memory not to call oom if __GFP_THISNODE.
->     This doesn't change "current" behavior.
->     If callers use __GFP_THISNODE, it should handle "page allocation failure"
->     by itself.
-> 
-> Changelog: 2009/11/11
->  - fixed nodes_equal() calculation.
->  - return CONSTRAINT_MEMPOLICY always if given nodemask is not enough big.
-> 
-> Changelog: 2009/11/06
->  - fixed lack of oom.h
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
-> ---
->  drivers/char/sysrq.c |    2 +-
->  include/linux/oom.h  |    4 +++-
->  mm/oom_kill.c        |   44 ++++++++++++++++++++++++++++++++------------
->  mm/page_alloc.c      |   10 ++++++++--
->  4 files changed, 44 insertions(+), 16 deletions(-)
-> 
+On Tue, 10 Nov 2009 22:06:49 +0000 (GMT)
+Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-Looks good to me.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> When do_nonlinear_fault() realizes that the page table must have been
+> corrupted for it to have been called, it does print_bad_pte() and
+> returns ... VM_FAULT_OOM, which is hard to understand.
+> 
+> It made some sense when I did it for 2.6.15, when do_page_fault()
+> just killed the current process; but nowadays it lets the OOM killer
+> decide who to kill - so page table corruption in one process would
+> be liable to kill another.
+> 
+> Change it to return VM_FAULT_SIGBUS instead: that doesn't guarantee
+> that the process will be killed, but is good enough for such a rare
+> abnormality, accompanied as it is by the "BUG: Bad page map" message.
+> 
+> And recent HWPOISON work has copied that code into do_swap_page(),
+> when it finds an impossible swap entry: fix that to VM_FAULT_SIGBUS too.
+> 
+> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-
+Thank you !
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
