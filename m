@@ -1,75 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 570156B004D
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 02:32:31 -0500 (EST)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id nAB7WOpd015071
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 07:32:25 GMT
-Received: from pzk12 (pzk12.prod.google.com [10.243.19.140])
-	by wpaz17.hot.corp.google.com with ESMTP id nAB7WLSb002742
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 23:32:22 -0800
-Received: by pzk12 with SMTP id 12so616972pzk.13
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2009 23:32:21 -0800 (PST)
-Date: Tue, 10 Nov 2009 23:32:18 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask
- v4.2
-In-Reply-To: <20091111153414.3c263842.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0911102331550.15125@chino.kir.corp.google.com>
-References: <20091110162121.361B.A69D9226@jp.fujitsu.com> <20091110162445.c6db7521.kamezawa.hiroyu@jp.fujitsu.com> <20091110163419.361E.A69D9226@jp.fujitsu.com> <20091110164055.a1b44a4b.kamezawa.hiroyu@jp.fujitsu.com> <20091110170338.9f3bb417.nishimura@mxp.nes.nec.co.jp>
- <20091110171704.3800f081.kamezawa.hiroyu@jp.fujitsu.com> <20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com> <20091111134514.4edd3011.kamezawa.hiroyu@jp.fujitsu.com> <20091111142811.eb16f062.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.0911102155580.2924@chino.kir.corp.google.com> <20091111152004.3d585cee.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0911102224440.6652@chino.kir.corp.google.com> <20091111153414.3c263842.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 238896B004D
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 02:56:33 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAB7uU3F007049
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 11 Nov 2009 16:56:30 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 155CD45DE4E
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 16:56:30 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D0B2B45DE55
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 16:56:29 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B91521DB8040
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 16:56:29 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EC80E18009
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 16:56:29 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/6] mm: mlocking in try_to_unmap_one
+In-Reply-To: <Pine.LNX.4.64.0911102151500.2816@sister.anvils>
+References: <Pine.LNX.4.64.0911102142570.2272@sister.anvils> <Pine.LNX.4.64.0911102151500.2816@sister.anvils>
+Message-Id: <20091111102400.FD36.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 11 Nov 2009 16:56:28 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Nov 2009, KAMEZAWA Hiroyuki wrote:
+Hi Hugh
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
-> 
-> Fixing node-oriented allocation handling in oom-kill.c
-> I myself think this as bugfix not as ehnancement.
-> 
-> In these days, things are changed as
->   - alloc_pages() eats nodemask as its arguments, __alloc_pages_nodemask().
->   - mempolicy don't maintain its own private zonelists.
->   (And cpuset doesn't use nodemask for __alloc_pages_nodemask())
-> 
-> So, current oom-killer's check function is wrong.
-> 
-> This patch does
->   - check nodemask, if nodemask && nodemask doesn't cover all
->     node_states[N_HIGH_MEMORY], this is CONSTRAINT_MEMORY_POLICY.
->   - Scan all zonelist under nodemask, if it hits cpuset's wall
->     this faiulre is from cpuset.
-> And
->   - modifies the caller of out_of_memory not to call oom if __GFP_THISNODE.
->     This doesn't change "current" behavior. If callers use __GFP_THISNODE
->     it should handle "page allocation failure" by itself.
-> 
->   - handle __GFP_NOFAIL+__GFP_THISNODE path.
->     This is something like a FIXME but this gfpmask is not used now.
-> 
-> Changelog: 2009/11/11(2)
->  - uses nodes_subset().
->  - clean up.
->  - added __GFP_NOFAIL case. And added waring.
->  - removed inline
->  - removed 'ret'
-> 
-> Changelog: 2009/11/11
->  - fixed nodes_equal() calculation.
->  - return CONSTRAINT_MEMPOLICY always if given nodemask is not enough big.
-> 
-> Changelog: 2009/11/06
->  - fixed lack of oom.h
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
+> @@ -1081,45 +1053,23 @@ static int try_to_unmap_file(struct page
+>  	unsigned long max_nl_cursor = 0;
+>  	unsigned long max_nl_size = 0;
+>  	unsigned int mapcount;
+> -	unsigned int mlocked = 0;
+> -	int unlock = TTU_ACTION(flags) == TTU_MUNLOCK;
+> -
+> -	if (MLOCK_PAGES && unlikely(unlock))
+> -		ret = SWAP_SUCCESS;	/* default for try_to_munlock() */
+>  
+>  	spin_lock(&mapping->i_mmap_lock);
+>  	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+> -		if (MLOCK_PAGES && unlikely(unlock)) {
+> -			if (!((vma->vm_flags & VM_LOCKED) &&
+> -						page_mapped_in_vma(page, vma)))
+> -				continue;	/* must visit all vmas */
+> -			ret = SWAP_MLOCK;
+> -		} else {
+> -			ret = try_to_unmap_one(page, vma, flags);
+> -			if (ret == SWAP_FAIL || !page_mapped(page))
+> -				goto out;
+> -		}
+> -		if (ret == SWAP_MLOCK) {
+> -			mlocked = try_to_mlock_page(page, vma);
+> -			if (mlocked)
+> -				break;  /* stop if actually mlocked page */
+> -		}
+> +		ret = try_to_unmap_one(page, vma, flags);
+> +		if (ret != SWAP_AGAIN || !page_mapped(page))
+> +			goto out;
+>  	}
+>  
+> -	if (mlocked)
+> +	if (list_empty(&mapping->i_mmap_nonlinear))
+>  		goto out;
+>
+> -	if (list_empty(&mapping->i_mmap_nonlinear))
+> +	/* We don't bother to try to find the munlocked page in nonlinears */
+> +	if (MLOCK_PAGES && TTU_ACTION(flags) == TTU_MUNLOCK)
+>  		goto out;
 
-Acked-by: David Rientjes <rientjes@google.com>
+I have dumb question.
+Does this shortcut exiting code makes any behavior change?
+
+
+
+
+>  
+>  	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
+>  						shared.vm_set.list) {
+> -		if (MLOCK_PAGES && unlikely(unlock)) {
+> -			if (!(vma->vm_flags & VM_LOCKED))
+> -				continue;	/* must visit all vmas */
+> -			ret = SWAP_MLOCK;	/* leave mlocked == 0 */
+> -			goto out;		/* no need to look further */
+> -		}
+>  		if (!MLOCK_PAGES && !(flags & TTU_IGNORE_MLOCK) &&
+>  			(vma->vm_flags & VM_LOCKED))
+>  			continue;
+> @@ -1161,10 +1111,9 @@ static int try_to_unmap_file(struct page
+>  			cursor = (unsigned long) vma->vm_private_data;
+>  			while ( cursor < max_nl_cursor &&
+>  				cursor < vma->vm_end - vma->vm_start) {
+> -				ret = try_to_unmap_cluster(cursor, &mapcount,
+> -								vma, page);
+> -				if (ret == SWAP_MLOCK)
+> -					mlocked = 2;	/* to return below */
+> +				if (try_to_unmap_cluster(cursor, &mapcount,
+> +						vma, page) == SWAP_MLOCK)
+> +					ret = SWAP_MLOCK;
+>  				cursor += CLUSTER_SIZE;
+>  				vma->vm_private_data = (void *) cursor;
+>  				if ((int)mapcount <= 0)
+> @@ -1185,10 +1134,6 @@ static int try_to_unmap_file(struct page
+>  		vma->vm_private_data = NULL;
+>  out:
+>  	spin_unlock(&mapping->i_mmap_lock);
+> -	if (mlocked)
+> -		ret = SWAP_MLOCK;	/* actually mlocked the page */
+> -	else if (ret == SWAP_MLOCK)
+> -		ret = SWAP_AGAIN;	/* saw VM_LOCKED vma */
+>  	return ret;
+>  }
+>  
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
