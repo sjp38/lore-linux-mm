@@ -1,56 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id F139D6B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 20:22:16 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAB1MAwl007076
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 11 Nov 2009 10:22:10 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CE2645DE6F
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 10:22:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F140145DE4D
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 10:22:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D9CED1DB803B
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 10:22:09 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9556A1DB803A
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 10:22:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 3/6] mm: CONFIG_MMU for PG_mlocked
-In-Reply-To: <Pine.LNX.4.64.0911102155180.2816@sister.anvils>
-References: <Pine.LNX.4.64.0911102142570.2272@sister.anvils> <Pine.LNX.4.64.0911102155180.2816@sister.anvils>
-Message-Id: <20091111101315.FD33.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D7806B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 20:43:11 -0500 (EST)
+Date: Wed, 11 Nov 2009 10:35:33 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 0/3] some cleanups for memcg
+Message-Id: <20091111103533.c634ff8d.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
+References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed, 11 Nov 2009 10:22:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Remove three degrees of obfuscation, left over from when we had
-> CONFIG_UNEVICTABLE_LRU.  MLOCK_PAGES is CONFIG_HAVE_MLOCKED_PAGE_BIT
-> is CONFIG_HAVE_MLOCK is CONFIG_MMU.  rmap.o (and memory-failure.o)
-> are only built when CONFIG_MMU, so don't need such conditions at all.
-> 
-> Somehow, I feel no compulsion to remove the CONFIG_HAVE_MLOCK*
-> lines from 169 defconfigs: leave those to evolve in due course.
-> 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Hi.
 
-I don't recall why Lee added this config option. but it seems very
-reasonable and I storongly like it.
+These are cleanup patches split from my recharge-at-task-move patch set
+posted in Nov/06.
 
-At least, vmscan folks never said "please try to disable CONFIG_MLOCK".
-It mean this option didn't help our debug.
+[1/3] memcg: add mem_cgroup_cancel_charge()
+[2/3] memcg: cleanup mem_cgroup_move_parent()
+[3/3] memcg: remove memcg_tasklist
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+1 is corresponding to 3 in original patch set, and 2 to 4. There is no practical
+change from then. I think they are ready for merge.
+
+3 is a substitutional patch for 2 in original patch set. I want ack or some comments
+about this patch.
 
 
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
