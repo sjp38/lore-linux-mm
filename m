@@ -1,53 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6D61D6B004D
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 10:16:53 -0500 (EST)
-Date: Thu, 12 Nov 2009 00:16:49 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [PATCH -mmotm 2/3] memcg: cleanup mem_cgroup_move_parent()
-Message-Id: <20091112001649.ba228103.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20091111144050.GL3314@balbir.in.ibm.com>
-References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
-	<20091111103533.c634ff8d.nishimura@mxp.nes.nec.co.jp>
-	<20091111103741.f35e9ffe.nishimura@mxp.nes.nec.co.jp>
-	<20091111144050.GL3314@balbir.in.ibm.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id A02EF6B004D
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 10:19:41 -0500 (EST)
+Date: Wed, 11 Nov 2009 16:19:37 +0100
+From: Tobias Diedrich <ranma+kernel@tdiedrich.de>
+Subject: posix_fadvise/WILLNEED synchronous on fuse/sshfs instead of async?
+Message-ID: <20091111151937.GC20655@yumi.tdiedrich.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Nov 2009 20:10:50 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+While trying to use posix_fadvise(...POSIX_FADVISE_WILLNEED) to
+implement userspace read-ahead (with a bigger read-ahead window than
+the kernel default) I found that if the underlying filesystem is
+fuse/sshfs posix_fadvise is no longer doing asynchronous reads:
 
-> * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-11-11 10:37:41]:
-> 
-> > mem_cgroup_move_parent() calls try_charge first and cancel_charge on failure.
-> > IMHO, charge/uncharge(especially charge) is high cost operation, so we should
-> > avoid it as far as possible.
-> > 
-> 
-> But cancel_charge and move_account are not frequent operations, does
-> optimizing this give a significant benefit?
-> 
-I agree they are not called so frequently, so the benefit would not be so big.
-But, the number of lines of memcontrol.c decreases a bit by these patches ;)
+strace -tt with mnt/testfile on sshfs and server with very slow
+upstream (ADSL):
+5345  00:00:17.334209 open("mnt/testfile", O_RDONLY|O_LARGEFILE) = 3
+5345  00:00:18.011383 _llseek(3, 0, [3544379], SEEK_END) = 0
+5345  00:00:18.011626 _llseek(3, 0, [0], SEEK_SET) = 0
+5345  00:00:18.012393 fadvise64_64(3, 0, 1048576, POSIX_FADV_WILLNEED) = 0
+5345  00:01:02.438097 write(1, "[file] File size is 3544379 byte"..., 34) = 34
 
-IMHO, current mem_cgroup_move_parent() is a bit hard to understand, and mem_cgroup_move_account() have redundant codes. So, I cleaned them up.
+Note that fadvise takes 40 seconds...
+Is this expected behaviour?
+I would have expected that fadvise is always asynchronous and I
+could rely on the call to return almost immediately.
 
-Moreover, mem_cgroup_cancel_charge(), which I introduced in [1/3], and the new
-wrapper function of mem_cgroup_move_account(), which I introduced in this patch,
-will be used in my recharge-at-task-move patches and make them more readable.
-
-> Looks good overall
->  
-Thank you.
-
-
-Daisuke Nishimura.
+-- 
+Tobias						PGP: http://8ef7ddba.uguu.de
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
