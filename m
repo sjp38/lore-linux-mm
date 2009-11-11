@@ -1,45 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 555346B007E
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 22:27:53 -0500 (EST)
-Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
-	by smtp-out.google.com with ESMTP id nAB3Rmhf012362
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 03:27:48 GMT
-Received: from pzk28 (pzk28.prod.google.com [10.243.19.156])
-	by spaceape7.eur.corp.google.com with ESMTP id nAB3Ri3g007863
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 19:27:45 -0800
-Received: by pzk28 with SMTP id 28so468175pzk.27
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2009 19:27:44 -0800 (PST)
-Date: Tue, 10 Nov 2009 19:27:40 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask
- v3
-In-Reply-To: <20091111121958.FD59.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0911101926080.16932@chino.kir.corp.google.com>
-References: <20091111115217.FD56.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0911101908180.14549@chino.kir.corp.google.com> <20091111121958.FD59.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8063D6B004D
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 23:25:50 -0500 (EST)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp06.au.ibm.com (8.14.3/8.13.1) with ESMTP id nAB4ObXI027007
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 15:24:37 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAB4LgtT1662978
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 15:21:42 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAB4Ooex006340
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 15:24:50 +1100
+Date: Wed, 11 Nov 2009 09:54:48 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mmotm 1/3] memcg: add mem_cgroup_cancel_charge()
+Message-ID: <20091111042448.GG3314@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
+ <20091111103533.c634ff8d.nishimura@mxp.nes.nec.co.jp>
+ <20091111103649.e40e0e60.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20091111103649.e40e0e60.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Nov 2009, KOSAKI Motohiro wrote:
+* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-11-11 10:36:49]:
 
-> Linux doesn't support 1K nodes. (and only SGI huge machine use 512 nodes)
+> There are some places calling both res_counter_uncharge() and css_put()
+> to cancel the charge and the refcnt we have got by mem_cgroup_tyr_charge().
 > 
-
-I know for a fact that it does on x86 if you adjust CONFIG_NODES_SHIFT, 
-I've booted kernels all the way back to 2.6.18 with 1K nodes.
-
-> At least, NODEMASK_ALLOC should make more cleaner interface. current one
-> and struct nodemask_scratch are pretty ugly.
+> This patch introduces mem_cgroup_cancel_charge() and call it in those places.
 > 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-I agree, I haven't been a fan of nodemask_scratch because I think its use 
-case is pretty limited, but I do advocate using NODEMASK_ALLOC() when deep 
-in the stack.  We've made sure that most of the mempolicy code does that 
-where manipulating nodemasks is common in -mm.
+
+Reviewed-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
