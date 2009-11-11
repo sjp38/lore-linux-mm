@@ -1,69 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 758386B004D
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:01:42 -0500 (EST)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp08.au.ibm.com (8.14.3/8.13.1) with ESMTP id nABG1cda019313
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 03:01:38 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nABG1b1d1781838
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 03:01:38 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nABG1bXO018166
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 03:01:37 +1100
-Date: Wed, 11 Nov 2009 21:31:34 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH -mmotm 3/3] memcg: remove memcg_tasklist
-Message-ID: <20091111160134.GM3314@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20091106141011.3ded1551.nishimura@mxp.nes.nec.co.jp>
- <20091111103533.c634ff8d.nishimura@mxp.nes.nec.co.jp>
- <20091111103906.5c3563bb.nishimura@mxp.nes.nec.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1562B6B004D
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 14:34:32 -0500 (EST)
+Received: by bwz7 with SMTP id 7so1492952bwz.6
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2009 11:34:29 -0800 (PST)
+Message-ID: <4AFB11C1.9070105@lwfinger.net>
+Date: Wed, 11 Nov 2009 13:34:25 -0600
+From: Larry Finger <Larry.Finger@lwfinger.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20091111103906.5c3563bb.nishimura@mxp.nes.nec.co.jp>
+Subject: Question regarding BUG in mm/slub.c
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Michael Buesch <mbuesch@freenet.de>
 List-ID: <linux-mm.kvack.org>
 
-* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-11-11 10:39:06]:
+One of the users of a BCM4312 device hit the BUG in the mm/slub.c version of
+kfree in the following code fragment:
 
-> memcg_tasklist was introduced at commit 7f4d454d(memcg: avoid deadlock caused
-> by race between oom and cpuset_attach) instead of cgroup_mutex to fix a deadlock
-> problem.  The cgroup_mutex, which was removed by the commit, in
-> mem_cgroup_out_of_memory() was originally introduced at commit c7ba5c9e
-> (Memory controller: OOM handling).
-> 
-> IIUC, the intention of this cgroup_mutex was to prevent task move during
-> select_bad_process() so that situations like below can be avoided.
-> 
->   Assume cgroup "foo" has exceeded its limit and is about to trigger oom.
->   1. Process A, which has been in cgroup "baa" and uses large memory, is just
->      moved to cgroup "foo". Process A can be the candidates for being killed.
->   2. Process B, which has been in cgroup "foo" and uses large memory, is just
->      moved from cgroup "foo". Process B can be excluded from the candidates for
->      being killed.
-> 
-> But these race window exists anyway even if we hold a lock, because
-> __mem_cgroup_try_charge() decides wether it should trigger oom or not outside
-> of the lock. So the original cgroup_mutex in mem_cgroup_out_of_memory and thus
-> current memcg_tasklist has no use. And IMHO, those races are not so critical
-> for users.
-> 
-> This patch removes it and make codes simpler.
->
+        page = virt_to_head_page(x);
+        if (unlikely(!PageSlab(page))) {
+                BUG_ON(!PageCompound(page));
+                kmemleak_free(x);
+                put_page(page);
+                return;
+        }
 
-Could you please test for side-effects like concurrent OOM. An idea of
-how the patchset was tested would be good to have, given the
-implications of these changes.
+What is the meaning of PageCompound(page) being zero?
 
-Not-Yet-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
+For completeness, the system log output is:
 
--- 
-	Balbir
+Nov 11 14:31:31 doughnut ntpd[398]: kernel time sync status change 2001
+Nov 11 14:36:57 doughnut ntpd[398]: synchronized to 130.88.200.4, stratum 2
+Nov 11 14:37:31 doughnut kernel: ------------[ cut here ]------------
+Nov 11 14:37:31 doughnut kernel: kernel BUG at mm/slub.c:2969!
+Nov 11 14:37:31 doughnut kernel: invalid opcode: 0000 [#1] SMP
+Nov 11 14:37:31 doughnut kernel: last sysfs file:
+/sys/devices/pci0000:00/0000:00:02.1/resource
+Nov 11 14:37:31 doughnut kernel: Modules linked in:
+Nov 11 14:37:31 doughnut kernel:
+Nov 11 14:37:31 doughnut kernel: Pid: 343, comm: irq/17-b43 Not tainted
+(2.6.32-rc6-wl #1) Inspiron 910
+Nov 11 14:37:31 doughnut kernel: EIP: 0060:[<c107a5b9>] EFLAGS: 00010246 CPU: 0
+Nov 11 14:37:31 doughnut kernel: EIP is at kfree+0xa9/0xb0
+Nov 11 14:37:31 doughnut kernel: EAX: dededede EBX: f68f8200 ECX: 40000000 EDX:
+c19b9da0
+Nov 11 14:37:31 doughnut kernel: ESI: ef000000 EDI: 00000400 EBP: f72c5400 ESP:
+f6a3ded0
+Nov 11 14:37:31 doughnut kernel:  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
+Nov 11 14:37:31 doughnut kernel: Process irq/17-b43 (pid: 343, ti=f6a3c000
+task=f73fa380 task.ti=f6a3c000)
+Nov 11 14:37:31 doughnut kernel: Stack:
+Nov 11 14:37:31 doughnut kernel:  000e7ef0 c1021c31 f68f8200 ef000000 00000400
+c12d47ce c13ee7c0 f73fa380
+Nov 11 14:37:31 doughnut kernel: <0> 7fff7fff dededede 00000000 c141c934
+f7093458 f6a3df64 f73b7000 f72c5400
+Nov 11 14:37:31 doughnut kernel: <0> f72c5400 f6a3df64 00000000 c12d0556
+00000000 c12c0b77 00000046 00000046
+Nov 11 14:37:31 doughnut kernel: Call Trace:
+Nov 11 14:37:31 doughnut kernel:  [<c1021c31>] ? update_curr_rt+0x251/0x2c0
+Nov 11 14:37:31 doughnut kernel:  [<c12d47ce>] ? b43_dma_handle_txstatus+0xbe/0x270
+Nov 11 14:37:31 doughnut kernel:  [<c12d0556>] ? b43_handle_txstatus+0x36/0x60
+Nov 11 14:37:31 doughnut kernel:  [<c12c0b77>] ? b43_do_interrupt_thread+0x1d7/0x5d0
+Nov 11 14:37:31 doughnut kernel:  [<c12c0f85>] ?
+b43_interrupt_thread_handler+0x15/0x30
+Nov 11 14:37:31 doughnut kernel:  [<c1050a94>] ? irq_thread+0x104/0x1d0
+Nov 11 14:37:31 doughnut kernel:  [<c101d320>] ? complete+0x40/0x60
+Nov 11 14:37:31 doughnut kernel:  [<c1050990>] ? irq_thread+0x0/0x1d0
+Nov 11 14:37:31 doughnut kernel:  [<c1039c64>] ? kthread+0x74/0x80
+Nov 11 14:37:31 doughnut kernel:  [<c1039bf0>] ? kthread+0x0/0x80
+Nov 11 14:37:31 doughnut kernel:  [<c10038cf>] ? kernel_thread_helper+0x7/0x18
+Nov 11 14:37:31 doughnut kernel: Code: e8 1d fc ff ff eb d9 66 f7 c1 00 c0 74 1d
+8b 5c 24 08 89 d0 8b 74 24 0c 8b 7c 24 10 83 c4 14 e9 8e 24 fe ff 8b 52 0c 8b 0a
+eb 84 <0f> 0b eb fe 8d 76 00 83 e8 60 e9 48 ff ff ff 90 8d b4 26 00 00
+Nov 11 14:37:31 doughnut kernel: EIP: [<c107a5b9>] kfree+0xa9/0xb0 SS:ESP
+0068:f6a3ded0
+Nov 11 14:37:31 doughnut kernel: ---[ end trace 021257f2296ca88f ]---
+Nov 11 14:37:31 doughnut kernel: exiting task "irq/17-b43" (343) is an active
+IRQ thread (irq 17)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
