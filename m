@@ -1,28 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 356E46B004D
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2009 23:48:03 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAB4m0qP018134
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5A5D06B004D
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 00:31:14 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAB5UrLi003795
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 11 Nov 2009 13:48:00 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A47645DE54
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 13:47:59 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C00F45DE50
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 13:47:59 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D89F1DB8040
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 13:47:58 +0900 (JST)
+	Wed, 11 Nov 2009 14:30:53 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 37C1745DE52
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 14:30:53 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 141BB45DE51
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 14:30:53 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id EBFA2E1800D
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 14:30:52 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B71771DB8037
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 13:47:57 +0900 (JST)
-Date: Wed, 11 Nov 2009 13:45:14 +0900
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F1E4E18009
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2009 14:30:52 +0900 (JST)
+Date: Wed, 11 Nov 2009 14:28:11 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask v4
-Message-Id: <20091111134514.4edd3011.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask
+ v4.1
+Message-Id: <20091111142811.eb16f062.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091111134514.4edd3011.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20091110162121.361B.A69D9226@jp.fujitsu.com>
 	<20091110162445.c6db7521.kamezawa.hiroyu@jp.fujitsu.com>
 	<20091110163419.361E.A69D9226@jp.fujitsu.com>
@@ -30,6 +31,7 @@ References: <20091110162121.361B.A69D9226@jp.fujitsu.com>
 	<20091110170338.9f3bb417.nishimura@mxp.nes.nec.co.jp>
 	<20091110171704.3800f081.kamezawa.hiroyu@jp.fujitsu.com>
 	<20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091111134514.4edd3011.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -38,6 +40,8 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, cl@linux-foundation.org, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
+Sorry, missed to remove 'inline'...
+==
 From: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
 
 Fixing node-oriented allocation handling in oom-kill.c
@@ -67,6 +71,7 @@ Changelog: 2009/11/11(2)
  - uses nodes_subset().
  - clean up.
  - added __GFP_NOFAIL case. And added waring.
+ - removed inline
 
 Changelog: 2009/11/11
  - fixed nodes_equal() calculation.
@@ -79,9 +84,9 @@ Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
 ---
  drivers/char/sysrq.c |    2 +-
  include/linux/oom.h  |    4 +++-
- mm/oom_kill.c        |   45 +++++++++++++++++++++++++++++++++------------
+ mm/oom_kill.c        |   47 ++++++++++++++++++++++++++++++++++-------------
  mm/page_alloc.c      |   20 +++++++++++++++-----
- 4 files changed, 52 insertions(+), 19 deletions(-)
+ 4 files changed, 53 insertions(+), 20 deletions(-)
 
 Index: mm-test-kernel/drivers/char/sysrq.c
 ===================================================================
@@ -104,12 +109,13 @@ Index: mm-test-kernel/mm/oom_kill.c
  /*
   * Determine the type of allocation constraint.
   */
-+#ifdef CONFIG_NUMA
- static inline enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+-static inline enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 -						    gfp_t gfp_mask)
+-{
+ #ifdef CONFIG_NUMA
++static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 +				    gfp_t gfp_mask, nodemask_t *nodemask)
- {
--#ifdef CONFIG_NUMA
++{
  	struct zone *zone;
  	struct zoneref *z;
  	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
@@ -149,7 +155,7 @@ Index: mm-test-kernel/mm/oom_kill.c
 +	return CONSTRAINT_NONE;
 +}
 +#else
-+static inline enum oom_constraint constrained_alloc(struct zonelist *zonelist,
++static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 +				gfp_t gfp_mask, nodemask_t *nodemask)
 +{
  	return CONSTRAINT_NONE;
