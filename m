@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B57C06B0062
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 18:14:04 -0500 (EST)
-Date: Thu, 12 Nov 2009 23:13:59 +0000 (GMT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3C9596B004D
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 18:15:06 -0500 (EST)
+Date: Thu, 12 Nov 2009 23:15:01 +0000 (GMT)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 1/6] ksm: three remove_rmap_item_from_tree cleanups
+Subject: [PATCH 2/6] ksm: remove redundancies when merging page
 In-Reply-To: <Pine.LNX.4.64.0911122303450.3378@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0911122312360.4050@sister.anvils>
+Message-ID: <Pine.LNX.4.64.0911122314040.4050@sister.anvils>
 References: <Pine.LNX.4.64.0911122303450.3378@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -15,83 +15,100 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-1. remove_rmap_item_from_tree() is called as a precaution from
-   various places: don't dirty the rmap_item cacheline unnecessarily,
-   just mask the flags out of the address when they have been set.
+There is no need for replace_page() to calculate a write-protected prot
+vm_page_prot must already be write-protected for an anonymous page (see
+mm/memory.c do_anonymous_page() for similar reliance on vm_page_prot).
 
-2. First get_next_rmap_item() removes an unstable rmap_item from its tree,
-   then shortly afterwards cmp_and_merge_page() removes a stable rmap_item
-   from its tree: it's easier just to do both at once (but definitely keep
-   the BUG_ON(age > 1) which guards against a future omission).
+There is no need for try_to_merge_one_page() to get_page and put_page
+on newpage and oldpage: in every case we already hold a reference to
+each of them.
 
-3. When cmp_and_merge_page() moves an rmap_item from unstable to stable
-   tree, it does its own rb_erase() and accounting: that's better
-   expressed by remove_rmap_item_from_tree().
+But some instinct makes me move try_to_merge_one_page()'s unlock_page
+of oldpage down after replace_page(): that doesn't increase contention
+on the ksm page, and makes thinking about the transition easier.
 
 Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 ---
 
- mm/ksm.c |   17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
+ mm/ksm.c |   26 ++++++--------------------
+ 1 file changed, 6 insertions(+), 20 deletions(-)
 
---- ksm0/mm/ksm.c	2009-11-10 09:06:23.000000000 +0000
-+++ ksm1/mm/ksm.c	2009-11-12 15:28:36.000000000 +0000
-@@ -453,6 +453,7 @@ static void remove_rmap_item_from_tree(s
- 		}
- 
- 		rmap_item->next = NULL;
-+		rmap_item->address &= PAGE_MASK;
- 
- 	} else if (rmap_item->address & NODE_FLAG) {
- 		unsigned char age;
-@@ -467,11 +468,11 @@ static void remove_rmap_item_from_tree(s
- 		BUG_ON(age > 1);
- 		if (!age)
- 			rb_erase(&rmap_item->node, &root_unstable_tree);
-+
- 		ksm_pages_unshared--;
-+		rmap_item->address &= PAGE_MASK;
- 	}
- 
--	rmap_item->address &= PAGE_MASK;
--
- 	cond_resched();		/* we're called from many long loops */
- }
- 
-@@ -1086,8 +1087,7 @@ static void cmp_and_merge_page(struct pa
- 	unsigned int checksum;
- 	int err;
- 
--	if (in_stable_tree(rmap_item))
--		remove_rmap_item_from_tree(rmap_item);
-+	remove_rmap_item_from_tree(rmap_item);
- 
- 	/* We first start with searching the page inside the stable tree */
- 	tree_rmap_item = stable_tree_search(page, page2, rmap_item);
-@@ -1143,9 +1143,7 @@ static void cmp_and_merge_page(struct pa
- 		 * tree, and insert it instead as new node in the stable tree.
+--- ksm1/mm/ksm.c	2009-11-12 15:28:36.000000000 +0000
++++ ksm2/mm/ksm.c	2009-11-12 15:28:42.000000000 +0000
+@@ -647,7 +647,7 @@ static int write_protect_page(struct vm_
+ 		 * Check that no O_DIRECT or similar I/O is in progress on the
+ 		 * page
  		 */
- 		if (!err) {
--			rb_erase(&tree_rmap_item->node, &root_unstable_tree);
--			tree_rmap_item->address &= ~NODE_FLAG;
--			ksm_pages_unshared--;
-+			remove_rmap_item_from_tree(tree_rmap_item);
+-		if ((page_mapcount(page) + 2 + swapped) != page_count(page)) {
++		if (page_mapcount(page) + 1 + swapped != page_count(page)) {
+ 			set_pte_at_notify(mm, addr, ptep, entry);
+ 			goto out_unlock;
+ 		}
+@@ -682,11 +682,8 @@ static int replace_page(struct vm_area_s
+ 	pte_t *ptep;
+ 	spinlock_t *ptl;
+ 	unsigned long addr;
+-	pgprot_t prot;
+ 	int err = -EFAULT;
  
- 			/*
- 			 * If we fail to insert the page into the stable tree,
-@@ -1174,11 +1172,8 @@ static struct rmap_item *get_next_rmap_i
+-	prot = vm_get_page_prot(vma->vm_flags & ~VM_WRITE);
+-
+ 	addr = page_address_in_vma(oldpage, vma);
+ 	if (addr == -EFAULT)
+ 		goto out;
+@@ -714,7 +711,7 @@ static int replace_page(struct vm_area_s
  
- 	while (cur != &mm_slot->rmap_list) {
- 		rmap_item = list_entry(cur, struct rmap_item, link);
--		if ((rmap_item->address & PAGE_MASK) == addr) {
--			if (!in_stable_tree(rmap_item))
--				remove_rmap_item_from_tree(rmap_item);
-+		if ((rmap_item->address & PAGE_MASK) == addr)
- 			return rmap_item;
--		}
- 		if (rmap_item->address > addr)
- 			break;
- 		cur = cur->next;
+ 	flush_cache_page(vma, addr, pte_pfn(*ptep));
+ 	ptep_clear_flush(vma, addr, ptep);
+-	set_pte_at_notify(mm, addr, ptep, mk_pte(newpage, prot));
++	set_pte_at_notify(mm, addr, ptep, mk_pte(newpage, vma->vm_page_prot));
+ 
+ 	page_remove_rmap(oldpage);
+ 	put_page(oldpage);
+@@ -746,13 +743,9 @@ static int try_to_merge_one_page(struct
+ 
+ 	if (!(vma->vm_flags & VM_MERGEABLE))
+ 		goto out;
+-
+ 	if (!PageAnon(oldpage))
+ 		goto out;
+ 
+-	get_page(newpage);
+-	get_page(oldpage);
+-
+ 	/*
+ 	 * We need the page lock to read a stable PageSwapCache in
+ 	 * write_protect_page().  We use trylock_page() instead of
+@@ -761,25 +754,18 @@ static int try_to_merge_one_page(struct
+ 	 * then come back to this page when it is unlocked.
+ 	 */
+ 	if (!trylock_page(oldpage))
+-		goto out_putpage;
++		goto out;
+ 	/*
+ 	 * If this anonymous page is mapped only here, its pte may need
+ 	 * to be write-protected.  If it's mapped elsewhere, all of its
+ 	 * ptes are necessarily already write-protected.  But in either
+ 	 * case, we need to lock and check page_count is not raised.
+ 	 */
+-	if (write_protect_page(vma, oldpage, &orig_pte)) {
+-		unlock_page(oldpage);
+-		goto out_putpage;
+-	}
+-	unlock_page(oldpage);
+-
+-	if (pages_identical(oldpage, newpage))
++	if (write_protect_page(vma, oldpage, &orig_pte) == 0 &&
++	    pages_identical(oldpage, newpage))
+ 		err = replace_page(vma, oldpage, newpage, orig_pte);
+ 
+-out_putpage:
+-	put_page(oldpage);
+-	put_page(newpage);
++	unlock_page(oldpage);
+ out:
+ 	return err;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
