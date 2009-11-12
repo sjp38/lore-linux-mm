@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 734C26B004D
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 10:22:37 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id AE78882C473
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 10:22:36 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id I6ZuUZEi6Gqm for <linux-mm@kvack.org>;
-	Thu, 12 Nov 2009 10:22:36 -0500 (EST)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E114D82C474
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 10:22:31 -0500 (EST)
-Date: Thu, 12 Nov 2009 10:20:29 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] show per-process swap usage via procfs v3
-In-Reply-To: <20091111112539.71dfac31.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.10.0911121017180.28271@V090114053VZO-1>
-References: <20091104152426.eacc894f.kamezawa.hiroyu@jp.fujitsu.com> <28c262360911050711k47a63896xe4915157664cb822@mail.gmail.com> <20091106084806.7503b165.kamezawa.hiroyu@jp.fujitsu.com> <20091106134030.a94665d1.kamezawa.hiroyu@jp.fujitsu.com>
- <28c262360911060719y45f4b58ex2f13853f0d142656@mail.gmail.com> <20091111112539.71dfac31.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 649216B004D
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 12:27:00 -0500 (EST)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e2.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nACHJ2IC025362
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 12:19:02 -0500
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nACHQrov087832
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 12:26:53 -0500
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nACHSLr2030457
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 10:28:22 -0700
+Date: Thu, 12 Nov 2009 09:26:40 -0800
+From: Gary Hade <garyhade@us.ibm.com>
+Subject: Re: [PATCH v3 1/5] mm: add numa node symlink for memory section in
+	sysfs
+Message-ID: <20091112172640.GA9320@us.ibm.com>
+References: <20091110223154.25636.48462.stgit@bob.kio> <20091110223644.25636.77587.stgit@bob.kio>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091110223644.25636.77587.stgit@bob.kio>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, akpm@linux-foundation.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Alex Chiang <achiang@hp.com>
+Cc: akpm@linux-foundation.org, Gary Hade <garyhade@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Nov 2009, KAMEZAWA Hiroyuki wrote:
+On Tue, Nov 10, 2009 at 03:36:44PM -0700, Alex Chiang wrote:
+> Commit c04fc586c (mm: show node to memory section relationship with
+> symlinks in sysfs) created symlinks from nodes to memory sections, e.g.
+> 
+> /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
+> 
+> If you're examining the memory section though and are wondering what
+> node it might belong to, you can find it by grovelling around in
+> sysfs, but it's a little cumbersome.
+> 
+> Add a reverse symlink for each memory section that points back to the
+> node to which it belongs.
 
->
-> Index: mm-test-kernel/include/linux/mm_types.h
-> ===================================================================
-> --- mm-test-kernel.orig/include/linux/mm_types.h
-> +++ mm-test-kernel/include/linux/mm_types.h
-> @@ -228,6 +228,7 @@ struct mm_struct {
->  	 */
->  	mm_counter_t _file_rss;
->  	mm_counter_t _anon_rss;
-> +	mm_counter_t _swap_usage;
+Hi Alex,
+I'm kinda late to the party but I finally had a chance to review
+and try it out on one of our systems today.  Looks good to me.
+Tested-by: Gary Hade <garyhade@us.ibm.com>
+Acked-by: Gary Hade <garyhade@us.ibm.com>
 
-This is going to be another hit on vm performance if we get down this
-road.
+Gary
 
-At least put
-
-#ifdef CONFIG_SWAP ?
-
-around this so that we can switch it off?
-
-> @@ -597,7 +600,9 @@ copy_one_pte(struct mm_struct *dst_mm, s
->  						 &src_mm->mmlist);
->  				spin_unlock(&mmlist_lock);
->  			}
-> -			if (is_write_migration_entry(entry) &&
-> +			if (!non_swap_entry(entry))
-> +				rss[2]++;
-> +			else if (is_write_migration_entry(entry) &&
->  					is_cow_mapping(vm_flags)) {
->  				/*
-
-What are the implications for fork performance?
+-- 
+Gary Hade
+System x Enablement
+IBM Linux Technology Center
+503-578-4503  IBM T/L: 775-4503
+garyhade@us.ibm.com
+http://www.ibm.com/linux/ltc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
