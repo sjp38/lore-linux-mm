@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9E9316B0062
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 18:18:04 -0500 (EST)
-Date: Thu, 12 Nov 2009 23:17:59 +0000 (GMT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7DA976B004D
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 18:19:10 -0500 (EST)
+Date: Thu, 12 Nov 2009 23:19:04 +0000 (GMT)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 4/6] ksm: singly-linked rmap_list
+Subject: [PATCH 5/6] ksm: separate stable_node
 In-Reply-To: <Pine.LNX.4.64.0911122303450.3378@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0911122317042.4050@sister.anvils>
+Message-ID: <Pine.LNX.4.64.0911122318010.4050@sister.anvils>
 References: <Pine.LNX.4.64.0911122303450.3378@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -15,199 +15,392 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Free up a pointer in struct rmap_item, by making the mm_slot's rmap_list
-a singly-linked list: we always traverse that list sequentially, and we
-don't even lose any prefetches (but should consider adding a few later).
-Name it rmap_list throughout.
+Though we still do well to keep rmap_items in the unstable tree without
+a separate tree_item at the node, for several reasons it becomes awkward
+to keep rmap_items in the stable tree without a separate stable_node:
+lack of space in the nicely-sized rmap_item, the need for an anchor as
+rmap_items are removed, the need for a node even when temporarily no
+rmap_items are attached to it.
 
-Do we need to free up that pointer?  Not immediately, and in the end, we
-could continue to avoid it with a union; but having done the conversion,
-let's keep it this way, since there's no downside, and maybe we'll want
-more in future (struct rmap_item is a cache-friendly 32 bytes on 32-bit
-and 64 bytes on 64-bit, so we shall want to avoid expanding it).
+So declare struct stable_node (rb_node to place it in the tree and
+hlist_head for the rmap_items hanging off it), and convert stable tree
+handling to use it: without yet taking advantage of it.  Note how one
+stable_tree_insert() of a node now has _two_ stable_tree_append()s of
+the two rmap_items being merged.
 
 Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 ---
 
- mm/ksm.c |   56 ++++++++++++++++++++++++-----------------------------
- 1 file changed, 26 insertions(+), 30 deletions(-)
+ mm/ksm.c |  180 +++++++++++++++++++++++++++++------------------------
+ 1 file changed, 101 insertions(+), 79 deletions(-)
 
---- ksm3/mm/ksm.c	2009-11-12 15:28:47.000000000 +0000
-+++ ksm4/mm/ksm.c	2009-11-12 15:28:54.000000000 +0000
-@@ -79,13 +79,13 @@
-  * struct mm_slot - ksm information per mm that is being scanned
-  * @link: link to the mm_slots hash list
-  * @mm_list: link into the mm_slots list, rooted in ksm_mm_head
-- * @rmap_list: head for this mm_slot's list of rmap_items
-+ * @rmap_list: head for this mm_slot's singly-linked list of rmap_items
-  * @mm: the mm that this information is valid for
-  */
- struct mm_slot {
- 	struct hlist_node link;
- 	struct list_head mm_list;
--	struct list_head rmap_list;
-+	struct rmap_item *rmap_list;
- 	struct mm_struct *mm;
- };
- 
-@@ -93,7 +93,7 @@ struct mm_slot {
-  * struct ksm_scan - cursor for scanning
-  * @mm_slot: the current mm_slot we are scanning
-  * @address: the next address inside that to be scanned
-- * @rmap_item: the current rmap that we are scanning inside the rmap_list
-+ * @rmap_list: link to the next rmap to be scanned in the rmap_list
-  * @seqnr: count of completed full scans (needed when removing unstable node)
-  *
-  * There is only the one ksm_scan instance of this cursor structure.
-@@ -101,13 +101,14 @@ struct mm_slot {
- struct ksm_scan {
- 	struct mm_slot *mm_slot;
- 	unsigned long address;
--	struct rmap_item *rmap_item;
-+	struct rmap_item **rmap_list;
- 	unsigned long seqnr;
+--- ksm4/mm/ksm.c	2009-11-12 15:28:54.000000000 +0000
++++ ksm5/mm/ksm.c	2009-11-12 15:29:00.000000000 +0000
+@@ -106,34 +106,44 @@ struct ksm_scan {
  };
  
  /**
++ * struct stable_node - node of the stable rbtree
++ * @node: rb node of this ksm page in the stable tree
++ * @hlist: hlist head of rmap_items using this ksm page
++ */
++struct stable_node {
++	struct rb_node node;
++	struct hlist_head hlist;
++};
++
++/**
   * struct rmap_item - reverse mapping item for virtual addresses
-- * @link: link into mm_slot's rmap_list (rmap_list is per mm)
-+ * @rmap_list: next rmap_item in mm_slot's singly-linked rmap_list
-+ * @filler: unused space we're making available in this patch
+  * @rmap_list: next rmap_item in mm_slot's singly-linked rmap_list
+  * @filler: unused space we're making available in this patch
   * @mm: the memory structure this rmap_item is pointing into
   * @address: the virtual address this rmap_item tracks (+ flags in low bits)
   * @oldchecksum: previous checksum of the page at that virtual address
-@@ -116,7 +117,8 @@ struct ksm_scan {
-  * @prev: previous rmap_item hanging off the same node of the stable tree
+- * @node: rb_node of this rmap_item in either unstable or stable tree
+- * @next: next rmap_item hanging off the same node of the stable tree
+- * @prev: previous rmap_item hanging off the same node of the stable tree
++ * @node: rb node of this rmap_item in the unstable tree
++ * @head: pointer to stable_node heading this list in the stable tree
++ * @hlist: link into hlist of rmap_items hanging off that stable_node
   */
  struct rmap_item {
--	struct list_head link;
-+	struct rmap_item *rmap_list;
-+	unsigned long filler;
+ 	struct rmap_item *rmap_list;
+ 	unsigned long filler;
  	struct mm_struct *mm;
  	unsigned long address;		/* + low bits used for flags below */
++	unsigned int oldchecksum;	/* when unstable */
  	union {
-@@ -275,7 +277,6 @@ static void insert_to_mm_slots_hash(stru
- 	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
- 				% MM_SLOTS_HASH_HEADS];
- 	mm_slot->mm = mm;
--	INIT_LIST_HEAD(&mm_slot->rmap_list);
- 	hlist_add_head(&mm_slot->link, bucket);
- }
+-		unsigned int oldchecksum;		/* when unstable */
+-		struct rmap_item *next;			/* when stable */
+-	};
+-	union {
+-		struct rb_node node;			/* when tree node */
+-		struct rmap_item *prev;			/* in stable list */
++		struct rb_node node;	/* when node of unstable tree */
++		struct {		/* when listed from stable tree */
++			struct stable_node *head;
++			struct hlist_node hlist;
++		};
+ 	};
+ };
  
-@@ -479,15 +480,12 @@ static void remove_rmap_item_from_tree(s
- }
+ #define SEQNR_MASK	0x0ff	/* low bits of unstable tree seqnr */
+-#define NODE_FLAG	0x100	/* is a node of unstable or stable tree */
+-#define STABLE_FLAG	0x200	/* is a node or list item of stable tree */
++#define UNSTABLE_FLAG	0x100	/* is a node of the unstable tree */
++#define STABLE_FLAG	0x200	/* is listed from the stable tree */
  
- static void remove_trailing_rmap_items(struct mm_slot *mm_slot,
--				       struct list_head *cur)
-+				       struct rmap_item **rmap_list)
+ /* The stable and unstable tree heads */
+ static struct rb_root root_stable_tree = RB_ROOT;
+@@ -150,6 +160,7 @@ static struct ksm_scan ksm_scan = {
+ };
+ 
+ static struct kmem_cache *rmap_item_cache;
++static struct kmem_cache *stable_node_cache;
+ static struct kmem_cache *mm_slot_cache;
+ 
+ /* The number of nodes in the stable tree */
+@@ -192,13 +203,19 @@ static int __init ksm_slab_init(void)
+ 	if (!rmap_item_cache)
+ 		goto out;
+ 
++	stable_node_cache = KSM_KMEM_CACHE(stable_node, 0);
++	if (!stable_node_cache)
++		goto out_free1;
++
+ 	mm_slot_cache = KSM_KMEM_CACHE(mm_slot, 0);
+ 	if (!mm_slot_cache)
+-		goto out_free;
++		goto out_free2;
+ 
+ 	return 0;
+ 
+-out_free:
++out_free2:
++	kmem_cache_destroy(stable_node_cache);
++out_free1:
+ 	kmem_cache_destroy(rmap_item_cache);
+ out:
+ 	return -ENOMEM;
+@@ -207,6 +224,7 @@ out:
+ static void __init ksm_slab_free(void)
  {
--	struct rmap_item *rmap_item;
--
--	while (cur != &mm_slot->rmap_list) {
--		rmap_item = list_entry(cur, struct rmap_item, link);
--		cur = cur->next;
-+	while (*rmap_list) {
-+		struct rmap_item *rmap_item = *rmap_list;
-+		*rmap_list = rmap_item->rmap_list;
- 		remove_rmap_item_from_tree(rmap_item);
--		list_del(&rmap_item->link);
- 		free_rmap_item(rmap_item);
- 	}
+ 	kmem_cache_destroy(mm_slot_cache);
++	kmem_cache_destroy(stable_node_cache);
+ 	kmem_cache_destroy(rmap_item_cache);
+ 	mm_slot_cache = NULL;
  }
-@@ -553,7 +551,7 @@ static int unmerge_and_remove_all_rmap_i
- 				goto error;
+@@ -228,6 +246,16 @@ static inline void free_rmap_item(struct
+ 	kmem_cache_free(rmap_item_cache, rmap_item);
+ }
+ 
++static inline struct stable_node *alloc_stable_node(void)
++{
++	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL);
++}
++
++static inline void free_stable_node(struct stable_node *stable_node)
++{
++	kmem_cache_free(stable_node_cache, stable_node);
++}
++
+ static inline struct mm_slot *alloc_mm_slot(void)
+ {
+ 	if (!mm_slot_cache)	/* initialization failed */
+@@ -429,36 +457,22 @@ static struct page *get_ksm_page(struct
+  */
+ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
+ {
+-	if (in_stable_tree(rmap_item)) {
+-		struct rmap_item *next_item = rmap_item->next;
++	if (rmap_item->address & STABLE_FLAG) {
++		struct stable_node *stable_node;
+ 
+-		if (rmap_item->address & NODE_FLAG) {
+-			if (next_item) {
+-				rb_replace_node(&rmap_item->node,
+-						&next_item->node,
+-						&root_stable_tree);
+-				next_item->address |= NODE_FLAG;
+-				ksm_pages_sharing--;
+-			} else {
+-				rb_erase(&rmap_item->node, &root_stable_tree);
+-				ksm_pages_shared--;
+-			}
+-		} else {
+-			struct rmap_item *prev_item = rmap_item->prev;
+-
+-			BUG_ON(prev_item->next != rmap_item);
+-			prev_item->next = next_item;
+-			if (next_item) {
+-				BUG_ON(next_item->prev != rmap_item);
+-				next_item->prev = rmap_item->prev;
+-			}
++		stable_node = rmap_item->head;
++		hlist_del(&rmap_item->hlist);
++		if (stable_node->hlist.first)
+ 			ksm_pages_sharing--;
++		else {
++			rb_erase(&stable_node->node, &root_stable_tree);
++			free_stable_node(stable_node);
++			ksm_pages_shared--;
  		}
  
--		remove_trailing_rmap_items(mm_slot, mm_slot->rmap_list.next);
-+		remove_trailing_rmap_items(mm_slot, &mm_slot->rmap_list);
+-		rmap_item->next = NULL;
+ 		rmap_item->address &= PAGE_MASK;
  
- 		spin_lock(&ksm_mmlist_lock);
- 		ksm_scan.mm_slot = list_entry(mm_slot->mm_list.next,
-@@ -1141,20 +1139,19 @@ static void cmp_and_merge_page(struct pa
- }
- 
- static struct rmap_item *get_next_rmap_item(struct mm_slot *mm_slot,
--					    struct list_head *cur,
-+					    struct rmap_item **rmap_list,
- 					    unsigned long addr)
+-	} else if (rmap_item->address & NODE_FLAG) {
++	} else if (rmap_item->address & UNSTABLE_FLAG) {
+ 		unsigned char age;
+ 		/*
+ 		 * Usually ksmd can and must skip the rb_erase, because
+@@ -859,31 +873,32 @@ up:
+  * This function checks if there is a page inside the stable tree
+  * with identical content to the page that we are scanning right now.
+  *
+- * This function return rmap_item pointer to the identical item if found,
++ * This function returns the stable tree node of identical content if found,
+  * NULL otherwise.
+  */
+-static struct rmap_item *stable_tree_search(struct page *page,
+-					    struct page **tree_pagep)
++static struct stable_node *stable_tree_search(struct page *page,
++					      struct page **tree_pagep)
  {
- 	struct rmap_item *rmap_item;
+ 	struct rb_node *node = root_stable_tree.rb_node;
++	struct stable_node *stable_node;
  
--	while (cur != &mm_slot->rmap_list) {
--		rmap_item = list_entry(cur, struct rmap_item, link);
-+	while (*rmap_list) {
-+		rmap_item = *rmap_list;
- 		if ((rmap_item->address & PAGE_MASK) == addr)
- 			return rmap_item;
- 		if (rmap_item->address > addr)
- 			break;
--		cur = cur->next;
-+		*rmap_list = rmap_item->rmap_list;
- 		remove_rmap_item_from_tree(rmap_item);
--		list_del(&rmap_item->link);
- 		free_rmap_item(rmap_item);
+ 	while (node) {
+-		struct rmap_item *tree_rmap_item, *next_rmap_item;
++		struct hlist_node *hlist, *hnext;
++		struct rmap_item *tree_rmap_item;
+ 		struct page *tree_page;
+ 		int ret;
+ 
+-		tree_rmap_item = rb_entry(node, struct rmap_item, node);
+-		while (tree_rmap_item) {
++		stable_node = rb_entry(node, struct stable_node, node);
++		hlist_for_each_entry_safe(tree_rmap_item, hlist, hnext,
++					&stable_node->hlist, hlist) {
+ 			BUG_ON(!in_stable_tree(tree_rmap_item));
+ 			cond_resched();
+ 			tree_page = get_ksm_page(tree_rmap_item);
+ 			if (tree_page)
+ 				break;
+-			next_rmap_item = tree_rmap_item->next;
+ 			remove_rmap_item_from_tree(tree_rmap_item);
+-			tree_rmap_item = next_rmap_item;
+ 		}
+-		if (!tree_rmap_item)
++		if (!hlist)
+ 			return NULL;
+ 
+ 		ret = memcmp_pages(page, tree_page);
+@@ -896,7 +911,7 @@ static struct rmap_item *stable_tree_sea
+ 			node = node->rb_right;
+ 		} else {
+ 			*tree_pagep = tree_page;
+-			return tree_rmap_item;
++			return stable_node;
+ 		}
  	}
  
-@@ -1163,7 +1160,8 @@ static struct rmap_item *get_next_rmap_i
- 		/* It has already been zeroed */
- 		rmap_item->mm = mm_slot->mm;
- 		rmap_item->address = addr;
--		list_add_tail(&rmap_item->link, cur);
-+		rmap_item->rmap_list = *rmap_list;
-+		*rmap_list = rmap_item;
+@@ -907,31 +922,32 @@ static struct rmap_item *stable_tree_sea
+  * stable_tree_insert - insert rmap_item pointing to new ksm page
+  * into the stable tree.
+  *
+- * This function returns rmap_item if success, NULL otherwise.
++ * This function returns the stable tree node just allocated on success,
++ * NULL otherwise.
+  */
+-static struct rmap_item *stable_tree_insert(struct page *kpage,
+-					    struct rmap_item *rmap_item)
++static struct stable_node *stable_tree_insert(struct page *kpage)
+ {
+ 	struct rb_node **new = &root_stable_tree.rb_node;
+ 	struct rb_node *parent = NULL;
++	struct stable_node *stable_node;
+ 
+ 	while (*new) {
+-		struct rmap_item *tree_rmap_item, *next_rmap_item;
++		struct hlist_node *hlist, *hnext;
++		struct rmap_item *tree_rmap_item;
+ 		struct page *tree_page;
+ 		int ret;
+ 
+-		tree_rmap_item = rb_entry(*new, struct rmap_item, node);
+-		while (tree_rmap_item) {
++		stable_node = rb_entry(*new, struct stable_node, node);
++		hlist_for_each_entry_safe(tree_rmap_item, hlist, hnext,
++					&stable_node->hlist, hlist) {
+ 			BUG_ON(!in_stable_tree(tree_rmap_item));
+ 			cond_resched();
+ 			tree_page = get_ksm_page(tree_rmap_item);
+ 			if (tree_page)
+ 				break;
+-			next_rmap_item = tree_rmap_item->next;
+ 			remove_rmap_item_from_tree(tree_rmap_item);
+-			tree_rmap_item = next_rmap_item;
+ 		}
+-		if (!tree_rmap_item)
++		if (!hlist)
+ 			return NULL;
+ 
+ 		ret = memcmp_pages(kpage, tree_page);
+@@ -952,13 +968,16 @@ static struct rmap_item *stable_tree_ins
+ 		}
  	}
- 	return rmap_item;
+ 
+-	rmap_item->address |= NODE_FLAG | STABLE_FLAG;
+-	rmap_item->next = NULL;
+-	rb_link_node(&rmap_item->node, parent, new);
+-	rb_insert_color(&rmap_item->node, &root_stable_tree);
++	stable_node = alloc_stable_node();
++	if (!stable_node)
++		return NULL;
+ 
+-	ksm_pages_shared++;
+-	return rmap_item;
++	rb_link_node(&stable_node->node, parent, new);
++	rb_insert_color(&stable_node->node, &root_stable_tree);
++
++	INIT_HLIST_HEAD(&stable_node->hlist);
++
++	return stable_node;
  }
-@@ -1188,8 +1186,7 @@ static struct rmap_item *scan_get_next_r
- 		spin_unlock(&ksm_mmlist_lock);
- next_mm:
- 		ksm_scan.address = 0;
--		ksm_scan.rmap_item = list_entry(&slot->rmap_list,
--						struct rmap_item, link);
-+		ksm_scan.rmap_list = &slot->rmap_list;
+ 
+ /*
+@@ -1018,7 +1037,7 @@ struct rmap_item *unstable_tree_search_i
+ 		}
  	}
  
- 	mm = slot->mm;
-@@ -1215,10 +1212,10 @@ next_mm:
- 				flush_anon_page(vma, *page, ksm_scan.address);
- 				flush_dcache_page(*page);
- 				rmap_item = get_next_rmap_item(slot,
--					ksm_scan.rmap_item->link.next,
--					ksm_scan.address);
-+					ksm_scan.rmap_list, ksm_scan.address);
- 				if (rmap_item) {
--					ksm_scan.rmap_item = rmap_item;
-+					ksm_scan.rmap_list =
-+							&rmap_item->rmap_list;
- 					ksm_scan.address += PAGE_SIZE;
- 				} else
- 					put_page(*page);
-@@ -1234,14 +1231,13 @@ next_mm:
+-	rmap_item->address |= NODE_FLAG;
++	rmap_item->address |= UNSTABLE_FLAG;
+ 	rmap_item->address |= (ksm_scan.seqnr & SEQNR_MASK);
+ 	rb_link_node(&rmap_item->node, parent, new);
+ 	rb_insert_color(&rmap_item->node, &root_unstable_tree);
+@@ -1033,18 +1052,16 @@ struct rmap_item *unstable_tree_search_i
+  * the same ksm page.
+  */
+ static void stable_tree_append(struct rmap_item *rmap_item,
+-			       struct rmap_item *tree_rmap_item)
++			       struct stable_node *stable_node)
+ {
+-	rmap_item->next = tree_rmap_item->next;
+-	rmap_item->prev = tree_rmap_item;
+-
+-	if (tree_rmap_item->next)
+-		tree_rmap_item->next->prev = rmap_item;
+-
+-	tree_rmap_item->next = rmap_item;
++	rmap_item->head = stable_node;
+ 	rmap_item->address |= STABLE_FLAG;
++	hlist_add_head(&rmap_item->hlist, &stable_node->hlist);
  
- 	if (ksm_test_exit(mm)) {
- 		ksm_scan.address = 0;
--		ksm_scan.rmap_item = list_entry(&slot->rmap_list,
--						struct rmap_item, link);
-+		ksm_scan.rmap_list = &slot->rmap_list;
+-	ksm_pages_sharing++;
++	if (rmap_item->hlist.next)
++		ksm_pages_sharing++;
++	else
++		ksm_pages_shared++;
+ }
+ 
+ /*
+@@ -1060,6 +1077,7 @@ static void cmp_and_merge_page(struct pa
+ {
+ 	struct rmap_item *tree_rmap_item;
+ 	struct page *tree_page = NULL;
++	struct stable_node *stable_node;
+ 	struct page *kpage;
+ 	unsigned int checksum;
+ 	int err;
+@@ -1067,8 +1085,8 @@ static void cmp_and_merge_page(struct pa
+ 	remove_rmap_item_from_tree(rmap_item);
+ 
+ 	/* We first start with searching the page inside the stable tree */
+-	tree_rmap_item = stable_tree_search(page, &tree_page);
+-	if (tree_rmap_item) {
++	stable_node = stable_tree_search(page, &tree_page);
++	if (stable_node) {
+ 		kpage = tree_page;
+ 		if (page == kpage)			/* forked */
+ 			err = 0;
+@@ -1080,7 +1098,7 @@ static void cmp_and_merge_page(struct pa
+ 			 * The page was successfully merged:
+ 			 * add its rmap_item to the stable tree.
+ 			 */
+-			stable_tree_append(rmap_item, tree_rmap_item);
++			stable_tree_append(rmap_item, stable_node);
+ 		}
+ 		put_page(kpage);
+ 		return;
+@@ -1121,19 +1139,23 @@ static void cmp_and_merge_page(struct pa
+ 		if (kpage) {
+ 			remove_rmap_item_from_tree(tree_rmap_item);
+ 
++			stable_node = stable_tree_insert(kpage);
++			if (stable_node) {
++				stable_tree_append(tree_rmap_item, stable_node);
++				stable_tree_append(rmap_item, stable_node);
++			}
++			put_page(kpage);
++
+ 			/*
+ 			 * If we fail to insert the page into the stable tree,
+ 			 * we will have 2 virtual addresses that are pointing
+ 			 * to a ksm page left outside the stable tree,
+ 			 * in which case we need to break_cow on both.
+ 			 */
+-			if (stable_tree_insert(kpage, tree_rmap_item))
+-				stable_tree_append(rmap_item, tree_rmap_item);
+-			else {
++			if (!stable_node) {
+ 				break_cow(tree_rmap_item);
+ 				break_cow(rmap_item);
+ 			}
+-			put_page(kpage);
+ 		}
  	}
- 	/*
- 	 * Nuke all the rmap_items that are above this current rmap:
- 	 * because there were no VM_MERGEABLE vmas with such addresses.
- 	 */
--	remove_trailing_rmap_items(slot, ksm_scan.rmap_item->link.next);
-+	remove_trailing_rmap_items(slot, ksm_scan.rmap_list);
- 
- 	spin_lock(&ksm_mmlist_lock);
- 	ksm_scan.mm_slot = list_entry(slot->mm_list.next,
-@@ -1423,7 +1419,7 @@ void __ksm_exit(struct mm_struct *mm)
- 	spin_lock(&ksm_mmlist_lock);
- 	mm_slot = get_mm_slot(mm);
- 	if (mm_slot && ksm_scan.mm_slot != mm_slot) {
--		if (list_empty(&mm_slot->rmap_list)) {
-+		if (!mm_slot->rmap_list) {
- 			hlist_del(&mm_slot->link);
- 			list_del(&mm_slot->mm_list);
- 			easy_to_free = 1;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
