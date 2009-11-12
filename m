@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A636B007B
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 14:30:49 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 56FB76B007B
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 14:30:51 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 4/5] vmscan: Have kswapd sleep for a short interval and double check it should be asleep
-Date: Thu, 12 Nov 2009 19:30:34 +0000
-Message-Id: <1258054235-3208-5-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 3/5] page allocator: Wait on both sync and async congestion after direct reclaim
+Date: Thu, 12 Nov 2009 19:30:33 +0000
+Message-Id: <1258054235-3208-4-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
 References: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,117 +13,133 @@ To: Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Ji
 Cc: linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-After kswapd balances all zones in a pgdat, it goes to sleep. In the event
-of no IO congestion, kswapd can go to sleep very shortly after the high
-watermark was reached. If there are a constant stream of allocations from
-parallel processes, it can mean that kswapd went to sleep too quickly and
-the high watermark is not being maintained for sufficient length time.
+Testing by Frans Pop indicated that in the 2.6.30..2.6.31 window at least
+that the commits 373c0a7e 8aa7e847 dramatically increased the number of
+GFP_ATOMIC failures that were occuring within a wireless driver. Reverting
+this patch seemed to help a lot even though it was pointed out that the
+congestion changes were very far away from high-order atomic allocations.
 
-This patch makes kswapd go to sleep as a two-stage process. It first
-tries to sleep for HZ/10. If it is woken up by another process or the
-high watermark is no longer met, it's considered a premature sleep and
-kswapd continues work. Otherwise it goes fully to sleep.
+The key to why the revert makes such a big difference is down to timing and
+how long direct reclaimers wait versus kswapd. With the patch reverted,
+the congestion_wait() is on the SYNC queue instead of the ASYNC. As a
+significant part of the workload involved reads, it makes sense that the
+SYNC list is what was truely congested and with the revert processes were
+waiting on congestion as expected. Hence, direct reclaimers stalled
+properly and kswapd was able to do its job with fewer stalls.
 
-This adds more counters to distinguish between fast and slow breaches of
-watermarks. A "fast" premature sleep is one where the low watermark was
-hit in a very short time after kswapd going to sleep. A "slow" premature
-sleep indicates that the high watermark was breached after a very short
-interval.
+This patch aims to fix the congestion_wait() behaviour for SYNC and ASYNC
+for direct reclaimers. Instead of making the congestion_wait() on the SYNC
+queue which would only fix a particular type of workload, this patch adds a
+third type of congestion_wait - BLK_RW_BOTH which first waits on the ASYNC
+and then the SYNC queue if the timeout has not been reached.  In tests, this
+counter-intuitively results in kswapd stalling less and freeing up pages
+resulting in fewer allocation failures and fewer direct-reclaim-orientated
+stalls.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- include/linux/vmstat.h |    1 +
- mm/vmscan.c            |   44 ++++++++++++++++++++++++++++++++++++++++++--
- mm/vmstat.c            |    2 ++
- 3 files changed, 45 insertions(+), 2 deletions(-)
+ include/linux/backing-dev.h |    1 +
+ mm/backing-dev.c            |   25 ++++++++++++++++++++++---
+ mm/page_alloc.c             |    4 ++--
+ mm/vmscan.c                 |    2 +-
+ 4 files changed, 26 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 2d0f222..9716003 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -40,6 +40,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		PGSCAN_ZONE_RECLAIM_FAILED,
- #endif
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
-+		KSWAPD_PREMATURE_FAST, KSWAPD_PREMATURE_SLOW,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index b449e73..b35344c 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -276,6 +276,7 @@ static inline int bdi_rw_congested(struct backing_dev_info *bdi)
+ enum {
+ 	BLK_RW_ASYNC	= 0,
+ 	BLK_RW_SYNC	= 1,
++	BLK_RW_BOTH	= 2,
+ };
+ 
+ void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 1065b71..ea9ffc3 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -736,22 +736,41 @@ EXPORT_SYMBOL(set_bdi_congested);
+ 
+ /**
+  * congestion_wait - wait for a backing_dev to become uncongested
+- * @sync: SYNC or ASYNC IO
++ * @sync: SYNC, ASYNC or BOTH IO
+  * @timeout: timeout in jiffies
+  *
+  * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
+  * write congestion.  If no backing_devs are congested then just wait for the
+  * next write to be completed.
+  */
+-long congestion_wait(int sync, long timeout)
++long congestion_wait(int sync_request, long timeout)
+ {
+ 	long ret;
+ 	DEFINE_WAIT(wait);
+-	wait_queue_head_t *wqh = &congestion_wqh[sync];
++	int sync;
++	wait_queue_head_t *wqh;
++
++	/* If requested to sync both, wait on ASYNC first, then SYNC */
++	if (sync_request == BLK_RW_BOTH)
++		sync = BLK_RW_ASYNC;
++	else
++		sync = sync_request;
++	
++again:
++	wqh = &congestion_wqh[sync];
+ 
+ 	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+ 	ret = io_schedule_timeout(timeout);
+ 	finish_wait(wqh, &wait);
++
++	if (sync_request == BLK_RW_BOTH) {
++		sync_request = 0;
++		sync = BLK_RW_SYNC;
++		timeout = ret;
++		if (timeout)
++			goto again;
++	}
++
+ 	return ret;
+ }
+ EXPORT_SYMBOL(congestion_wait);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2bc2ac6..f6ed41c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1727,7 +1727,7 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+ 			preferred_zone, migratetype);
+ 
+ 		if (!page && gfp_mask & __GFP_NOFAIL)
+-			congestion_wait(BLK_RW_ASYNC, HZ/50);
++			congestion_wait(BLK_RW_BOTH, HZ/50);
+ 	} while (!page && (gfp_mask & __GFP_NOFAIL));
+ 
+ 	return page;
+@@ -1898,7 +1898,7 @@ rebalance:
+ 	pages_reclaimed += did_some_progress;
+ 	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
+ 		/* Wait for some write requests to complete then retry */
+-		congestion_wait(BLK_RW_ASYNC, HZ/50);
++		congestion_wait(BLK_RW_BOTH, HZ/50);
+ 		goto rebalance;
+ 	}
+ 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 190bae1..ffa1766 100644
+index 777af57..190bae1 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1904,6 +1904,24 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- }
- #endif
+@@ -1793,7 +1793,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
  
-+/* is kswapd sleeping prematurely? */
-+static int sleeping_prematurely(int order, long remaining)
-+{
-+	struct zone *zone;
-+
-+	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
-+	if (remaining)
-+		return 1;
-+
-+	/* If after HZ/10, a zone is below the high mark, it's premature */
-+	for_each_populated_zone(zone)
-+		if (!zone_watermark_ok(zone, order, high_wmark_pages(zone),
-+								0, 0))
-+			return 1;
-+
-+	return 0;
-+}
-+
- /*
-  * For kswapd, balance_pgdat() will work across all this node's zones until
-  * they are all at high_wmark_pages(zone).
-@@ -2184,8 +2202,30 @@ static int kswapd(void *p)
- 			 */
- 			order = new_order;
- 		} else {
--			if (!freezing(current))
--				schedule();
-+			if (!freezing(current)) {
-+				long remaining = 0;
-+
-+				/* Try to sleep for a short interval */
-+				if (!sleeping_prematurely(order, remaining)) {
-+					remaining = schedule_timeout(HZ/10);
-+					finish_wait(&pgdat->kswapd_wait, &wait);
-+					prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-+				}
-+
-+				/*
-+				 * After a short sleep, check if it was a
-+				 * premature sleep. If not, then go fully
-+				 * to sleep until explicitly woken up
-+				 */
-+				if (!sleeping_prematurely(order, remaining))
-+					schedule();
-+				else {
-+					if (remaining)
-+						count_vm_event(KSWAPD_PREMATURE_FAST);
-+					else
-+						count_vm_event(KSWAPD_PREMATURE_SLOW);
-+				}
-+			}
- 
- 			order = pgdat->kswapd_max_order;
- 		}
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index c81321f..90b11e4 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -683,6 +683,8 @@ static const char * const vmstat_text[] = {
- 	"slabs_scanned",
- 	"kswapd_steal",
- 	"kswapd_inodesteal",
-+	"kswapd_slept_prematurely_fast",
-+	"kswapd_slept_prematurely_slow",
- 	"pageoutrun",
- 	"allocstall",
- 
+ 		/* Take a nap, wait for some writeback to complete */
+ 		if (sc->nr_scanned && priority < DEF_PRIORITY - 2)
+-			congestion_wait(BLK_RW_ASYNC, HZ/10);
++			congestion_wait(BLK_RW_BOTH, HZ/10);
+ 	}
+ 	/* top priority shrink_zones still had more to do? don't OOM, then */
+ 	if (!sc->all_unreclaimable && scanning_global_lru(sc))
 -- 
 1.6.5
 
