@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 594F76B007B
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 14:30:42 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BF7356B007B
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 14:30:45 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/5] page allocator: Always wake kswapd when restarting an allocation attempt after direct reclaim failed
-Date: Thu, 12 Nov 2009 19:30:31 +0000
-Message-Id: <1258054235-3208-2-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 5/5] vmscan: Take order into consideration when deciding if kswapd is in trouble
+Date: Thu, 12 Nov 2009 19:30:35 +0000
+Message-Id: <1258054235-3208-6-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
 References: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,41 +13,62 @@ To: Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Ji
 Cc: linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-If a direct reclaim makes no forward progress, it considers whether it
-should go OOM or not. Whether OOM is triggered or not, it may retry the
-application afterwards. In times past, this would always wake kswapd as well
-but currently, kswapd is not woken up after direct reclaim fails. For order-0
-allocations, this makes little difference but if there is a heavy mix of
-higher-order allocations that direct reclaim is failing for, it might mean
-that kswapd is not rewoken for higher orders as much as it did previously.
+If reclaim fails to make sufficient progress, the priority is raised.
+Once the priority is higher, kswapd starts waiting on congestion.
+However, on systems with large numbers of high-order atomics due to
+crappy network cards, it's important that kswapd keep working in
+parallel to save their sorry ass.
 
-This patch wakes up kswapd when an allocation is being retried after a direct
-reclaim failure. It would be expected that kswapd is already awake, but
-this has the effect of telling kswapd to reclaim at the higher order as well.
+This patch takes into account the order kswapd is reclaiming at before
+waiting on congestion. The higher the order, the longer it is before
+kswapd considers itself to be in trouble. The impact is that kswapd
+works harder in parallel rather than depending on direct reclaimers or
+atomic allocations to fail.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/page_alloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/vmscan.c |   14 ++++++++++++--
+ 1 files changed, 12 insertions(+), 2 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cdcedf6..250d055 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1817,9 +1817,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
- 		goto nopage;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index ffa1766..5e200f1 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1946,7 +1946,7 @@ static int sleeping_prematurely(int order, long remaining)
+ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
+ {
+ 	int all_zones_ok;
+-	int priority;
++	int priority, congestion_priority;
+ 	int i;
+ 	unsigned long total_scanned;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+@@ -1967,6 +1967,16 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
+ 	 */
+ 	int temp_priority[MAX_NR_ZONES];
  
-+restart:
- 	wake_all_kswapd(order, zonelist, high_zoneidx);
++	/*
++	 * When priority reaches congestion_priority, kswapd will sleep
++	 * for a short time while congestion clears. The higher the
++	 * order being reclaimed, the less likely kswapd will go to
++	 * sleep as high-order allocations are harder to reclaim and
++	 * stall direct reclaimers longer
++	 */
++	congestion_priority = DEF_PRIORITY - 2;
++	congestion_priority -= min(congestion_priority, sc.order);
++
+ loop_again:
+ 	total_scanned = 0;
+ 	sc.nr_reclaimed = 0;
+@@ -2092,7 +2102,7 @@ loop_again:
+ 		 * OK, kswapd is getting into trouble.  Take a nap, then take
+ 		 * another pass across the zones.
+ 		 */
+-		if (total_scanned && priority < DEF_PRIORITY - 2)
++		if (total_scanned && priority < congestion_priority)
+ 			congestion_wait(BLK_RW_ASYNC, HZ/10);
  
--restart:
- 	/*
- 	 * OK, we're below the kswapd watermark and have kicked background
- 	 * reclaim. Now things get more complex, so set up alloc_flags according
+ 		/*
 -- 
 1.6.5
 
