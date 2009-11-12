@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 649216B004D
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 12:27:00 -0500 (EST)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e2.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nACHJ2IC025362
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 12:19:02 -0500
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nACHQrov087832
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 12:26:53 -0500
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nACHSLr2030457
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 10:28:22 -0700
-Date: Thu, 12 Nov 2009 09:26:40 -0800
-From: Gary Hade <garyhade@us.ibm.com>
-Subject: Re: [PATCH v3 1/5] mm: add numa node symlink for memory section in
-	sysfs
-Message-ID: <20091112172640.GA9320@us.ibm.com>
-References: <20091110223154.25636.48462.stgit@bob.kio> <20091110223644.25636.77587.stgit@bob.kio>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091110223644.25636.77587.stgit@bob.kio>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0AD6B004D
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 14:30:17 -0500 (EST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 1/5] page allocator: Always wake kswapd when restarting an allocation attempt after direct reclaim failed
+Date: Thu, 12 Nov 2009 19:30:07 +0000
+Message-Id: <1258054211-2854-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1258054211-2854-1-git-send-email-mel@csn.ul.ie>
+References: <1258054211-2854-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Alex Chiang <achiang@hp.com>
-Cc: akpm@linux-foundation.org, Gary Hade <garyhade@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>
+Cc: linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 10, 2009 at 03:36:44PM -0700, Alex Chiang wrote:
-> Commit c04fc586c (mm: show node to memory section relationship with
-> symlinks in sysfs) created symlinks from nodes to memory sections, e.g.
-> 
-> /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
-> 
-> If you're examining the memory section though and are wondering what
-> node it might belong to, you can find it by grovelling around in
-> sysfs, but it's a little cumbersome.
-> 
-> Add a reverse symlink for each memory section that points back to the
-> node to which it belongs.
+If a direct reclaim makes no forward progress, it considers whether it
+should go OOM or not. Whether OOM is triggered or not, it may retry the
+application afterwards. In times past, this would always wake kswapd as well
+but currently, kswapd is not woken up after direct reclaim fails. For order-0
+allocations, this makes little difference but if there is a heavy mix of
+higher-order allocations that direct reclaim is failing for, it might mean
+that kswapd is not rewoken for higher orders as much as it did previously.
 
-Hi Alex,
-I'm kinda late to the party but I finally had a chance to review
-and try it out on one of our systems today.  Looks good to me.
-Tested-by: Gary Hade <garyhade@us.ibm.com>
-Acked-by: Gary Hade <garyhade@us.ibm.com>
+This patch wakes up kswapd when an allocation is being retried after a direct
+reclaim failure. It would be expected that kswapd is already awake, but
+this has the effect of telling kswapd to reclaim at the higher order as well.
 
-Gary
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cdcedf6..250d055 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1817,9 +1817,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+ 		goto nopage;
+ 
++restart:
+ 	wake_all_kswapd(order, zonelist, high_zoneidx);
+ 
+-restart:
+ 	/*
+ 	 * OK, we're below the kswapd watermark and have kicked background
+ 	 * reclaim. Now things get more complex, so set up alloc_flags according
 -- 
-Gary Hade
-System x Enablement
-IBM Linux Technology Center
-503-578-4503  IBM T/L: 775-4503
-garyhade@us.ibm.com
-http://www.ibm.com/linux/ltc
+1.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
