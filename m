@@ -1,116 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E9EA16B004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:04:04 -0500 (EST)
-Date: Fri, 13 Nov 2009 20:03:57 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH] vmscan: Stop kswapd waiting on congestion when the min
-	watermark is not being met V2
-Message-ID: <20091113200357.GO29804@csn.ul.ie>
-References: <20091113142608.33B9.A69D9226@jp.fujitsu.com> <20091113135443.GF29804@csn.ul.ie> <20091114023138.3DA5.A69D9226@jp.fujitsu.com> <20091113181557.GM29804@csn.ul.ie> <2f11576a0911131033w4a9e6042k3349f0be290a167e@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 933A06B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:14:57 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH] Allow memory hotplug and hibernation in the same kernel
+Date: Fri, 13 Nov 2009 21:16:02 +0100
+References: <20091113105944.GA16028@basil.fritz.box>
+In-Reply-To: <20091113105944.GA16028@basil.fritz.box>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <2f11576a0911131033w4a9e6042k3349f0be290a167e@mail.gmail.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200911132116.02659.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, gerald.schaefer@de.ibm.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The last version has a stupid bug in it. Sorry.
+On Friday 13 November 2009, Andi Kleen wrote:
+> Allow memory hotplug and hibernation in the same kernel
+> 
+> Memory hotplug and hibernation was excluded in Kconfig. This is obviously
+> a problem for distribution kernels who want to support both in the same
+> image.
+> 
+> After some discussions with Rafael and others the only problem is 
+> with parallel memory hotadd or removal while a hibernation operation
+> is in process. It was also working for s390 before.
+> 
+> This patch removes the Kconfig level exclusion, and simply
+> makes the memory add / remove functions grab the pm_mutex
+> to exclude against hibernation.
+> 
+> This is a 2.6.32 candidate.
+> 
+> Cc: gerald.schaefer@de.ibm.com
+> Cc: rjw@sisk.pl
+> 
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> 
+> ---
+>  include/linux/suspend.h |   21 +++++++++++++++++++--
+>  mm/Kconfig              |    5 +----
+>  mm/memory_hotplug.c     |   21 +++++++++++++++++----
+>  3 files changed, 37 insertions(+), 10 deletions(-)
+> 
+> Index: linux-2.6.32-rc6-ak/include/linux/suspend.h
+> ===================================================================
+> --- linux-2.6.32-rc6-ak.orig/include/linux/suspend.h
+> +++ linux-2.6.32-rc6-ak/include/linux/suspend.h
+> @@ -301,6 +301,8 @@ static inline int unregister_pm_notifier
+>  #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
+>  #endif /* !CONFIG_PM_SLEEP */
+>  
+> +extern struct mutex pm_mutex;
+> +
+>  #ifndef CONFIG_HIBERNATION
+>  static inline void register_nosave_region(unsigned long b, unsigned long e)
+>  {
+> @@ -308,8 +310,23 @@ static inline void register_nosave_regio
+>  static inline void register_nosave_region_late(unsigned long b, unsigned long e)
+>  {
+>  }
+> -#endif
+>  
+> -extern struct mutex pm_mutex;
+> +static inline void lock_hibernation(void) {}
+> +static inline void unlock_hibernation(void) {}
+> +
+> +#else
+> +
+> +/* Let some subsystems like memory hotadd exclude hibernation */
+> +
+> +static inline void lock_hibernation(void)
+> +{
+> +	mutex_lock(&pm_mutex);
+> +}
+> +
+> +static inline void unlock_hibernation(void)
+> +{
+> +	mutex_unlock(&pm_mutex);
+> +}
 
-Changelog since V1
-  o Fix incorrect negation
-  o Rename kswapd_no_congestion_wait to kswapd_skip_congestion_wait as
-    suggested by Rik
+This also is going to affect suspend to RAM, which kind of makes sense BTW,
+so I'd not put it under the #ifdef.  Also, the names should reflect the fact
+that suspend is affected too.  What about block|unblock_system_sleep()?
 
-If reclaim fails to make sufficient progress, the priority is raised.
-Once the priority is higher, kswapd starts waiting on congestion.  However,
-if the zone is below the min watermark then kswapd needs to continue working
-without delay as there is a danger of an increased rate of GFP_ATOMIC
-allocation failure.
+> +#endif
+>  
+>  #endif /* _LINUX_SUSPEND_H */
 
-This patch changes the conditions under which kswapd waits on
-congestion by only going to sleep if the min watermarks are being met.
+The rest of the patch is fine by me.
 
-[mel@csn.ul.ie: Add stats to track how relevant the logic is]
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Rik van Riel <riel@redhat.com>
---- 
- include/linux/vmstat.h |    1 +
- mm/vmscan.c            |   18 ++++++++++++++++--
- mm/vmstat.c            |    1 +
- 3 files changed, 18 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 9716003..7d66695 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -41,6 +41,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #endif
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
- 		KSWAPD_PREMATURE_FAST, KSWAPD_PREMATURE_SLOW,
-+		KSWAPD_SKIP_CONGESTION_WAIT,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ffa1766..70a2322 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1979,6 +1979,7 @@ loop_again:
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
- 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 		unsigned long lru_pages = 0;
-+		int has_under_min_watermark_zone = 0;
- 
- 		/* The swap token gets in the way of swapout... */
- 		if (!priority)
-@ -2085,6 +2086,15 @@ loop_again:
- 			if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
- 			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
- 				sc.may_writepage = 1;
-+
-+			/*
-+			 * We are still under min water mark. it mean we have
-+			 * GFP_ATOMIC allocation failure risk. Hurry up!
-+			 */
-+			if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
-+					      end_zone, 0))
-+				has_under_min_watermark_zone = 1;
-+
- 		}
- 		if (all_zones_ok)
- 			break;		/* kswapd: all done */
-@@ -2092,8 +2102,12 @@ loop_again:
- 		 * OK, kswapd is getting into trouble.  Take a nap, then take
- 		 * another pass across the zones.
- 		 */
--		if (total_scanned && priority < DEF_PRIORITY - 2)
--			congestion_wait(BLK_RW_ASYNC, HZ/10);
-+		if (total_scanned && (priority < DEF_PRIORITY - 2)) {
-+			if (has_under_min_watermark_zone)
-+				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
-+			else
-+				congestion_wait(BLK_RW_ASYNC, HZ/10);
-+		}
- 
- 		/*
- 		 * We do this so kswapd doesn't build up large priorities for
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 90b11e4..bc09547 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -685,6 +685,7 @@ static const char * const vmstat_text[] = {
- 	"kswapd_inodesteal",
- 	"kswapd_slept_prematurely_fast",
- 	"kswapd_slept_prematurely_slow",
-+	"kswapd_skip_congestion_wait",
- 	"pageoutrun",
- 	"allocstall",
- 
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
