@@ -1,76 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4DA1D6B004D
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 21:37:46 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAD2bifH004680
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 13 Nov 2009 11:37:44 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D071345DE79
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 11:37:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D3FF45DE6F
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 11:37:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 52BC2E18006
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 11:37:42 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F03981DB803E
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 11:37:41 +0900 (JST)
-Date: Fri, 13 Nov 2009 11:35:02 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] show per-process swap usage via procfs v3
-Message-Id: <20091113113502.9c5a93b7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091113105112.c72cf8f5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091104152426.eacc894f.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262360911050711k47a63896xe4915157664cb822@mail.gmail.com>
-	<20091106084806.7503b165.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091106134030.a94665d1.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262360911060719y45f4b58ex2f13853f0d142656@mail.gmail.com>
-	<20091111112539.71dfac31.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.1.10.0911121017180.28271@V090114053VZO-1>
-	<20091113105112.c72cf8f5.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id E1D326B004D
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2009 21:47:37 -0500 (EST)
+Date: Thu, 12 Nov 2009 21:46:42 -0500
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [PATCH 0/7] Reduce GFP_ATOMIC allocation failures, candidate
+ fix V3
+Message-ID: <20091113024642.GA7771@think>
+References: <1258054211-2854-1-git-send-email-mel@csn.ul.ie>
+ <20091112202748.GC2811@think>
+ <20091112220005.GD2811@think>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091112220005.GD2811@think>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, akpm@linux-foundation.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Nov 2009 10:51:12 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > @@ -597,7 +600,9 @@ copy_one_pte(struct mm_struct *dst_mm, s
-> > >  						 &src_mm->mmlist);
-> > >  				spin_unlock(&mmlist_lock);
-> > >  			}
-> > > -			if (is_write_migration_entry(entry) &&
-> > > +			if (!non_swap_entry(entry))
-> > > +				rss[2]++;
-> > > +			else if (is_write_migration_entry(entry) &&
-> > >  					is_cow_mapping(vm_flags)) {
-> > >  				/*
-> > 
-> > What are the implications for fork performance?
-> 
-> This path is executed when page table entry contains a entry of
->   !pte_none() && !pte_present().
-> 
-> There are not very big chance to reach here.(this path is under unlikely()).
-> 
+On Thu, Nov 12, 2009 at 05:00:05PM -0500, Chris Mason wrote:
 
-[before]
- text    data     bss     dec     hex filename
-6649003 3221828 10232816        20103647        132c1df vmlinux
-[after]
-   text    data     bss     dec     hex filename
-6649243 3221828 10232816        20103887        132c2cf vmlinux
+[ ...]
 
-Now, 240 bytes of text size..Hmm.
+> 
+> The punch line is that the btrfs guy thinks we can solve all of this with
+> just one more thread.  If we change dm-crypt to have a thread dedicated
+> to sync IO and a thread dedicated to async IO the system should smooth
+> out.
 
-Thanks,
--Kame
+This is pretty likely to set your dm data on fire.  It's only for Mel
+who starts his script w/mkfs.
+
+It adds the second thread and more importantly makes sure the kcryptd
+thread doesn't get stuck waiting for requests.
+
+-chris
+
+diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+index ed10381..295ffeb 100644
+--- a/drivers/md/dm-crypt.c
++++ b/drivers/md/dm-crypt.c
+@@ -94,6 +94,7 @@ struct crypt_config {
+ 	struct bio_set *bs;
+ 
+ 	struct workqueue_struct *io_queue;
++	struct workqueue_struct *async_io_queue;
+ 	struct workqueue_struct *crypt_queue;
+ 
+ 	/*
+@@ -691,7 +692,10 @@ static void kcryptd_queue_io(struct dm_crypt_io *io)
+ 	struct crypt_config *cc = io->target->private;
+ 
+ 	INIT_WORK(&io->work, kcryptd_io);
+-	queue_work(cc->io_queue, &io->work);
++	if (io->base_bio->bi_rw & (1 << BIO_RW_SYNCIO))
++		queue_work(cc->io_queue, &io->work);
++	else
++		queue_work(cc->async_io_queue, &io->work);
+ }
+ 
+ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
+@@ -759,8 +763,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
+ 
+ 		/* Encryption was already finished, submit io now */
+ 		if (crypt_finished) {
+-			kcryptd_crypt_write_io_submit(io, r, 0);
+-
++			kcryptd_crypt_write_io_submit(io, r, 1);
+ 			/*
+ 			 * If there was an error, do not try next fragments.
+ 			 * For async, error is processed in async handler.
+@@ -1120,6 +1123,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 	} else
+ 		cc->iv_mode = NULL;
+ 
++	cc->async_io_queue = create_singlethread_workqueue("kcryptd_async_io");
++	if (!cc->async_io_queue) {
++		ti->error = "Couldn't create kcryptd io queue";
++		goto bad_async_io_queue;
++	}
++
+ 	cc->io_queue = create_singlethread_workqueue("kcryptd_io");
+ 	if (!cc->io_queue) {
+ 		ti->error = "Couldn't create kcryptd io queue";
+@@ -1139,6 +1148,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ bad_crypt_queue:
+ 	destroy_workqueue(cc->io_queue);
+ bad_io_queue:
++	destroy_workqueue(cc->async_io_queue);
++bad_async_io_queue:
+ 	kfree(cc->iv_mode);
+ bad_ivmode_string:
+ 	dm_put_device(ti, cc->dev);
+@@ -1166,6 +1177,7 @@ static void crypt_dtr(struct dm_target *ti)
+ 	struct crypt_config *cc = (struct crypt_config *) ti->private;
+ 
+ 	destroy_workqueue(cc->io_queue);
++	destroy_workqueue(cc->async_io_queue);
+ 	destroy_workqueue(cc->crypt_queue);
+ 
+ 	if (cc->req)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
