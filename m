@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 832516B004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 10:59:58 -0500 (EST)
-Received: by pzk27 with SMTP id 27so2219491pzk.12
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2009 07:59:57 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 131606B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 11:20:47 -0500 (EST)
+Received: by pzk27 with SMTP id 27so2231895pzk.12
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2009 08:20:45 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20091113164134.79805c13.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091113163544.d92561c7.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20091113163544.d92561c7.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091113164134.79805c13.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Sat, 14 Nov 2009 00:59:56 +0900
-Message-ID: <28c262360911130759tb9ffde4n8101bd27f31b5669@mail.gmail.com>
-Subject: Re: [RFC MM 4/4] speculative page fault
+Date: Sat, 14 Nov 2009 01:20:45 +0900
+Message-ID: <28c262360911130820r34d2d2d2jf2ca754447eb9f5@mail.gmail.com>
+Subject: Re: [RFC MM] speculative page fault
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
@@ -19,119 +18,103 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: cl@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 13, 2009 at 4:41 PM, KAMEZAWA Hiroyuki
+On Fri, Nov 13, 2009 at 4:35 PM, KAMEZAWA Hiroyuki
 <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Speculative page fault.
+> This is just a toy patch inspied by on Christoph's mmap_sem works.
+> Only for my hobby, now.
 >
-> =A0This patch tries to implement speculative page fault.
-> =A0Do page fault without taking mm->semaphore and check tag mm->generatio=
-n
-> =A0after taking page table lock. If generation is modified, someone took
-> =A0write lock on mm->semaphore and we need to take read lock.
+> Not well tested. So please look into only if you have time.
 >
-> =A0Now, hugepage is not handled. And stack page is not handled because
-> =A0it can change [vm_start, vm_end).
+> My multi-thread page fault test program shows some improvement.
+> But I doubt my test ;) Do you have recommended benchmarks for parallel pa=
+ge-faults ?
 >
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
-> =A0arch/x86/mm/fault.c | =A0 54 ++++++++++++++++++++++++++--------------
-> =A0include/linux/mm.h =A0| =A0 =A02 -
-> =A0mm/memory.c =A0 =A0 =A0 =A0 | =A0 70 ++++++++++++++++++++++++++++++++-=
--------------------
-> =A03 files changed, 81 insertions(+), 45 deletions(-)
+> Counting # of page faults per 60sec. See page-faults. bigger is better.
+> Test on x86-64 8cpus.
 >
-> Index: mmotm-2.6.32-Nov2/arch/x86/mm/fault.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- mmotm-2.6.32-Nov2.orig/arch/x86/mm/fault.c
-> +++ mmotm-2.6.32-Nov2/arch/x86/mm/fault.c
-> @@ -11,6 +11,7 @@
-> =A0#include <linux/kprobes.h> =A0 =A0 =A0 =A0 =A0 =A0 /* __kprobes, ... =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-> =A0#include <linux/mmiotrace.h> =A0 =A0 =A0 =A0 =A0 /* kmmio_handler, ...=
- =A0 =A0 =A0 =A0 =A0 */
-> =A0#include <linux/perf_event.h> =A0 =A0 =A0 =A0 =A0/* perf_sw_event =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> +#include <linux/hugetlb.h> =A0 =A0 =A0 =A0 =A0 =A0 /* is_vm_hugetlbe_pag=
-e()... =A0 =A0 */
+> [Before]
+> =A0474441.541914 =A0task-clock-msecs =A0 =A0 =A0 =A0 # =A0 =A0 =A07.906 C=
+PUs
+> =A0 =A0 =A0 =A0 =A010318 =A0context-switches =A0 =A0 =A0 =A0 # =A0 =A0 =
+=A00.000 M/sec
+> =A0 =A0 =A0 =A0 =A0 =A0 10 =A0CPU-migrations =A0 =A0 =A0 =A0 =A0 # =A0 =
+=A0 =A00.000 M/sec
+> =A0 =A0 =A0 15816787 =A0page-faults =A0 =A0 =A0 =A0 =A0 =A0 =A0# =A0 =A0 =
+=A00.033 M/sec
+> =A01485219138381 =A0cycles =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 # =A0 3130=
+.458 M/sec =A0(scaled from 69.99%)
+> =A0 295669524399 =A0instructions =A0 =A0 =A0 =A0 =A0 =A0 # =A0 =A0 =A00.1=
+99 IPC =A0 =A0(scaled from 79.98%)
+> =A0 =A057658291915 =A0branches =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 # =A0 =A01=
+21.529 M/sec =A0(scaled from 79.98%)
+> =A0 =A0 =A0798567455 =A0branch-misses =A0 =A0 =A0 =A0 =A0 =A0# =A0 =A0 =
+=A01.385 % =A0 =A0 =A0(scaled from 79.98%)
+> =A0 =A0 2458780947 =A0cache-references =A0 =A0 =A0 =A0 # =A0 =A0 =A05.182=
+ M/sec =A0(scaled from 20.02%)
+> =A0 =A0 =A0844605496 =A0cache-misses =A0 =A0 =A0 =A0 =A0 =A0 # =A0 =A0 =
+=A01.780 M/sec =A0(scaled from 20.02%)
 >
-> =A0#include <asm/traps.h> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* dotraplinkag=
-e, ... =A0 =A0 =A0 =A0 =A0 */
-> =A0#include <asm/pgalloc.h> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* pgd_*(), ... =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-> @@ -952,7 +953,8 @@ do_page_fault(struct pt_regs *regs, unsi
-> =A0 =A0 =A0 =A0struct mm_struct *mm;
-> =A0 =A0 =A0 =A0int write;
-> =A0 =A0 =A0 =A0int fault;
-> - =A0 =A0 =A0 int cachehit =3D 0;
-> + =A0 =A0 =A0 int cachehit;
-> + =A0 =A0 =A0 unsigned int key;
+> [After]
+> 471166.582784 =A0task-clock-msecs =A0 =A0 =A0 =A0 # =A0 =A0 =A07.852 CPUs
+> =A0 =A0 =A0 =A0 =A010378 =A0context-switches =A0 =A0 =A0 =A0 # =A0 =A0 =
+=A00.000 M/sec
+> =A0 =A0 =A0 =A0 =A0 =A0 10 =A0CPU-migrations =A0 =A0 =A0 =A0 =A0 # =A0 =
+=A0 =A00.000 M/sec
+> =A0 =A0 =A0 37950235 =A0page-faults =A0 =A0 =A0 =A0 =A0 =A0 =A0# =A0 =A0 =
+=A00.081 M/sec
+> =A01463000664470 =A0cycles =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 # =A0 3105=
+.060 M/sec =A0(scaled from 70.32%)
+> =A0 346531590054 =A0instructions =A0 =A0 =A0 =A0 =A0 =A0 # =A0 =A0 =A00.2=
+37 IPC =A0 =A0(scaled from 80.20%)
+> =A0 =A063309364882 =A0branches =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 # =A0 =A01=
+34.367 M/sec =A0(scaled from 80.19%)
+> =A0 =A0 =A0448256258 =A0branch-misses =A0 =A0 =A0 =A0 =A0 =A0# =A0 =A0 =
+=A00.708 % =A0 =A0 =A0(scaled from 80.20%)
+> =A0 =A0 2601112130 =A0cache-references =A0 =A0 =A0 =A0 # =A0 =A0 =A05.521=
+ M/sec =A0(scaled from 19.81%)
+> =A0 =A0 =A0872978619 =A0cache-misses =A0 =A0 =A0 =A0 =A0 =A0 # =A0 =A0 =
+=A01.853 M/sec =A0(scaled from 19.80%)
 >
-> =A0 =A0 =A0 =A0tsk =3D current;
-> =A0 =A0 =A0 =A0mm =3D tsk->mm;
-> @@ -1057,6 +1059,18 @@ do_page_fault(struct pt_regs *regs, unsi
-> =A0 =A0 =A0 =A0 * validate the source. If this is invalid we can skip the=
- address
-> =A0 =A0 =A0 =A0 * space check, thus avoiding the deadlock:
-> =A0 =A0 =A0 =A0 */
-> + =A0 =A0 =A0 =A0if ((error_code & PF_USER) &&
-> + =A0 =A0 =A0 =A0 =A0 =A0(mm->generation =3D=3D current->mm_generation) &=
-& current->vma_cache) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 vma =3D current->vma_cache;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if ((vma->vm_start <=3D address) && (addres=
-s < vma->vm_end)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 key =3D mm->generation;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cachehit =3D 1;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto got_vma;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 }
-> +speculative_fault_retry:
-> + =A0 =A0 =A0 cachehit =3D 0;
-> + =A0 =A0 =A0 vma =3D NULL;
-> =A0 =A0 =A0 =A0if (unlikely(!mm_reader_trylock(mm))) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if ((error_code & PF_USER) =3D=3D 0 &&
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0!search_exception_tables(regs->ip)=
-) {
-> @@ -1072,13 +1086,9 @@ do_page_fault(struct pt_regs *regs, unsi
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0might_sleep();
-> =A0 =A0 =A0 =A0}
-> - =A0 =A0 =A0 if ((mm->generation =3D=3D current->mm_generation) && curre=
-nt->vma_cache) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 vma =3D current->vma_cache;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if ((vma->vm_start <=3D address) && (addres=
-s < vma->vm_end))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cachehit =3D 1;
-> - =A0 =A0 =A0 }
-> - =A0 =A0 =A0 if (!cachehit)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 vma =3D find_vma(mm, address);
-> + =A0 =A0 =A0 key =3D mm->generation;
-> + =A0 =A0 =A0 vma =3D find_vma(mm, address);
-> +got_vma:
-> =A0 =A0 =A0 =A0if (unlikely(!vma)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0bad_area(regs, error_code, address);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
-> @@ -1123,13 +1133,17 @@ good_area:
-> =A0 =A0 =A0 =A0 * make sure we exit gracefully rather than endlessly redo
-> =A0 =A0 =A0 =A0 * the fault:
-> =A0 =A0 =A0 =A0 */
-> - =A0 =A0 =A0 fault =3D handle_mm_fault(mm, vma, address, write ? FAULT_F=
-LAG_WRITE : 0);
-> + =A0 =A0 =A0 fault =3D handle_mm_fault(mm, vma, address,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 write ? FAULT_FLAG_WRITE : 0, key);
->
-> =A0 =A0 =A0 =A0if (unlikely(fault & VM_FAULT_ERROR)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mm_fault_error(regs, error_code, address, =
-fault);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
-> =A0 =A0 =A0 =A0}
->
-> + =A0 =A0 =A0 if (mm->generation !=3D key)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto speculative_fault_retry;
-> +
 
-You can use match_key in here again. :)
+Looks amazing. page fault is the two times faster than old.
+What's your test program?
+
+I think per thread vma cache is effective as well as speculative lock.
+
+> Main concept of this patch is
+> =A0- Do page fault without taking mm->mmap_sem until some modification in=
+ vma happens.
+> =A0- All page fault via get_user_pages() should have to take mmap_sem.
+> =A0- find_vma()/rb_tree must be walked under proper locks. For avoiding t=
+hat, use
+> =A0 per-thread cache.
+>
+> It seems I don't have enough time to update this, more.
+> So, I dump patches here just for share.
+
+I think this is good embedded device as well as big thread environment
+like google.
+Some embedded device has big threads. That's because design issue of
+migration from RTOS
+to Linux. Thread model makes system design easier since threads share
+address space like RTOS.
+I know it's bad design. but At a loss, it's real problem.
+
+I support this idea.
+Thanks, Kame.
+
+
+> Thanks,
+> -Kame
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+
 
 --=20
 Kind regards,
