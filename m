@@ -1,46 +1,101 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/5] Candidate fix for increased number of GFP_ATOMIC
-	failures V2
-Date: Fri, 6 Nov 2009 09:24:47 +0000
-Message-ID: <20091106092447.GC25926__30159.4755299904$1257499509$gmane$org@csn.ul.ie>
-References: <1256221356-26049-1-git-send-email-mel@csn.ul.ie> <20091106060323.GA5528@yumi.tdiedrich.de>
+Subject: Re: [PATCH 0/7] Reduce GFP_ATOMIC allocation failures, candidate
+	fix V3
+Date: Fri, 13 Nov 2009 13:44:01 +0000
+Message-ID: <20091113134401.GE29804__23282.8964050443$1258119861$gmane$org@csn.ul.ie>
+References: <1258054211-2854-1-git-send-email-mel@csn.ul.ie> <20091112202748.GC2811@think> <20091112220005.GD2811@think>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 46CD16B007B
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2009 04:24:55 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D68946B006A
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 08:44:07 -0500 (EST)
 Content-Disposition: inline
-In-Reply-To: <20091106060323.GA5528@yumi.tdiedrich.de>
+In-Reply-To: <20091112220005.GD2811@think>
 Sender: owner-linux-mm@kvack.org
-To: Tobias Diedrich <ranma+kernel@tdiedrich.de>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewand>
+To: Chris Mason <chris.mason@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>
 List-Id: linux-mm.kvack.org
 
-On Fri, Nov 06, 2009 at 07:03:23AM +0100, Tobias Diedrich wrote:
-> Mel Gorman wrote:
-> > [No BZ ID] Kernel crash on 2.6.31.x (kcryptd: page allocation failure..)
-> > 	This apparently is easily reproducible, particular in comparison to
-> > 	the other reports. The point of greatest interest is that this is
-> > 	order-0 GFP_ATOMIC failures. Sven, I'm hoping that you in particular
-> > 	will be able to follow the tests below as you are the most likely
-> > 	person to have an easily reproducible situation.
+On Thu, Nov 12, 2009 at 05:00:05PM -0500, Chris Mason wrote:
+> On Thu, Nov 12, 2009 at 03:27:48PM -0500, Chris Mason wrote:
+> > On Thu, Nov 12, 2009 at 07:30:06PM +0000, Mel Gorman wrote:
+> > > Sorry for the long delay in posting another version. Testing is extremely
+> > > time-consuming and I wasn't getting to work on this as much as I'd have liked.
+> > > 
+> > > Changelog since V2
+> > >   o Dropped the kswapd-quickly-notice-high-order patch. In more detailed
+> > >     testing, it made latencies even worse as kswapd slept more on high-order
+> > >     congestion causing order-0 direct reclaims.
+> > >   o Added changes to how congestion_wait() works
+> > >   o Added a number of new patches altering the behaviour of reclaim
+> > > 
+> > > Since 2.6.31-rc1, there have been an increasing number of GFP_ATOMIC
+> > > failures. A significant number of these have been high-order GFP_ATOMIC
+> > > failures and while they are generally brushed away, there has been a large
+> > > increase in them recently and there are a number of possible areas the
+> > > problem could be in - core vm, page writeback and a specific driver. The
+> > > bugs affected by this that I am aware of are;
+> > 
+> > Thanks for all the time you've spent on this one.  Let me start with
+> > some more questions about the workload ;)
+> > 
+> > So the workload is gitk reading a git repo and a program reading data
+> > over the network.  Which part of the workload writes to disk?
 > 
-> I've also seen order-0 failures on 2.6.31.5:
-> Note that this is with a one process hogging and mlocking memory and
-> min_free_kbytes reduced to 100 to reproduce the problem more easily.
+> Sorry for the self reply, I started digging through your data (man,
+> that's a lot of data ;). 
+
+Yeah, sorry about that. Because I lacked a credible explanation as to
+why waiting on sync really made such a difference, I had little choice
+but to punt everything I had for people to dig through.
+
+To be clear, I'm not actually running gitk. The fake-gitk is reading the
+commits into memory and building a tree in a similar fashion to what gitk
+does. I didn't want to use gitk itself because there wasn't a way of measuring
+whether it was stalling or just other than looking at it and making a guess.
+
+> I took another tour through dm-crypt and
+> things make more sense now.
+> 
+> dm-crypt has two different single threaded workqueues for each dm-crypt
+> device.  The first one is meant to deal with the actual encryption and
+> decryption, and the second one is meant to do the IO.
+> 
+> So the path for a write looks something like this:
+> 
+> filesystem -> crypt thread -> encrypt the data -> io thread -> disk
+> 
+> And the path for read looks something like this:
+> 
+> filesystem -> io thread -> disk -> crypt thread -> decrypt data -> FS
+> 
+> One thread does encryption and one thread does IO, and these threads are
+> shared for reads and writes.  The end result is that all of the sync
+> reads get stuck behind any async write congestion and all of the async
+> writes get stuck behind any sync read congestion.
+> 
+> It's almost like you need to check for both sync and async congestion
+> before you have any hopes of a new IO making progress.
+> 
+> The confusing part is that dm hasn't gotten any worse in this regard
+> since 2.6.30 but the workload here is generating more sync reads
+> (hopefully from gitk and swapin) than async writes (from the low
+> bandwidth rsync).  So in general if you were to change mm/*.c wait
+> for sync congestion instead of async, things should appear better.
 > 
 
-Is that a vanilla, with patches 1-3 applied or both?
+Thanks very much for that explanation. It makes a lot of sense and
+explains why waiting on sync-congestion made such a difference on the
+test setup.
 
-> I tried bisecting the issue, but in the end without memory pressure
-> I can't reproduce it reliably and with the above mentioned pressure
-> I get allocation failures even on 2.6.30.o
+> The punch line is that the btrfs guy thinks we can solve all of this with
+> just one more thread.  If we change dm-crypt to have a thread dedicated
+> to sync IO and a thread dedicated to async IO the system should smooth
+> out.
 > 
 
-To be honest, it's not entirely unexpected with min_free_kbytes set that
-low. The system should cope with a certain amount of pressure but with
-pressure and a low min_free_kbytes, the system will simply be reacting
-too late to free memory in the non-atomic paths.
+I see you have posted another patch so I'll test that out first before
+looking into that.
 
 -- 
 Mel Gorman
