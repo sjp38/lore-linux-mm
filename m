@@ -1,49 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 585226B004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 07:41:34 -0500 (EST)
-Received: by pzk27 with SMTP id 27so2121289pzk.12
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2009 04:41:33 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1258054235-3208-6-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id AAF356B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 07:47:39 -0500 (EST)
+Date: Fri, 13 Nov 2009 13:47:35 +0100 (CET)
+From: Tobias Oetiker <tobi@oetiker.ch>
+Subject: Re: [PATCH 0/5] Reduce GFP_ATOMIC allocation failures, candidate
+ fix V3
+In-Reply-To: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.0911131346560.22447@wbuna.brgvxre.pu>
 References: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
-	 <1258054235-3208-6-git-send-email-mel@csn.ul.ie>
-Date: Fri, 13 Nov 2009 21:41:33 +0900
-Message-ID: <28c262360911130441h24e45cd8l60e5e10aed0d3650@mail.gmail.com>
-Subject: Re: [PATCH 5/5] vmscan: Take order into consideration when deciding
-	if kswapd is in trouble
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\\\"" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 13, 2009 at 4:30 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> If reclaim fails to make sufficient progress, the priority is raised.
-> Once the priority is higher, kswapd starts waiting on congestion.
-> However, on systems with large numbers of high-order atomics due to
-> crappy network cards, it's important that kswapd keep working in
-> parallel to save their sorry ass.
+Hi Mel,
+
+Yesterday Mel Gorman wrote:
+
+> Sorry for the long delay in posting another version. Testing is extremely
+> time-consuming and I wasn't getting to work on this as much as I'd have liked.
 >
-> This patch takes into account the order kswapd is reclaiming at before
-> waiting on congestion. The higher the order, the longer it is before
-> kswapd considers itself to be in trouble. The impact is that kswapd
-> works harder in parallel rather than depending on direct reclaimers or
-> atomic allocations to fail.
->
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Changelog since V2
+>   o Dropped the kswapd-quickly-notice-high-order patch. In more detailed
+>     testing, it made latencies even worse as kswapd slept more on high-order
+>     congestion causing order-0 direct reclaims.
+>   o Added changes to how congestion_wait() works
+>   o Added a number of new patches altering the behaviour of reclaim
 
-It's make sense to me.
-It can help high order atomic allocation which is a big problem of allocator. :)
+so is there anything promissing for the order 5 allocation problems
+in this set?
 
-Thanks Mel.
+cheers
+tobi
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
 -- 
-Kind regards,
-Minchan Kim
+Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
+http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
