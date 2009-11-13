@@ -1,73 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8C2C26B0062
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 00:24:22 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAD5OKiX014291
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 13 Nov 2009 14:24:20 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E373345DE6E
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 14:24:19 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BC31945DE60
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 14:24:19 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 94FEF1DB803A
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 14:24:19 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C9711DB803B
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 14:24:16 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/5] page allocator: Do not allow interrupts to use ALLOC_HARDER
-In-Reply-To: <1258054235-3208-3-git-send-email-mel@csn.ul.ie>
-References: <1258054235-3208-1-git-send-email-mel@csn.ul.ie> <1258054235-3208-3-git-send-email-mel@csn.ul.ie>
-Message-Id: <20091113142328.33B0.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 1D9B26B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 01:00:08 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAD606Ff032181
+	for <linux-mm@kvack.org> (envelope-from seto.hidetoshi@jp.fujitsu.com);
+	Fri, 13 Nov 2009 15:00:06 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A4E645DE4E
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:00:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7185D45DE50
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:00:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E0361DB8041
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:00:05 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 00E671DB8037
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:00:05 +0900 (JST)
+Message-ID: <4AFCF5D6.70902@jp.fujitsu.com>
+Date: Fri, 13 Nov 2009 14:59:50 +0900
+From: Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: [PATCH] mm/memory_hotplug : fix section mismatch
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Date: Fri, 13 Nov 2009 14:24:13 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Commit 341ce06f69abfafa31b9468410a13dbd60e2b237 altered watermark logic
-> slightly by allowing rt_tasks that are handling an interrupt to set
-> ALLOC_HARDER. This patch brings the watermark logic more in line with
-> 2.6.30.
+With CONFIG_MEMORY_HOTPLUG I got following warning:
 
-ditto.
-afaik, this patch have been sent to linus.
+WARNING: vmlinux.o(.text+0x1276b0): Section mismatch in reference from
+the function hotadd_new_pgdat() to the function
+.meminit.text:free_area_init_node()
+The function hotadd_new_pgdat() references
+the function __meminit free_area_init_node().
+This is often because hotadd_new_pgdat lacks a __meminit
+annotation or the annotation of free_area_init_node is wrong.
 
+Use __ref to fix this.
 
-> 
-> [rientjes@google.com: Spotted the problem]
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/page_alloc.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 250d055..2bc2ac6 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1769,7 +1769,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
->  		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
->  		 */
->  		alloc_flags &= ~ALLOC_CPUSET;
-> -	} else if (unlikely(rt_task(p)))
-> +	} else if (unlikely(rt_task(p)) && !in_interrupt())
->  		alloc_flags |= ALLOC_HARDER;
->  
->  	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-> -- 
-> 1.6.5
-> 
+Signed-off-by: Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
+---
+ mm/memory_hotplug.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 821dee5..380aef4 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -447,7 +447,8 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
+ }
+ #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+ 
+-static pg_data_t *hotadd_new_pgdat(int nid, u64 start)
++/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
++static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+ {
+ 	struct pglist_data *pgdat;
+ 	unsigned long zones_size[MAX_NR_ZONES] = {0};
+-- 
+1.6.5.2
 
 
 --
