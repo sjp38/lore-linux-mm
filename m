@@ -1,144 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D1D7E6B004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:29:14 -0500 (EST)
-Date: Fri, 13 Nov 2009 20:29:08 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] make crypto unplug fix V3
-Message-ID: <20091113202907.GP29804@csn.ul.ie>
-References: <1258054211-2854-1-git-send-email-mel@csn.ul.ie> <20091112202748.GC2811@think> <20091112220005.GD2811@think> <20091113024642.GA7771@think> <20091113125812.GB7891@think> <20091113173446.GL29804@csn.ul.ie> <20091113184004.GA11332@think>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20091113184004.GA11332@think>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FE066B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 16:12:09 -0500 (EST)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Fri, 13 Nov 2009 16:17:14 -0500
+Message-Id: <20091113211714.15074.29078.sendpatchset@localhost.localdomain>
+Subject: [PATCH/RFC 0/6] Numa: Use Generic Per-cpu Variables for numa_*_id()
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 13, 2009 at 01:40:04PM -0500, Chris Mason wrote:
-> On Fri, Nov 13, 2009 at 05:34:46PM +0000, Mel Gorman wrote:
-> > On Fri, Nov 13, 2009 at 07:58:12AM -0500, Chris Mason wrote:
-> > > This is still likely to set your dm data on fire.  It is only meant for
-> > > testers that start with mkfs and don't have any valuable dm data.
-> > > 
-> > 
-> > The good news is that my room remains fire-free. Despite swap also
-> > running from dm-crypt, I had no corruption or instability issues.
-> 
-> Ok, definitely not so convincing I'd try and shove it into a late rc.
-> 
-> > 
-> > Here is an updated set of results for fake-gitk running.
-> > 
-> > X86
-> > 2.6.30-0000000-force-highorder           Elapsed:12:08.908    Failures:0
-> > 2.6.31-0000000-force-highorder           Elapsed:10:56.283    Failures:0
-> > 2.6.31-0000006-dm-crypt-unplug           Elapsed:11:51.653    Failures:0
-> > 2.6.31-0000012-pgalloc-2.6.30            Elapsed:12:26.587    Failures:0
-> > 2.6.31-0000123-congestion-both           Elapsed:10:55.298    Failures:0
-> > 2.6.31-0001234-kswapd-quick-recheck      Elapsed:18:01.523    Failures:0
-> > 2.6.31-0123456-dm-crypt-unplug           Elapsed:10:45.720    Failures:0
-> > 2.6.31-revert-8aa7e847                   Elapsed:15:08.020    Failures:0
-> > 2.6.32-rc6-0000000-force-highorder       Elapsed:16:20.765    Failures:4
-> > 2.6.32-rc6-0000006-dm-crypt-unplug       Elapsed:13:42.920    Failures:0
-> > 2.6.32-rc6-0000012-pgalloc-2.6.30        Elapsed:16:13.380    Failures:1
-> > 2.6.32-rc6-0000123-congestion-both       Elapsed:18:39.118    Failures:0
-> > 2.6.32-rc6-0001234-kswapd-quick-recheck  Elapsed:15:04.398    Failures:0
-> > 2.6.32-rc6-0123456-dm-crypt-unplug       Elapsed:12:50.438    Failures:0
-> > 2.6.32-rc6-revert-8aa7e847               Elapsed:20:50.888    Failures:0
-> > 
-> > X86-64
-> > 2.6.30-0000000-force-highorder           Elapsed:10:37.300    Failures:0
-> > 2.6.31-0000000-force-highorder           Elapsed:08:49.338    Failures:0
-> > 2.6.31-0000006-dm-crypt-unplug           Elapsed:09:37.840    Failures:0
-> > 2.6.31-0000012-pgalloc-2.6.30            Elapsed:15:49.690    Failures:0
-> > 2.6.31-0000123-congestion-both           Elapsed:09:18.790    Failures:0
-> > 2.6.31-0001234-kswapd-quick-recheck      Elapsed:08:39.268    Failures:0
-> > 2.6.31-0123456-dm-crypt-unplug           Elapsed:08:20.965    Failures:0
-> > 2.6.31-revert-8aa7e847                   Elapsed:08:07.457    Failures:0
-> > 2.6.32-rc6-0000000-force-highorder       Elapsed:18:29.103    Failures:1
-> > 2.6.32-rc6-0000006-dm-crypt-unplug       Elapsed:25:53.515    Failures:3
-> > 2.6.32-rc6-0000012-pgalloc-2.6.30        Elapsed:19:55.570    Failures:6
-> > 2.6.32-rc6-0000123-congestion-both       Elapsed:17:29.255    Failures:2
-> > 2.6.32-rc6-0001234-kswapd-quick-recheck  Elapsed:14:41.068    Failures:0
-> > 2.6.32-rc6-0123456-dm-crypt-unplug       Elapsed:15:48.028    Failures:1
-> > 2.6.32-rc6-revert-8aa7e847               Elapsed:14:48.647    Failures:0
-> > 
-> > The numbering in the kernel indicates what patches are applied. I tested
-> > the dm-crypt patch both in isolation and in combination with the patches
-> > in this series.
-> > 
-> > Basically, the dm-crypt-unplug makes a small difference in performance
-> > overall, mostly slight gains and losses. There was one massive regression
-> > with the dm-crypt patch applied to 2.6.32-rc6 but at the moment, I don't
-> > know what that is.
-> 
-> How consistent are your numbers between runs?  I was trying to match
-> this up with your last email and things were pretty different.
-> 
+PATCH/RFC - 00/NN - numa:  Use generic per-cpu variables for numa_*_id()
 
-The figures from the first mail were based on kernels that were not
-instrumented. It so happened that this run was based on an instrumented
-kernel to get the congestion_wait figures so the results are different.
+In http://marc.info/?l=linux-mm&m=125683610312546&w=4 , I described a
+performance problem with slab and memoryless nodes that we see on some
+of our platforms.  I proposed modifying slab to use the "effective local
+memory node"--the node that local mempolicy would select--as the "local"
+node id for slab allocation purposes.  This will allow slab to cache objects
+from its "local memory node" on the percpu queues, effectively eliminating
+the problem.
 
-However, the results vary a lot. In some cases, it will spike just as
-2.6.32-rc6-0000006-dm-crypt-unplug did. The reported figure is the
-average of 4 fake-gitk runs. I don't have the standard deviation handy
-but it's high.
+Christoph Lameter suggested a more general approach using the generic
+percpu support:  define a new interface--e.g., numa_mem_id()--that returns
+the "effective local memory node" for the calling context [cpu].  For
+nodes with memory, this will == the id of the node itself.  For memoryless
+nodes, this will be the first node in the generic [!this_node] zonelist.
 
-> > 
-> > In general, the patch reduces the amount of time direct reclaimers are
-> > spending on congestion_wait.
-> > 
-> > > It includes my patch from last night, along with changes to force dm to
-> > > unplug when its IO queues empty.
-> > > 
-> > > The problem goes like this:
-> > > 
-> > > Process: submit read bio
-> > > dm: put bio onto work queue
-> > > process: unplug
-> > > dm: work queue finds bio, does a generic_make_request
-> > > 
-> > > The end result is that we miss the unplug completely.  dm-crypt needs to
-> > > unplug for sync bios.  This patch also changes it to unplug whenever the
-> > > queue is empty, which is far from ideal but better than missing the
-> > > unplugs.
-> > > 
-> > > This doesn't completely fix io stalls I'm seeing with dm-crypt, but its
-> > > my best guess.  If it works, I'll break it up and submit for real to
-> > > the dm people.
-> > > 
-> > 
-> > Out of curiousity, how are you measuring IO stalls? In the tests I'm doing,
-> > the worker processes output their progress and it should be at a steady
-> > rate. I considered a stall to be an excessive delay between updates which
-> > is a pretty indirect measure.
-> 
-> I just setup a crypto disk and did dd if=/dev/zero of=/mnt/foo bs=1M
-> 
-> If you watch vmstat 1, there's supposed to be a constant steam of IO to
-> the disk.  If a whole second goes by with zero IO, we're doing something
-> wrong, I get a number of multi-second stalls where we are just waiting
-> for IO to happen.
-> 
+Christoph also suggested converting the current "numa_node_id()" interface
+to use the generic percpu infrastructure.  x86[_64] supports a custom [arch-
+specific] per cpu variable implementation of numa_node_id().  Most other
+archs do a table lookup.
 
-Ok, cool.
+This series introduces a generic percpu implementation of numa_node_id()
+and numa_mem_id() in separate patches based on an incomplete "starter patch"
+from Christoph.  Both of these implementations are conditional on new respective
+config options.  I know that new config options aren't popular, but this
+allows other archs to adapt to the new implementations incrementally.
 
-> Most of the time I was able to catch a sysrq-w for it, someone was
-> waiting on a read to finish.   It isn't completely clear to me if the
-> unplugging is working properly.
-> 
+Additional patches provide x86_64 and ia64 arch specific changes to use the
+new numa_node_id() implementation, and ia64 support for the numa_mem_id()
+interface.  Finally, I've reimplemented the "slab memoryless node 'regression'
+fix" patch linked above atop the new numa_mem_id() interface.
 
-The machines I'm using are now tied up doing the same tests with dm-crypt
-and then I need to rerun with dm-crypt with the changed patches. It'll be
-early next week before the machines free up again for me to investigate your
-patch more but initial results look promising at least.
+Ad hoc measurements on x86_64 using:  hackbench 400 process 200
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+2.6.32-rc5+mmotm-091101		no patch	this series
+x86_64 avg of 40:		  4.605		  4.628  ~0.5%
+
+Ia64 showed ~1.2% longer time with the series applied.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
