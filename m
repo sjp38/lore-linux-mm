@@ -1,101 +1,209 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/7] Reduce GFP_ATOMIC allocation failures, candidate
-	fix V3
-Date: Fri, 13 Nov 2009 13:44:01 +0000
-Message-ID: <20091113134401.GE29804__23282.8964050443$1258119861$gmane$org@csn.ul.ie>
-References: <1258054211-2854-1-git-send-email-mel@csn.ul.ie> <20091112202748.GC2811@think> <20091112220005.GD2811@think>
+Subject: Re: [PATCH] make crypto unplug fix V3
+Date: Fri, 13 Nov 2009 17:34:46 +0000
+Message-ID: <20091113173446.GL29804__1065.56460164047$1258133707$gmane$org@csn.ul.ie>
+References: <1258054211-2854-1-git-send-email-mel@csn.ul.ie> <20091112202748.GC2811@think> <20091112220005.GD2811@think> <20091113024642.GA7771@think> <20091113125812.GB7891@think>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D68946B006A
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 08:44:07 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AD9CD6B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 12:34:53 -0500 (EST)
 Content-Disposition: inline
-In-Reply-To: <20091112220005.GD2811@think>
+In-Reply-To: <20091113125812.GB7891@think>
 Sender: owner-linux-mm@kvack.org
 To: Chris Mason <chris.mason@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>
 List-Id: linux-mm.kvack.org
 
-On Thu, Nov 12, 2009 at 05:00:05PM -0500, Chris Mason wrote:
-> On Thu, Nov 12, 2009 at 03:27:48PM -0500, Chris Mason wrote:
-> > On Thu, Nov 12, 2009 at 07:30:06PM +0000, Mel Gorman wrote:
-> > > Sorry for the long delay in posting another version. Testing is extremely
-> > > time-consuming and I wasn't getting to work on this as much as I'd have liked.
-> > > 
-> > > Changelog since V2
-> > >   o Dropped the kswapd-quickly-notice-high-order patch. In more detailed
-> > >     testing, it made latencies even worse as kswapd slept more on high-order
-> > >     congestion causing order-0 direct reclaims.
-> > >   o Added changes to how congestion_wait() works
-> > >   o Added a number of new patches altering the behaviour of reclaim
-> > > 
-> > > Since 2.6.31-rc1, there have been an increasing number of GFP_ATOMIC
-> > > failures. A significant number of these have been high-order GFP_ATOMIC
-> > > failures and while they are generally brushed away, there has been a large
-> > > increase in them recently and there are a number of possible areas the
-> > > problem could be in - core vm, page writeback and a specific driver. The
-> > > bugs affected by this that I am aware of are;
-> > 
-> > Thanks for all the time you've spent on this one.  Let me start with
-> > some more questions about the workload ;)
-> > 
-> > So the workload is gitk reading a git repo and a program reading data
-> > over the network.  Which part of the workload writes to disk?
-> 
-> Sorry for the self reply, I started digging through your data (man,
-> that's a lot of data ;). 
-
-Yeah, sorry about that. Because I lacked a credible explanation as to
-why waiting on sync really made such a difference, I had little choice
-but to punt everything I had for people to dig through.
-
-To be clear, I'm not actually running gitk. The fake-gitk is reading the
-commits into memory and building a tree in a similar fashion to what gitk
-does. I didn't want to use gitk itself because there wasn't a way of measuring
-whether it was stalling or just other than looking at it and making a guess.
-
-> I took another tour through dm-crypt and
-> things make more sense now.
-> 
-> dm-crypt has two different single threaded workqueues for each dm-crypt
-> device.  The first one is meant to deal with the actual encryption and
-> decryption, and the second one is meant to do the IO.
-> 
-> So the path for a write looks something like this:
-> 
-> filesystem -> crypt thread -> encrypt the data -> io thread -> disk
-> 
-> And the path for read looks something like this:
-> 
-> filesystem -> io thread -> disk -> crypt thread -> decrypt data -> FS
-> 
-> One thread does encryption and one thread does IO, and these threads are
-> shared for reads and writes.  The end result is that all of the sync
-> reads get stuck behind any async write congestion and all of the async
-> writes get stuck behind any sync read congestion.
-> 
-> It's almost like you need to check for both sync and async congestion
-> before you have any hopes of a new IO making progress.
-> 
-> The confusing part is that dm hasn't gotten any worse in this regard
-> since 2.6.30 but the workload here is generating more sync reads
-> (hopefully from gitk and swapin) than async writes (from the low
-> bandwidth rsync).  So in general if you were to change mm/*.c wait
-> for sync congestion instead of async, things should appear better.
+On Fri, Nov 13, 2009 at 07:58:12AM -0500, Chris Mason wrote:
+> This is still likely to set your dm data on fire.  It is only meant for
+> testers that start with mkfs and don't have any valuable dm data.
 > 
 
-Thanks very much for that explanation. It makes a lot of sense and
-explains why waiting on sync-congestion made such a difference on the
-test setup.
+The good news is that my room remains fire-free. Despite swap also
+running from dm-crypt, I had no corruption or instability issues.
 
-> The punch line is that the btrfs guy thinks we can solve all of this with
-> just one more thread.  If we change dm-crypt to have a thread dedicated
-> to sync IO and a thread dedicated to async IO the system should smooth
-> out.
+Here is an updated set of results for fake-gitk running.
+
+X86
+2.6.30-0000000-force-highorder           Elapsed:12:08.908    Failures:0
+2.6.31-0000000-force-highorder           Elapsed:10:56.283    Failures:0
+2.6.31-0000006-dm-crypt-unplug           Elapsed:11:51.653    Failures:0
+2.6.31-0000012-pgalloc-2.6.30            Elapsed:12:26.587    Failures:0
+2.6.31-0000123-congestion-both           Elapsed:10:55.298    Failures:0
+2.6.31-0001234-kswapd-quick-recheck      Elapsed:18:01.523    Failures:0
+2.6.31-0123456-dm-crypt-unplug           Elapsed:10:45.720    Failures:0
+2.6.31-revert-8aa7e847                   Elapsed:15:08.020    Failures:0
+2.6.32-rc6-0000000-force-highorder       Elapsed:16:20.765    Failures:4
+2.6.32-rc6-0000006-dm-crypt-unplug       Elapsed:13:42.920    Failures:0
+2.6.32-rc6-0000012-pgalloc-2.6.30        Elapsed:16:13.380    Failures:1
+2.6.32-rc6-0000123-congestion-both       Elapsed:18:39.118    Failures:0
+2.6.32-rc6-0001234-kswapd-quick-recheck  Elapsed:15:04.398    Failures:0
+2.6.32-rc6-0123456-dm-crypt-unplug       Elapsed:12:50.438    Failures:0
+2.6.32-rc6-revert-8aa7e847               Elapsed:20:50.888    Failures:0
+
+X86-64
+2.6.30-0000000-force-highorder           Elapsed:10:37.300    Failures:0
+2.6.31-0000000-force-highorder           Elapsed:08:49.338    Failures:0
+2.6.31-0000006-dm-crypt-unplug           Elapsed:09:37.840    Failures:0
+2.6.31-0000012-pgalloc-2.6.30            Elapsed:15:49.690    Failures:0
+2.6.31-0000123-congestion-both           Elapsed:09:18.790    Failures:0
+2.6.31-0001234-kswapd-quick-recheck      Elapsed:08:39.268    Failures:0
+2.6.31-0123456-dm-crypt-unplug           Elapsed:08:20.965    Failures:0
+2.6.31-revert-8aa7e847                   Elapsed:08:07.457    Failures:0
+2.6.32-rc6-0000000-force-highorder       Elapsed:18:29.103    Failures:1
+2.6.32-rc6-0000006-dm-crypt-unplug       Elapsed:25:53.515    Failures:3
+2.6.32-rc6-0000012-pgalloc-2.6.30        Elapsed:19:55.570    Failures:6
+2.6.32-rc6-0000123-congestion-both       Elapsed:17:29.255    Failures:2
+2.6.32-rc6-0001234-kswapd-quick-recheck  Elapsed:14:41.068    Failures:0
+2.6.32-rc6-0123456-dm-crypt-unplug       Elapsed:15:48.028    Failures:1
+2.6.32-rc6-revert-8aa7e847               Elapsed:14:48.647    Failures:0
+
+The numbering in the kernel indicates what patches are applied. I tested
+the dm-crypt patch both in isolation and in combination with the patches
+in this series.
+
+Basically, the dm-crypt-unplug makes a small difference in performance
+overall, mostly slight gains and losses. There was one massive regression
+with the dm-crypt patch applied to 2.6.32-rc6 but at the moment, I don't
+know what that is.
+
+In general, the patch reduces the amount of time direct reclaimers are
+spending on congestion_wait.
+
+> It includes my patch from last night, along with changes to force dm to
+> unplug when its IO queues empty.
+> 
+> The problem goes like this:
+> 
+> Process: submit read bio
+> dm: put bio onto work queue
+> process: unplug
+> dm: work queue finds bio, does a generic_make_request
+> 
+> The end result is that we miss the unplug completely.  dm-crypt needs to
+> unplug for sync bios.  This patch also changes it to unplug whenever the
+> queue is empty, which is far from ideal but better than missing the
+> unplugs.
+> 
+> This doesn't completely fix io stalls I'm seeing with dm-crypt, but its
+> my best guess.  If it works, I'll break it up and submit for real to
+> the dm people.
 > 
 
-I see you have posted another patch so I'll test that out first before
-looking into that.
+Out of curiousity, how are you measuring IO stalls? In the tests I'm doing,
+the worker processes output their progress and it should be at a steady
+rate. I considered a stall to be an excessive delay between updates which
+is a pretty indirect measure.
+
+> -chris
+> 
+> diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+> index ed10381..729ae01 100644
+> --- a/drivers/md/dm-crypt.c
+> +++ b/drivers/md/dm-crypt.c
+> @@ -94,8 +94,12 @@ struct crypt_config {
+>  	struct bio_set *bs;
+>  
+>  	struct workqueue_struct *io_queue;
+> +	struct workqueue_struct *async_io_queue;
+>  	struct workqueue_struct *crypt_queue;
+>  
+> +	atomic_t sync_bios_in_queue;
+> +	atomic_t async_bios_in_queue;
+> +
+>  	/*
+>  	 * crypto related data
+>  	 */
+> @@ -679,11 +683,29 @@ static void kcryptd_io_write(struct dm_crypt_io *io)
+>  static void kcryptd_io(struct work_struct *work)
+>  {
+>  	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
+> +	struct crypt_config *cc = io->target->private;
+> +	int zero_sync = 0;
+> +	int zero_async = 0;
+> +	int was_sync = 0;
+> +
+> +	if (io->base_bio->bi_rw & (1 << BIO_RW_SYNCIO)) {
+> +		zero_sync = atomic_dec_and_test(&cc->sync_bios_in_queue);
+> +		was_sync = 1;
+> +	} else
+> +		zero_async = atomic_dec_and_test(&cc->async_bios_in_queue);
+>  
+>  	if (bio_data_dir(io->base_bio) == READ)
+>  		kcryptd_io_read(io);
+>  	else
+>  		kcryptd_io_write(io);
+> +
+> +	if ((was_sync && zero_sync) ||
+> +	    (!was_sync && zero_async &&
+> +	     atomic_read(&cc->sync_bios_in_queue) == 0)) {
+> +		struct backing_dev_info *bdi;
+> +		bdi = blk_get_backing_dev_info(io->base_bio->bi_bdev);
+> +		blk_run_backing_dev(bdi, NULL);
+> +	}
+>  }
+>  
+>  static void kcryptd_queue_io(struct dm_crypt_io *io)
+> @@ -691,7 +713,13 @@ static void kcryptd_queue_io(struct dm_crypt_io *io)
+>  	struct crypt_config *cc = io->target->private;
+>  
+>  	INIT_WORK(&io->work, kcryptd_io);
+> -	queue_work(cc->io_queue, &io->work);
+> +	if (io->base_bio->bi_rw & (1 << BIO_RW_SYNCIO)) {
+> +		atomic_inc(&cc->sync_bios_in_queue);
+> +		queue_work(cc->io_queue, &io->work);
+> +	} else {
+> +		atomic_inc(&cc->async_bios_in_queue);
+> +		queue_work(cc->async_io_queue, &io->work);
+> +	}
+>  }
+>  
+>  static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
+> @@ -759,8 +787,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
+>  
+>  		/* Encryption was already finished, submit io now */
+>  		if (crypt_finished) {
+> -			kcryptd_crypt_write_io_submit(io, r, 0);
+> -
+> +			kcryptd_crypt_write_io_submit(io, r, 1);
+>  			/*
+>  			 * If there was an error, do not try next fragments.
+>  			 * For async, error is processed in async handler.
+> @@ -1120,6 +1147,15 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+>  	} else
+>  		cc->iv_mode = NULL;
+>  
+> +	atomic_set(&cc->sync_bios_in_queue, 0);
+> +	atomic_set(&cc->async_bios_in_queue, 0);
+> +
+> +	cc->async_io_queue = create_singlethread_workqueue("kcryptd_async_io");
+> +	if (!cc->async_io_queue) {
+> +		ti->error = "Couldn't create kcryptd io queue";
+> +		goto bad_async_io_queue;
+> +	}
+> +
+>  	cc->io_queue = create_singlethread_workqueue("kcryptd_io");
+>  	if (!cc->io_queue) {
+>  		ti->error = "Couldn't create kcryptd io queue";
+> @@ -1139,6 +1175,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+>  bad_crypt_queue:
+>  	destroy_workqueue(cc->io_queue);
+>  bad_io_queue:
+> +	destroy_workqueue(cc->async_io_queue);
+> +bad_async_io_queue:
+>  	kfree(cc->iv_mode);
+>  bad_ivmode_string:
+>  	dm_put_device(ti, cc->dev);
+> @@ -1166,6 +1204,7 @@ static void crypt_dtr(struct dm_target *ti)
+>  	struct crypt_config *cc = (struct crypt_config *) ti->private;
+>  
+>  	destroy_workqueue(cc->io_queue);
+> +	destroy_workqueue(cc->async_io_queue);
+>  	destroy_workqueue(cc->crypt_queue);
+>  
+>  	if (cc->req)
+> 
 
 -- 
 Mel Gorman
