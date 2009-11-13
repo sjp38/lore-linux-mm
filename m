@@ -1,94 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 80FEE6B004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 10:24:06 -0500 (EST)
-Date: Fri, 13 Nov 2009 10:22:54 -0500
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [PATCH 3/5] page allocator: Wait on both sync and async
- congestion after direct reclaim
-Message-ID: <20091113152254.GC7891@think>
-References: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
- <1258054235-3208-4-git-send-email-mel@csn.ul.ie>
- <20091113142526.33B3.A69D9226@jp.fujitsu.com>
- <20091113115558.GY8742@kernel.dk>
- <20091113122821.GC29804@csn.ul.ie>
- <20091113133211.GA8742@kernel.dk>
- <84144f020911130541p42c0b3d5lc307f97f22e2d356@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3C0B86B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 10:27:50 -0500 (EST)
+Received: by pzk27 with SMTP id 27so2201248pzk.12
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2009 07:27:49 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <84144f020911130541p42c0b3d5lc307f97f22e2d356@mail.gmail.com>
+In-Reply-To: <20091113164029.e7e8bcea.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20091113163544.d92561c7.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20091113164029.e7e8bcea.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Sat, 14 Nov 2009 00:27:48 +0900
+Message-ID: <28c262360911130727s25c34179u30360765c08853e0@mail.gmail.com>
+Subject: Re: [RFC MM 3/4] add mm version number
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cl@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 13, 2009 at 03:41:46PM +0200, Pekka Enberg wrote:
-> Hi Jens,
-> 
-> On Fri, Nov 13, 2009 at 3:32 PM, Jens Axboe <jens.axboe@oracle.com> wrote:
-> >> Suggest an alternative that brings congestion_wait() more in line with
-> >> 2.6.30 behaviour then.
-> >
-> > I don't have a good explanation as to why the delays have changed,
-> > unfortunately. Are we sure that they have between .30 and .31? The
-> > dm-crypt case is overly complex and lots of changes could have broken
-> > that house of cards.
-> 
-> Hand-waving or not, we have end user reports stating that reverting
-> commit 8aa7e847d834ed937a9ad37a0f2ad5b8584c1ab0 ("Fix
-> congestion_wait() sync/async vs read/write confusion") fixes their
-> (rather serious) OOM regression. The commit in question _does_
-> introduce a functional change and if this was your average regression,
-> people would be kicking and screaming to get it reverted.
-> 
-> So is there a reason we shouldn't send a partial revert of the commit
-> (switching to BLK_RW_SYNC) to Linus until the "real" issue gets
-> resolved? Yes, I realize it's ugly voodoo magic but dammit, it used to
-> work!
+Hi, Kame.
 
-If the workload didn't involve dm-crypt everything would make more sense.
-With dm-crypt, things look like this:
+On Fri, Nov 13, 2009 at 4:40 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+> Add logical timestamp to mm_struct, which is incremented always
+> mmap_sem(write) is got and released. By this, it works like seqlock's
+> counter and indicates mm_struct is modified or not.
+>
+> And this adds vma_cache to each thread. Each thread remember the last
+> faulted vma and grab reference count. Correctness of cache is checked by
+> mm->generation timestamp. (mm struct's vma cache is not very good
+> if mm is shared, I think)
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+> =A0arch/x86/mm/fault.c =A0 =A0 =A0 | =A0 18 ++++++++++++++++--
+> =A0fs/exec.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A04 ++++
+> =A0include/linux/init_task.h | =A0 =A01 +
+> =A0include/linux/mm_types.h =A0| =A0 11 ++++++++++-
+> =A0include/linux/sched.h =A0 =A0 | =A0 =A04 ++++
+> =A0kernel/exit.c =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A03 +++
+> =A0kernel/fork.c =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A05 ++++-
+> =A07 files changed, 42 insertions(+), 4 deletions(-)
+>
+> Index: mmotm-2.6.32-Nov2/include/linux/mm_types.h
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- mmotm-2.6.32-Nov2.orig/include/linux/mm_types.h
+> +++ mmotm-2.6.32-Nov2/include/linux/mm_types.h
+> @@ -216,6 +216,7 @@ struct mm_struct {
+> =A0 =A0 =A0 =A0atomic_t mm_users; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0/* How many users with user space? */
+> =A0 =A0 =A0 =A0atomic_t mm_count; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0/* How many references to "struct mm_struct" (users count as 1) */
+> =A0 =A0 =A0 =A0int map_count; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0/* number of VMAs */
+> + =A0 =A0 =A0 unsigned int generation; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* =
+logical timestamp of last modification */
+> =A0 =A0 =A0 =A0struct rw_semaphore sem;
+> =A0 =A0 =A0 =A0spinlock_t page_table_lock; =A0 =A0 =A0 =A0 =A0 =A0 /* Pro=
+tects page tables and some counters */
+>
+> @@ -308,16 +309,21 @@ static inline int mm_reader_trylock(stru
+> =A0static inline void mm_writer_lock(struct mm_struct *mm)
+> =A0{
+> =A0 =A0 =A0 =A0down_write(&mm->sem);
+> + =A0 =A0 =A0 mm->generation++;
+> =A0}
+>
+> =A0static inline void mm_writer_unlock(struct mm_struct *mm)
+> =A0{
+> + =A0 =A0 =A0 mm->generation++;
+> =A0 =A0 =A0 =A0up_write(&mm->sem);
+> =A0}
+>
+> =A0static inline int mm_writer_trylock(struct mm_struct *mm)
+> =A0{
+> - =A0 =A0 =A0 return down_write_trylock(&mm->sem);
+> + =A0 =A0 =A0 int ret =3D down_write_trylock(&mm->sem);
+> + =A0 =A0 =A0 if (!ret)
 
-VM:
-Someone submits a write (sync or not) to clean a page
-out of pages, I'll wait for the disk
+It seems your typo.
+if (ret) ?
 
-dm-crypt:
-Async threads wakeup and start encrypting submitted writes
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mm->generation++;
+> + =A0 =A0 =A0 return ret;
+> =A0}
 
-Async threads finish and hand off to other async threads to submit new writes
-or
-dm encryption thread submits the write directly (without my patch)
-
-The problem with all of this is that waiting for congestion doesn't
-actually have very much to do with waiting for dm-crypt IO.  We might
-be checking congestion long before dm-cryptd actually gets around to
-sending the IO to the disk (so we'll just wait for the full timeout),
-or the congestion check could be waiting for entirely unrelated IO.
-
-Because dm-crypt uses the same queue for encrypting and decrypting reads
-and writes, if writepage needs to read a block (say a metadata mapping
-block), waiting for that block to become unencrypted will have to wait
-for the entire queue of both encrypted and decrypted blocks to finish.
-
-[ Unless I completely misread dm-crypt, which is always possible ]
-
-So, cleaning pages can take an arbitrary amount of time, based on how
-much CPU time is available, how many other pages are in the worker
-threads and how fast the disk is once we finally hand the pages over to
-it.
-
-Tuning the VM timeouts based on this seems like a bad idea to me.  If
-the VM is waiting for pages to leave writeback, we should just add a
-sequence counter and wait queue that gets bumped as pages leave
-writeback (or something that wouldn't do horrible things to cachelines).
-
-Otherwise we're going to end up waiting way too long for the sync
-congestion on configs that don't intermix sync and async in such complex
-ways.
-
--chris
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
