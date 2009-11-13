@@ -1,49 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 20FF36B004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 13:26:27 -0500 (EST)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: [PATCH] vmscan: Stop kswapd waiting on congestion when the min watermark is not being met
-Date: Fri, 13 Nov 2009 19:26:21 +0100
-References: <20091113142608.33B9.A69D9226@jp.fujitsu.com> <20091114023138.3DA5.A69D9226@jp.fujitsu.com> <20091113181557.GM29804@csn.ul.ie>
-In-Reply-To: <20091113181557.GM29804@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 9F50F6B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 13:33:17 -0500 (EST)
+Received: by iwn34 with SMTP id 34so2699443iwn.12
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2009 10:33:16 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
+In-Reply-To: <20091113181557.GM29804@csn.ul.ie>
+References: <20091113142608.33B9.A69D9226@jp.fujitsu.com>
+	 <20091113135443.GF29804@csn.ul.ie>
+	 <20091114023138.3DA5.A69D9226@jp.fujitsu.com>
+	 <20091113181557.GM29804@csn.ul.ie>
+Date: Sat, 14 Nov 2009 03:33:16 +0900
+Message-ID: <2f11576a0911131033w4a9e6042k3349f0be290a167e@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: Stop kswapd waiting on congestion when the min
+	watermark is not being met
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200911131926.25291.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 13 November 2009, Mel Gorman wrote:
-> If reclaim fails to make sufficient progress, the priority is raised.
-> Once the priority is higher, kswapd starts waiting on congestion.
-> =A0However, if the zone is below the min watermark then kswapd needs to
-> continue working without delay as there is a danger of an increased rate
-> of GFP_ATOMIC allocation failure.
->
-> This patch changes the conditions under which kswapd waits on
-> congestion by only going to sleep if the min watermarks are being met.
->
-> This patch replaces
-> vmscan-take-order-into-consideration-when-deciding-if-kswapd-is-in-troub
->le.patch .
->
-> [mel@csn.ul.ie: Add stats to track how relevant the logic is]
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> @@ -2092,8 +2102,12 @@ loop_again:
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * OK, kswapd is getting into trouble. =A0=
+Take a nap, then take
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * another pass across the zones.
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (total_scanned && priority < DEF_PRIORIT=
+Y - 2)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 congestion_wait(BLK_RW_ASYN=
+C, HZ/10);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (total_scanned && (priority < DEF_PRIORI=
+TY - 2)) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!has_under_min_watermar=
+k_zone)
 
-=46or this to work with git-am, the From: line has to be _above_ the patch=
-=20
-description (must be the first line of the mail even). AFAIK at least.
+if I am correct, we must to remove "!".
 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Cheers,
-=46JP
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 count_vm_ev=
+ent(KSWAPD_NO_CONGESTION_WAIT);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 congestion_=
+wait(BLK_RW_ASYNC, HZ/10);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
