@@ -1,221 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 814596B004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 09:13:09 -0500 (EST)
-Date: Fri, 13 Nov 2009 14:13:03 +0000
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 87D8A6B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 09:16:30 -0500 (EST)
+Date: Fri, 13 Nov 2009 14:16:25 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/5] vmscan: Have kswapd sleep for a short interval and
-	double check it should be asleep
-Message-ID: <20091113141303.GI29804@csn.ul.ie>
-References: <1258054235-3208-1-git-send-email-mel@csn.ul.ie> <1258054235-3208-5-git-send-email-mel@csn.ul.ie> <20091113142558.33B6.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5] page allocator: Wait on both sync and async
+	congestion after direct reclaim
+Message-ID: <20091113141624.GJ29804@csn.ul.ie>
+References: <1258054235-3208-1-git-send-email-mel@csn.ul.ie> <1258054235-3208-4-git-send-email-mel@csn.ul.ie> <20091113142526.33B3.A69D9226@jp.fujitsu.com> <20091113115558.GY8742@kernel.dk> <20091113122821.GC29804@csn.ul.ie> <20091113133211.GA8742@kernel.dk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20091113142558.33B6.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091113133211.GA8742@kernel.dk>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 13, 2009 at 07:43:09PM +0900, KOSAKI Motohiro wrote:
-> > After kswapd balances all zones in a pgdat, it goes to sleep. In the event
-> > of no IO congestion, kswapd can go to sleep very shortly after the high
-> > watermark was reached. If there are a constant stream of allocations from
-> > parallel processes, it can mean that kswapd went to sleep too quickly and
-> > the high watermark is not being maintained for sufficient length time.
+On Fri, Nov 13, 2009 at 02:32:12PM +0100, Jens Axboe wrote:
+> On Fri, Nov 13 2009, Mel Gorman wrote:
+> > On Fri, Nov 13, 2009 at 12:55:58PM +0100, Jens Axboe wrote:
+> > > On Fri, Nov 13 2009, KOSAKI Motohiro wrote:
+> > > > (cc to Jens)
+> > > > 
+> > > > > Testing by Frans Pop indicated that in the 2.6.30..2.6.31 window at least
+> > > > > that the commits 373c0a7e 8aa7e847 dramatically increased the number of
+> > > > > GFP_ATOMIC failures that were occuring within a wireless driver. Reverting
+> > > > > this patch seemed to help a lot even though it was pointed out that the
+> > > > > congestion changes were very far away from high-order atomic allocations.
+> > > > > 
+> > > > > The key to why the revert makes such a big difference is down to timing and
+> > > > > how long direct reclaimers wait versus kswapd. With the patch reverted,
+> > > > > the congestion_wait() is on the SYNC queue instead of the ASYNC. As a
+> > > > > significant part of the workload involved reads, it makes sense that the
+> > > > > SYNC list is what was truely congested and with the revert processes were
+> > > > > waiting on congestion as expected. Hence, direct reclaimers stalled
+> > > > > properly and kswapd was able to do its job with fewer stalls.
+> > > > > 
+> > > > > This patch aims to fix the congestion_wait() behaviour for SYNC and ASYNC
+> > > > > for direct reclaimers. Instead of making the congestion_wait() on the SYNC
+> > > > > queue which would only fix a particular type of workload, this patch adds a
+> > > > > third type of congestion_wait - BLK_RW_BOTH which first waits on the ASYNC
+> > > > > and then the SYNC queue if the timeout has not been reached.  In tests, this
+> > > > > counter-intuitively results in kswapd stalling less and freeing up pages
+> > > > > resulting in fewer allocation failures and fewer direct-reclaim-orientated
+> > > > > stalls.
+> > > > 
+> > > > Honestly, I don't like this patch. page allocator is not related to
+> > > > sync block queue. vmscan doesn't make read operation.
+> > > > This patch makes nearly same effect of s/congestion_wait/io_schedule_timeout/.
+> > > > 
+> > > > Please don't make mysterious heuristic code.
+> > > > 
+> > > > 
+> > > > Sidenode: I doubt this regression was caused from page allocator.
 > > 
-> > This patch makes kswapd go to sleep as a two-stage process. It first
-> > tries to sleep for HZ/10. If it is woken up by another process or the
-> > high watermark is no longer met, it's considered a premature sleep and
-> > kswapd continues work. Otherwise it goes fully to sleep.
+> > Probably not. As noted, the major change is really in how long callers
+> > are waiting on congestion_wait. The tarball includes graphs from an
+> > instrumented kernel that shows how long callers are waiting due to
+> > congestion_wait(). This has changed significantly.
 > > 
-> > This adds more counters to distinguish between fast and slow breaches of
-> > watermarks. A "fast" premature sleep is one where the low watermark was
-> > hit in a very short time after kswapd going to sleep. A "slow" premature
-> > sleep indicates that the high watermark was breached after a very short
-> > interval.
+> > I'll queue up tests over the weekend that test without dm-crypt being involved.
 > > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> Why do you submit this patch to mainline? this is debugging patch
-> no more and no less.
-> 
-
-Do you mean the stats part? The stats are included until such time as the page
-allocator failure reports stop or are significantly reduced. In the event a
-report is received, the value of the counters help determine if kswapd was
-struggling or not. They should be removed once this mess is ironed out.
-
-If there is a preference, I can split out the stats part and send it to
-people with page allocator failure reports for retesting.
-
-> 
-> > ---
-> >  include/linux/vmstat.h |    1 +
-> >  mm/vmscan.c            |   44 ++++++++++++++++++++++++++++++++++++++++++--
-> >  mm/vmstat.c            |    2 ++
-> >  3 files changed, 45 insertions(+), 2 deletions(-)
+> > > > Probably we need to confirm caller change....
+> > > 
+> > > See the email from Chris from yesterday, he nicely explains why this
+> > > change made a difference with dm-crypt.
 > > 
-> > diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> > index 2d0f222..9716003 100644
-> > --- a/include/linux/vmstat.h
-> > +++ b/include/linux/vmstat.h
-> > @@ -40,6 +40,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
-> >  		PGSCAN_ZONE_RECLAIM_FAILED,
-> >  #endif
-> >  		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
-> > +		KSWAPD_PREMATURE_FAST, KSWAPD_PREMATURE_SLOW,
-> >  		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
+> > Indeed.
+> > 
+> > But bear in mind that it also possible that direct reclaimers are also
+> > congesting the queue due to swap-in.
 > 
-> Please don't use the word of "premature" and "fast". it is too hard to understand the meanings.
+> Are you speculating, or has this been observed?
 
-How about KSWAPD_LOW_WMARK_HIT_QUICKLY and
-KSWAPD_HIGH_WMARK_HIT_QUICKLY?
+Speculating. I'll need to adjust the test and instrumentation to know
+for sure.
 
-
-> Plus, please use per-zone stastics (like NUMA_HIT).
+> While I don't contest
+> that that could happen, it's also not a new thing. And it should be an
+> unlikely event.
 > 
-
-Is that not overkill? The intention is just to track in general terms if
-kswapd is struggling or not. I hadn't been considering the problem on a
-per-zone basis to date.
-
-> >
-> >  #ifdef CONFIG_HUGETLB_PAGE
-> >  		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 190bae1..ffa1766 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1904,6 +1904,24 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
-> >  }
-> >  #endif
-> >  
-> > +/* is kswapd sleeping prematurely? */
-> > +static int sleeping_prematurely(int order, long remaining)
-> > +{
-> > +	struct zone *zone;
-> > +
-> > +	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
-> > +	if (remaining)
-> > +		return 1;
-> > +
-> > +	/* If after HZ/10, a zone is below the high mark, it's premature */
-> > +	for_each_populated_zone(zone)
-> > +		if (!zone_watermark_ok(zone, order, high_wmark_pages(zone),
-> > +								0, 0))
-> > +			return 1;
+> > > dm-crypt needs fixing, not a hack like this added.
+> > > 
+> > 
+> > As noted by Chris in the same mail, dm-crypt has not changed. What has
+> > changed is how long callers wait in congestion_wait.
 > 
-> for_each_populated_zone() iterate all populated zone. but kswapd shuld't see another node.
+> Right dm-crypt didn't change, it WAS ALREADY BUGGY.
 > 
 
-Good spot.
+Fair point.
 
-How about the following?
+> > > The vm needs to drop congestion hints and usage, not increase it. The
+> > > above changelog is mostly hand-wavy nonsense, imho.
+> > > 
+> > 
+> > Suggest an alternative that brings congestion_wait() more in line with
+> > 2.6.30 behaviour then.
+> 
+> I don't have a good explanation as to why the delays have changed,
+> unfortunately. Are we sure that they have between .30 and .31?
 
-==== CUT HERE ====
-vmscan: Have kswapd sleep for a short interval and double check it should be asleep fix 1
+Fairly sure. The original reporter first reported that the problem was
+in this range and reverting one of the congestion_wait() patches
+appeared to help. What the revert was really doing was making
+congestion_wait() on SYNC instead of ASYNC in a number of cases.
 
-This patch is a fix and a claritifacation to the patch "vmscan: Have
-kswapd sleep for a short interval and double check it should be asleep".
-The fix is for kswapd to only check zones in the node it is responsible
-for. The clarification is to rename two counters to better explain what is
-being counted.
+> The
+> dm-crypt case is overly complex and lots of changes could have broken
+> that house of cards.
+> 
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
---- 
- include/linux/vmstat.h |    2 +-
- mm/vmscan.c            |   20 +++++++++++++-------
- mm/vmstat.c            |    4 ++--
- 3 files changed, 16 insertions(+), 10 deletions(-)
-
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 7d66695..0591a48 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -40,7 +40,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		PGSCAN_ZONE_RECLAIM_FAILED,
- #endif
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
--		KSWAPD_PREMATURE_FAST, KSWAPD_PREMATURE_SLOW,
-+		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		KSWAPD_NO_CONGESTION_WAIT,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
- #ifdef CONFIG_HUGETLB_PAGE
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 70967e1..5557555 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1905,19 +1905,25 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- #endif
- 
- /* is kswapd sleeping prematurely? */
--static int sleeping_prematurely(int order, long remaining)
-+static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
- {
--	struct zone *zone;
-+	int i;
- 
- 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
- 	if (remaining)
- 		return 1;
- 
- 	/* If after HZ/10, a zone is below the high mark, it's premature */
--	for_each_populated_zone(zone)
-+	for (i = 0; i < pgdat->nr_zones; i++) {
-+		struct zone *zone = pgdat->node_zones + i;
-+
-+		if (!populated_zone(zone))
-+			continue;
-+
- 		if (!zone_watermark_ok(zone, order, high_wmark_pages(zone),
- 								0, 0))
- 			return 1;
-+	}
- 
- 	return 0;
- }
-@@ -2221,7 +2227,7 @@ static int kswapd(void *p)
- 				long remaining = 0;
- 
- 				/* Try to sleep for a short interval */
--				if (!sleeping_prematurely(order, remaining)) {
-+				if (!sleeping_prematurely(pgdat, order, remaining)) {
- 					remaining = schedule_timeout(HZ/10);
- 					finish_wait(&pgdat->kswapd_wait, &wait);
- 					prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-@@ -2232,13 +2238,13 @@ static int kswapd(void *p)
- 				 * premature sleep. If not, then go fully
- 				 * to sleep until explicitly woken up
- 				 */
--				if (!sleeping_prematurely(order, remaining))
-+				if (!sleeping_prematurely(pgdat, order, remaining))
- 					schedule();
- 				else {
- 					if (remaining)
--						count_vm_event(KSWAPD_PREMATURE_FAST);
-+						count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
- 					else
--						count_vm_event(KSWAPD_PREMATURE_SLOW);
-+						count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
- 				}
- 			}
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index bc09547..6cc8dc6 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -683,8 +683,8 @@ static const char * const vmstat_text[] = {
- 	"slabs_scanned",
- 	"kswapd_steal",
- 	"kswapd_inodesteal",
--	"kswapd_slept_prematurely_fast",
--	"kswapd_slept_prematurely_slow",
-+	"kswapd_low_wmark_hit_quickly",
-+	"kswapd_high_wmark_hit_quickly",
- 	"kswapd_no_congestion_wait",
- 	"pageoutrun",
- 	"allocstall",
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
