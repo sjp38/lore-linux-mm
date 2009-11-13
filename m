@@ -1,148 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 502886B004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 01:30:17 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAD6UEtF012235
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 13 Nov 2009 15:30:15 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AC5E945DE6C
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:30:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E098345DE63
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:30:13 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 82C161DB803F
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:30:12 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0233E1DB8048
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 15:30:11 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/6] mm: mlocking in try_to_unmap_one
-In-Reply-To: <Pine.LNX.4.64.0911102151500.2816@sister.anvils>
-References: <Pine.LNX.4.64.0911102142570.2272@sister.anvils> <Pine.LNX.4.64.0911102151500.2816@sister.anvils>
-Message-Id: <20091113151554.33C2.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 13 Nov 2009 15:30:10 +0900 (JST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 72A1E6B004D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 02:38:29 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAD7cQiP001000
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 13 Nov 2009 16:38:26 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id EE6FE45DE4F
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 16:38:25 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D200545DE4C
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 16:38:25 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B6F7B1DB8037
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 16:38:25 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 44BEC1DB803A
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2009 16:38:22 +0900 (JST)
+Date: Fri, 13 Nov 2009 16:35:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC MM] speculative page fault
+Message-Id: <20091113163544.d92561c7.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: cl@linux-foundation.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> @@ -787,6 +787,8 @@ static int try_to_unmap_one(struct page
->  			ret =3D SWAP_MLOCK;
->  			goto out_unmap;
->  		}
-> +		if (MLOCK_PAGES && TTU_ACTION(flags) =3D=3D TTU_MUNLOCK)
-> +			goto out_unmap;
->  	}
->  	if (!(flags & TTU_IGNORE_ACCESS)) {
->  		if (ptep_clear_flush_young_notify(vma, address, pte)) {
-> @@ -852,12 +854,22 @@ static int try_to_unmap_one(struct page
->  	} else
->  		dec_mm_counter(mm, file_rss);
-> =20
-> -
->  	page_remove_rmap(page);
->  	page_cache_release(page);
-> =20
->  out_unmap:
->  	pte_unmap_unlock(pte, ptl);
-> +
-> +	if (MLOCK_PAGES && ret =3D=3D SWAP_MLOCK) {
-> +		ret =3D SWAP_AGAIN;
-> +		if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
-> +			if (vma->vm_flags & VM_LOCKED) {
-> +				mlock_vma_page(page);
-> +				ret =3D SWAP_MLOCK;
-> +			}
-> +			up_read(&vma->vm_mm->mmap_sem);
-> +		}
-> +	}
->  out:
+This is just a toy patch inspied by on Christoph's mmap_sem works.
+Only for my hobby, now.
 
-Very small nit. How about this?
+Not well tested. So please look into only if you have time.
 
+My multi-thread page fault test program shows some improvement.
+But I doubt my test ;) Do you have recommended benchmarks for parallel page-faults ?
 
-------------------------------------------------------------
-=46rom 9d4b507572eccf88dcaa02e650df59874216528c Mon Sep 17 00:00:00 2001
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 13 Nov 2009 15:00:04 +0900
-Subject: [PATCH] Simplify try_to_unmap_one()
+Counting # of page faults per 60sec. See page-faults. bigger is better.
+Test on x86-64 8cpus.
 
-SWAP_MLOCK mean "We marked the page as PG_MLOCK, please move it to
-unevictable-lru". So, following code is easy confusable.
+[Before]
+  474441.541914  task-clock-msecs         #      7.906 CPUs
+          10318  context-switches         #      0.000 M/sec
+             10  CPU-migrations           #      0.000 M/sec
+       15816787  page-faults              #      0.033 M/sec
+  1485219138381  cycles                   #   3130.458 M/sec  (scaled from 69.99%)
+   295669524399  instructions             #      0.199 IPC    (scaled from 79.98%)
+    57658291915  branches                 #    121.529 M/sec  (scaled from 79.98%)
+      798567455  branch-misses            #      1.385 %      (scaled from 79.98%)
+     2458780947  cache-references         #      5.182 M/sec  (scaled from 20.02%)
+      844605496  cache-misses             #      1.780 M/sec  (scaled from 20.02%)
 
-	if (vma->vm_flags & VM_LOCKED) {
-		ret =3D SWAP_MLOCK;
-		goto out_unmap;
-	}
-
-Plus, if the VMA doesn't have VM_LOCKED, We don't need to check
-the needed of calling mlock_vma_page().
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/rmap.c |   25 ++++++++++++-------------
- 1 files changed, 12 insertions(+), 13 deletions(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 4440a86..81a168c 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -784,10 +784,8 @@ static int try_to_unmap_one(struct page *page, struct =
-vm_area_struct *vma,
- 	 * skipped over this mm) then we should reactivate it.
- 	 */
- 	if (!(flags & TTU_IGNORE_MLOCK)) {
--		if (vma->vm_flags & VM_LOCKED) {
--			ret =3D SWAP_MLOCK;
--			goto out_unmap;
--		}
-+		if (vma->vm_flags & VM_LOCKED)
-+			goto out_unlock;
- 		if (MLOCK_PAGES && TTU_ACTION(flags) =3D=3D TTU_MUNLOCK)
- 			goto out_unmap;
- 	}
-@@ -856,18 +854,19 @@ static int try_to_unmap_one(struct page *page, struct=
- vm_area_struct *vma,
-=20
- out_unmap:
- 	pte_unmap_unlock(pte, ptl);
-+out:
-+	return ret;
-=20
--	if (MLOCK_PAGES && ret =3D=3D SWAP_MLOCK) {
--		ret =3D SWAP_AGAIN;
--		if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
--			if (vma->vm_flags & VM_LOCKED) {
--				mlock_vma_page(page);
--				ret =3D SWAP_MLOCK;
--			}
--			up_read(&vma->vm_mm->mmap_sem);
-+out_unlock:
-+	pte_unmap_unlock(pte, ptl);
-+
-+	if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
-+		if (vma->vm_flags & VM_LOCKED) {
-+			mlock_vma_page(page);
-+			ret =3D SWAP_MLOCK;
- 		}
-+		up_read(&vma->vm_mm->mmap_sem);
- 	}
--out:
- 	return ret;
- }
-=20
---=20
-1.6.2.5
+[After]
+471166.582784  task-clock-msecs         #      7.852 CPUs
+          10378  context-switches         #      0.000 M/sec
+             10  CPU-migrations           #      0.000 M/sec
+       37950235  page-faults              #      0.081 M/sec
+  1463000664470  cycles                   #   3105.060 M/sec  (scaled from 70.32%)
+   346531590054  instructions             #      0.237 IPC    (scaled from 80.20%)
+    63309364882  branches                 #    134.367 M/sec  (scaled from 80.19%)
+      448256258  branch-misses            #      0.708 %      (scaled from 80.20%)
+     2601112130  cache-references         #      5.521 M/sec  (scaled from 19.81%)
+      872978619  cache-misses             #      1.853 M/sec  (scaled from 19.80%)
 
 
+Main concept of this patch is
+ - Do page fault without taking mm->mmap_sem until some modification in vma happens.
+ - All page fault via get_user_pages() should have to take mmap_sem.
+ - find_vma()/rb_tree must be walked under proper locks. For avoiding that, use
+   per-thread cache.
 
+It seems I don't have enough time to update this, more.
+So, I dump patches here just for share.
 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
