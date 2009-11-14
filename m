@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7BA236B0089
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5EA1A6B0085
 	for <linux-mm@kvack.org>; Sat, 14 Nov 2009 13:10:25 -0500 (EST)
-Received: from int-mx04.intmail.prod.int.phx2.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.17])
-	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id nAEIAOAB009642
+Received: from int-mx01.intmail.prod.int.phx2.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id nAEIANZV019909
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Sat, 14 Nov 2009 13:10:24 -0500
+	for <linux-mm@kvack.org>; Sat, 14 Nov 2009 13:10:23 -0500
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 23 of 25] pmd_trans_huge migrate bugcheck
-Message-Id: <81dbf6670f8a2c6db2ba.1258220321@v2.random>
+Subject: [PATCH 08 of 25] export maybe_mkwrite
+Message-Id: <51e979132f3490f3fed0.1258220306@v2.random>
 In-Reply-To: <patchbomb.1258220298@v2.random>
 References: <patchbomb.1258220298@v2.random>
-Date: Sat, 14 Nov 2009 17:38:41 -0000
+Date: Sat, 14 Nov 2009 17:38:26 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -22,23 +22,58 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No pmd_trans_huge should ever materialize in migration ptes areas, because
-try_to_unmap will split the hugepage before migration ptes are instantiated.
+huge_memory.c needs it too when it fallbacks in copying hugepages into regular
+fragmented pages if hugepage allocation fails during COW.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/migrate.c b/mm/migrate.c
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -102,6 +102,7 @@ static void remove_migration_pte(struct 
-                 return;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -380,6 +380,19 @@ static inline void set_compound_order(st
+ }
  
- 	pmd = pmd_offset(pud, addr);
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	if (!pmd_present(*pmd))
- 		return;
+ /*
++ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
++ * servicing faults for write access.  In the normal case, do always want
++ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
++ * that do not have writing enabled, when used by access_process_vm.
++ */
++static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
++{
++	if (likely(vma->vm_flags & VM_WRITE))
++		pte = pte_mkwrite(pte);
++	return pte;
++}
++
++/*
+  * Multiple processes may "see" the same page. E.g. for untouched
+  * mappings of /dev/null, all processes see the same page full of
+  * zeroes, and text pages of executables and shared libraries have
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1928,19 +1928,6 @@ static inline int pte_unmap_same(struct 
+ 	return same;
+ }
  
+-/*
+- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
+- * servicing faults for write access.  In the normal case, do always want
+- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
+- * that do not have writing enabled, when used by access_process_vm.
+- */
+-static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+-{
+-	if (likely(vma->vm_flags & VM_WRITE))
+-		pte = pte_mkwrite(pte);
+-	return pte;
+-}
+-
+ static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+ {
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
