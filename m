@@ -1,59 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 54C036B004D
-	for <linux-mm@kvack.org>; Sun, 15 Nov 2009 07:07:29 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id d23so668652fga.8
-        for <linux-mm@kvack.org>; Sun, 15 Nov 2009 04:07:26 -0800 (PST)
-Date: Sun, 15 Nov 2009 13:07:21 +0100
-From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
-Subject: Re: [PATCH 0/5] Reduce GFP_ATOMIC allocation failures, candidate
-	fix V3
-Message-ID: <20091115120721.GA7557@bizet.domek.prywatny>
-References: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C029D6B004D
+	for <linux-mm@kvack.org>; Sun, 15 Nov 2009 17:17:04 -0500 (EST)
+Date: Sun, 15 Nov 2009 22:16:54 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 2/6] mm: mlocking in try_to_unmap_one
+In-Reply-To: <20091113151554.33C2.A69D9226@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0911152209350.29917@sister.anvils>
+References: <Pine.LNX.4.64.0911102142570.2272@sister.anvils>
+ <Pine.LNX.4.64.0911102151500.2816@sister.anvils> <20091113151554.33C2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1258054235-3208-1-git-send-email-mel@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 12, 2009 at 07:30:30PM +0000, Mel Gorman wrote:
-
-> [Bug #14265] ifconfig: page allocation failure. order:5, mode:0x8020 w/ e100
-
-> Patches 1-3 should be tested first. The testing I've done shows that the
-> page allocator and behaviour of congestion_wait() is more in line with
-> 2.6.30 than the vanilla kernels.
+On Fri, 13 Nov 2009, KOSAKI Motohiro wrote:
 > 
-> It'd be nice to have 2 more tests, applying each patch on top noting any
-> behaviour change. i.e. ideally there would be results for
+> Very small nit. How about this?
+
+Yes, that takes it a stage further, I prefer that, thanks: but better
+redo against mmotm, I removed the "MLOCK_PAGES && " in a later patch.
+
+Hugh
+
 > 
->  o patches 1+2+3
->  o patches 1+2+3+4
->  o patches 1+2+3+4+5
 > 
-> Of course, any tests results are welcome. The rest of the mail is the
-> results of my own tests.
-
-I've tried testing 3+4+5 against 2.6.32-rc7 (1+2 seem to be in
-mainline) and got failure.  I've noticed something strange (I think).
-I was unable to trigger failures when system was under heavy memory
-pressure (i.e. my testing - gitk, firefoxes, etc.).  When I killed
-almost all memory hogs, put system into sleep and resumed -- it
-failed.  free(1) showed:
-
-             total       used       free     shared    buffers     cached
-Mem:        255240     194052      61188          0       4040      49364
--/+ buffers/cache:     140648     114592
-Swap:       514040      72712     441328
-
-
-Is that ok?  Wild guess -- maybe kswapd doesn't take fragmentation (or
-other factors) into account as hard as it used to in 2.6.30?
-
-Thanks.
+> ------------------------------------------------------------
+> From 9d4b507572eccf88dcaa02e650df59874216528c Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: Fri, 13 Nov 2009 15:00:04 +0900
+> Subject: [PATCH] Simplify try_to_unmap_one()
+> 
+> SWAP_MLOCK mean "We marked the page as PG_MLOCK, please move it to
+> unevictable-lru". So, following code is easy confusable.
+> 
+> 	if (vma->vm_flags & VM_LOCKED) {
+> 		ret = SWAP_MLOCK;
+> 		goto out_unmap;
+> 	}
+> 
+> Plus, if the VMA doesn't have VM_LOCKED, We don't need to check
+> the needed of calling mlock_vma_page().
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/rmap.c |   25 ++++++++++++-------------
+>  1 files changed, 12 insertions(+), 13 deletions(-)
+> 
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 4440a86..81a168c 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -784,10 +784,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  	 * skipped over this mm) then we should reactivate it.
+>  	 */
+>  	if (!(flags & TTU_IGNORE_MLOCK)) {
+> -		if (vma->vm_flags & VM_LOCKED) {
+> -			ret = SWAP_MLOCK;
+> -			goto out_unmap;
+> -		}
+> +		if (vma->vm_flags & VM_LOCKED)
+> +			goto out_unlock;
+>  		if (MLOCK_PAGES && TTU_ACTION(flags) == TTU_MUNLOCK)
+>  			goto out_unmap;
+>  	}
+> @@ -856,18 +854,19 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  
+>  out_unmap:
+>  	pte_unmap_unlock(pte, ptl);
+> +out:
+> +	return ret;
+>  
+> -	if (MLOCK_PAGES && ret == SWAP_MLOCK) {
+> -		ret = SWAP_AGAIN;
+> -		if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+> -			if (vma->vm_flags & VM_LOCKED) {
+> -				mlock_vma_page(page);
+> -				ret = SWAP_MLOCK;
+> -			}
+> -			up_read(&vma->vm_mm->mmap_sem);
+> +out_unlock:
+> +	pte_unmap_unlock(pte, ptl);
+> +
+> +	if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+> +		if (vma->vm_flags & VM_LOCKED) {
+> +			mlock_vma_page(page);
+> +			ret = SWAP_MLOCK;
+>  		}
+> +		up_read(&vma->vm_mm->mmap_sem);
+>  	}
+> -out:
+>  	return ret;
+>  }
+>  
+> -- 
+> 1.6.2.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
