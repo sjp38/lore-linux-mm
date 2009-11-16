@@ -1,49 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A27B86B004D
-	for <linux-mm@kvack.org>; Sun, 15 Nov 2009 21:06:33 -0500 (EST)
-Received: by pxi5 with SMTP id 5so871758pxi.12
-        for <linux-mm@kvack.org>; Sun, 15 Nov 2009 18:06:32 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C88806B004D
+	for <linux-mm@kvack.org>; Sun, 15 Nov 2009 22:38:58 -0500 (EST)
+Received: by iwn34 with SMTP id 34so3742440iwn.12
+        for <linux-mm@kvack.org>; Sun, 15 Nov 2009 19:38:57 -0800 (PST)
 MIME-Version: 1.0
-Date: Mon, 16 Nov 2009 08:06:32 +0600
-Message-ID: <b9df5fa10911151806y24cce0b9pe1162fb07a0d7e9@mail.gmail.com>
-Subject: [PATCH] mm: Fix section mismatch in memory_hotplug.c
-From: Rakib Mullick <rakib.mullick@gmail.com>
+Date: Mon, 16 Nov 2009 11:38:57 +0800
+Message-ID: <2df346410911151938r1eb5c5e4q9930ac179d61ef01@mail.gmail.com>
+Subject: [BUG]2.6.27.y some contents lost after writing to mmaped file
+From: JiSheng Zhang <jszhang3@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, stable@kernel.org, gregkh@suse.de
 List-ID: <linux-mm.kvack.org>
 
- __free_pages_bootmem() is a __meminit function - which has been called
-from put_pages_bootmem thus causes a section mismatch warning.
+Hi,
 
- We were warned by the following warning:
+I triggered a failure in an fs test with fsx-linux from ltp. It seems that
+fsx-linux failed at mmap->write sequence.
 
-  LD      mm/built-in.o
-WARNING: mm/built-in.o(.text+0x26b22): Section mismatch in reference
-from the function put_page_bootmem() to the function
-.meminit.text:__free_pages_bootmem()
-The function put_page_bootmem() references
-the function __meminit __free_pages_bootmem().
-This is often because put_page_bootmem lacks a __meminit
-annotation or the annotation of __free_pages_bootmem is wrong.
+Tested kernel is 2.6.27.12 and 2.6.27.39
+Tested file system: ext3, tmpfs.
+IMHO, it impacts all file systems.
 
-Signed-off-by: Rakib Mullick <rakib.mullick@gmail.com>
----
+Some fsx-linux log is:
 
---- linus/mm/memory_hotplug.c	2009-11-13 13:17:06.000000000 +0600
-+++ rakib/mm/memory_hotplug.c	2009-11-15 08:30:31.000000000 +0600
-@@ -70,7 +70,9 @@ static void get_page_bootmem(unsigned lo
- 	atomic_inc(&page->_count);
- }
-
--void put_page_bootmem(struct page *page)
-+/* reference to __meminit __free_pages_bootmem is valid
-+ * so use __ref to tell modpost not to generate a warning */
-+void __ref put_page_bootmem(struct page *page)
- {
- 	int type;
+READ BAD DATA: offset = 0x2771b, size = 0xa28e
+OFFSET  GOOD    BAD     RANGE
+0x287e0 0x35c9  0x15a9     0x80
+operation# (mod 256) for the bad datamay be 21
+...
+7828: 1257514978.306753 READ     0x23dba thru 0x25699 (0x18e0 bytes)
+7829: 1257514978.306899 MAPWRITE 0x27eeb thru 0x2a516 (0x262c bytes)
+ ******WWWW
+7830: 1257514978.307504 READ     0x2771b thru 0x319a8 (0xa28e bytes)
+ ***RRRR***
+Correct content saved for comparison
+...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
