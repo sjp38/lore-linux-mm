@@ -1,58 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 87EF36B004D
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 07:37:47 -0500 (EST)
-Date: Tue, 17 Nov 2009 07:36:22 -0500
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [BUG]2.6.27.y some contents lost after writing to mmaped file
-Message-ID: <20091117123622.GI27677@think>
-References: <2df346410911151938r1eb5c5e4q9930ac179d61ef01@mail.gmail.com>
- <20091117015655.GA8683@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 1A9416B004D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 07:47:17 -0500 (EST)
+Date: Tue, 17 Nov 2009 07:47:15 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 0/7] Kill PF_MEMALLOC abuse
+Message-ID: <20091117124715.GA22834@infradead.org>
+References: <20091117192232.3DF9.A69D9226@jp.fujitsu.com> <20091117102701.GA16472@infradead.org> <20091117212327.3E08.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091117015655.GA8683@suse.de>
+In-Reply-To: <20091117212327.3E08.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <gregkh@suse.de>
-Cc: JiSheng Zhang <jszhang3@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, jack@suse.cz
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 16, 2009 at 05:56:55PM -0800, Greg KH wrote:
-> On Mon, Nov 16, 2009 at 11:38:57AM +0800, JiSheng Zhang wrote:
-> > Hi,
+On Tue, Nov 17, 2009 at 09:24:24PM +0900, KOSAKI Motohiro wrote:
+> > On Tue, Nov 17, 2009 at 07:24:42PM +0900, KOSAKI Motohiro wrote:
+> > > if xfsbufd doesn't only write out dirty data but also drop page,
+> > > I agree you. 
 > > 
-> > I triggered a failure in an fs test with fsx-linux from ltp. It seems that
-> > fsx-linux failed at mmap->write sequence.
-> > 
-> > Tested kernel is 2.6.27.12 and 2.6.27.39
+> > It then drops the reference to the buffer which drops references to the
+> > pages, which often are the last references, yes.
 > 
-> Does this work on any kernel you have tested?  Or is it a regression?
-> 
-> > Tested file system: ext3, tmpfs.
-> > IMHO, it impacts all file systems.
-> > 
-> > Some fsx-linux log is:
-> > 
-> > READ BAD DATA: offset = 0x2771b, size = 0xa28e
-> > OFFSET  GOOD    BAD     RANGE
-> > 0x287e0 0x35c9  0x15a9     0x80
-> > operation# (mod 256) for the bad datamay be 21
-> > ...
-> > 7828: 1257514978.306753 READ     0x23dba thru 0x25699 (0x18e0 bytes)
-> > 7829: 1257514978.306899 MAPWRITE 0x27eeb thru 0x2a516 (0x262c bytes)
-> >  ******WWWW
-> > 7830: 1257514978.307504 READ     0x2771b thru 0x319a8 (0xa28e bytes)
-> >  ***RRRR***
-> > Correct content saved for comparison
-> > ...
-> 
-> Are you sure that the LTP is correct?  It wouldn't be the first time it
-> wasn't...
+> I though it is not typical case. Am I wrong?
+> if so, I'm sorry. I'm not XFS expert.
 
-I'm afraid fsx usually finds bugs.  I thought Jan Kara recently fixed
-something here in ext3, does 2.6.32-rc work?
+I think in the typical case it's the last reference.  The are two
+reasons why it might not be:
 
--chris
+ - we're on a filesystem with block size < page size in which case two
+   buffers can share a page and we'd need to write out and release both
+   buffers to free the page
+ - someone else might have a reference on the buffer.  Offhand I can't
+   remember a place where we do this for delayed write buffers (which
+   is what xfsbufd writes out) as it would be a bit against the purpose
+   of those delayed write buffers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
