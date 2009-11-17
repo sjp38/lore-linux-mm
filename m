@@ -1,84 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1134E6B004D
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 01:46:20 -0500 (EST)
-Subject: Re: [MM] Make mm counters per cpu instead of atomic
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
-References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Tue, 17 Nov 2009 14:48:41 +0800
-Message-Id: <1258440521.11321.32.camel@localhost>
-Mime-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 77C1E6B004D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 02:16:08 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAH7G54H012022
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 17 Nov 2009 16:16:05 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 694AB45DE4D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:16:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 470EB45DE54
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:16:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D1B81DB8043
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:16:05 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BC49D1DB8042
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:16:04 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 0/7] Kill PF_MEMALLOC abuse
+Message-Id: <20091117161551.3DD4.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 17 Nov 2009 16:16:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-11-04 at 14:14 -0500, Christoph Lameter wrote:
-> From: Christoph Lameter <cl@linux-foundation.org>
-> Subject: Make mm counters per cpu
-> 
-> Changing the mm counters to per cpu counters is possible after the introduction
-> of the generic per cpu operations (currently in percpu and -next).
-> 
-> With that the contention on the counters in mm_struct can be avoided. The
-> USE_SPLIT_PTLOCKS case distinction can go away. Larger SMP systems do not
-> need to perform atomic updates to mm counters anymore. Various code paths
-> can be simplified since per cpu counter updates are fast and batching
-> of counter updates is no longer needed.
-> 
-> One price to pay for these improvements is the need to scan over all percpu
-> counters when the actual count values are needed.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-> 
-> ---
->  fs/proc/task_mmu.c       |   14 +++++++++-
->  include/linux/mm_types.h |   16 ++++--------
->  include/linux/sched.h    |   61 ++++++++++++++++++++---------------------------
->  kernel/fork.c            |   25 ++++++++++++++-----
->  mm/filemap_xip.c         |    2 -
->  mm/fremap.c              |    2 -
->  mm/init-mm.c             |    3 ++
->  mm/memory.c              |   20 +++++++--------
->  mm/rmap.c                |   10 +++----
->  mm/swapfile.c            |    2 -
->  10 files changed, 84 insertions(+), 71 deletions(-)
-> 
-> Index: linux-2.6/include/linux/mm_types.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/mm_types.h	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/include/linux/mm_types.h	2009-11-04 13:13:42.000000000 -0600
-> @@ -24,11 +24,10 @@ struct address_space;
 
-> Index: linux-2.6/kernel/fork.c
-> ===================================================================
-> --- linux-2.6.orig/kernel/fork.c	2009-11-04 13:08:33.000000000 -0600
-> +++ linux-2.6/kernel/fork.c	2009-11-04 13:14:19.000000000 -0600
-> @@ -444,6 +444,8 @@ static void mm_init_aio(struct mm_struct
-> 
->  static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
->  {
-> +	int cpu;
-> +
->  	atomic_set(&mm->mm_users, 1);
->  	atomic_set(&mm->mm_count, 1);
->  	init_rwsem(&mm->mmap_sem);
-> @@ -452,8 +454,11 @@ static struct mm_struct * mm_init(struct
->  		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
->  	mm->core_state = NULL;
->  	mm->nr_ptes = 0;
-> -	set_mm_counter(mm, file_rss, 0);
-> -	set_mm_counter(mm, anon_rss, 0);
-> +	for_each_possible_cpu(cpu) {
-> +		struct mm_counter *m;
-> +
-> +		memset(m, sizeof(struct mm_counter), 0);
-Above memset is wrong.
-1) m isn't initiated;
-2) It seems the 2nd and the 3rd parameters should be interchanged.
+PF_MEMALLOC have following effects.
+  (1) Ignore zone watermark
+  (2) Don't call reclaim although allocation failure, instead return ENOMEM
+  (3) Don't invoke OOM Killer
+  (4) Don't retry internally in page alloc
+
+Some subsystem paid attention (1) only, and start to use PF_MEMALLOC abuse.
+But, the fact is, PF_MEMALLOC is the promise of "I have lots freeable memory.
+if I allocate few memory, I can return more much meory to the system!".
+Non MM subsystem must not use PF_MEMALLOC. Memory reclaim
+need few memory, anyone must not prevent it. Otherwise the system cause
+mysterious hang-up and/or OOM Killer invokation.
+
+if many subsystem will be able to use emergency memory without any
+usage rule, it isn't for emergency. it can become empty easily.
+
+Plus, characteristics (2)-(4) mean PF_MEMALLOC don't fit to general
+high priority memory allocation.
+
+Thus, We kill all PF_MEMALLOC usage in no MM subsystem.
+
 
 
 --
