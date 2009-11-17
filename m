@@ -1,50 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E8BC56B004D
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2009 18:34:52 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAGNYowA017435
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 17 Nov 2009 08:34:50 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 00E9B45DE53
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 08:34:50 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CF1C245DE4D
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 08:34:49 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B6B0BE38006
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 08:34:49 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 62E2FE38008
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 08:34:49 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/6] mm: mlocking in try_to_unmap_one
-In-Reply-To: <Pine.LNX.4.64.0911152209350.29917@sister.anvils>
-References: <20091113151554.33C2.A69D9226@jp.fujitsu.com> <Pine.LNX.4.64.0911152209350.29917@sister.anvils>
-Message-Id: <20091117083403.3DAE.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EE1B6B004D
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2009 21:00:44 -0500 (EST)
+Date: Mon, 16 Nov 2009 17:56:55 -0800
+From: Greg KH <gregkh@suse.de>
+Subject: Re: [BUG]2.6.27.y some contents lost after writing to mmaped file
+Message-ID: <20091117015655.GA8683@suse.de>
+References: <2df346410911151938r1eb5c5e4q9930ac179d61ef01@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 17 Nov 2009 08:34:48 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2df346410911151938r1eb5c5e4q9930ac179d61ef01@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: JiSheng Zhang <jszhang3@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 13 Nov 2009, KOSAKI Motohiro wrote:
-> > 
-> > Very small nit. How about this?
+On Mon, Nov 16, 2009 at 11:38:57AM +0800, JiSheng Zhang wrote:
+> Hi,
 > 
-> Yes, that takes it a stage further, I prefer that, thanks: but better
-> redo against mmotm, I removed the "MLOCK_PAGES && " in a later patch.
+> I triggered a failure in an fs test with fsx-linux from ltp. It seems that
+> fsx-linux failed at mmap->write sequence.
+> 
+> Tested kernel is 2.6.27.12 and 2.6.27.39
 
-Ah, yes.
-thanks.
+Does this work on any kernel you have tested?  Or is it a regression?
 
-I'll redo.
+> Tested file system: ext3, tmpfs.
+> IMHO, it impacts all file systems.
+> 
+> Some fsx-linux log is:
+> 
+> READ BAD DATA: offset = 0x2771b, size = 0xa28e
+> OFFSET  GOOD    BAD     RANGE
+> 0x287e0 0x35c9  0x15a9     0x80
+> operation# (mod 256) for the bad datamay be 21
+> ...
+> 7828: 1257514978.306753 READ     0x23dba thru 0x25699 (0x18e0 bytes)
+> 7829: 1257514978.306899 MAPWRITE 0x27eeb thru 0x2a516 (0x262c bytes)
+>  ******WWWW
+> 7830: 1257514978.307504 READ     0x2771b thru 0x319a8 (0xa28e bytes)
+>  ***RRRR***
+> Correct content saved for comparison
+> ...
 
+Are you sure that the LTP is correct?  It wouldn't be the first time it
+wasn't...
 
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
