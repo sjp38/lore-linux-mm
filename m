@@ -1,55 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EE1B6B004D
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2009 21:00:44 -0500 (EST)
-Date: Mon, 16 Nov 2009 17:56:55 -0800
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [BUG]2.6.27.y some contents lost after writing to mmaped file
-Message-ID: <20091117015655.GA8683@suse.de>
-References: <2df346410911151938r1eb5c5e4q9930ac179d61ef01@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7D34D6B0062
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2009 21:00:48 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAH20jjH011972
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 17 Nov 2009 11:00:45 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6427545DE4D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 11:00:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 39CAA45DE60
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 11:00:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 108DC1DB8041
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 11:00:45 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CFCC1DB803E
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 11:00:44 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/6] mm: mlocking in try_to_unmap_one
+In-Reply-To: <Pine.LNX.4.64.0911152217030.29917@sister.anvils>
+References: <20091113143930.33BF.A69D9226@jp.fujitsu.com> <Pine.LNX.4.64.0911152217030.29917@sister.anvils>
+Message-Id: <20091117103620.3DC4.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2df346410911151938r1eb5c5e4q9930ac179d61ef01@mail.gmail.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 17 Nov 2009 11:00:43 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: JiSheng Zhang <jszhang3@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 16, 2009 at 11:38:57AM +0800, JiSheng Zhang wrote:
-> Hi,
-> 
-> I triggered a failure in an fs test with fsx-linux from ltp. It seems that
-> fsx-linux failed at mmap->write sequence.
-> 
-> Tested kernel is 2.6.27.12 and 2.6.27.39
+> On Fri, 13 Nov 2009, KOSAKI Motohiro wrote:
+> > if so, following additional patch makes more consistent?
+> > ----------------------------------
+> > From 3fd3bc58dc6505af73ecf92c981609ecf8b6ac40 Mon Sep 17 00:00:00 2001
+> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Date: Fri, 13 Nov 2009 16:52:03 +0900
+> > Subject: [PATCH] [RFC] mm: non linear mapping page don't mark as PG_mlo=
+cked
+> >=20
+> > Now, try_to_unmap_file() lost the capability to treat VM_NONLINEAR.
+>=20
+> Now?
+> Genuine try_to_unmap_file() deals with VM_NONLINEAR (including VM_LOCKED)
+> much as it always did, I think.  But try_to_munlock() on a VM_NONLINEAR
+> has not being doing anything useful, I assume ever since it was added,
+> but haven't checked the history.
+>=20
+> But so what?  try_to_munlock() has those down_read_trylock()s which make
+> it never quite reliable.  In the VM_NONLINEAR case it has simply been
+> giving up rather more easily.
 
-Does this work on any kernel you have tested?  Or is it a regression?
+I catched your point, maybe. thanks, correct me. I agree your lazy=20
+discovery method.
 
-> Tested file system: ext3, tmpfs.
-> IMHO, it impacts all file systems.
-> 
-> Some fsx-linux log is:
-> 
-> READ BAD DATA: offset = 0x2771b, size = 0xa28e
-> OFFSET  GOOD    BAD     RANGE
-> 0x287e0 0x35c9  0x15a9     0x80
-> operation# (mod 256) for the bad datamay be 21
-> ...
-> 7828: 1257514978.306753 READ     0x23dba thru 0x25699 (0x18e0 bytes)
-> 7829: 1257514978.306899 MAPWRITE 0x27eeb thru 0x2a516 (0x262c bytes)
->  ******WWWW
-> 7830: 1257514978.307504 READ     0x2771b thru 0x319a8 (0xa28e bytes)
->  ***RRRR***
-> Correct content saved for comparison
-> ...
+So, Can we add more kindly comment? (see below)
 
-Are you sure that the LTP is correct?  It wouldn't be the first time it
-wasn't...
 
-thanks,
 
-greg k-h
+> > Then, mlock() shouldn't mark the page of non linear mapping as
+> > PG_mlocked. Otherwise the page continue to drinker walk between
+> > evictable and unevictable lru.
+>=20
+> I do like your phrase "drinker walk".  But is it really worse than
+> the lazy discovery of the page being locked, which is how I thought
+> this stuff was originally supposed to work anyway.  I presume cases
+> were found in which the counts got so far out that it was a problem?
+>=20
+> I liked the lazy discovery much better than trying to keep count;
+> can we just accept that VM_NONLINEAR may leave the counts further
+> away from exactitude?
+>=20
+> I don't think this patch makes things more consistent, really.
+> It does make sys_remap_file_pages on an mlocked area inconsistent
+> with mlock on a sys_remap_file_pages area, doesn't it?
+
+you are right.
+
+
+
+=46rom 7332f765dbaa1fbfe48cf8d53b20048f7f8105e0 Mon Sep 17 00:00:00 2001
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 17 Nov 2009 10:46:51 +0900
+Subject: comment adding to mlocking in try_to_unmap_one
+
+Current code doesn't tell us why we don't bother to nonlinear kindly.
+This patch added small adding explanation.
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/rmap.c |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 81a168c..c631407 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1061,7 +1061,11 @@ static int try_to_unmap_file(struct page *page, enum=
+ ttu_flags flags)
+ 	if (list_empty(&mapping->i_mmap_nonlinear))
+ 		goto out;
+=20
+-	/* We don't bother to try to find the munlocked page in nonlinears */
++	/*
++	 * We don't bother to try to find the munlocked page in nonlinears.
++	 * It's costly. Instead, later, page reclaim logic may call
++	 * try_to_unmap(TTU_MUNLOCK) and recover PG_mlocked lazily.
++	 */
+ 	if (MLOCK_PAGES && TTU_ACTION(flags) =3D=3D TTU_MUNLOCK)
+ 		goto out;
+=20
+--=20
+1.6.2.5
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
