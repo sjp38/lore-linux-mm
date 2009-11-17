@@ -1,88 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 89DEF6B0062
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 02:17:13 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8155A6B004D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 02:17:54 -0500 (EST)
 Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAH7HBhD012643
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAH7HpPi030891
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 17 Nov 2009 16:17:11 +0900
+	Tue, 17 Nov 2009 16:17:52 +0900
 Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A41D45DE52
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:17:11 +0900 (JST)
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A87D345DE53
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:17:51 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E3E145DE3E
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:17:11 +0900 (JST)
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B2E545DE52
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:17:51 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 09FE71DB803F
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:17:11 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id AE0DC1DB8040
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:17:07 +0900 (JST)
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 508701DB8038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:17:51 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id F1ED4E1800D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:17:50 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 1/7] dm: use __GFP_HIGH instead PF_MEMALLOC
+Subject: [PATCH 2/7] mmc: Don't use PF_MEMALLOC
 In-Reply-To: <20091117161551.3DD4.A69D9226@jp.fujitsu.com>
 References: <20091117161551.3DD4.A69D9226@jp.fujitsu.com>
-Message-Id: <20091117161616.3DD7.A69D9226@jp.fujitsu.com>
+Message-Id: <20091117161711.3DDA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 17 Nov 2009 16:17:07 +0900 (JST)
+Date: Tue, 17 Nov 2009 16:17:50 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Alasdair G Kergon <agk@redhat.com>, dm-devel@redhat.com
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mmc@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Non MM subsystem must not use PF_MEMALLOC. Memory reclaim need few
 memory, anyone must not prevent it. Otherwise the system cause
 mysterious hang-up and/or OOM Killer invokation.
 
-Cc: Alasdair G Kergon <agk@redhat.com>
-Cc: dm-devel@redhat.com
+Cc: linux-mmc@vger.kernel.org
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- drivers/md/dm-ioctl.c |   18 +++++++-----------
- 1 files changed, 7 insertions(+), 11 deletions(-)
+ drivers/mmc/card/queue.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
-index a679429..4d24b0a 100644
---- a/drivers/md/dm-ioctl.c
-+++ b/drivers/md/dm-ioctl.c
-@@ -1396,7 +1396,13 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
- 	if (tmp.data_size < (sizeof(tmp) - sizeof(tmp.data)))
- 		return -EINVAL;
+diff --git a/drivers/mmc/card/queue.c b/drivers/mmc/card/queue.c
+index 49e5823..5deb996 100644
+--- a/drivers/mmc/card/queue.c
++++ b/drivers/mmc/card/queue.c
+@@ -46,8 +46,6 @@ static int mmc_queue_thread(void *d)
+ 	struct mmc_queue *mq = d;
+ 	struct request_queue *q = mq->queue;
  
--	dmi = vmalloc(tmp.data_size);
-+
-+	/*
-+	 * We use __vmalloc(__GFP_HIGH) instead vmalloc() because trying to
-+	 * avoid low memory issues when a device is suspended.
-+	 */
-+	dmi = __vmalloc(tmp.data_size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_HIGH,
-+			PAGE_KERNEL);
- 	if (!dmi)
- 		return -ENOMEM;
- 
-@@ -1473,20 +1479,10 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
- 		DMWARN("dm_ctl_ioctl: unknown command 0x%x", command);
- 		return -ENOTTY;
- 	}
--
--	/*
--	 * Trying to avoid low memory issues when a device is
--	 * suspended.
--	 */
 -	current->flags |= PF_MEMALLOC;
 -
- 	/*
- 	 * Copy the parameters into kernel space.
- 	 */
- 	r = copy_params(user, &param);
--
--	current->flags &= ~PF_MEMALLOC;
--
- 	if (r)
- 		return r;
- 
+ 	down(&mq->thread_sem);
+ 	do {
+ 		struct request *req = NULL;
 -- 
 1.6.2.5
 
