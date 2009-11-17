@@ -1,102 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 448996B004D
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 03:39:32 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAH8dTpr001744
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 17 Nov 2009 17:39:29 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9706245DE7A
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 17:39:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 751EA45DE6E
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 17:39:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 49E7B1DB8040
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 17:39:29 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EFC861DB8041
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 17:39:28 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH]  [for mmotm-1113] mm: Simplify try_to_unmap_one()
-Message-Id: <20091117173759.3DF6.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D8A816B004D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 04:32:05 -0500 (EST)
+Subject: Re: [MM] Make mm counters per cpu instead of atomic
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <1258443101.11321.33.camel@localhost>
+References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
+	 <1258440521.11321.32.camel@localhost> <1258443101.11321.33.camel@localhost>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Tue, 17 Nov 2009 17:34:25 +0800
+Message-Id: <1258450465.11321.36.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Tue, 17 Nov 2009 17:39:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-SWAP_MLOCK mean "We marked the page as PG_MLOCK, please move it to
-unevictable-lru". So, following code is easy confusable.
+On Tue, 2009-11-17 at 15:31 +0800, Zhang, Yanmin wrote:
+> On Tue, 2009-11-17 at 14:48 +0800, Zhang, Yanmin wrote:
+> > On Wed, 2009-11-04 at 14:14 -0500, Christoph Lameter wrote:
+> > > From: Christoph Lameter <cl@linux-foundation.org>
+> > > Subject: Make mm counters per cpu
+> > > 
+> > > Changing the mm counters to per cpu counters is possible after the introduction
+> > > of the generic per cpu operations (currently in percpu and -next).
+> > > 
+> > > With that the contention on the counters in mm_struct can be avoided. The
+> > > USE_SPLIT_PTLOCKS case distinction can go away. Larger SMP systems do not
+> > > need to perform atomic updates to mm counters anymore. Various code paths
+> > > can be simplified since per cpu counter updates are fast and batching
+> > > of counter updates is no longer needed.
+> > > 
+> > > One price to pay for these improvements is the need to scan over all percpu
+> > > counters when the actual count values are needed.
+> > > 
+> > > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> > > 
+> > > ---
+> > >  fs/proc/task_mmu.c       |   14 +++++++++-
+> > >  include/linux/mm_types.h |   16 ++++--------
+> > >  include/linux/sched.h    |   61 ++++++++++++++++++++---------------------------
+> > >  kernel/fork.c            |   25 ++++++++++++++-----
+> > >  mm/filemap_xip.c         |    2 -
+> > >  mm/fremap.c              |    2 -
+> > >  mm/init-mm.c             |    3 ++
+> > >  mm/memory.c              |   20 +++++++--------
+> > >  mm/rmap.c                |   10 +++----
+> > >  mm/swapfile.c            |    2 -
+> > >  10 files changed, 84 insertions(+), 71 deletions(-)
+> > > 
+> > > Index: linux-2.6/include/linux/mm_types.h
+> > > ===================================================================
+> > > --- linux-2.6.orig/include/linux/mm_types.h	2009-11-04 13:08:33.000000000 -0600
+> > > +++ linux-2.6/include/linux/mm_types.h	2009-11-04 13:13:42.000000000 -0600
+> > > @@ -24,11 +24,10 @@ struct address_space;
+> > 
+> > > Index: linux-2.6/kernel/fork.c
+> > > ===================================================================
+> > > --- linux-2.6.orig/kernel/fork.c	2009-11-04 13:08:33.000000000 -0600
+> > > +++ linux-2.6/kernel/fork.c	2009-11-04 13:14:19.000000000 -0600
+> > > @@ -444,6 +444,8 @@ static void mm_init_aio(struct mm_struct
+> > > 
+> > >  static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+> > >  {
+> > > +	int cpu;
+> > > +
+> > >  	atomic_set(&mm->mm_users, 1);
+> > >  	atomic_set(&mm->mm_count, 1);
+> > >  	init_rwsem(&mm->mmap_sem);
+> > > @@ -452,8 +454,11 @@ static struct mm_struct * mm_init(struct
+> > >  		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
+> > >  	mm->core_state = NULL;
+> > >  	mm->nr_ptes = 0;
+> > > -	set_mm_counter(mm, file_rss, 0);
+> > > -	set_mm_counter(mm, anon_rss, 0);
+> > > +	for_each_possible_cpu(cpu) {
+> > > +		struct mm_counter *m;
+> > > +
+> > > +		memset(m, sizeof(struct mm_counter), 0);
+> > Above memset is wrong.
+> > 1) m isn't initiated;
+> > 2) It seems the 2nd and the 3rd parameters should be interchanged.
+> Changing it to below fixes the command hang issue.
+> 
+>         for_each_possible_cpu(cpu) {
+>                 struct mm_counter *m = per_cpu(mm->rss->readers, cpu);
+> 
+>                 memset(m, 0, sizeof(struct mm_counter));
+>         }
 
-        if (vma->vm_flags & VM_LOCKED) {
-                ret = SWAP_MLOCK;
-                goto out_unmap;
-        }
+Sorry. I was too optimistic and used another kernel to boot.
+The right change above should be:
+ struct mm_counter *m = per_cpu_ptr(mm->rss, cpu);
 
-Plus, if the VMA doesn't have VM_LOCKED, We don't need to check
-the needed of calling mlock_vma_page().
+Compiler doesn't report error/warning when I use any member.
 
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/rmap.c |   26 +++++++++++++-------------
- 1 files changed, 13 insertions(+), 13 deletions(-)
+With the change, command 'make oldconfig' and a boot command still
+hangs.
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 82e31fb..70dec01 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -779,10 +779,9 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	 * skipped over this mm) then we should reactivate it.
- 	 */
- 	if (!(flags & TTU_IGNORE_MLOCK)) {
--		if (vma->vm_flags & VM_LOCKED) {
--			ret = SWAP_MLOCK;
--			goto out_unmap;
--		}
-+		if (vma->vm_flags & VM_LOCKED)
-+			goto out_mlock;
-+
- 		if (TTU_ACTION(flags) == TTU_MUNLOCK)
- 			goto out_unmap;
- 	}
-@@ -855,18 +854,19 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 
- out_unmap:
- 	pte_unmap_unlock(pte, ptl);
-+out:
-+	return ret;
- 
--	if (ret == SWAP_MLOCK) {
--		ret = SWAP_AGAIN;
--		if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
--			if (vma->vm_flags & VM_LOCKED) {
--				mlock_vma_page(page);
--				ret = SWAP_MLOCK;
--			}
--			up_read(&vma->vm_mm->mmap_sem);
-+out_mlock:
-+	pte_unmap_unlock(pte, ptl);
-+
-+	if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
-+		if (vma->vm_flags & VM_LOCKED) {
-+			mlock_vma_page(page);
-+			ret = SWAP_MLOCK;
- 		}
-+		up_read(&vma->vm_mm->mmap_sem);
- 	}
--out:
- 	return ret;
- }
- 
--- 
-1.6.2.5
-
+Yanmin
 
 
 --
