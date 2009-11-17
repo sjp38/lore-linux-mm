@@ -1,49 +1,85 @@
-From: Milan Broz <mbroz@redhat.com>
-Subject: Re: [PATCH 0/7] Reduce GFP_ATOMIC allocation failures, candidate
- fix V3
-Date: Mon, 16 Nov 2009 17:44:07 +0100
-Message-ID: <4B018157.3080707__32615.4126938947$1258389922$gmane$org@redhat.com>
-References: <1258054211-2854-1-git-send-email-mel@csn.ul.ie> <20091112202748.GC2811@think> <20091112220005.GD2811@think> <20091113024642.GA7771@think>
+From: Steve French <smfrench@gmail.com>
+Subject: Re: [PATCH 6/7] cifs: Don't use PF_MEMALLOC
+Date: Tue, 17 Nov 2009 10:40:49 -0600
+Message-ID: <524f69650911170840o5be241a0q5d9863c8d7f4e571@mail.gmail.com>
+References: <20091117161551.3DD4.A69D9226@jp.fujitsu.com>
+	<20091117162111.3DE8.A69D9226@jp.fujitsu.com>
+	<20091117074739.4abaef85@tlielax.poochiereds.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Return-path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 224C56B004D
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2009 11:45:09 -0500 (EST)
-In-Reply-To: <20091113024642.GA7771@think>
-Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>
+Return-path: <samba-technical-bounces@lists.samba.org>
+In-Reply-To: <20091117074739.4abaef85@tlielax.poochiereds.net>
+List-Unsubscribe: <https://lists.samba.org/mailman/options/samba-technical>,
+	<mailto:samba-technical-request@lists.samba.org?subject=unsubscribe>
+List-Archive: <http://lists.samba.org/pipermail/samba-technical>
+List-Post: <mailto:samba-technical@lists.samba.org>
+List-Help: <mailto:samba-technical-request@lists.samba.org?subject=help>
+List-Subscribe: <https://lists.samba.org/mailman/listinfo/samba-technical>,
+	<mailto:samba-technical-request@lists.samba.org?subject=subscribe>
+Sender: samba-technical-bounces@lists.samba.org
+Errors-To: samba-technical-bounces@lists.samba.org
+To: Jeff Layton <jlayton@redhat.com>
+Cc: samba-technical@lists.samba.org, LKML <linux-kernel@vger.kernel.org>, Steve French <sfrench@samba.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-cifs-client@lists.samba.org
 List-Id: linux-mm.kvack.org
 
-On 11/13/2009 03:46 AM, Chris Mason wrote:
-> On Thu, Nov 12, 2009 at 05:00:05PM -0500, Chris Mason wrote:
-> 
-> [ ...]
-> 
->>
->> The punch line is that the btrfs guy thinks we can solve all of this with
->> just one more thread.  If we change dm-crypt to have a thread dedicated
->> to sync IO and a thread dedicated to async IO the system should smooth
->> out.
+It is hard to follow exactly what this flag does in /mm (other than try
+harder on memory allocations) - I haven't found much about this flag (e.g.
+http://lwn.net/Articles/246928/) but it does look like most of the fs no
+longer set this (except xfs) e.g. ext3_ordered_writepage.  When running out
+of memory in the cifs_demultiplex_thread it will retry 3 seconds later, but
+if memory allocations ever fail in this path we could potentially be holding
+up (an already issued write in) writepages for that period by not having
+memory to get the response to see if the write succeeded.
 
-Please, can you cc DM maintainers with these kind of patches? dm-devel list at least.
+We pass in few flags for these memory allocation requests: GFP_NOFS (on the
+mempool_alloc) and SLAB_HWCACHE_ALIGN (on the kmem_cache_create of the pool)
+should we be passing in other flags on the allocations?
 
-Note that the crypt requests can be already processed synchronously or asynchronously,
-depending on used crypto module (async it is in the case of some hw acceleration).
+On Tue, Nov 17, 2009 at 6:47 AM, Jeff Layton <jlayton@redhat.com> wrote:
 
-Adding another queue make the situation more complicated and because the crypt
-requests can be queued in crypto layer I am not sure that this solution will help
-in this situation at all.
-(Try to run that with AES-NI acceleration for example.)
+> On Tue, 17 Nov 2009 16:22:32 +0900 (JST)
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>
+> >
+> > Non MM subsystem must not use PF_MEMALLOC. Memory reclaim need few
+> > memory, anyone must not prevent it. Otherwise the system cause
+> > mysterious hang-up and/or OOM Killer invokation.
+> >
+> > Cc: Steve French <sfrench@samba.org>
+> > Cc: linux-cifs-client@lists.samba.org
+> > Cc: samba-technical@lists.samba.org
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > ---
+> >  fs/cifs/connect.c |    1 -
+> >  1 files changed, 0 insertions(+), 1 deletions(-)
+> >
+> > diff --git a/fs/cifs/connect.c b/fs/cifs/connect.c
+> > index 63ea83f..f9b1553 100644
+> > --- a/fs/cifs/connect.c
+> > +++ b/fs/cifs/connect.c
+> > @@ -337,7 +337,6 @@ cifs_demultiplex_thread(struct TCP_Server_Info
+> *server)
+> >       bool isMultiRsp;
+> >       int reconnect;
+> >
+> > -     current->flags |= PF_MEMALLOC;
+> >       cFYI(1, ("Demultiplex PID: %d", task_pid_nr(current)));
+> >
+> >       length = atomic_inc_return(&tcpSesAllocCount);
+>
+> This patch appears to be safe for CIFS. I believe that the demultiplex
+> thread only does mempool allocations currently. The only other case
+> where it did an allocation was recently changed with the conversion of
+> the oplock break code to use slow_work.
+>
+> Barring anything I've missed...
+>
+> Acked-by: Jeff Layton <jlayton@redhat.com>
+>
 
 
-Milan
---
-mbroz@redhat.com
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Thanks,
+
+Steve
