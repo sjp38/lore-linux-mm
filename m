@@ -1,42 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EBA66B004D
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 15:56:29 -0500 (EST)
-Subject: Re: [PATCH 0/7] Kill PF_MEMALLOC abuse
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20091117172802.3DF4.A69D9226@jp.fujitsu.com>
-References: <20091117161551.3DD4.A69D9226@jp.fujitsu.com>
-	 <alpine.DEB.2.00.0911170004380.1564@chino.kir.corp.google.com>
-	 <20091117172802.3DF4.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 17 Nov 2009 21:56:19 +0100
-Message-ID: <1258491379.3918.48.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 3223C6B004D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 17:11:46 -0500 (EST)
+Date: Wed, 18 Nov 2009 09:11:08 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 7/7] xfs: Don't use PF_MEMALLOC
+Message-ID: <20091117221108.GK9467@discord.disaster>
+References: <20091117161551.3DD4.A69D9226@jp.fujitsu.com> <20091117162235.3DEB.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20091117162235.3DEB.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, xfs-masters@oss.sgi.com, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-11-17 at 17:33 +0900, KOSAKI Motohiro wrote:
+On Tue, Nov 17, 2009 at 04:23:43PM +0900, KOSAKI Motohiro wrote:
 > 
-> if there is so such reason. we might need to implement another MM trick.
-> but keeping this strage usage is not a option. All memory freeing activity
-> (e.g. page out, task killing) need some memory. we need to protect its
-> emergency memory. otherwise linux reliability decrease dramatically when
-> the system face to memory stress. 
+> Non MM subsystem must not use PF_MEMALLOC. Memory reclaim need few
+> memory, anyone must not prevent it. Otherwise the system cause
+> mysterious hang-up and/or OOM Killer invokation.
 
-In general PF_MEMALLOC is a particularly bad idea, even for the VM when
-not coupled with limiting the consumption. That is one should make an
-upper-bound estimation of the memory needed for a writeout-path per
-page, and reserve a small multiple thereof, and limit the number of
-pages written out so as to never exceed this estimate.
+The xfsbufd is a woken run by a registered memory shaker. i.e. it
+runs when the system needs to reclaim memory. It forceN? the
+delayed write metadata buffers (of which there can be a lot) to disk
+so that they can be reclaimed on IO completion. This IO submission
+may require N?ome memory to be allocated to be able to free that
+memory.
 
-If the current mempool interface isn't sufficient (not hard to imagine),
-look at the swap over NFS patch-set, that includes a much more able
-reservation scheme, and accounting framework.
+Hence, AFAICT the use of PF_MEMALLOC is valid here.
 
+Cheers,
 
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
