@@ -1,61 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 077EA6B004D
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 03:56:53 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAI8upTA030094
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 18 Nov 2009 17:56:51 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C889C45DE4F
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 17:56:50 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AA36145DE4E
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 17:56:50 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9666AE08002
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 17:56:50 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4920AE38003
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 17:56:47 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 7/7] xfs: Don't use PF_MEMALLOC
-In-Reply-To: <20091117221108.GK9467@discord.disaster>
-References: <20091117162235.3DEB.A69D9226@jp.fujitsu.com> <20091117221108.GK9467@discord.disaster>
-Message-Id: <20091118153302.3E20.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 36D466B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 04:56:30 -0500 (EST)
+Subject: Re: [PATCH 2/7] mmc: Don't use PF_MEMALLOC
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <28c262360911171601u618ca555o1dd51ea19168575e@mail.gmail.com>
+References: <20091117161711.3DDA.A69D9226@jp.fujitsu.com>
+	 <20091117102903.7cb45ff3@lxorguk.ukuu.org.uk>
+	 <20091117200618.3DFF.A69D9226@jp.fujitsu.com> <4B029C40.2020803@gmail.com>
+	 <1258490826.3918.29.camel@laptop>
+	 <28c262360911171601u618ca555o1dd51ea19168575e@mail.gmail.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed, 18 Nov 2009 17:56:46 +0900 (JST)
+Date: Wed, 18 Nov 2009 10:56:21 +0100
+Message-ID: <1258538181.3918.138.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, xfs-masters@oss.sgi.com, xfs@oss.sgi.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mmc@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Nov 17, 2009 at 04:23:43PM +0900, KOSAKI Motohiro wrote:
-> > 
-> > Non MM subsystem must not use PF_MEMALLOC. Memory reclaim need few
-> > memory, anyone must not prevent it. Otherwise the system cause
-> > mysterious hang-up and/or OOM Killer invokation.
+On Wed, 2009-11-18 at 09:01 +0900, Minchan Kim wrote:
+> Hi, Peter.
 > 
-> The xfsbufd is a woken run by a registered memory shaker. i.e. it
-> runs when the system needs to reclaim memory. It forceN? the
-> delayed write metadata buffers (of which there can be a lot) to disk
-> so that they can be reclaimed on IO completion. This IO submission
-> may require N?ome memory to be allocated to be able to free that
-> memory.
+> First of all, Thanks for the commenting.
 > 
-> Hence, AFAICT the use of PF_MEMALLOC is valid here.
+> On Wed, Nov 18, 2009 at 5:47 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > On Tue, 2009-11-17 at 21:51 +0900, Minchan Kim wrote:
+> >> I think it's because mempool reserves memory.
+> >> (# of I/O issue\0 is hard to be expected.
+> >> How do we determine mempool size of each block driver?
+> >> For example,  maybe, server use few I/O for nand.
+> >> but embedded system uses a lot of I/O.
+> >
+> > No, you scale the mempool to the minimum amount required to make
+> > progress -- this includes limiting the 'concurrency' when handing out
+> > mempool objects.
+> >
+> > If you run into such tight corners often enough to notice it, there's
+> > something else wrong.
+> >
+> > I fully agree with ripping out PF_MEMALLOC from pretty much everything,
+> > including the VM, getting rid of the various abuse outside of the VM
+> > seems like a very good start.
+> >
+> 
+> I am not against removing PF_MEMALLOC.
+> Totally, I agree to prevent abusing of PF_MEMALLOC.
+> 
+> What I have a concern is per-block mempool.
+> Although it's minimum amount of mempool, it can be increased
+> by adding new block driver. I am not sure how many we will have block driver.
+> 
+> And, person who develop new driver always have to use mempool and consider
+> what is minimum of mempool.
+> I think this is a problem of mempool, now.
+> 
+> How about this?
+> According to system memory, kernel have just one mempool for I/O which
+> is one shared by several block driver.
+> 
+> And we make new API block driver can use.
+> Of course, as usual It can use dynamic memoy. Only it can use mempool if
+> system don't have much dynamic memory.
+> 
+> In this case, we can control read/write path. read I/O can't help
+> memory reclaiming.
+> So I think read I/O don't use mempool, I am not sure. :)
 
-Thanks a lot. 
-I have one additional question, may I ask you?
+Sure some generic blocklevel infrastructure might work, _but_ you cannot
+take away the responsibility of determining the amount of memory needed,
+nor does any of this have any merit if you do not limit yourself to that
+amount.
 
-How can we calculate maximum memory usage in xfsbufd?
-I'm afraid that VM and XFS works properly but adding two makes memory exhaust.
+Current PF_MEMALLOC usage in the VM is utterly broken in that we can
+have a basically unlimited amount of tasks hit direct reclaim and all of
+them will then consume PF_MEMALLOC, which mean we can easily run out of
+memory.
 
-And, I conclude XFS doesn't need sharing reservation memory with VM,
-it only need non failed allocation. right? IOW I'm prefer perter's
-suggestion.
+( unless I missed the direct reclaim throttle patches going in, which
+isn't at all impossible )
+
 
 
 --
