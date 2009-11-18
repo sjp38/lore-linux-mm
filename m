@@ -1,240 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C4486B004D
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 21:13:59 -0500 (EST)
-Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
-	by smtp-out.google.com with ESMTP id nAI2DsmK027614
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 02:13:54 GMT
-Received: from pxi29 (pxi29.prod.google.com [10.243.27.29])
-	by spaceape9.eur.corp.google.com with ESMTP id nAI2DRaG018015
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 18:13:51 -0800
-Received: by pxi29 with SMTP id 29so444892pxi.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2009 18:13:51 -0800 (PST)
-Date: Tue, 17 Nov 2009 18:13:48 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask
- v4.2
-In-Reply-To: <20091118095824.076c211f.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0911171725050.13760@chino.kir.corp.google.com>
-References: <20091110162121.361B.A69D9226@jp.fujitsu.com> <20091110162445.c6db7521.kamezawa.hiroyu@jp.fujitsu.com> <20091110163419.361E.A69D9226@jp.fujitsu.com> <20091110164055.a1b44a4b.kamezawa.hiroyu@jp.fujitsu.com> <20091110170338.9f3bb417.nishimura@mxp.nes.nec.co.jp>
- <20091110171704.3800f081.kamezawa.hiroyu@jp.fujitsu.com> <20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com> <20091111134514.4edd3011.kamezawa.hiroyu@jp.fujitsu.com> <20091111142811.eb16f062.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.0911102155580.2924@chino.kir.corp.google.com> <20091111152004.3d585cee.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0911102224440.6652@chino.kir.corp.google.com> <20091111153414.3c263842.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.0911171609370.12532@chino.kir.corp.google.com> <20091118095824.076c211f.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id DFCB66B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 00:21:00 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAI5KvPT014446
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 18 Nov 2009 14:20:57 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DABA045DE50
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 14:20:56 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B077445DE4D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 14:20:56 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9541D1DB803C
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 14:20:56 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F4B11DB8038
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 14:20:53 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/5] vmscan: Have kswapd sleep for a short interval and double check it should be asleep
+In-Reply-To: <20091117122555.GZ29804@csn.ul.ie>
+References: <20091117205035.3E05.A69D9226@jp.fujitsu.com> <20091117122555.GZ29804@csn.ul.ie>
+Message-Id: <20091118140855.3E0F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 18 Nov 2009 14:20:52 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Nov 2009, KAMEZAWA Hiroyuki wrote:
+> On Tue, Nov 17, 2009 at 09:18:11PM +0900, KOSAKI Motohiro wrote:
+> > > On Tue, Nov 17, 2009 at 08:03:21PM +0900, KOSAKI Motohiro wrote:
+> > > > I'm sorry for the long delay.
+> > > > 
+> > > > > On Sat, Nov 14, 2009 at 06:34:23PM +0900, KOSAKI Motohiro wrote:
+> > > > > > 2009/11/14 Mel Gorman <mel@csn.ul.ie>:
+> > > > > > > On Sat, Nov 14, 2009 at 03:00:57AM +0900, KOSAKI Motohiro wrote:
+> > > > > > >> > On Fri, Nov 13, 2009 at 07:43:09PM +0900, KOSAKI Motohiro wrote:
+> > > > > > >> > > > After kswapd balances all zones in a pgdat, it goes to sleep. In the event
+> > > > > > >> > > > of no IO congestion, kswapd can go to sleep very shortly after the high
+> > > > > > >> > > > watermark was reached. If there are a constant stream of allocations from
+> > > > > > >> > > > parallel processes, it can mean that kswapd went to sleep too quickly and
+> > > > > > >> > > > the high watermark is not being maintained for sufficient length time.
+> > > > > > >> > > >
+> > > > > > >> > > > This patch makes kswapd go to sleep as a two-stage process. It first
+> > > > > > >> > > > tries to sleep for HZ/10. If it is woken up by another process or the
+> > > > > > >> > > > high watermark is no longer met, it's considered a premature sleep and
+> > > > > > >> > > > kswapd continues work. Otherwise it goes fully to sleep.
+> > > > > > >> > > >
+> > > > > > >> > > > This adds more counters to distinguish between fast and slow breaches of
+> > > > > > >> > > > watermarks. A "fast" premature sleep is one where the low watermark was
+> > > > > > >> > > > hit in a very short time after kswapd going to sleep. A "slow" premature
+> > > > > > >> > > > sleep indicates that the high watermark was breached after a very short
+> > > > > > >> > > > interval.
+> > > > > > >> > > >
+> > > > > > >> > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > > > > > >> > >
+> > > > > > >> > > Why do you submit this patch to mainline? this is debugging patch
+> > > > > > >> > > no more and no less.
+> > > > > > >> > >
+> > > > > > >> >
+> > > > > > >> > Do you mean the stats part? The stats are included until such time as the page
+> > > > > > >> > allocator failure reports stop or are significantly reduced. In the event a
+> > > > > > >> > report is received, the value of the counters help determine if kswapd was
+> > > > > > >> > struggling or not. They should be removed once this mess is ironed out.
+> > > > > > >> >
+> > > > > > >> > If there is a preference, I can split out the stats part and send it to
+> > > > > > >> > people with page allocator failure reports for retesting.
+> > > > > > >>
+> > > > > > >> I'm sorry my last mail didn't have enough explanation.
+> > > > > > >> This stats help to solve this issue. I agreed. but after solving this issue,
+> > > > > > >> I don't imagine administrator how to use this stats. if KSWAPD_PREMATURE_FAST or
+> > > > > > >> KSWAPD_PREMATURE_SLOW significantly increased, what should admin do?
+> > > > > > >
+> > > > > > > One possible workaround would be to raise min_free_kbytes while a fix is
+> > > > > > > being worked on.
+> > > > > > 
+> > > > > > Please correct me, if I said wrong thing.
+> > > > > 
+> > > > > You didn't.
+> > > > > 
+> > > > > > if I was admin, I don't watch this stats because kswapd frequently
+> > > > > > wakeup doesn't mean any trouble. instead I watch number of allocation
+> > > > > > failure.
+> > > > > 
+> > > > > The stats are not tracking when kswapd wakes up. It helps track how
+> > > > > quickly the high or low watermarks are going under once kswapd tries to
+> > > > > go back to sleep.
+> > > > 
+> > > > Umm, honestly I'm still puzlled. probably we need go back one step at once.
+> > > > kswapd wake up when memory amount less than low watermark and sleep
+> > > > when memory amount much than high watermask. We need to know 
+> > > > GFP_ATOMIC failure sign.
+> > > > 
+> > > > My point is, kswapd wakeup only happen after kswapd sleeping. but if the system is
+> > > > under heavy pressure and memory amount go up and down between low watermark
+> > > > and high watermark, this stats don't increase at all. IOW, this stats is strong related to
+> > > > high watermark.
+> > > > 
+> > > 
+> > > Yes, this is true but as long as kswapd is awake and doing its job, it
+> > > will continue taking direction on what order it should be reclaiming from
+> > > processes that failed the low_watermark test.  The GFP_ATOMIC allocations
+> > > will be allowed to go under this low watermark but will have informed kswapd
+> > > what order it should be reclaiming at so it stays working.
+> > > 
+> > > A stat that increases between the low and high watermark would indicate
+> > > that memory pressure is there or that the reclaim algorithm is not
+> > > working as expected but that's checking for a different problem.
+> > > 
+> > > What I was looking at was  kswapd going to sleep and the low or min watermarks
+> > > being hit very quickly after that so that kswapd pre-emptively kicks in
+> > > before allocations start failing again.
+> > > 
+> > > > Probaby, min watermark or low watermark are more useful for us.
+> > > 
 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index ab04537..4c5c58b 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -27,6 +27,7 @@
-> >  #include <linux/notifier.h>
-> >  #include <linux/memcontrol.h>
-> >  #include <linux/security.h>
-> > +#include <linux/mempolicy.h>
-> >  
-> >  int sysctl_panic_on_oom;
-> >  int sysctl_oom_kill_allocating_task;
-> > @@ -35,18 +36,30 @@ static DEFINE_SPINLOCK(zone_scan_lock);
-> >  /* #define DEBUG */
-> >  
-> >  /*
-> > - * Is all threads of the target process nodes overlap ours?
-> > + * Do the nodes allowed by any of tsk's threads overlap ours?
-> >   */
-> > -static int has_intersects_mems_allowed(struct task_struct *tsk)
-> > +static int has_intersects_mems_allowed(struct task_struct *tsk,
-> > +						nodemask_t *nodemask)
-> >  {
-> > -	struct task_struct *t;
-> > +	struct task_struct *start = tsk;
-> > +	NODEMASK_ALLOC(nodemask_t, mpol_nodemask, GFP_KERNEL);
-> >  
-> > -	t = tsk;
-> > +	if (!nodemask)
-> > +		mpol_nodemask = NULL;
-> >  	do {
-> > -		if (cpuset_mems_allowed_intersects(current, t))
-> > +		if (mpol_nodemask) {
-> > +			mpol_get(tsk->mempolicy);
-> > +			if (init_nodemask_of_task_mempolicy(tsk, mpol_nodemask) &&
-> > +				nodes_intersects(*nodemask, *mpol_nodemask)) {
-> > +				mpol_put(tsk->mempolicy);
-> > +				return 1;
-> > +			}
-> > +			mpol_put(tsk->mempolicy);
-> > +		}
-> 
-> Hmm this mpol_get()/mpol_put() are necessary under tasklist_lock held ?
 
-They are, we don't hold tasklist_lock while dropping the reference count 
-in do_exit().
 
-> And...I wonder
-> 
-> 	if (!init_nodemask_of_task_mempolicy(tsk, mpol_nodemask))
-> 		return 1; /* this task uses default policy */
-> 
-> 
-> > +		if (cpuset_mems_allowed_intersects(current, tsk))
-> >  			return 1;
-> > -		t = next_thread(t);
-> > -	} while (t != tsk);
-> > +		tsk = next_thread(tsk);
-> > +	} while (tsk != start);
-> >  
-> 
-> Sigh...we has to scan all threads, again.
-> Could you have an idea to improve this ?
-> 
-> For example, 
-> 	mm->mask_of_nodes_which_a_page_was_allocated_on
-> or
->         mm->mask_of_nodes_made_by_some_magical_technique
-> some ?
-> (maybe per-node rss is over kill.)
-> 
 
-The same criticism could be said for the CONSTRAINT_CPUSET.  We don't 
-actually know in either case, mempolicy or cpusets, if memory was ever 
-allocated on a particular node in tsk->mempolicy->v.nodes or 
-tsk->mems_allowed, respectively.  We assume, however, that if a node is 
-included in a mempolicy nodemask or cpuset mems that it is an allowed 
-node to allocate from for all attached tasks (and those tasks aren't 
-solely allocating on a subset) so that killing tasks based on their 
-potential for allocating on oom nodes is actually helpful.
+> > > Why? kswapd is awake between those points.
+> > 
+> > What's difference below (1) and (2)?
+> > 
+> > 1. kswapd() run 100ms and sleep 10ms and run 100ms.
+> > 2. kswapd() run 200ms
+> 
+> Because prior to the patch, once kswapd went to sleep, it would
+> not wake again until the low watermark was reached. There appeared
+> to be a timing issue where congestion_wait() would block kswapd
+> just long enough before checking the high watermark to mean that
+> it stayed awake. This wasn't happening hence the approach of
+> briefly-sleep-after-high-watermark-is-reached-and-double-check-watermarks-are-ok.
 
-> 
-> >  	return 0;
-> >  }
-> > @@ -55,6 +68,8 @@ static int has_intersects_mems_allowed(struct task_struct *tsk)
-> >   * badness - calculate a numeric value for how bad this task has been
-> >   * @p: task struct of which task we should calculate
-> >   * @uptime: current uptime in seconds
-> > + * @constraint: type of oom constraint
-> > + * @nodemask: nodemask passed to page allocator
-> >   *
-> >   * The formula used is relatively simple and documented inline in the
-> >   * function. The main rationale is that we want to select a good task
-> > @@ -70,7 +85,8 @@ static int has_intersects_mems_allowed(struct task_struct *tsk)
-> >   *    of least surprise ... (be careful when you change it)
-> >   */
-> >  
-> > -unsigned long badness(struct task_struct *p, unsigned long uptime)
-> > +unsigned long badness(struct task_struct *p, unsigned long uptime,
-> > +			enum oom_constraint constraint, nodemask_t *nodemask)
-> >  {
-> >  	unsigned long points, cpu_time, run_time;
-> >  	struct mm_struct *mm;
-> > @@ -171,7 +187,9 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
-> >  	 * because p may have allocated or otherwise mapped memory on
-> >  	 * this node before. However it will be less likely.
-> >  	 */
-> > -	if (!has_intersects_mems_allowed(p))
-> > +	if (!has_intersects_mems_allowed(p,
-> > +			constraint == CONSTRAINT_MEMORY_POLICY ? nodemask :
-> > +								 NULL))
-> >  		points /= 8;
-> >  
-> >  	/*
-> > @@ -244,7 +262,8 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
-> >   * (not docbooked, we don't want this one cluttering up the manual)
-> >   */
-> >  static struct task_struct *select_bad_process(unsigned long *ppoints,
-> > -						struct mem_cgroup *mem)
-> > +			struct mem_cgroup *mem, enum oom_constraint constraint,
-> > +			nodemask_t *nodemask)
-> >  {
-> >  	struct task_struct *p;
-> >  	struct task_struct *chosen = NULL;
-> > @@ -300,7 +319,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
-> >  		if (p->signal->oom_adj == OOM_DISABLE)
-> >  			continue;
-> >  
-> > -		points = badness(p, uptime.tv_sec);
-> > +		points = badness(p, uptime.tv_sec, constraint, nodemask);
-> >  		if (points > *ppoints || !chosen) {
-> >  			chosen = p;
-> >  			*ppoints = points;
-> > @@ -472,7 +491,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
-> >  
-> >  	read_lock(&tasklist_lock);
-> >  retry:
-> > -	p = select_bad_process(&points, mem);
-> > +	p = select_bad_process(&points, mem, NULL);
-> >  	if (PTR_ERR(p) == -1UL)
-> >  		goto out;
-> >  
-> > @@ -554,7 +573,8 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
-> >  /*
-> >   * Must be called with tasklist_lock held for read.
-> >   */
-> > -static void __out_of_memory(gfp_t gfp_mask, int order)
-> > +static void __out_of_memory(gfp_t gfp_mask, int order,
-> > +			enum oom_constraint constraint, nodemask_t *nodemask)
-> >  {
-> >  	struct task_struct *p;
-> >  	unsigned long points;
-> > @@ -568,7 +588,7 @@ retry:
-> >  	 * Rambo mode: Shoot down a process and hope it solves whatever
-> >  	 * issues we may have.
-> >  	 */
-> > -	p = select_bad_process(&points, NULL);
-> > +	p = select_bad_process(&points, NULL, constraint, nodemask);
-> >  
-> >  	if (PTR_ERR(p) == -1UL)
-> >  		return;
-> > @@ -609,7 +629,8 @@ void pagefault_out_of_memory(void)
-> >  		panic("out of memory from page fault. panic_on_oom is selected.\n");
-> >  
-> >  	read_lock(&tasklist_lock);
-> > -	__out_of_memory(0, 0); /* unknown gfp_mask and order */
-> > +	/* unknown gfp_mask and order */
-> > +	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
-> >  	read_unlock(&tasklist_lock);
-> >  
-> >  	/*
-> > @@ -656,11 +677,6 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-> >  	read_lock(&tasklist_lock);
-> >  
-> >  	switch (constraint) {
-> > -	case CONSTRAINT_MEMORY_POLICY:
-> > -		oom_kill_process(current, gfp_mask, order, 0, NULL,
-> > -				"No available memory (MPOL_BIND)");
-> > -		break;
-> > -
-> >  	case CONSTRAINT_NONE:
-> >  		if (sysctl_panic_on_oom) {
-> >  			dump_header(gfp_mask, order, NULL);
-> > @@ -668,7 +684,8 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-> >  		}
-> >  		/* Fall-through */
-> >  	case CONSTRAINT_CPUSET:
-> > -		__out_of_memory(gfp_mask, order);
-> > +	case CONSTRAINT_MEMORY_POLICY:
-> > +		__out_of_memory(gfp_mask, order, constraint, nodemask);
-> >  		break;
-> >  	}
-> maybe good. But hmm...does this work well with per-vma mempolicy ?
-> 
-> I wonder
->   mm->mask_of_nodes_made_by_some_magical_technique
-> will be necessary for completeness.
-> 
+You are right.
 
-I think that would probably be rejected because of its implications on the 
-allocation fastpath.  The change here isn't causing the oom killing to be 
-any less ideal; current may never have allocated any memory on its 
-mempolicy nodes prior to the oom and so killing it may be entirely 
-useless.  It's better to use our heuristics for determining the ideal task 
-to kill in that case and restricting our subset of eligible tasks by the 
-same criteria that we use for cpusets.
+> > (1) represent amount memory go beyond high-watermark very shortly and go below
+> > low-watermark right after . (2) represent amount memory neared high-watermark closely, but don't touched,
+> > and probably go blow low-watermark right after.
+> > It's almost same memory pressure. but (1) increase KSWAPD_HIGH_WMARK_HIT_QUICKLY and
+> > (2) don't increase any stat.
+> > 
+> > Thus, We can't think KSWAPD_HIGH_WMARK_HIT_QUICKLY indicate memory pressure.
+> > 
+> 
+> It indicates mild memory pressure because the high watermark was only
+> reached for a short period of time.
+> 
+> > > > # of called wake_all_kswapd() is related to low watermark. and It's conteniously
+> > > > increase although the system have strong memroy pressure. I'm ok.
+> > > > KSWAPD_NO_CONGESTION_WAIT is related to min watermark. I'm ok too..
+> > > > # of page allocation failure is related to  min watermark too. I'm ok too.
+> > > > 
+> > > > IOW, I only dislike this stat stop increase strong memory pressure (above explanation).
+> > > > Can you please tell me why you think kswapd slept time is so important?
+> > > 
+> > > I don't think the amount of time it has slept is important. I think it's
+> > > important to know if the system is getting back into watermark trouble very
+> > > shortly after kswapd reached the high watermark.
+> > 
+> > Probably, My last mail doesn't take kindly explanation.
+> > My point is, beyond high-watermark or not doesn't indicate any meaningful 
+> > phenomenon.
+> > 
+> > Then, I'd prefer low or min-watermark related stats.
+> 
+> What would that have to do with the kswapd-briefly-sleep logic? i.e. the
+> stats you are suggesting, while meaningful, are for looking at a
+> different type of problem. If you want those stats, then I should revert
+> the stats part of this patch altogether. Does that then mean you also
+> want the patch that makes kswapd double check watermarks to be dropped
+> or just have no associated stats to see what it's doing in the event of
+> allocation failure?
+
+Yes, you talked right thing.
+
+After awhile thinking (and one night good sleeping), I conclude I should not enforce
+my personal preference any more. I'm sorry. 
+
+Honestly, I haven't understand this stats usage. but the stats is not core
+piece in this patch concept.  we sholdn't get stuck small issue.
+
+then, I'll review your latest patch soon.
+
+Thanks.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
