@@ -1,91 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6F8716B006A
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 11:35:06 -0500 (EST)
-Date: Wed, 18 Nov 2009 16:34:51 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH]  [for mmotm-1113] mm: Simplify try_to_unmap_one()
-In-Reply-To: <20091117173759.3DF6.A69D9226@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0911181633120.29205@sister.anvils>
-References: <20091117173759.3DF6.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C54D6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 12:12:36 -0500 (EST)
+Date: Wed, 18 Nov 2009 18:12:32 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: unconditional discard calls in the swap code
+Message-ID: <20091118171232.GB25541@lst.de>
+References: <20091030065102.GA2896@lst.de> <Pine.LNX.4.64.0910301629030.4106@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0910301629030.4106@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Christoph Hellwig <hch@lst.de>, Jens Axboe <jens.axboe@oracle.com>, Matthew Wilcox <matthew@wil.cx>, linux-mm@kvack.org, linux-scsi@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Nov 2009, KOSAKI Motohiro wrote:
+On Fri, Oct 30, 2009 at 05:26:18PM +0000, Hugh Dickins wrote:
+> Yes, in practice TRIM seems a huge disappointment: is there a device on
+> which it is really implemented, and not more trouble than it's worth?
+> 
+> I'd been waiting for OCZ to get a Vertex 1.4* firmware out of Beta
+> before looking at swap discard again; but even then, the Linux ATA
+> support is still up in the air, so far as I know.
 
-> SWAP_MLOCK mean "We marked the page as PG_MLOCK, please move it to
-> unevictable-lru". So, following code is easy confusable.
-> 
->         if (vma->vm_flags & VM_LOCKED) {
->                 ret = SWAP_MLOCK;
->                 goto out_unmap;
->         }
-> 
-> Plus, if the VMA doesn't have VM_LOCKED, We don't need to check
-> the needed of calling mlock_vma_page().
-> 
-> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+I've tied it up now for libata, and testing with the releases OCZ 1.4
+firmware.  Haven't tested anything else yet except for my own
+implementations of TRIM and WRITE SAME in qemu which are a lot faster
+than real hardware.
 
-Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-
-> ---
->  mm/rmap.c |   26 +++++++++++++-------------
->  1 files changed, 13 insertions(+), 13 deletions(-)
 > 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 82e31fb..70dec01 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -779,10 +779,9 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  	 * skipped over this mm) then we should reactivate it.
->  	 */
->  	if (!(flags & TTU_IGNORE_MLOCK)) {
-> -		if (vma->vm_flags & VM_LOCKED) {
-> -			ret = SWAP_MLOCK;
-> -			goto out_unmap;
-> -		}
-> +		if (vma->vm_flags & VM_LOCKED)
-> +			goto out_mlock;
-> +
->  		if (TTU_ACTION(flags) == TTU_MUNLOCK)
->  			goto out_unmap;
->  	}
-> @@ -855,18 +854,19 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  
->  out_unmap:
->  	pte_unmap_unlock(pte, ptl);
-> +out:
-> +	return ret;
->  
-> -	if (ret == SWAP_MLOCK) {
-> -		ret = SWAP_AGAIN;
-> -		if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
-> -			if (vma->vm_flags & VM_LOCKED) {
-> -				mlock_vma_page(page);
-> -				ret = SWAP_MLOCK;
-> -			}
-> -			up_read(&vma->vm_mm->mmap_sem);
-> +out_mlock:
-> +	pte_unmap_unlock(pte, ptl);
-> +
-> +	if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
-> +		if (vma->vm_flags & VM_LOCKED) {
-> +			mlock_vma_page(page);
-> +			ret = SWAP_MLOCK;
->  		}
-> +		up_read(&vma->vm_mm->mmap_sem);
->  	}
-> -out:
->  	return ret;
->  }
->  
-> -- 
-> 1.6.2.5
+> You don't mention swap's discard of the whole partition (or all
+> extents of the swapfile) at swapon time: do you believe that usage
+> is okay to retain?  Is it likely on some devices to take so long,
+> that I ought to make it asynchronous?
+
+The use on swapon seems fine - we've also added support to discard
+on mkfs which is generally fast enough - the existing implementations
+seem to have mostly constant overhead, the more blocks your discard,
+the better.
+
+> Assuming that initial swap discard is good, I wonder whether just
+> to revert the discard of swap clusters for now: until such time as
+> we find devices (other than mtd) that can implement it efficiently.
+> 
+> If we do retain the discard of swap clusters, under something more
+> than an #if 0, any ideas for what I should make it conditional upon?
+
+add a sysctl / sysfs tunable for it?  For all filesystems we now have
+patches pending to require and -o discard option to use it, which will
+be quite nessecary for 2.6.33 where all the block layer / scsi layer /
+libata support will fall into place.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
