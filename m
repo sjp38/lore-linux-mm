@@ -1,52 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 65E246B004D
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 01:31:24 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAI6VLHE011845
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 077EA6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 03:56:53 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAI8upTA030094
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 18 Nov 2009 15:31:21 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5577B45DE57
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:31:21 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id EB40C45DE55
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:31:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B932A1DB8043
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:31:20 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CB0B1DB805E
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:31:20 +0900 (JST)
+	Wed, 18 Nov 2009 17:56:51 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C889C45DE4F
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 17:56:50 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AA36145DE4E
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 17:56:50 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9666AE08002
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 17:56:50 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4920AE38003
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 17:56:47 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 6/7] cifs: Don't use PF_MEMALLOC
-In-Reply-To: <524f69650911170840o5be241a0q5d9863c8d7f4e571@mail.gmail.com>
-References: <20091117074739.4abaef85@tlielax.poochiereds.net> <524f69650911170840o5be241a0q5d9863c8d7f4e571@mail.gmail.com>
-Message-Id: <20091118152007.3E1D.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 7/7] xfs: Don't use PF_MEMALLOC
+In-Reply-To: <20091117221108.GK9467@discord.disaster>
+References: <20091117162235.3DEB.A69D9226@jp.fujitsu.com> <20091117221108.GK9467@discord.disaster>
+Message-Id: <20091118153302.3E20.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 18 Nov 2009 15:31:19 +0900 (JST)
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Wed, 18 Nov 2009 17:56:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Steve French <smfrench@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Jeff Layton <jlayton@redhat.com>, LKML <linux-kernel@vger.kernel.org>, samba-technical@lists.samba.org, Steve French <sfrench@samba.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-cifs-client@lists.samba.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, xfs-masters@oss.sgi.com, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-> It is hard to follow exactly what this flag does in /mm (other than try
-> harder on memory allocations) - I haven't found much about this flag (e.g.
-> http://lwn.net/Articles/246928/) but it does look like most of the fs no
-> longer set this (except xfs) e.g. ext3_ordered_writepage.  When running out
-> of memory in the cifs_demultiplex_thread it will retry 3 seconds later, but
-> if memory allocations ever fail in this path we could potentially be holding
-> up (an already issued write in) writepages for that period by not having
-> memory to get the response to see if the write succeeded.
+> On Tue, Nov 17, 2009 at 04:23:43PM +0900, KOSAKI Motohiro wrote:
+> > 
+> > Non MM subsystem must not use PF_MEMALLOC. Memory reclaim need few
+> > memory, anyone must not prevent it. Otherwise the system cause
+> > mysterious hang-up and/or OOM Killer invokation.
 > 
-> We pass in few flags for these memory allocation requests: GFP_NOFS (on the
-> mempool_alloc) and SLAB_HWCACHE_ALIGN (on the kmem_cache_create of the pool)
-> should we be passing in other flags on the allocations?
+> The xfsbufd is a woken run by a registered memory shaker. i.e. it
+> runs when the system needs to reclaim memory. It forceN? the
+> delayed write metadata buffers (of which there can be a lot) to disk
+> so that they can be reclaimed on IO completion. This IO submission
+> may require N?ome memory to be allocated to be able to free that
+> memory.
+> 
+> Hence, AFAICT the use of PF_MEMALLOC is valid here.
 
-I don't think you  need change more.
+Thanks a lot. 
+I have one additional question, may I ask you?
 
+How can we calculate maximum memory usage in xfsbufd?
+I'm afraid that VM and XFS works properly but adding two makes memory exhaust.
+
+And, I conclude XFS doesn't need sharing reservation memory with VM,
+it only need non failed allocation. right? IOW I'm prefer perter's
+suggestion.
 
 
 --
