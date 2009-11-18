@@ -1,84 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0843D6B004D
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 01:17:57 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 65E246B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 01:31:24 -0500 (EST)
 Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAI6Ht4Q005871
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAI6VLHE011845
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 18 Nov 2009 15:17:56 +0900
+	Wed, 18 Nov 2009 15:31:21 +0900
 Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 838B445DE3E
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:17:55 +0900 (JST)
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5577B45DE57
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:31:21 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F31B45DE52
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:17:55 +0900 (JST)
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id EB40C45DE55
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:31:20 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 332D71DB803C
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:17:55 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D2EDC1DB803F
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:17:54 +0900 (JST)
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B932A1DB8043
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:31:20 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CB0B1DB805E
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:31:20 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/7] dm: use __GFP_HIGH instead PF_MEMALLOC
-In-Reply-To: <20091117131527.GB6644@agk-dp.fab.redhat.com>
-References: <20091117161616.3DD7.A69D9226@jp.fujitsu.com> <20091117131527.GB6644@agk-dp.fab.redhat.com>
-Message-Id: <20091118145621.3E1A.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 6/7] cifs: Don't use PF_MEMALLOC
+In-Reply-To: <524f69650911170840o5be241a0q5d9863c8d7f4e571@mail.gmail.com>
+References: <20091117074739.4abaef85@tlielax.poochiereds.net> <524f69650911170840o5be241a0q5d9863c8d7f4e571@mail.gmail.com>
+Message-Id: <20091118152007.3E1D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 18 Nov 2009 15:17:54 +0900 (JST)
+Date: Wed, 18 Nov 2009 15:31:19 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, dm-devel@redhat.com
+To: Steve French <smfrench@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Jeff Layton <jlayton@redhat.com>, LKML <linux-kernel@vger.kernel.org>, samba-technical@lists.samba.org, Steve French <sfrench@samba.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-cifs-client@lists.samba.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> It is hard to follow exactly what this flag does in /mm (other than try
+> harder on memory allocations) - I haven't found much about this flag (e.g.
+> http://lwn.net/Articles/246928/) but it does look like most of the fs no
+> longer set this (except xfs) e.g. ext3_ordered_writepage.  When running out
+> of memory in the cifs_demultiplex_thread it will retry 3 seconds later, but
+> if memory allocations ever fail in this path we could potentially be holding
+> up (an already issued write in) writepages for that period by not having
+> memory to get the response to see if the write succeeded.
+> 
+> We pass in few flags for these memory allocation requests: GFP_NOFS (on the
+> mempool_alloc) and SLAB_HWCACHE_ALIGN (on the kmem_cache_create of the pool)
+> should we be passing in other flags on the allocations?
 
-Thank you for give me comment.
-
-> On Tue, Nov 17, 2009 at 04:17:07PM +0900, KOSAKI Motohiro wrote:
-> > Non MM subsystem must not use PF_MEMALLOC. Memory reclaim need few
-> > memory, anyone must not prevent it. Otherwise the system cause
-> > mysterious hang-up and/or OOM Killer invokation.
->  
-> This code is also on the critical path, for example, if you are swapping
-> onto a dm device.  (There are ways we could reduce its use further as
-> not every dm ioctl needs to be on the critical path and the buffer size
-> could be limited for the ioctls that do.)
-
-May I ask one additional question?
-Original code is here.
-
-	-------------------------------------------------------
-        /*
-         * Trying to avoid low memory issues when a device is
-         * suspended.
-         */
-        current->flags |= PF_MEMALLOC;
-
-        /*
-         * Copy the parameters into kernel space.
-         */
-        r = copy_params(user, &param);
-
-        current->flags &= ~PF_MEMALLOC;
-	-------------------------------------------------------
-
-but PF_MEMALLOC doesn't gurantee allocation successfull. In your case,
-mempoll seems better to me. copy_params seems enough small function 
-and we can rewrite it. Why didn't you use mempool?
-
-Am I missing something?
-
-
-> But what situations have been causing you trouble?  The OOM killer must
-> generally avoid killing userspace processes that suspend & resume dm
-> devices, and there are tight restrictions on what those processes
-> can do safely between suspending and resuming.
-
-No. This is theorical issue. but I really want to avoid stress weakness
-kernel.
-
-
+I don't think you  need change more.
 
 
 
