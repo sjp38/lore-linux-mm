@@ -1,63 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CB1E86B004D
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 00:55:57 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAI5ttSk029170
+	by kanga.kvack.org (Postfix) with SMTP id 0843D6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 01:17:57 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAI6Ht4Q005871
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 18 Nov 2009 14:55:55 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 89B0B45DE4E
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 14:55:55 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E2B145DE4C
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 14:55:55 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 577791DB8037
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 14:55:55 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 079B71DB8042
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 14:55:52 +0900 (JST)
+	Wed, 18 Nov 2009 15:17:56 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 838B445DE3E
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:17:55 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F31B45DE52
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:17:55 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 332D71DB803C
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:17:55 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D2EDC1DB803F
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 15:17:54 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/7] Kill PF_MEMALLOC abuse
-In-Reply-To: <1258491379.3918.48.camel@laptop>
-References: <20091117172802.3DF4.A69D9226@jp.fujitsu.com> <1258491379.3918.48.camel@laptop>
-Message-Id: <20091118144418.3E17.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 1/7] dm: use __GFP_HIGH instead PF_MEMALLOC
+In-Reply-To: <20091117131527.GB6644@agk-dp.fab.redhat.com>
+References: <20091117161616.3DD7.A69D9226@jp.fujitsu.com> <20091117131527.GB6644@agk-dp.fab.redhat.com>
+Message-Id: <20091118145621.3E1A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed, 18 Nov 2009 14:55:51 +0900 (JST)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 18 Nov 2009 15:17:54 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, dm-devel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 2009-11-17 at 17:33 +0900, KOSAKI Motohiro wrote:
-> > 
-> > if there is so such reason. we might need to implement another MM trick.
-> > but keeping this strage usage is not a option. All memory freeing activity
-> > (e.g. page out, task killing) need some memory. we need to protect its
-> > emergency memory. otherwise linux reliability decrease dramatically when
-> > the system face to memory stress. 
-> 
-> In general PF_MEMALLOC is a particularly bad idea, even for the VM when
-> not coupled with limiting the consumption. That is one should make an
-> upper-bound estimation of the memory needed for a writeout-path per
-> page, and reserve a small multiple thereof, and limit the number of
-> pages written out so as to never exceed this estimate.
-> 
-> If the current mempool interface isn't sufficient (not hard to imagine),
-> look at the swap over NFS patch-set, that includes a much more able
-> reservation scheme, and accounting framework.
+Hi,
 
-Yes, I agree.
+Thank you for give me comment.
 
-In this discussion, some people explained why their subsystem need
-emergency memory, but nobody claim sharing memory pool against VM and
-surely want to stop reclaim (PF_MEMALLOC's big side effect).
+> On Tue, Nov 17, 2009 at 04:17:07PM +0900, KOSAKI Motohiro wrote:
+> > Non MM subsystem must not use PF_MEMALLOC. Memory reclaim need few
+> > memory, anyone must not prevent it. Otherwise the system cause
+> > mysterious hang-up and/or OOM Killer invokation.
+>  
+> This code is also on the critical path, for example, if you are swapping
+> onto a dm device.  (There are ways we could reduce its use further as
+> not every dm ioctl needs to be on the critical path and the buffer size
+> could be limited for the ioctls that do.)
 
-OK. I try to review your patch carefully and remake this patch series on top
-your reservation framework in swap-over-nfs patch series.
+May I ask one additional question?
+Original code is here.
+
+	-------------------------------------------------------
+        /*
+         * Trying to avoid low memory issues when a device is
+         * suspended.
+         */
+        current->flags |= PF_MEMALLOC;
+
+        /*
+         * Copy the parameters into kernel space.
+         */
+        r = copy_params(user, &param);
+
+        current->flags &= ~PF_MEMALLOC;
+	-------------------------------------------------------
+
+but PF_MEMALLOC doesn't gurantee allocation successfull. In your case,
+mempoll seems better to me. copy_params seems enough small function 
+and we can rewrite it. Why didn't you use mempool?
+
+Am I missing something?
+
+
+> But what situations have been causing you trouble?  The OOM killer must
+> generally avoid killing userspace processes that suspend & resume dm
+> devices, and there are tight restrictions on what those processes
+> can do safely between suspending and resuming.
+
+No. This is theorical issue. but I really want to avoid stress weakness
+kernel.
+
+
 
 
 
