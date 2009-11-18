@@ -1,79 +1,332 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id CB3C56B004D
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 19:01:12 -0500 (EST)
-Received: by pzk27 with SMTP id 27so367384pzk.12
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:01:11 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D51B96B004D
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 19:12:10 -0500 (EST)
+Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
+	by smtp-out.google.com with ESMTP id nAI0C61i001857
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:12:06 -0800
+Received: from pzk14 (pzk14.prod.google.com [10.243.19.142])
+	by spaceape10.eur.corp.google.com with ESMTP id nAI0C2nJ004511
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:12:03 -0800
+Received: by pzk14 with SMTP id 14so352896pzk.23
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2009 16:12:02 -0800 (PST)
+Date: Tue, 17 Nov 2009 16:11:58 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask
+ v4.2
+In-Reply-To: <20091111153414.3c263842.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0911171609370.12532@chino.kir.corp.google.com>
+References: <20091110162121.361B.A69D9226@jp.fujitsu.com> <20091110162445.c6db7521.kamezawa.hiroyu@jp.fujitsu.com> <20091110163419.361E.A69D9226@jp.fujitsu.com> <20091110164055.a1b44a4b.kamezawa.hiroyu@jp.fujitsu.com> <20091110170338.9f3bb417.nishimura@mxp.nes.nec.co.jp>
+ <20091110171704.3800f081.kamezawa.hiroyu@jp.fujitsu.com> <20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com> <20091111134514.4edd3011.kamezawa.hiroyu@jp.fujitsu.com> <20091111142811.eb16f062.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.0911102155580.2924@chino.kir.corp.google.com> <20091111152004.3d585cee.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0911102224440.6652@chino.kir.corp.google.com> <20091111153414.3c263842.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1258490826.3918.29.camel@laptop>
-References: <20091117161711.3DDA.A69D9226@jp.fujitsu.com>
-	 <20091117102903.7cb45ff3@lxorguk.ukuu.org.uk>
-	 <20091117200618.3DFF.A69D9226@jp.fujitsu.com>
-	 <4B029C40.2020803@gmail.com> <1258490826.3918.29.camel@laptop>
-Date: Wed, 18 Nov 2009 09:01:11 +0900
-Message-ID: <28c262360911171601u618ca555o1dd51ea19168575e@mail.gmail.com>
-Subject: Re: [PATCH 2/7] mmc: Don't use PF_MEMALLOC
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mmc@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Peter.
+On Wed, 11 Nov 2009, KAMEZAWA Hiroyuki wrote:
 
-First of all, Thanks for the commenting.
+> Fixing node-oriented allocation handling in oom-kill.c
+> I myself think this as bugfix not as ehnancement.
+> 
+> In these days, things are changed as
+>   - alloc_pages() eats nodemask as its arguments, __alloc_pages_nodemask().
+>   - mempolicy don't maintain its own private zonelists.
+>   (And cpuset doesn't use nodemask for __alloc_pages_nodemask())
+> 
+> So, current oom-killer's check function is wrong.
+> 
+> This patch does
+>   - check nodemask, if nodemask && nodemask doesn't cover all
+>     node_states[N_HIGH_MEMORY], this is CONSTRAINT_MEMORY_POLICY.
+>   - Scan all zonelist under nodemask, if it hits cpuset's wall
+>     this faiulre is from cpuset.
+> And
+>   - modifies the caller of out_of_memory not to call oom if __GFP_THISNODE.
+>     This doesn't change "current" behavior. If callers use __GFP_THISNODE
+>     it should handle "page allocation failure" by itself.
+> 
+>   - handle __GFP_NOFAIL+__GFP_THISNODE path.
+>     This is something like a FIXME but this gfpmask is not used now.
+> 
 
-On Wed, Nov 18, 2009 at 5:47 AM, Peter Zijlstra <peterz@infradead.org> wrot=
-e:
-> On Tue, 2009-11-17 at 21:51 +0900, Minchan Kim wrote:
->> I think it's because mempool reserves memory.
->> (# of I/O issue\0 is hard to be expected.
->> How do we determine mempool size of each block driver?
->> For example, =C2=A0maybe, server use few I/O for nand.
->> but embedded system uses a lot of I/O.
->
-> No, you scale the mempool to the minimum amount required to make
-> progress -- this includes limiting the 'concurrency' when handing out
-> mempool objects.
->
-> If you run into such tight corners often enough to notice it, there's
-> something else wrong.
->
-> I fully agree with ripping out PF_MEMALLOC from pretty much everything,
-> including the VM, getting rid of the various abuse outside of the VM
-> seems like a very good start.
->
+Now that we're passing the nodemask into the oom killer, we should be able 
+to do more intelligent CONSTRAINT_MEMORY_POLICY selection.  current is not 
+always the ideal task to kill, so it's better to scan the tasklist and 
+determine the best task depending on our heuristics, similiar to how we 
+penalize candidates if they do not share the same cpuset.
 
-I am not against removing PF_MEMALLOC.
-Totally, I agree to prevent abusing of PF_MEMALLOC.
-
-What I have a concern is per-block mempool.
-Although it's minimum amount of mempool, it can be increased
-by adding new block driver. I am not sure how many we will have block drive=
-r.
-
-And, person who develop new driver always have to use mempool and consider
-what is minimum of mempool.
-I think this is a problem of mempool, now.
-
-How about this?
-According to system memory, kernel have just one mempool for I/O which
-is one shared by several block driver.
-
-And we make new API block driver can use.
-Of course, as usual It can use dynamic memoy. Only it can use mempool if
-system don't have much dynamic memory.
-
-In this case, we can control read/write path. read I/O can't help
-memory reclaiming.
-So I think read I/O don't use mempool, I am not sure. :)
-
-
---=20
-Kind regards,
-Minchan Kim
+Something like the following (untested) patch.  Comments?
+---
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -201,7 +201,9 @@ extern void mpol_fix_fork_child_flag(struct task_struct *p);
+ extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+ 				unsigned long addr, gfp_t gfp_flags,
+ 				struct mempolicy **mpol, nodemask_t **nodemask);
+-extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
++extern bool init_nodemask_of_task_mempolicy(struct task_struct *tsk,
++				nodemask_t *mask);
++extern bool init_nodemask_of_current_mempolicy(nodemask_t *mask);
+ extern unsigned slab_node(struct mempolicy *policy);
+ 
+ extern enum zone_type policy_zone;
+@@ -329,7 +331,16 @@ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+ 	return node_zonelist(0, gfp_flags);
+ }
+ 
+-static inline bool init_nodemask_of_mempolicy(nodemask_t *m) { return false; }
++static inline bool init_nodemask_of_task_mempolicy(struct task_struct *tsk,
++							nodemask_t *mask)
++{
++	return false;
++}
++
++static inline bool init_nodemask_of_current_mempolicy(nodemask_t *mask)
++{
++	return false;
++}
+ 
+ static inline int do_migrate_pages(struct mm_struct *mm,
+ 			const nodemask_t *from_nodes,
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index ed3f392..3ab3021 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1373,7 +1373,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 		 * global hstate attribute
+ 		 */
+ 		if (!(obey_mempolicy &&
+-				init_nodemask_of_mempolicy(nodes_allowed))) {
++			init_nodemask_of_current_mempolicy(nodes_allowed))) {
+ 			NODEMASK_FREE(nodes_allowed);
+ 			nodes_allowed = &node_states[N_HIGH_MEMORY];
+ 		}
+@@ -1860,7 +1860,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+ 		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
+ 						GFP_KERNEL | __GFP_NORETRY);
+ 		if (!(obey_mempolicy &&
+-			       init_nodemask_of_mempolicy(nodes_allowed))) {
++			init_nodemask_of_current_mempolicy(nodes_allowed))) {
+ 			NODEMASK_FREE(nodes_allowed);
+ 			nodes_allowed = &node_states[N_HIGH_MEMORY];
+ 		}
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index f11fdad..23c84bb 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1568,24 +1568,18 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
+ 	}
+ 	return zl;
+ }
++#endif
+ 
+ /*
+- * init_nodemask_of_mempolicy
+- *
+- * If the current task's mempolicy is "default" [NULL], return 'false'
+- * to indicate default policy.  Otherwise, extract the policy nodemask
+- * for 'bind' or 'interleave' policy into the argument nodemask, or
+- * initialize the argument nodemask to contain the single node for
+- * 'preferred' or 'local' policy and return 'true' to indicate presence
+- * of non-default mempolicy.
+- *
+- * We don't bother with reference counting the mempolicy [mpol_get/put]
+- * because the current task is examining it's own mempolicy and a task's
+- * mempolicy is only ever changed by the task itself.
++ * If tsk's mempolicy is "default" [NULL], return 'false' to indicate default
++ * policy.  Otherwise, extract the policy nodemask for 'bind' or 'interleave'
++ * policy into the argument nodemask, or initialize the argument nodemask to
++ * contain the single node for 'preferred' or 'local' policy and return 'true'
++ * to indicate presence of non-default mempolicy.
+  *
+  * N.B., it is the caller's responsibility to free a returned nodemask.
+  */
+-bool init_nodemask_of_mempolicy(nodemask_t *mask)
++bool init_nodemask_of_task_mempolicy(struct task_struct *tsk, nodemask_t *mask)
+ {
+ 	struct mempolicy *mempolicy;
+ 	int nid;
+@@ -1615,7 +1609,16 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
+ 
+ 	return true;
+ }
+-#endif
++
++/*
++ * We don't bother with reference counting the mempolicy [mpol_get/put]
++ * because the current task is examining it's own mempolicy and a task's
++ * mempolicy is only ever changed by the task itself.
++ */
++bool init_nodemask_of_current_mempolicy(nodemask_t *mask)
++{
++	return init_nodemask_of_task_mempolicy(current, mask);
++}
+ 
+ /* Allocate a page in interleaved policy.
+    Own path because it needs to do special accounting. */
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index ab04537..4c5c58b 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -27,6 +27,7 @@
+ #include <linux/notifier.h>
+ #include <linux/memcontrol.h>
+ #include <linux/security.h>
++#include <linux/mempolicy.h>
+ 
+ int sysctl_panic_on_oom;
+ int sysctl_oom_kill_allocating_task;
+@@ -35,18 +36,30 @@ static DEFINE_SPINLOCK(zone_scan_lock);
+ /* #define DEBUG */
+ 
+ /*
+- * Is all threads of the target process nodes overlap ours?
++ * Do the nodes allowed by any of tsk's threads overlap ours?
+  */
+-static int has_intersects_mems_allowed(struct task_struct *tsk)
++static int has_intersects_mems_allowed(struct task_struct *tsk,
++						nodemask_t *nodemask)
+ {
+-	struct task_struct *t;
++	struct task_struct *start = tsk;
++	NODEMASK_ALLOC(nodemask_t, mpol_nodemask, GFP_KERNEL);
+ 
+-	t = tsk;
++	if (!nodemask)
++		mpol_nodemask = NULL;
+ 	do {
+-		if (cpuset_mems_allowed_intersects(current, t))
++		if (mpol_nodemask) {
++			mpol_get(tsk->mempolicy);
++			if (init_nodemask_of_task_mempolicy(tsk, mpol_nodemask) &&
++				nodes_intersects(*nodemask, *mpol_nodemask)) {
++				mpol_put(tsk->mempolicy);
++				return 1;
++			}
++			mpol_put(tsk->mempolicy);
++		}
++		if (cpuset_mems_allowed_intersects(current, tsk))
+ 			return 1;
+-		t = next_thread(t);
+-	} while (t != tsk);
++		tsk = next_thread(tsk);
++	} while (tsk != start);
+ 
+ 	return 0;
+ }
+@@ -55,6 +68,8 @@ static int has_intersects_mems_allowed(struct task_struct *tsk)
+  * badness - calculate a numeric value for how bad this task has been
+  * @p: task struct of which task we should calculate
+  * @uptime: current uptime in seconds
++ * @constraint: type of oom constraint
++ * @nodemask: nodemask passed to page allocator
+  *
+  * The formula used is relatively simple and documented inline in the
+  * function. The main rationale is that we want to select a good task
+@@ -70,7 +85,8 @@ static int has_intersects_mems_allowed(struct task_struct *tsk)
+  *    of least surprise ... (be careful when you change it)
+  */
+ 
+-unsigned long badness(struct task_struct *p, unsigned long uptime)
++unsigned long badness(struct task_struct *p, unsigned long uptime,
++			enum oom_constraint constraint, nodemask_t *nodemask)
+ {
+ 	unsigned long points, cpu_time, run_time;
+ 	struct mm_struct *mm;
+@@ -171,7 +187,9 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+ 	 * because p may have allocated or otherwise mapped memory on
+ 	 * this node before. However it will be less likely.
+ 	 */
+-	if (!has_intersects_mems_allowed(p))
++	if (!has_intersects_mems_allowed(p,
++			constraint == CONSTRAINT_MEMORY_POLICY ? nodemask :
++								 NULL))
+ 		points /= 8;
+ 
+ 	/*
+@@ -244,7 +262,8 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+  * (not docbooked, we don't want this one cluttering up the manual)
+  */
+ static struct task_struct *select_bad_process(unsigned long *ppoints,
+-						struct mem_cgroup *mem)
++			struct mem_cgroup *mem, enum oom_constraint constraint,
++			nodemask_t *nodemask)
+ {
+ 	struct task_struct *p;
+ 	struct task_struct *chosen = NULL;
+@@ -300,7 +319,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+ 		if (p->signal->oom_adj == OOM_DISABLE)
+ 			continue;
+ 
+-		points = badness(p, uptime.tv_sec);
++		points = badness(p, uptime.tv_sec, constraint, nodemask);
+ 		if (points > *ppoints || !chosen) {
+ 			chosen = p;
+ 			*ppoints = points;
+@@ -472,7 +491,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+ 
+ 	read_lock(&tasklist_lock);
+ retry:
+-	p = select_bad_process(&points, mem);
++	p = select_bad_process(&points, mem, NULL);
+ 	if (PTR_ERR(p) == -1UL)
+ 		goto out;
+ 
+@@ -554,7 +573,8 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
+ /*
+  * Must be called with tasklist_lock held for read.
+  */
+-static void __out_of_memory(gfp_t gfp_mask, int order)
++static void __out_of_memory(gfp_t gfp_mask, int order,
++			enum oom_constraint constraint, nodemask_t *nodemask)
+ {
+ 	struct task_struct *p;
+ 	unsigned long points;
+@@ -568,7 +588,7 @@ retry:
+ 	 * Rambo mode: Shoot down a process and hope it solves whatever
+ 	 * issues we may have.
+ 	 */
+-	p = select_bad_process(&points, NULL);
++	p = select_bad_process(&points, NULL, constraint, nodemask);
+ 
+ 	if (PTR_ERR(p) == -1UL)
+ 		return;
+@@ -609,7 +629,8 @@ void pagefault_out_of_memory(void)
+ 		panic("out of memory from page fault. panic_on_oom is selected.\n");
+ 
+ 	read_lock(&tasklist_lock);
+-	__out_of_memory(0, 0); /* unknown gfp_mask and order */
++	/* unknown gfp_mask and order */
++	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
+ 	read_unlock(&tasklist_lock);
+ 
+ 	/*
+@@ -656,11 +677,6 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	read_lock(&tasklist_lock);
+ 
+ 	switch (constraint) {
+-	case CONSTRAINT_MEMORY_POLICY:
+-		oom_kill_process(current, gfp_mask, order, 0, NULL,
+-				"No available memory (MPOL_BIND)");
+-		break;
+-
+ 	case CONSTRAINT_NONE:
+ 		if (sysctl_panic_on_oom) {
+ 			dump_header(gfp_mask, order, NULL);
+@@ -668,7 +684,8 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		}
+ 		/* Fall-through */
+ 	case CONSTRAINT_CPUSET:
+-		__out_of_memory(gfp_mask, order);
++	case CONSTRAINT_MEMORY_POLICY:
++		__out_of_memory(gfp_mask, order, constraint, nodemask);
+ 		break;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
