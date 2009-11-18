@@ -1,112 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E83C86B004D
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 08:55:43 -0500 (EST)
-Received: by pxi5 with SMTP id 5so772955pxi.12
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2009 05:55:42 -0800 (PST)
-Date: Wed, 18 Nov 2009 22:17:56 +0800
-From: JiSheng Zhang <jszhang3@gmail.com>
-Subject: Re: [BUG]2.6.27.y some contents lost after writing to mmaped file
-Message-ID: <20091118221756.367c005e@ustc>
-In-Reply-To: <20091117190635.GB31105@duck.suse.cz>
-References: <2df346410911151938r1eb5c5e4q9930ac179d61ef01@mail.gmail.com>
-	<20091117015655.GA8683@suse.de>
-	<20091117123622.GI27677@think>
-	<20091117190635.GB31105@duck.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 958A56B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 09:52:10 -0500 (EST)
+From: Jiri Slaby <jslaby@novell.com>
+Subject: [PATCH 09/16] MM: use ACCESS_ONCE for rlimits
+Date: Wed, 18 Nov 2009 15:51:55 +0100
+Message-Id: <1258555922-2064-9-git-send-email-jslaby@novell.com>
+In-Reply-To: <4B040A03.2020508@gmail.com>
+References: <4B040A03.2020508@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: Chris Mason <chris.mason@oracle.com>, Greg KH <gregkh@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, rmk@arm.linux.org.uk, linux-arm@lists.infradead.org
+To: jirislaby@gmail.com
+Cc: mingo@elte.hu, nhorman@tuxdriver.com, sfr@canb.auug.org.au, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, marcin.slusarz@gmail.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, torvalds@linux-foundation.org, Jiri Slaby <jslaby@novell.com>, James Morris <jmorris@namei.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Nov 2009 20:06:35 +0100
-Jan Kara <jack@suse.cz> wrote:
+Make sure compiler won't do weird things with limits. E.g. fetching
+them twice may return 2 different values after writable limits are
+implemented.
 
-> On Tue 17-11-09 07:36:22, Chris Mason wrote:
-> > On Mon, Nov 16, 2009 at 05:56:55PM -0800, Greg KH wrote:
-> > > On Mon, Nov 16, 2009 at 11:38:57AM +0800, JiSheng Zhang wrote:
-> > > > Hi,
-> > > > 
-> > > > I triggered a failure in an fs test with fsx-linux from ltp. It seems that
-> > > > fsx-linux failed at mmap->write sequence.
-> > > > 
-> > > > Tested kernel is 2.6.27.12 and 2.6.27.39
-> > > 
-> > > Does this work on any kernel you have tested?  Or is it a regression?
-> > > 
-> > > > Tested file system: ext3, tmpfs.
-> > > > IMHO, it impacts all file systems.
-> > > > 
-> > > > Some fsx-linux log is:
-> > > > 
-> > > > READ BAD DATA: offset = 0x2771b, size = 0xa28e
-> > > > OFFSET  GOOD    BAD     RANGE
-> > > > 0x287e0 0x35c9  0x15a9     0x80
-> > > > operation# (mod 256) for the bad datamay be 21
-> > > > ...
-> > > > 7828: 1257514978.306753 READ     0x23dba thru 0x25699 (0x18e0 bytes)
-> > > > 7829: 1257514978.306899 MAPWRITE 0x27eeb thru 0x2a516 (0x262c bytes)
-> > > >  ******WWWW
-> > > > 7830: 1257514978.307504 READ     0x2771b thru 0x319a8 (0xa28e bytes)
-> > > >  ***RRRR***
-> > > > Correct content saved for comparison
-> > > > ...
->   Hmm, how long does it take to reproduce? I'm running fsx-linux on tmpfs
-> for a while on 2.6.27.21 and didn't hit the problem yet.
+Signed-off-by: Jiri Slaby <jslaby@novell.com>
+Cc: James Morris <jmorris@namei.org>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: linux-mm@kvack.org
+---
+ mm/filemap.c |    3 ++-
+ mm/mlock.c   |   15 +++++++++------
+ mm/mmap.c    |   16 ++++++++++------
+ mm/mremap.c  |    3 ++-
+ 4 files changed, 23 insertions(+), 14 deletions(-)
 
-I forget to mention that the test were done on an arm board with 64M ram. 
-I have tested fsx-linux again on pc, it seems that failure go away.
-
-> 
-> > > Are you sure that the LTP is correct?  It wouldn't be the first time it
-> > > wasn't...
-> > 
-> > I'm afraid fsx usually finds bugs.  I thought Jan Kara recently fixed
-> > something here in ext3, does 2.6.32-rc work?
->   Yeah, fsx usually finds bugs. Note that he sees the problem also on tmpfs
-> so it's not ext3 problem. Anyway, trying to reproduce with 2.6.32-rc? would
-> be interesting.
-
-Currently the arm board doesn't support 2.6.32-rc. But I test with 2.6.32-rc7
-On my pc box, there's no failure so far.
-
-> 
-> 								Honza
-
-I found this via google:
-http://marc.info/?t=118026315000001&r=1&w=2
-
-I even tried the code from
-http://marc.info/?l=linux-arch&m=118030601701617&w=2
-I got mostly:
-firstfirstfirst
-firstfirstfirst
-firstfirstfirst
-
-
-No change after pass "MS_SYNC|MS_INVALIDATE" to msync and make the 
-flush_dcache_page() call unconditional in do_generic_mapping_read.
-This behavior is different from what I read from the mail thread above.
-
-> void do_generic_mapping_read(struct address_space *mapping,
->                              struct file_ra_state *_ra,
->                              struct file *filp,
->                              loff_t *ppos,
->                              read_descriptor_t *desc,
->                              read_actor_t actor)
-> {
-> ...
->                 /* If users can be writing to this page using arbitrary
->                  * virtual addresses, take care about potential aliasing
->                  * before reading the page on the kernel side.
->                  */
->                 if (1 || mapping_writably_mapped(mapping))
->                         flush_dcache_page(page);
-
-Then I run fsx-linux after the above modification, fsx-linux failed all 
-the same both on tmpfs and ext3
+diff --git a/mm/filemap.c b/mm/filemap.c
+index ef169f3..667e62e 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1971,7 +1971,8 @@ EXPORT_SYMBOL(iov_iter_single_seg_count);
+ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, int isblk)
+ {
+ 	struct inode *inode = file->f_mapping->host;
+-	unsigned long limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
++	unsigned long limit = ACCESS_ONCE(current->signal->
++			rlim[RLIMIT_FSIZE].rlim_cur);
+ 
+         if (unlikely(*pos < 0))
+                 return -EINVAL;
+diff --git a/mm/mlock.c b/mm/mlock.c
+index bd6f0e4..9fcd392 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -25,7 +25,7 @@ int can_do_mlock(void)
+ {
+ 	if (capable(CAP_IPC_LOCK))
+ 		return 1;
+-	if (current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur != 0)
++	if (ACCESS_ONCE(current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur) != 0)
+ 		return 1;
+ 	return 0;
+ }
+@@ -490,7 +490,8 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
+ 	locked = len >> PAGE_SHIFT;
+ 	locked += current->mm->locked_vm;
+ 
+-	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
++	lock_limit = ACCESS_ONCE(current->signal->
++			rlim[RLIMIT_MEMLOCK].rlim_cur);
+ 	lock_limit >>= PAGE_SHIFT;
+ 
+ 	/* check against resource limits */
+@@ -553,7 +554,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
+ 
+ 	down_write(&current->mm->mmap_sem);
+ 
+-	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
++	lock_limit = ACCESS_ONCE(current->signal->rlim[RLIMIT_MEMLOCK].
++			rlim_cur);
+ 	lock_limit >>= PAGE_SHIFT;
+ 
+ 	ret = -ENOMEM;
+@@ -587,7 +589,8 @@ int user_shm_lock(size_t size, struct user_struct *user)
+ 	int allowed = 0;
+ 
+ 	locked = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
++	lock_limit = ACCESS_ONCE(current->signal->
++			rlim[RLIMIT_MEMLOCK].rlim_cur);
+ 	if (lock_limit == RLIM_INFINITY)
+ 		allowed = 1;
+ 	lock_limit >>= PAGE_SHIFT;
+@@ -621,12 +624,12 @@ int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
+ 
+ 	down_write(&mm->mmap_sem);
+ 
+-	lim = rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
++	lim = ACCESS_ONCE(rlim[RLIMIT_AS].rlim_cur) >> PAGE_SHIFT;
+ 	vm   = mm->total_vm + pgsz;
+ 	if (lim < vm)
+ 		goto out;
+ 
+-	lim = rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
++	lim = ACCESS_ONCE(rlim[RLIMIT_MEMLOCK].rlim_cur) >> PAGE_SHIFT;
+ 	vm   = mm->locked_vm + pgsz;
+ 	if (lim < vm)
+ 		goto out;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 73f5e4b..5017ed5 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -266,7 +266,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
+ 	 * segment grow beyond its set limit the in case where the limit is
+ 	 * not page aligned -Ram Gupta
+ 	 */
+-	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
++	rlim = ACCESS_ONCE(current->signal->rlim[RLIMIT_DATA].rlim_cur);
+ 	if (rlim < RLIM_INFINITY && (brk - mm->start_brk) +
+ 			(mm->end_data - mm->start_data) > rlim)
+ 		goto out;
+@@ -990,7 +990,8 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 		unsigned long locked, lock_limit;
+ 		locked = len >> PAGE_SHIFT;
+ 		locked += mm->locked_vm;
+-		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
++		lock_limit = ACCESS_ONCE(current->signal->
++				rlim[RLIMIT_MEMLOCK].rlim_cur);
+ 		lock_limit >>= PAGE_SHIFT;
+ 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+ 			return -EAGAIN;
+@@ -1565,7 +1566,7 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
+ 		return -ENOMEM;
+ 
+ 	/* Stack limit test */
+-	if (size > rlim[RLIMIT_STACK].rlim_cur)
++	if (size > ACCESS_ONCE(rlim[RLIMIT_STACK].rlim_cur))
+ 		return -ENOMEM;
+ 
+ 	/* mlock limit tests */
+@@ -1573,7 +1574,8 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
+ 		unsigned long locked;
+ 		unsigned long limit;
+ 		locked = mm->locked_vm + grow;
+-		limit = rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
++		limit = ACCESS_ONCE(rlim[RLIMIT_MEMLOCK].rlim_cur);
++		limit >>= PAGE_SHIFT;
+ 		if (locked > limit && !capable(CAP_IPC_LOCK))
+ 			return -ENOMEM;
+ 	}
+@@ -2026,7 +2028,8 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
+ 		unsigned long locked, lock_limit;
+ 		locked = len >> PAGE_SHIFT;
+ 		locked += mm->locked_vm;
+-		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
++		lock_limit = ACCESS_ONCE(current->signal->
++				rlim[RLIMIT_MEMLOCK].rlim_cur);
+ 		lock_limit >>= PAGE_SHIFT;
+ 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+ 			return -EAGAIN;
+@@ -2240,7 +2243,8 @@ int may_expand_vm(struct mm_struct *mm, unsigned long npages)
+ 	unsigned long cur = mm->total_vm;	/* pages */
+ 	unsigned long lim;
+ 
+-	lim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
++	lim = ACCESS_ONCE(current->signal->rlim[RLIMIT_AS].rlim_cur);
++	lim >>= PAGE_SHIFT;
+ 
+ 	if (cur + npages > lim)
+ 		return 0;
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 97bff25..809641b 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -358,7 +358,8 @@ unsigned long do_mremap(unsigned long addr,
+ 	if (vma->vm_flags & VM_LOCKED) {
+ 		unsigned long locked, lock_limit;
+ 		locked = mm->locked_vm << PAGE_SHIFT;
+-		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
++		lock_limit = ACCESS_ONCE(current->signal->
++				rlim[RLIMIT_MEMLOCK].rlim_cur);
+ 		locked += new_len - old_len;
+ 		ret = -EAGAIN;
+ 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+-- 
+1.6.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
