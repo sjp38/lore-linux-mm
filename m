@@ -1,88 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 073486B004D
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 06:15:11 -0500 (EST)
-Received: by pwi9 with SMTP id 9so735027pwi.6
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2009 03:15:10 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1258541696.3918.237.camel@laptop>
-References: <20091117161711.3DDA.A69D9226@jp.fujitsu.com>
-	 <20091117102903.7cb45ff3@lxorguk.ukuu.org.uk>
-	 <20091117200618.3DFF.A69D9226@jp.fujitsu.com>
-	 <4B029C40.2020803@gmail.com> <1258490826.3918.29.camel@laptop>
-	 <28c262360911171601u618ca555o1dd51ea19168575e@mail.gmail.com>
-	 <1258538181.3918.138.camel@laptop>
-	 <28c262360911180231o7fcd2128hc9c40f4fffa3f7d6@mail.gmail.com>
-	 <1258541696.3918.237.camel@laptop>
-Date: Wed, 18 Nov 2009 20:15:10 +0900
-Message-ID: <28c262360911180315p6905c365we97f984c49c8fe18@mail.gmail.com>
-Subject: Re: [PATCH 2/7] mmc: Don't use PF_MEMALLOC
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+	by kanga.kvack.org (Postfix) with SMTP id E83C86B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 08:55:43 -0500 (EST)
+Received: by pxi5 with SMTP id 5so772955pxi.12
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2009 05:55:42 -0800 (PST)
+Date: Wed, 18 Nov 2009 22:17:56 +0800
+From: JiSheng Zhang <jszhang3@gmail.com>
+Subject: Re: [BUG]2.6.27.y some contents lost after writing to mmaped file
+Message-ID: <20091118221756.367c005e@ustc>
+In-Reply-To: <20091117190635.GB31105@duck.suse.cz>
+References: <2df346410911151938r1eb5c5e4q9930ac179d61ef01@mail.gmail.com>
+	<20091117015655.GA8683@suse.de>
+	<20091117123622.GI27677@think>
+	<20091117190635.GB31105@duck.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mmc@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Chris Mason <chris.mason@oracle.com>, Greg KH <gregkh@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, rmk@arm.linux.org.uk, linux-arm@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 18, 2009 at 7:54 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Wed, 2009-11-18 at 19:31 +0900, Minchan Kim wrote:
->> >
->> > Sure some generic blocklevel infrastructure might work, _but_ you cannot
->> > take away the responsibility of determining the amount of memory needed,
->> > nor does any of this have any merit if you do not limit yourself to that
->> > amount.
->>
->> Yes. Some one have to take a responsibility.
->>
->> The intention was we could take away the responsibility from block driver.
->> Instead of driver, VM would take the responsibility.
->>
->> You mean althgouth VM could take the responsiblity, it is hard to
->> expect amout of pages needed by block drivers?
->
-> Correct, its near impossible for the VM to accurately guess the amount
-> of memory needed for a driver, or limit the usage of the driver.
->
-> The driver could be very simple in that it'll just start a DMA on the
-> page and get an interrupt when done, not consuming much (if any) memory
-> beyond the generic BIO structure, but it could also be some iSCSI
-> monstrosity which involves the full network stack and userspace.
+On Tue, 17 Nov 2009 20:06:35 +0100
+Jan Kara <jack@suse.cz> wrote:
 
-Wow, Thanks for good example.
-Until now, I don't know iSCSI is such memory hog driver.
+> On Tue 17-11-09 07:36:22, Chris Mason wrote:
+> > On Mon, Nov 16, 2009 at 05:56:55PM -0800, Greg KH wrote:
+> > > On Mon, Nov 16, 2009 at 11:38:57AM +0800, JiSheng Zhang wrote:
+> > > > Hi,
+> > > > 
+> > > > I triggered a failure in an fs test with fsx-linux from ltp. It seems that
+> > > > fsx-linux failed at mmap->write sequence.
+> > > > 
+> > > > Tested kernel is 2.6.27.12 and 2.6.27.39
+> > > 
+> > > Does this work on any kernel you have tested?  Or is it a regression?
+> > > 
+> > > > Tested file system: ext3, tmpfs.
+> > > > IMHO, it impacts all file systems.
+> > > > 
+> > > > Some fsx-linux log is:
+> > > > 
+> > > > READ BAD DATA: offset = 0x2771b, size = 0xa28e
+> > > > OFFSET  GOOD    BAD     RANGE
+> > > > 0x287e0 0x35c9  0x15a9     0x80
+> > > > operation# (mod 256) for the bad datamay be 21
+> > > > ...
+> > > > 7828: 1257514978.306753 READ     0x23dba thru 0x25699 (0x18e0 bytes)
+> > > > 7829: 1257514978.306899 MAPWRITE 0x27eeb thru 0x2a516 (0x262c bytes)
+> > > >  ******WWWW
+> > > > 7830: 1257514978.307504 READ     0x2771b thru 0x319a8 (0xa28e bytes)
+> > > >  ***RRRR***
+> > > > Correct content saved for comparison
+> > > > ...
+>   Hmm, how long does it take to reproduce? I'm running fsx-linux on tmpfs
+> for a while on 2.6.27.21 and didn't hit the problem yet.
 
-> That is why I generally prefer the user of PF_MEMALLOC to take
-> responsibility, because it knows its own consumption and can limit its
-> own consumption.
+I forget to mention that the test were done on an arm board with 64M ram. 
+I have tested fsx-linux again on pc, it seems that failure go away.
 
-Okay. I understand your point by good explanation.
+> 
+> > > Are you sure that the LTP is correct?  It wouldn't be the first time it
+> > > wasn't...
+> > 
+> > I'm afraid fsx usually finds bugs.  I thought Jan Kara recently fixed
+> > something here in ext3, does 2.6.32-rc work?
+>   Yeah, fsx usually finds bugs. Note that he sees the problem also on tmpfs
+> so it's not ext3 problem. Anyway, trying to reproduce with 2.6.32-rc? would
+> be interesting.
 
-> Now, I don't think (but I could be wring here) that you need to bother
-> with PF_MEMALLOC unless you're swapping. File based pages should always
-> be able to free some memory due to the dirty-limit, whcih basically
-> guarantees that there are some clean file pages for every dirty file
-> page.
->
-> My swap-over-nfs series used to have a block-layer hook to expose the
-> swap-over-block behaviour:
->
-> http://programming.kicks-ass.net/kernel-patches/vm_deadlock/v12.99/blk_queue_swapdev.patch
->
-> That gives block devices the power to refuse being swapped over, which
-> could be an alternative to using PF_MEMALLOC.
->
+Currently the arm board doesn't support 2.6.32-rc. But I test with 2.6.32-rc7
+On my pc box, there's no failure so far.
 
-Thanks for noticing me.
-I will look at your patches.
-Thanks again, Peter.
+> 
+> 								Honza
+
+I found this via google:
+http://marc.info/?t=118026315000001&r=1&w=2
+
+I even tried the code from
+http://marc.info/?l=linux-arch&m=118030601701617&w=2
+I got mostly:
+firstfirstfirst
+firstfirstfirst
+firstfirstfirst
 
 
+No change after pass "MS_SYNC|MS_INVALIDATE" to msync and make the 
+flush_dcache_page() call unconditional in do_generic_mapping_read.
+This behavior is different from what I read from the mail thread above.
 
+> void do_generic_mapping_read(struct address_space *mapping,
+>                              struct file_ra_state *_ra,
+>                              struct file *filp,
+>                              loff_t *ppos,
+>                              read_descriptor_t *desc,
+>                              read_actor_t actor)
+> {
+> ...
+>                 /* If users can be writing to this page using arbitrary
+>                  * virtual addresses, take care about potential aliasing
+>                  * before reading the page on the kernel side.
+>                  */
+>                 if (1 || mapping_writably_mapped(mapping))
+>                         flush_dcache_page(page);
 
-
--- 
-Kind regards,
-Minchan Kim
+Then I run fsx-linux after the above modification, fsx-linux failed all 
+the same both on tmpfs and ext3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
