@@ -1,93 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0822A6B004D
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 20:23:19 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAJ1NHo0022244
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 19 Nov 2009 10:23:17 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 40C4B45DE70
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2009 10:23:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 21DC345DE6F
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2009 10:23:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B8491DB803A
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2009 10:23:17 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B20451DB803B
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2009 10:23:16 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH]  [for mmotm-1113] mm: Simplify try_to_unmap_one()
-In-Reply-To: <20091118151803.35f55ca3.akpm@linux-foundation.org>
-References: <20091117173759.3DF6.A69D9226@jp.fujitsu.com> <20091118151803.35f55ca3.akpm@linux-foundation.org>
-Message-Id: <20091119100525.3E2B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 23B866B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 23:44:00 -0500 (EST)
+Date: Thu, 19 Nov 2009 13:27:34 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 0/5] memcg: recharge at task move (19/Nov)
+Message-Id: <20091119132734.1757fc42.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Thu, 19 Nov 2009 10:23:16 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm <linux-mm@kvack.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 17 Nov 2009 17:39:27 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > +out_mlock:
-> > +	pte_unmap_unlock(pte, ptl);
-> > +
-> > +	if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
-> > +		if (vma->vm_flags & VM_LOCKED) {
-> > +			mlock_vma_page(page);
-> > +			ret = SWAP_MLOCK;
-> >  		}
-> > +		up_read(&vma->vm_mm->mmap_sem);
-> 
-> It's somewhat unobvious why we're using a trylock here.  Ranking versus
-> lock_page(), perhaps?
-> 
-> In general I think a trylock should have an associated comment which explains
-> 
-> a) why it is being used at this site and
-> 
-> b) what happens when the trylock fails - why this isn't a
->    bug, how the kernel recovers from the inconsistency, what its
->    overall effect is, etc.
-> 
-> <wonders why we need to take mmap_sem here at all>
+Hi.
 
-This mmap_sem is needed certainenaly. Following comment is sufficient?
+These are current patches of my recharge-at-task-move feature.
+They(precisely, only [5/5]) are dependent on KAMEZAWA-san's per-process swap usage patch,
+which is not merged yet, so are not for inclusion yet. I post them just for review and
+to share my current code.
+
+In current memcg, charges associated with a task aren't moved to the new cgroup
+at task move. Some users feel this behavior to be strange.
+These patches are for this feature, that is, for recharging to
+the new cgroup and, of course, uncharging from old cgroup at task move.
+
+Current version supports only recharge of non-shared(mapcount == 1) anonymous pages
+and swaps of those pages. I think it's enough as a first step.
+
+  [1/5] cgroup: introduce cancel_attach()
+  [2/5] memcg: add interface to recharge at task move
+  [3/5] memcg: recharge charges of anonymous page
+  [4/5] memcg: avoid oom during recharge at task move
+  [5/5] memcg: recharge charges of anonymous swap
+
+Overall history of this patch set:
+2009/11/19
+- rebase on mmotm-2009-11-17-14-03 + KAMEZAWA-san's show per-process swap usage
+  via procfs patch(v3).
+- in can_attach(), instead of parsing the page table, make use of per process
+  mm_counter(anon_rss, swap_usage).
+- handle recharge_at_immigrate as bitmask(as I did in first version)
+- use mm->owner instead of thread_group_leader()
+2009/11/06
+- remove "[RFC]".
+- rebase on mmotm-2009-11-01-10-01.
+- drop support for file cache and shmem/tmpfs(revisit in future).
+- update Documentation/cgroup/memory.txt.
+2009/10/13
+- rebase on mmotm-2009-10-09-01-07 + KAMEZAWA-san's batched charge/uncharge(Oct09) + part
+of KAMEZAWA-san's cleanup/fix patches(4,5,7 of Sep25 with some fixes).
+- change the term "migrate" to "recharge".
+2009/09/24
+- change "migrate_charge" flag from "int" to "bool".
+- in can_attach(), parse the page table of the task and count only the number
+  of target ptes and call try_charge() repeatedly. No isolation at this phase.
+- in attach(), parse the page table of the task again, and isolate the target
+  page and call move_account() one by one.
+- do no swap-in in moving swap account any more.
+- add support for shmem/tmpfs's swap.
+- update Documentation/cgroup/cgroup.txt.
+2009/09/17
+- first version
+
+TODO:
+- add support for file cache, shmem/tmpfs, and shared(mapcount > 1) pages.
+- implement madvise(2) to let users decide the target vma for recharge.
+
+Any comments or suggestions would be welcome.
 
 
----
- mm/rmap.c |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 70dec01..b1c9342 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -860,6 +860,14 @@ out:
- out_mlock:
- 	pte_unmap_unlock(pte, ptl);
- 
-+
-+	/*
-+	 * We need mmap_sem locking, Otherwise VM_LOCKED check makes
-+	 * unstable result and race. Plus, We can't wait here because
-+	 * we now hold anon_vma->lock or mapping->i_mmap_lock.
-+	 * If trylock failed, The page remain evictable lru and
-+	 * retry to more unevictable lru by later vmscan.
-+	 */
- 	if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
- 		if (vma->vm_flags & VM_LOCKED) {
- 			mlock_vma_page(page);
--- 
-1.6.2.5
-
-
+Thanks,
+Dasiuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
