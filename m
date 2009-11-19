@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B08DC6B0062
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 23:45:27 -0500 (EST)
-Date: Thu, 19 Nov 2009 13:29:07 +0900
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A9A3C6B004D
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2009 23:46:02 -0500 (EST)
+Date: Thu, 19 Nov 2009 13:29:49 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mmotm 2/5] memcg: add interface to recharge at task move
-Message-Id: <20091119132907.c63e6c24.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 3/5] memcg: recharge charges of anonymous page
+Message-Id: <20091119132949.9dd85afc.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20091119132734.1757fc42.nishimura@mxp.nes.nec.co.jp>
 References: <20091119132734.1757fc42.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -16,248 +16,340 @@ To: linux-mm <linux-mm@kvack.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-In current memcg, charges associated with a task aren't moved to the new cgroup
-at task move. Some users feel this behavior to be strange.
-These patches are for this feature, that is, for recharging to the new cgroup
-and, of course, uncharging from old cgroup at task move.
+This patch is the core part of this recharge-at-task-move feature.
+It implements functions to recharge charges of anonymous pages mapped only by
+the target task.
 
-This patch adds "memory.recharge_at_immigrate" file, which is a flag file to
-determine whether charges should be moved to the new cgroup at task move or
-not and what type of charges should be recharged. This patch also adds read
-and write handlers of the file.
-
-This patch also adds no-op handlers for this feature. These handlers will be
-implemented in later patches. And you cannot write any values other than 0
-to recharge_at_immigrate yet.
+Implementation:
+- define struct recharge_struct and a valuable of it(recharge) to remember
+  the count of pre-charges and other information.
+- At can_attach(), get anon_rss of the target mm, call __mem_cgroup_try_charge()
+  repeatedly and count up recharge.precharge.
+- At attach(), parse the page table, find a target page to be recharged, and
+  call mem_cgroup_move_account() about the page.
+- Cancel all charges if recharge.precharge > 0 on failure or at the end of
+  task move.
 
 Changelog: 2009/11/19
-- consolidate changes in Documentation/cgroup/memory.txt, which were made in
-  other patches separately.
-- handle recharge_at_immigrate as bitmask(as I did in first version).
-- use mm->owner instead of thread_group_leader().
+- in can_attach(), instead of parsing the page table, make use of per process
+  mm_counter(anon_rss).
+- loosen the valid check in is_target_pte_for_recharge().
+Changelog: 2009/11/06
+- drop support for file cache, shmem/tmpfs and shared(used by multiple processes)
+  pages(revisit in future).
+Changelog: 2009/10/13
+- change the term "migrate" to "recharge".
 Changelog: 2009/09/24
-- change the term "migration" to "recharge".
-- handle the flag as bool not bitmask to make codes simple.
+- in can_attach(), parse the page table of the task and count only the number
+  of target ptes and call try_charge() repeatedly. No isolation at this phase.
+- in attach(), parse the page table of the task again, and isolate the target
+  page and call move_account() one by one.
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
- Documentation/cgroups/memory.txt |   42 ++++++++++++++++-
- mm/memcontrol.c                  |   93 ++++++++++++++++++++++++++++++++++++--
- 2 files changed, 129 insertions(+), 6 deletions(-)
+ mm/memcontrol.c |  241 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 files changed, 234 insertions(+), 7 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index b871f25..809585e 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -262,10 +262,12 @@ some of the pages cached in the cgroup (page cache pages).
- 4.2 Task migration
- 
- When a task migrates from one cgroup to another, it's charge is not
--carried forward. The pages allocated from the original cgroup still
-+carried forward by default. The pages allocated from the original cgroup still
- remain charged to it, the charge is dropped when the page is freed or
- reclaimed.
- 
-+Note: You can move charges of a task along with task migration. See 8.
-+
- 4.3 Removing a cgroup
- 
- A cgroup can be removed by rmdir, but as discussed in sections 4.1 and 4.2, a
-@@ -414,7 +416,43 @@ NOTE1: Soft limits take effect over a long period of time, since they involve
- NOTE2: It is recommended to set the soft limit always below the hard limit,
-        otherwise the hard limit will take precedence.
- 
--8. TODO
-+8. Recharge at task move
-+
-+Users can move charges associated with a task along with task move, that is,
-+uncharge from the old cgroup and charge to the new cgroup.
-+
-+8.1 Interface
-+
-+This feature is disabled by default. It can be enabled(and disabled again) by
-+writing to memory.recharge_at_immigrate of the destination cgroup.
-+
-+If you want to enable it:
-+
-+# echo (some positive value) > memory.recharge_at_immigrate
-+
-+Note: Each bits of recharge_at_immigrate has its own meaning about what type of
-+charges should be recharged. See 8.2 for details.
-+
-+And if you want disable it again:
-+
-+# echo 0 > memory.recharge_at_immigrate
-+
-+8.2 Type of charges which can be recharged
-+
-+Each bits of recharge_at_immigrate has its own meaning about what type of
-+charges should be recharged.
-+
-+  bit | what type of charges would be recharged ?
-+ -----+------------------------------------------------------------------------
-+   0  | A charge of an anonymous page(or swap of it) used by the target task.
-+      | Those pages and swaps must be used only by the target task. You must
-+      | enable Swap Extension(see 2.4) to enable recharge of swap.
-+
-+Note: Those pages and swaps must be charged to the old cgroup.
-+Note: More type of pages(e.g. file cache, shmem,) will be supported by other
-+bits in future.
-+
-+9. TODO
- 
- 1. Add support for accounting huge pages (as a separate controller)
- 2. Make per-cgroup scanner reclaim not-shared pages first
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fc16f08..13fe93d 100644
+index 13fe93d..df363da 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -226,11 +226,23 @@ struct mem_cgroup {
- 	bool		memsw_is_minimum;
- 
- 	/*
-+	 * Should we recharge charges of a task when a task is moved into this
-+	 * mem_cgroup ? And what type of charges should we recharge ?
-+	 */
-+	unsigned long 	recharge_at_immigrate;
-+
-+	/*
- 	 * statistics. This must be placed at the end of memcg.
- 	 */
- 	struct mem_cgroup_stat stat;
+@@ -21,6 +21,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/cgroup.h>
+ #include <linux/mm.h>
++#include <linux/hugetlb.h>
+ #include <linux/pagemap.h>
+ #include <linux/smp.h>
+ #include <linux/page-flags.h>
+@@ -240,8 +241,17 @@ struct mem_cgroup {
+ /* Stuffs for recharge at task move. */
+ /* Types of charges to be recharged */
+ enum recharge_type {
++	RECHARGE_TYPE_ANON,	/* private anonymous page and swap of it */
+ 	NR_RECHARGE_TYPE,
  };
- 
-+/* Stuffs for recharge at task move. */
-+/* Types of charges to be recharged */
-+enum recharge_type {
-+	NR_RECHARGE_TYPE,
++/* "recharge" and its members are protected by cgroup_lock */
++struct recharge_struct {
++	struct mem_cgroup *from;
++	struct mem_cgroup *to;
++	unsigned long precharge;
 +};
++static struct recharge_struct recharge;
 +
+ 
  /*
   * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
-  * limit reclaim to prevent infinite loops, if they ever occur.
-@@ -2860,6 +2872,31 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+@@ -1499,7 +1509,7 @@ charged:
+ 	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+ 	 * if they exceeds softlimit.
+ 	 */
+-	if (mem_cgroup_soft_limit_check(mem))
++	if (page && mem_cgroup_soft_limit_check(mem))
+ 		mem_cgroup_update_tree(mem, page);
+ done:
  	return 0;
+@@ -3420,9 +3430,50 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
  }
  
-+static u64 mem_cgroup_recharge_read(struct cgroup *cgrp,
-+					struct cftype *cft)
-+{
-+	return mem_cgroup_from_cont(cgrp)->recharge_at_immigrate;
-+}
+ /* Handlers for recharge at task move. */
+-static int mem_cgroup_can_recharge(void)
++static int mem_cgroup_do_precharge(void)
+ {
+-	return 0;
++	int ret = -ENOMEM;
++	struct mem_cgroup *mem = recharge.to;
 +
-+static int mem_cgroup_recharge_write(struct cgroup *cgrp,
-+					struct cftype *cft, u64 val)
-+{
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false, NULL);
++	if (ret || !mem)
++		return -ENOMEM;
 +
-+	if (val >= (1 << NR_RECHARGE_TYPE))
-+		return -EINVAL;
-+	/*
-+	 * We check this value several times in both in can_attach() and
-+	 * attach(), so we need cgroup lock to prevent this value from being
-+	 * inconsistent.
-+	 */
-+	cgroup_lock();
-+	mem->recharge_at_immigrate = val;
-+	cgroup_unlock();
-+
-+	return 0;
-+}
-+
- 
- /* For read statistics */
- enum {
-@@ -3093,6 +3130,11 @@ static struct cftype mem_cgroup_files[] = {
- 		.read_u64 = mem_cgroup_swappiness_read,
- 		.write_u64 = mem_cgroup_swappiness_write,
- 	},
-+	{
-+		.name = "recharge_at_immigrate",
-+		.read_u64 = mem_cgroup_recharge_read,
-+		.write_u64 = mem_cgroup_recharge_write,
-+	},
- };
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-@@ -3340,6 +3382,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- 	if (parent)
- 		mem->swappiness = get_swappiness(parent);
- 	atomic_set(&mem->refcnt, 1);
-+	mem->recharge_at_immigrate = 0;
- 	return &mem->css;
- free_out:
- 	__mem_cgroup_free(mem);
-@@ -3376,16 +3419,56 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
- 	return ret;
- }
- 
-+/* Handlers for recharge at task move. */
-+static int mem_cgroup_can_recharge(void)
-+{
-+	return 0;
-+}
-+
-+static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-+				struct cgroup *cgroup,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+	int ret = 0;
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgroup);
-+
-+	if (mem->recharge_at_immigrate) {
-+		struct mm_struct *mm;
-+		struct mem_cgroup *from = mem_cgroup_from_task(p);
-+
-+		VM_BUG_ON(from == mem);
-+
-+		mm = get_task_mm(p);
-+		if (!mm)
-+			return 0;
-+
-+		if (mm->owner == p)
-+			ret = mem_cgroup_can_recharge();
-+
-+		mmput(mm);
-+	}
++	recharge.precharge++;
 +	return ret;
 +}
 +
-+static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
-+				struct cgroup *cgroup,
-+				struct task_struct *p,
-+				bool threadgroup)
++#define PRECHARGE_AT_ONCE	256
++static int mem_cgroup_prepare_recharge(struct mm_struct *mm)
 +{
++	int ret = 0;
++	int count = PRECHARGE_AT_ONCE;
++	unsigned long prepare = 0;
++	bool recharge_anon = test_bit(RECHARGE_TYPE_ANON,
++					&recharge.to->recharge_at_immigrate);
++
++	if (recharge_anon)
++		prepare += get_mm_counter(mm, anon_rss);
++
++	while (!ret && prepare--) {
++		if (!count--) {
++			count = PRECHARGE_AT_ONCE;
++			cond_resched();
++		}
++		ret = mem_cgroup_do_precharge();
++	}
++
++	return ret;
 +}
 +
-+static void mem_cgroup_recharge(void)
++static void mem_cgroup_clear_recharge(void)
 +{
-+}
++	while (recharge.precharge) {
++		mem_cgroup_cancel_charge(recharge.to);
++		recharge.precharge--;
++	}
++	recharge.from = NULL;
++	recharge.to = NULL;
+ }
+ 
+ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
+@@ -3443,8 +3494,18 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
+ 		if (!mm)
+ 			return 0;
+ 
+-		if (mm->owner == p)
+-			ret = mem_cgroup_can_recharge();
++		if (mm->owner == p) {
++			VM_BUG_ON(recharge.from);
++			VM_BUG_ON(recharge.to);
++			VM_BUG_ON(recharge.precharge);
++			recharge.from = from;
++			recharge.to = mem;
++			recharge.precharge = 0;
 +
- static void mem_cgroup_move_task(struct cgroup_subsys *ss,
- 				struct cgroup *cont,
- 				struct cgroup *old_cont,
++			ret = mem_cgroup_prepare_recharge(mm);
++			if (ret)
++				mem_cgroup_clear_recharge();
++		}
+ 
+ 		mmput(mm);
+ 	}
+@@ -3456,10 +3517,165 @@ static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
  				struct task_struct *p,
  				bool threadgroup)
  {
--	/*
--	 * FIXME: It's better to move charges of this process from old
--	 * memcg to new memcg. But it's just on TODO-List now.
--	 */
-+	mem_cgroup_recharge();
++	mem_cgroup_clear_recharge();
+ }
+ 
+-static void mem_cgroup_recharge(void)
++/**
++ * is_target_pte_for_recharge - check a pte whether it is valid for recharge
++ * @vma: the vma the pte to be checked belongs
++ * @addr: the address corresponding to the pte to be checked
++ * @ptent: the pte to be checked
++ * @target: the pointer the target page will be stored
++ *
++ * Returns
++ *   0(RECHARGE_TARGET_NONE): if the pte is not a target for recharge.
++ *   1(RECHARGE_TARGET_PAGE): if the page corresponding to this pte is a target
++ *     for recharge. if @target is not NULL, the page is stored in target->page
++ *     with extra refcnt got(Callers should handle it).
++ *
++ * Called with pte lock held.
++ */
++/* We add a new member later. */
++union recharge_target {
++	struct page	*page;
++};
++
++/* We add a new type later. */
++enum recharge_target_type {
++	RECHARGE_TARGET_NONE,	/* not used */
++	RECHARGE_TARGET_PAGE,
++};
++
++static int is_target_pte_for_recharge(struct vm_area_struct *vma,
++		unsigned long addr, pte_t ptent, union recharge_target *target)
+ {
++	struct page *page;
++	struct page_cgroup *pc;
++	int ret = 0;
++	bool recharge_anon = test_bit(RECHARGE_TYPE_ANON,
++					&recharge.to->recharge_at_immigrate);
++
++	if (!pte_present(ptent))
++		return 0;
++
++	page = vm_normal_page(vma, addr, ptent);
++	if (!page || !page_mapped(page))
++		return 0;
++	/* TODO: We don't recharge file(including shmem/tmpfs) pages for now. */
++	if (!recharge_anon || !PageAnon(page))
++		return 0;
++	/*
++	 * TODO: We don't recharge shared(used by multiple processes) pages
++	 * for now.
++	 */
++	if (page_mapcount(page) > 1)
++		return 0;
++	if (!get_page_unless_zero(page))
++		return 0;
++
++	pc = lookup_page_cgroup(page);
++	/*
++	 * Do only loose check w/o page_cgroup lock. mem_cgroup_move_account()
++	 * checks the pc is valid or not under the lock.
++	 */
++	if (PageCgroupUsed(pc)) {
++		ret = RECHARGE_TARGET_PAGE;
++		target->page = page;
++	}
++
++	if (!ret)
++		put_page(page);
++
++	return ret;
++}
++
++static int mem_cgroup_recharge_pte_range(pmd_t *pmd,
++				unsigned long addr, unsigned long end,
++				struct mm_walk *walk)
++{
++	int ret = 0;
++	struct vm_area_struct *vma = walk->private;
++	pte_t *pte;
++	spinlock_t *ptl;
++
++retry:
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	for (; addr != end; addr += PAGE_SIZE) {
++		pte_t ptent = *(pte++);
++		union recharge_target target;
++		int type;
++		struct page *page;
++		struct page_cgroup *pc;
++
++		if (!recharge.precharge)
++			break;
++
++		type = is_target_pte_for_recharge(vma, addr, ptent, &target);
++		switch (type) {
++		case RECHARGE_TARGET_PAGE:
++			page = target.page;
++			if (isolate_lru_page(page))
++				goto put;
++			pc = lookup_page_cgroup(page);
++			if (!mem_cgroup_move_account(pc,
++						recharge.from, recharge.to)) {
++				css_put(&recharge.to->css);
++				recharge.precharge--;
++			}
++			putback_lru_page(page);
++put:			/* is_target_pte_for_recharge() gets the page */
++			put_page(page);
++			break;
++		default:
++			break;
++		}
++	}
++	pte_unmap_unlock(pte - 1, ptl);
++
++	if (addr != end) {
++		/*
++		 * We have consumed all precharges we got in can_attach().
++		 * We try precharge one by one, but don't do any additional
++		 * precharges nor recharges to recharge.to if we have failed in
++		 * precharge once in attach() phase.
++		 */
++		ret = mem_cgroup_do_precharge();
++		if (!ret)
++			goto retry;
++	}
++
++	return ret;
++}
++
++static void mem_cgroup_recharge(struct mm_struct *mm)
++{
++	struct vm_area_struct *vma;
++
++	lru_add_drain_all();
++	down_read(&mm->mmap_sem);
++	for (vma = mm->mmap; vma; vma = vma->vm_next) {
++		int ret;
++		struct mm_walk mem_cgroup_recharge_walk = {
++			.pmd_entry = mem_cgroup_recharge_pte_range,
++			.mm = mm,
++			.private = vma,
++		};
++		if (is_vm_hugetlb_page(vma))
++			continue;
++		/* TODO: We don't recharge shmem/tmpfs pages for now. */
++		if (vma->vm_flags & VM_SHARED)
++			continue;
++		ret = walk_page_range(vma->vm_start, vma->vm_end,
++						&mem_cgroup_recharge_walk);
++		if (ret)
++			/*
++			 * means we have consumed all precharges and failed in
++			 * doing additional precharge. Just abandon here.
++			 */
++			break;
++		cond_resched();
++	}
++	up_read(&mm->mmap_sem);
+ }
+ 
+ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
+@@ -3468,7 +3684,18 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
+ 				struct task_struct *p,
+ 				bool threadgroup)
+ {
+-	mem_cgroup_recharge();
++	struct mm_struct *mm;
++
++	if (!recharge.to)
++		/* no need to recharge */
++		return;
++
++	mm = get_task_mm(p);
++	if (mm) {
++		mem_cgroup_recharge(mm);
++		mmput(mm);
++	}
++	mem_cgroup_clear_recharge();
  }
  
  struct cgroup_subsys mem_cgroup_subsys = {
-@@ -3395,6 +3478,8 @@ struct cgroup_subsys mem_cgroup_subsys = {
- 	.pre_destroy = mem_cgroup_pre_destroy,
- 	.destroy = mem_cgroup_destroy,
- 	.populate = mem_cgroup_populate,
-+	.can_attach = mem_cgroup_can_attach,
-+	.cancel_attach = mem_cgroup_cancel_attach,
- 	.attach = mem_cgroup_move_task,
- 	.early_init = 0,
- 	.use_id = 1,
 -- 
 1.5.6.1
 
