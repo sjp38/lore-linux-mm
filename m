@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5A3916B008A
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2009 03:25:15 -0500 (EST)
-Message-ID: <4B065241.5040901@cn.fujitsu.com>
-Date: Fri, 20 Nov 2009 16:24:33 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 163126B0093
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2009 03:27:18 -0500 (EST)
+Received: by fxm25 with SMTP id 25so3605361fxm.6
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2009 00:27:17 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <4B065241.5040901@cn.fujitsu.com>
+References: <4B064AF5.9060208@cn.fujitsu.com> <4B064B0B.30207@cn.fujitsu.com>
+	 <4B065145.2000709@cs.helsinki.fi> <4B065241.5040901@cn.fujitsu.com>
+Date: Fri, 20 Nov 2009 10:27:16 +0200
+Message-ID: <84144f020911200027m6ac15e48laf95f7f3f8a92e3d@mail.gmail.com>
 Subject: Re: [PATCH 2/2] tracing: Remove kmemtrace tracer
-References: <4B064AF5.9060208@cn.fujitsu.com> <4B064B0B.30207@cn.fujitsu.com> <4B065145.2000709@cs.helsinki.fi>
-In-Reply-To: <4B065145.2000709@cs.helsinki.fi>
-Content-Type: text/plain; charset=UTF-8
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=GB2312
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
+To: Li Zefan <lizf@cn.fujitsu.com>
 Cc: Ingo Molnar <mingo@elte.hu>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-=E4=BA=8E 2009=E5=B9=B411=E6=9C=8820=E6=97=A5 16:20, Pekka Enberg =E5=86=99=
-=E9=81=93:
-> Li Zefan kirjoitti:
->> The kmem trace events can replace the functions of kmemtrace
->> tracer.
+On Fri, Nov 20, 2009 at 10:24 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
+> =D3=DA 2009=C4=EA11=D4=C220=C8=D5 16:20, Pekka Enberg =D0=B4=B5=C0:
+>> Li Zefan kirjoitti:
+>>> The kmem trace events can replace the functions of kmemtrace
+>>> tracer.
+>>>
+>>> And kmemtrace-user can be modified to use trace events.
+>>> (But after cloning the git repo, I found it's still based on
+>>> the original relay version..), not to mention now we have
+>>> 'perf kmem' tool.
+>>>
+>>> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 >>
->> And kmemtrace-user can be modified to use trace events.
->> (But after cloning the git repo, I found it's still based on
->> the original relay version..), not to mention now we have
->> 'perf kmem' tool.
+>> NAK for the time being. "perf kmem" output is not yet as good as that of
+>> kmemtrace-user.
 >>
->> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
->=20
-> NAK for the time being. "perf kmem" output is not yet as good as that o=
-f
-> kmemtrace-user.
->=20
+>
+> But is the current kmemtrace-user based on kmemtrace?
+>
+> From the git repo:
+>        http://repo.or.cz/w/kmemtrace-user.git
+>
+> I found it's still based on relay.
 
-But is the current kmemtrace-user based on kmemtrace?
+The "ftrace-temp" branch seems to have the ftrace based version in it. Edua=
+rd?
 
->From the git repo:
-	http://repo.or.cz/w/kmemtrace-user.git
-
-I found it's still based on relay.
+                      Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
