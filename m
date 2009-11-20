@@ -1,59 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D478B6B00B5
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2009 05:49:36 -0500 (EST)
-Date: Fri, 20 Nov 2009 11:49:20 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC][PATCH 1/2] perf: Add 'perf kmem' tool
-Message-ID: <20091120104920.GA12634@elte.hu>
-References: <4B064AF5.9060208@cn.fujitsu.com>
- <20091120081440.GA19778@elte.hu>
- <84144f020911200019p4978c8e8tc593334d974ee5ff@mail.gmail.com>
- <20091120083053.GB19778@elte.hu>
- <4B0657A4.2040606@cs.helsinki.fi>
- <20091120090134.GD19778@elte.hu>
- <84144f020911200115g14cfa3b5k959f8751001b8b35@mail.gmail.com>
- <20091120101305.GA16781@elte.hu>
- <4B067007.8070607@cs.helsinki.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B067007.8070607@cs.helsinki.fi>
+	by kanga.kvack.org (Postfix) with ESMTP id 469A16B00B6
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2009 05:52:16 -0500 (EST)
+Subject: Re: lockdep complaints in slab allocator
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com>
+References: <20091118181202.GA12180@linux.vnet.ibm.com>
+	 <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com>
+	 <1258709153.11284.429.camel@laptop>
+	 <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 20 Nov 2009 11:52:08 +0100
+Message-ID: <1258714328.11284.522.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: paulmck@linux.vnet.ibm.com, linux-mm@kvack.org, cl@linux-foundation.org, mpm@selenic.com, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-
-* Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-
-> Ingo Molnar kirjoitti:
-> >* Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> >
-> >>Hi Ingo,
-> >>
-> >>On Fri, Nov 20, 2009 at 11:01 AM, Ingo Molnar <mingo@elte.hu> wrote:
-> >>>But ... even without that, perf is really fast and is supposed to build
-> >>>fine even in minimal (embedded) environments, so you can run it on the
-> >>>embedded board too. That's useful to get live inspection features like
-> >>>'perf top', 'perf stat' and 'perf probe' anyway.
-> >>Maybe I'm just too damn lazy but if I don't go through the trouble of
-> >>building my kernel on the box, I sure don't want to do that for perf
-> >>either. [...]
-> >
-> >Well you'll need 'perf' on that box anyway, to be able to do 'perf
-> >kmem record'.
+On Fri, 2009-11-20 at 12:38 +0200, Pekka Enberg wrote:
 > 
-> /me turns brains on
 > 
-> You're right, of course. With kmemtrace-user, I just copied the raw 
-> trace file from /sys/kernel. I wonder if that's a good enough reason 
-> to keep kmemtrace bits around?
+> On Fri, Nov 20, 2009 at 11:25 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> >  2) propagate the nesting information and user spin_lock_nested(), given
+> > that slab is already a rat's nest, this won't make it any less obvious.
+> 
+> spin_lock_nested() doesn't really help us here because there's a
+> _real_ possibility of a recursive spin lock here, right? 
 
-Not really. If then a light-weight recording app could be made but i'd 
-rather wait for actual usecases to pop up.
+Well, I was working under the assumption that your analysis of it being
+a false positive was right ;-)
 
-	Ingo
+I briefly tried to verify that, but got lost and gave up, at which point
+I started looking for ways to annotate.
+
+If you're now saying its a real deadlock waiting to happen, then the
+quick fix is to always do the call_rcu() thing, or a slightly longer fix
+might be to take that slab object and propagate it out up the callchain
+and free it once we drop the nc->lock for the current __cache_free() or
+something.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
