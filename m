@@ -1,50 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4E8106B0099
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2009 03:32:11 -0500 (EST)
-Message-ID: <4B0653E0.5090407@cn.fujitsu.com>
-Date: Fri, 20 Nov 2009 16:31:28 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 84CF76B009B
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2009 03:47:35 -0500 (EST)
+Message-ID: <4B0657A4.2040606@cs.helsinki.fi>
+Date: Fri, 20 Nov 2009 10:47:32 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] tracing: Remove kmemtrace tracer
-References: <4B064AF5.9060208@cn.fujitsu.com> <4B064B0B.30207@cn.fujitsu.com>	 <4B065145.2000709@cs.helsinki.fi> <4B065241.5040901@cn.fujitsu.com> <84144f020911200027m6ac15e48laf95f7f3f8a92e3d@mail.gmail.com>
-In-Reply-To: <84144f020911200027m6ac15e48laf95f7f3f8a92e3d@mail.gmail.com>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC][PATCH 1/2] perf: Add 'perf kmem' tool
+References: <4B064AF5.9060208@cn.fujitsu.com> <20091120081440.GA19778@elte.hu> <84144f020911200019p4978c8e8tc593334d974ee5ff@mail.gmail.com> <20091120083053.GB19778@elte.hu>
+In-Reply-To: <20091120083053.GB19778@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Ingo Molnar <mingo@elte.hu>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Pekka Enberg wrote:
-> On Fri, Nov 20, 2009 at 10:24 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
->> =D3=DA 2009=C4=EA11=D4=C220=C8=D5 16:20, Pekka Enberg =D0=B4=B5=C0:
->>> Li Zefan kirjoitti:
->>>> The kmem trace events can replace the functions of kmemtrace
->>>> tracer.
->>>>
->>>> And kmemtrace-user can be modified to use trace events.
->>>> (But after cloning the git repo, I found it's still based on
->>>> the original relay version..), not to mention now we have
->>>> 'perf kmem' tool.
->>>>
->>>> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
->>> NAK for the time being. "perf kmem" output is not yet as good as that=
- of
->>> kmemtrace-user.
->>>
->> But is the current kmemtrace-user based on kmemtrace?
->>
->> From the git repo:
->>        http://repo.or.cz/w/kmemtrace-user.git
->>
->> I found it's still based on relay.
->=20
-> The "ftrace-temp" branch seems to have the ftrace based version in it. =
-Eduard?
->=20
+Ingo Molnar kirjoitti:
+> Regarding patch 2 - can we set some definitive benchmark threshold for 
+> that? I.e. a list of must-have features in 'perf kmem' before we can do 
+> it? 100% information and analysis equivalency with kmemtrace-user tool? 
 
-Thanks. I just overlooked the branch..
+I'd be interested to hear Eduard's comment on that.
+
+That said, I'll try to find some time to test "perf kmem" and provide 
+feedback on that. I can ACK the patch when I'm happy with the output. :-)
+
+I'm mostly interested in two scenarios: (1) getting a nice report on 
+worst fragmented call-sites (perf kmem needs symbol lookup) and (2) 
+doing "perf kmem record" on machine A (think embedded here) and then 
+"perf kmem report" on machine B. I haven't tried kmemtrace-user for a 
+while but it did support both of them quite nicely at some point.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
