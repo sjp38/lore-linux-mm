@@ -1,45 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C37776B00B1
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2009 05:31:40 -0500 (EST)
-Message-ID: <4B067007.8070607@cs.helsinki.fi>
-Date: Fri, 20 Nov 2009 12:31:35 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4BB5B6B00B2
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2009 05:38:04 -0500 (EST)
+Received: by fxm25 with SMTP id 25so3733776fxm.6
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2009 02:38:02 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 1/2] perf: Add 'perf kmem' tool
-References: <4B064AF5.9060208@cn.fujitsu.com> <20091120081440.GA19778@elte.hu> <84144f020911200019p4978c8e8tc593334d974ee5ff@mail.gmail.com> <20091120083053.GB19778@elte.hu> <4B0657A4.2040606@cs.helsinki.fi> <20091120090134.GD19778@elte.hu> <84144f020911200115g14cfa3b5k959f8751001b8b35@mail.gmail.com> <20091120101305.GA16781@elte.hu>
-In-Reply-To: <20091120101305.GA16781@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1258709153.11284.429.camel@laptop>
+References: <20091118181202.GA12180@linux.vnet.ibm.com>
+	 <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com>
+	 <1258709153.11284.429.camel@laptop>
+Date: Fri, 20 Nov 2009 12:38:02 +0200
+Message-ID: <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com>
+Subject: Re: lockdep complaints in slab allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: paulmck@linux.vnet.ibm.com, linux-mm@kvack.org, cl@linux-foundation.org, mpm@selenic.com, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar kirjoitti:
-> * Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> 
->> Hi Ingo,
->>
->> On Fri, Nov 20, 2009 at 11:01 AM, Ingo Molnar <mingo@elte.hu> wrote:
->>> But ... even without that, perf is really fast and is supposed to build
->>> fine even in minimal (embedded) environments, so you can run it on the
->>> embedded board too. That's useful to get live inspection features like
->>> 'perf top', 'perf stat' and 'perf probe' anyway.
->> Maybe I'm just too damn lazy but if I don't go through the trouble of
->> building my kernel on the box, I sure don't want to do that for perf
->> either. [...]
-> 
-> Well you'll need 'perf' on that box anyway, to be able to do 'perf kmem 
-> record'.
+On Fri, Nov 20, 2009 at 11:25 AM, Peter Zijlstra <peterz@infradead.org> wro=
+te:
+> Did anything change recently? git-log mm/slab.c doesn't show anything
+> obvious, although ec5a36f94e7ca4b1f28ae4dd135cd415a704e772 has the exact
+> same lock recursion msg ;-)
 
-/me turns brains on
+No, SLAB hasn't changed for a while.
 
-You're right, of course. With kmemtrace-user, I just copied the raw 
-trace file from /sys/kernel. I wonder if that's a good enough reason to 
-keep kmemtrace bits around?
+On Fri, Nov 20, 2009 at 11:25 AM, Peter Zijlstra <peterz@infradead.org> wro=
+te:
+> So basically its this stupid recursion issue where you allocate the slab
+> meta structure using the slab allocator, and now have to free while
+> freeing, right?
 
-			Pekka
+Yes.
+
+On Fri, Nov 20, 2009 at 11:25 AM, Peter Zijlstra <peterz@infradead.org> wro=
+te:
+> The code in kmem_cache_create() suggests its not even fixed size, so
+> there is no single cache backing all this OFF_SLAB muck :-(
+
+Oh, crap, I missed that. It's variable-length because we allocate the
+freelists (bufctls in slab-speak) in the slab managment structure. So
+this is a genuine bug.
+
+On Fri, Nov 20, 2009 at 11:25 AM, Peter Zijlstra <peterz@infradead.org> wro=
+te:
+> It does appear to be limited to the kmalloc slabs..
+>
+> There's a few possible solutions -- in order of preference:
+>
+> =A01) do the great slab cleanup now and remove slab.c, this will avoid an=
+y
+> further waste of manhours and braincells trying to make slab limp along.
+
+:-) I don't think that's an option for 2.6.33.
+
+On Fri, Nov 20, 2009 at 11:25 AM, Peter Zijlstra <peterz@infradead.org> wro=
+te:
+> =A02) propagate the nesting information and user spin_lock_nested(), give=
+n
+> that slab is already a rat's nest, this won't make it any less obvious.
+
+spin_lock_nested() doesn't really help us here because there's a
+_real_ possibility of a recursive spin lock here, right?
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
