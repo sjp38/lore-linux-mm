@@ -1,77 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6A6F960044A
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 04:59:32 -0500 (EST)
-Received: by pwi1 with SMTP id 1so7936691pwi.6
-        for <linux-mm@kvack.org>; Mon, 28 Dec 2009 01:59:31 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20091228144302.864f2e97.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091228134619.92ba28f6.minchan.kim@barrios-desktop>
-	 <20091228134752.44d13c34.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091228143154.ec0431b5.minchan.kim@barrios-desktop>
-	 <20091228144302.864f2e97.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 28 Dec 2009 18:59:30 +0900
-Message-ID: <28c262360912280159r69612770j97e30c3948c88c92@mail.gmail.com>
-Subject: Re: [PATCH -mmotm-2009-12-10-17-19] Fix wrong rss count of smaps
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C7FC860021B
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 05:00:44 -0500 (EST)
+Received: by gxk24 with SMTP id 24so9323384gxk.6
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2009 02:00:43 -0800 (PST)
 From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH 1/3 -mmotm-2009-12-10-17-19] Move functions related to zero page
+Date: Sat, 21 Nov 2009 12:24:18 +0900
+Message-Id: <ceeec51bdc2be64416e05ca16da52a126b598e17.1258773030.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 28, 2009 at 2:43 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 28 Dec 2009 14:31:54 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->>
->> > BTW, how about counting ZERO page in smaps? Ignoring them completely sounds
->> > not very good.
->>
->> I am not use it is useful.
->>
->> zero page snapshot of ongoing process is useful?
->> Doesn't Admin need to know about zero page?
->> Let's admins use it well. If we remove zero page again?
->> How many are applications use smaps?
->> Did we have a problem without it?
->>
-> My concern is that hiding indormation which was exported before.
-> No more than that and no strong demand.
->
->
->> When I think of it, there are too many qeustions.
->> Most important thing to add new statistics is just need of customer.
->>
->> Frankly speaking, I don't have good scenario of using zero page.
->> Do you have any scenario it is valueable?
->>
-> read before write ? maybe sometimes happens.
->
-> For example. current glibc's calloc() avoids memset() if the pages are
-> dropped by MADVISE (without unmap).
->
-> Before starting zero-page works, I checked "questions" in lkml and
-> found some reports that some applications start to go OOM after zero-page
-> removal.
->
-> For me, I know one of my customer's application depends on behavior of
-> zero page (on RHEL5). So, I tried to add again it before RHEL6 because
-> I think removal of zero-page corrupts compatibility.
->
+This patch moves is_zero_pfn and my_zero_pfn to mm.h
+for other use case.
 
-Okay. I will repost the patch.
+This patch has no side effect and helps following patches.
 
-> Thanks,
-> -Kame
->
->
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ include/linux/mm.h |   15 +++++++++++++++
+ mm/memory.c        |   14 --------------
+ 2 files changed, 15 insertions(+), 14 deletions(-)
 
-
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index be7f851..71bacd1 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -751,6 +751,21 @@ struct zap_details {
+ 	unsigned long truncate_count;		/* Compare vm_truncate_count */
+ };
+ 
++#ifndef is_zero_pfn
++extern unsigned long zero_pfn;
++static inline int is_zero_pfn(unsigned long pfn)
++{
++	return pfn == zero_pfn;
++}
++#endif
++
++#ifndef my_zero_pfn
++static inline unsigned long my_zero_pfn(unsigned long addr)
++{
++	return zero_pfn;
++}
++#endif
++
+ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ 		pte_t pte);
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index 09e4b1b..3743fb5 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -457,20 +457,6 @@ static inline int is_cow_mapping(unsigned int flags)
+ 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+ }
+ 
+-#ifndef is_zero_pfn
+-static inline int is_zero_pfn(unsigned long pfn)
+-{
+-	return pfn == zero_pfn;
+-}
+-#endif
+-
+-#ifndef my_zero_pfn
+-static inline unsigned long my_zero_pfn(unsigned long addr)
+-{
+-	return zero_pfn;
+-}
+-#endif
+-
+ /*
+  * vm_normal_page -- This function gets the "struct page" associated with a pte.
+  *
 -- 
-Kind regards,
-Minchan Kim
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
