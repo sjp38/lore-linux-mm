@@ -1,115 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F2536B004D
-	for <linux-mm@kvack.org>; Sun, 22 Nov 2009 05:25:41 -0500 (EST)
-Date: Sun, 22 Nov 2009 10:25:05 GMT
-From: tip-bot for Pekka Enberg <penberg@cs.helsinki.fi>
-Reply-To: mingo@redhat.com, hpa@zytor.com, linux-kernel@vger.kernel.org,
-        penberg@cs.helsinki.fi, lizf@cn.fujitsu.com, peterz@infradead.org,
-        eduard.munteanu@linux360.ro, fweisbec@gmail.com, rostedt@goodmis.org,
-        tglx@linutronix.de, linux-mm@kvack.org, mingo@elte.hu
-In-Reply-To: <1258883880-7149-1-git-send-email-penberg@cs.helsinki.fi>
-References: <1258883880-7149-1-git-send-email-penberg@cs.helsinki.fi>
-Subject: [tip:perf/core] perf kmem: Add --sort hit and --sort frag
-Message-ID: <tip-f3ced7cdb24e7968a353d828955fa2daf4167e72@git.kernel.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0FF1B6B004D
+	for <linux-mm@kvack.org>; Sun, 22 Nov 2009 05:38:28 -0500 (EST)
+Date: Sun, 22 Nov 2009 12:35:11 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCHv9 3/3] vhost_net: a kernel-level virtio server
+Message-ID: <20091122103511.GB13644@redhat.com>
+References: <cover.1257786516.git.mst@redhat.com> <20091109172230.GD4724@redhat.com> <C85CEDA13AB1CF4D9D597824A86D2B901925446AB4@PDSMSX501.ccr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <C85CEDA13AB1CF4D9D597824A86D2B901925446AB4@PDSMSX501.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-tip-commits@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, hpa@zytor.com, mingo@redhat.com, lizf@cn.fujitsu.com, penberg@cs.helsinki.fi, peterz@infradead.org, eduard.munteanu@linux360.ro, fweisbec@gmail.com, rostedt@goodmis.org, tglx@linutronix.de, linux-mm@kvack.org, mingo@elte.hu
+To: "Xin, Xiaohui" <xiaohui.xin@intel.com>
+Cc: "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@elte.hu" <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "gregory.haskins@gmail.com" <gregory.haskins@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, "s.hetze@linux-ag.com" <s.hetze@linux-ag.com>, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>, mashirle@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Commit-ID:  f3ced7cdb24e7968a353d828955fa2daf4167e72
-Gitweb:     http://git.kernel.org/tip/f3ced7cdb24e7968a353d828955fa2daf4167e72
-Author:     Pekka Enberg <penberg@cs.helsinki.fi>
-AuthorDate: Sun, 22 Nov 2009 11:58:00 +0200
-Committer:  Ingo Molnar <mingo@elte.hu>
-CommitDate: Sun, 22 Nov 2009 11:21:37 +0100
+On Wed, Nov 18, 2009 at 01:42:43PM +0800, Xin, Xiaohui wrote:
+> Michael,
+> >From the http://www.linux-kvm.org/page/VhostNet, we can see netperf with TCP_STREAM can get more than 4GMb/s for the receive side, and more than 5GMb/s for the send side.
+> Is it the result from the raw socket or through tap?
+> I want to duplicate such performance with vhost on my side. I can only get more than 1GMb/s with following conditions:
+> 1) disabled the GRO feature in the host 10G NIC driver
+> 2) vi->big_packet in guest is false
+> 3) MTU is 1500.
+> 4) raw socket, not the tap
+> 5) using your vhost git tree
+> 
+> Is that the reasonable result with such conditions or maybe I have made some silly mistakes somewhere I don't know yet?
+> May you kindly describe your test environment/conditions in detail to have much better performance in your website (I really need the performance)?
+> 
+> Thanks
+> Xiaohui
 
-perf kmem: Add --sort hit and --sort frag
+These results where sent by Shirley Ma (Cc'd).
+I think they were with tap, host-to-guest/guest-to-host
 
-This patch adds support for "--sort hit" and "--sort frag" to
-the "perf kmem" tool. The former was already mentioned in the
-help text and the latter is useful for finding call-sites that
-exhibit worst case behavior for SLAB allocators.
+> And I have tested the tun support with vhost now, and may you share your /home/mst/ifup script here?
+> 
 
-Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-LKML-Reference: <1258883880-7149-1-git-send-email-penberg@cs.helsinki.fi>
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
----
- tools/perf/builtin-kmem.c |   29 ++++++++++++++++++++++++++++-
- 1 files changed, 28 insertions(+), 1 deletions(-)
+These are usually pretty simple, mine looks like this:
 
-diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
-index f315b05..4145049 100644
---- a/tools/perf/builtin-kmem.c
-+++ b/tools/perf/builtin-kmem.c
-@@ -443,6 +443,15 @@ static int callsite_cmp(struct alloc_stat *l, struct alloc_stat *r)
- 	return 0;
- }
- 
-+static int hit_cmp(struct alloc_stat *l, struct alloc_stat *r)
-+{
-+	if (l->hit < r->hit)
-+		return -1;
-+	else if (l->hit > r->hit)
-+		return 1;
-+	return 0;
-+}
-+
- static int bytes_cmp(struct alloc_stat *l, struct alloc_stat *r)
- {
- 	if (l->bytes_alloc < r->bytes_alloc)
-@@ -452,6 +461,20 @@ static int bytes_cmp(struct alloc_stat *l, struct alloc_stat *r)
- 	return 0;
- }
- 
-+static int frag_cmp(struct alloc_stat *l, struct alloc_stat *r)
-+{
-+	double x, y;
-+
-+	x = fragmentation(l->bytes_req, l->bytes_alloc);
-+	y = fragmentation(r->bytes_req, r->bytes_alloc);
-+
-+	if (x < y)
-+		return -1;
-+	else if (x > y)
-+		return 1;
-+	return 0;
-+}
-+
- static int parse_sort_opt(const struct option *opt __used,
- 			  const char *arg, int unset __used)
- {
-@@ -464,8 +487,12 @@ static int parse_sort_opt(const struct option *opt __used,
- 		sort_fn = ptr_cmp;
- 	else if (strcmp(arg, "call_site") == 0)
- 		sort_fn = callsite_cmp;
-+	else if (strcmp(arg, "hit") == 0)
-+		sort_fn = hit_cmp;
- 	else if (strcmp(arg, "bytes") == 0)
- 		sort_fn = bytes_cmp;
-+	else if (strcmp(arg, "frag") == 0)
-+		sort_fn = frag_cmp;
- 	else
- 		return -1;
- 
-@@ -517,7 +544,7 @@ static const struct option kmem_options[] = {
- 		     "stat selector, Pass 'alloc' or 'caller'.",
- 		     parse_stat_opt),
- 	OPT_CALLBACK('s', "sort", NULL, "key",
--		     "sort by key: ptr, call_site, hit, bytes",
-+		     "sort by key: ptr, call_site, hit, bytes, frag",
- 		     parse_sort_opt),
- 	OPT_CALLBACK('l', "line", NULL, "num",
- 		     "show n lins",
+#!/bin/sh -x
+/sbin/ifconfig tap0 0.0.0.0 up
+brctl addif br0 tap0
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
