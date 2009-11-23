@@ -1,31 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AD0726B0044
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 09:32:53 -0500 (EST)
-Date: Mon, 23 Nov 2009 08:31:40 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [MM] Make mm counters per cpu instead of atomic
-In-Reply-To: <1258966270.29789.45.camel@localhost>
-Message-ID: <alpine.DEB.2.00.0911230830300.26432@router.home>
-References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>  <1258440521.11321.32.camel@localhost> <1258443101.11321.33.camel@localhost>  <1258450465.11321.36.camel@localhost>  <alpine.DEB.1.10.0911171223460.20360@V090114053VZO-1>
- <1258966270.29789.45.camel@localhost>
+	by kanga.kvack.org (Postfix) with ESMTP id DEE086B0044
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 09:37:12 -0500 (EST)
+Date: Mon, 23 Nov 2009 12:37:02 -0200
+From: Arnaldo Carvalho de Melo <acme@infradead.org>
+Subject: Re: [RFC][PATCH 1/2] perf: Add 'perf kmem' tool
+Message-ID: <20091123143701.GC15547@ghostprotocols.net>
+References: <84144f020911200019p4978c8e8tc593334d974ee5ff@mail.gmail.com> <20091120083053.GB19778@elte.hu> <4B0657A4.2040606@cs.helsinki.fi> <4B06590C.7010109@cn.fujitsu.com> <20091120090353.GE19778@elte.hu> <20091120144215.GH18283@ghostprotocols.net> <20091120164110.GA24183@elte.hu> <20091120175228.GD27926@ghostprotocols.net> <20091123065110.GC31758@elte.hu> <1258960941.4531.19.camel@laptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1258960941.4531.19.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Nov 2009, Zhang, Yanmin wrote:
+Em Mon, Nov 23, 2009 at 08:22:21AM +0100, Peter Zijlstra escreveu:
+> On Mon, 2009-11-23 at 07:51 +0100, Ingo Molnar wrote:
+> > I havent tried this - is this really possible to do on an x86 box, with 
+> > a typical distro? Can i install say Fedora PowerPC debuginfo packages on 
+> > an x86 box, while also having the x86 debuginfo packages there? 
+> 
+> The best option would be to allow to specify a chroot parameter, where
+> we can specify the embedded root filesystem on out machine.
 
-> Another theoretic issue is below scenario:
-> Process A get the read lock on cpu 0 and is scheduled to cpu 2 to unlock. Then
-> it's scheduled back to cpu 0 to repeat the step. eventually, the reader counter
-> will overflow. Considering multiple thread cases, it might be faster to
-> overflow than what we imagine. When it overflows, processes will hang there.
+yeah, I'm working now on a vmlinux_path, so that the symbol machinery in
+perf looks at /lib/module/`uname -r`/build/vmlinux,
+/usr/lib/debug/lib/modules/`uname -r`/vmlinux, ./vmlinux as a default or
+in getenv("VMLINUX_PATH") if set. Being able to specify a
+SYMTAB_PREFIX_PATH also should be possible.
+ 
+> I'm not even sure embedded distros even have this separate debug package
+> crazyness, you simply build the distro with or without debuginfo.
 
-True.... We need to find some alternative to per cpu data to scale mmap
-sem then.
+Whatever crazyness people usually do to find the files with matching,
+richer symtabs we should support :)
+
+- Arnaldo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
