@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E17FE6B0083
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 10:32:35 -0500 (EST)
-Subject: Re: [PATCH v2 04/12] Add "handle page fault" PV helper.
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C41316B0078
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 10:34:19 -0500 (EST)
+Subject: Re: [PATCH v2 10/12] Maintain preemptability count even for
+ !CONFIG_PREEMPT kernels
 From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1258985167-29178-5-git-send-email-gleb@redhat.com>
+In-Reply-To: <1258985167-29178-11-git-send-email-gleb@redhat.com>
 References: <1258985167-29178-1-git-send-email-gleb@redhat.com>
-	 <1258985167-29178-5-git-send-email-gleb@redhat.com>
+	 <1258985167-29178-11-git-send-email-gleb@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 23 Nov 2009 16:32:30 +0100
-Message-ID: <1258990350.4531.589.camel@laptop>
+Date: Mon, 23 Nov 2009 16:34:15 +0100
+Message-ID: <1258990455.4531.594.camel@laptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,25 +18,19 @@ To: Gleb Natapov <gleb@redhat.com>
 Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-11-23 at 16:05 +0200, Gleb Natapov wrote:
+On Mon, 2009-11-23 at 16:06 +0200, Gleb Natapov wrote:
+> Do not preempt kernel. Just maintain counter to know if task can be rescheduled.
+> Asynchronous page fault may be delivered while spinlock is held or current
+> process can't be preempted for other reasons. KVM uses preempt_count() to check if preemptions is allowed and schedule other process if possible. This works
+> with preemptable kernels since they maintain accurate information about
+> preemptability in preempt_count. This patch make non-preemptable kernel
+> maintain accurate information in preempt_count too.
 
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index f4cee90..14707dc 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -952,6 +952,9 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
->  	int write;
->  	int fault;
->  
-> +	if (arch_handle_page_fault(regs, error_code))
-> +		return;
-> +
->  	tsk = current;
->  	mm = tsk->mm;
->  
+I'm thinking you're going to have to convince some people this won't
+slow them down for no good.
 
-That's a bit daft, the pagefault handler is already arch specific, so
-you're placing an arch_ hook into arch code, that doesn't make sense.
+Personally I always have PREEMPT=y, but other people seem to feel
+strongly about not doing so.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
