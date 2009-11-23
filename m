@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 26C0D6B0044
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 09:09:14 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 3CCD76B0078
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 09:09:26 -0500 (EST)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v2 03/12] Add async PF initialization to PV guest.
-Date: Mon, 23 Nov 2009 16:05:58 +0200
-Message-Id: <1258985167-29178-4-git-send-email-gleb@redhat.com>
+Subject: [PATCH v2 05/12] Handle asynchronous page fault in a PV guest.
+Date: Mon, 23 Nov 2009 16:06:00 +0200
+Message-Id: <1258985167-29178-6-git-send-email-gleb@redhat.com>
 In-Reply-To: <1258985167-29178-1-git-send-email-gleb@redhat.com>
 References: <1258985167-29178-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,154 +13,200 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
+Asynchronous page fault notifies vcpu that page it is trying to access
+is swapped out by a host. In response guest puts a task that caused the
+fault to sleep until page is swapped in again. When missing page is
+brought back into the memory guest is notified and task resumes execution.
 
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- arch/x86/include/asm/kvm_para.h |    5 ++++
- arch/x86/kernel/kvm.c           |   49 +++++++++++++++++++++++++++++++++++++++
- arch/x86/kernel/smpboot.c       |    3 ++
- include/linux/kvm_para.h        |    2 +
- 4 files changed, 59 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/kvm_para.h |    3 +
+ arch/x86/kernel/kvm.c           |  132 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 135 insertions(+), 0 deletions(-)
 
 diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index 222d5fd..d7d7079 100644
+index d7d7079..79bb7f2 100644
 --- a/arch/x86/include/asm/kvm_para.h
 +++ b/arch/x86/include/asm/kvm_para.h
-@@ -49,6 +49,11 @@ struct kvm_mmu_op_release_pt {
+@@ -49,6 +49,9 @@ struct kvm_mmu_op_release_pt {
  	__u64 pt_phys;
  };
  
-+struct kvm_vcpu_pv_apf_data {
-+	__u32 reason;
-+	__u32 enabled;
-+};
++#define KVM_PV_REASON_PAGE_NOT_PRESENT 1
++#define KVM_PV_REASON_PAGE_READY 2
 +
- #ifdef __KERNEL__
- #include <asm/processor.h>
- 
+ struct kvm_vcpu_pv_apf_data {
+ 	__u32 reason;
+ 	__u32 enabled;
 diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index e6db179..fdd0b95 100644
+index fdd0b95..09444c9 100644
 --- a/arch/x86/kernel/kvm.c
 +++ b/arch/x86/kernel/kvm.c
-@@ -27,7 +27,10 @@
- #include <linux/mm.h>
- #include <linux/highmem.h>
+@@ -29,6 +29,8 @@
  #include <linux/hardirq.h>
-+#include <linux/notifier.h>
-+#include <linux/reboot.h>
+ #include <linux/notifier.h>
+ #include <linux/reboot.h>
++#include <linux/hash.h>
++#include <linux/sched.h>
  #include <asm/timer.h>
-+#include <asm/cpu.h>
+ #include <asm/cpu.h>
  
- #define MMU_QUEUE_SIZE 1024
- 
-@@ -37,6 +40,7 @@ struct kvm_para_state {
- };
- 
- static DEFINE_PER_CPU(struct kvm_para_state, para_state);
-+static DEFINE_PER_CPU_ALIGNED(struct kvm_vcpu_pv_apf_data, apf_reason);
- 
- static struct kvm_para_state *kvm_para_state(void)
+@@ -54,6 +56,130 @@ static void kvm_io_delay(void)
  {
-@@ -231,10 +235,35 @@ static void __init paravirt_ops_setup(void)
- #endif
  }
  
-+static void kvm_pv_disable_apf(void *unused)
-+{
-+	if (!per_cpu(apf_reason, smp_processor_id()).enabled)
-+		return;
++#define KVM_TASK_SLEEP_HASHBITS 8
++#define KVM_TASK_SLEEP_HASHSIZE (1<<KVM_TASK_SLEEP_HASHBITS)
 +
-+	wrmsrl(MSR_KVM_ASYNC_PF_EN, 0);
-+	per_cpu(apf_reason, smp_processor_id()).enabled = 0;
-+
-+	printk(KERN_INFO"Unregister pv shared memory for cpu %d\n",
-+	       smp_processor_id());
-+}
-+
-+static int kvm_pv_reboot_notify(struct notifier_block *nb,
-+				unsigned long code, void *unused)
-+{
-+	if (code == SYS_RESTART)
-+		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
-+	return NOTIFY_DONE;
-+}
-+
-+static struct notifier_block kvm_pv_reboot_nb = {
-+	.notifier_call = kvm_pv_reboot_notify,
++struct kvm_task_sleep_node {
++	struct hlist_node link;
++	wait_queue_head_t wq;
++	u32 token;
 +};
 +
- #ifdef CONFIG_SMP
- static void __init kvm_smp_prepare_boot_cpu(void)
++static struct kvm_task_sleep_head {
++	spinlock_t lock;
++	struct hlist_head list;
++} async_pf_sleepers[KVM_TASK_SLEEP_HASHSIZE];
++
++static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
++						  u64 token)
++{
++	struct hlist_node *p;
++
++	hlist_for_each(p, &b->list) {
++		struct kvm_task_sleep_node *n =
++			hlist_entry(p, typeof(*n), link);
++		if (n->token == token)
++			return n;
++	}
++
++	return NULL;
++}
++
++static void apf_task_wait(struct task_struct *tsk, u32 token)
++{
++	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
++	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
++	struct kvm_task_sleep_node n, *e;
++	DEFINE_WAIT(wait);
++
++	spin_lock(&b->lock);
++	e = _find_apf_task(b, token);
++	if (e) {
++		/* dummy entry exist -> wake up was delivered ahead of PF */
++		hlist_del(&e->link);
++		kfree(e);
++		spin_unlock(&b->lock);
++		return;
++	}
++
++	n.token = token;
++	init_waitqueue_head(&n.wq);
++	hlist_add_head(&n.link, &b->list);
++	spin_unlock(&b->lock);
++
++	for (;;) {
++		prepare_to_wait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
++		if (hlist_unhashed(&n.link))
++			break;
++		schedule();
++	}
++	finish_wait(&n.wq, &wait);
++
++	return;
++}
++
++static void apf_task_wake(u32 token)
++{
++	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
++	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
++	struct kvm_task_sleep_node *n;
++
++again:
++	spin_lock(&b->lock);
++	n = _find_apf_task(b, token);
++	if (!n) {
++		/*
++		 * async PF was not yet handled.
++		 * Add dummy entry for the token.
++		 */
++		n = kmalloc(sizeof(*n), GFP_ATOMIC);
++		if (!n) {
++			/*
++			 * Allocation failed! Busy wait while other vcpu
++			 * handles async PF.
++			 */
++			spin_unlock(&b->lock);
++			cpu_relax();
++			goto again;
++		}
++		n->token = token;
++		hlist_add_head(&n->link, &b->list);
++	} else {
++		hlist_del_init(&n->link);
++		if (waitqueue_active(&n->wq))
++			wake_up(&n->wq);
++	}
++	spin_unlock(&b->lock);
++	return;
++}
++
++int kvm_handle_pf(struct pt_regs *regs, unsigned long error_code)
++{
++	u32 reason, token;
++
++	if (!per_cpu(apf_reason, smp_processor_id()).enabled)
++		return 0;
++
++	reason = per_cpu(apf_reason, smp_processor_id()).reason;
++	per_cpu(apf_reason, smp_processor_id()).reason = 0;
++
++	token = (u32)read_cr2();
++
++	switch (reason) {
++	default:
++		return 0;
++	case KVM_PV_REASON_PAGE_NOT_PRESENT:
++		/* page is swapped out by the host. */
++		apf_task_wait(current, token);
++		break;
++	case KVM_PV_REASON_PAGE_READY:
++		apf_task_wake(token);
++		break;
++	}
++
++	return 1;
++}
++
+ static void kvm_mmu_op(void *buffer, unsigned len)
  {
- 	WARN_ON(kvm_register_clock("primary cpu clock"));
-+	kvm_guest_cpu_init();
- 	native_smp_prepare_boot_cpu();
- }
- #endif
-@@ -245,7 +274,27 @@ void __init kvm_guest_init(void)
+ 	int r;
+@@ -207,6 +333,9 @@ static void __init paravirt_ops_setup(void)
+ 	if (kvm_para_has_feature(KVM_FEATURE_NOP_IO_DELAY))
+ 		pv_cpu_ops.io_delay = kvm_io_delay;
+ 
++	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF))
++		pv_cpu_ops.handle_pf = kvm_handle_pf;
++
+ 	if (kvm_para_has_feature(KVM_FEATURE_MMU_OP)) {
+ 		pv_mmu_ops.set_pte = kvm_set_pte;
+ 		pv_mmu_ops.set_pte_at = kvm_set_pte_at;
+@@ -270,11 +399,14 @@ static void __init kvm_smp_prepare_boot_cpu(void)
+ 
+ void __init kvm_guest_init(void)
+ {
++	int i;
+ 	if (!kvm_para_available())
  		return;
  
  	paravirt_ops_setup();
-+	register_reboot_notifier(&kvm_pv_reboot_nb);
+ 	register_reboot_notifier(&kvm_pv_reboot_nb);
++	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++)
++		spin_lock_init(&async_pf_sleepers[i].lock);
  #ifdef CONFIG_SMP
  	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
-+#else
-+	kvm_guest_cpu_init();
- #endif
- }
-+
-+void __cpuinit kvm_guest_cpu_init(void)
-+{
-+	if (!kvm_para_available())
-+		return;
-+
-+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF)) {
-+		u64 pa = __pa(&per_cpu(apf_reason, smp_processor_id()));
-+
-+		if (native_write_msr_safe(MSR_KVM_ASYNC_PF_EN,
-+					  pa | 1, pa >> 32))
-+			return;
-+		per_cpu(apf_reason, smp_processor_id()).enabled = 1;
-+		printk(KERN_INFO"Setup pv shared memory for cpu %d\n",
-+		       smp_processor_id());
-+	}
-+}
-diff --git a/arch/x86/kernel/smpboot.c b/arch/x86/kernel/smpboot.c
-index 565ebc6..5599098 100644
---- a/arch/x86/kernel/smpboot.c
-+++ b/arch/x86/kernel/smpboot.c
-@@ -65,6 +65,7 @@
- #include <asm/setup.h>
- #include <asm/uv/uv.h>
- #include <linux/mc146818rtc.h>
-+#include <linux/kvm_para.h>
- 
- #include <asm/smpboot_hooks.h>
- 
-@@ -321,6 +322,8 @@ notrace static void __cpuinit start_secondary(void *unused)
- 	ipi_call_unlock();
- 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
- 
-+	kvm_guest_cpu_init();
-+
- 	/* enable local interrupts */
- 	local_irq_enable();
- 
-diff --git a/include/linux/kvm_para.h b/include/linux/kvm_para.h
-index d731092..4c8a2e6 100644
---- a/include/linux/kvm_para.h
-+++ b/include/linux/kvm_para.h
-@@ -26,8 +26,10 @@
- #ifdef __KERNEL__
- #ifdef CONFIG_KVM_GUEST
- void __init kvm_guest_init(void);
-+void __cpuinit kvm_guest_cpu_init(void);
  #else
- #define kvm_guest_init() do { } while (0)
-+#define kvm_guest_cpu_init() do { } while (0)
- #endif
- 
- static inline int kvm_para_has_feature(unsigned int feature)
 -- 
 1.6.5
 
