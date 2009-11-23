@@ -1,24 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 450F26B0062
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 12:30:26 -0500 (EST)
-Date: Mon, 23 Nov 2009 11:30:02 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH v2 10/12] Maintain preemptability count even for
- !CONFIG_PREEMPT kernels
-In-Reply-To: <20091123155851.GU2999@redhat.com>
-Message-ID: <alpine.DEB.2.00.0911231128190.785@router.home>
-References: <1258985167-29178-1-git-send-email-gleb@redhat.com> <1258985167-29178-11-git-send-email-gleb@redhat.com> <1258990455.4531.594.camel@laptop> <20091123155851.GU2999@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A9026B0062
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 12:53:42 -0500 (EST)
+Date: Mon, 23 Nov 2009 18:53:30 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [RFC][PATCH 1/2] perf: Add 'perf kmem' tool
+Message-ID: <20091123175330.GA29396@elte.hu>
+References: <20091120081440.GA19778@elte.hu>
+ <84144f020911200019p4978c8e8tc593334d974ee5ff@mail.gmail.com>
+ <20091120083053.GB19778@elte.hu>
+ <4B0657A4.2040606@cs.helsinki.fi>
+ <20091120090134.GD19778@elte.hu>
+ <84144f020911200115g14cfa3b5k959f8751001b8b35@mail.gmail.com>
+ <20091120101305.GA16781@elte.hu>
+ <4B067007.8070607@cs.helsinki.fi>
+ <20091120104920.GA12634@elte.hu>
+ <1258987585.22249.1036.camel@gandalf.stny.rr.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1258987585.22249.1036.camel@gandalf.stny.rr.com>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Li Zefan <lizf@cn.fujitsu.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This adds significant overhead for the !PREEMPT case adding lots of code
-in critical paths all over the place.
 
+* Steven Rostedt <rostedt@goodmis.org> wrote:
+
+> On Fri, 2009-11-20 at 11:49 +0100, Ingo Molnar wrote:
+> > > 
+> > > You're right, of course. With kmemtrace-user, I just copied the raw 
+> > > trace file from /sys/kernel. I wonder if that's a good enough reason 
+> > > to keep kmemtrace bits around?
+> > 
+> > Not really. If then a light-weight recording app could be made but 
+> > i'd rather wait for actual usecases to pop up.
+> 
+> Hmm, but isn't this an actual use case?
+
+Not really - perf record is pretty lightweight and you'd want perf for 
+hands-on stats anyway.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
