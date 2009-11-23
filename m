@@ -1,70 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E99DD6B0089
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 15:03:21 -0500 (EST)
-Received: by fxm9 with SMTP id 9so6294232fxm.10
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2009 12:03:19 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id A2D1B6B0078
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 15:57:41 -0500 (EST)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e3.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nANKmpDQ030922
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 15:48:51 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nANKvXUH122998
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 15:57:33 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nANKvW3T008847
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 15:57:32 -0500
+Date: Mon, 23 Nov 2009 12:57:32 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: lockdep complaints in slab allocator
+Message-ID: <20091123205732.GE6774@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com> <1258709153.11284.429.camel@laptop> <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com> <1258714328.11284.522.camel@laptop> <4B067816.6070304@cs.helsinki.fi> <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop> <alpine.DEB.2.00.0911231329560.5617@router.home> <1259005814.15619.14.camel@penberg-laptop> <1259006475.15619.16.camel@penberg-laptop>
 MIME-Version: 1.0
-In-Reply-To: <1259005869-13487-2-git-send-email-acme@infradead.org>
-References: <1259005869-13487-1-git-send-email-acme@infradead.org>
-	 <1259005869-13487-2-git-send-email-acme@infradead.org>
-Date: Mon, 23 Nov 2009 22:03:19 +0200
-Message-ID: <84144f020911231203p2e4afd11tc5068c55cf2b1d12@mail.gmail.com>
-Subject: Re: [PATCH 2/2] perf kmem: resolve symbols
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1259006475.15619.16.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: Arnaldo Carvalho de Melo <acme@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Arnaldo Carvalho de Melo <acme@redhat.com>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, =?ISO-8859-1?Q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Zefan <lizf@cn.fujitsu.com>, Mike Galbraith <efault@gmx.de>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Steven Rostedt <rostedt@goodmis.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, mpm@selenic.com, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 23, 2009 at 9:51 PM, Arnaldo Carvalho de Melo
-<acme@infradead.org> wrote:
-> From: Arnaldo Carvalho de Melo <acme@redhat.com>
->
-> E.g.
->
-> [root@doppio linux-2.6-tip]# perf kmem record sleep 3s
-> [ perf record: Woken up 2 times to write data ]
-> [ perf record: Captured and wrote 0.804 MB perf.data (~35105 samples) ]
-> [root@doppio linux-2.6-tip]# perf kmem --stat caller | head -10
-> -------------------------------------------------------------------------=
------
-> Callsite =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0|Total_alloc/Per | Total_=
-req/Per | Hit =A0| Frag
-> -------------------------------------------------------------------------=
------
-> getname/40 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| 1519616/4096 =A0 | 151961=
-6/4096 =A0| =A0 371| =A0 0.000%
-> seq_read/a2 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0987136/4096 =A0 | =A0987=
-136/4096 =A0| =A0 241| =A0 0.000%
-> __netdev_alloc_skb/43 =A0 =A0 =A0 | =A0260368/1049 =A0 | =A0259968/1048 =
-=A0| =A0 248| =A0 0.154%
-> __alloc_skb/5a =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 77312/256 =A0 =A0| =A0 77=
-312/256 =A0 | =A0 302| =A0 0.000%
-> proc_alloc_inode/33 =A0 =A0 =A0 =A0 | =A0 76480/632 =A0 =A0| =A0 76472/63=
-2 =A0 | =A0 121| =A0 0.010%
-> get_empty_filp/8d =A0 =A0 =A0 =A0 =A0 | =A0 70272/192 =A0 =A0| =A0 70272/=
-192 =A0 | =A0 366| =A0 0.000%
-> split_vma/8e =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 42064/176 =A0 =A0| =A0 =
-42064/176 =A0 | =A0 239| =A0 0.000%
-> [root@doppio linux-2.6-tip]#
->
-> Cc: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-> Cc: Fr=E9d=E9ric Weisbecker <fweisbec@gmail.com>
-> Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-> Cc: Li Zefan <lizf@cn.fujitsu.com>
-> Cc: Mike Galbraith <efault@gmx.de>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
+On Mon, Nov 23, 2009 at 10:01:15PM +0200, Pekka Enberg wrote:
+> On Mon, 2009-11-23 at 21:50 +0200, Pekka Enberg wrote:
+> > On Mon, 23 Nov 2009, Pekka Enberg wrote:
+> > > > That turns out to be _very_ hard. How about something like the following
+> > > > untested patch which delays slab_destroy() while we're under nc->lock.
+> > 
+> > On Mon, 2009-11-23 at 13:30 -0600, Christoph Lameter wrote:
+> > > Code changes to deal with a diagnostic issue?
+> > 
+> > OK, fair enough. If I suffer permanent brain damage from staring at the
+> > SLAB code for too long, I hope you and Matt will chip in to pay for my
+> > medication.
+> > 
+> > I think I was looking at the wrong thing here. The problem is in
+> > cache_free_alien() so the comment in slab_destroy() isn't relevant.
+> > Looking at init_lock_keys() we already do special lockdep annotations
+> > but there's a catch (as explained in a comment on top of
+> > on_slab_alc_key):
+> > 
+> >  * We set lock class for alien array caches which are up during init.
+> >  * The lock annotation will be lost if all cpus of a node goes down and
+> >  * then comes back up during hotplug
+> > 
+> > Paul said he was running CPU hotplug so maybe that explains the problem?
+> 
+> Maybe something like this untested patch fixes the issue...
 
-Looks good to me!
+I will give it a go!
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+							Thanx, Paul
+
+> 			Pekka
+> 
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 7dfa481..84de47e 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -604,6 +604,26 @@ static struct kmem_cache cache_cache = {
+> 
+>  #define BAD_ALIEN_MAGIC 0x01020304ul
+> 
+> +/*
+> + * chicken and egg problem: delay the per-cpu array allocation
+> + * until the general caches are up.
+> + */
+> +static enum {
+> +	NONE,
+> +	PARTIAL_AC,
+> +	PARTIAL_L3,
+> +	EARLY,
+> +	FULL
+> +} g_cpucache_up;
+> +
+> +/*
+> + * used by boot code to determine if it can use slab based allocator
+> + */
+> +int slab_is_available(void)
+> +{
+> +	return g_cpucache_up >= EARLY;
+> +}
+> +
+>  #ifdef CONFIG_LOCKDEP
+> 
+>  /*
+> @@ -620,40 +640,52 @@ static struct kmem_cache cache_cache = {
+>  static struct lock_class_key on_slab_l3_key;
+>  static struct lock_class_key on_slab_alc_key;
+> 
+> -static inline void init_lock_keys(void)
+> -
+> +static void init_node_lock_keys(int q)
+>  {
+> -	int q;
+>  	struct cache_sizes *s = malloc_sizes;
+> 
+> -	while (s->cs_size != ULONG_MAX) {
+> -		for_each_node(q) {
+> -			struct array_cache **alc;
+> -			int r;
+> -			struct kmem_list3 *l3 = s->cs_cachep->nodelists[q];
+> -			if (!l3 || OFF_SLAB(s->cs_cachep))
+> -				continue;
+> -			lockdep_set_class(&l3->list_lock, &on_slab_l3_key);
+> -			alc = l3->alien;
+> -			/*
+> -			 * FIXME: This check for BAD_ALIEN_MAGIC
+> -			 * should go away when common slab code is taught to
+> -			 * work even without alien caches.
+> -			 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
+> -			 * for alloc_alien_cache,
+> -			 */
+> -			if (!alc || (unsigned long)alc == BAD_ALIEN_MAGIC)
+> -				continue;
+> -			for_each_node(r) {
+> -				if (alc[r])
+> -					lockdep_set_class(&alc[r]->lock,
+> -					     &on_slab_alc_key);
+> -			}
+> +	if (g_cpucache_up != FULL)
+> +		return;
+> +
+> +	for (s = malloc_sizes; s->cs_size != ULONG_MAX; s++) {
+> +		struct array_cache **alc;
+> +		struct kmem_list3 *l3;
+> +		int r;
+> +
+> +		l3 = s->cs_cachep->nodelists[q];
+> +		if (!l3 || OFF_SLAB(s->cs_cachep))
+> +			return;
+> +		lockdep_set_class(&l3->list_lock, &on_slab_l3_key);
+> +		alc = l3->alien;
+> +		/*
+> +		 * FIXME: This check for BAD_ALIEN_MAGIC
+> +		 * should go away when common slab code is taught to
+> +		 * work even without alien caches.
+> +		 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
+> +		 * for alloc_alien_cache,
+> +		 */
+> +		if (!alc || (unsigned long)alc == BAD_ALIEN_MAGIC)
+> +			return;
+> +		for_each_node(r) {
+> +			if (alc[r])
+> +				lockdep_set_class(&alc[r]->lock,
+> +					&on_slab_alc_key);
+>  		}
+> -		s++;
+>  	}
+>  }
+> +
+> +static inline void init_lock_keys(void)
+> +{
+> +	int node;
+> +
+> +	for_each_node(node)
+> +		init_node_lock_keys(node);
+> +}
+>  #else
+> +static void init_node_lock_keys(int q)
+> +{
+> +}
+> +
+>  static inline void init_lock_keys(void)
+>  {
+>  }
+> @@ -665,26 +697,6 @@ static inline void init_lock_keys(void)
+>  static DEFINE_MUTEX(cache_chain_mutex);
+>  static struct list_head cache_chain;
+> 
+> -/*
+> - * chicken and egg problem: delay the per-cpu array allocation
+> - * until the general caches are up.
+> - */
+> -static enum {
+> -	NONE,
+> -	PARTIAL_AC,
+> -	PARTIAL_L3,
+> -	EARLY,
+> -	FULL
+> -} g_cpucache_up;
+> -
+> -/*
+> - * used by boot code to determine if it can use slab based allocator
+> - */
+> -int slab_is_available(void)
+> -{
+> -	return g_cpucache_up >= EARLY;
+> -}
+> -
+>  static DEFINE_PER_CPU(struct delayed_work, reap_work);
+> 
+>  static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
+> @@ -1254,6 +1266,8 @@ static int __cpuinit cpuup_prepare(long cpu)
+>  		kfree(shared);
+>  		free_alien_cache(alien);
+>  	}
+> +	init_node_lock_keys(node);
+> +
+>  	return 0;
+>  bad:
+>  	cpuup_canceled(cpu);
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
