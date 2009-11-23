@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B598D6B006A
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 02:33:29 -0500 (EST)
-Date: Mon, 23 Nov 2009 08:33:17 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC][PATCH 1/2] perf: Add 'perf kmem' tool
-Message-ID: <20091123073317.GA16628@elte.hu>
-References: <84144f020911200019p4978c8e8tc593334d974ee5ff@mail.gmail.com>
- <20091120083053.GB19778@elte.hu>
- <4B0657A4.2040606@cs.helsinki.fi>
- <4B06590C.7010109@cn.fujitsu.com>
- <20091120090353.GE19778@elte.hu>
- <20091120144215.GH18283@ghostprotocols.net>
- <20091120164110.GA24183@elte.hu>
- <20091120175228.GD27926@ghostprotocols.net>
- <20091123065110.GC31758@elte.hu>
- <1258960941.4531.19.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1258960941.4531.19.camel@laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B24746B006A
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 03:48:47 -0500 (EST)
+Subject: Re: [MM] Make mm counters per cpu instead of atomic
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <alpine.DEB.1.10.0911171223460.20360@V090114053VZO-1>
+References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
+	 <1258440521.11321.32.camel@localhost> <1258443101.11321.33.camel@localhost>
+	 <1258450465.11321.36.camel@localhost>
+	 <alpine.DEB.1.10.0911171223460.20360@V090114053VZO-1>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Mon, 23 Nov 2009 16:51:10 +0800
+Message-Id: <1258966270.29789.45.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Arnaldo Carvalho de Melo <acme@infradead.org>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-
-* Peter Zijlstra <peterz@infradead.org> wrote:
-
-> > I havent tried this - is this really possible to do on an x86 box, 
-> > with a typical distro? Can i install say Fedora PowerPC debuginfo 
-> > packages on an x86 box, while also having the x86 debuginfo packages 
-> > there?
+On Tue, 2009-11-17 at 12:25 -0500, Christoph Lameter wrote:
+> On Tue, 17 Nov 2009, Zhang, Yanmin wrote:
 > 
-> The best option would be to allow to specify a chroot parameter, where 
-> we can specify the embedded root filesystem on out machine.
+> > The right change above should be:
+> >  struct mm_counter *m = per_cpu_ptr(mm->rss, cpu);
 > 
-> I'm not even sure embedded distros even have this separate debug 
-> package crazyness, you simply build the distro with or without 
-> debuginfo.
+> Right.
+> 
+> > With the change, command 'make oldconfig' and a boot command still
+> > hangs.
+> 
+> Not sure if its worth spending more time on this but if you want I will
+> consolidate the fixes so far and put out another patchset.
+> 
+> Where does it hang during boot?
+Definitely faint.
 
-yes - we could use -R/--root (which opreport has as well), as a 
-mandatory path prefix to all DSO/debuginfo searches.
+1) In function exec_mmap: in the 2nd 'if (old_mm) {', mm_reader_unlock
+should be used. Your patch uses mm_reader_lock. I found it when reviewing your
+patch, but forgot to fix it when testing.
+2) In function madvise: the last unlock should be mm_reader_unlock. Your
+patch uses mm_writer_unlock.
 
-	Ingo
+It's easy to hit the issues with normal testing. I'm surprised you didn't
+hit them.
+
+Another theoretic issue is below scenario:
+Process A get the read lock on cpu 0 and is scheduled to cpu 2 to unlock. Then
+it's scheduled back to cpu 0 to repeat the step. eventually, the reader counter
+will overflow. Considering multiple thread cases, it might be faster to
+overflow than what we imagine. When it overflows, processes will hang there.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
