@@ -1,56 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B24746B006A
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 03:48:47 -0500 (EST)
-Subject: Re: [MM] Make mm counters per cpu instead of atomic
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <alpine.DEB.1.10.0911171223460.20360@V090114053VZO-1>
-References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
-	 <1258440521.11321.32.camel@localhost> <1258443101.11321.33.camel@localhost>
-	 <1258450465.11321.36.camel@localhost>
-	 <alpine.DEB.1.10.0911171223460.20360@V090114053VZO-1>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Mon, 23 Nov 2009 16:51:10 +0800
-Message-Id: <1258966270.29789.45.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2CEEF6B0044
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 09:09:10 -0500 (EST)
+From: Gleb Natapov <gleb@redhat.com>
+Subject: [PATCH v2 01/12] Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
+Date: Mon, 23 Nov 2009 16:05:56 +0200
+Message-Id: <1258985167-29178-2-git-send-email-gleb@redhat.com>
+In-Reply-To: <1258985167-29178-1-git-send-email-gleb@redhat.com>
+References: <1258985167-29178-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-11-17 at 12:25 -0500, Christoph Lameter wrote:
-> On Tue, 17 Nov 2009, Zhang, Yanmin wrote:
-> 
-> > The right change above should be:
-> >  struct mm_counter *m = per_cpu_ptr(mm->rss, cpu);
-> 
-> Right.
-> 
-> > With the change, command 'make oldconfig' and a boot command still
-> > hangs.
-> 
-> Not sure if its worth spending more time on this but if you want I will
-> consolidate the fixes so far and put out another patchset.
-> 
-> Where does it hang during boot?
-Definitely faint.
+Async PF also needs to hook into smp_prepare_boot_cpu so move the hook
+into generic code.
 
-1) In function exec_mmap: in the 2nd 'if (old_mm) {', mm_reader_unlock
-should be used. Your patch uses mm_reader_lock. I found it when reviewing your
-patch, but forgot to fix it when testing.
-2) In function madvise: the last unlock should be mm_reader_unlock. Your
-patch uses mm_writer_unlock.
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+---
+ arch/x86/include/asm/kvm_para.h |    1 +
+ arch/x86/kernel/kvm.c           |   11 +++++++++++
+ arch/x86/kernel/kvmclock.c      |   13 +------------
+ 3 files changed, 13 insertions(+), 12 deletions(-)
 
-It's easy to hit the issues with normal testing. I'm surprised you didn't
-hit them.
-
-Another theoretic issue is below scenario:
-Process A get the read lock on cpu 0 and is scheduled to cpu 2 to unlock. Then
-it's scheduled back to cpu 0 to repeat the step. eventually, the reader counter
-will overflow. Considering multiple thread cases, it might be faster to
-overflow than what we imagine. When it overflows, processes will hang there.
-
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index c584076..5f580f2 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -51,6 +51,7 @@ struct kvm_mmu_op_release_pt {
+ #include <asm/processor.h>
+ 
+ extern void kvmclock_init(void);
++extern int kvm_register_clock(char *txt);
+ 
+ 
+ /* This instruction is vmcall.  On non-VT architectures, it will generate a
+diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+index 63b0ec8..e6db179 100644
+--- a/arch/x86/kernel/kvm.c
++++ b/arch/x86/kernel/kvm.c
+@@ -231,10 +231,21 @@ static void __init paravirt_ops_setup(void)
+ #endif
+ }
+ 
++#ifdef CONFIG_SMP
++static void __init kvm_smp_prepare_boot_cpu(void)
++{
++	WARN_ON(kvm_register_clock("primary cpu clock"));
++	native_smp_prepare_boot_cpu();
++}
++#endif
++
+ void __init kvm_guest_init(void)
+ {
+ 	if (!kvm_para_available())
+ 		return;
+ 
+ 	paravirt_ops_setup();
++#ifdef CONFIG_SMP
++	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
++#endif
+ }
+diff --git a/arch/x86/kernel/kvmclock.c b/arch/x86/kernel/kvmclock.c
+index feaeb0d..6ab9622 100644
+--- a/arch/x86/kernel/kvmclock.c
++++ b/arch/x86/kernel/kvmclock.c
+@@ -122,7 +122,7 @@ static struct clocksource kvm_clock = {
+ 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
+ };
+ 
+-static int kvm_register_clock(char *txt)
++int kvm_register_clock(char *txt)
+ {
+ 	int cpu = smp_processor_id();
+ 	int low, high;
+@@ -146,14 +146,6 @@ static void __cpuinit kvm_setup_secondary_clock(void)
+ }
+ #endif
+ 
+-#ifdef CONFIG_SMP
+-static void __init kvm_smp_prepare_boot_cpu(void)
+-{
+-	WARN_ON(kvm_register_clock("primary cpu clock"));
+-	native_smp_prepare_boot_cpu();
+-}
+-#endif
+-
+ /*
+  * After the clock is registered, the host will keep writing to the
+  * registered memory location. If the guest happens to shutdown, this memory
+@@ -192,9 +184,6 @@ void __init kvmclock_init(void)
+ 		x86_cpuinit.setup_percpu_clockev =
+ 			kvm_setup_secondary_clock;
+ #endif
+-#ifdef CONFIG_SMP
+-		smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
+-#endif
+ 		machine_ops.shutdown  = kvm_shutdown;
+ #ifdef CONFIG_KEXEC
+ 		machine_ops.crash_shutdown  = kvm_crash_shutdown;
+-- 
+1.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
