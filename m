@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 400366B007E
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 7A8AA6B007B
 	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 09:09:28 -0500 (EST)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v2 02/12] Add PV MSR to enable asynchronous page faults delivery.
-Date: Mon, 23 Nov 2009 16:05:57 +0200
-Message-Id: <1258985167-29178-3-git-send-email-gleb@redhat.com>
+Subject: [PATCH v2 10/12] Maintain preemptability count even for !CONFIG_PREEMPT kernels
+Date: Mon, 23 Nov 2009 16:06:05 +0200
+Message-Id: <1258985167-29178-11-git-send-email-gleb@redhat.com>
 In-Reply-To: <1258985167-29178-1-git-send-email-gleb@redhat.com>
 References: <1258985167-29178-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,153 +13,156 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
+Do not preempt kernel. Just maintain counter to know if task can be rescheduled.
+Asynchronous page fault may be delivered while spinlock is held or current
+process can't be preempted for other reasons. KVM uses preempt_count() to check if preemptions is allowed and schedule other process if possible. This works
+with preemptable kernels since they maintain accurate information about
+preemptability in preempt_count. This patch make non-preemptable kernel
+maintain accurate information in preempt_count too.
 
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- arch/x86/include/asm/kvm_host.h |    3 ++
- arch/x86/include/asm/kvm_para.h |    2 +
- arch/x86/kvm/x86.c              |   42 +++++++++++++++++++++++++++++++++++++-
- include/linux/kvm.h             |    1 +
- 4 files changed, 46 insertions(+), 2 deletions(-)
+ include/linux/hardirq.h |   14 +++-----------
+ include/linux/preempt.h |   22 ++++++++++++++++------
+ include/linux/sched.h   |    4 ----
+ kernel/sched.c          |    6 ------
+ lib/kernel_lock.c       |    1 +
+ 5 files changed, 20 insertions(+), 27 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 06e0856..9598e85 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -374,6 +374,9 @@ struct kvm_vcpu_arch {
- 	/* used for guest single stepping over the given code position */
- 	u16 singlestep_cs;
- 	unsigned long singlestep_rip;
-+
-+	u32 __user *apf_data;
-+	u64 apf_msr_val;
- };
+diff --git a/include/linux/hardirq.h b/include/linux/hardirq.h
+index 6d527ee..484ba38 100644
+--- a/include/linux/hardirq.h
++++ b/include/linux/hardirq.h
+@@ -2,9 +2,7 @@
+ #define LINUX_HARDIRQ_H
  
- struct kvm_mem_alias {
-diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index 5f580f2..222d5fd 100644
---- a/arch/x86/include/asm/kvm_para.h
-+++ b/arch/x86/include/asm/kvm_para.h
-@@ -15,9 +15,11 @@
- #define KVM_FEATURE_CLOCKSOURCE		0
- #define KVM_FEATURE_NOP_IO_DELAY	1
- #define KVM_FEATURE_MMU_OP		2
-+#define KVM_FEATURE_ASYNC_PF		3
- 
- #define MSR_KVM_WALL_CLOCK  0x11
- #define MSR_KVM_SYSTEM_TIME 0x12
-+#define MSR_KVM_ASYNC_PF_EN 0x13
- 
- #define KVM_MAX_MMU_OP_BATCH           32
- 
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 35eea30..ce8e66d 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -566,9 +566,9 @@ static inline u32 bit(int bitno)
-  * kvm-specific. Those are put in the beginning of the list.
+ #include <linux/preempt.h>
+-#ifdef CONFIG_PREEMPT
+ #include <linux/smp_lock.h>
+-#endif
+ #include <linux/lockdep.h>
+ #include <linux/ftrace_irq.h>
+ #include <asm/hardirq.h>
+@@ -92,13 +90,8 @@
   */
+ #define in_nmi()	(preempt_count() & NMI_MASK)
  
--#define KVM_SAVE_MSRS_BEGIN	2
-+#define KVM_SAVE_MSRS_BEGIN	3
- static u32 msrs_to_save[] = {
--	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
-+	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK, MSR_KVM_ASYNC_PF_EN,
- 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
- 	MSR_K6_STAR,
- #ifdef CONFIG_X86_64
-@@ -949,6 +949,26 @@ out:
- 	return r;
- }
+-#if defined(CONFIG_PREEMPT)
+-# define PREEMPT_INATOMIC_BASE kernel_locked()
+-# define PREEMPT_CHECK_OFFSET 1
+-#else
+-# define PREEMPT_INATOMIC_BASE 0
+-# define PREEMPT_CHECK_OFFSET 0
+-#endif
++#define PREEMPT_CHECK_OFFSET 1
++#define PREEMPT_INATOMIC_BASE kernel_locked()
  
-+static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
-+{
-+	u64 gpa = data & ~0x3f;
-+	int offset = offset_in_page(gpa);
-+	unsigned long addr;
-+
-+	addr = gfn_to_hva(vcpu->kvm, gpa >> PAGE_SHIFT);
-+	if (kvm_is_error_hva(addr))
-+		return 1;
-+
-+	vcpu->arch.apf_data = (u32 __user*)(addr + offset);
-+
-+	/* check if address is mapped */
-+	if (get_user(offset, vcpu->arch.apf_data)) {
-+		vcpu->arch.apf_data = NULL;
-+		return 1;
-+	}
-+	return 0;
-+}
-+
- int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
- {
- 	switch (msr) {
-@@ -1029,6 +1049,14 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
- 		kvm_request_guest_time_update(vcpu);
- 		break;
- 	}
-+	case MSR_KVM_ASYNC_PF_EN:
-+		vcpu->arch.apf_msr_val = data;
-+		if (data & 1) {
-+			if (kvm_pv_enable_async_pf(vcpu, data))
-+				return 1;
-+		} else
-+			vcpu->arch.apf_data = NULL;
-+		break;
- 	case MSR_IA32_MCG_CTL:
- 	case MSR_IA32_MCG_STATUS:
- 	case MSR_IA32_MC0_CTL ... MSR_IA32_MC0_CTL + 4 * KVM_MAX_MCE_BANKS - 1:
-@@ -1221,6 +1249,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
- 	case MSR_KVM_SYSTEM_TIME:
- 		data = vcpu->arch.time;
- 		break;
-+	case MSR_KVM_ASYNC_PF_EN:
-+		data = vcpu->arch.apf_msr_val;
-+		break;
- 	case MSR_IA32_P5_MC_ADDR:
- 	case MSR_IA32_P5_MC_TYPE:
- 	case MSR_IA32_MCG_CAP:
-@@ -1343,6 +1374,7 @@ int kvm_dev_ioctl_check_extension(long ext)
- 	case KVM_CAP_XEN_HVM:
- 	case KVM_CAP_ADJUST_CLOCK:
- 	case KVM_CAP_VCPU_EVENTS:
-+	case KVM_CAP_ASYNC_PF:
- 		r = 1;
- 		break;
- 	case KVM_CAP_COALESCED_MMIO:
-@@ -4965,6 +4997,9 @@ free_vcpu:
+ /*
+  * Are we running in atomic context?  WARNING: this macro cannot
+@@ -116,12 +109,11 @@
+ #define in_atomic_preempt_off() \
+ 		((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_CHECK_OFFSET)
  
- void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
- {
-+	vcpu->arch.apf_data = NULL;
-+	vcpu->arch.apf_msr_val = 0;
-+
- 	vcpu_load(vcpu);
- 	kvm_mmu_unload(vcpu);
- 	vcpu_put(vcpu);
-@@ -4982,6 +5017,9 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
- 	vcpu->arch.dr6 = DR6_FIXED_1;
- 	vcpu->arch.dr7 = DR7_FIXED_1;
- 
-+	vcpu->arch.apf_data = NULL;
-+	vcpu->arch.apf_msr_val = 0;
-+
- 	return kvm_x86_ops->vcpu_reset(vcpu);
- }
- 
-diff --git a/include/linux/kvm.h b/include/linux/kvm.h
-index 92045a9..6af1c99 100644
---- a/include/linux/kvm.h
-+++ b/include/linux/kvm.h
-@@ -492,6 +492,7 @@ struct kvm_ioeventfd {
- #ifdef __KVM_HAVE_VCPU_EVENTS
- #define KVM_CAP_VCPU_EVENTS 41
++#define IRQ_EXIT_OFFSET (HARDIRQ_OFFSET-1)
+ #ifdef CONFIG_PREEMPT
+ # define preemptible()	(preempt_count() == 0 && !irqs_disabled())
+-# define IRQ_EXIT_OFFSET (HARDIRQ_OFFSET-1)
+ #else
+ # define preemptible()	0
+-# define IRQ_EXIT_OFFSET HARDIRQ_OFFSET
  #endif
-+#define KVM_CAP_ASYNC_PF 42
  
- #ifdef KVM_CAP_IRQ_ROUTING
+ #if defined(CONFIG_SMP) || defined(CONFIG_GENERIC_HARDIRQS)
+diff --git a/include/linux/preempt.h b/include/linux/preempt.h
+index 72b1a10..7d039ca 100644
+--- a/include/linux/preempt.h
++++ b/include/linux/preempt.h
+@@ -82,14 +82,24 @@ do { \
  
+ #else
+ 
+-#define preempt_disable()		do { } while (0)
+-#define preempt_enable_no_resched()	do { } while (0)
+-#define preempt_enable()		do { } while (0)
++#define preempt_disable() \
++do { \
++	inc_preempt_count(); \
++	barrier(); \
++} while (0)
++
++#define preempt_enable() \
++do { \
++	barrier(); \
++	dec_preempt_count(); \
++} while (0)
++
++#define preempt_enable_no_resched()	preempt_enable()
+ #define preempt_check_resched()		do { } while (0)
+ 
+-#define preempt_disable_notrace()		do { } while (0)
+-#define preempt_enable_no_resched_notrace()	do { } while (0)
+-#define preempt_enable_notrace()		do { } while (0)
++#define preempt_disable_notrace()		preempt_disable()
++#define preempt_enable_no_resched_notrace()	preempt_enable()
++#define preempt_enable_notrace()		preempt_enable()
+ 
+ #endif
+ 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 75e6e60..1895486 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2379,11 +2379,7 @@ extern int _cond_resched(void);
+ 
+ extern int __cond_resched_lock(spinlock_t *lock);
+ 
+-#ifdef CONFIG_PREEMPT
+ #define PREEMPT_LOCK_OFFSET	PREEMPT_OFFSET
+-#else
+-#define PREEMPT_LOCK_OFFSET	0
+-#endif
+ 
+ #define cond_resched_lock(lock) ({				\
+ 	__might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);	\
+diff --git a/kernel/sched.c b/kernel/sched.c
+index 3c11ae0..92ce282 100644
+--- a/kernel/sched.c
++++ b/kernel/sched.c
+@@ -2590,10 +2590,8 @@ void sched_fork(struct task_struct *p, int clone_flags)
+ #if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
+ 	p->oncpu = 0;
+ #endif
+-#ifdef CONFIG_PREEMPT
+ 	/* Want to start with kernel preemption disabled. */
+ 	task_thread_info(p)->preempt_count = 1;
+-#endif
+ 	plist_node_init(&p->pushable_tasks, MAX_PRIO);
+ 
+ 	put_cpu();
+@@ -6973,11 +6971,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
+ 	spin_unlock_irqrestore(&rq->lock, flags);
+ 
+ 	/* Set the preempt count _outside_ the spinlocks! */
+-#if defined(CONFIG_PREEMPT)
+ 	task_thread_info(idle)->preempt_count = (idle->lock_depth >= 0);
+-#else
+-	task_thread_info(idle)->preempt_count = 0;
+-#endif
+ 	/*
+ 	 * The idle tasks have their own, simple scheduling class:
+ 	 */
+diff --git a/lib/kernel_lock.c b/lib/kernel_lock.c
+index 39f1029..6e2659d 100644
+--- a/lib/kernel_lock.c
++++ b/lib/kernel_lock.c
+@@ -93,6 +93,7 @@ static inline void __lock_kernel(void)
+  */
+ static inline void __lock_kernel(void)
+ {
++	preempt_disable();
+ 	_raw_spin_lock(&kernel_flag);
+ }
+ #endif
 -- 
 1.6.5
 
