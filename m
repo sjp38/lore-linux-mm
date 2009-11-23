@@ -1,99 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2EE2C6B0092
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 09:09:49 -0500 (EST)
-From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v2 11/12] Handle async PF in non preemptable context.
-Date: Mon, 23 Nov 2009 16:06:06 +0200
-Message-Id: <1258985167-29178-12-git-send-email-gleb@redhat.com>
-In-Reply-To: <1258985167-29178-1-git-send-email-gleb@redhat.com>
-References: <1258985167-29178-1-git-send-email-gleb@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 620AD6B0044
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 09:32:50 -0500 (EST)
+Date: Mon, 23 Nov 2009 12:32:36 -0200
+From: Arnaldo Carvalho de Melo <acme@infradead.org>
+Subject: Re: [RFC][PATCH 1/2] perf: Add 'perf kmem' tool
+Message-ID: <20091123143236.GB15547@ghostprotocols.net>
+References: <20091120081440.GA19778@elte.hu> <84144f020911200019p4978c8e8tc593334d974ee5ff@mail.gmail.com> <20091120083053.GB19778@elte.hu> <4B0657A4.2040606@cs.helsinki.fi> <4B06590C.7010109@cn.fujitsu.com> <20091120090353.GE19778@elte.hu> <20091120144215.GH18283@ghostprotocols.net> <20091120164110.GA24183@elte.hu> <20091120175228.GD27926@ghostprotocols.net> <20091123065110.GC31758@elte.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091123065110.GC31758@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Frederic Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-If async page fault is received by idle task or when preemp_count is
-not zero guest cannot reschedule, so do sti; hlt and wait for page to be
-ready. vcpu can still process interrupts while it waits for the page to
-be ready.
+Em Mon, Nov 23, 2009 at 07:51:10AM +0100, Ingo Molnar escreveu:
+> 
+> * Arnaldo Carvalho de Melo <acme@infradead.org> wrote:
+> 
+> > Em Fri, Nov 20, 2009 at 05:41:10PM +0100, Ingo Molnar escreveu:
+> > > > So we have a mechanism that is already present in several distros
+> > > > (build-id), that is in the kernel build process since ~2.6.23, and that
+> > > > avoids using mismatching DSOs when resolving symbols.
+> > > 
+> > > But what do we do if we have another box that runs say on a MIPS CPU, 
+> > > uses some minimal distro - and copy that perf.data over to an x86 box.
+> > 
+> > There would be no problem, it would be just a matter of installing the
+> > right -debuginfo packages, for MIPS.
+> 
+> I havent tried this - is this really possible to do on an x86 box, with 
+> a typical distro? Can i install say Fedora PowerPC debuginfo packages on 
+> an x86 box, while also having the x86 debuginfo packages there?
 
-Signed-off-by: Gleb Natapov <gleb@redhat.com>
----
- arch/x86/kernel/kvm.c |   31 +++++++++++++++++++++++++++----
- 1 files changed, 27 insertions(+), 4 deletions(-)
+I should have added "in theory", as I haven't tested this as well using
+the current tools, but it should :)
+ 
+> > Or the original, unstripped FS image sent to the machine with the MIPS 
+> > cpu, if there aren't -debuginfo packages.
+> > 
+> > Either one, the right DSOs would be found by the buildids.
+> > 
+> > There are other scenarios, like a binary that gets updated while a long
+> > running perf record session runs, the way to differentiate between the
+> > two DSOs wouldn't be the name, but the buildid.
+> > 
+> > > The idea is there to be some new mode of perf.data where all the 
+> > > relevant DSO contents (symtabs but also sections with instructions for 
+> > > perf annotate to work) are copied into perf.data, during or after data 
+> > > capture - on the box that does the recording.
+> > > 
+> > > Once we have everything embedded in the perf.data, analysis passes only 
+> > > have to work based on that particular perf.data - no external data.
+> > 
+> > Well, we can that, additionally, but think about stripped binaries, we 
+> > would lose potentially a lot because the symtabs on that small machine 
+> > would have poorer symtabs than the ones in an unstriped binary (or in 
+> > a -debuginfo package).
+> 
+> We should definitely use the widest and best quality information we can 
+> - if it's available.
+> 
+> So even if we 'inline' any information from the box, if there's better 
+> info available at the time of analysis, we should use that too.
+> 
+> Basically what matters is the principle of 'what is possible'.
+> 
+> If a user records on a box and analyses on a different box, and we end 
+> up not doing something (and printing an error or displaying an empty 
+> profile) that could reasonably have been done, then the user will be 
+> unhappy and we might lose that user.
+> 
+> The user wont be unhappy about us using a big set of data sources that 
+> we can recover information from transparently. The user will be unhappy 
+> if we insist on (and force) a certain form of information source - such 
+> as debuginfo.
 
-diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index 09444c9..0836d9a 100644
---- a/arch/x86/kernel/kvm.c
-+++ b/arch/x86/kernel/kvm.c
-@@ -63,6 +63,7 @@ struct kvm_task_sleep_node {
- 	struct hlist_node link;
- 	wait_queue_head_t wq;
- 	u32 token;
-+	int cpu;
- };
- 
- static struct kvm_task_sleep_head {
-@@ -91,6 +92,11 @@ static void apf_task_wait(struct task_struct *tsk, u32 token)
- 	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
- 	struct kvm_task_sleep_node n, *e;
- 	DEFINE_WAIT(wait);
-+	int cpu, idle;
-+
-+	cpu = get_cpu();
-+	idle = idle_cpu(cpu);
-+	put_cpu();
- 
- 	spin_lock(&b->lock);
- 	e = _find_apf_task(b, token);
-@@ -105,15 +111,30 @@ static void apf_task_wait(struct task_struct *tsk, u32 token)
- 	n.token = token;
- 	init_waitqueue_head(&n.wq);
- 	hlist_add_head(&n.link, &b->list);
-+	if (idle || preempt_count() > 1)
-+		n.cpu = smp_processor_id();
-+	else
-+		n.cpu = -1;
- 	spin_unlock(&b->lock);
- 
- 	for (;;) {
--		prepare_to_wait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
-+		if (n.cpu < 0)
-+			prepare_to_wait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
- 		if (hlist_unhashed(&n.link))
- 			break;
--		schedule();
-+
-+		if (n.cpu < 0) {
-+			schedule();
-+		} else {
-+			/*
-+			 * We cannot reschedule. So halt.
-+			 */
-+			native_safe_halt();
-+			local_irq_disable();
-+		}
- 	}
--	finish_wait(&n.wq, &wait);
-+	if (n.cpu < 0)
-+		finish_wait(&n.wq, &wait);
- 
- 	return;
- }
-@@ -146,7 +167,9 @@ again:
- 		hlist_add_head(&n->link, &b->list);
- 	} else {
- 		hlist_del_init(&n->link);
--		if (waitqueue_active(&n->wq))
-+		if (n->cpu >= 0)
-+			smp_send_reschedule(n->cpu);
-+		else if (waitqueue_active(&n->wq))
- 			wake_up(&n->wq);
- 	}
- 	spin_unlock(&b->lock);
--- 
-1.6.5
+Sure thing, I'm thinking about how to encode the perf.data file inside
+an ELF section while merging all symtabs to reduce size by sharing the
+strings table, etc.
+
+The dso__load routine already does that fallback from what is best
+(debuginfo packages) to what is available (the symtab, dynsym tables in
+the DSO itself), its just a matter of efficiently encoding the symtabs
+into the perf.data file and that will be another source of symbols if
+the preferred one (debuginfo) is not available.
+
+- Arnaldo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
