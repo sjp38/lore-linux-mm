@@ -1,63 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F76E6B0083
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 06:56:41 -0500 (EST)
-Message-ID: <4B0BC9E3.6070504@nokia.com>
-Date: Tue, 24 Nov 2009 13:56:19 +0200
-From: Adrian Hunter <adrian.hunter@nokia.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 486AC6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 08:32:01 -0500 (EST)
+Received: by pzk34 with SMTP id 34so45633pzk.11
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2009 05:31:59 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/7] nandsim: Don't use PF_MEMALLOC
-References: <1258988417.18407.44.camel@localhost> <4B0AEA33.3010306@nokia.com> <20091124194532.AFC2.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20091124194532.AFC2.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+Date: Tue, 24 Nov 2009 19:01:54 +0530
+Message-ID: <661de9470911240531p5e587c42w96995fde37dbd401@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH -mmotm] memcg: avoid oom-killing innocent task in
+	case of use_hierarchy
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: ext KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "Bityutskiy Artem (Nokia-D/Helsinki)" <Artem.Bityutskiy@nokia.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Woodhouse <David.Woodhouse@intel.com>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stable <stable@kernel.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-ext KOSAKI Motohiro wrote:
-> Hi
-> 
-> Thank you for this useful comments.
-> 
->>> I vaguely remember Adrian (CCed) did this on purpose. This is for the
->>> case when nandsim emulates NAND flash on top of a file. So there are 2
->>> file-systems involved: one sits on top of nandsim (e.g. UBIFS) and the
->>> other owns the file which nandsim uses (e.g., ext3).
->>>
->>> And I really cannot remember off the top of my head why he needed
->>> PF_MEMALLOC, but I think Adrian wanted to prevent the direct reclaim
->>> path to re-enter, say UBIFS, and cause deadlock. But I'd thing that all
->>> the allocations in vfs_read()/vfs_write() should be GFP_NOFS, so that
->>> should not be a probelm?
->>>
->> Yes it needs PF_MEMALLOC to prevent deadlock because there can be a
->> file system on top of nandsim which, in this case, is on top of another
->> file system.
->>
->> I do not see how mempools will help here.
->>
->> Please offer an alternative solution.
-> 
-> I have few questions.
-> 
-> Can you please explain more detail? Another stackable filesystam
-> (e.g. ecryptfs) don't have such problem. Why nandsim have its issue?
-> What lock cause deadlock?
-> 
-> 
-> 
+On Tue, Nov 24, 2009 at 11:27 AM, Daisuke Nishimura
+<nishimura@mxp.nes.nec.co.jp> wrote:
+> task_in_mem_cgroup(), which is called by select_bad_process() to check wh=
+ether
+> a task can be a candidate for being oom-killed from memcg's limit, checks
+> "curr->use_hierarchy"("curr" is the mem_cgroup the task belongs to).
+>
+> But this check return true(it's false positive) when:
+>
+> =A0 =A0 =A0 =A0<some path>/00 =A0 =A0 =A0 =A0 =A0use_hierarchy =3D=3D 0 =
+=A0 =A0 =A0<- hitting limit
+> =A0 =A0 =A0 =A0 =A0<some path>/00/aa =A0 =A0 use_hierarchy =3D=3D 1 =A0 =
+=A0 =A0<- "curr"
+>
+> This leads to killing an innocent task in 00/aa. This patch is a fix for =
+this
+> bug. And this patch also fixes the arg for mem_cgroup_print_oom_info(). W=
+e
+> should print information of mem_cgroup which the task being killed, not c=
+urrent,
+> belongs to.
+>
 
-The file systems are not stacked.  One is over nandsim, which nandsim
-does not know about because it is just a lowly NAND device, and, with
-the file cache option, one file system below to provide the file cache.
+Quick Question: What happens if <some path>/00 has no tasks in it
+after your patches?
 
-The deadlock is the kernel writing out dirty pages to the top file system
-which writes to nandsim which writes to the bottom file system which
-allocates memory which causes dirty pages to be written out to the top
-file system, which tries to write to nandsim => deadlock.
-
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
