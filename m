@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8637D6B008A
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 05:46:32 -0500 (EST)
-Date: Tue, 24 Nov 2009 19:46:25 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/7] nandsim: Don't use PF_MEMALLOC
-In-Reply-To: <4B0AEA33.3010306@nokia.com>
-References: <1258988417.18407.44.camel@localhost> <4B0AEA33.3010306@nokia.com>
-Message-Id: <20091124194532.AFC2.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6BF8A6B0078
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 06:05:13 -0500 (EST)
+Message-ID: <4B0BBDBF.6050806@cn.fujitsu.com>
+Date: Tue, 24 Nov 2009 19:04:31 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 0/5] perf kmem: Add more functions and show more statistics
+References: <4B0B6E44.6090106@cn.fujitsu.com> <20091124090425.GF21991@elte.hu> <4B0BA99D.5020602@cn.fujitsu.com> <20091124100724.GA5570@elte.hu>
+In-Reply-To: <20091124100724.GA5570@elte.hu>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Adrian Hunter <adrian.hunter@nokia.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "Bityutskiy Artem (Nokia-D/Helsinki)" <Artem.Bityutskiy@nokia.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Woodhouse <David.Woodhouse@intel.com>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
-
-Thank you for this useful comments.
-
-> > I vaguely remember Adrian (CCed) did this on purpose. This is for the
-> > case when nandsim emulates NAND flash on top of a file. So there are 2
-> > file-systems involved: one sits on top of nandsim (e.g. UBIFS) and the
-> > other owns the file which nandsim uses (e.g., ext3).
-> > 
-> > And I really cannot remember off the top of my head why he needed
-> > PF_MEMALLOC, but I think Adrian wanted to prevent the direct reclaim
-> > path to re-enter, say UBIFS, and cause deadlock. But I'd thing that all
-> > the allocations in vfs_read()/vfs_write() should be GFP_NOFS, so that
-> > should not be a probelm?
-> > 
+>> Do perf-sched and perf-timechart work on this box?
 > 
-> Yes it needs PF_MEMALLOC to prevent deadlock because there can be a
-> file system on top of nandsim which, in this case, is on top of another
-> file system.
+> yeah:
 > 
-> I do not see how mempools will help here.
+> aldebaran:~> perf sched record sleep 1
+> [ perf record: Woken up 1 times to write data ]
+> [ perf record: Captured and wrote 0.017 MB perf.data (~758 samples) ]
+> aldebaran:~> perf trace | tail -5
+>          distccd-20944 [010]  1792.787376: sched_stat_runtime: comm=distccd pid=20944 runtime=11196 [ns] vruntime=696395420043 [ns]
+>             init-0     [009]  1792.914837: sched_stat_wait: comm=x86_64-linux-gc pid=881 delay=10686 [ns]
+>             init-0     [009]  1792.915082: sched_stat_sleep: comm=events/9 pid=44 delay=2183651362 [ns]
+>               as-889   [013]  1793.008008: sched_stat_runtime: comm=as pid=889 runtime=156807 [ns] vruntime=1553569219042 [ns]
+>             init-0     [004]  1793.154400: sched_stat_wait: comm=events/4 pid=39 delay=12155 [ns]
 > 
-> Please offer an alternative solution.
+> aldebaran:~> perf kmem record sleep 1
+> [ perf record: Woken up 1 times to write data ]
+> [ perf record: Captured and wrote 0.078 MB perf.data (~3398 samples) ]
+> aldebaran:~> perf trace | tail -5
+> aldebaran:~> 
+> 
+> the perf.data has mmap and exit events - but no kmem events.
+> 
 
-I have few questions.
+I was using yesterday's -tip tree, and I just updated to the latest -tip,
+and I found perf tools are not working:
 
-Can you please explain more detail? Another stackable filesystam
-(e.g. ecryptfs) don't have such problem. Why nandsim have its issue?
-What lock cause deadlock?
+# ./perf kmem record sleep 3
+...
+# ./perf trace
+            perf-1805  [001]    66.239160: kmem_cache_free: ...
+            perf-1806  [000]    66.403561: kmem_cache_alloc: ...
+         swapper-0     [000]    66.420099: kmem_cache_free: ...
+# ./perf kmem record sleep 3
+...
+# ./perf trace
+# ./perf sched record sleep 3
+.../
+# ./perf trace
+            perf-1825  [000]   103.543014: sched_stat_runtime: ...
+# ./perf sched record sleep 3
+...
+# ./perf trace
+#
 
+So I think some new updates on kernel perf_event break.
 
 
 --
