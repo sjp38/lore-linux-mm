@@ -1,139 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D866B0062
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2009 21:50:04 -0500 (EST)
-Date: Tue, 24 Nov 2009 11:43:58 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mmotm 4/5] memcg: avoid oom during recharge at task
- move
-Message-Id: <20091124114358.80e0cafe.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20091123051041.GQ31961@balbir.in.ibm.com>
-References: <20091119132734.1757fc42.nishimura@mxp.nes.nec.co.jp>
-	<20091119133030.8ef46be0.nishimura@mxp.nes.nec.co.jp>
-	<20091123051041.GQ31961@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 357986B006A
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 00:26:08 -0500 (EST)
+Message-ID: <4B0B6E44.6090106@cn.fujitsu.com>
+Date: Tue, 24 Nov 2009 13:25:24 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH 0/5] perf kmem: Add more functions and show more statistics
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Nov 2009 10:40:41 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-11-19 13:30:30]:
-> 
-> > This recharge-at-task-move feature has extra charges(pre-charges) on "to"
-> > mem_cgroup during recharging. This means unnecessary oom can happen.
-> > 
-> > This patch tries to avoid such oom.
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > ---
-> >  mm/memcontrol.c |   28 ++++++++++++++++++++++++++++
-> >  1 files changed, 28 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index df363da..3a07383 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -249,6 +249,7 @@ struct recharge_struct {
-> >  	struct mem_cgroup *from;
-> >  	struct mem_cgroup *to;
-> >  	unsigned long precharge;
-> > +	struct task_struct *working;	/* a task moving the target task */
-> 
-> working does not sound like an appropriate name
-> 
-Then, what's about "moving" ?
+List of new things:
 
-> >  };
-> >  static struct recharge_struct recharge;
-> > 
-> > @@ -1494,6 +1495,30 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
-> >  		if (mem_cgroup_check_under_limit(mem_over_limit))
-> >  			continue;
-> > 
-> > +		/* try to avoid oom while someone is recharging */
-> > +		if (recharge.working && current != recharge.working) {
-> > +			struct mem_cgroup *dest;
-> > +			bool do_continue = false;
-> > +			/*
-> > +			 * There is a small race that "dest" can be freed by
-> > +			 * rmdir, so we use css_tryget().
-> > +			 */
-> > +			rcu_read_lock();
-> > +			dest = recharge.to;
-> > +			if (dest && css_tryget(&dest->css)) {
-> > +				if (dest->use_hierarchy)
-> > +					do_continue = css_is_ancestor(
-> > +							&dest->css,
-> > +							&mem_over_limit->css);
-> > +				else
-> > +					do_continue = (dest == mem_over_limit);
-> > +				css_put(&dest->css);
-> > +			}
-> > +			rcu_read_unlock();
-> > +			if (do_continue)
-> > +				continue;
-> 
-> IIUC, if dest is the current cgroup we are trying to charge to or an
-> ancestor of the current cgroup, we don't OOM?
-> 
-We don't OOM:
-- if dest is the cgroup we are trying to charge to(in w/o hierarchy case).
-- if the cgroup we are trying to charge to is the ancestor of dest(in hierarchy case).
-because this feature preserves some amount of charged to dest cgroup, so we would better
-to avoid oom during moving charge about dest cgroup.
+- Add option "--raw-ip", to print raw ip instead of symbols.
 
-BTW, the above code has a bug. We should check mem_over_limit->use_hierarchy,
-not dest->use_hierarchy. Checking dest->use_hierarchy returns true even when:
+- Sort the output by fragmentation by default, and support
+  multi keys.
 
-	/A : use_hierarchy == 0		<- mem_over_limit
-		00/: use_hierarchy == 1	<- dest
+- Collect and show cross node allocation stats.
 
-(IIUC, css_is_ancestor() only checks hierarchy in cgroup layer.)
+- Collect and show alloc/free ping-pong stats.
 
-And current task_in_mem_cgroup() has the same bug, which leads to killing an
-innocent task(I'll check, test, and send a patch later).
+- And help file.
 
-> > +		}
-> > +
-> >  		if (!nr_retries--) {
-> >  			if (oom) {
-> >  				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
-> > @@ -3474,6 +3499,7 @@ static void mem_cgroup_clear_recharge(void)
-> >  	}
-> >  	recharge.from = NULL;
-> >  	recharge.to = NULL;
-> > +	recharge.working = NULL;
-> >  }
-> > 
-> >  static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-> > @@ -3498,9 +3524,11 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-> >  			VM_BUG_ON(recharge.from);
-> >  			VM_BUG_ON(recharge.to);
-> >  			VM_BUG_ON(recharge.precharge);
-> > +			VM_BUG_ON(recharge.working);
-> >  			recharge.from = from;
-> >  			recharge.to = mem;
-> >  			recharge.precharge = 0;
-> > +			recharge.working = current;
-> > 
-> >  			ret = mem_cgroup_prepare_recharge(mm);
-> >  			if (ret)
-> 
-> Sorry, if I missed it, but I did not see any time overhead of moving a
-> task after these changes. Could you please help me understand the cost
-> of moving say a task with 1G anonymous memory to another group and
-> the cost of moving a task with 512MB anonymous and 512 page cache
-> mapped, etc. It would be nice to understand the overall cost.
-> 
-O.K.
-I'll test programs with big anonymous pages and measure the time and report.
+---
+ tools/perf/Documentation/perf-kmem.txt |   44 ++++
+ tools/perf/builtin-kmem.c              |  353 ++++++++++++++++++++++++++------
+ tools/perf/command-list.txt            |    1 +
+ 3 files changed, 331 insertions(+), 67 deletions(-)
 
 
-Regards,
-Daisuke Nishimura.
+Pekka, do you think we can remove kmemtrace now?
+
+With kmem trace events, low-level analyzing can be done using
+ftrace, and high-level analyzing can be done using perf-kmem.
+
+And chance is, more people may use and improve perf-kmem, and it
+will be well-maintained within the perf infrastructure. On the
+other hand, I guess few people use and contribute to kmemtrace-user.
+
+BTW, seems kmemtrace-user doesn't work with ftrace. I got setfault:
+
+	# ./kmemtraced
+	Copying /proc/kallsyms...
+	Logging... Press Control-C to stop.
+	^CSegmentation fault
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
