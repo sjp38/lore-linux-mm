@@ -1,52 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D21B46B007D
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:00:39 -0500 (EST)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nAOGuEsh005960
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 11:56:14 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAOH0Y96266480
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:00:34 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAOH0Xe9016159
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:00:34 -0500
-Date: Tue, 24 Nov 2009 09:00:32 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: lockdep complaints in slab allocator
-Message-ID: <20091124170032.GC6831@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com> <1258709153.11284.429.camel@laptop> <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com> <1258714328.11284.522.camel@laptop> <4B067816.6070304@cs.helsinki.fi> <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop> <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi> <1259080406.4531.1645.camel@laptop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F9D06B007B
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:04:15 -0500 (EST)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp03.au.ibm.com (8.14.3/8.13.1) with ESMTP id nAOH1QRj027678
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 04:01:26 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAOH0bhW1421448
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 04:00:39 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAOH46WU006750
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 04:04:07 +1100
+Date: Tue, 24 Nov 2009 22:34:02 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [BUGFIX][PATCH -mmotm] memcg: avoid oom-killing innocent task
+	in case of use_hierarchy
+Message-ID: <20091124170402.GB3365@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp> <661de9470911240531p5e587c42w96995fde37dbd401@mail.gmail.com> <20091124230029.7245e1b8.d-nishimura@mtf.biglobe.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1259080406.4531.1645.camel@laptop>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20091124230029.7245e1b8.d-nishimura@mtf.biglobe.ne.jp>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, cl@linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
+To: nishimura@mxp.nes.nec.co.jp
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stable <stable@kernel.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 24, 2009 at 05:33:26PM +0100, Peter Zijlstra wrote:
-> On Mon, 2009-11-23 at 21:13 +0200, Pekka Enberg wrote:
-> > Matt Mackall wrote:
-> > > This seems like a lot of work to paper over a lockdep false positive in
-> > > code that should be firmly in the maintenance end of its lifecycle? I'd
-> > > rather the fix or papering over happen in lockdep.
-> > 
-> > True that. Is __raw_spin_lock() out of question, Peter?-) Passing the 
-> > state is pretty invasive because of the kmem_cache_free() call in 
-> > slab_destroy(). We re-enter the slab allocator from the outer edges 
-> > which makes spin_lock_nested() very inconvenient.
+* Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> [2009-11-24 23:00:29]:
+
+> On Tue, 24 Nov 2009 19:01:54 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> I'm perfectly fine with letting the thing be as it is, its apparently
-> not something that triggers very often, and since slab will be killed
-> off soon, who cares.
+> > On Tue, Nov 24, 2009 at 11:27 AM, Daisuke Nishimura
+> > <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > task_in_mem_cgroup(), which is called by select_bad_process() to check whether
+> > > a task can be a candidate for being oom-killed from memcg's limit, checks
+> > > "curr->use_hierarchy"("curr" is the mem_cgroup the task belongs to).
+> > >
+> > > But this check return true(it's false positive) when:
+> > >
+> > >        <some path>/00          use_hierarchy == 0      <- hitting limit
+> > >          <some path>/00/aa     use_hierarchy == 1      <- "curr"
+> > >
+> > > This leads to killing an innocent task in 00/aa. This patch is a fix for this
+> > > bug. And this patch also fixes the arg for mem_cgroup_print_oom_info(). We
+> > > should print information of mem_cgroup which the task being killed, not current,
+> > > belongs to.
+> > >
+> > 
+> > Quick Question: What happens if <some path>/00 has no tasks in it
+> > after your patches?
+> > 
+> Nothing would happen because <some path>/00 never hit its limit.
 
-Which of the alternatives to slab should I be testing with, then?
+Why not? I am talking of a scenario where <some path>/00 is set to a
+limit (similar to your example) and hits its limit, but the groups
+under it have no limits, but tasks. Shouldn't we be scanning
+<some path>/00/aa as well?
 
-[Ducks, runs away.]
+> 
+> The bug that this patch fixes is:
+> 
+> - create a dir <some path>/00 and set some limits.
+> - create a sub dir <some path>/00/aa w/o any limits, and enable hierarchy.
+> - run some programs in both in 00 and 00/aa. programs in 00 should be
+>   big enough to cause oom by its limit.
+> - when oom happens by 00's limit, tasks in 00/aa can also be killed.
+>
 
-							Thanx, Paul
+To be honest, the last part is fair, specifically if 00/aa has a task
+that is really the heaviest task as per the oom logic. no? Are you
+suggesting that only tasks in <some path>/00 should be selected by the
+oom logic? 
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
