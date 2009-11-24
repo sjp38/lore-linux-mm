@@ -1,41 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A7FCE6B007E
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 02:18:58 -0500 (EST)
-Received: by fxm9 with SMTP id 9so6689475fxm.10
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2009 23:18:56 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4B0B6E44.6090106@cn.fujitsu.com>
-References: <4B0B6E44.6090106@cn.fujitsu.com>
-Date: Tue, 24 Nov 2009 09:18:56 +0200
-Message-ID: <84144f020911232318q7ad8028ej13bf7799030878bc@mail.gmail.com>
-Subject: Re: [PATCH 0/5] perf kmem: Add more functions and show more
-	statistics
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E28D86B0083
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 02:31:17 -0500 (EST)
+Date: Tue, 24 Nov 2009 16:28:54 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [BUGFIX][PATCH -stable] memcg: avoid oom-killing innocent task in
+ case of use_hierarchy
+Message-Id: <20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: stable <stable@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 24, 2009 at 7:25 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
-> List of new things:
->
-> - Add option "--raw-ip", to print raw ip instead of symbols.
->
-> - Sort the output by fragmentation by default, and support
-> =A0multi keys.
->
-> - Collect and show cross node allocation stats.
->
-> - Collect and show alloc/free ping-pong stats.
->
-> - And help file.
+task_in_mem_cgroup(), which is called by select_bad_process() to check whether
+a task can be a candidate for being oom-killed from memcg's limit, checks
+"curr->use_hierarchy"("curr" is the mem_cgroup the task belongs to).
 
-The series looks good to me!
+But this check return true(it's false positive) when:
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+	<some path>/00		use_hierarchy == 0	<- hitting limit
+	  <some path>/00/aa	use_hierarchy == 1	<- "curr"
+
+This leads to killing an innocent task in 00/aa. This patch is a fix for this
+bug. And this patch also fixes the arg for mem_cgroup_print_oom_info(). We
+should print information of mem_cgroup which the task being killed, not current,
+belongs to.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |    2 +-
+ mm/oom_kill.c   |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fd4529d..3acc226 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -496,7 +496,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
+ 	task_unlock(task);
+ 	if (!curr)
+ 		return 0;
+-	if (curr->use_hierarchy)
++	if (mem->use_hierarchy)
+ 		ret = css_is_ancestor(&curr->css, &mem->css);
+ 	else
+ 		ret = (curr == mem);
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index a7b2460..ed452e9 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -400,7 +400,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		cpuset_print_task_mems_allowed(current);
+ 		task_unlock(current);
+ 		dump_stack();
+-		mem_cgroup_print_oom_info(mem, current);
++		mem_cgroup_print_oom_info(mem, p);
+ 		show_mem();
+ 		if (sysctl_oom_dump_tasks)
+ 			dump_tasks(mem);
+-- 
+1.5.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
