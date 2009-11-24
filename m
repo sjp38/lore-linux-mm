@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B8A06B0044
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 09:56:17 -0500 (EST)
-Date: Tue, 24 Nov 2009 06:57:53 -0800
-From: Arjan van de Ven <arjan@infradead.org>
-Subject: Re: [PATCH 0/5] perf kmem: Add more functions and show more
- statistics
-Message-ID: <20091124065753.6a08435b@infradead.org>
-In-Reply-To: <20091124083423.GE21991@elte.hu>
-References: <4B0B6E44.6090106@cn.fujitsu.com>
-	<84144f020911232315h7c8b7348u9ad97f585f54a014@mail.gmail.com>
-	<20091124073426.GA21991@elte.hu>
-	<4B0B937F.4080906@cn.fujitsu.com>
-	<20091124083423.GE21991@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7964E6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 10:14:46 -0500 (EST)
+Date: Tue, 24 Nov 2009 09:14:03 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH v2 10/12] Maintain preemptability count even for
+ !CONFIG_PREEMPT kernels
+In-Reply-To: <20091124071250.GC2999@redhat.com>
+Message-ID: <alpine.DEB.2.00.0911240906360.14045@router.home>
+References: <1258985167-29178-1-git-send-email-gleb@redhat.com> <1258985167-29178-11-git-send-email-gleb@redhat.com> <1258990455.4531.594.camel@laptop> <20091123155851.GU2999@redhat.com> <alpine.DEB.2.00.0911231128190.785@router.home>
+ <20091124071250.GC2999@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Nov 2009 09:34:23 +0100
-Ingo Molnar <mingo@elte.hu> wrote:
-> > It would be great if perf can be used for boot time tracing. This 
-> > needs pretty big work on kernel side.
-> 
-> What would be needed is to open per cpu events right after perf
-> events initializes, and allocate memory for output buffers to them.
-> 
-> They would round-robin after that point, and we could use 
-> perf_event_open() (with a special flag) to 'attach' to them and
-> mmap() them - at which point they'd turn into regular objects with a
-> lot of boot time data in them.
+On Tue, 24 Nov 2009, Gleb Natapov wrote:
 
-I'm not too worried about this btw;
-we can start the userland trace early enough in the boot (the kernel is
-done after 0.6 seconds after all) to capture the relevant stuff.
-The actual kernel mostly gets captured with scripts/bootgraph.pl
-already.
+> On Mon, Nov 23, 2009 at 11:30:02AM -0600, Christoph Lameter wrote:
+> > This adds significant overhead for the !PREEMPT case adding lots of code
+> > in critical paths all over the place.
+> I want to measure it. Can you suggest benchmarks to try?
 
-Yes it would be nice to do a timechart earlier, but if it's extremely
-hard...
-Also unless it starts before the drivers (eg the normal driver
-initcall level), it is not useful.
+AIM9 (reaim9)?
+
+Any test suite will do that tests OS performance.
+
+Latency will also be negatively impacted. There are already significant
+regressions in recent kernel releases so many of us who are sensitive
+to these issues just stick with old kernels (2.6.22 f.e.) and hope
+that the upstream issues are worked out at some point.
+
+There is also lldiag package in my directory. See
+
+http://www.kernel.org/pub/linux/kernel/people/christoph/lldiag
+
+Try the latency test and the mcast test. Localhost multicast is typically
+a good test for kernel performance.
+
+There is also the page fault test that Kamezawa-san posted recently in the
+thread where we tried to deal with the long term mmap_sem issues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
