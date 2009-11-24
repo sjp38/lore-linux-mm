@@ -1,43 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 525786B0083
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 03:00:10 -0500 (EST)
-Subject: Re: [MM] Make mm counters per cpu instead of atomic
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <alpine.DEB.2.00.0911230830300.26432@router.home>
-References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
-	 <1258440521.11321.32.camel@localhost> <1258443101.11321.33.camel@localhost>
-	 <1258450465.11321.36.camel@localhost>
-	 <alpine.DEB.1.10.0911171223460.20360@V090114053VZO-1>
-	 <1258966270.29789.45.camel@localhost>
-	 <alpine.DEB.2.00.0911230830300.26432@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Tue, 24 Nov 2009 16:02:33 +0800
-Message-Id: <1259049753.29789.49.camel@localhost>
-Mime-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5079E6B0087
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 03:04:56 -0500 (EST)
+Message-ID: <4B0B937F.4080906@cn.fujitsu.com>
+Date: Tue, 24 Nov 2009 16:04:15 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/5] perf kmem: Add more functions and show more statistics
+References: <4B0B6E44.6090106@cn.fujitsu.com> <84144f020911232315h7c8b7348u9ad97f585f54a014@mail.gmail.com> <20091124073426.GA21991@elte.hu>
+In-Reply-To: <20091124073426.GA21991@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Arjan van de Ven <arjan@infradead.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-11-23 at 08:31 -0600, Christoph Lameter wrote:
-> On Mon, 23 Nov 2009, Zhang, Yanmin wrote:
+Ingo Molnar wrote:
+> * Pekka Enberg <penberg@cs.helsinki.fi> wrote:
 > 
-> > Another theoretic issue is below scenario:
-> > Process A get the read lock on cpu 0 and is scheduled to cpu 2 to unlock. Then
-> > it's scheduled back to cpu 0 to repeat the step. eventually, the reader counter
-> > will overflow. Considering multiple thread cases, it might be faster to
-> > overflow than what we imagine. When it overflows, processes will hang there.
+>> Hi Li,
+>>
+>> On Tue, Nov 24, 2009 at 7:25 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
+>>> Pekka, do you think we can remove kmemtrace now?
+>> One more use case I forgot to mention: boot time tracing. Much of the 
+>> persistent kernel memory footprint comes from the boot process which 
+>> is why it's important to be able to trace memory allocations 
+>> immediately after kmem_cache_init() has run. Can we make "perf kmem" 
+>> do that? Eduard put most of his efforts into making that work for 
+>> kmemtrace.
 > 
-> True.... We need to find some alternative to per cpu data to scale mmap
-> sem then.
-I ran lots of benchmarks such like specjbb2005/hackbench/tbench/dbench/iozone
-/sysbench_oltp(mysql)/aim7 against percpu tree(based on 2.6.32-rc7) on a 4*8*2 logical
-cpu machine, and didn't find big result difference between with your patch and without
-your patch.
+> Would be lovely if someone looked at perf from that angle (and extended 
+> it).
+> 
+> Another interesting area would be to allow a capture session without a 
+> process context running immediately. (i.e. pre-allocate all the buffers, 
+> use them, for a later 'perf save' to pick it up.)
+> 
+> The two are kind of the same thing conceptually: a boot time trace is a 
+> preallocated 'process context less' recording, to be picked up after 
+> bootup.
+> 
+> [ It also brings us 'stability/persistency of event logging' - i.e. a 
+>   capture session could be started and guaranteed by the kernel to be 
+>   underway, regardless of what user-space does. ]
+> 
+> Btw., Arjan is doing a _lot_ of boot time tracing for Moblin, and he 
+> indicated it in the past that starting a perf recording session from an 
+> initrd is a pretty practical substitute as well. (I've Cc:-ed Arjan.)
+> 
 
+It would be great if perf can be used for boot time tracing. This needs
+pretty big work on kernel side.
 
+>> On Tue, Nov 24, 2009 at 7:25 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
+>>
+>>> With kmem trace events, low-level analyzing can be done using 
+>>> ftrace, and high-level analyzing can be done using perf-kmem.
+>>>
+>>> And chance is, more people may use and improve perf-kmem, and it 
+>>> will be well-maintained within the perf infrastructure. On the other 
+>>> hand, I guess few people use and contribute to kmemtrace-user.
+>> Sure, I think "perf kmem" is the way forward. I'd love to hear 
+>> Eduard's comments on this before we remove the code from kernel. Do we 
+>> need to do that for 2.6.33 or can we postpone that for 2.6.34?
+> 
+> Certainly we can postpone it, as long as there's rough strategic 
+> consensus on the way forward. I'd hate to have two overlapping core 
+> kernel facilities and friction between the groups pursuing them and 
+> constant distraction from having two targets.
+> 
+> Such situations just rarely end with a good solution for the user - see 
+> security modules for a horror story ...
+> 
+> [ I dont think it will occur here, just wanted to mention it out of
+>   abundance of caution that 1.5 decades of kernel hacking experience 
+>   inflicts on me ;-) ]
+> 
+
+Yeah, so we'd like to remove most of tracers, but I'm not rushing to
+remove kmemtrace for .33.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
