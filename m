@@ -1,70 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E28D86B0083
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 02:31:17 -0500 (EST)
-Date: Tue, 24 Nov 2009 16:28:54 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX][PATCH -stable] memcg: avoid oom-killing innocent task in
- case of use_hierarchy
-Message-Id: <20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
-References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B80606B0087
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 02:34:42 -0500 (EST)
+Date: Tue, 24 Nov 2009 08:34:26 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/5] perf kmem: Add more functions and show more
+ statistics
+Message-ID: <20091124073426.GA21991@elte.hu>
+References: <4B0B6E44.6090106@cn.fujitsu.com>
+ <84144f020911232315h7c8b7348u9ad97f585f54a014@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <84144f020911232315h7c8b7348u9ad97f585f54a014@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: stable <stable@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Pekka Enberg <penberg@cs.helsinki.fi>, Arjan van de Ven <arjan@infradead.org>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-task_in_mem_cgroup(), which is called by select_bad_process() to check whether
-a task can be a candidate for being oom-killed from memcg's limit, checks
-"curr->use_hierarchy"("curr" is the mem_cgroup the task belongs to).
 
-But this check return true(it's false positive) when:
+* Pekka Enberg <penberg@cs.helsinki.fi> wrote:
 
-	<some path>/00		use_hierarchy == 0	<- hitting limit
-	  <some path>/00/aa	use_hierarchy == 1	<- "curr"
+> Hi Li,
+> 
+> On Tue, Nov 24, 2009 at 7:25 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > Pekka, do you think we can remove kmemtrace now?
+> 
+> One more use case I forgot to mention: boot time tracing. Much of the 
+> persistent kernel memory footprint comes from the boot process which 
+> is why it's important to be able to trace memory allocations 
+> immediately after kmem_cache_init() has run. Can we make "perf kmem" 
+> do that? Eduard put most of his efforts into making that work for 
+> kmemtrace.
 
-This leads to killing an innocent task in 00/aa. This patch is a fix for this
-bug. And this patch also fixes the arg for mem_cgroup_print_oom_info(). We
-should print information of mem_cgroup which the task being killed, not current,
-belongs to.
+Would be lovely if someone looked at perf from that angle (and extended 
+it).
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |    2 +-
- mm/oom_kill.c   |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+Another interesting area would be to allow a capture session without a 
+process context running immediately. (i.e. pre-allocate all the buffers, 
+use them, for a later 'perf save' to pick it up.)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fd4529d..3acc226 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -496,7 +496,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
- 	task_unlock(task);
- 	if (!curr)
- 		return 0;
--	if (curr->use_hierarchy)
-+	if (mem->use_hierarchy)
- 		ret = css_is_ancestor(&curr->css, &mem->css);
- 	else
- 		ret = (curr == mem);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index a7b2460..ed452e9 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -400,7 +400,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		cpuset_print_task_mems_allowed(current);
- 		task_unlock(current);
- 		dump_stack();
--		mem_cgroup_print_oom_info(mem, current);
-+		mem_cgroup_print_oom_info(mem, p);
- 		show_mem();
- 		if (sysctl_oom_dump_tasks)
- 			dump_tasks(mem);
--- 
-1.5.6.1
+The two are kind of the same thing conceptually: a boot time trace is a 
+preallocated 'process context less' recording, to be picked up after 
+bootup.
+
+[ It also brings us 'stability/persistency of event logging' - i.e. a 
+  capture session could be started and guaranteed by the kernel to be 
+  underway, regardless of what user-space does. ]
+
+Btw., Arjan is doing a _lot_ of boot time tracing for Moblin, and he 
+indicated it in the past that starting a perf recording session from an 
+initrd is a pretty practical substitute as well. (I've Cc:-ed Arjan.)
+
+> On Tue, Nov 24, 2009 at 7:25 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
+>
+> > With kmem trace events, low-level analyzing can be done using 
+> > ftrace, and high-level analyzing can be done using perf-kmem.
+> >
+> > And chance is, more people may use and improve perf-kmem, and it 
+> > will be well-maintained within the perf infrastructure. On the other 
+> > hand, I guess few people use and contribute to kmemtrace-user.
+> 
+> Sure, I think "perf kmem" is the way forward. I'd love to hear 
+> Eduard's comments on this before we remove the code from kernel. Do we 
+> need to do that for 2.6.33 or can we postpone that for 2.6.34?
+
+Certainly we can postpone it, as long as there's rough strategic 
+consensus on the way forward. I'd hate to have two overlapping core 
+kernel facilities and friction between the groups pursuing them and 
+constant distraction from having two targets.
+
+Such situations just rarely end with a good solution for the user - see 
+security modules for a horror story ...
+
+[ I dont think it will occur here, just wanted to mention it out of
+  abundance of caution that 1.5 decades of kernel hacking experience 
+  inflicts on me ;-) ]
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
