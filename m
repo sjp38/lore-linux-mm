@@ -1,32 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C90ED6B0044
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:58:34 -0500 (EST)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e9.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nAOHqkMZ023439
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:52:46 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAOHwLHv1294538
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:58:21 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAOHwKH2015806
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:58:20 -0500
-Date: Tue, 24 Nov 2009 09:58:20 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 4C0BB6B004D
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 13:14:25 -0500 (EST)
 Subject: Re: lockdep complaints in slab allocator
-Message-ID: <20091124175820.GE6831@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com> <1258714328.11284.522.camel@laptop> <4B067816.6070304@cs.helsinki.fi> <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop> <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi> <1259080406.4531.1645.camel@laptop> <20091124170032.GC6831@linux.vnet.ibm.com> <1259082756.17871.607.camel@calx>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Peter Zijlstra <peterz@infradead.org>
 In-Reply-To: <1259082756.17871.607.camel@calx>
+References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com>
+	 <1258709153.11284.429.camel@laptop>
+	 <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com>
+	 <1258714328.11284.522.camel@laptop> <4B067816.6070304@cs.helsinki.fi>
+	 <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop>
+	 <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi>
+	 <1259080406.4531.1645.camel@laptop>
+	 <20091124170032.GC6831@linux.vnet.ibm.com>
+	 <1259082756.17871.607.camel@calx>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 24 Nov 2009 19:14:19 +0100
+Message-ID: <1259086459.4531.1752.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Matt Mackall <mpm@selenic.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, cl@linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
+Cc: paulmck@linux.vnet.ibm.com, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, cl@linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 24, 2009 at 11:12:36AM -0600, Matt Mackall wrote:
+On Tue, 2009-11-24 at 11:12 -0600, Matt Mackall wrote:
 > On Tue, 2009-11-24 at 09:00 -0800, Paul E. McKenney wrote:
 > > On Tue, Nov 24, 2009 at 05:33:26PM +0100, Peter Zijlstra wrote:
 > > > On Mon, 2009-11-23 at 21:13 +0200, Pekka Enberg wrote:
@@ -49,9 +47,9 @@ On Tue, Nov 24, 2009 at 11:12:36AM -0600, Matt Mackall wrote:
 > I'm guessing your system is in the minority that has more than $10 worth
 > of RAM, which means you should probably be evaluating SLUB.
 
-I have one nomination for SLUB.  I have started a short test run.
+Well, I was rather hoping that'd die too ;-)
 
-							Thanx, Paul
+Weren't we going to go with SLQB?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
