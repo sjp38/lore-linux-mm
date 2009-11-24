@@ -1,85 +1,151 @@
-From: Steve French <smfrench@gmail.com>
-Subject: Re: [PATCH 6/7] cifs: Don't use PF_MEMALLOC
-Date: Tue, 17 Nov 2009 10:40:49 -0600
-Message-ID: <524f69650911170840o5be241a0q5d9863c8d7f4e571@mail.gmail.com>
-References: <20091117161551.3DD4.A69D9226@jp.fujitsu.com>
-	<20091117162111.3DE8.A69D9226@jp.fujitsu.com>
-	<20091117074739.4abaef85@tlielax.poochiereds.net>
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/5] perf kmem: Add more functions and show more
+ statistics
+Date: Tue, 24 Nov 2009 10:04:25 +0100
+Message-ID: <20091124090425.GF21991@elte.hu>
+References: <4B0B6E44.6090106@cn.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Return-path: <samba-technical-bounces@lists.samba.org>
-In-Reply-To: <20091117074739.4abaef85@tlielax.poochiereds.net>
-List-Unsubscribe: <https://lists.samba.org/mailman/options/samba-technical>,
-	<mailto:samba-technical-request@lists.samba.org?subject=unsubscribe>
-List-Archive: <http://lists.samba.org/pipermail/samba-technical>
-List-Post: <mailto:samba-technical@lists.samba.org>
-List-Help: <mailto:samba-technical-request@lists.samba.org?subject=help>
-List-Subscribe: <https://lists.samba.org/mailman/listinfo/samba-technical>,
-	<mailto:samba-technical-request@lists.samba.org?subject=subscribe>
-Sender: samba-technical-bounces@lists.samba.org
-Errors-To: samba-technical-bounces@lists.samba.org
-To: Jeff Layton <jlayton@redhat.com>
-Cc: samba-technical@lists.samba.org, LKML <linux-kernel@vger.kernel.org>, Steve French <sfrench@samba.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-cifs-client@lists.samba.org
+Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S932399AbZKXJEe@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <4B0B6E44.6090106@cn.fujitsu.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-It is hard to follow exactly what this flag does in /mm (other than try
-harder on memory allocations) - I haven't found much about this flag (e.g.
-http://lwn.net/Articles/246928/) but it does look like most of the fs no
-longer set this (except xfs) e.g. ext3_ordered_writepage.  When running out
-of memory in the cifs_demultiplex_thread it will retry 3 seconds later, but
-if memory allocations ever fail in this path we could potentially be holding
-up (an already issued write in) writepages for that period by not having
-memory to get the response to see if the write succeeded.
 
-We pass in few flags for these memory allocation requests: GFP_NOFS (on the
-mempool_alloc) and SLAB_HWCACHE_ALIGN (on the kmem_cache_create of the pool)
-should we be passing in other flags on the allocations?
+a few more UI suggestions for 'perf kmem':
 
-On Tue, Nov 17, 2009 at 6:47 AM, Jeff Layton <jlayton@redhat.com> wrote:
+I think it should look similar to how 'perf' and 'perf sched' prints 
+sub-commands with increasing specificity, which means that we display a 
+list of subcommands and options when typed:
 
-> On Tue, 17 Nov 2009 16:22:32 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->
-> >
-> > Non MM subsystem must not use PF_MEMALLOC. Memory reclaim need few
-> > memory, anyone must not prevent it. Otherwise the system cause
-> > mysterious hang-up and/or OOM Killer invokation.
-> >
-> > Cc: Steve French <sfrench@samba.org>
-> > Cc: linux-cifs-client@lists.samba.org
-> > Cc: samba-technical@lists.samba.org
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > ---
-> >  fs/cifs/connect.c |    1 -
-> >  1 files changed, 0 insertions(+), 1 deletions(-)
-> >
-> > diff --git a/fs/cifs/connect.c b/fs/cifs/connect.c
-> > index 63ea83f..f9b1553 100644
-> > --- a/fs/cifs/connect.c
-> > +++ b/fs/cifs/connect.c
-> > @@ -337,7 +337,6 @@ cifs_demultiplex_thread(struct TCP_Server_Info
-> *server)
-> >       bool isMultiRsp;
-> >       int reconnect;
-> >
-> > -     current->flags |= PF_MEMALLOC;
-> >       cFYI(1, ("Demultiplex PID: %d", task_pid_nr(current)));
-> >
-> >       length = atomic_inc_return(&tcpSesAllocCount);
->
-> This patch appears to be safe for CIFS. I believe that the demultiplex
-> thread only does mempool allocations currently. The only other case
-> where it did an allocation was recently changed with the conversion of
-> the oplock break code to use slow_work.
->
-> Barring anything I've missed...
->
-> Acked-by: Jeff Layton <jlayton@redhat.com>
->
+$ perf sched
+
+ usage: perf sched [<options>] {record|latency|map|replay|trace}
+
+    -i, --input <file>    input file name
+    -v, --verbose         be more verbose (show symbol address, etc)
+    -D, --dump-raw-trace  dump raw trace in ASCII
 
 
+For 'perf kmem' we could print something like:
 
--- 
-Thanks,
+$ perf kmem
 
-Steve
+ usage: perf kmem [<options>] {record|report|trace}
+
+    -i, --input <file>    input file name
+    -v, --verbose         be more verbose (show symbol address, etc)
+    -D, --dump-raw-trace  dump raw trace in ASCII
+
+The advantage is that right now, when a new user sees the subcommand in 
+'perf' output:
+
+ $ perf
+ ...
+   kmem           Tool to trace/measure kernel memory(slab) properties
+ ...
+
+And types 'perf kmem', the following is displayed currently:
+
+ $ perf kmem
+
+ SUMMARY
+ =======
+ Total bytes requested: 0
+ Total bytes allocated: 0
+ Total bytes wasted on internal fragmentation: 0
+ Internal fragmentation: 0.000000%
+ Cross CPU allocations: 0/0
+
+That's not very useful to someone who tries to figure out how to use 
+this command. A summary page would be more useful - and that would 
+advertise all the commands in a really short summary form (shorter than 
+-h/--help).
+
+The other thing is that if someone types 'perf kmem record', the command 
+seems 'hung':
+
+ $ perf kmem record
+ <hang>
+
+Now if i Ctrl-C it i see that a recording session was going on:
+
+ $ perf kmem record
+ ^C[ perf record: Woken up 10 times to write data ]
+ [ perf record: Captured and wrote 1.327 MB perf.data (~57984 samples) ]
+
+but this was not apparent from the tool output and the user was left 
+wondering about what is going on.
+
+I think at minimum we should print a:
+
+	[ Recording all kmem events in the system, Ctrl-C to stop. ]
+
+line. (on a related note, 'perf sched record' needs such a fix too.)
+
+Another solution would be for 'perf kmem record' to work analogous to 
+'perf record': it could display a short help page by default, something 
+like:
+
+ $ perf kmem record
+
+  usage: perf kmem record [<options>] [<command>]
+
+  example: perf kmem record -a sleep 10  # capture all events for 10 seconds
+           perf kmem record /bin/ls      # capture events of this command
+           perf kmem record -p 1234      # capture events of PID 1234
+
+What do you think?
+
+Also, a handful of mini-bugreports wrt. usability:
+
+1)
+
+running 'perf kmem' without having a perf.data gives:
+
+earth4:~/tip/tools/perf> ./perf kmem
+Failed to open file: perf.data  (try 'perf record' first)
+
+SUMMARY
+=======
+Total bytes requested: 0
+Total bytes allocated: 0
+Total bytes wasted on internal fragmentation: 0
+Internal fragmentation: 0.000000%
+Cross CPU allocations: 0/0
+
+2)
+
+running 'perf kmem record' on a box without kmem events gives:
+
+earth4:~/tip/tools/perf> ./perf kmem record
+invalid or unsupported event: 'kmem:kmalloc'
+Run 'perf list' for a list of valid events
+
+i think we want to print something kmem specific - and tell the user how 
+to enable kmem events or so - 'perf list' is not a solution to him.
+
+3)
+
+it doesnt seem to be working on one of my boxes, which has perf and kmem 
+events as well:
+
+aldebaran:~/linux/linux/tools/perf> perf kmem record
+^C[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.050 MB perf.data (~2172 samples) ]
+
+aldebaran:~/linux/linux/tools/perf> perf kmem
+
+SUMMARY
+=======
+Total bytes requested: 0
+Total bytes allocated: 0
+Total bytes wasted on internal fragmentation: 0
+Internal fragmentation: 0.000000%
+Cross CPU allocations: 0/0
+aldebaran:~/linux/linux/tools/perf> 
+
+	Ingo
