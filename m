@@ -1,48 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B8106B0044
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 15:46:26 -0500 (EST)
-Subject: Re: lockdep complaints in slab allocator
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1259090615.17871.696.camel@calx>
-References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com>
-	 <1258709153.11284.429.camel@laptop>
-	 <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com>
-	 <1258714328.11284.522.camel@laptop> <4B067816.6070304@cs.helsinki.fi>
-	 <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop>
-	 <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi>
-	 <1259080406.4531.1645.camel@laptop>
-	 <20091124170032.GC6831@linux.vnet.ibm.com>
-	 <1259082756.17871.607.camel@calx>  <1259086459.4531.1752.camel@laptop>
-	 <1259090615.17871.696.camel@calx>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 24 Nov 2009 21:46:20 +0100
-Message-ID: <1259095580.4531.1788.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 970706B0044
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 15:53:35 -0500 (EST)
+Date: Tue, 24 Nov 2009 21:35:59 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/5] perf kmem: Add more functions and show more
+ statistics
+Message-ID: <20091124203559.GA450@elte.hu>
+References: <4B0B6E44.6090106@cn.fujitsu.com>
+ <20091124090425.GF21991@elte.hu>
+ <4B0BA99D.5020602@cn.fujitsu.com>
+ <20091124100724.GA5570@elte.hu>
+ <4B0BBDBF.6050806@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B0BBDBF.6050806@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: paulmck@linux.vnet.ibm.com, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, cl@linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-11-24 at 13:23 -0600, Matt Mackall wrote:
 
-> My understanding of the current state of play is:
-> 
-> SLUB: default allocator
-> SLAB: deep maintenance, will be removed if SLUB ever covers remaining
-> performance regressions
-> SLOB: useful for low-end (but high-volume!) embedded 
-> SLQB: sitting in slab.git#for-next for months, has some ground to cover
-> 
-> SLQB and SLUB have pretty similar target audiences, so I agree we should
-> eventually have only one of them. But I strongly expect performance
-> results to be mixed, just as they have been comparing SLUB/SLAB.
-> Similarly, SLQB still has of room for tuning left compared to SLUB, as
-> SLUB did compared to SLAB when it first emerged. It might be a while
-> before a clear winner emerges.
+* Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-And as long as we drag out this madness nothing will change I suspect.
+> So I think some new updates on kernel perf_event break.
+
+yeah, you were right. This commit in latest -tip should fix it:
+
+ fe61267: perf_events: Fix bad software/trace event recursion counting
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
