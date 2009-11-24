@@ -1,69 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E9AD6B009C
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 16:47:48 -0500 (EST)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e6.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nAOLrQvp024045
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 16:53:26 -0500
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 730B46B009C
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 16:48:19 -0500 (EST)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e8.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nAOHhvbV008483
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 12:43:57 -0500
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAOLlfSS1896516
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 16:47:41 -0500
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAOLmFll089806
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 16:48:15 -0500
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAOLleYS008557
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 16:47:41 -0500
-Date: Tue, 24 Nov 2009 13:47:40 -0800
+	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAOLmEaL010078
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 16:48:15 -0500
+Date: Tue, 24 Nov 2009 13:48:14 -0800
 From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Subject: Re: lockdep complaints in slab allocator
-Message-ID: <20091124214740.GJ6831@linux.vnet.ibm.com>
+Message-ID: <20091124214814.GK6831@linux.vnet.ibm.com>
 Reply-To: paulmck@linux.vnet.ibm.com
-References: <20091118181202.GA12180@linux.vnet.ibm.com> <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com> <1258709153.11284.429.camel@laptop> <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com> <1258714328.11284.522.camel@laptop> <4B067816.6070304@cs.helsinki.fi> <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop> <20091124162311.GA8679@linux.vnet.ibm.com> <84144f020911241259r3a604b29yb59902655ec03a20@mail.gmail.com>
+References: <1259080406.4531.1645.camel@laptop> <20091124170032.GC6831@linux.vnet.ibm.com> <1259082756.17871.607.camel@calx> <1259086459.4531.1752.camel@laptop> <1259090615.17871.696.camel@calx> <1259095580.4531.1788.camel@laptop> <1259096004.17871.716.camel@calx> <1259096519.4531.1809.camel@laptop> <alpine.DEB.2.00.0911241302370.6593@chino.kir.corp.google.com> <1259097150.4531.1822.camel@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <84144f020911241259r3a604b29yb59902655ec03a20@mail.gmail.com>
+In-Reply-To: <1259097150.4531.1822.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, cl@linux-foundation.org, mpm@selenic.com, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 24, 2009 at 10:59:44PM +0200, Pekka Enberg wrote:
-> On Tue, Nov 24, 2009 at 6:23 PM, Paul E. McKenney
-> <paulmck@linux.vnet.ibm.com> wrote:
-> > On Mon, Nov 23, 2009 at 09:00:00PM +0200, Pekka Enberg wrote:
-> >> Hi Peter,
-> >>
-> >> On Fri, 2009-11-20 at 16:09 +0100, Peter Zijlstra wrote:
-> >> > > Uh, ok, so apparently I was right after all. There's a comment in
-> >> > > free_block() above the slab_destroy() call that refers to the comment
-> >> > > above alloc_slabmgmt() function definition which explains it all.
-> >> > >
-> >> > > Long story short: ->slab_cachep never points to the same kmalloc cache
-> >> > > we're allocating or freeing from. Where do we need to put the
-> >> > > spin_lock_nested() annotation? Would it be enough to just use it in
-> >> > > cache_free_alien() for alien->lock or do we need it in
-> >> > > cache_flusharray() as well?
-> >> >
-> >> > You'd have to somehow push the nested state down from the
-> >> > kmem_cache_free() call in slab_destroy() to all nc->lock sites below.
-> >>
-> >> That turns out to be _very_ hard. How about something like the following
-> >> untested patch which delays slab_destroy() while we're under nc->lock.
-> >>
-> >>                       Pekka
-> >
-> > Preliminary tests look good!  The test was a ten-hour rcutorture run on
-> > an 8-CPU Power system with a half-second delay between randomly chosen
-> > CPU-hotplug operations.  No lockdep warnings.  ;-)
-> >
-> > Will keep hammering on it.
+On Tue, Nov 24, 2009 at 10:12:30PM +0100, Peter Zijlstra wrote:
+> On Tue, 2009-11-24 at 13:03 -0800, David Rientjes wrote:
+> > On Tue, 24 Nov 2009, Peter Zijlstra wrote:
+> > 
+> > > Merge SLQB and rm mm/sl[ua]b.c include/linux/sl[ua]b.h for .33-rc1
+> > > 
+> > 
+> > slqb still has a 5-10% performance regression compared to slab for 
+> > benchmarks such as netperf TCP_RR on machines with high cpu counts, 
+> > forcing that type of regression isn't acceptable.
 > 
-> Thanks! Please let me know when you're hammered it enough :-). Peter,
-> may I have your ACK or NAK on the patch, please?
+> Having _4_ slab allocators is equally unacceptable.
 
-I expect to hammer it over the USA Thanksgiving holiday Thu-Sun this week.
-It is like this, Pekka: since I don't drink, it is instead your code
-that is going to get hammered this weekend!
+I completely agree.  We need at least ten.  ;-)
 
 							Thanx, Paul
 
