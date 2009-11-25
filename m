@@ -1,91 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B2D56B0062
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 15:39:55 -0500 (EST)
-Date: Wed, 25 Nov 2009 21:35:09 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] vmscan: do not evict inactive pages when skipping an active list scan
-Message-ID: <20091125203509.GA18018@cmpxchg.org>
-References: <20091125133752.2683c3e4@bree.surriel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E18F06B007B
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 15:46:44 -0500 (EST)
+Date: Wed, 25 Nov 2009 12:45:51 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUGFIX][PATCH v2 -stable] memcg: avoid oom-killing innocent
+ task in case of use_hierarchy
+Message-Id: <20091125124551.9d45e0e4.akpm@linux-foundation.org>
+In-Reply-To: <20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+	<20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
+	<20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091125133752.2683c3e4@bree.surriel.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, kosaki.motohiro@fujitsu.co.jp, Tomasz Chmielewski <mangoo@wpkg.org>, akpm@linux-foundation.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello all,
+On Wed, 25 Nov 2009 14:32:18 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-On Wed, Nov 25, 2009 at 01:37:52PM -0500, Rik van Riel wrote:
-> In AIM7 runs, recent kernels start swapping out anonymous pages
-> well before they should.  This is due to shrink_list falling
-> through to shrink_inactive_list if !inactive_anon_is_low(zone, sc),
-> when all we really wanted to do is pre-age some anonymous pages to
-> give them extra time to be referenced while on the inactive list.
-
-I do not quite understand what changed 'recently'.
-
-That fall-through logic to keep eating inactives when the ratio is off
-came in a year ago with the second-chance-for-anon-pages patch..?
-
-> The obvious fix is to make sure that shrink_list does not fall
-> through to scanning/reclaiming inactive pages when we called it
-> to scan one of the active lists.
->
-> This change should be safe because the loop in shrink_zone ensures
-> that we will still shrink the anon and file inactive lists whenever
-> we should.
-
-It was not so obvious to me ;)
-
-At first, I thought it would make sense to actively rebalance between
-the lists if the inactive one grows too large (the fall-through case).
-
-But shrink_zone() does not know about this and although we scan
-inactive pages, we do not account for them and decrease the 'nr[lru]'
-for active pages instead, effectively shifting the 'active todo' over
-to the 'inactive todo'.  I can imagine this going wrong!
-
-So I agree, we should use the inactive_*_is_low() predicate only
-passively.
- 
-> Reported-by: Larry Woodman <lwoodman@redhat.com>
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 777af57..ec4dfda 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1469,13 +1469,15 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
->  {
->  	int file = is_file_lru(lru);
->  
-> -	if (lru == LRU_ACTIVE_FILE && inactive_file_is_low(zone, sc)) {
-> -		shrink_active_list(nr_to_scan, zone, sc, priority, file);
-> +	if (lru == LRU_ACTIVE_FILE) {
-> +		if (inactive_file_is_low(zone, sc))
-> +		      shrink_active_list(nr_to_scan, zone, sc, priority, file);
->  		return 0;
->  	}
->  
-> -	if (lru == LRU_ACTIVE_ANON && inactive_anon_is_low(zone, sc)) {
-> -		shrink_active_list(nr_to_scan, zone, sc, priority, file);
-> +	if (lru == LRU_ACTIVE_ANON) {
-> +		if (inactive_file_is_low(zone, sc))
-> +		      shrink_active_list(nr_to_scan, zone, sc, priority, file);
->  		return 0;
->  	}
->  	return shrink_inactive_list(nr_to_scan, zone, sc, priority, file);
+> > Hmm. Maybe not-expected behavior...could you add comment ?
+> > 
+> How about this ?
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > (*) I'm sorry I can't work enough in these days.
+> > 
+> 
+> BTW, this patch conflict with oom-dump-stack-and-vm-state-when-oom-killer-panics.patch
+> in current mmotm(that's why I post mmotm version separately), so this bug will not be fixed
+> till 2.6.33 in linus-tree.
+> So I think this patch should go in 2.6.32.y too.
+
+I don't actually have a 2.6.33 version of this patch yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
