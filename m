@@ -1,53 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 565176B004D
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 20:20:38 -0500 (EST)
-Subject: Re: [MM] Make mm counters per cpu instead of atomic
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <alpine.DEB.2.00.0911240914190.14045@router.home>
-References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
-	 <1258440521.11321.32.camel@localhost> <1258443101.11321.33.camel@localhost>
-	 <1258450465.11321.36.camel@localhost>
-	 <alpine.DEB.1.10.0911171223460.20360@V090114053VZO-1>
-	 <1258966270.29789.45.camel@localhost>
-	 <alpine.DEB.2.00.0911230830300.26432@router.home>
-	 <1259049753.29789.49.camel@localhost>
-	 <alpine.DEB.2.00.0911240914190.14045@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Wed, 25 Nov 2009 09:23:01 +0800
-Message-Id: <1259112181.29789.53.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id CC31F6B007B
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 22:30:06 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp02.in.ibm.com (8.14.3/8.13.1) with ESMTP id nAP3U0di003433
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 09:00:00 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAP3TxQ11192038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 09:00:00 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAP3Tx00007057
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:29:59 +1100
+Date: Wed, 25 Nov 2009 08:59:55 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [BUGFIX][PATCH -mmotm] memcg: avoid oom-killing innocent task
+	in case of use_hierarchy
+Message-ID: <20091125032954.GC3365@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp> <661de9470911240531p5e587c42w96995fde37dbd401@mail.gmail.com> <20091124230029.7245e1b8.d-nishimura@mtf.biglobe.ne.jp> <20091124170402.GB3365@balbir.in.ibm.com> <20091125084910.16d9095d.nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20091125084910.16d9095d.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stable <stable@kernel.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-11-24 at 09:17 -0600, Christoph Lameter wrote:
-> On Tue, 24 Nov 2009, Zhang, Yanmin wrote:
+* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-11-25 08:49:10]:
+
+> On Tue, 24 Nov 2009 22:34:02 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > * Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> [2009-11-24 23:00:29]:
+> > 
+> > > On Tue, 24 Nov 2009 19:01:54 +0530
+> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > 
+> > > > On Tue, Nov 24, 2009 at 11:27 AM, Daisuke Nishimura
+> > > > <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > > > task_in_mem_cgroup(), which is called by select_bad_process() to check whether
+> > > > > a task can be a candidate for being oom-killed from memcg's limit, checks
+> > > > > "curr->use_hierarchy"("curr" is the mem_cgroup the task belongs to).
+> > > > >
+> > > > > But this check return true(it's false positive) when:
+> > > > >
+> > > > >        <some path>/00          use_hierarchy == 0      <- hitting limit
+> > > > >          <some path>/00/aa     use_hierarchy == 1      <- "curr"
+> > > > >
+> > > > > This leads to killing an innocent task in 00/aa. This patch is a fix for this
+> > > > > bug. And this patch also fixes the arg for mem_cgroup_print_oom_info(). We
+> > > > > should print information of mem_cgroup which the task being killed, not current,
+> > > > > belongs to.
+> > > > >
+> > > > 
+> > > > Quick Question: What happens if <some path>/00 has no tasks in it
+> > > > after your patches?
+> > > > 
+> > > Nothing would happen because <some path>/00 never hit its limit.
+> > 
+> > Why not? I am talking of a scenario where <some path>/00 is set to a
+> > limit (similar to your example) and hits its limit, but the groups
+> > under it have no limits, but tasks. Shouldn't we be scanning
+> > <some path>/00/aa as well?
+> > 
+> > > 
+> > > The bug that this patch fixes is:
+> > > 
+> > > - create a dir <some path>/00 and set some limits.
+> > > - create a sub dir <some path>/00/aa w/o any limits, and enable hierarchy.
+> > > - run some programs in both in 00 and 00/aa. programs in 00 should be
+> > >   big enough to cause oom by its limit.
+> > > - when oom happens by 00's limit, tasks in 00/aa can also be killed.
+> > >
+> > 
+> > To be honest, the last part is fair, specifically if 00/aa has a task
+> > that is really the heaviest task as per the oom logic. no? Are you
+> > suggesting that only tasks in <some path>/00 should be selected by the
+> > oom logic? 
+> > 
+> All of your comments would be rational if hierarchy is enabled in 00(it's
+> also enabled in 00/aa automatically in this case).
+> I'm saying about the case where it's disabled in 00 but enabled in 00/aa.
 > 
-> > > True.... We need to find some alternative to per cpu data to scale mmap
-> > > sem then.
-> > I ran lots of benchmarks such like specjbb2005/hackbench/tbench/dbench/iozone
-> > /sysbench_oltp(mysql)/aim7 against percpu tree(based on 2.6.32-rc7) on a 4*8*2 logical
-> > cpu machine, and didn't find big result difference between with your patch and without
-> > your patch.
+
+OK, I misunderstood the example then, so even though hierarchy is
+disabled, we kill a task in 00/aa when 00 hits the limit. Thanks for
+clarifying.
+
+> In this scenario, charges by tasks in 00/aa is(and should not be) charged to 00.
+> And oom caused by 00's limit should not affect the task in 00/aa.
 > 
-> This affects loads that heavily use mmap_sem. You wont find too many
-> issues in tests that do not run processes with a large thread count and
-> cause lots of faults or uses of get_user_pages(). The tests you list are
-> not of that nature.
-sysbench_oltp(mysql) is kind of such workload. Both sysbench and mysql are
-multi-threaded. 2 years ago, I investigated a scalability issue of such
- workload and found mysql causes frequent down_read(mm->mmap_sem). Nick changes
-it to down_read to fix it.
+> 
+> Regards,
+> Daisuke Nishimura.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
-But this workload doesn't work well with more than 64 threads because mysql has some
-unreasonable big locks in userspace (implemented as a conditional spinlock in
-userspace).
-
-Yanmin
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
