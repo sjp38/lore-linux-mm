@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 71A346B0044
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 08:04:04 -0500 (EST)
-Message-ID: <4B0D2B22.4030403@redhat.com>
-Date: Wed, 25 Nov 2009 15:03:30 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C7CCA6B0044
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 08:09:47 -0500 (EST)
+Message-ID: <4B0D2C90.2060200@redhat.com>
+Date: Wed, 25 Nov 2009 15:09:36 +0200
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 08/12] Inject asynchronous page fault into a guest
- if page is swapped out.
-References: <1258985167-29178-1-git-send-email-gleb@redhat.com> <1258985167-29178-9-git-send-email-gleb@redhat.com>
-In-Reply-To: <1258985167-29178-9-git-send-email-gleb@redhat.com>
+Subject: Re: [PATCH v2 09/12] Retry fault before vmentry
+References: <1258985167-29178-1-git-send-email-gleb@redhat.com> <1258985167-29178-10-git-send-email-gleb@redhat.com>
+In-Reply-To: <1258985167-29178-10-git-send-email-gleb@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,38 +17,35 @@ Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo
 List-ID: <linux-mm.kvack.org>
 
 On 11/23/2009 04:06 PM, Gleb Natapov wrote:
-> If guest access swapped out memory do not swap it in from vcpu thread
-> context. Setup slow work to do swapping and send async page fault to
-> a guest.
+> When page is swapped in it is mapped into guest memory only after guest
+> tries to access it again and generate another fault. To save this fault
+> we can map it immediately since we know that guest is going to access
+> the page.
 >
-> Allow async page fault injection only when guest is in user mode since
-> otherwise guest may be in non-sleepable context and will not be able to
-> reschedule.
 >
-> +
-> +void kvm_arch_inject_async_page_present(struct kvm_vcpu *vcpu,
-> +					struct kvm_async_pf *work)
-> +{
-> +	put_user(KVM_PV_REASON_PAGE_READY, vcpu->arch.apf_data);
-> +	kvm_inject_page_fault(vcpu, work->arch.token, 0);
-> +	trace_kvm_send_async_pf(work->arch.token, work->gva,
-> +				KVM_PV_REASON_PAGE_READY);
-> +}
+> -static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+> +static int tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t cr3, gva_t gpa,
+>   				u32 error_code)
+>   {
+>   	pfn_t pfn;
+> @@ -2230,7 +2233,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+>   	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+>   	smp_rmb();
+>
+> -	if (can_do_async_pf(vcpu)) {
+> +	if (cr3 == vcpu->arch.cr3&&  can_do_async_pf(vcpu)) {
 >    
 
-What if the guest is now handling a previous asynv pf or ready 
-notification?  We're clobbering the data structure.
+Why check cr3 here?
 
-> +
-> +bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)
-> +{
-> +	return !kvm_event_needs_reinjection(vcpu)&&
-> +		kvm_x86_ops->interrupt_allowed(vcpu);
-> +}
+> -static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
+> +static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t cr3, gva_t addr,
+>   			       u32 error_code)
 >    
 
-Okay, so this is only allowed with interrupts disabled.  Need to make 
-sure the entire pf path up to async pf executes with interrupts disabled.
+I'd be slightly happier if we had a page_fault_other_cr3() op that 
+switched cr3, called the original, then switched back (the tdp version 
+need not change anything).
 
 -- 
 error compiling committee.c: too many arguments to function
