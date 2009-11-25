@@ -1,30 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 88D1D6B008C
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 02:12:20 -0500 (EST)
-Message-ID: <4B0CD8D0.20600@cs.helsinki.fi>
-Date: Wed, 25 Nov 2009 09:12:16 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E228E6B0092
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 02:13:41 -0500 (EST)
+Message-ID: <4B0CD912.7090002@nokia.com>
+Date: Wed, 25 Nov 2009 09:13:22 +0200
+From: Adrian Hunter <adrian.hunter@nokia.com>
 MIME-Version: 1.0
-Subject: Re: lockdep complaints in slab allocator
-References: <1259086459.4531.1752.camel@laptop> <1259090615.17871.696.camel@calx> <1259095580.4531.1788.camel@laptop> <1259096004.17871.716.camel@calx> <1259096519.4531.1809.camel@laptop> <alpine.DEB.2.00.0911241302370.6593@chino.kir.corp.google.com> <1259097150.4531.1822.camel@laptop> <alpine.DEB.2.00.0911241313220.12339@chino.kir.corp.google.com> <1259098552.4531.1857.camel@laptop> <alpine.DEB.2.00.0911241336550.12339@chino.kir.corp.google.com> <20091124222351.GL6831@linux.vnet.ibm.com>
-In-Reply-To: <20091124222351.GL6831@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 4/7] nandsim: Don't use PF_MEMALLOC
+References: <20091124194532.AFC2.A69D9226@jp.fujitsu.com> <4B0BC9E3.6070504@nokia.com> <20091125084630.AFC5.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091125084630.AFC5.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: paulmck@linux.vnet.ibm.com
-Cc: David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: "Bityutskiy Artem (Nokia-D/Helsinki)" <Artem.Bityutskiy@nokia.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Woodhouse <David.Woodhouse@intel.com>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul E. McKenney kirjoitti:
-> As for me, as long as SLAB is in the kernel and is default for some
-> of the machines I use for testing, I will continue reporting any bugs
-> I find in it.  ;-)
+KOSAKI Motohiro wrote:
+>> KOSAKI Motohiro wrote:
+>>> Hi
+>>>
+>>> Thank you for this useful comments.
+>>>
+>>>>> I vaguely remember Adrian (CCed) did this on purpose. This is for the
+>>>>> case when nandsim emulates NAND flash on top of a file. So there are 2
+>>>>> file-systems involved: one sits on top of nandsim (e.g. UBIFS) and the
+>>>>> other owns the file which nandsim uses (e.g., ext3).
+>>>>>
+>>>>> And I really cannot remember off the top of my head why he needed
+>>>>> PF_MEMALLOC, but I think Adrian wanted to prevent the direct reclaim
+>>>>> path to re-enter, say UBIFS, and cause deadlock. But I'd thing that all
+>>>>> the allocations in vfs_read()/vfs_write() should be GFP_NOFS, so that
+>>>>> should not be a probelm?
+>>>>>
+>>>> Yes it needs PF_MEMALLOC to prevent deadlock because there can be a
+>>>> file system on top of nandsim which, in this case, is on top of another
+>>>> file system.
+>>>>
+>>>> I do not see how mempools will help here.
+>>>>
+>>>> Please offer an alternative solution.
+>>> I have few questions.
+>>>
+>>> Can you please explain more detail? Another stackable filesystam
+>>> (e.g. ecryptfs) don't have such problem. Why nandsim have its issue?
+>>> What lock cause deadlock?
+>> The file systems are not stacked.  One is over nandsim, which nandsim
+>> does not know about because it is just a lowly NAND device, and, with
+>> the file cache option, one file system below to provide the file cache.
+>>
+>> The deadlock is the kernel writing out dirty pages to the top file system
+>> which writes to nandsim which writes to the bottom file system which
+>> allocates memory which causes dirty pages to be written out to the top
+>> file system, which tries to write to nandsim => deadlock.
+> 
+> You mean you want to prevent pageout() instead reclaim itself?
 
-Yes, thanks for doing that. As long as SLAB is in the tree, I'll do my 
-best to get them fixed.
+Yes
 
-			Pekka
+> Dropping filecache seems don't make recursive call, right?
+
+Yes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
