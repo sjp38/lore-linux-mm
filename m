@@ -1,96 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 486396B0087
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 00:42:24 -0500 (EST)
-Date: Wed, 25 Nov 2009 14:32:18 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX][PATCH v2 -stable] memcg: avoid oom-killing innocent task
- in case of use_hierarchy
-Message-Id: <20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C0FC66B0089
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 00:53:29 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAP5rRnK032254
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 25 Nov 2009 14:53:27 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D252945DE51
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:53:26 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B5C8045DE4E
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:53:26 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A1D1B1DB8040
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:53:26 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5BC1D1DB8038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:53:26 +0900 (JST)
+Date: Wed, 25 Nov 2009 14:50:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH v2 -stable] memcg: avoid oom-killing innocent
+ task in case of use_hierarchy
+Message-Id: <20091125145026.9442135c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
 References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
 	<20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
 	<20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> Hmm. Maybe not-expected behavior...could you add comment ?
+On Wed, 25 Nov 2009 14:32:18 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+
+> > Hmm. Maybe not-expected behavior...could you add comment ?
+> > 
+> How about this ?
 > 
-How about this ?
+seems nice. Thank you very much.
 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> (*) I'm sorry I can't work enough in these days.
-> 
-
-BTW, this patch conflict with oom-dump-stack-and-vm-state-when-oom-killer-panics.patch
-in current mmotm(that's why I post mmotm version separately), so this bug will not be fixed
-till 2.6.33 in linus-tree.
-So I think this patch should go in 2.6.32.y too.
-
-===
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
-task_in_mem_cgroup(), which is called by select_bad_process() to check whether
-a task can be a candidate for being oom-killed from memcg's limit, checks
-"curr->use_hierarchy"("curr" is the mem_cgroup the task belongs to).
-
-But this check return true(it's false positive) when:
-
-	<some path>/00		use_hierarchy == 0	<- hitting limit
-	  <some path>/00/aa	use_hierarchy == 1	<- "curr"
-
-This leads to killing an innocent task in 00/aa. This patch is a fix for this
-bug. And this patch also fixes the arg for mem_cgroup_print_oom_info(). We
-should print information of mem_cgroup which the task being killed, not current,
-belongs to.
-
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
- mm/memcontrol.c |    8 +++++++-
- mm/oom_kill.c   |    2 +-
- 2 files changed, 8 insertions(+), 2 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fd4529d..566925e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -496,7 +496,13 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
- 	task_unlock(task);
- 	if (!curr)
- 		return 0;
--	if (curr->use_hierarchy)
-+	/*
-+	 * We should check use_hierarchy of "mem" not "curr". Because checking
-+	 * use_hierarchy of "curr" here make this function true if hierarchy is
-+	 * enabled in "curr" and "curr" is a child of "mem" in *cgroup*
-+	 * hierarchy(even if use_hierarchy is disabled in "mem").
-+	 */
-+	if (mem->use_hierarchy)
- 		ret = css_is_ancestor(&curr->css, &mem->css);
- 	else
- 		ret = (curr == mem);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index a7b2460..ed452e9 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -400,7 +400,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		cpuset_print_task_mems_allowed(current);
- 		task_unlock(current);
- 		dump_stack();
--		mem_cgroup_print_oom_info(mem, current);
-+		mem_cgroup_print_oom_info(mem, p);
- 		show_mem();
- 		if (sysctl_oom_dump_tasks)
- 			dump_tasks(mem);
--- 
-1.5.6.1
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
