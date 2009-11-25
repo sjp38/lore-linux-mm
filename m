@@ -1,52 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C0FC66B0089
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 00:53:29 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAP5rRnK032254
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 25 Nov 2009 14:53:27 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D252945DE51
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:53:26 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B5C8045DE4E
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:53:26 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A1D1B1DB8040
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:53:26 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5BC1D1DB8038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 14:53:26 +0900 (JST)
-Date: Wed, 25 Nov 2009 14:50:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH v2 -stable] memcg: avoid oom-killing innocent
- task in case of use_hierarchy
-Message-Id: <20091125145026.9442135c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
-References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
-	<20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
-	<20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 88D1D6B008C
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 02:12:20 -0500 (EST)
+Message-ID: <4B0CD8D0.20600@cs.helsinki.fi>
+Date: Wed, 25 Nov 2009 09:12:16 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: lockdep complaints in slab allocator
+References: <1259086459.4531.1752.camel@laptop> <1259090615.17871.696.camel@calx> <1259095580.4531.1788.camel@laptop> <1259096004.17871.716.camel@calx> <1259096519.4531.1809.camel@laptop> <alpine.DEB.2.00.0911241302370.6593@chino.kir.corp.google.com> <1259097150.4531.1822.camel@laptop> <alpine.DEB.2.00.0911241313220.12339@chino.kir.corp.google.com> <1259098552.4531.1857.camel@laptop> <alpine.DEB.2.00.0911241336550.12339@chino.kir.corp.google.com> <20091124222351.GL6831@linux.vnet.ibm.com>
+In-Reply-To: <20091124222351.GL6831@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: paulmck@linux.vnet.ibm.com
+Cc: David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Nov 2009 14:32:18 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Paul E. McKenney kirjoitti:
+> As for me, as long as SLAB is in the kernel and is default for some
+> of the machines I use for testing, I will continue reporting any bugs
+> I find in it.  ;-)
 
-> > Hmm. Maybe not-expected behavior...could you add comment ?
-> > 
-> How about this ?
-> 
-seems nice. Thank you very much.
+Yes, thanks for doing that. As long as SLAB is in the tree, I'll do my 
+best to get them fixed.
 
-Regards,
--Kame
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
