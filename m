@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E18F06B007B
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 15:46:44 -0500 (EST)
-Date: Wed, 25 Nov 2009 12:45:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUGFIX][PATCH v2 -stable] memcg: avoid oom-killing innocent
- task in case of use_hierarchy
-Message-Id: <20091125124551.9d45e0e4.akpm@linux-foundation.org>
-In-Reply-To: <20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
-References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
-	<20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
-	<20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id AA3076B007E
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 15:48:37 -0500 (EST)
+Message-ID: <4B0D97F9.70106@redhat.com>
+Date: Wed, 25 Nov 2009 15:47:53 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] vmscan: do not evict inactive pages when skipping an
+ active list scan
+References: <20091125133752.2683c3e4@bree.surriel.com> <20091125203509.GA18018@cmpxchg.org>
+In-Reply-To: <20091125203509.GA18018@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, kosaki.motohiro@fujitsu.co.jp, Tomasz Chmielewski <mangoo@wpkg.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Nov 2009 14:32:18 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On 11/25/2009 03:35 PM, Johannes Weiner wrote:
+> Hello all,
+>
+> On Wed, Nov 25, 2009 at 01:37:52PM -0500, Rik van Riel wrote:
+>    
+>> In AIM7 runs, recent kernels start swapping out anonymous pages
+>> well before they should.  This is due to shrink_list falling
+>> through to shrink_inactive_list if !inactive_anon_is_low(zone, sc),
+>> when all we really wanted to do is pre-age some anonymous pages to
+>> give them extra time to be referenced while on the inactive list.
+>>      
+> I do not quite understand what changed 'recently'.
+>
+> That fall-through logic to keep eating inactives when the ratio is off
+> came in a year ago with the second-chance-for-anon-pages patch..?
+>
+>    
+The confusion comes from my use of the word
+"recently" here.  Larry started testing with
+RHEL 5 as the baseline.
 
-> > Hmm. Maybe not-expected behavior...could you add comment ?
-> > 
-> How about this ?
-> 
-> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > (*) I'm sorry I can't work enough in these days.
-> > 
-> 
-> BTW, this patch conflict with oom-dump-stack-and-vm-state-when-oom-killer-panics.patch
-> in current mmotm(that's why I post mmotm version separately), so this bug will not be fixed
-> till 2.6.33 in linus-tree.
-> So I think this patch should go in 2.6.32.y too.
+And yeah - I believe the code may well have
+been wrong ever since it was merged. The
+indentation just looked so pretty that noone
+spotted the bug.
 
-I don't actually have a 2.6.33 version of this patch yet.
+> Acked-by: Johannes Weiner<hannes@cmpxchg.org>
+>
+>    
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
