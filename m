@@ -1,79 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D62BB6B0044
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 19:42:20 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAP0gIu1001855
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 25 Nov 2009 09:42:18 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D1F7245DE51
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 09:42:17 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AC2C845DE4F
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 09:42:17 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 989DEE1800B
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 09:42:17 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 482EF1DB8038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 09:42:17 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/7] nandsim: Don't use PF_MEMALLOC
-In-Reply-To: <4B0BC9E3.6070504@nokia.com>
-References: <20091124194532.AFC2.A69D9226@jp.fujitsu.com> <4B0BC9E3.6070504@nokia.com>
-Message-Id: <20091125084630.AFC5.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed, 25 Nov 2009 09:42:16 +0900 (JST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 565176B004D
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2009 20:20:38 -0500 (EST)
+Subject: Re: [MM] Make mm counters per cpu instead of atomic
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <alpine.DEB.2.00.0911240914190.14045@router.home>
+References: <alpine.DEB.1.10.0911041409020.7409@V090114053VZO-1>
+	 <1258440521.11321.32.camel@localhost> <1258443101.11321.33.camel@localhost>
+	 <1258450465.11321.36.camel@localhost>
+	 <alpine.DEB.1.10.0911171223460.20360@V090114053VZO-1>
+	 <1258966270.29789.45.camel@localhost>
+	 <alpine.DEB.2.00.0911230830300.26432@router.home>
+	 <1259049753.29789.49.camel@localhost>
+	 <alpine.DEB.2.00.0911240914190.14045@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Wed, 25 Nov 2009 09:23:01 +0800
+Message-Id: <1259112181.29789.53.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Adrian Hunter <adrian.hunter@nokia.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "Bityutskiy Artem (Nokia-D/Helsinki)" <Artem.Bityutskiy@nokia.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Woodhouse <David.Woodhouse@intel.com>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-> ext KOSAKI Motohiro wrote:
-> > Hi
-> > 
-> > Thank you for this useful comments.
-> > 
-> >>> I vaguely remember Adrian (CCed) did this on purpose. This is for the
-> >>> case when nandsim emulates NAND flash on top of a file. So there are 2
-> >>> file-systems involved: one sits on top of nandsim (e.g. UBIFS) and the
-> >>> other owns the file which nandsim uses (e.g., ext3).
-> >>>
-> >>> And I really cannot remember off the top of my head why he needed
-> >>> PF_MEMALLOC, but I think Adrian wanted to prevent the direct reclaim
-> >>> path to re-enter, say UBIFS, and cause deadlock. But I'd thing that all
-> >>> the allocations in vfs_read()/vfs_write() should be GFP_NOFS, so that
-> >>> should not be a probelm?
-> >>>
-> >> Yes it needs PF_MEMALLOC to prevent deadlock because there can be a
-> >> file system on top of nandsim which, in this case, is on top of another
-> >> file system.
-> >>
-> >> I do not see how mempools will help here.
-> >>
-> >> Please offer an alternative solution.
-> > 
-> > I have few questions.
-> > 
-> > Can you please explain more detail? Another stackable filesystam
-> > (e.g. ecryptfs) don't have such problem. Why nandsim have its issue?
-> > What lock cause deadlock?
+On Tue, 2009-11-24 at 09:17 -0600, Christoph Lameter wrote:
+> On Tue, 24 Nov 2009, Zhang, Yanmin wrote:
 > 
-> The file systems are not stacked.  One is over nandsim, which nandsim
-> does not know about because it is just a lowly NAND device, and, with
-> the file cache option, one file system below to provide the file cache.
+> > > True.... We need to find some alternative to per cpu data to scale mmap
+> > > sem then.
+> > I ran lots of benchmarks such like specjbb2005/hackbench/tbench/dbench/iozone
+> > /sysbench_oltp(mysql)/aim7 against percpu tree(based on 2.6.32-rc7) on a 4*8*2 logical
+> > cpu machine, and didn't find big result difference between with your patch and without
+> > your patch.
 > 
-> The deadlock is the kernel writing out dirty pages to the top file system
-> which writes to nandsim which writes to the bottom file system which
-> allocates memory which causes dirty pages to be written out to the top
-> file system, which tries to write to nandsim => deadlock.
+> This affects loads that heavily use mmap_sem. You wont find too many
+> issues in tests that do not run processes with a large thread count and
+> cause lots of faults or uses of get_user_pages(). The tests you list are
+> not of that nature.
+sysbench_oltp(mysql) is kind of such workload. Both sysbench and mysql are
+multi-threaded. 2 years ago, I investigated a scalability issue of such
+ workload and found mysql causes frequent down_read(mm->mmap_sem). Nick changes
+it to down_read to fix it.
 
-You mean you want to prevent pageout() instead reclaim itself?
-Dropping filecache seems don't make recursive call, right?
+But this workload doesn't work well with more than 64 threads because mysql has some
+unreasonable big locks in userspace (implemented as a conditional spinlock in
+userspace).
 
+Yanmin
 
 
 --
