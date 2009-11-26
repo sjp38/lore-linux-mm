@@ -1,70 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id CDD386B0044
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 23:57:08 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAQ4v50R028997
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 26 Nov 2009 13:57:06 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9453945DE5E
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 13:57:05 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B49845DE5A
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 13:57:05 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 00DB51DB805E
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 13:57:05 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B40461DB805F
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 13:56:57 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list() sc->isolate_pages() return value.
-In-Reply-To: <20091016120242.AF31.A69D9226@jp.fujitsu.com>
-References: <20091016022011.GA22706@localhost> <20091016120242.AF31.A69D9226@jp.fujitsu.com>
-Message-Id: <20091126135440.5A70.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0446B0044
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 03:50:40 -0500 (EST)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp01.in.ibm.com (8.14.3/8.13.1) with ESMTP id nAQ8oYgd017726
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 14:20:34 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAQ8oXZW2695286
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 14:20:34 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAQ8oWv2026930
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 19:50:33 +1100
+Date: Thu, 26 Nov 2009 14:20:31 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: memcg: slab control
+Message-ID: <20091126085031.GG2970@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com>
+ <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 26 Nov 2009 13:56:56 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Vincent Li <root@brc.ubc.ca>, Vincent Li <macli@brc.ubc.ca>, Mel Gorman <mel@csn.ul.ie>, "riel@redhat.com" <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@openvz.org>, Suleiman Souhlal <suleiman@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > On Fri, Oct 16, 2009 at 10:10:41AM +0800, Minchan Kim wrote:
-> > > Hi, Vicent. 
-> > > First of all, Thanks for your effort. :)
-> >  
-> > That's pretty serious efforts ;)
-> > 
-> > > But as your data said, on usual case, nr_taken_zero count is much less 
-> > > than non_zero. so we could lost benefit in normal case due to compare
-> > > insturction although it's trivial. 
-> > > 
-> > > I have no objection in this patch since overhead is not so big.
-> > > But I am not sure what other guys think about it. 
-> > > 
-> > > How about adding unlikely following as ?
-> > > 
-> > > +
-> > > +       if (unlikely(nr_taken == 0))
-> > > +               goto done;
-> > 
-> > I would prefer to just remove it - to make the code simple :)
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-11-26 10:14:14]:
+
+> On Wed, 25 Nov 2009 15:08:00 -0800 (PST)
+> David Rientjes <rientjes@google.com> wrote:
 > 
-> +1 me.
+> > Hi,
+> > 
+> > I wanted to see what the current ideas are concerning kernel memory 
+> > accounting as it relates to the memory controller.  Eventually we'll want 
+> > the ability to restrict cgroups to a hard slab limit.  That'll require 
+> > accounting to map slab allocations back to user tasks so that we can 
+> > enforce a policy based on the cgroup's aggregated slab usage similiar to 
+> > how the memory controller currently does for user memory.
+> > 
+> > Is this currently being thought about within the memcg community? 
 > 
-> Thank you, Vincent. Your effort was pretty clear and good.
-> but your mesurement data didn't persuade us.
+> Not yet. But I always recommend people to implement another memcg (slabcg) for
+> kernel memory. Because
+> 
+>   - It must have much lower cost than memcg, good perfomance and scalability.
+>     system-wide shared counter is nonsense.
+>
 
-This patch still exist in current mmotm.
+We've solved those issues mostly! Anyway, I agree that we need another
+slabcg, Pavel did some work in that area and posted patches, but they
+were mostly based and limited to SLUB (IIRC).
+ 
+>   - slab is not base on LRU. So, another used-memory maintainance scheme should
+>     be used.
+> 
+>   - You can reuse page_cgroup even if slabcg is independent from memcg.
+> 
+> 
+> But, considering user-side, all people will not welcome dividing memcg and slabcg.
+> So, tieing it to current memcg is ok for me.
+> like...
+> ==
+> 	struct mem_cgroup {
+> 		....
+> 		....
+> 		struct slab_cgroup slabcg; (or struct slab_cgroup *slabcg)
+> 	}
+> ==
+> 
+> But we have to use another counter and another scheme, another implemenation
+> than memcg, which has good scalability and more fuzzy/lazy controls.
+> (For example, trigger slab-shrink when usage exceeds hiwatermark, not limit.)
+> 
 
-Andrew, can you please drop mm-vsmcan-check-shrink_active_list-sc-isolate_pages-return-value.patch?
-Or do you have any remain reason.
+That depends on requirements, hiwatermark is more like a soft limit
+than a hard limit and there might be need for hard limits.
 
+> Scalable accounting is the first wall in front of us. Second one will be
+> how-to-shrink. About information recording, we can reuse page_cgroup and
+> we'll not have much difficulty.
+> 
+> I hope, at implementing slabcg, we'll not meet very complicated
+> racy cases as what we met in memcg. 
+>
 
+I think it will be because there is no swapping involved, OOM and rare
+race conditions. There is limited slab reclaim possible, but otherwise
+I think it is easier to write a slab controller IMHO. 
 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
