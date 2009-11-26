@@ -1,163 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4676B0095
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 19:19:04 -0500 (EST)
-Date: Thu, 26 Nov 2009 09:11:17 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX][PATCH v2 -mmotm] memcg: avoid oom-killing innocent task in
- case of use_hierarchy
-Message-Id: <20091126091117.3260165b.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20091125124551.9d45e0e4.akpm@linux-foundation.org>
-References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
-	<20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
-	<20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
-	<20091125124551.9d45e0e4.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id AA06A6B0099
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 20:17:36 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAQ1HXWR018142
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 26 Nov 2009 10:17:33 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BDDC45DE56
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 10:17:33 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 691A945DE4F
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 10:17:33 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C1DD1DB8038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 10:17:33 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E676F1DB8037
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 10:17:32 +0900 (JST)
+Date: Thu, 26 Nov 2009 10:14:14 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: memcg: slab control
+Message-Id: <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Suleiman Souhlal <suleiman@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Nov 2009 12:45:51 -0800, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Wed, 25 Nov 2009 14:32:18 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Wed, 25 Nov 2009 15:08:00 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
+
+> Hi,
 > 
-> > > Hmm. Maybe not-expected behavior...could you add comment ?
-> > > 
-> > How about this ?
-> > 
-> > > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > (*) I'm sorry I can't work enough in these days.
-> > > 
-> > 
-> > BTW, this patch conflict with oom-dump-stack-and-vm-state-when-oom-killer-panics.patch
-> > in current mmotm(that's why I post mmotm version separately), so this bug will not be fixed
-> > till 2.6.33 in linus-tree.
-> > So I think this patch should go in 2.6.32.y too.
+> I wanted to see what the current ideas are concerning kernel memory 
+> accounting as it relates to the memory controller.  Eventually we'll want 
+> the ability to restrict cgroups to a hard slab limit.  That'll require 
+> accounting to map slab allocations back to user tasks so that we can 
+> enforce a policy based on the cgroup's aggregated slab usage similiar to 
+> how the memory controller currently does for user memory.
 > 
-> I don't actually have a 2.6.33 version of this patch yet.
+> Is this currently being thought about within the memcg community? 
 
-I add comments as I did in for-stable version and attach the updated patch
-for-mmotm to this mail.
+Not yet. But I always recommend people to implement another memcg (slabcg) for
+kernel memory. Because
 
-It can be applied on current mmotm(2009-11-24-16-47).
+  - It must have much lower cost than memcg, good perfomance and scalability.
+    system-wide shared counter is nonsense.
 
-===
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+  - slab is not base on LRU. So, another used-memory maintainance scheme should
+    be used.
 
-task_in_mem_cgroup(), which is called by select_bad_process() to check whether
-a task can be a candidate for being oom-killed from memcg's limit, checks
-"curr->use_hierarchy"("curr" is the mem_cgroup the task belongs to).
+  - You can reuse page_cgroup even if slabcg is independent from memcg.
 
-But this check return true(it's false positive) when:
 
-	<some path>/aa		use_hierarchy == 0	<- hitting limit
-	  <some path>/aa/00	use_hierarchy == 1	<- the task belongs to
+But, considering user-side, all people will not welcome dividing memcg and slabcg.
+So, tieing it to current memcg is ok for me.
+like...
+==
+	struct mem_cgroup {
+		....
+		....
+		struct slab_cgroup slabcg; (or struct slab_cgroup *slabcg)
+	}
+==
 
-This leads to killing an innocent task in aa/00. This patch is a fix for this
-bug. And this patch also fixes the arg for mem_cgroup_print_oom_info(). We
-should print information of mem_cgroup which the task being killed, not current,
-belongs to.
+But we have to use another counter and another scheme, another implemenation
+than memcg, which has good scalability and more fuzzy/lazy controls.
+(For example, trigger slab-shrink when usage exceeds hiwatermark, not limit.)
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
- mm/memcontrol.c |   10 ++++++++--
- mm/oom_kill.c   |   13 +++++++------
- 2 files changed, 15 insertions(+), 8 deletions(-)
+Scalable accounting is the first wall in front of us. Second one will be
+how-to-shrink. About information recording, we can reuse page_cgroup and
+we'll not have much difficulty.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 661b8c6..951c103 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -759,7 +759,13 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
- 	task_unlock(task);
- 	if (!curr)
- 		return 0;
--	if (curr->use_hierarchy)
-+	/*
-+	 * We should check use_hierarchy of "mem" not "curr". Because checking
-+	 * use_hierarchy of "curr" here make this function true if hierarchy is
-+	 * enabled in "curr" and "curr" is a child of "mem" in *cgroup*
-+	 * hierarchy(even if use_hierarchy is disabled in "mem").
-+	 */
-+	if (mem->use_hierarchy)
- 		ret = css_is_ancestor(&curr->css, &mem->css);
- 	else
- 		ret = (curr == mem);
-@@ -1008,7 +1014,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 	static char memcg_name[PATH_MAX];
- 	int ret;
- 
--	if (!memcg)
-+	if (!memcg || !p)
- 		return;
- 
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index ab04537..be56461 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -356,7 +356,8 @@ static void dump_tasks(const struct mem_cgroup *mem)
- 	} while_each_thread(g, p);
- }
- 
--static void dump_header(gfp_t gfp_mask, int order, struct mem_cgroup *mem)
-+static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
-+							struct mem_cgroup *mem)
- {
- 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
- 		"oom_adj=%d\n",
-@@ -365,7 +366,7 @@ static void dump_header(gfp_t gfp_mask, int order, struct mem_cgroup *mem)
- 	cpuset_print_task_mems_allowed(current);
- 	task_unlock(current);
- 	dump_stack();
--	mem_cgroup_print_oom_info(mem, current);
-+	mem_cgroup_print_oom_info(mem, p);
- 	show_mem();
- 	if (sysctl_oom_dump_tasks)
- 		dump_tasks(mem);
-@@ -440,7 +441,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	struct task_struct *c;
- 
- 	if (printk_ratelimit())
--		dump_header(gfp_mask, order, mem);
-+		dump_header(p, gfp_mask, order, mem);
- 
- 	/*
- 	 * If the task is already exiting, don't alarm the sysadmin or kill
-@@ -576,7 +577,7 @@ retry:
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
- 	if (!p) {
- 		read_unlock(&tasklist_lock);
--		dump_header(gfp_mask, order, NULL);
-+		dump_header(NULL, gfp_mask, order, NULL);
- 		panic("Out of memory and no killable processes...\n");
- 	}
- 
-@@ -644,7 +645,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 		return;
- 
- 	if (sysctl_panic_on_oom == 2) {
--		dump_header(gfp_mask, order, NULL);
-+		dump_header(NULL, gfp_mask, order, NULL);
- 		panic("out of memory. Compulsory panic_on_oom is selected.\n");
- 	}
- 
-@@ -663,7 +664,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 
- 	case CONSTRAINT_NONE:
- 		if (sysctl_panic_on_oom) {
--			dump_header(gfp_mask, order, NULL);
-+			dump_header(NULL, gfp_mask, order, NULL);
- 			panic("out of memory. panic_on_oom is selected\n");
- 		}
- 		/* Fall-through */
--- 
-1.5.6.1
+I hope, at implementing slabcg, we'll not meet very complicated
+racy cases as what we met in memcg. 
+
+Thanks,
+-Kame
 
 
 --
