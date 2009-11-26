@@ -1,75 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A7ED66B0098
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 07:52:06 -0500 (EST)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id nAQCq3tO012045
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 04:52:03 -0800
-Received: from pzk42 (pzk42.prod.google.com [10.243.19.170])
-	by wpaz13.hot.corp.google.com with ESMTP id nAQCpp3S028642
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 04:52:00 -0800
-Received: by pzk42 with SMTP id 42so520779pzk.31
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2009 04:52:00 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4B0E7530.8050304@parallels.com>
-References: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com>
-	 <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091126085031.GG2970@balbir.in.ibm.com>
-	 <20091126175606.f7df2f80.kamezawa.hiroyu@jp.fujitsu.com>
-	 <4B0E461C.50606@parallels.com>
-	 <20091126183335.7a18cb09.kamezawa.hiroyu@jp.fujitsu.com>
-	 <4B0E50B1.20602@parallels.com>
-	 <d26f1ae00911260224k6b87aaf7o9e3a983a73e6036e@mail.gmail.com>
-	 <4B0E7530.8050304@parallels.com>
-Date: Thu, 26 Nov 2009 04:52:00 -0800
-Message-ID: <d26f1ae00911260452w7da1f10fk5889e9506aeb1400@mail.gmail.com>
-Subject: Re: memcg: slab control
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D3ED16B009A
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 08:09:03 -0500 (EST)
+Subject: Re: [PATCH-RFC] cfq: Disable low_latency by default for 2.6.32
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <20091126121945.GB13095@csn.ul.ie>
+References: <20091126121945.GB13095@csn.ul.ie>
+Content-Type: text/plain
+Date: Thu, 26 Nov 2009 14:08:57 +0100
+Message-Id: <1259240937.7371.15.camel@marge.simson.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, David Rientjes <rientjes@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/26/09, Pavel Emelyanov <xemul@parallels.com> wrote:
-> > Aren't there patches to make the kernel track which cgroup caused
->  > which disk I/O? If so, it should be possible to charge the bios to the
->  > right cgroup.
->  >
->  > Maybe one way to decide which kernel allocations should be accounted
->  > would be to look at the calling context: If the allocation is done in
->  > user context (syscall), then it could be counted towards that user,
->  > while if the allocation is done in interrupt or kthread context, it
->  > shouldn't be accounted.
->  >
->  > Of course, this wouldn't be perfect, but it might be a good enough
->  > approximation.
->
->
-> I disagree. Bio-s are allocated in user context for all typical reads
->  (unless we requested aio) and are allocated either in pdflush context
->  or (!) in arbitrary task context for writes (e.g. via try_to_free_pages)
->  and thus such bio/buffer_head accounting will be completely random.
+On Thu, 2009-11-26 at 12:19 +0000, Mel Gorman wrote:
+> (cc'ing the people from the page allocator failure thread as this might be
+> relevant to some of their problems)
+> 
+> I know this is very last minute but I believe we should consider disabling
+> the "low_latency" tunable for block devices by default for 2.6.32.  There was
+> evidence that low_latency was a problem last week for page allocation failure
+> reports but the reproduction-case was unusual and involved high-order atomic
+> allocations in low-memory conditions. It took another few days to accurately
+> show the problem for more normal workloads and it's a bit more wide-spread
+> than just allocation failures.
+> 
+> Basically, low_latency looks great as long as you have plenty of memory
+> but in low memory situations, it appears to cause problems that manifest
+> as reduced performance, desktop stalls and in some cases, page allocation
+> failures. I think most kernel developers are not seeing the problem as they
+> tend to test on beefier machines and without hitting swap or low-memory
+> situations for the most part. When they are hitting low-memory situations,
+> it tends to be for stress tests where stalls and low performance are expected.
 
-Yes, that's why I pointed out that you can account to the right cgroup
-if you track who caused the I/O (which, I imagine, should already be
-done by the block i/o bandwidth controller, or similar).
+Ouch.  It was bad desktop stalls under heavy write that kicked the whole
+thing off.
 
-For most other allocations, on the other hand, accounting to the
-current context should be fine.
-
->  One of the way to achieve the goal I can propose the following (it's
->  not perfect, but just smth to start discussion from).
->
->  We implement support for accounting based on a bit on a kmem_cache
->  structure and mark all kmalloc caches as not-accountable. Then we grep
->  the kernel to find all kmalloc-s and think - if a kmalloc is to be
->  accounted we turn this into kmem_cache_alloc() with dedicated
->  kmem_cache and mark it as accountable.
-
-That sounds like a lot of work. :-)
-
--- Suleiman
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
