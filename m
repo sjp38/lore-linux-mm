@@ -1,54 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EF426B008C
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 18:10:40 -0500 (EST)
-Subject: Re: lockdep complaints in slab allocator
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <alpine.DEB.2.00.0911251356130.11347@chino.kir.corp.google.com>
-References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com>
-	 <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop>
-	 <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi>
-	 <1259080406.4531.1645.camel@laptop>
-	 <20091124170032.GC6831@linux.vnet.ibm.com>
-	 <1259082756.17871.607.camel@calx> <1259086459.4531.1752.camel@laptop>
-	 <1259090615.17871.696.camel@calx>
-	 <84144f020911241307u14cd2cf0h614827137e42378e@mail.gmail.com>
-	 <1259103315.17871.895.camel@calx>
-	 <alpine.DEB.2.00.0911251356130.11347@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 25 Nov 2009 17:06:47 -0600
-Message-ID: <1259190407.2858.61.camel@calx>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A29EE6B0093
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 19:10:17 -0500 (EST)
+Received: by bwz7 with SMTP id 7so224295bwz.6
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2009 16:10:15 -0800 (PST)
+Message-ID: <4B0DC764.8040205@gmail.com>
+Date: Thu, 26 Nov 2009 01:10:12 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
+References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com> <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com> <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com> <20091125124433.GB27615@random.random>
+In-Reply-To: <20091125124433.GB27615@random.random>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-11-25 at 13:59 -0800, David Rientjes wrote:
-> On Tue, 24 Nov 2009, Matt Mackall wrote:
-> 
-> > I'm afraid I have only anecdotal reports from SLOB users, and embedded
-> > folks are notorious for lack of feedback, but I only need a few people
-> > to tell me they're shipping 100k units/mo to be confident that SLOB is
-> > in use in millions of devices.
-> > 
-> 
-> It's much more popular than I had expected; do you think it would be 
-> possible to merge slob's core into another allocator or will it require 
-> seperation forever?
+Andrea Arcangeli wrote:
 
-Probably not. It's actually a completely different kind of allocator
-than the rest as it doesn't actually use "slabs" at all. It's instead a
-slab-like interface on a traditional heap allocator. SLAB/SLUB/SLQB have
-much more in common - their biggest differences are about their approach
-to scalability/locking issues.
+> Hello,
 
-On the upside, SLOB is easily the simplest of the bunch.
+Hi all!
+
+> lengthy discussion on something I think is quite obviously better and
+> I tried to change a couple of years back already (rss instead of
+> total_vm).
+
+Now that 2.6.32 is almost out, is it possible to get OOMK fixed in
+2.6.33 so that I could turn overcommit on (overcommit_memory=0) again
+without fear of loosing my work?
+
+Regards,
+
+Vedran
+
 
 -- 
-http://selenic.com : development and support for Mercurial and Linux
-
+http://vedranf.net | a8e7a7783ca0d460fee090cc584adc12
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
