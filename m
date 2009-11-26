@@ -1,45 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A29EE6B0093
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 19:10:17 -0500 (EST)
-Received: by bwz7 with SMTP id 7so224295bwz.6
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2009 16:10:15 -0800 (PST)
-Message-ID: <4B0DC764.8040205@gmail.com>
-Date: Thu, 26 Nov 2009 01:10:12 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com> <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com> <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com> <20091125124433.GB27615@random.random>
-In-Reply-To: <20091125124433.GB27615@random.random>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D4676B0095
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2009 19:19:04 -0500 (EST)
+Date: Thu, 26 Nov 2009 09:11:17 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [BUGFIX][PATCH v2 -mmotm] memcg: avoid oom-killing innocent task in
+ case of use_hierarchy
+Message-Id: <20091126091117.3260165b.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20091125124551.9d45e0e4.akpm@linux-foundation.org>
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+	<20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
+	<20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
+	<20091125124551.9d45e0e4.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
+On Wed, 25 Nov 2009 12:45:51 -0800, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed, 25 Nov 2009 14:32:18 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > > Hmm. Maybe not-expected behavior...could you add comment ?
+> > > 
+> > How about this ?
+> > 
+> > > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > (*) I'm sorry I can't work enough in these days.
+> > > 
+> > 
+> > BTW, this patch conflict with oom-dump-stack-and-vm-state-when-oom-killer-panics.patch
+> > in current mmotm(that's why I post mmotm version separately), so this bug will not be fixed
+> > till 2.6.33 in linus-tree.
+> > So I think this patch should go in 2.6.32.y too.
+> 
+> I don't actually have a 2.6.33 version of this patch yet.
 
-> Hello,
+I add comments as I did in for-stable version and attach the updated patch
+for-mmotm to this mail.
 
-Hi all!
+It can be applied on current mmotm(2009-11-24-16-47).
 
-> lengthy discussion on something I think is quite obviously better and
-> I tried to change a couple of years back already (rss instead of
-> total_vm).
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Now that 2.6.32 is almost out, is it possible to get OOMK fixed in
-2.6.33 so that I could turn overcommit on (overcommit_memory=0) again
-without fear of loosing my work?
+task_in_mem_cgroup(), which is called by select_bad_process() to check whether
+a task can be a candidate for being oom-killed from memcg's limit, checks
+"curr->use_hierarchy"("curr" is the mem_cgroup the task belongs to).
 
-Regards,
+But this check return true(it's false positive) when:
 
-Vedran
+	<some path>/aa		use_hierarchy == 0	<- hitting limit
+	  <some path>/aa/00	use_hierarchy == 1	<- the task belongs to
 
+This leads to killing an innocent task in aa/00. This patch is a fix for this
+bug. And this patch also fixes the arg for mem_cgroup_print_oom_info(). We
+should print information of mem_cgroup which the task being killed, not current,
+belongs to.
 
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+ mm/memcontrol.c |   10 ++++++++--
+ mm/oom_kill.c   |   13 +++++++------
+ 2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 661b8c6..951c103 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -759,7 +759,13 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
+ 	task_unlock(task);
+ 	if (!curr)
+ 		return 0;
+-	if (curr->use_hierarchy)
++	/*
++	 * We should check use_hierarchy of "mem" not "curr". Because checking
++	 * use_hierarchy of "curr" here make this function true if hierarchy is
++	 * enabled in "curr" and "curr" is a child of "mem" in *cgroup*
++	 * hierarchy(even if use_hierarchy is disabled in "mem").
++	 */
++	if (mem->use_hierarchy)
+ 		ret = css_is_ancestor(&curr->css, &mem->css);
+ 	else
+ 		ret = (curr == mem);
+@@ -1008,7 +1014,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 	static char memcg_name[PATH_MAX];
+ 	int ret;
+ 
+-	if (!memcg)
++	if (!memcg || !p)
+ 		return;
+ 
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index ab04537..be56461 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -356,7 +356,8 @@ static void dump_tasks(const struct mem_cgroup *mem)
+ 	} while_each_thread(g, p);
+ }
+ 
+-static void dump_header(gfp_t gfp_mask, int order, struct mem_cgroup *mem)
++static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
++							struct mem_cgroup *mem)
+ {
+ 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
+ 		"oom_adj=%d\n",
+@@ -365,7 +366,7 @@ static void dump_header(gfp_t gfp_mask, int order, struct mem_cgroup *mem)
+ 	cpuset_print_task_mems_allowed(current);
+ 	task_unlock(current);
+ 	dump_stack();
+-	mem_cgroup_print_oom_info(mem, current);
++	mem_cgroup_print_oom_info(mem, p);
+ 	show_mem();
+ 	if (sysctl_oom_dump_tasks)
+ 		dump_tasks(mem);
+@@ -440,7 +441,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	struct task_struct *c;
+ 
+ 	if (printk_ratelimit())
+-		dump_header(gfp_mask, order, mem);
++		dump_header(p, gfp_mask, order, mem);
+ 
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+@@ -576,7 +577,7 @@ retry:
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+ 	if (!p) {
+ 		read_unlock(&tasklist_lock);
+-		dump_header(gfp_mask, order, NULL);
++		dump_header(NULL, gfp_mask, order, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+ 
+@@ -644,7 +645,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		return;
+ 
+ 	if (sysctl_panic_on_oom == 2) {
+-		dump_header(gfp_mask, order, NULL);
++		dump_header(NULL, gfp_mask, order, NULL);
+ 		panic("out of memory. Compulsory panic_on_oom is selected.\n");
+ 	}
+ 
+@@ -663,7 +664,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 
+ 	case CONSTRAINT_NONE:
+ 		if (sysctl_panic_on_oom) {
+-			dump_header(gfp_mask, order, NULL);
++			dump_header(NULL, gfp_mask, order, NULL);
+ 			panic("out of memory. panic_on_oom is selected\n");
+ 		}
+ 		/* Fall-through */
 -- 
-http://vedranf.net | a8e7a7783ca0d460fee090cc584adc12
+1.5.6.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
