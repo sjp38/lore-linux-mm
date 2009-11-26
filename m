@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 872276B00B8
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 12:11:30 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 226796B00BA
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 12:11:45 -0500 (EST)
 Received: by mail-bw0-f215.google.com with SMTP id 7so752324bwz.6
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2009 09:11:28 -0800 (PST)
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2009 09:11:43 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH RFC v0 1/3] cgroup: implement eventfd-based generic API for notifications
-Date: Thu, 26 Nov 2009 19:11:15 +0200
-Message-Id: <bc4dc055a7307c8667da85a4d4d9d5d189af27d5.1259255307.git.kirill@shutemov.name>
-In-Reply-To: <cover.1259255307.git.kirill@shutemov.name>
+Subject: [PATCH RFC v0 2/3] res_counter: implement thresholds
+Date: Thu, 26 Nov 2009 19:11:16 +0200
+Message-Id: <8524ba285f6dd59cda939c28da523f344cdab3da.1259255307.git.kirill@shutemov.name>
+In-Reply-To: <bc4dc055a7307c8667da85a4d4d9d5d189af27d5.1259255307.git.kirill@shutemov.name>
 References: <cover.1259255307.git.kirill@shutemov.name>
+ <bc4dc055a7307c8667da85a4d4d9d5d189af27d5.1259255307.git.kirill@shutemov.name>
 In-Reply-To: <cover.1259255307.git.kirill@shutemov.name>
 References: <cover.1259255307.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
@@ -17,301 +18,119 @@ To: containers@lists.linux-foundation.org, linux-mm@kvack.org
 Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-This patch introduces write-only file "cgroup.event_control" in every
-cgroup.
-
-To register new notification handler you need:
-- create an eventfd;
-- open a control file to be monitored. Callbacks register_event() and
-  unregister_event() must be defined for the control file;
-- write "<event_fd> <control_fd> <args>" to cgroup.event_control.
-  Interpretation of args is defined by control file implementation;
-
-eventfd will be woken up by control file implementation or when the
-cgroup is removed.
-
-To unregister notification handler just close eventfd.
+It allows to setup two thresholds: one above current usage and one
+below. Callback threshold_notifier() will be called if a threshold is
+crossed.
 
 Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 ---
- include/linux/cgroup.h |    8 ++
- kernel/cgroup.c        |  181 +++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 188 insertions(+), 1 deletions(-)
+ include/linux/res_counter.h |   44 +++++++++++++++++++++++++++++++++++++++++++
+ kernel/res_counter.c        |    4 +++
+ 2 files changed, 48 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 0008dee..285eaff 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -220,6 +220,9 @@ struct cgroup {
- 
- 	/* For RCU-protected deletion */
- 	struct rcu_head rcu_head;
-+
-+	struct list_head event_list;
-+	struct mutex event_list_mutex;
- };
- 
- /*
-@@ -362,6 +365,11 @@ struct cftype {
- 	int (*trigger)(struct cgroup *cgrp, unsigned int event);
- 
- 	int (*release)(struct inode *inode, struct file *file);
-+
-+	int (*register_event)(struct cgroup *cgrp, struct cftype *cft,
-+			struct eventfd_ctx *eventfd, const char *args);
-+	int (*unregister_event)(struct cgroup *cgrp, struct cftype *cft,
-+			struct eventfd_ctx *eventfd);
- };
- 
- struct cgroup_scanner {
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 0249f4b..5438d46 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -4,6 +4,10 @@
-  *  Based originally on the cpuset system, extracted by Paul Menage
-  *  Copyright (C) 2006 Google, Inc
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index fcb9884..bca99a5 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -9,6 +9,10 @@
   *
-+ *  Notifiactions support
-+ *  Copyright (C) 2009 Nokia Corporation
-+ *  Author: Kirill A. Shutemov
+  * Author: Pavel Emelianov <xemul@openvz.org>
+  *
++ * Thresholds support
++ * Copyright (C) 2009 Nokia Corporation
++ * Author: Kirill A. Shutemov
 + *
-  *  Copyright notices from the original cpuset code:
-  *  --------------------------------------------------
-  *  Copyright (C) 2003 BULL SA.
-@@ -51,6 +55,8 @@
- #include <linux/pid_namespace.h>
- #include <linux/idr.h>
- #include <linux/vmalloc.h> /* TODO: replace with more sophisticated array */
-+#include <linux/eventfd.h>
-+#include <linux/poll.h>
- 
- #include <asm/atomic.h>
- 
-@@ -146,6 +152,16 @@ struct css_id {
- 	unsigned short stack[0]; /* Array of Length (depth+1) */
- };
- 
-+struct cgroup_event {
-+	struct cgroup *cgrp;
-+	struct cftype *cft;
-+	struct eventfd_ctx *eventfd;
-+	struct list_head list;
-+	poll_table pt;
-+	wait_queue_head_t *wqh;
-+	wait_queue_t wait;
-+};
-+static int cgroup_event_remove(struct cgroup_event *event);
- 
- /* The list of hierarchy roots */
- 
-@@ -734,14 +750,26 @@ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
- static int cgroup_call_pre_destroy(struct cgroup *cgrp)
- {
- 	struct cgroup_subsys *ss;
-+	struct cgroup_event *event, *tmp;
- 	int ret = 0;
- 
- 	for_each_subsys(cgrp->root, ss)
- 		if (ss->pre_destroy) {
- 			ret = ss->pre_destroy(ss, cgrp);
- 			if (ret)
--				break;
-+				goto out;
- 		}
+  * See Documentation/cgroups/resource_counter.txt for more
+  * info about what this counter is.
+  */
+@@ -42,6 +46,13 @@ struct res_counter {
+ 	 * the number of unsuccessful attempts to consume the resource
+ 	 */
+ 	unsigned long long failcnt;
 +
-+	mutex_lock(&cgrp->event_list_mutex);
-+	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
-+		ret = cgroup_event_remove(event);
-+		if (ret)
-+			break;
-+		eventfd_signal(event->eventfd, 1);
-+	}
-+	mutex_unlock(&cgrp->event_list_mutex);
++	unsigned long long threshold_above;
++	unsigned long long threshold_below;
++	void (*threshold_notifier)(struct res_counter *counter,
++			unsigned long long usage,
++			unsigned long long threshold);
 +
-+out:
- 	return ret;
+ 	/*
+ 	 * the lock to protect all of the above.
+ 	 * the routines below consider this to be IRQ-safe
+@@ -145,6 +156,20 @@ static inline bool res_counter_soft_limit_check_locked(struct res_counter *cnt)
+ 	return false;
  }
  
-@@ -1136,6 +1164,8 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
- 	INIT_LIST_HEAD(&cgrp->release_list);
- 	INIT_LIST_HEAD(&cgrp->pidlists);
- 	mutex_init(&cgrp->pidlist_mutex);
-+	INIT_LIST_HEAD(&cgrp->event_list);
-+	mutex_init(&cgrp->event_list_mutex);
- }
- 
- static void init_cgroup_root(struct cgroupfs_root *root)
-@@ -1935,6 +1965,13 @@ static const struct inode_operations cgroup_dir_inode_operations = {
- 	.rename = cgroup_rename,
- };
- 
-+static inline struct cftype *__file_cft(struct file *file)
++static inline void res_counter_threshold_notify_locked(struct res_counter *cnt)
 +{
-+	if (file->f_dentry->d_inode->i_fop != &cgroup_file_operations)
-+		return ERR_PTR(-EINVAL);
-+	return __d_cft(file->f_dentry);
++	if (cnt->usage >= cnt->threshold_above) {
++		cnt->threshold_notifier(cnt, cnt->usage, cnt->threshold_above);
++		return;
++	}
++
++	if (cnt->usage < cnt->threshold_below) {
++		cnt->threshold_notifier(cnt, cnt->usage, cnt->threshold_below);
++		return;
++	}
 +}
 +
- static int cgroup_create_file(struct dentry *dentry, mode_t mode,
- 				struct super_block *sb)
- {
-@@ -2789,6 +2826,143 @@ static int cgroup_write_notify_on_release(struct cgroup *cgrp,
++
+ /**
+  * Get the difference between the usage and the soft limit
+  * @cnt: The counter
+@@ -238,4 +263,23 @@ res_counter_set_soft_limit(struct res_counter *cnt,
  	return 0;
  }
  
-+static int cgroup_event_remove(struct cgroup_event *event)
++static inline int
++res_counter_set_thresholds(struct res_counter *cnt,
++		unsigned long long threshold_above,
++		unsigned long long threshold_below)
 +{
-+	struct cgroup *cgrp = event->cgrp;
-+	int ret;
++	unsigned long flags;
++	int ret = -EINVAL;
 +
-+	BUG_ON(!mutex_is_locked(&cgrp->event_list_mutex));
-+	ret = event->cft->unregister_event(cgrp, event->cft, event->eventfd);
-+	eventfd_ctx_put(event->eventfd);
-+	remove_wait_queue(event->wqh, &event->wait);
-+	list_del(&event->list);
-+	kfree(event);
-+
++	spin_lock_irqsave(&cnt->lock, flags);
++	if ((cnt->usage < threshold_above) &&
++			(cnt->usage >= threshold_below)) {
++		cnt->threshold_above = threshold_above;
++		cnt->threshold_below = threshold_below;
++		ret = 0;
++	}
++	spin_unlock_irqrestore(&cnt->lock, flags);
 +	return ret;
 +}
 +
-+static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
-+		int sync, void *key)
-+{
-+	struct cgroup_event *event = container_of(wait,
-+			struct cgroup_event, wait);
-+	struct cgroup *cgrp = event->cgrp;
-+	unsigned long flags = (unsigned long)key;
-+	int ret;
-+
-+	if (!(flags & POLLHUP))
-+		return 0;
-+
-+	mutex_lock(&cgrp->event_list_mutex);
-+	ret = cgroup_event_remove(event);
-+	mutex_unlock(&cgrp->event_list_mutex);
-+
-+	return ret;
-+}
-+
-+static void cgroup_event_ptable_queue_proc(struct file *file,
-+		wait_queue_head_t *wqh, poll_table *pt)
-+{
-+	struct cgroup_event *event = container_of(pt,
-+			struct cgroup_event, pt);
-+
-+	event->wqh = wqh;
-+	add_wait_queue(wqh, &event->wait);
-+}
-+
-+static int cgroup_write_event_control(struct cgroup *cont, struct cftype *cft,
-+				      const char *buffer)
-+{
-+	struct cgroup_event *event = NULL;
-+	unsigned int efd, cfd;
-+	struct file *efile = NULL;
-+	struct file *cfile = NULL;
-+	char *endp;
-+	int ret;
-+
-+	efd = simple_strtoul(buffer, &endp, 10);
-+	if (*endp != ' ')
-+		return -EINVAL;
-+	buffer = endp + 1;
-+
-+	cfd = simple_strtoul(buffer, &endp, 10);
-+	if ((*endp != ' ') && (*endp != '\0'))
-+		return -EINVAL;
-+	buffer = endp + 1;
-+
-+	event = kzalloc(sizeof(*event), GFP_KERNEL);
-+	if (!event)
-+		return -ENOMEM;
-+	event->cgrp = cont;
-+	INIT_LIST_HEAD(&event->list);
-+	init_poll_funcptr(&event->pt, cgroup_event_ptable_queue_proc);
-+	init_waitqueue_func_entry(&event->wait, cgroup_event_wake);
-+
-+	efile = eventfd_fget(efd);
-+	if (IS_ERR(efile)) {
-+		ret = PTR_ERR(efile);
-+		goto fail;
-+	}
-+
-+	event->eventfd = eventfd_ctx_fileget(efile);
-+	if (IS_ERR(event->eventfd)) {
-+		ret = PTR_ERR(event->eventfd);
-+		goto fail;
-+	}
-+
-+	cfile = fget(cfd);
-+	if (!cfile) {
-+		ret = -EBADF;
-+		goto fail;
-+	}
-+
-+	ret = file_permission(cfile, MAY_READ);
-+	if (ret < 0)
-+		goto fail;
-+
-+	event->cft = __file_cft(cfile);
-+	if (IS_ERR(event->cft)) {
-+		ret = PTR_ERR(event->cft);
-+		goto fail;
-+	}
-+
-+	if (!event->cft->register_event || !event->cft->unregister_event) {
-+		ret = -EINVAL;
-+		goto fail;
-+	}
-+
-+	ret = event->cft->register_event(cont, event->cft,
-+			event->eventfd, buffer);
-+	if (ret)
-+		goto fail;
-+
-+	efile->f_op->poll(efile, &event->pt);
-+
-+	mutex_lock(&cont->event_list_mutex);
-+	list_add(&event->list, &cont->event_list);
-+	mutex_unlock(&cont->event_list_mutex);
-+
-+	fput(cfile);
-+	fput(efile);
-+
-+	return 0;
-+
-+fail:
-+	if (!IS_ERR(cfile))
-+		fput(cfile);
-+
-+	if (event && event->eventfd && !IS_ERR(event->eventfd))
-+		eventfd_ctx_put(event->eventfd);
-+
-+	if (!IS_ERR(efile))
-+		fput(efile);
-+
-+	if (event)
-+		kfree(event);
-+
-+	return ret;
-+}
-+
- /*
-  * for the common functions, 'private' gives the type of file
-  */
-@@ -2814,6 +2988,11 @@ static struct cftype files[] = {
- 		.read_u64 = cgroup_read_notify_on_release,
- 		.write_u64 = cgroup_write_notify_on_release,
- 	},
-+	{
-+		.name = CGROUP_FILE_GENERIC_PREFIX "event_control",
-+		.write_string = cgroup_write_event_control,
-+		.mode = S_IWUGO,
-+	},
- };
+ #endif
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index bcdabf3..646c29c 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -20,6 +20,8 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
+ 	spin_lock_init(&counter->lock);
+ 	counter->limit = RESOURCE_MAX;
+ 	counter->soft_limit = RESOURCE_MAX;
++	counter->threshold_above = RESOURCE_MAX;
++	counter->threshold_below = 0ULL;
+ 	counter->parent = parent;
+ }
  
- static struct cftype cft_release_agent = {
+@@ -33,6 +35,7 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+ 	counter->usage += val;
+ 	if (counter->usage > counter->max_usage)
+ 		counter->max_usage = counter->usage;
++	res_counter_threshold_notify_locked(counter);
+ 	return 0;
+ }
+ 
+@@ -73,6 +76,7 @@ void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+ 		val = counter->usage;
+ 
+ 	counter->usage -= val;
++	res_counter_threshold_notify_locked(counter);
+ }
+ 
+ void res_counter_uncharge(struct res_counter *counter, unsigned long val)
 -- 
 1.6.5.3
 
