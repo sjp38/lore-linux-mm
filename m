@@ -1,100 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C96E6B0098
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 11:20:20 -0500 (EST)
-Date: Thu, 26 Nov 2009 16:20:12 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/9] ksm: fix mlockfreed to munlocked
-Message-ID: <20091126162011.GG13095@csn.ul.ie>
-References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils> <Pine.LNX.4.64.0911241638130.25288@sister.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0911241638130.25288@sister.anvils>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id BC0AD6B00AD
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 11:27:58 -0500 (EST)
+Received: by bwz7 with SMTP id 7so722013bwz.6
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2009 08:27:56 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH RFC v0 0/3] cgroup notifications API and memory thresholds
+Date: Thu, 26 Nov 2009 18:27:35 +0200
+Message-Id: <cover.1259248846.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: containers@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 24, 2009 at 04:40:55PM +0000, Hugh Dickins wrote:
-> When KSM merges an mlocked page, it has been forgetting to munlock it:
-> that's been left to free_page_mlock(), which reports it in /proc/vmstat
-> as unevictable_pgs_mlockfreed instead of unevictable_pgs_munlocked (and
-> whinges "Page flag mlocked set for process" in mmotm, whereas mainline
-> is silently forgiving).  Call munlock_vma_page() to fix that.
-> 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+It's my first attempt to implement cgroup notifications API and memory
+thresholds on top of it. The idea of API was proposed by Paul Menage.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+It lacks some important features and need more testing, but I want publish
+it as soon as possible to get feedback from community.
 
-> ---
-> Is this a fix that I ought to backport to 2.6.32?  It does rely on part of
-> an earlier patch (moved unlock_page down), so does not apply cleanly as is.
-> 
->  mm/internal.h |    3 ++-
->  mm/ksm.c      |    4 ++++
->  mm/mlock.c    |    4 ++--
->  3 files changed, 8 insertions(+), 3 deletions(-)
-> 
-> --- ksm0/mm/internal.h	2009-11-14 10:17:02.000000000 +0000
-> +++ ksm1/mm/internal.h	2009-11-22 20:39:56.000000000 +0000
-> @@ -105,9 +105,10 @@ static inline int is_mlocked_vma(struct
->  }
->  
->  /*
-> - * must be called with vma's mmap_sem held for read, and page locked.
-> + * must be called with vma's mmap_sem held for read or write, and page locked.
->   */
->  extern void mlock_vma_page(struct page *page);
-> +extern void munlock_vma_page(struct page *page);
->  
->  /*
->   * Clear the page's PageMlocked().  This can be useful in a situation where
-> --- ksm0/mm/ksm.c	2009-11-14 10:17:02.000000000 +0000
-> +++ ksm1/mm/ksm.c	2009-11-22 20:39:56.000000000 +0000
-> @@ -34,6 +34,7 @@
->  #include <linux/ksm.h>
->  
->  #include <asm/tlbflush.h>
-> +#include "internal.h"
->  
->  /*
->   * A few notes about the KSM scanning process,
-> @@ -762,6 +763,9 @@ static int try_to_merge_one_page(struct
->  	    pages_identical(page, kpage))
->  		err = replace_page(vma, page, kpage, orig_pte);
->  
-> +	if ((vma->vm_flags & VM_LOCKED) && !err)
-> +		munlock_vma_page(page);
-> +
->  	unlock_page(page);
->  out:
->  	return err;
-> --- ksm0/mm/mlock.c	2009-11-14 10:17:02.000000000 +0000
-> +++ ksm1/mm/mlock.c	2009-11-22 20:39:56.000000000 +0000
-> @@ -99,14 +99,14 @@ void mlock_vma_page(struct page *page)
->   * not get another chance to clear PageMlocked.  If we successfully
->   * isolate the page and try_to_munlock() detects other VM_LOCKED vmas
->   * mapping the page, it will restore the PageMlocked state, unless the page
-> - * is mapped in a non-linear vma.  So, we go ahead and SetPageMlocked(),
-> + * is mapped in a non-linear vma.  So, we go ahead and ClearPageMlocked(),
->   * perhaps redundantly.
->   * If we lose the isolation race, and the page is mapped by other VM_LOCKED
->   * vmas, we'll detect this in vmscan--via try_to_munlock() or try_to_unmap()
->   * either of which will restore the PageMlocked state by calling
->   * mlock_vma_page() above, if it can grab the vma's mmap sem.
->   */
-> -static void munlock_vma_page(struct page *page)
-> +void munlock_vma_page(struct page *page)
->  {
->  	BUG_ON(!PageLocked(page));
->  
-> 
+TODO:
+ - memory thresholds on root cgroup;
+ - memsw support;
+ - documentation.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Kirill A. Shutemov (3):
+  cgroup: implement eventfd-based generic API for notifications
+  res_counter: implement thresholds
+  memcg: implement memory thresholds
+
+ include/linux/cgroup.h      |    8 ++
+ include/linux/res_counter.h |   44 +++++++++++
+ kernel/cgroup.c             |  181 ++++++++++++++++++++++++++++++++++++++++++-
+ kernel/res_counter.c        |    4 +
+ mm/memcontrol.c             |  149 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 385 insertions(+), 1 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
