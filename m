@@ -1,105 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B69506B004D
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 07:16:34 -0500 (EST)
-Date: Fri, 27 Nov 2009 12:16:28 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH-RFC] cfq: Disable low_latency by default for 2.6.32
-Message-ID: <20091127121627.GL13095@csn.ul.ie>
-References: <4e5e476b0911260547r33424098v456ed23203a61dd@mail.gmail.com> <20091126141738.GE13095@csn.ul.ie> <20091127143307.A7E1.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 216F86B004D
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 07:45:30 -0500 (EST)
+Date: Fri, 27 Nov 2009 12:45:04 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 1/9] ksm: fix mlockfreed to munlocked
+In-Reply-To: <20091126162011.GG13095@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0911271214040.4167@sister.anvils>
+References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils>
+ <Pine.LNX.4.64.0911241638130.25288@sister.anvils> <20091126162011.GG13095@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20091127143307.A7E1.A69D9226@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Corrado Zoccolo <czoccolo@gmail.com>, Jens Axboe <jens.axboe@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 27, 2009 at 02:58:26PM +0900, KOSAKI Motohiro wrote:
-> > > <SNIP>
-> > > low_latency was tested on other scenarios:
-> > > http://lkml.indiana.edu/hypermail/linux/kernel/0910.0/01410.html
-> > > http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-11/msg04855.html
-> > > where it improved actual and perceived performance, so disabling it
-> > > completely may not be good.
-> > > 
+On Thu, 26 Nov 2009, Mel Gorman wrote:
+> On Tue, Nov 24, 2009 at 04:40:55PM +0000, Hugh Dickins wrote:
+> > When KSM merges an mlocked page, it has been forgetting to munlock it:
+> > that's been left to free_page_mlock(), which reports it in /proc/vmstat
+> > as unevictable_pgs_mlockfreed instead of unevictable_pgs_munlocked (and
+> > whinges "Page flag mlocked set for process" in mmotm, whereas mainline
+> > is silently forgiving).  Call munlock_vma_page() to fix that.
 > > 
-> > It may not indeed.
-> > 
-> > In case you mean a partial disabling of cfq_latency, I'm try the
-> > following patch. The intention is to disable the low_latency logic if
-> > kswapd is at work and presumably needs clean pages. Alternative
-> > suggestions welcome.
+> > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 > 
-> I like treat vmscan writeout as special. because
->   - vmscan use various process context. but it doesn't write own process's page.
->     IOW, it doesn't so match cfq's io fairness logic.
->   - plus, the above mean vmscan writeout doesn't need good i/o latency.
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-While it might not need good latency as such, it does need pages to be
-clean because direct reclaim has trouble cleaning pages in its own
-behalf.
+Rik & Mel, thanks for the Acks.
 
->   - vmscan maintain page granularity lru list. It mean vmscan makes awful
->     seekful I/O. it assume block-layer buffered much i/o request.
->   - plus, the above mena vmscan. writeout need good io throughput. otherwise
->     system might cause hangup.
-> 
-> However, I don't think kswapd_awake is good choice. because
->   - zone reclaim run before kswapd wakeup. iow, this patch doesn't solve hpc machine.
->     btw, some Core i7 box (at least, Intel's reference box) also use zone reclaim.
+But please clarify: that patch was for mmotm and hopefully 2.6.33,
+but the vmstat issue (minus warning message) is there in 2.6.32-rc.
+Should I
 
-Good point.
+(a) forget it for 2.6.32
+(b) rush Linus a patch for 2.6.32 final
+(c) send a patch for 2.6.32.stable later on
 
->   - On large (many memory node) machine, one of much kswapd always run.
-> 
+? I just don't have a feel for how important this is.
 
-Also true.
+Typically, these pages are immediately freed, and the only issue is
+which stats they get added to; but if fork has copied them into other
+mms, then such pages might stay unevictable indefinitely, despite no
+longer being in any mlocked vma.
 
-> 
-> Instead, PF_MEMALLOC is good idea?
-> 
-
-It doesn't work out either because a process with PF_MEMALLOC is in
-direct reclaim and like kswapd, it may not be able to clean the pages at
-all, let alone in a small period of time.
+There's a remark in munlock_vma_page(), apropos a different issue,
+			/*
+			 * We lost the race.  let try_to_unmap() deal
+			 * with it.  At least we get the page state and
+			 * mlock stats right.  However, page is still on
+			 * the noreclaim list.  We'll fix that up when
+			 * the page is eventually freed or we scan the
+			 * noreclaim list.
+			 */
+which implies that sometimes we scan the unevictable list and resolve
+such cases.  But I wonder if that's nowadays the case?
 
 > 
-> Subject: [PATCH] cfq: Do not limit the async queue depth while memory reclaim
-> 
-> Not-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> (I haven't test this)
-> ---
->  block/cfq-iosched.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
-> 
-> diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
-> index aa1e953..9546f64 100644
-> --- a/block/cfq-iosched.c
-> +++ b/block/cfq-iosched.c
-> @@ -1308,7 +1308,8 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
->  	 * We also ramp up the dispatch depth gradually for async IO,
->  	 * based on the last sync IO we serviced
->  	 */
-> -	if (!cfq_cfqq_sync(cfqq) && cfqd->cfq_latency) {
-> +	if (!cfq_cfqq_sync(cfqq) && cfqd->cfq_latency &&
-> +	    !(current->flags & PF_MEMALLOC)) {
->  		unsigned long last_sync = jiffies - cfqd->last_end_sync_rq;
->  		unsigned int depth;
->  
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
-> 
-> 
-> 
+> > ---
+> > Is this a fix that I ought to backport to 2.6.32?  It does rely on part of
+> > an earlier patch (moved unlock_page down), so does not apply cleanly as is.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
