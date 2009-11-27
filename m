@@ -1,49 +1,289 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id EA7946B004D
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 13:38:29 -0500 (EST)
-Received: by fxm9 with SMTP id 9so918547fxm.10
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2009 10:38:27 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id BCBD46B004D
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 19:17:52 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAR0HoAU022290
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 27 Nov 2009 09:17:50 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 08E0345DE52
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 09:17:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D99CE45DE51
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 09:17:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C03BE1DB8042
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 09:17:49 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 66809E38001
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 09:17:49 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 1/4] vmscan: more simplify shrink_inactive_list()
+Message-Id: <20091127091357.A7CC.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <4B0EB4B6.5000702@free.fr>
-References: <cover.1259248846.git.kirill@shutemov.name>
-	 <4B0EB4B6.5000702@free.fr>
-Date: Thu, 26 Nov 2009 20:38:27 +0200
-Message-ID: <cc557aab0911261038y63ee617oad5198d04cc38aca@mail.gmail.com>
-Subject: Re: [PATCH RFC v0 0/3] cgroup notifications API and memory thresholds
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 27 Nov 2009 09:17:48 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Daniel Lezcano <daniel.lezcano@free.fr>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@openvz.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 26, 2009 at 7:02 PM, Daniel Lezcano <daniel.lezcano@free.fr> wr=
-ote:
-> Kirill A. Shutemov wrote:
->>
->> It's my first attempt to implement cgroup notifications API and memory
->> thresholds on top of it. The idea of API was proposed by Paul Menage.
->>
->> It lacks some important features and need more testing, but I want publi=
-sh
->> it as soon as possible to get feedback from community.
->>
->> TODO:
->> =C2=A0- memory thresholds on root cgroup;
->> =C2=A0- memsw support;
->> =C2=A0- documentation.
->>
->
-> Maybe it would be interesting to do that for the /cgroup/<name>/tasks by
-> sending in the event the number of tasks in the cgroup when it changes, s=
-o
-> it more easy to detect 0 process event and then remove the cgroup directo=
-ry,
-> no ?
+This patch depend on "vmscan : simplify code" patch (written by Huang Shijie)
 
-I'll do it later.
+=========================================
+Now, max_scan of shrink_inactive_list() is always passed less than
+SWAP_CLUSTER_MAX. then, we can remove scanning pages loop in it.
+
+detail
+ - remove "while (nr_scanned < max_scan)" loop
+ - remove nr_freed variable (now, we use nr_reclaimed directly)
+ - remove nr_scan variable (now, we use nr_scanned directly)
+ - rename max_scan to nr_to_scan
+ - pass nr_to_scan into isolate_pages() directly instead
+   using SWAP_CLUSTER_MAX
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmscan.c |  194 ++++++++++++++++++++++++++++-------------------------------
+ 1 files changed, 91 insertions(+), 103 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7536991..a58ff15 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1085,16 +1085,22 @@ static int too_many_isolated(struct zone *zone, int file,
+  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+  * of reclaimed pages
+  */
+-static unsigned long shrink_inactive_list(unsigned long max_scan,
+-			struct zone *zone, struct scan_control *sc,
+-			int priority, int file)
++static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
++					  struct zone *zone, struct scan_control *sc,
++					  int priority, int file)
+ {
+ 	LIST_HEAD(page_list);
+ 	struct pagevec pvec;
+-	unsigned long nr_scanned = 0;
++	unsigned long nr_scanned;
+ 	unsigned long nr_reclaimed = 0;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 	int lumpy_reclaim = 0;
++	struct page *page;
++	unsigned long nr_taken;
++	unsigned long nr_active;
++	unsigned int count[NR_LRU_LISTS] = { 0, };
++	unsigned long nr_anon;
++	unsigned long nr_file;
+ 
+ 	while (unlikely(too_many_isolated(zone, file, sc))) {
+ 		congestion_wait(BLK_RW_ASYNC, HZ/10);
+@@ -1120,119 +1126,101 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
+ 
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+-	do {
+-		struct page *page;
+-		unsigned long nr_taken;
+-		unsigned long nr_scan;
+-		unsigned long nr_freed;
+-		unsigned long nr_active;
+-		unsigned int count[NR_LRU_LISTS] = { 0, };
+-		int mode = lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE;
+-		unsigned long nr_anon;
+-		unsigned long nr_file;
+-
+-		nr_taken = sc->isolate_pages(SWAP_CLUSTER_MAX,
+-			     &page_list, &nr_scan, sc->order, mode,
+-				zone, sc->mem_cgroup, 0, file);
++	nr_taken = sc->isolate_pages(nr_to_scan,
++				     &page_list, &nr_scanned, sc->order,
++				     lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE,
++				     zone, sc->mem_cgroup, 0, file);
+ 
+-		if (scanning_global_lru(sc)) {
+-			zone->pages_scanned += nr_scan;
+-			if (current_is_kswapd())
+-				__count_zone_vm_events(PGSCAN_KSWAPD, zone,
+-						       nr_scan);
+-			else
+-				__count_zone_vm_events(PGSCAN_DIRECT, zone,
+-						       nr_scan);
+-		}
++	if (scanning_global_lru(sc)) {
++		zone->pages_scanned += nr_scanned;
++		if (current_is_kswapd())
++			__count_zone_vm_events(PGSCAN_KSWAPD, zone, nr_scanned);
++		else
++			__count_zone_vm_events(PGSCAN_DIRECT, zone, nr_scanned);
++	}
+ 
+-		if (nr_taken == 0)
+-			goto done;
++	if (nr_taken == 0)
++		goto done;
+ 
+-		nr_active = clear_active_flags(&page_list, count);
+-		__count_vm_events(PGDEACTIVATE, nr_active);
++	nr_active = clear_active_flags(&page_list, count);
++	__count_vm_events(PGDEACTIVATE, nr_active);
+ 
+-		__mod_zone_page_state(zone, NR_ACTIVE_FILE,
+-						-count[LRU_ACTIVE_FILE]);
+-		__mod_zone_page_state(zone, NR_INACTIVE_FILE,
+-						-count[LRU_INACTIVE_FILE]);
+-		__mod_zone_page_state(zone, NR_ACTIVE_ANON,
+-						-count[LRU_ACTIVE_ANON]);
+-		__mod_zone_page_state(zone, NR_INACTIVE_ANON,
+-						-count[LRU_INACTIVE_ANON]);
++	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
++			      -count[LRU_ACTIVE_FILE]);
++	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
++			      -count[LRU_INACTIVE_FILE]);
++	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
++			      -count[LRU_ACTIVE_ANON]);
++	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
++			      -count[LRU_INACTIVE_ANON]);
+ 
+-		nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+-		nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+-		__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
+-		__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
++	nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
++	nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
++	__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
+ 
+-		reclaim_stat->recent_scanned[0] += nr_anon;
+-		reclaim_stat->recent_scanned[1] += nr_file;
++	reclaim_stat->recent_scanned[0] += nr_anon;
++	reclaim_stat->recent_scanned[1] += nr_file;
+ 
+-		spin_unlock_irq(&zone->lru_lock);
++	spin_unlock_irq(&zone->lru_lock);
+ 
+-		nr_scanned += nr_scan;
+-		nr_freed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
++	nr_reclaimed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
++
++	/*
++	 * If we are direct reclaiming for contiguous pages and we do
++	 * not reclaim everything in the list, try again and wait
++	 * for IO to complete. This will stall high-order allocations
++	 * but that should be acceptable to the caller
++	 */
++	if (nr_reclaimed < nr_taken && !current_is_kswapd() && lumpy_reclaim) {
++		congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 		/*
+-		 * If we are direct reclaiming for contiguous pages and we do
+-		 * not reclaim everything in the list, try again and wait
+-		 * for IO to complete. This will stall high-order allocations
+-		 * but that should be acceptable to the caller
++		 * The attempt at page out may have made some
++		 * of the pages active, mark them inactive again.
+ 		 */
+-		if (nr_freed < nr_taken && !current_is_kswapd() &&
+-		    lumpy_reclaim) {
+-			congestion_wait(BLK_RW_ASYNC, HZ/10);
+-
+-			/*
+-			 * The attempt at page out may have made some
+-			 * of the pages active, mark them inactive again.
+-			 */
+-			nr_active = clear_active_flags(&page_list, count);
+-			count_vm_events(PGDEACTIVATE, nr_active);
+-
+-			nr_freed += shrink_page_list(&page_list, sc,
+-							PAGEOUT_IO_SYNC);
+-		}
++		nr_active = clear_active_flags(&page_list, count);
++		count_vm_events(PGDEACTIVATE, nr_active);
+ 
+-		nr_reclaimed += nr_freed;
++		nr_reclaimed += shrink_page_list(&page_list, sc,
++						 PAGEOUT_IO_SYNC);
++	}
+ 
+-		local_irq_disable();
+-		if (current_is_kswapd())
+-			__count_vm_events(KSWAPD_STEAL, nr_freed);
+-		__count_zone_vm_events(PGSTEAL, zone, nr_freed);
++	local_irq_disable();
++	if (current_is_kswapd())
++		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
++	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
+ 
+-		spin_lock(&zone->lru_lock);
+-		/*
+-		 * Put back any unfreeable pages.
+-		 */
+-		while (!list_empty(&page_list)) {
+-			int lru;
+-			page = lru_to_page(&page_list);
+-			VM_BUG_ON(PageLRU(page));
+-			list_del(&page->lru);
+-			if (unlikely(!page_evictable(page, NULL))) {
+-				spin_unlock_irq(&zone->lru_lock);
+-				putback_lru_page(page);
+-				spin_lock_irq(&zone->lru_lock);
+-				continue;
+-			}
+-			SetPageLRU(page);
+-			lru = page_lru(page);
+-			add_page_to_lru_list(zone, page, lru);
+-			if (is_active_lru(lru)) {
+-				int file = is_file_lru(lru);
+-				reclaim_stat->recent_rotated[file]++;
+-			}
+-			if (!pagevec_add(&pvec, page)) {
+-				spin_unlock_irq(&zone->lru_lock);
+-				__pagevec_release(&pvec);
+-				spin_lock_irq(&zone->lru_lock);
+-			}
++	spin_lock(&zone->lru_lock);
++	/*
++	 * Put back any unfreeable pages.
++	 */
++	while (!list_empty(&page_list)) {
++		int lru;
++		page = lru_to_page(&page_list);
++		VM_BUG_ON(PageLRU(page));
++		list_del(&page->lru);
++		if (unlikely(!page_evictable(page, NULL))) {
++			spin_unlock_irq(&zone->lru_lock);
++			putback_lru_page(page);
++			spin_lock_irq(&zone->lru_lock);
++			continue;
+ 		}
+-		__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
+-		__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
+-
+-  	} while (nr_scanned < max_scan);
++		SetPageLRU(page);
++		lru = page_lru(page);
++		add_page_to_lru_list(zone, page, lru);
++		if (is_active_lru(lru)) {
++			int file = is_file_lru(lru);
++			reclaim_stat->recent_rotated[file]++;
++		}
++		if (!pagevec_add(&pvec, page)) {
++			spin_unlock_irq(&zone->lru_lock);
++			__pagevec_release(&pvec);
++			spin_lock_irq(&zone->lru_lock);
++		}
++	}
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
++	__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
+ 
+ done:
+ 	spin_unlock_irq(&zone->lru_lock);
+-- 
+1.6.5.2
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
