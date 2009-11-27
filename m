@@ -1,70 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B363D6B004D
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 22:08:40 -0500 (EST)
-Received: by iwn41 with SMTP id 41so761825iwn.12
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2009 19:08:39 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 729C26B004D
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 23:36:25 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAR4aMrd003753
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 27 Nov 2009 13:36:23 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7165C45DE51
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 13:36:22 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F24545DE4E
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 13:36:22 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 281941DB8041
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 13:36:22 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B9FE81DB8043
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 13:36:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH-RFC] cfq: Disable low_latency by default for 2.6.32
+In-Reply-To: <20091126121945.GB13095@csn.ul.ie>
+References: <20091126121945.GB13095@csn.ul.ie>
+Message-Id: <20091127133511.A7DB.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20091127114511.bbb43d5a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <cover.1259255307.git.kirill@shutemov.name>
-	 <bc4dc055a7307c8667da85a4d4d9d5d189af27d5.1259255307.git.kirill@shutemov.name>
-	 <8524ba285f6dd59cda939c28da523f344cdab3da.1259255307.git.kirill@shutemov.name>
-	 <20091127092035.bbf2efdc.nishimura@mxp.nes.nec.co.jp>
-	 <20091127114511.bbb43d5a.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 27 Nov 2009 08:38:39 +0530
-Message-ID: <661de9470911261908i4bb51e91v649025e6c75bd91b@mail.gmail.com>
-Subject: Re: [PATCH RFC v0 2/3] res_counter: implement thresholds
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 27 Nov 2009 13:36:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Jens Axboe <jens.axboe@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 27, 2009 at 8:15 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 27 Nov 2009 09:20:35 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
->
->> Hi.
->> >
->> > @@ -73,6 +76,7 @@ void res_counter_uncharge_locked(struct res_counter =
-*counter, unsigned long val)
->> > =A0 =A0 =A0 =A0 =A0 =A0 val =3D counter->usage;
->> >
->> > =A0 =A0 counter->usage -=3D val;
->> > + =A0 res_counter_threshold_notify_locked(counter);
->> > =A0}
->> >
->> hmm.. this adds new checks to hot-path of process life cycle.
->>
->> Do you have any number on performance impact of these patches(w/o settin=
-g any threshold)?
->> IMHO, it might be small enough to be ignored because KAMEZAWA-san's coal=
-esce charge/uncharge
->> patches have decreased charge/uncharge for res_counter itself, but I wan=
-t to know just to make sure.
->>
-> Another concern is to support root cgroup, you need another notifier hook=
- in
-> memcg because root cgroup doesn't use res_counter now.
->
-> Can't this be implemented in a way like softlimit check ?
-> Filter by the number of event will be good for notifier behavior, for avo=
-iding
-> too much wake up, too.
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  block/cfq-iosched.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
+> index aa1e953..dc33045 100644
+> --- a/block/cfq-iosched.c
+> +++ b/block/cfq-iosched.c
+> @@ -2543,7 +2543,7 @@ static void *cfq_init_queue(struct request_queue *q)
+>  	cfqd->cfq_slice[1] = cfq_slice_sync;
+>  	cfqd->cfq_slice_async_rq = cfq_slice_async_rq;
+>  	cfqd->cfq_slice_idle = cfq_slice_idle;
+> -	cfqd->cfq_latency = 1;
+> +	cfqd->cfq_latency = 0;
+>  	cfqd->hw_tag = 1;
+>  	cfqd->last_end_sync_rq = jiffies;
+>  	return cfqd;
 
-I guess the semantics would vary then, they would become activity
-semantics. I think we should avoid threshold notification for root,
-since we have no limits in root anymore.
+Great. Probably we can reenable this feature at 2.6.33. but there isn't any reason to take
+any risk at 2.6.32. i.e. This simple disabling is best. I like this.
 
-BTW, Kirill, I've been meaning to write this layer on top of
-cgroupstats, is there anything that prevents us from using that today?
-CC'ing Dan Malek and Vladslav Buzov who worked on similar patches
-earlier.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Balbir Singh.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
