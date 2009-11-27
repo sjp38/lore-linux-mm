@@ -1,244 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FF9D6B0044
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 11:17:23 -0500 (EST)
-Date: Fri, 27 Nov 2009 16:17:15 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC][PATCH 4/4] vmscan: vmscan don't use pcp list
-Message-ID: <20091127161715.GO13095@csn.ul.ie>
-References: <20091127091357.A7CC.A69D9226@jp.fujitsu.com> <20091127091920.A7D5.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 068796B0044
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 12:23:01 -0500 (EST)
+Date: Fri, 27 Nov 2009 11:22:36 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: lockdep complaints in slab allocator
+In-Reply-To: <4B0CDBDE.8090307@cs.helsinki.fi>
+Message-ID: <alpine.DEB.2.00.0911271116100.20368@router.home>
+References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com>  <1258709153.11284.429.camel@laptop>  <84144f020911200238w3d3ecb38k92ca595beee31de5@mail.gmail.com>  <1258714328.11284.522.camel@laptop> <4B067816.6070304@cs.helsinki.fi>
+ <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop>  <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi>  <1259080406.4531.1645.camel@laptop>  <20091124170032.GC6831@linux.vnet.ibm.com>  <1259082756.17871.607.camel@calx>
+ <1259086459.4531.1752.camel@laptop>  <1259090615.17871.696.camel@calx>  <1259095580.4531.1788.camel@laptop>  <1259096004.17871.716.camel@calx> <1259096519.4531.1809.camel@laptop>  <alpine.DEB.2.00.0911241302370.6593@chino.kir.corp.google.com>
+ <1259097150.4531.1822.camel@laptop>  <alpine.DEB.2.00.0911241313220.12339@chino.kir.corp.google.com> <1259098552.4531.1857.camel@laptop> <4B0CDBDE.8090307@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20091127091920.A7D5.A69D9226@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, paulmck@linux.vnet.ibm.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 27, 2009 at 09:23:57AM +0900, KOSAKI Motohiro wrote:
-> 
-> note: Last year,  Andy Whitcroft reported pcp prevent to make contenious
-> high order page when lumpy reclaim is running.
+On Wed, 25 Nov 2009, Pekka Enberg wrote:
 
-I don't remember the specifics of the discussion but I know that when
-that patch series was being prototyped, it was because order-0
-allocations were racing with lumpy reclaimers. A lumpy reclaim might
-free up an order-9 page say but while it was freeing, an order-0 page
-would be allocated from the middle. It wasn't the PCP lists as such that
-were a problem once they were getting drained as part of a high-order
-allocation attempt. It would be just as bad if the order-0 page was
-taken from the buddy lists.
+> SLUB is good for NUMA, SLAB is pretty much a disaster with it's alien
+> tentacles^Hcaches. AFAIK, SLQB hasn't received much NUMA attention so it's not
+> obvious whether or not it will be able to perform as well as SLUB or not.
+>
+> The biggest problem with SLUB is that most of the people (excluding Christoph
+> and myself) seem to think the design is unfixable for their favorite workload
+> so they prefer to either stay with SLAB or work on SLQB.
 
-> He posted "capture pages freed during direct reclaim for allocation by the reclaimer"
-> patch series, but Christoph mentioned simple bypass pcp instead.
-> I made it. I'd hear Christoph and Mel's mention.
-> 
-> ==========================
-> Currently vmscan free unused pages by __pagevec_free().  It mean free pages one by one
-> and use pcp. it makes two suboptimal result.
-> 
->  - The another task can steal the freed page in pcp easily. it decrease
->    lumpy reclaim worth.
->  - To pollute pcp cache, vmscan freed pages might kick out cache hot
->    pages from pcp.
-> 
+The current design of each has its own strength and its weaknesses. A
+queued design is not good for HPC and financial apps since it requires
+periodic queue cleaning (therefore disturbing a latency critical
+application path). Queue processing can go out of hand if there are
+many different types of memory (SLAB in NUMA configurations). So a
+queueless allocator design is good for some configurations. It is also
+beneficial if the allocator must be frugal with memory allocations.
 
-The latter point is interesting.
+There is not much difference for most workloads in terms of memory
+consumption between SLOB and SLUB.
 
-> This patch make new free_pages_bulk() function and vmscan use it.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  include/linux/gfp.h |    2 +
->  mm/page_alloc.c     |   56 +++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/vmscan.c         |   23 +++++++++++----------
->  3 files changed, 70 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index f53e9b8..403584d 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -330,6 +330,8 @@ extern void free_hot_page(struct page *page);
->  #define __free_page(page) __free_pages((page), 0)
->  #define free_page(addr) free_pages((addr),0)
->  
-> +void free_pages_bulk(struct zone *zone, int count, struct list_head *list);
-> +
->  void page_alloc_init(void);
->  void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
->  void drain_all_pages(void);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 11ae66e..f77f8a8 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2037,6 +2037,62 @@ void free_pages(unsigned long addr, unsigned int order)
->  
->  EXPORT_SYMBOL(free_pages);
->  
-> +/*
-> + * Frees a number of pages from the list
-> + * Assumes all pages on list are in same zone and order==0.
-> + * count is the number of pages to free.
-> + *
-> + * This is similar to __pagevec_free(), but receive list instead pagevec.
-> + * and this don't use pcp cache. it is good characteristics for vmscan.
-> + */
-> +void free_pages_bulk(struct zone *zone, int count, struct list_head *list)
-> +{
-> +	unsigned long flags;
-> +	struct page *page;
-> +	struct page *page2;
-> +
-> +	list_for_each_entry_safe(page, page2, list, lru) {
-> +		int wasMlocked = __TestClearPageMlocked(page);
-> +
-> +		kmemcheck_free_shadow(page, 0);
-> +
-> +		if (PageAnon(page))
-> +			page->mapping = NULL;
-> +		if (free_pages_check(page)) {
-> +			/* orphan this page. */
-> +			list_del(&page->lru);
-> +			continue;
-> +		}
-> +		if (!PageHighMem(page)) {
-> +			debug_check_no_locks_freed(page_address(page),
-> +						   PAGE_SIZE);
-> +			debug_check_no_obj_freed(page_address(page), PAGE_SIZE);
-> +		}
-> +		arch_free_page(page, 0);
-> +		kernel_map_pages(page, 1, 0);
-> +
-> +		local_irq_save(flags);
-> +		if (unlikely(wasMlocked))
-> +			free_page_mlock(page);
-> +		local_irq_restore(flags);
-> +	}
-> +
-> +	spin_lock_irqsave(&zone->lock, flags);
-> +	__count_vm_events(PGFREE, count);
-> +	zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
-> +	zone->pages_scanned = 0;
-> +
-> +	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
-> +
-> +	list_for_each_entry_safe(page, page2, list, lru) {
-> +		/* have to delete it as __free_one_page list manipulates */
-> +		list_del(&page->lru);
-> +		trace_mm_page_free_direct(page, 0);
-> +		__free_one_page(page, zone, 0, page_private(page));
-> +	}
-> +	spin_unlock_irqrestore(&zone->lock, flags);
-> +}
+> I really couldn't care less which allocator we end up with as long as it's not
+> SLAB. I do think putting more performance tuning effort into SLUB would give
+> best results because the allocator is pretty rock solid at this point. People
+> seem underestimate the total effort needed to make a slab allocator good
+> enough for the general public (which is why I think SLQB still has a long way
+> to go).
 
-It would be preferable that the bulk free code would use as much of the
-existing free logic in the page allocator as possible. This is making a
-lot of checks that are done elsewhere. As this is an RFC, it's not
-critical but worth bearing in mind.
-
-> +
->  /**
->   * alloc_pages_exact - allocate an exact number physically-contiguous pages.
->   * @size: the number of bytes to allocate
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 56faefb..00156f2 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -598,18 +598,17 @@ redo:
->   * shrink_page_list() returns the number of reclaimed pages
->   */
->  static unsigned long shrink_page_list(struct list_head *page_list,
-> +				      struct list_head *freed_pages_list,
->  					struct scan_control *sc,
-
-Should the freed_pages_list be part of scan_control?
-
->  					enum pageout_io sync_writeback)
->  {
->  	LIST_HEAD(ret_pages);
-> -	struct pagevec freed_pvec;
->  	int pgactivate = 0;
->  	unsigned long nr_reclaimed = 0;
->  	unsigned long vm_flags;
->  
->  	cond_resched();
->  
-> -	pagevec_init(&freed_pvec, 1);
->  	while (!list_empty(page_list)) {
->  		struct address_space *mapping;
->  		struct page *page;
-> @@ -785,10 +784,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		__clear_page_locked(page);
->  free_it:
->  		nr_reclaimed++;
-> -		if (!pagevec_add(&freed_pvec, page)) {
-> -			__pagevec_free(&freed_pvec);
-> -			pagevec_reinit(&freed_pvec);
-> -		}
-> +		list_add(&page->lru, freed_pages_list);
->  		continue;
->  
->  cull_mlocked:
-> @@ -812,8 +808,6 @@ keep:
->  		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
->  	}
->  	list_splice(&ret_pages, page_list);
-> -	if (pagevec_count(&freed_pvec))
-> -		__pagevec_free(&freed_pvec);
->  	count_vm_events(PGACTIVATE, pgactivate);
->  	return nr_reclaimed;
->  }
-> @@ -1100,6 +1094,7 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
->  					  int priority, int file)
->  {
->  	LIST_HEAD(page_list);
-> +	LIST_HEAD(freed_pages_list);
->  	struct pagevec pvec;
->  	unsigned long nr_scanned;
->  	unsigned long nr_reclaimed = 0;
-> @@ -1174,7 +1169,8 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
->  
->  	spin_unlock_irq(&zone->lru_lock);
->  
-> -	nr_reclaimed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
-> +	nr_reclaimed = shrink_page_list(&page_list, &freed_pages_list, sc,
-> +					PAGEOUT_IO_ASYNC);
->  
->  	/*
->  	 * If we are direct reclaiming for contiguous pages and we do
-> @@ -1192,10 +1188,15 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
->  		nr_active = clear_active_flags(&page_list, count);
->  		count_vm_events(PGDEACTIVATE, nr_active);
->  
-> -		nr_reclaimed += shrink_page_list(&page_list, sc,
-> -						 PAGEOUT_IO_SYNC);
-> +		nr_reclaimed += shrink_page_list(&page_list, &freed_pages_list,
-> +						 sc, PAGEOUT_IO_SYNC);
->  	}
->  
-> +	/*
-> +	 * Free unused pages.
-> +	 */
-> +	free_pages_bulk(zone, nr_reclaimed, &freed_pages_list);
-> +
->  	local_irq_disable();
->  	if (current_is_kswapd())
->  		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
-
-This patch does not stand-alone so it's not easy to test. I'll think about
-the idea more although I do see how it might help slightly in the same way
-capture-reclaim did by closing the race window with other allocators.
-
-I'm curious, how did you evaluate this and what problem did you
-encounter that this might help?
-
-Thanks
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+There are still patches queued here for SLUB that depend on other per cpu
+work to be merged in .33. These do not address the caching issues that
+people focus on for networking and enterprise apps but they decrease the
+minimum latency important for HPC and financial apps. The SLUB fastpath is
+the lowest latency allocation path that exists.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
