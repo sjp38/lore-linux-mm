@@ -1,147 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A512E6B004D
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 19:26:49 -0500 (EST)
-Date: Fri, 27 Nov 2009 09:20:35 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH RFC v0 2/3] res_counter: implement thresholds
-Message-Id: <20091127092035.bbf2efdc.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <8524ba285f6dd59cda939c28da523f344cdab3da.1259255307.git.kirill@shutemov.name>
-References: <cover.1259255307.git.kirill@shutemov.name>
-	<bc4dc055a7307c8667da85a4d4d9d5d189af27d5.1259255307.git.kirill@shutemov.name>
-	<8524ba285f6dd59cda939c28da523f344cdab3da.1259255307.git.kirill@shutemov.name>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0A0E36B004D
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 21:01:17 -0500 (EST)
+Received: by bwz7 with SMTP id 7so135384bwz.6
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2009 17:56:47 -0800 (PST)
+Message-ID: <4B0F31DB.6020009@gmail.com>
+Date: Fri, 27 Nov 2009 02:56:43 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
+References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com>	<alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com>	<abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com>	<20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>	<alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com>	<20091125124433.GB27615@random.random>	<4B0DC764.8040205@gmail.com> <20091126103234.806a4982.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091126103234.806a4982.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+KAMEZAWA Hiroyuki wrote:
 
-On Thu, 26 Nov 2009 19:11:16 +0200, "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> It allows to setup two thresholds: one above current usage and one
-> below. Callback threshold_notifier() will be called if a threshold is
-> crossed.
+> On Thu, 26 Nov 2009 01:10:12 +0100
+> Vedran FuraA? <vedran.furac@gmail.com> wrote:
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> ---
->  include/linux/res_counter.h |   44 +++++++++++++++++++++++++++++++++++++++++++
->  kernel/res_counter.c        |    4 +++
->  2 files changed, 48 insertions(+), 0 deletions(-)
+>> Andrea Arcangeli wrote:
+>>
+>>> lengthy discussion on something I think is quite obviously better and
+>>> I tried to change a couple of years back already (rss instead of
+>>> total_vm).
+>> Now that 2.6.32 is almost out, is it possible to get OOMK fixed in
+>> 2.6.33 so that I could turn overcommit on (overcommit_memory=0) again
+>> without fear of loosing my work?
+>>
+> I'll try fork-bomb detector again. That will finally help your X.org.
+> But It may lose 2.6.33.
 > 
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index fcb9884..bca99a5 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -9,6 +9,10 @@
->   *
->   * Author: Pavel Emelianov <xemul@openvz.org>
->   *
-> + * Thresholds support
-> + * Copyright (C) 2009 Nokia Corporation
-> + * Author: Kirill A. Shutemov
-> + *
->   * See Documentation/cgroups/resource_counter.txt for more
->   * info about what this counter is.
->   */
-> @@ -42,6 +46,13 @@ struct res_counter {
->  	 * the number of unsuccessful attempts to consume the resource
->  	 */
->  	unsigned long long failcnt;
-> +
-> +	unsigned long long threshold_above;
-> +	unsigned long long threshold_below;
-> +	void (*threshold_notifier)(struct res_counter *counter,
-> +			unsigned long long usage,
-> +			unsigned long long threshold);
-> +
->  	/*
->  	 * the lock to protect all of the above.
->  	 * the routines below consider this to be IRQ-safe
-> @@ -145,6 +156,20 @@ static inline bool res_counter_soft_limit_check_locked(struct res_counter *cnt)
->  	return false;
->  }
->  
-> +static inline void res_counter_threshold_notify_locked(struct res_counter *cnt)
-> +{
-> +	if (cnt->usage >= cnt->threshold_above) {
-> +		cnt->threshold_notifier(cnt, cnt->usage, cnt->threshold_above);
-> +		return;
-> +	}
-> +
-> +	if (cnt->usage < cnt->threshold_below) {
-> +		cnt->threshold_notifier(cnt, cnt->usage, cnt->threshold_below);
-> +		return;
-> +	}
-> +}
-> +
-> +
->  /**
->   * Get the difference between the usage and the soft limit
->   * @cnt: The counter
-> @@ -238,4 +263,23 @@ res_counter_set_soft_limit(struct res_counter *cnt,
->  	return 0;
->  }
->  
-> +static inline int
-> +res_counter_set_thresholds(struct res_counter *cnt,
-> +		unsigned long long threshold_above,
-> +		unsigned long long threshold_below)
-> +{
-> +	unsigned long flags;
-> +	int ret = -EINVAL;
-> +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	if ((cnt->usage < threshold_above) &&
-> +			(cnt->usage >= threshold_below)) {
-> +		cnt->threshold_above = threshold_above;
-> +		cnt->threshold_below = threshold_below;
-> +		ret = 0;
-> +	}
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
-> +	return ret;
-> +}
-> +
->  #endif
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index bcdabf3..646c29c 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -20,6 +20,8 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
->  	spin_lock_init(&counter->lock);
->  	counter->limit = RESOURCE_MAX;
->  	counter->soft_limit = RESOURCE_MAX;
-> +	counter->threshold_above = RESOURCE_MAX;
-> +	counter->threshold_below = 0ULL;
->  	counter->parent = parent;
->  }
->  
-> @@ -33,6 +35,7 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
->  	counter->usage += val;
->  	if (counter->usage > counter->max_usage)
->  		counter->max_usage = counter->usage;
-> +	res_counter_threshold_notify_locked(counter);
->  	return 0;
->  }
->  
-> @@ -73,6 +76,7 @@ void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
->  		val = counter->usage;
->  
->  	counter->usage -= val;
-> +	res_counter_threshold_notify_locked(counter);
->  }
->  
-hmm.. this adds new checks to hot-path of process life cycle.
+> Adding new counter to mm_struct is now rejected because of scalability, so
+> total work will need more time (than expected).
+> I'm sorry I can't get enough time in these weeks.
 
-Do you have any number on performance impact of these patches(w/o setting any threshold)?
-IMHO, it might be small enough to be ignored because KAMEZAWA-san's coalesce charge/uncharge
-patches have decreased charge/uncharge for res_counter itself, but I want to know just to make sure.
-
+Thanks for working on this! Hope it gets into 33. Keep me posted.
 
 Regards,
-Daisuke Nishimura.
+
+Vedran
+
+
+-- 
+http://vedranf.net | a8e7a7783ca0d460fee090cc584adc12
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
