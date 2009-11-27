@@ -1,74 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 822096B004D
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 01:29:14 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAR6TBMb010648
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 27 Nov 2009 15:29:12 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D71645DE55
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 15:29:11 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6FF5245DE51
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 15:29:11 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5484C1DB8043
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 15:29:11 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id F2FF21DB8038
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 15:29:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH-RFC] cfq: Disable low_latency by default for 2.6.32
-In-Reply-To: <20091127143307.A7E1.A69D9226@jp.fujitsu.com>
-References: <20091126141738.GE13095@csn.ul.ie> <20091127143307.A7E1.A69D9226@jp.fujitsu.com>
-Message-Id: <20091127152824.A7EA.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E8A366B004D
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 02:02:01 -0500 (EST)
+Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
+	by smtp-out.google.com with ESMTP id nAR71vqm011430
+	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 07:01:58 GMT
+Received: from pwj17 (pwj17.prod.google.com [10.241.219.81])
+	by spaceape7.eur.corp.google.com with ESMTP id nAR71pCn022893
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2009 23:01:54 -0800
+Received: by pwj17 with SMTP id 17so1010743pwj.5
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2009 23:01:51 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 27 Nov 2009 15:29:10 +0900 (JST)
+In-Reply-To: <20091126113209.5A68.A69D9226@jp.fujitsu.com>
+References: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com>
+	 <20091126113209.5A68.A69D9226@jp.fujitsu.com>
+Date: Thu, 26 Nov 2009 23:01:51 -0800
+Message-ID: <604427e00911262301tac7f55avedd44263fbabccc2@mail.gmail.com>
+Subject: Re: memcg: slab control
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Corrado Zoccolo <czoccolo@gmail.com>, Jens Axboe <jens.axboe@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Instead, PF_MEMALLOC is good idea?
+On Wed, Nov 25, 2009 at 6:35 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi
+>
+>> Hi,
+>>
+>> I wanted to see what the current ideas are concerning kernel memory
+>> accounting as it relates to the memory controller. =A0Eventually we'll w=
+ant
+>> the ability to restrict cgroups to a hard slab limit. =A0That'll require
+>> accounting to map slab allocations back to user tasks so that we can
+>> enforce a policy based on the cgroup's aggregated slab usage similiar to
+>> how the memory controller currently does for user memory.
+>>
+>> Is this currently being thought about within the memcg community? =A0We'=
+d
+>> like to start a discussion and get everybody's requirements and interest=
+s
+>> on the table and then become actively involved in the development of suc=
+h
+>> a feature.
+>
+> I don't think memory hard isolation is bad idea. however, slab restrictio=
+n
+> is too strange. some device use slab frequently, another someone use get_=
+free_pages()
+> directly. only slab restriction will not make expected result from admin =
+view.
+>
+> Probably, we need to implement generic memory reservation framework. it m=
+ihgt help
+> implemnt rt-task memory reservation and userland oom manager.
+>
+> It is only my personal opinion...
 
-This patch was obviously wrong. please forget it. i'm sorry.
+Looks like the beancounters implementation counts both the kernel slab
+objects as well as the
+pages from get_free_pages(). But It relies the caller to pass down a
+GFP flag indicating the page
+or slab to be accountable or not. I am looking at the beancounters v5 at:
 
-> 
-> 
-> Subject: [PATCH] cfq: Do not limit the async queue depth while memory reclaim
-> 
-> Not-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> (I haven't test this)
-> ---
->  block/cfq-iosched.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
-> 
-> diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
-> index aa1e953..9546f64 100644
-> --- a/block/cfq-iosched.c
-> +++ b/block/cfq-iosched.c
-> @@ -1308,7 +1308,8 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
->  	 * We also ramp up the dispatch depth gradually for async IO,
->  	 * based on the last sync IO we serviced
->  	 */
-> -	if (!cfq_cfqq_sync(cfqq) && cfqd->cfq_latency) {
-> +	if (!cfq_cfqq_sync(cfqq) && cfqd->cfq_latency &&
-> +	    !(current->flags & PF_MEMALLOC)) {
->  		unsigned long last_sync = jiffies - cfqd->last_end_sync_rq;
->  		unsigned int depth;
->  
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
-> 
-> 
-> 
+http://lkml.indiana.edu/hypermail/linux/kernel/0610.0/1719.html
 
+I kind of like the idea to have a kernel memory controller instead of
+kernel slab controller.
+If we only count kernel slabs, do we need another mechanism to count
+kernel allocations
+directly from get_free_pages() ?
 
+--Ying
+>
+>
+> Thanks.
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
