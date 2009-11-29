@@ -1,180 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3522C600309
-	for <linux-mm@kvack.org>; Fri, 27 Nov 2009 18:06:16 -0500 (EST)
-From: Jiri Slaby <jslaby@suse.cz>
-Subject: [PATCH v3 21/27] MM: use helpers for rlimits
-Date: Sat, 28 Nov 2009 00:06:01 +0100
-Message-Id: <1259363167-9347-21-git-send-email-jslaby@suse.cz>
-In-Reply-To: <1259363167-9347-1-git-send-email-jslaby@suse.cz>
-References: <1259363167-9347-1-git-send-email-jslaby@suse.cz>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C0E556B0044
+	for <linux-mm@kvack.org>; Sun, 29 Nov 2009 02:42:11 -0500 (EST)
+Date: Sun, 29 Nov 2009 08:42:09 +0100 (CET)
+From: Tobi Oetiker <tobi@oetiker.ch>
+Subject: still getting allocation failures (was Re: [PATCH] vmscan: Stop
+ kswapd waiting on congestion when the min watermark is not being met V2)
+In-Reply-To: <alpine.DEB.2.00.0911261542500.21450@sebohet.brgvxre.pu>
+Message-ID: <alpine.DEB.2.00.0911290834470.20857@sebohet.brgvxre.pu>
+References: <20091113142608.33B9.A69D9226@jp.fujitsu.com> <20091113135443.GF29804@csn.ul.ie> <20091114023138.3DA5.A69D9226@jp.fujitsu.com> <20091113181557.GM29804@csn.ul.ie> <2f11576a0911131033w4a9e6042k3349f0be290a167e@mail.gmail.com> <20091113200357.GO29804@csn.ul.ie>
+ <alpine.DEB.2.00.0911261542500.21450@sebohet.brgvxre.pu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: jirislaby@gmail.com
-Cc: mingo@elte.hu, nhorman@tuxdriver.com, sfr@canb.auug.org.au, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, marcin.slusarz@gmail.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, torvalds@linux-foundation.org, oleg@redhat.com, James Morris <jmorris@namei.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Make sure compiler won't do weird things with limits. E.g. fetching
-them twice may return 2 different values after writable limits are
-implemented.
+Hi Mel,
 
-I.e. either use newly added rlimit helpers or ACCESS_ONCE if not
-applicable.
+Thursday Tobias Oetiker wrote:
+> Hi Mel,
+>
+> Nov 13 Mel Gorman wrote:
+>
+> > The last version has a stupid bug in it. Sorry.
+> >
+> > Changelog since V1
+> >   o Fix incorrect negation
+> >   o Rename kswapd_no_congestion_wait to kswapd_skip_congestion_wait as
+> >     suggested by Rik
+> >
+> > If reclaim fails to make sufficient progress, the priority is raised.
+> > Once the priority is higher, kswapd starts waiting on congestion.  However,
+> > if the zone is below the min watermark then kswapd needs to continue working
+> > without delay as there is a danger of an increased rate of GFP_ATOMIC
+> > allocation failure.
+> >
+> > This patch changes the conditions under which kswapd waits on
+> > congestion by only going to sleep if the min watermarks are being met.
+>
+> I finally got around to test this together with the whole series on
+> 2.6.31.6. after running it for a day I have not yet seen a single
+> order:5 allocation problem ... (while I had several an hour before)
 
-Signed-off-by: Jiri Slaby <jslaby@suse.cz>
-Cc: James Morris <jmorris@namei.org>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org
----
- mm/filemap.c |    2 +-
- mm/mlock.c   |   12 ++++++------
- mm/mmap.c    |   13 +++++++------
- mm/mremap.c  |    2 +-
- 4 files changed, 15 insertions(+), 14 deletions(-)
+> for the record, my kernel is now running with the following
+> patches:
+>
+> patch1:Date: Thu, 12 Nov 2009 19:30:31 +0000
+> patch1:Subject: [PATCH 1/5] page allocator: Always wake kswapd when restarting an allocation attempt after direct reclaim failed
+>
+> patch2:Date: Thu, 12 Nov 2009 19:30:32 +0000
+> patch2:Subject: [PATCH 2/5] page allocator: Do not allow interrupts to use ALLOC_HARDER
+>
+> patch3:Date: Thu, 12 Nov 2009 19:30:33 +0000
+> patch3:Subject: [PATCH 3/5] page allocator: Wait on both sync and async congestion after direct reclaim
+>
+> patch4:Date: Thu, 12 Nov 2009 19:30:34 +0000
+> patch4:Subject: [PATCH 4/5] vmscan: Have kswapd sleep for a short interval and double check it should be asleep
+>
+> patch5:Date: Fri, 13 Nov 2009 20:03:57 +0000
+> patch5:Subject: [PATCH] vmscan: Stop kswapd waiting on congestion when the min watermark is not being met V2
+>
+> patch6:Date: Tue, 17 Nov 2009 10:34:21 +0000
+> patch6:Subject: [PATCH] vmscan: Have kswapd sleep for a short interval and double check it should be asleep fix 1
+>
+I have now been running the new kernel for a few days and I am
+sorry to report that about a day after booting the allocation
+failures started showing again. More order:4 instead of order:5 ...
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index ef169f3..8896396 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1971,7 +1971,7 @@ EXPORT_SYMBOL(iov_iter_single_seg_count);
- inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, int isblk)
- {
- 	struct inode *inode = file->f_mapping->host;
--	unsigned long limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
-+	unsigned long limit = rlim_get_cur(RLIMIT_FSIZE);
- 
-         if (unlikely(*pos < 0))
-                 return -EINVAL;
-diff --git a/mm/mlock.c b/mm/mlock.c
-index bd6f0e4..a8ee8bf 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -25,7 +25,7 @@ int can_do_mlock(void)
- {
- 	if (capable(CAP_IPC_LOCK))
- 		return 1;
--	if (current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur != 0)
-+	if (rlim_get_cur(RLIMIT_MEMLOCK) != 0)
- 		return 1;
- 	return 0;
- }
-@@ -490,7 +490,7 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
- 	locked = len >> PAGE_SHIFT;
- 	locked += current->mm->locked_vm;
- 
--	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+	lock_limit = rlim_get_cur(RLIMIT_MEMLOCK);
- 	lock_limit >>= PAGE_SHIFT;
- 
- 	/* check against resource limits */
-@@ -553,7 +553,7 @@ SYSCALL_DEFINE1(mlockall, int, flags)
- 
- 	down_write(&current->mm->mmap_sem);
- 
--	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+	lock_limit = rlim_get_cur(RLIMIT_MEMLOCK);
- 	lock_limit >>= PAGE_SHIFT;
- 
- 	ret = -ENOMEM;
-@@ -587,7 +587,7 @@ int user_shm_lock(size_t size, struct user_struct *user)
- 	int allowed = 0;
- 
- 	locked = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
--	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+	lock_limit = rlim_get_cur(RLIMIT_MEMLOCK);
- 	if (lock_limit == RLIM_INFINITY)
- 		allowed = 1;
- 	lock_limit >>= PAGE_SHIFT;
-@@ -621,12 +621,12 @@ int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
- 
- 	down_write(&mm->mmap_sem);
- 
--	lim = rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-+	lim = ACCESS_ONCE(rlim[RLIMIT_AS].rlim_cur) >> PAGE_SHIFT;
- 	vm   = mm->total_vm + pgsz;
- 	if (lim < vm)
- 		goto out;
- 
--	lim = rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-+	lim = ACCESS_ONCE(rlim[RLIMIT_MEMLOCK].rlim_cur) >> PAGE_SHIFT;
- 	vm   = mm->locked_vm + pgsz;
- 	if (lim < vm)
- 		goto out;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 73f5e4b..dc49f43 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -266,7 +266,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
- 	 * segment grow beyond its set limit the in case where the limit is
- 	 * not page aligned -Ram Gupta
- 	 */
--	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
-+	rlim = rlim_get_cur(RLIMIT_DATA);
- 	if (rlim < RLIM_INFINITY && (brk - mm->start_brk) +
- 			(mm->end_data - mm->start_data) > rlim)
- 		goto out;
-@@ -990,7 +990,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 		unsigned long locked, lock_limit;
- 		locked = len >> PAGE_SHIFT;
- 		locked += mm->locked_vm;
--		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+		lock_limit = rlim_get_cur(RLIMIT_MEMLOCK);
- 		lock_limit >>= PAGE_SHIFT;
- 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
- 			return -EAGAIN;
-@@ -1565,7 +1565,7 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
- 		return -ENOMEM;
- 
- 	/* Stack limit test */
--	if (size > rlim[RLIMIT_STACK].rlim_cur)
-+	if (size > ACCESS_ONCE(rlim[RLIMIT_STACK].rlim_cur))
- 		return -ENOMEM;
- 
- 	/* mlock limit tests */
-@@ -1573,7 +1573,8 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
- 		unsigned long locked;
- 		unsigned long limit;
- 		locked = mm->locked_vm + grow;
--		limit = rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-+		limit = ACCESS_ONCE(rlim[RLIMIT_MEMLOCK].rlim_cur);
-+		limit >>= PAGE_SHIFT;
- 		if (locked > limit && !capable(CAP_IPC_LOCK))
- 			return -ENOMEM;
- 	}
-@@ -2026,7 +2027,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
- 		unsigned long locked, lock_limit;
- 		locked = len >> PAGE_SHIFT;
- 		locked += mm->locked_vm;
--		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+		lock_limit = rlim_get_cur(RLIMIT_MEMLOCK);
- 		lock_limit >>= PAGE_SHIFT;
- 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
- 			return -EAGAIN;
-@@ -2240,7 +2241,7 @@ int may_expand_vm(struct mm_struct *mm, unsigned long npages)
- 	unsigned long cur = mm->total_vm;	/* pages */
- 	unsigned long lim;
- 
--	lim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-+	lim = rlim_get_cur(RLIMIT_AS) >> PAGE_SHIFT;
- 
- 	if (cur + npages > lim)
- 		return 0;
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 97bff25..00a384c 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -358,7 +358,7 @@ unsigned long do_mremap(unsigned long addr,
- 	if (vma->vm_flags & VM_LOCKED) {
- 		unsigned long locked, lock_limit;
- 		locked = mm->locked_vm << PAGE_SHIFT;
--		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+		lock_limit = rlim_get_cur(RLIMIT_MEMLOCK);
- 		locked += new_len - old_len;
- 		ret = -EAGAIN;
- 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+Nov 29 07:16:17 johan kernel: [261565.598627] nfsd: page allocation failure. order:4, mode:0x4020 [kern.warning]
+Nov 29 07:16:17 johan kernel: [261565.598638] Pid: 6956, comm: nfsd Tainted: G      D    2.6.31.6-oep #1 [kern.warning]
+Nov 29 07:16:17 johan kernel: [261565.598641] Call Trace: [kern.warning]
+Nov 29 07:16:17 johan kernel: [261565.598646]  <IRQ>  [<ffffffff810cb730>] __alloc_pages_nodemask+0x570/0x690 [kern.warning]
+Nov 29 07:16:17 johan kernel: [261565.598672]  [<ffffffff8142aba5>] ? tcp_tso_segment+0x265/0x2e0 [kern.warning]
+Nov 29 07:16:17 johan kernel: [261565.598680]  [<ffffffff810faf08>] kmalloc_large_node+0x68/0xc0 [kern.warning]
+Nov 29 07:16:17 johan kernel: [261565.598692]  [<ffffffff810febfa>] __kmalloc_node_track_caller+0x11a/0x180 [kern.warning]
+
+the fact that there were no problems right after booting might give
+some indication as to where the problem is. This is on a machine
+with 24 GB of memory, as you can see from the 'top' headers, it has
+plenty of room to spare and should never run into allocation problems
+anyway. The only thing that would have changed after running it for
+about a day is that more memory is used for caching ...
+
+# cat /proc/meminfo
+MemTotal:       24746268 kB
+MemFree:          128012 kB
+Buffers:         6255988 kB
+Cached:         10600780 kB
+SwapCached:        23668 kB
+Active:         13078944 kB
+Inactive:        9229172 kB
+Active(anon):    5455164 kB
+Inactive(anon):   508616 kB
+Active(file):    7623780 kB
+Inactive(file):  8720556 kB
+Unevictable:      291768 kB
+Mlocked:          291768 kB
+SwapTotal:      83886056 kB
+SwapFree:       83846520 kB
+Dirty:              2028 kB
+Writeback:             0 kB
+AnonPages:       5723748 kB
+Mapped:           152240 kB
+Slab:            1339176 kB
+SReclaimable:    1270156 kB
+SUnreclaim:        69020 kB
+PageTables:        31208 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    101208440 kB
+Committed_AS:    8146696 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:      115084 kB
+VmallocChunk:   34359518011 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:       10176 kB
+DirectMap2M:    25155584 kB
+
+hth
+tobi
+
 -- 
-1.6.5.3
+Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
+http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
