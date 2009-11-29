@@ -1,419 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 993336B0044
-	for <linux-mm@kvack.org>; Sun, 29 Nov 2009 10:11:39 -0500 (EST)
-Received: by bwz7 with SMTP id 7so1416208bwz.6
-        for <linux-mm@kvack.org>; Sun, 29 Nov 2009 07:11:35 -0800 (PST)
-From: Corrado Zoccolo <czoccolo@gmail.com>
-Subject: Re: [PATCH-RFC] cfq: Disable low_latency by default for 2.6.32
-Date: Sun, 29 Nov 2009 16:11:15 +0100
-References: <20091126121945.GB13095@csn.ul.ie> <4e5e476b0911271014k1d507a02o60c11723948dcfa@mail.gmail.com> <20091127185234.GQ13095@csn.ul.ie>
-In-Reply-To: <20091127185234.GQ13095@csn.ul.ie>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 310D26B0044
+	for <linux-mm@kvack.org>; Sun, 29 Nov 2009 10:50:35 -0500 (EST)
+Date: Sun, 29 Nov 2009 15:50:32 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: [PATCH] ksm: hold anon_vma in rmap_item fix
+Message-ID: <Pine.LNX.4.64.0911291544140.14991@sister.anvils>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200911291611.16434.czoccolo@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Tobias Oetiker <tobi@oetiker.ch>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 27, 2009 19:52:34, Mel Gorman wrote:
-: > On Fri, Nov 27, 2009 at 07:14:41PM +0100, Corrado Zoccolo wrote:
-> > On Fri, Nov 27, 2009 at 4:58 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > > On Fri, Nov 27, 2009 at 01:03:29PM +0100, Corrado Zoccolo wrote:
-> > >> On Fri, Nov 27, 2009 at 12:44 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > >
-> > > How would one go about selecting the proper ratio at which to disable
-> > > the low_latency logic?
-> >
-> > Can we measure the dirty ratio when the allocation failures start to
-> > happen?
->
-> Would the number of dirty pages in the page allocation failure message to
-> kern.log be enough? You won't get them all because of printk suppress but
-> it's something. Alternatively, tell me exactly what stats from /proc you
-> want and I'll stick a monitor on there. Assuming you want nr_dirty vs tot=
-al
-> number of pages though, the monitor tends to execute too late to be usefu=
-l.
->
-Since I wanted to go deeper in the understanding, but my system is healty,
-I devised a measure of fragmentation, and wanted to chart it to understand
-what was going wrong. A perl script that produces gnuplot compatible output=
- is provided:
+KSM mem_cgroup testing oopsed on NULL pointer in mem_cgroup_from_task(),
+called from the mm_match_cgroup() in page_referenced_ksm().
 
-use strict;
-select(STDOUT);
-$|=3D1;
-do {
-open (my $bf, "< /proc/buddyinfo") or die;
-open (my $up, "< /proc/uptime") or die;
-my $now =3D <$up>;
-chomp $now;
-print $now;
-while(<$bf>) {
-    next unless /Node (\d+), zone\s+([a-zA-Z]+)\s+(.+)$/;
-    my ($frag, $tot, $val) =3D (0,0,1);
-    map { $frag +=3D $_; $tot +=3D $val * $_; $val <<=3D 1;} ($3 =3D~ /\d+/=
-g);
-    print "\t", $frag/$tot;
-}
-print "\n";
-sleep 1;
-} while(1);
+Right, it is inappropriate to use mm_match_cgroup() on rmap_item->mm
+there: that mm could be waiting for ksmd's final mmdrop(), with its
+mm->owner task long gone.
 
-My definition of fragmentation is just the number of fragments / the number=
- of pages:
-* It is 1 only when all pages are of order 0
-* it is 2/3 on a random marking of used pages (each page has probability 0.=
-5 of being used)
-* to be sure that a order k allocation succeeds, the fragmentation should b=
-e <=3D 2^-k
+Move the mm_match_cgroup() test down into the anon_vma loop, which is
+where it now should be to match page_referenced_anon().  The anon_vma
+guarantees its vmas are valid, which guarantee their mms are valid.
 
-I observed the mainline kernel during normal usage, and found that:
-* the fragmentation is very low after boot (< 1%).
-* it tends to increase when memory is freed, and to decrease when memory is=
- allocated (since the kernel usually performs order 0 allocations).
-* high memory fragmentation increases first, and only when all high memory =
-is used, normal memory starts to fragment.
-* when the page cache is big enough (so memory pressure is high for the all=
-ocator), the fragmentation starts to fluctuate a lot, sometimes exceeding 2=
-/3 (up to 0.8).
-* the only way to make the fragmentation return to sane values after it ent=
-ers fluctuation is to do a sync & drop caches. Even in this case, it will g=
-o around 14%, that is still quite high.
->
-> Two major differences. 1, the previous non-high-order tests had also
-> run sysbench and iozone so the starting conditions are different. I had
-> disabled those tests to get some of the high-order figures before I went
-> offline. However, the starting conditions are probably not as important as
-> the fact that kswapd is working to free order-2 pages and staying awake
-> until watermarks are reached. kswapd working harder is probably making a
-> big difference.
->
-=46rom my observation, having run a program that fills page cache before a =
-test has a lot of impact to the fragmentation.
-We (block layer guys) tend to do a sync & drop cache before starting any te=
-st, so this can explain why our optimizations work best when machine has pl=
-enty of free memory.
-On the other hand, machines with plenty of memory should be the norm now, e=
-ven for desktops.
+However... although this moves the oops from easy-to-reproduce to
+never-seen, I think we shall want to do more later: so far as I can
+see, with or without KSM, the use of mm->owner from page_referenced()
+is unsafe.  No problem when NULL, but it may have been left pointing
+to a task_struct freed by now, with nonsense in mm->owner->cgroups.
 
->
-> I made a mistake in the script that was generating the summary. I neglect=
-ed
-> to take into account printk rate suppressions. When they are taken into
-> account, the first round of figures look like
->
-> desktop-net-gitk
->                      high-with       low-latency       low-latency    =20
-> high-without low-latency      block-2.6.33      async-rampup     =20
-> low-latency min            861.03 ( 0.00%)   467.83 (45.67%)  1185.51
-> (-37.69%)   303.43 (64.76%) mean           866.60 ( 0.00%)   616.28
-> (28.89%)  1201.82 (-38.68%)   459.69 (46.96%) stddev           4.39 (
-> 0.00%)    86.90 (-1877.46%)    23.63 (-437.75%)    92.75 (-2010.76%) max =
- =20
->         872.56 ( 0.00%)   679.36 (22.14%)  1242.63 (-42.41%)   537.31
-> (38.42%) pgalloc-fail       65 ( 0.00%)       10 (84.62%)      293
-> (-350.77%)       20 (69.23%)
->
-> So the async-rampup is getting smacked very hard with allocation failures
-> in the high-order case. With the three additional applied for allocation
-> failures, the figures look like
->
-> desktop-net-gitk
->                   atomics-with       low-latency       low-latency =20
-> atomics-without low-latency      block-2.6.33      async-rampup     =20
-> low-latency min            641.12 ( 0.00%)   627.91 ( 2.06%)  1254.75
-> (-95.71%)   375.05 (41.50%) mean           743.61 ( 0.00%)   631.20
-> (15.12%)  1272.70 (-71.15%)   389.71 (47.59%) stddev          60.30 (
-> 0.00%)     2.53 (95.80%)    10.64 (82.35%)    22.38 (62.89%) max         =
- =20
-> 793.85 ( 0.00%)   633.76 (20.17%)  1281.65 (-61.45%)   428.41 (46.03%)
-> pgalloc-fail        3 ( 0.00%)        2 ( 0.00%)       27 ( 0.00%)       =
- 0
-> ( 0.00%)
->
-> So again, async-rampup is getting smacked in terms of allocation failures
-> although the three additional patches help a lot. This is a real pity
-> because it looked nice in the tests involving no high-order allocations f=
-or
-> the network.
-Ok. Forget that patch for now. Maybe we can test it with 2.6.33 to see if i=
-t fits.
-On the other hand, I saw that the problems with high order allocations star=
-ted
-around 2.6.31, where we didn't have any low_latency patch. So I don't think=
- the
-solution to the problem is in the block layer. A slightly slower or faster =
-writeback
-shouldn't cause a DoS like situation as the one encountered with your netwo=
-rk driver.
+But let's put this patch in while we discuss that separately: perhaps
+mm_need_new_owner() should not short-circuit when mm_users <= 1, or
+perhaps it should then set mm->owner to NULL, or perhaps we abandon
+mm->owner as more trouble than it's worth, or... perhaps I'm wrong.
 
-> > Moreover, it will improve some workloads, but penalize others.
->
-> It really does appear to hurt a lot when the machine is kinda low on
-> memory though. That is a fairly common situation with a desktop loaded
-> up with random apps. Well..... by common, I mean I hit that situation a
-> lot on my laptop. I don't hit it on server workloads because I make sure
-> the machines are not overloaded.
-This is why we have it as a tunable. If your workload is negatively affecte=
-d,
-you can switch it off. But make sure to test it thoroughly, because even if
-you found a 2x slowdown in a particular circumstance, it can gain 10x
-speedup (see http://lkml.indiana.edu/hypermail/linux/kernel/0911.1/01848.ht=
-ml)
-in others.
+Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+---
 
->
-> > Your 3 patches, though, seem to improve the situation also for
-> > low_latency enabled, both for performance and allocation failures (25
-> > to 3). Having those 3 patches with low_latency enabled seems better,
-> > since it won't penalize the workloads that are benefited by
-> > low_latency (if you add a sequential read to your test, you should see
-> > a big difference).
->
-> This is true and I would like to see them merged. However, this close to
-> release, with Jens unhappiness with the explanation of why
-> congestion_wait() changes made a difference and Andrew feeling there
-> wasn't enough cause to merge them, I'm doubtful it'll happen. Will see
-> Monday what the story is.
+ mm/ksm.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-After a 1day study of the VM, I found an other way to improve the fragmenta=
-tion.
-With the patch below, the fragmentation stays below 2/3 even when memory pr=
-essure is high,
-and decreases overtime, if the system is lightly used, even without droppin=
-g caches.
-Moreover, the precious zones (Normal, DMA) are kept at a lower fragmentatio=
-n, since high order
-allocations are usually serviced by the other zones (more likely than with =
-mainline allocator).
-
-The idea is to have 2 freelists for each zone.
-The free_list_0 has the pages that are less likely to cause an higher-order=
- merge, since the buddy of their compound is not free.
-The free_list_1 contains the other ones.
-When expanding, we put pages into free_list_1. When freeing, we put them in=
- the proper one by checking the buddy of the compound.
-And when extracting, we always extract from free_list_0 first, and fall bac=
-k on the other if the first is empty.
-In this way, we keep free longer the pages that are more likely to cause a =
-big merge.
-Consequently we tend to aggregate the long-living allocations on a subset o=
-f the compounds, reducing the fragmentation.
-
-It can, though, slow down allocation and reclaim, so someone more knowledge=
-able than me should have a look.
-
-Signed-off-by: Corrado Zoccolo <czoccolo@gmail.com>
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 6f75617..6427361 100644
-=2D-- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -55,7 +55,8 @@ static inline int get_pageblock_migratetype(struct page *=
-page)
- }
-=20
- struct free_area {
-=2D	struct list_head	free_list[MIGRATE_TYPES];
-+	struct list_head	free_list_0[MIGRATE_TYPES];
-+	struct list_head	free_list_1[MIGRATE_TYPES];
- 	unsigned long		nr_free;
- };
-=20
-diff --git a/kernel/kexec.c b/kernel/kexec.c
-index f336e21..aee5ef5 100644
-=2D-- a/kernel/kexec.c
-+++ b/kernel/kexec.c
-@@ -1404,13 +1404,15 @@ static int __init crash_save_vmcoreinfo_init(void)
- 	VMCOREINFO_OFFSET(zone, free_area);
- 	VMCOREINFO_OFFSET(zone, vm_stat);
- 	VMCOREINFO_OFFSET(zone, spanned_pages);
-=2D	VMCOREINFO_OFFSET(free_area, free_list);
-+	VMCOREINFO_OFFSET(free_area, free_list_0);
-+	VMCOREINFO_OFFSET(free_area, free_list_1);
- 	VMCOREINFO_OFFSET(list_head, next);
- 	VMCOREINFO_OFFSET(list_head, prev);
- 	VMCOREINFO_OFFSET(vm_struct, addr);
- 	VMCOREINFO_LENGTH(zone.free_area, MAX_ORDER);
- 	log_buf_kexec_setup();
-=2D	VMCOREINFO_LENGTH(free_area.free_list, MIGRATE_TYPES);
-+	VMCOREINFO_LENGTH(free_area.free_list_0, MIGRATE_TYPES);
-+	VMCOREINFO_LENGTH(free_area.free_list_1, MIGRATE_TYPES);
- 	VMCOREINFO_NUMBER(NR_FREE_PAGES);
- 	VMCOREINFO_NUMBER(PG_lru);
- 	VMCOREINFO_NUMBER(PG_private);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cdcedf6..5f488d8 100644
-=2D-- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -451,6 +451,8 @@ static inline void __free_one_page(struct page *page,
- 		int migratetype)
- {
- 	unsigned long page_idx;
-+	unsigned long combined_idx;
-+	bool high_order_free =3D false;
-=20
- 	if (unlikely(PageCompound(page)))
- 		if (unlikely(destroy_compound_page(page, order)))
-@@ -464,7 +466,6 @@ static inline void __free_one_page(struct page *page,
- 	VM_BUG_ON(bad_range(zone, page));
-=20
- 	while (order < MAX_ORDER-1) {
-=2D		unsigned long combined_idx;
- 		struct page *buddy;
-=20
- 		buddy =3D __page_find_buddy(page, page_idx, order);
-@@ -481,8 +482,21 @@ static inline void __free_one_page(struct page *page,
- 		order++;
- 	}
- 	set_page_order(page, order);
-=2D	list_add(&page->lru,
-=2D		&zone->free_area[order].free_list[migratetype]);
-+
-+	if (order < MAX_ORDER-1) {
-+		struct page *parent_page, *ppage_buddy;
-+		combined_idx =3D __find_combined_index(page_idx, order);
-+		parent_page =3D page + combined_idx - page_idx;
-+		ppage_buddy =3D __page_find_buddy(parent_page, combined_idx, order + 1);
-+		high_order_free =3D page_is_buddy(parent_page, ppage_buddy, order + 1);
-+	}
-+
-+	if (high_order_free)
-+		list_add(&page->lru,
-+			&zone->free_area[order].free_list_1[migratetype]);
-+	else
-+		list_add(&page->lru,
-+			&zone->free_area[order].free_list_0[migratetype]);
- 	zone->free_area[order].nr_free++;
- }
-=20
-@@ -663,7 +677,7 @@ static inline void expand(struct zone *zone, struct pag=
-e *page,
- 		high--;
- 		size >>=3D 1;
- 		VM_BUG_ON(bad_range(zone, &page[size]));
-=2D		list_add(&page[size].lru, &area->free_list[migratetype]);
-+		list_add(&page[size].lru, &area->free_list_1[migratetype]);
- 		area->nr_free++;
- 		set_page_order(&page[size], high);
- 	}
-@@ -723,12 +737,19 @@ struct page *__rmqueue_smallest(struct zone *zone, un=
-signed int order,
-=20
- 	/* Find a page of the appropriate size in the preferred list */
- 	for (current_order =3D order; current_order < MAX_ORDER; ++current_order)=
- {
-+		bool fl0, fl1;
- 		area =3D &(zone->free_area[current_order]);
-=2D		if (list_empty(&area->free_list[migratetype]))
-+		fl0 =3D list_empty(&area->free_list_0[migratetype]);
-+		fl1 =3D list_empty(&area->free_list_1[migratetype]);
-+		if (fl0 && fl1)
- 			continue;
-=20
-=2D		page =3D list_entry(area->free_list[migratetype].next,
-=2D							struct page, lru);
-+		if (fl0)
-+			page =3D list_entry(area->free_list_1[migratetype].next,
-+					  struct page, lru);
-+		else
-+			page =3D list_entry(area->free_list_0[migratetype].next,
-+					  struct page, lru);
- 		list_del(&page->lru);
- 		rmv_page_order(page);
- 		area->nr_free--;
-@@ -792,7 +813,7 @@ static int move_freepages(struct zone *zone,
- 		order =3D page_order(page);
- 		list_del(&page->lru);
- 		list_add(&page->lru,
-=2D			&zone->free_area[order].free_list[migratetype]);
-+			&zone->free_area[order].free_list_0[migratetype]);
- 		page +=3D 1 << order;
- 		pages_moved +=3D 1 << order;
- 	}
-@@ -845,6 +866,7 @@ __rmqueue_fallback(struct zone *zone, int order, int st=
-art_migratetype)
- 	for (current_order =3D MAX_ORDER-1; current_order >=3D order;
- 						--current_order) {
- 		for (i =3D 0; i < MIGRATE_TYPES - 1; i++) {
-+			bool fl0, fl1;
- 			migratetype =3D fallbacks[start_migratetype][i];
-=20
- 			/* MIGRATE_RESERVE handled later if necessary */
-@@ -852,11 +874,20 @@ __rmqueue_fallback(struct zone *zone, int order, int =
-start_migratetype)
+--- mmotm/mm/ksm.c	2009-11-25 09:28:50.000000000 +0000
++++ linux/mm/ksm.c	2009-11-27 13:49:50.000000000 +0000
+@@ -1565,9 +1565,6 @@ again:
+ 		struct anon_vma *anon_vma = rmap_item->anon_vma;
+ 		struct vm_area_struct *vma;
+ 
+-		if (memcg && !mm_match_cgroup(rmap_item->mm, memcg))
+-			continue;
+-
+ 		spin_lock(&anon_vma->lock);
+ 		list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+ 			if (rmap_item->address < vma->vm_start ||
+@@ -1582,6 +1579,9 @@ again:
+ 			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
  				continue;
-=20
- 			area =3D &(zone->free_area[current_order]);
-=2D			if (list_empty(&area->free_list[migratetype]))
+ 
++			if (memcg && !mm_match_cgroup(vma->vm_mm, memcg))
++				continue;
 +
-+
-+			fl0 =3D list_empty(&area->free_list_0[migratetype]);
-+			fl1 =3D list_empty(&area->free_list_1[migratetype]);
-+
-+			if (fl0 && fl1)
- 				continue;
-=20
-=2D			page =3D list_entry(area->free_list[migratetype].next,
-=2D					struct page, lru);
-+			if (fl0)
-+				page =3D list_entry(area->free_list_1[migratetype].next,
-+						struct page, lru);
-+			else
-+				page =3D list_entry(area->free_list_0[migratetype].next,
-+						struct page, lru);
- 			area->nr_free--;
-=20
- 			/*
-@@ -1061,7 +1092,14 @@ void mark_free_pages(struct zone *zone)
- 		}
-=20
- 	for_each_migratetype_order(order, t) {
-=2D		list_for_each(curr, &zone->free_area[order].free_list[t]) {
-+		list_for_each(curr, &zone->free_area[order].free_list_0[t]) {
-+			unsigned long i;
-+
-+			pfn =3D page_to_pfn(list_entry(curr, struct page, lru));
-+			for (i =3D 0; i < (1UL << order); i++)
-+				swsusp_set_page_free(pfn_to_page(pfn + i));
-+		}
-+		list_for_each(curr, &zone->free_area[order].free_list_1[t]) {
- 			unsigned long i;
-=20
- 			pfn =3D page_to_pfn(list_entry(curr, struct page, lru));
-@@ -2993,7 +3031,8 @@ static void __meminit zone_init_free_lists(struct zon=
-e *zone)
- {
- 	int order, t;
- 	for_each_migratetype_order(order, t) {
-=2D		INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
-+		INIT_LIST_HEAD(&zone->free_area[order].free_list_0[t]);
-+		INIT_LIST_HEAD(&zone->free_area[order].free_list_1[t]);
- 		zone->free_area[order].nr_free =3D 0;
- 	}
- }
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index c81321f..613ef1e 100644
-=2D-- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -468,7 +468,9 @@ static void pagetypeinfo_showfree_print(struct seq_file=
- *m,
-=20
- 			area =3D &(zone->free_area[order]);
-=20
-=2D			list_for_each(curr, &area->free_list[mtype])
-+			list_for_each(curr, &area->free_list_0[mtype])
-+				freecount++;
-+			list_for_each(curr, &area->free_list_1[mtype])
- 				freecount++;
- 			seq_printf(m, "%6lu ", freecount);
- 		}
+ 			referenced += page_referenced_one(page, vma,
+ 				rmap_item->address, &mapcount, vm_flags);
+ 			if (!search_new_forks || !mapcount)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
