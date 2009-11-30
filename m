@@ -1,52 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F2BE600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 06:05:19 -0500 (EST)
-Subject: Re: [PATCH v2 10/12] Maintain preemptability count even for
- !CONFIG_PREEMPT kernels
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1259578793.20516.130.camel@laptop>
-References: <1258985167-29178-1-git-send-email-gleb@redhat.com>
-	 <1258985167-29178-11-git-send-email-gleb@redhat.com>
-	 <1258990455.4531.594.camel@laptop> <20091123155851.GU2999@redhat.com>
-	 <alpine.DEB.2.00.0911231128190.785@router.home>
-	 <20091124071250.GC2999@redhat.com>
-	 <alpine.DEB.2.00.0911240906360.14045@router.home>
-	 <20091130105612.GF30150@redhat.com>  <20091130105812.GG30150@redhat.com>
-	 <1259578793.20516.130.camel@laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 30 Nov 2009 12:05:14 +0100
-Message-ID: <1259579114.20516.136.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 41F37600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 06:18:53 -0500 (EST)
+Date: Mon, 30 Nov 2009 11:18:51 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 5/9] ksm: share anon page without allocating
+In-Reply-To: <20091130090448.71cf6138.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0911301054230.20054@sister.anvils>
+References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils>
+ <Pine.LNX.4.64.0911241645460.25288@sister.anvils>
+ <20091130090448.71cf6138.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-11-30 at 11:59 +0100, Peter Zijlstra wrote:
-> On Mon, 2009-11-30 at 12:58 +0200, Gleb Natapov wrote:
-> > On Mon, Nov 30, 2009 at 12:56:12PM +0200, Gleb Natapov wrote:
-> > > On Tue, Nov 24, 2009 at 09:14:03AM -0600, Christoph Lameter wrote:
-> > > > On Tue, 24 Nov 2009, Gleb Natapov wrote:
-> > > > 
-> > > > > On Mon, Nov 23, 2009 at 11:30:02AM -0600, Christoph Lameter wrote:
-> > > > > > This adds significant overhead for the !PREEMPT case adding lots of code
-> > > > > > in critical paths all over the place.
-> > > > > I want to measure it. Can you suggest benchmarks to try?
-> > > > 
-> > > > AIM9 (reaim9)?
-> > > Below are results for kernel 2.6.32-rc8 with and without the patch (only
-> > > this single patch is applied).
-> > > 
-> > Forgot to tell. The results are average between 5 different runs.
+On Mon, 30 Nov 2009, KAMEZAWA Hiroyuki wrote:
 > 
-> Would be good to also report the variance over those 5 runs, allows us
-> to see if the difference is within the noise.
+> Sorry for delayed response.
 
-Got pointed to the fact that there is a stddev column right there.
+No, thank you very much for spending your time on it.
 
-Must be Monday or something ;-)
+> 
+> On Tue, 24 Nov 2009 16:48:46 +0000 (GMT)
+> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+> 
+> > When ksm pages were unswappable, it made no sense to include them in
+> > mem cgroup accounting; but now that they are swappable (although I see
+> > no strict logical connection)
+> I asked that for throwing away too complicated but wast of time things.
+
+I'm sorry, I didn't understand that sentence at all!
+
+> If not on LRU, its own limitation (ksm's page limit) works enough.
+
+Yes, I think it made sense the way it was before when unswappable,
+but that once they're swappable and that limitation is removed,
+they do then need to participate in mem cgroup accounting.
+
+I _think_ you're agreeing, but I'm not quite sure!
+
+> 
+> > the principle of least surprise implies
+> > that they should be accounted (with the usual dissatisfaction, that a
+> > shared page is accounted to only one of the cgroups using it).
+> > 
+> > This patch was intended to add mem cgroup accounting where necessary;
+> > but turned inside out, it now avoids allocating a ksm page, instead
+> > upgrading an anon page to ksm - which brings its existing mem cgroup
+> > accounting with it.  Thus mem cgroups don't appear in the patch at all.
+> > 
+> ok. then, what I should see is patch 6.
+
+Well, that doesn't have much in it either.  It should all be
+happening naturally, from using the page that's already accounted.
+
+> > @@ -864,15 +865,24 @@ static int try_to_merge_one_page(struct
+...
+> >  
+> > -	if ((vma->vm_flags & VM_LOCKED) && !err) {
+> > +	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
+> >  		munlock_vma_page(page);
+> >  		if (!PageMlocked(kpage)) {
+> >  			unlock_page(page);
+> > -			lru_add_drain();
+> 
+> Is this related to memcg ?
+> 
+> >  			lock_page(kpage);
+> >  			mlock_vma_page(kpage);
+
+Is the removal of lru_add_drain() related to memcg?  No, or only to
+the extent that reusing the original anon page is related to memcg.
+
+I put lru_add_drain() in there before, because (for one of the calls
+to try_to_merge_one_page) the kpage had just been allocated an instant
+before, with lru_cache_add_lru putting it into the per-cpu array, so
+in that case mlock_vma_page(kpage) would need an lru_add_drain() to
+find it on the LRU (of course, we might be preempted to a different
+cpu in between, and lru_add_drain not be enough: but I think we've
+all come to the conclusion that lru_add_drain_all should be avoided
+unless there's a very strong reason for it).
+
+But with this patch we're reusing the existing anon page as ksm page,
+and we know that it's been in place for at least one circuit of ksmd
+(ignoring coincidences like the jhash of the page happens to be 0),
+so we've every reason to believe that it will already be on its LRU:
+no need for lru_add_drain().
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
