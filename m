@@ -1,67 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A0463600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 07:26:36 -0500 (EST)
-Date: Mon, 30 Nov 2009 12:26:34 +0000 (GMT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 826E9600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 07:38:35 -0500 (EST)
+Date: Mon, 30 Nov 2009 12:38:33 +0000 (GMT)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 1/9] ksm: fix mlockfreed to munlocked
-In-Reply-To: <20091130143915.5BD1.A69D9226@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0911301200060.24660@sister.anvils>
-References: <20091126162011.GG13095@csn.ul.ie> <Pine.LNX.4.64.0911271214040.4167@sister.anvils>
- <20091130143915.5BD1.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
+In-Reply-To: <20091130180452.5BF6.A69D9226@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0911301227530.24660@sister.anvils>
+References: <Pine.LNX.4.64.0911241640590.25288@sister.anvils>
+ <20091130094616.8f3d94a7.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091130180452.5BF6.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 30 Nov 2009, KOSAKI Motohiro wrote:
-> > 
-> > But please clarify: that patch was for mmotm and hopefully 2.6.33,
-> > but the vmstat issue (minus warning message) is there in 2.6.32-rc.
-> > Should I
-> > 
-> > (a) forget it for 2.6.32
-> > (b) rush Linus a patch for 2.6.32 final
-> > (c) send a patch for 2.6.32.stable later on
+> > After this patch, the number of shared swappable page will be unlimited.
 > 
-> I personally prefer (3). though I don't know ksm so detail.
-
-Thanks, I think that would be my preference by now too.
-
-> > There's a remark in munlock_vma_page(), apropos a different issue,
-> > 			/*
-> > 			 * We lost the race.  let try_to_unmap() deal
-> > 			 * with it.  At least we get the page state and
-> > 			 * mlock stats right.  However, page is still on
-> > 			 * the noreclaim list.  We'll fix that up when
-> > 			 * the page is eventually freed or we scan the
-> > 			 * noreclaim list.
-> > 			 */
-> > which implies that sometimes we scan the unevictable list and resolve
-> > such cases.  But I wonder if that's nowadays the case?
+> Probably, it doesn't matter. I mean
 > 
-> We don't scan unevictable list at all. munlock_vma_page() logic is.
+>   - KSM sharing and Shmem sharing are almost same performance characteristics.
+>   - if memroy pressure is low, SplitLRU VM doesn't scan anon list so much.
 > 
->   1) clear PG_mlock always anyway
->   2) isolate page
->   3) scan related vma and remark PG_mlock if necessary
-> 
-> So, as far as I understand, the above comment describe the case when (2) is
-> failed. it mean another task already isolated the page. it makes the task
-> putback the page to evictable list and vmscan's try_to_unmap() move 
-> the page to unevictable list again.
+> if ksm swap is too costly, we need to improve anon list scanning generically.
 
-That is the case it's addressing, yes; but both references to
-"the noreclaim list" are untrue and misleading (now: they may well
-have been accurate when the comment went in).  I'd like to correct
-it, but cannot do so without spending the time to make sure that
-what I'm saying instead isn't equally misleading...
+Yes, we're in agreement that this issue is not new with KSM swapping.
 
-Even "We lost the race" is worrying: which race? there might be several.
+> btw, I'm not sure why bellow kmem_cache_zalloc() is necessary. Why can't we
+> use stack?
+
+Well, I didn't use stack: partly because I'm so ashamed of the pseudo-vmas
+on the stack in mm/shmem.c, which have put shmem_getpage() into reports
+of high stack users (I've unfinished patches to deal with that); and
+partly because page_referenced_ksm() and try_to_unmap_ksm() are on
+the page reclaim path, maybe way down deep on a very deep stack.
+
+But it's not something you or I should be worrying about: as the comment
+says, this is just a temporary hack, to present a patch which gets KSM
+swapping working in an understandable way, while leaving some corrections
+and refinements to subsequent patches.  This pseudo-vma is removed in the
+very next patch.
 
 Hugh
+
+> 
+> ----------------------------
+> +	/*
+> +	 * Temporary hack: really we need anon_vma in rmap_item, to
+> +	 * provide the correct vma, and to find recently forked instances.
+> +	 * Use zalloc to avoid weirdness if any other fields are involved.
+> +	 */
+> +	vma = kmem_cache_zalloc(vm_area_cachep, GFP_ATOMIC);
+> +	if (!vma) {
+> +		spin_lock(&ksm_fallback_vma_lock);
+> +		vma = &ksm_fallback_vma;
+> +	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
