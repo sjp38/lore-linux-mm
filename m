@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E7B63600309
-	for <linux-mm@kvack.org>; Sun, 29 Nov 2009 19:49:17 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAU0nCo4004722
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 30 Nov 2009 09:49:13 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D3E545DE4E
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 09:49:12 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4383A45DE55
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 09:49:12 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E00E1E78003
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 09:49:11 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CE53EF8003
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 09:49:11 +0900 (JST)
-Date: Mon, 30 Nov 2009 09:46:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
-Message-Id: <20091130094616.8f3d94a7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0911241640590.25288@sister.anvils>
-References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils>
-	<Pine.LNX.4.64.0911241640590.25288@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 06B6C600309
+	for <linux-mm@kvack.org>; Sun, 29 Nov 2009 22:00:25 -0500 (EST)
+Received: by gxk21 with SMTP id 21so1864663gxk.10
+        for <linux-mm@kvack.org>; Sun, 29 Nov 2009 19:00:24 -0800 (PST)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] remove the redundant code
+Date: Mon, 30 Nov 2009 11:00:17 +0800
+Message-Id: <1259550017-13263-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Nov 2009 16:42:15 +0000 (GMT)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
-> +int page_referenced_ksm(struct page *page, struct mem_cgroup *memcg,
-> +			unsigned long *vm_flags)
-> +{
-> +	struct stable_node *stable_node;
-> +	struct rmap_item *rmap_item;
-> +	struct hlist_node *hlist;
-> +	unsigned int mapcount = page_mapcount(page);
-> +	int referenced = 0;
-> +	struct vm_area_struct *vma;
-> +
-> +	VM_BUG_ON(!PageKsm(page));
-> +	VM_BUG_ON(!PageLocked(page));
-> +
-> +	stable_node = page_stable_node(page);
-> +	if (!stable_node)
-> +		return 0;
-> +
+The check code for CONFIG_SWAP is redundant, because there is
+a non-CONFIG_SWAP version for PageSwapCache() which just returns 0.
 
-Hmm. I'm not sure how many pages are shared in a system but
-can't we add some threshold for avoidng too much scan against shared pages ?
-(in vmscan.c)
-like..
-      
-       if (page_mapcount(page) > (XXXX >> scan_priority))
-		return 1;
+So the check code here is confusing when people see the code
+in page-flags.h.
 
-I saw terrible slow downs in shmem-swap-out in old RHELs (at user support).
-(Added kosaki to CC.)
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+---
+ include/linux/mm.h |    5 +----
+ 1 files changed, 1 insertions(+), 4 deletions(-)
 
-After this patch, the number of shared swappable page will be unlimited.
-
-Thanks,
--Kame
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 24c3956..a85ed43 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -634,12 +634,9 @@ static inline struct address_space *page_mapping(struct page *page)
+ 	struct address_space *mapping = page->mapping;
+ 
+ 	VM_BUG_ON(PageSlab(page));
+-#ifdef CONFIG_SWAP
+ 	if (unlikely(PageSwapCache(page)))
+ 		mapping = &swapper_space;
+-	else
+-#endif
+-	if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
++	else if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
+ 		mapping = NULL;
+ 	return mapping;
+ }
+-- 
+1.6.0.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
