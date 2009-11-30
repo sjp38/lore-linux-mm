@@ -1,80 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C9F3E600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:40:23 -0500 (EST)
-Date: Mon, 30 Nov 2009 13:40:19 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH/RFC 1/6] numa: Use Generic Per-cpu Variables for
-	numa_node_id()
-Message-ID: <20091130204019.GU9482@parisc-linux.org>
-References: <20091113211714.15074.29078.sendpatchset@localhost.localdomain> <20091113211720.15074.99808.sendpatchset@localhost.localdomain> <alpine.DEB.1.10.0911201044320.25879@V090114053VZO-1> <1259612920.4663.156.camel@useless.americas.hpqcorp.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1259612920.4663.156.camel@useless.americas.hpqcorp.net>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E3CB600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 16:27:12 -0500 (EST)
+Subject: Re: [PATCH 1/9] ksm: fix mlockfreed to munlocked
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <Pine.LNX.4.64.0911301200060.24660@sister.anvils>
+References: <20091126162011.GG13095@csn.ul.ie>
+	 <Pine.LNX.4.64.0911271214040.4167@sister.anvils>
+	 <20091130143915.5BD1.A69D9226@jp.fujitsu.com>
+	 <Pine.LNX.4.64.0911301200060.24660@sister.anvils>
+Content-Type: text/plain
+Date: Mon, 30 Nov 2009 16:27:01 -0500
+Message-Id: <1259616421.4663.205.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Tejun Heo <tj@kernel.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 30, 2009 at 03:28:40PM -0500, Lee Schermerhorn wrote:
-> linux/topology.h now depends on */percpu.h to implement numa_node_id()
-> and numa_mem_id().  Not so much an issue for x86 because its
-> asm/topology.h already depended on its asm/percpu.h.  But ia64, for
-> instance--maybe any arch that doesn't already implement numa_node_id()
-> as a percpu variable--didn't define this_cpu_read() for
-> linux/topology.h.
+On Mon, 2009-11-30 at 12:26 +0000, Hugh Dickins wrote:
+> On Mon, 30 Nov 2009, KOSAKI Motohiro wrote:
+> > > 
+> > > But please clarify: that patch was for mmotm and hopefully 2.6.33,
+> > > but the vmstat issue (minus warning message) is there in 2.6.32-rc.
+> > > Should I
+> > > 
+> > > (a) forget it for 2.6.32
+> > > (b) rush Linus a patch for 2.6.32 final
+> > > (c) send a patch for 2.6.32.stable later on
+> > 
+> > I personally prefer (3). though I don't know ksm so detail.
 > 
-> So, I included <linux/percpu.h>.
+> Thanks, I think that would be my preference by now too.
 > 
-> linux/percpu.h, for reasons of its own, includes linux/swap.h which
+> > > There's a remark in munlock_vma_page(), apropos a different issue,
+> > > 			/*
+> > > 			 * We lost the race.  let try_to_unmap() deal
+> > > 			 * with it.  At least we get the page state and
+> > > 			 * mlock stats right.  However, page is still on
+> > > 			 * the noreclaim list.  We'll fix that up when
+> > > 			 * the page is eventually freed or we scan the
+> > > 			 * noreclaim list.
+> > > 			 */
+> > > which implies that sometimes we scan the unevictable list and resolve
+> > > such cases.  But I wonder if that's nowadays the case?
+> > 
+> > We don't scan unevictable list at all. munlock_vma_page() logic is.
+> > 
+> >   1) clear PG_mlock always anyway
+> >   2) isolate page
+> >   3) scan related vma and remark PG_mlock if necessary
+> > 
+> > So, as far as I understand, the above comment describe the case when (2) is
+> > failed. it mean another task already isolated the page. it makes the task
+> > putback the page to evictable list and vmscan's try_to_unmap() move 
+> > the page to unevictable list again.
+> 
+> That is the case it's addressing, yes; but both references to
+> "the noreclaim list" are untrue and misleading (now: they may well
+> have been accurate when the comment went in).  I'd like to correct
+> it, but cannot do so without spending the time to make sure that
+> what I'm saying instead isn't equally misleading...
+> 
+> Even "We lost the race" is worrying: which race? there might be several.
 
-typo there ... slab.h, not swap.h.  I thought we might be able to break
-the cycle here, but slab.h is more reasonable than swap.h.
+I agree that this is likely a stale comment.  At the time I wrote it,
+putback_lru_page() didn't recheck whether the page was reclaimable [now
+"evictable"].  isolate_lru_page() preserves the lru state flags Active
+and Unevictable; at that time putback' just put the page back to the
+list indicated.  
 
-We could move __alloc_percpu out of line ... it's only inline for the
-!SMP case.
+"The race" referred to the "isolation race" discussed in the comment
+block on munlock_vma_page().
 
-> includes linux/gfp.h which includes linux/topology.h for the definition
-> of numa_node_id().  topology.h hasn't gotten around to defining
-> numa_node_id() yet--it's still including percpu.h.  ...
+Had we been munlock()ing or munmap()ing the last VMA holding the page
+locked, we should take it off the unevictable list.  But, we need to
+isolate the page to move it between lists or even to call
+try_to_unlock() to check whether there are other vmas holding the page
+mlocked.  If we were unable to isolate the page in munlock_vma_page()
+and it were "putback" by whatever was holding it [page migration
+maybe?], it would go back onto the unevictable list where it would be
+stranded. 
+
+Now that we recheck the page state in putback_lru_page(), this shouldn't
+be an issue.  We've already cleared the Mlock page flag, so that
+condition won't force it onto the unevictable list.
+
+Even the part about try_to_unmap() dealing with it is stale.  Now,
+vmscan detects VM_LOCKED pages in page_referenced() before it gets to
+try_to_unmap().  The function comment block needs updating as well.  If
+no one beats me to it, I'll post a cleanup patch for consideration
+shortly.
+
+Lee
+
+
 > 
-> Looking at other asm/foo.h and asm-generic/foo.h relationships, I see
-> that some define the generic version of the api in the asm-generic
-> header if the arch asm header hasn't already defined it.  asm/topology.h
-> is an instance of this.  It includes asm-generic/topology.h after
-> defining arch specific versions of some of the api.
-> 
-> Following this model, I moved the generic definitions of the percpu api
-> back to the asm-generic version where it would be available without the
-> inclusion of swap.h, et al. 
-> 
-> I tried including <asm/percpu.h> in linux/topology.h but the was advised
-> to use the generic header.  So I followed the model of the x86
-> asm/topology.h and included asm/percpu.h in the ia64 asm/topology.h,
-> making the definitions visible to linux/topology.h.
-> 
-> This reminds me that I should add to the patch description a 3rd item
-> required for an arch to use the generic percpu numa_node_id()
-> implementation:  make the percpu variable access interface visible via
-> asm/topology.h.
-> 
-> Does that sound reasonable?
-> 
-> Lee
-> 
-> 
+> Hugh
 > 
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-arch" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
