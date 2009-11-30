@@ -1,61 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F30A8600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 18:09:50 -0500 (EST)
-Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
-	by smtp-out.google.com with ESMTP id nAUN9pgU008378
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:09:51 -0800
-Received: from pxi42 (pxi42.prod.google.com [10.243.27.42])
-	by zps38.corp.google.com with ESMTP id nAUN7fwg015847
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:09:48 -0800
-Received: by pxi42 with SMTP id 42so3201749pxi.5
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:09:47 -0800 (PST)
-Date: Mon, 30 Nov 2009 15:09:44 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 297DF600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 18:14:30 -0500 (EST)
+Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
+	by smtp-out.google.com with ESMTP id nAUNERfd013588
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:14:27 -0800
+Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
+	by zps19.corp.google.com with ESMTP id nAUNDAOI019547
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:14:24 -0800
+Received: by pxi10 with SMTP id 10so3420569pxi.33
+        for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:14:24 -0800 (PST)
+Date: Mon, 30 Nov 2009 15:14:22 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-In-Reply-To: <20091127182607.GA30235@random.random>
-Message-ID: <alpine.DEB.2.00.0911301502160.12038@chino.kir.corp.google.com>
-References: <20091028175846.49a1d29c.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0910280206430.7122@chino.kir.corp.google.com> <abbed627532b26d8d96990e2f95c02fc.squirrel@webmail-b.css.fujitsu.com> <20091029100042.973328d3.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.0910290125390.11476@chino.kir.corp.google.com> <20091125124433.GB27615@random.random> <alpine.DEB.2.00.0911251334020.8191@chino.kir.corp.google.com> <20091127182607.GA30235@random.random>
+Subject: Re: lockdep complaints in slab allocator
+In-Reply-To: <alpine.DEB.2.00.0911271127130.20368@router.home>
+Message-ID: <alpine.DEB.2.00.0911301512250.12038@chino.kir.corp.google.com>
+References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com> <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop> <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi> <1259080406.4531.1645.camel@laptop>
+ <20091124170032.GC6831@linux.vnet.ibm.com> <1259082756.17871.607.camel@calx> <1259086459.4531.1752.camel@laptop> <1259090615.17871.696.camel@calx> <84144f020911241307u14cd2cf0h614827137e42378e@mail.gmail.com> <1259103315.17871.895.camel@calx>
+ <alpine.DEB.2.00.0911251356130.11347@chino.kir.corp.google.com> <alpine.DEB.2.00.0911271127130.20368@router.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, vedran.furac@gmail.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Nov 2009, Andrea Arcangeli wrote:
+On Fri, 27 Nov 2009, Christoph Lameter wrote:
 
-> Ok I can see the fact by being dynamic and less predictable worries
-> you. The "second to last" tasks especially are going to be less
-> predictable, but the memory hog would normally end up accounting for
-> most of the memory and this should increase the badness delta between
-> the offending tasks (or tasks) and the innocent stuff, so making it
-> more reliable. The innocent stuff should be more and more paged out
-> from ram. So I tend to think it'll be much less likely to kill an
-> innocent task this way (as demonstrated in practice by your
-> measurement too), but it's true there's no guarantee it'll always do
-> the right thing, because it's a heuristic anyway, but even total_vm
-> doesn't provide guarantee unless your workload is stationary and your
-> badness scores are fixed and no virtual memory is ever allocated by
-> any task in the system and no new task are spawned.
+> > > I'm afraid I have only anecdotal reports from SLOB users, and embedded
+> > > folks are notorious for lack of feedback, but I only need a few people
+> > > to tell me they're shipping 100k units/mo to be confident that SLOB is
+> > > in use in millions of devices.
+> > >
+> >
+> > It's much more popular than I had expected; do you think it would be
+> > possible to merge slob's core into another allocator or will it require
+> > seperation forever?
+> 
+> It would be possible to create a slab-common.c and isolate common handling
+> of all allocators. SLUB and SLQB share quite a lot of code and SLAB could
+> be cleaned up and made to fit into such a framework.
 > 
 
-The purpose of /proc/pid/oom_adj is not always to polarize the heuristic 
-for the task it represents, it allows userspace to define when a task is 
-rogue.  Working with total_vm as a baseline, it is simple to use the 
-interface to tune the heuristic to prefer a certain task over another when 
-its memory consumption goes beyond what is expected.  With this interface, 
-I can easily define when an application should be oom killed because it is 
-using far more memory than expected.  I can also disable oom killing 
-completely for it, if necessary.  Unless you have a consistent baseline 
-for all tasks, the adjustment wouldn't contextually make any sense.  Using 
-rss does not allow users to statically define when a task is rogue and is 
-dependent on the current state of memory at the time of oom.
-
-I would support removing most of the other heuristics other than the 
-baseline and the nodes intersection with mems_allowed to prefer tasks in 
-the same cpuset, though, to make it easier to understand and tune.
+Right, but the user is still left with a decision of which slab allocator 
+to compile into their kernel, each with distinct advantages and 
+disadvantages that get exploited for the wide range of workloads that it 
+runs.  If slob could be merged into another allocator, it would be simple 
+to remove the distinction of it being seperate altogether, the differences 
+would depend on CONFIG_EMBEDDED instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
