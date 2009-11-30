@@ -1,72 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F0E600309
-	for <linux-mm@kvack.org>; Sun, 29 Nov 2009 23:16:27 -0500 (EST)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id nAUFGNXC014369
-	for <linux-mm@kvack.org>; Tue, 1 Dec 2009 02:16:23 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAU4Cjgc1667316
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:12:46 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAU4GM4m016096
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:16:22 +1100
-Date: Mon, 30 Nov 2009 09:46:17 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] ksm: hold anon_vma in rmap_item fix
-Message-ID: <20091130041617.GJ2970@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <Pine.LNX.4.64.0911291544140.14991@sister.anvils>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 26863600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 01:01:47 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAU61iO6009839
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 30 Nov 2009 15:01:44 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0ED4445DE52
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:01:44 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CF48645DE4E
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:01:43 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B6E5A1DB8043
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:01:43 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DF011DB803C
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:01:43 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/9] ksm: fix mlockfreed to munlocked
+In-Reply-To: <Pine.LNX.4.64.0911271214040.4167@sister.anvils>
+References: <20091126162011.GG13095@csn.ul.ie> <Pine.LNX.4.64.0911271214040.4167@sister.anvils>
+Message-Id: <20091130143915.5BD1.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0911291544140.14991@sister.anvils>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 30 Nov 2009 15:01:42 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Hugh Dickins <hugh.dickins@tiscali.co.uk> [2009-11-29 15:50:32]:
-
-> KSM mem_cgroup testing oopsed on NULL pointer in mem_cgroup_from_task(),
-> called from the mm_match_cgroup() in page_referenced_ksm().
+> On Thu, 26 Nov 2009, Mel Gorman wrote:
+> > On Tue, Nov 24, 2009 at 04:40:55PM +0000, Hugh Dickins wrote:
+> > > When KSM merges an mlocked page, it has been forgetting to munlock it:
+> > > that's been left to free_page_mlock(), which reports it in /proc/vmstat
+> > > as unevictable_pgs_mlockfreed instead of unevictable_pgs_munlocked (and
+> > > whinges "Page flag mlocked set for process" in mmotm, whereas mainline
+> > > is silently forgiving).  Call munlock_vma_page() to fix that.
+> > > 
+> > > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> > 
+> > Acked-by: Mel Gorman <mel@csn.ul.ie>
 > 
-> Right, it is inappropriate to use mm_match_cgroup() on rmap_item->mm
-> there: that mm could be waiting for ksmd's final mmdrop(), with its
-> mm->owner task long gone.
+> Rik & Mel, thanks for the Acks.
 > 
-> Move the mm_match_cgroup() test down into the anon_vma loop, which is
-> where it now should be to match page_referenced_anon().  The anon_vma
-> guarantees its vmas are valid, which guarantee their mms are valid.
+> But please clarify: that patch was for mmotm and hopefully 2.6.33,
+> but the vmstat issue (minus warning message) is there in 2.6.32-rc.
+> Should I
 > 
-> However... although this moves the oops from easy-to-reproduce to
-> never-seen, I think we shall want to do more later: so far as I can
-> see, with or without KSM, the use of mm->owner from page_referenced()
-> is unsafe.  No problem when NULL, but it may have been left pointing
-> to a task_struct freed by now, with nonsense in mm->owner->cgroups.
->
+> (a) forget it for 2.6.32
+> (b) rush Linus a patch for 2.6.32 final
+> (c) send a patch for 2.6.32.stable later on
 
-Ideally we should not be left pointing to a stale task struct, unless
-our assumption about mm_users is incorrect (discussed below).
+I personally prefer (3). though I don't know ksm so detail.
 
- 
-> But let's put this patch in while we discuss that separately: perhaps
-> mm_need_new_owner() should not short-circuit when mm_users <= 1, or
-> perhaps it should then set mm->owner to NULL, or perhaps we abandon
-> mm->owner as more trouble than it's worth, or... perhaps I'm wrong.
+
 > 
+> ? I just don't have a feel for how important this is.
+> 
+> Typically, these pages are immediately freed, and the only issue is
+> which stats they get added to; but if fork has copied them into other
+> mms, then such pages might stay unevictable indefinitely, despite no
+> longer being in any mlocked vma.
+> 
+> There's a remark in munlock_vma_page(), apropos a different issue,
+> 			/*
+> 			 * We lost the race.  let try_to_unmap() deal
+> 			 * with it.  At least we get the page state and
+> 			 * mlock stats right.  However, page is still on
+> 			 * the noreclaim list.  We'll fix that up when
+> 			 * the page is eventually freed or we scan the
+> 			 * noreclaim list.
+> 			 */
+> which implies that sometimes we scan the unevictable list and resolve
+> such cases.  But I wonder if that's nowadays the case?
 
-We short circuit, since the task is exiting and mm_users <= 1 and we
-are shorting going to do a mmput(). I suspect what you are seeing is
-mm_count >= 1 and mm_users == 0. With users == 0, we should set
-owner to NULL
+We don't scan unevictable list at all. munlock_vma_page() logic is.
 
-We could look for the above condition in mmput() and clear the owner
-when users become 0.
+  1) clear PG_mlock always anyway
+  2) isolate page
+  3) scan related vma and remark PG_mlock if necessary
+
+So, as far as I understand, the above comment describe the case when (2) is
+failed. it mean another task already isolated the page. it makes the task
+putback the page to evictable list and vmscan's try_to_unmap() move 
+the page to unevictable list again.
 
 
--- 
-	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
