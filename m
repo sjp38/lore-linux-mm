@@ -1,93 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 85ED6600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 04:15:52 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nAU9Fn4f029597
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 30 Nov 2009 18:15:50 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AA91845DE55
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 18:15:49 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8279145DE4E
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 18:15:49 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 486E4E78001
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 18:15:49 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E6E621DB8041
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 18:15:45 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
-In-Reply-To: <20091130094616.8f3d94a7.kamezawa.hiroyu@jp.fujitsu.com>
-References: <Pine.LNX.4.64.0911241640590.25288@sister.anvils> <20091130094616.8f3d94a7.kamezawa.hiroyu@jp.fujitsu.com>
-Message-Id: <20091130180452.5BF6.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E883600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 04:17:09 -0500 (EST)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp05.au.ibm.com (8.14.3/8.13.1) with ESMTP id nAU9E4CP002030
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 20:14:04 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nAU9DWWM1151058
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 20:13:32 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nAU9H43B029812
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 20:17:04 +1100
+Date: Mon, 30 Nov 2009 14:47:00 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: memcg: slab control
+Message-ID: <20091130091700.GK2970@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com>
+ <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091126085031.GG2970@balbir.in.ibm.com>
+ <d26f1ae00911260213t3e389ccfqa03d18c459210b2e@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 30 Nov 2009 18:15:44 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <d26f1ae00911260213t3e389ccfqa03d18c459210b2e@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Suleiman Souhlal <suleiman@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@openvz.org>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 24 Nov 2009 16:42:15 +0000 (GMT)
-> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
-> > +int page_referenced_ksm(struct page *page, struct mem_cgroup *memcg,
-> > +			unsigned long *vm_flags)
-> > +{
-> > +	struct stable_node *stable_node;
-> > +	struct rmap_item *rmap_item;
-> > +	struct hlist_node *hlist;
-> > +	unsigned int mapcount = page_mapcount(page);
-> > +	int referenced = 0;
-> > +	struct vm_area_struct *vma;
-> > +
-> > +	VM_BUG_ON(!PageKsm(page));
-> > +	VM_BUG_ON(!PageLocked(page));
-> > +
-> > +	stable_node = page_stable_node(page);
-> > +	if (!stable_node)
-> > +		return 0;
-> > +
+* Suleiman Souhlal <suleiman@google.com> [2009-11-26 02:13:17]:
+
+> On 11/26/09, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >  I think it is easier to write a slab controller IMHO.
 > 
-> Hmm. I'm not sure how many pages are shared in a system but
-> can't we add some threshold for avoidng too much scan against shared pages ?
-> (in vmscan.c)
-> like..
->       
->        if (page_mapcount(page) > (XXXX >> scan_priority))
-> 		return 1;
+> One potential problem I can think of with writing a slab controller
+> would be that the user would have to estimate what fraction of the
+> amount of memory slab should be allowed to use, which might not be
+> ideal.
 > 
-> I saw terrible slow downs in shmem-swap-out in old RHELs (at user support).
-> (Added kosaki to CC.)
+> If you wanted to limit a cgroup to a total of 1GB of memory, you might
+> not care if the job wants to use 0.9 GB of user memory and 0.1GB of
+> slab or if it wants to use 0.9GB of slab and 0.1GB of user memory..
+>
+
+Hmm.. true, yes not caring about how memory usage is partitioned is
+nice (we have memsw for very similar reasons).
+ 
+> Because of this, it might be more practical to integrate the slab
+> accounting in memcg.
 > 
-> After this patch, the number of shared swappable page will be unlimited.
 
-Probably, it doesn't matter. I mean
+I tend to agree, but I would like to see the early design and
+thoughts. Like Kame pointed, integrating their accounting can be an
+issue.
 
-  - KSM sharing and Shmem sharing are almost same performance characteristics.
-  - if memroy pressure is low, SplitLRU VM doesn't scan anon list so much.
-
-if ksm swap is too costly, we need to improve anon list scanning generically.
-
-
-btw, I'm not sure why bellow kmem_cache_zalloc() is necessary. Why can't we
-use stack?
-
-----------------------------
-+	/*
-+	 * Temporary hack: really we need anon_vma in rmap_item, to
-+	 * provide the correct vma, and to find recently forked instances.
-+	 * Use zalloc to avoid weirdness if any other fields are involved.
-+	 */
-+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_ATOMIC);
-+	if (!vma) {
-+		spin_lock(&ksm_fallback_vma_lock);
-+		vma = &ksm_fallback_vma;
-+	}
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
