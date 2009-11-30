@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 41F37600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 06:18:53 -0500 (EST)
-Date: Mon, 30 Nov 2009 11:18:51 +0000 (GMT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id F2BE2600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 06:40:50 -0500 (EST)
+Date: Mon, 30 Nov 2009 11:40:48 +0000 (GMT)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 5/9] ksm: share anon page without allocating
-In-Reply-To: <20091130090448.71cf6138.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0911301054230.20054@sister.anvils>
+Subject: Re: [PATCH 6/9] ksm: mem cgroup charge swapin copy
+In-Reply-To: <20091130091316.b804a75c.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0911301119060.20054@sister.anvils>
 References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils>
- <Pine.LNX.4.64.0911241645460.25288@sister.anvils>
- <20091130090448.71cf6138.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0911241648520.25288@sister.anvils>
+ <20091130091316.b804a75c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,78 +19,111 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 30 Nov 2009, KAMEZAWA Hiroyuki wrote:
 > 
-> Sorry for delayed response.
+> Ok. Maybe commit_charge will work enough. (I hope so.)
 
-No, thank you very much for spending your time on it.
-
+                                             Me too.
 > 
-> On Tue, 24 Nov 2009 16:48:46 +0000 (GMT)
-> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> > When ksm pages were unswappable, it made no sense to include them in
-> > mem cgroup accounting; but now that they are swappable (although I see
-> > no strict logical connection)
-> I asked that for throwing away too complicated but wast of time things.
-
-I'm sorry, I didn't understand that sentence at all!
-
-> If not on LRU, its own limitation (ksm's page limit) works enough.
-
-Yes, I think it made sense the way it was before when unswappable,
-but that once they're swappable and that limitation is removed,
-they do then need to participate in mem cgroup accounting.
-
-I _think_ you're agreeing, but I'm not quite sure!
-
+> BTW, I'm happy if you adds "How to test" documenation to
+> Documentation/vm/ksm.txt or to share some test programs.
 > 
-> > the principle of least surprise implies
-> > that they should be accounted (with the usual dissatisfaction, that a
-> > shared page is accounted to only one of the cgroups using it).
-> > 
-> > This patch was intended to add mem cgroup accounting where necessary;
-> > but turned inside out, it now avoids allocating a ksm page, instead
-> > upgrading an anon page to ksm - which brings its existing mem cgroup
-> > accounting with it.  Thus mem cgroups don't appear in the patch at all.
-> > 
-> ok. then, what I should see is patch 6.
+> 1. Map anonymous pages + madvise(MADV_MERGEABLE)
+> 2. "echo 1 > /sys/kernel/mm/ksm/run"
 
-Well, that doesn't have much in it either.  It should all be
-happening naturally, from using the page that's already accounted.
+Those are the main points, yes.
 
-> > @@ -864,15 +865,24 @@ static int try_to_merge_one_page(struct
-...
-> >  
-> > -	if ((vma->vm_flags & VM_LOCKED) && !err) {
-> > +	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
-> >  		munlock_vma_page(page);
-> >  		if (!PageMlocked(kpage)) {
-> >  			unlock_page(page);
-> > -			lru_add_drain();
-> 
-> Is this related to memcg ?
-> 
-> >  			lock_page(kpage);
-> >  			mlock_vma_page(kpage);
+Though in testing for races, I do think the default
+/sys/kernel/mm/ksm/sleep_millisecs 20 is probably too relaxed
+to find issues quickly enough, so I usually change that to 0,
+and also raise pages_to_scan from its default of 100 (though
+that should matter less).  In testing for races, something I've
+not done but probably should, is raise the priority of ksmd: we
+have it niced down, but that may leave some nasties unobserved.
 
-Is the removal of lru_add_drain() related to memcg?  No, or only to
-the extent that reusing the original anon page is related to memcg.
+As to adding Documentation on testing: whilst my primary reason
+for not doing so is certainly laziness (or an interest in moving
+on to somewhere else), a secondary reason is that I'd much rather
+that if someone does have an interest in testing this, that they
+follow their own ideas, rather than copying what's already done.
 
-I put lru_add_drain() in there before, because (for one of the calls
-to try_to_merge_one_page) the kpage had just been allocated an instant
-before, with lru_cache_add_lru putting it into the per-cpu array, so
-in that case mlock_vma_page(kpage) would need an lru_add_drain() to
-find it on the LRU (of course, we might be preempted to a different
-cpu in between, and lru_add_drain not be enough: but I think we've
-all come to the conclusion that lru_add_drain_all should be avoided
-unless there's a very strong reason for it).
-
-But with this patch we're reusing the existing anon page as ksm page,
-and we know that it's been in place for at least one circuit of ksmd
-(ignoring coincidences like the jhash of the page happens to be 0),
-so we've every reason to believe that it will already be on its LRU:
-no need for lru_add_drain().
+But here's something I'll share with you, please don't show it
+to anyone else ;)  Writing test programs using MADV_MERGEABLE is
+good for testing specific issues, but can't give much coverage,
+so I tend to run with this hack below: boot option "allksm" makes
+as much as it can MADV_MERGEABLE.  (If you wonder why I squashed it
+up, it was to avoid changing the line numbering as much as possible.)
 
 Hugh
+
+--- mmotm/mm/mmap.c	2009-11-25 09:28:50.000000000 +0000
++++ allksm/mm/mmap.c	2009-11-25 11:19:13.000000000 +0000
+@@ -902,9 +902,9 @@ void vm_stat_account(struct mm_struct *m
+ #endif /* CONFIG_PROC_FS */
+ 
+ /*
+- * The caller must hold down_write(&current->mm->mmap_sem).
+- */
+-
++ * The caller must hold down_write(&current->mm->mmap_sem). */
++#include <linux/ksm.h>
++unsigned long vm_mergeable;
+ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 			unsigned long len, unsigned long prot,
+ 			unsigned long flags, unsigned long pgoff)
+@@ -1050,7 +1050,7 @@ unsigned long do_mmap_pgoff(struct file
+ 			/*
+ 			 * Set pgoff according to addr for anon_vma.
+ 			 */
+-			pgoff = addr >> PAGE_SHIFT;
++			vm_flags |= vm_mergeable; pgoff = addr >> PAGE_SHIFT;
+ 			break;
+ 		default:
+ 			return -EINVAL;
+@@ -1201,10 +1201,10 @@ munmap_back:
+ 		vma->vm_file = file;
+ 		get_file(file);
+ 		error = file->f_op->mmap(file, vma);
+-		if (error)
+-			goto unmap_and_free_vma;
+-		if (vm_flags & VM_EXECUTABLE)
+-			added_exe_file_vma(mm);
++		if (error) goto unmap_and_free_vma;
++		if (vm_flags & VM_EXECUTABLE) added_exe_file_vma(mm);
++		if (vm_mergeable)
++			ksm_madvise(vma, 0, 0, MADV_MERGEABLE,&vma->vm_flags);
+ 
+ 		/* Can addr have changed??
+ 		 *
+@@ -2030,7 +2030,7 @@ unsigned long do_brk(unsigned long addr,
+ 		return error;
+ 
+ 	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+-
++	flags |= vm_mergeable;
+ 	error = arch_mmap_check(addr, len, flags);
+ 	if (error)
+ 		return error;
+@@ -2179,7 +2179,7 @@ int insert_vm_struct(struct mm_struct *
+ 	if (!vma->vm_file) {
+ 		BUG_ON(vma->anon_vma);
+ 		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
+-	}
++		vma->vm_flags |= vm_mergeable;	}
+ 	__vma = find_vma_prepare(mm,vma->vm_start,&prev,&rb_link,&rb_parent);
+ 	if (__vma && __vma->vm_start < vma->vm_end)
+ 		return -ENOMEM;
+@@ -2518,3 +2518,10 @@ void __init mmap_init(void)
+ 	ret = percpu_counter_init(&vm_committed_as, 0);
+ 	VM_BUG_ON(ret);
+ }
++static int __init allksm(char *s)
++{
++	randomize_va_space = 0;
++	vm_mergeable = VM_MERGEABLE;
++	return 1;
++}
++__setup("allksm", allksm);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
