@@ -1,53 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 297DF600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 18:14:30 -0500 (EST)
-Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
-	by smtp-out.google.com with ESMTP id nAUNERfd013588
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:14:27 -0800
-Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
-	by zps19.corp.google.com with ESMTP id nAUNDAOI019547
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:14:24 -0800
-Received: by pxi10 with SMTP id 10so3420569pxi.33
-        for <linux-mm@kvack.org>; Mon, 30 Nov 2009 15:14:24 -0800 (PST)
-Date: Mon, 30 Nov 2009 15:14:22 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: lockdep complaints in slab allocator
-In-Reply-To: <alpine.DEB.2.00.0911271127130.20368@router.home>
-Message-ID: <alpine.DEB.2.00.0911301512250.12038@chino.kir.corp.google.com>
-References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com> <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop> <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi> <1259080406.4531.1645.camel@laptop>
- <20091124170032.GC6831@linux.vnet.ibm.com> <1259082756.17871.607.camel@calx> <1259086459.4531.1752.camel@laptop> <1259090615.17871.696.camel@calx> <84144f020911241307u14cd2cf0h614827137e42378e@mail.gmail.com> <1259103315.17871.895.camel@calx>
- <alpine.DEB.2.00.0911251356130.11347@chino.kir.corp.google.com> <alpine.DEB.2.00.0911271127130.20368@router.home>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id EB4E1600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 18:43:45 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH/RFC 1/6] numa: Use Generic Per-cpu Variables for numa_node_id()
+Date: Tue, 1 Dec 2009 00:43:35 +0100
+References: <20091113211714.15074.29078.sendpatchset@localhost.localdomain> <alpine.DEB.1.10.0911201044320.25879@V090114053VZO-1> <1259612920.4663.156.camel@useless.americas.hpqcorp.net>
+In-Reply-To: <1259612920.4663.156.camel@useless.americas.hpqcorp.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200912010043.36115.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Nov 2009, Christoph Lameter wrote:
+On Monday 30 November 2009, Lee Schermerhorn wrote:
+> Looking at other asm/foo.h and asm-generic/foo.h relationships, I see
+> that some define the generic version of the api in the asm-generic
+> header if the arch asm header hasn't already defined it.  asm/topology.h
+> is an instance of this.  It includes asm-generic/topology.h after
+> defining arch specific versions of some of the api.
 
-> > > I'm afraid I have only anecdotal reports from SLOB users, and embedded
-> > > folks are notorious for lack of feedback, but I only need a few people
-> > > to tell me they're shipping 100k units/mo to be confident that SLOB is
-> > > in use in millions of devices.
-> > >
-> >
-> > It's much more popular than I had expected; do you think it would be
-> > possible to merge slob's core into another allocator or will it require
-> > seperation forever?
-> 
-> It would be possible to create a slab-common.c and isolate common handling
-> of all allocators. SLUB and SLQB share quite a lot of code and SLAB could
-> be cleaned up and made to fit into such a framework.
-> 
+This works alright, but if you expect every architecture to include the
+asm-generic version, you might just as well take that choice away from
+the architecture and put the common code into the linux/foo.h file,
+which you can still override with definitions in asm/foo.h.
 
-Right, but the user is still left with a decision of which slab allocator 
-to compile into their kernel, each with distinct advantages and 
-disadvantages that get exploited for the wide range of workloads that it 
-runs.  If slob could be merged into another allocator, it would be simple 
-to remove the distinction of it being seperate altogether, the differences 
-would depend on CONFIG_EMBEDDED instead.
+Most of the asm-generic headers are just mostly generic, and get included
+by some but not all architectures, the others defining the whole contents
+of the asm-generic file themselves in a different way.
+
+So if you e.g. want ia64 to do everything itself and all other architectures to
+share some or all parts of asm-generic/topology, your approach is right,
+otherwise just leave the code in some file in include/linux/.
+
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
