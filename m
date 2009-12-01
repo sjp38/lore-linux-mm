@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D1CC60021B
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 17:29:22 -0500 (EST)
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id nB1MTIcb031050
-	for <linux-mm@kvack.org>; Tue, 1 Dec 2009 14:29:19 -0800
-Received: from pxi11 (pxi11.prod.google.com [10.243.27.11])
-	by spaceape8.eur.corp.google.com with ESMTP id nB1MTFJm011813
-	for <linux-mm@kvack.org>; Tue, 1 Dec 2009 14:29:15 -0800
-Received: by pxi11 with SMTP id 11so4184845pxi.9
-        for <linux-mm@kvack.org>; Tue, 01 Dec 2009 14:29:14 -0800 (PST)
-Date: Tue, 1 Dec 2009 14:29:11 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EFE8460021B
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 17:41:54 -0500 (EST)
+Received: from zps18.corp.google.com (zps18.corp.google.com [172.25.146.18])
+	by smtp-out.google.com with ESMTP id nB1MfnBH025649
+	for <linux-mm@kvack.org>; Tue, 1 Dec 2009 22:41:50 GMT
+Received: from pwi6 (pwi6.prod.google.com [10.241.219.6])
+	by zps18.corp.google.com with ESMTP id nB1MflpX026413
+	for <linux-mm@kvack.org>; Tue, 1 Dec 2009 14:41:47 -0800
+Received: by pwi6 with SMTP id 6so431pwi.7
+        for <linux-mm@kvack.org>; Tue, 01 Dec 2009 14:41:47 -0800 (PST)
+Date: Tue, 1 Dec 2009 14:41:44 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: memcg: slab control
-In-Reply-To: <4B14F06D.1000901@parallels.com>
-Message-ID: <alpine.DEB.2.00.0912011421260.27500@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com>  <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com>  <20091126085031.GG2970@balbir.in.ibm.com>  <20091126175606.f7df2f80.kamezawa.hiroyu@jp.fujitsu.com>  <4B0E461C.50606@parallels.com>
-  <20091126183335.7a18cb09.kamezawa.hiroyu@jp.fujitsu.com>  <4B0E50B1.20602@parallels.com> <d26f1ae00911260224k6b87aaf7o9e3a983a73e6036e@mail.gmail.com> <4B0E7530.8050304@parallels.com> <alpine.DEB.2.00.0911301457110.7131@chino.kir.corp.google.com>
- <4B14F06D.1000901@parallels.com>
+Subject: Re: lockdep complaints in slab allocator
+In-Reply-To: <1259626875.29740.193.camel@calx>
+Message-ID: <alpine.DEB.2.00.0912011436420.27500@chino.kir.corp.google.com>
+References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com> <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop> <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi> <1259080406.4531.1645.camel@laptop>
+ <20091124170032.GC6831@linux.vnet.ibm.com> <1259082756.17871.607.camel@calx> <1259086459.4531.1752.camel@laptop> <1259090615.17871.696.camel@calx> <84144f020911241307u14cd2cf0h614827137e42378e@mail.gmail.com> <1259103315.17871.895.camel@calx>
+ <alpine.DEB.2.00.0911251356130.11347@chino.kir.corp.google.com> <alpine.DEB.2.00.0911271127130.20368@router.home> <alpine.DEB.2.00.0911301512250.12038@chino.kir.corp.google.com> <1259626875.29740.193.camel@calx>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Suleiman Souhlal <suleiman@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, Ying Han <yinghan@google.com>, linux-mm@kvack.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Dec 2009, Pavel Emelyanov wrote:
+On Mon, 30 Nov 2009, Matt Mackall wrote:
 
-> > pdflush has been removed, they should all be allocated in process context.
-> 
-> OK, but the try_to_free_pages() concern still stands.
-> 
-
-Yes, we lack mappings between the per-bdi flusher kthreads back to the 
-user cgroup that initiated the writeback.  Since all of these kthreads are 
-descendents of kthreadd, they'll be accounted for within that thread's 
-cgroup unless we pass along the current context.
-
-> >> We implement support for accounting based on a bit on a kmem_cache
-> >> structure and mark all kmalloc caches as not-accountable. Then we grep
-> >> the kernel to find all kmalloc-s and think - if a kmalloc is to be
-> >> accounted we turn this into kmem_cache_alloc() with dedicated
-> >> kmem_cache and mark it as accountable.
-> >>
-> > 
-> > That doesn't work with slab cache merging done in slub.
-> 
-> Surely we'll have to change it a bit.
+> And it's not even something that -most- of embedded devices will want to
+> use, so it can't be keyed off CONFIG_EMBEDDED anyway. If you've got even
+> 16MB of memory, you probably want to use a SLAB-like allocator (ie not
+> SLOB). But there are -millions- of devices being shipped that don't have
+> that much memory, a situation that's likely to continue until you can
+> fit a larger Linux system entirely in a <$1 microcontroller-sized device
+> (probably 5 years off still).
 > 
 
-We can't add a cache flag passed to kmem_cache_create() to identify caches 
-that should be accounted versus those that shouldn't, there are allocs 
-done in both process context and irq context from the same caches and we 
-don't want to inhibit accounting with an additional flag passed to 
-kmem_cache_alloc() if that cache has accounting enabled.
+What qualifying criteria can we use to automatically select slob for a 
+kernel or the disqualifying criteria to automatically select slub as a 
+default, then?  It currently depends on CONFIG_EMBEDDED, but it still 
+requires the user to specifically chose the allocator over another.  Could 
+we base this decision on another config option enabled for systems with 
+less than 16MB?
 
-A vast majority of slab caches get merged into each other based on object 
-size and alignment with slub; we could prevent that merging by checking 
-the accounting bit for a cache, but that would come at a performance cost 
-(nullifying many hot object allocs), increased fragmentation, and 
-increased memory consumption.
+> This thread is annoying. The problem that triggered this thread is not
+> in SLOB/SLUB/SLQB, nor even in our bog-standard 10yo deep-maintenance
+> known-to-work SLAB code. The problem was a FALSE POSITIVE from lockdep
+> on code that PREDATES lockdep itself. There is nothing in this thread to
+> indicate that there is a serious problem maintaining multiple
+> allocators. In fact, considerably more time has been spent (as usual)
+> debating non-existent problems than fixing real ones.
+> 
 
-In other words, we don't want to make it an attribute of the cache itself, 
-we need to make it an attribute of the context in which the allocation is 
-done; there're many more cases where we'll want to have accounting enabled 
-by default, so we'll need to add a bit passed on alloc to inhibit 
-accounting for those objects.
+We could move the discussion on the long-term maintainable aspects of 
+multiple slab allocators to a new thread if you'd like.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
