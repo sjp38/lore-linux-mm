@@ -1,84 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A4A1B600786
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 06:14:29 -0500 (EST)
-Date: Tue, 1 Dec 2009 11:14:21 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/9] ksm: fix mlockfreed to munlocked
-Message-ID: <20091201111421.GC23491@csn.ul.ie>
-References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils> <Pine.LNX.4.64.0911241638130.25288@sister.anvils> <20091126162011.GG13095@csn.ul.ie> <Pine.LNX.4.64.0911271214040.4167@sister.anvils>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E7850600786
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 07:23:30 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB1CNS0l016851
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 1 Dec 2009 21:23:28 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0927845DE54
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 21:23:28 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B1A8545DE4F
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 21:23:27 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C2551DB803F
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 21:23:27 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4101F1DB8038
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 21:23:24 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC] high system time & lock contention running large mixed workload
+In-Reply-To: <1259618429.2345.3.camel@dhcp-100-19-198.bos.redhat.com>
+References: <20091125133752.2683c3e4@bree.surriel.com> <1259618429.2345.3.camel@dhcp-100-19-198.bos.redhat.com>
+Message-Id: <20091201102645.5C0A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0911271214040.4167@sister.anvils>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Tue,  1 Dec 2009 21:23:23 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Larry Woodman <lwoodman@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 27, 2009 at 12:45:04PM +0000, Hugh Dickins wrote:
-> On Thu, 26 Nov 2009, Mel Gorman wrote:
-> > On Tue, Nov 24, 2009 at 04:40:55PM +0000, Hugh Dickins wrote:
-> > > When KSM merges an mlocked page, it has been forgetting to munlock it:
-> > > that's been left to free_page_mlock(), which reports it in /proc/vmstat
-> > > as unevictable_pgs_mlockfreed instead of unevictable_pgs_munlocked (and
-> > > whinges "Page flag mlocked set for process" in mmotm, whereas mainline
-> > > is silently forgiving).  Call munlock_vma_page() to fix that.
-> > > 
-> > > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> > 
-> > Acked-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> Rik & Mel, thanks for the Acks.
-> 
-> But please clarify: that patch was for mmotm and hopefully 2.6.33,
-> but the vmstat issue (minus warning message) is there in 2.6.32-rc.
-> Should I
-> 
-> (a) forget it for 2.6.32
-> (b) rush Linus a patch for 2.6.32 final
-> (c) send a patch for 2.6.32.stable later on
-> 
-> ? I just don't have a feel for how important this is.
-> 
+(cc to some related person)
 
-My ack was based on the view that pages should not be getting to the buddy
-allocator with the mlocked bit set. It only warns in -mm because it's meant
-to be harmless-if-incorrect in all cases. Based on my reading of your
-patch, it looked like a reasonable way of clearing the locked bit that
-deal with the same type of isolation races typically faced by reclaim.
-
-I felt it would be a case that either the isolation failed and it would
-end up back on the LRU list or it would remain on whatever unevitable
-LRU list it previously existed on where it would be found there.
-
-> Typically, these pages are immediately freed, and the only issue is
-> which stats they get added to; but if fork has copied them into other
-> mms, then such pages might stay unevictable indefinitely, despite no
-> longer being in any mlocked vma.
+> The cause was determined to be the unconditional call to
+> page_referenced() for every mapped page encountered in
+> shrink_active_list().  page_referenced() takes the anon_vma->lock and
+> calls page_referenced_one() for each vma.  page_referenced_one() then
+> calls page_check_address() which takes the pte_lockptr spinlock.   If
+> several CPUs are doing this at the same time there is a lot of
+> pte_lockptr spinlock contention with the anon_vma->lock held.  This
+> causes contention on the anon_vma->lock, stalling in the fo and very
+> high system time.
 > 
-> There's a remark in munlock_vma_page(), apropos a different issue,
-> 			/*
-> 			 * We lost the race.  let try_to_unmap() deal
-> 			 * with it.  At least we get the page state and
-> 			 * mlock stats right.  However, page is still on
-> 			 * the noreclaim list.  We'll fix that up when
-> 			 * the page is eventually freed or we scan the
-> 			 * noreclaim list.
-> 			 */
-> which implies that sometimes we scan the unevictable list and resolve
-> such cases.  But I wonder if that's nowadays the case?
+> Before the splitLRU patch shrink_active_list() would only call
+> page_referenced() when reclaim_mapped got set.  reclaim_mapped only got
+> set when the priority worked its way from 12 all the way to 7. This
+> prevented page_referenced() from being called from shrink_active_list()
+> until the system was really struggling to reclaim memory.
 > 
+> On way to prevent this is to change page_check_address() to execute a
+> spin_trylock(ptl) when it was called by shrink_active_list() and simply
+> fail if it could not get the pte_lockptr spinlock.  This will make
+> shrink_active_list() consider the page not referenced and allow the
+> anon_vma->lock to be dropped much quicker.
+> 
+> The attached patch does just that, thoughts???
 
-My understanding was that if it failed to isolate then another process had
-already done the necessary work and dropped the reference. The page would
-then get properly freed at the last put_page. I did not double check this
-assumption.
+At first look,
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+   - We have to fix this issue certenally.
+   - But your patch is a bit risky. 
+
+Your patch treat trylock(pte-lock) failure as no accessced. but
+generally lock contention imply to have contention peer. iow, the page
+have reference bit typically. then, next shrink_inactive_list() move it
+active list again. that's suboptimal result.
+
+However, we can't treat lock-contention as page-is-referenced simply. if it does,
+the system easily go into OOM.
+
+So, 
+	if (priority < DEF_PRIORITY - 2)
+		page_referenced()
+	else
+		page_refenced_trylock()
+
+is better?
+On typical workload, almost vmscan only use DEF_PRIORITY. then,
+if priority==DEF_PRIORITY situation don't cause heavy lock contention,
+the system don't need to mind the contention. anyway we can't avoid
+contention if the system have heavy memory pressure.
+
+btw, current shrink_active_list() have unnecessary page_mapping_inuse() call.
+it prevent to drop page reference bit from unmapped cache page. it mean
+we protect unmapped cache page than mapped page. it is strange.
+
+Unfortunately, I don't have enough development time today. I'll
+working on tommorow.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
