@@ -1,51 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6C8C2600309
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 00:14:09 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB15E61Z015449
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 1 Dec 2009 14:14:07 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7765F45DE4E
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 14:14:06 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 58FE245DE4C
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 14:14:06 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 43DE51DB803E
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 14:14:06 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 028811DB803A
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 14:14:06 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: memcg: slab control
-In-Reply-To: <604427e00911262315n5d520cf4p447f68e7053adc11@mail.gmail.com>
-References: <4B0E7530.8050304@parallels.com> <604427e00911262315n5d520cf4p447f68e7053adc11@mail.gmail.com>
-Message-Id: <20091201140726.5C28.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D87BD600309
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 01:32:07 -0500 (EST)
+Date: Mon, 30 Nov 2009 22:32:01 -0800
+From: Chris Wright <chrisw@redhat.com>
+Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
+Message-ID: <20091201063201.GD14368@x200.localdomain>
+References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils>
+ <Pine.LNX.4.64.0911241640590.25288@sister.anvils>
+ <20091130094616.8f3d94a7.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091130120705.GD30235@random.random>
+ <20091201093945.8c24687f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  1 Dec 2009 14:14:04 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091201093945.8c24687f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Pavel Emelyanov <xemul@parallels.com>, Suleiman Souhlal <suleiman@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> We can either not count those allocations, or do some special
-> treatment to remember who owns those allocations.
-> In our networking intensive workload, it causes us lots of trouble of
-> miscounting the networking slabs for incoming
-> packets. So we make changes in the networking stack which records the
-> owner of the socket and then charge the
-> slab later using that recorded information.
+* KAMEZAWA Hiroyuki (kamezawa.hiroyu@jp.fujitsu.com) wrote:
+> Hmm. Can KSM coalesce 10000+ of pages to a page ?
 
-I agree, currentlly network intensive workload is problematic. but I don't think
-network memory management improvement need to change generic slab management.
+Yes.  The zero page is a prime example of this.
 
-Why can't we improve current tcp/udp memory accounting? it is good user interface than
-"amount of slab memory".
+> In such case, lru
+> need to scan 10000+ ptes with 10000+ anon_vma->lock and 10000+ pte locks
+> for reclaiming a page.
 
+Would likely be a poor choice too.  With so many references it's likely
+to be touched soon and swapped right back in.
+
+thanks,
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
