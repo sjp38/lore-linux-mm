@@ -1,151 +1,54 @@
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 0/5] perf kmem: Add more functions and show more
- statistics
-Date: Tue, 24 Nov 2009 10:04:25 +0100
-Message-ID: <20091124090425.GF21991@elte.hu>
-References: <4B0B6E44.6090106@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S932399AbZKXJEe@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <4B0B6E44.6090106@cn.fujitsu.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6C8C2600309
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 00:14:09 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB15E61Z015449
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 1 Dec 2009 14:14:07 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7765F45DE4E
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 14:14:06 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 58FE245DE4C
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 14:14:06 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 43DE51DB803E
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 14:14:06 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 028811DB803A
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 14:14:06 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: memcg: slab control
+In-Reply-To: <604427e00911262315n5d520cf4p447f68e7053adc11@mail.gmail.com>
+References: <4B0E7530.8050304@parallels.com> <604427e00911262315n5d520cf4p447f68e7053adc11@mail.gmail.com>
+Message-Id: <20091201140726.5C28.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  1 Dec 2009 14:14:04 +0900 (JST)
+Sender: owner-linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Pavel Emelyanov <xemul@parallels.com>, Suleiman Souhlal <suleiman@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+
+> We can either not count those allocations, or do some special
+> treatment to remember who owns those allocations.
+> In our networking intensive workload, it causes us lots of trouble of
+> miscounting the networking slabs for incoming
+> packets. So we make changes in the networking stack which records the
+> owner of the socket and then charge the
+> slab later using that recorded information.
+
+I agree, currentlly network intensive workload is problematic. but I don't think
+network memory management improvement need to change generic slab management.
+
+Why can't we improve current tcp/udp memory accounting? it is good user interface than
+"amount of slab memory".
 
 
-a few more UI suggestions for 'perf kmem':
-
-I think it should look similar to how 'perf' and 'perf sched' prints 
-sub-commands with increasing specificity, which means that we display a 
-list of subcommands and options when typed:
-
-$ perf sched
-
- usage: perf sched [<options>] {record|latency|map|replay|trace}
-
-    -i, --input <file>    input file name
-    -v, --verbose         be more verbose (show symbol address, etc)
-    -D, --dump-raw-trace  dump raw trace in ASCII
-
-
-For 'perf kmem' we could print something like:
-
-$ perf kmem
-
- usage: perf kmem [<options>] {record|report|trace}
-
-    -i, --input <file>    input file name
-    -v, --verbose         be more verbose (show symbol address, etc)
-    -D, --dump-raw-trace  dump raw trace in ASCII
-
-The advantage is that right now, when a new user sees the subcommand in 
-'perf' output:
-
- $ perf
- ...
-   kmem           Tool to trace/measure kernel memory(slab) properties
- ...
-
-And types 'perf kmem', the following is displayed currently:
-
- $ perf kmem
-
- SUMMARY
- =======
- Total bytes requested: 0
- Total bytes allocated: 0
- Total bytes wasted on internal fragmentation: 0
- Internal fragmentation: 0.000000%
- Cross CPU allocations: 0/0
-
-That's not very useful to someone who tries to figure out how to use 
-this command. A summary page would be more useful - and that would 
-advertise all the commands in a really short summary form (shorter than 
--h/--help).
-
-The other thing is that if someone types 'perf kmem record', the command 
-seems 'hung':
-
- $ perf kmem record
- <hang>
-
-Now if i Ctrl-C it i see that a recording session was going on:
-
- $ perf kmem record
- ^C[ perf record: Woken up 10 times to write data ]
- [ perf record: Captured and wrote 1.327 MB perf.data (~57984 samples) ]
-
-but this was not apparent from the tool output and the user was left 
-wondering about what is going on.
-
-I think at minimum we should print a:
-
-	[ Recording all kmem events in the system, Ctrl-C to stop. ]
-
-line. (on a related note, 'perf sched record' needs such a fix too.)
-
-Another solution would be for 'perf kmem record' to work analogous to 
-'perf record': it could display a short help page by default, something 
-like:
-
- $ perf kmem record
-
-  usage: perf kmem record [<options>] [<command>]
-
-  example: perf kmem record -a sleep 10  # capture all events for 10 seconds
-           perf kmem record /bin/ls      # capture events of this command
-           perf kmem record -p 1234      # capture events of PID 1234
-
-What do you think?
-
-Also, a handful of mini-bugreports wrt. usability:
-
-1)
-
-running 'perf kmem' without having a perf.data gives:
-
-earth4:~/tip/tools/perf> ./perf kmem
-Failed to open file: perf.data  (try 'perf record' first)
-
-SUMMARY
-=======
-Total bytes requested: 0
-Total bytes allocated: 0
-Total bytes wasted on internal fragmentation: 0
-Internal fragmentation: 0.000000%
-Cross CPU allocations: 0/0
-
-2)
-
-running 'perf kmem record' on a box without kmem events gives:
-
-earth4:~/tip/tools/perf> ./perf kmem record
-invalid or unsupported event: 'kmem:kmalloc'
-Run 'perf list' for a list of valid events
-
-i think we want to print something kmem specific - and tell the user how 
-to enable kmem events or so - 'perf list' is not a solution to him.
-
-3)
-
-it doesnt seem to be working on one of my boxes, which has perf and kmem 
-events as well:
-
-aldebaran:~/linux/linux/tools/perf> perf kmem record
-^C[ perf record: Woken up 1 times to write data ]
-[ perf record: Captured and wrote 0.050 MB perf.data (~2172 samples) ]
-
-aldebaran:~/linux/linux/tools/perf> perf kmem
-
-SUMMARY
-=======
-Total bytes requested: 0
-Total bytes allocated: 0
-Total bytes wasted on internal fragmentation: 0
-Internal fragmentation: 0.000000%
-Cross CPU allocations: 0/0
-aldebaran:~/linux/linux/tools/perf> 
-
-	Ingo
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
