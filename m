@@ -1,56 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E340A600786
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 07:46:25 -0500 (EST)
-Date: Tue, 1 Dec 2009 13:46:19 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC] high system time & lock contention running large mixed
- workload
-Message-ID: <20091201124619.GO30235@random.random>
-References: <1259618429.2345.3.camel@dhcp-100-19-198.bos.redhat.com>
- <20091201100444.GN30235@random.random>
- <20091201212357.5C3A.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A5935600309
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 10:14:41 -0500 (EST)
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id nB1FEZ0q015753
+	for <linux-mm@kvack.org>; Tue, 1 Dec 2009 20:44:35 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nB1FEZwu3047588
+	for <linux-mm@kvack.org>; Tue, 1 Dec 2009 20:44:35 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nB1FEYjQ019221
+	for <linux-mm@kvack.org>; Tue, 1 Dec 2009 20:44:35 +0530
+Date: Tue, 1 Dec 2009 20:44:31 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: memcg: slab control
+Message-ID: <20091201151431.GV2970@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com>
+ <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091126085031.GG2970@balbir.in.ibm.com>
+ <20091126175606.f7df2f80.kamezawa.hiroyu@jp.fujitsu.com>
+ <4B0E461C.50606@parallels.com>
+ <20091126183335.7a18cb09.kamezawa.hiroyu@jp.fujitsu.com>
+ <4B0E50B1.20602@parallels.com>
+ <20091201073609.GQ2970@balbir.in.ibm.com>
+ <4B14F29E.3090400@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20091201212357.5C3A.A69D9226@jp.fujitsu.com>
+In-Reply-To: <4B14F29E.3090400@parallels.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Suleiman Souhlal <suleiman@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 01, 2009 at 09:31:09PM +0900, KOSAKI Motohiro wrote:
-> Ummm. I can't agree this. 7 is too small priority. if large system have prio==7,
-> the system have unacceptable big latency trouble.
-> if only prio==DEF_PRIOTIRY or something, I can agree you probably.
+* Pavel Emelyanov <xemul@parallels.com> [2009-12-01 13:40:30]:
 
-I taken number 7 purely as mentioned by Larry about old code, but I
-don't mind what is the actual breakpoint level where we start to send
-the ipi flood to destroy all userland tlbs mapping the page so the
-young bit can be set by the cpu on the old pte. If you agree with me
-at the lowest priority we shouldn't flood ipi and destroy tlb when
-there's plenty of clean unmapped clean cache, we already agree ;). If
-that's 7 or DEV_PRIORITY-1, that's ok. All I care is that it escalates
-gradually, first clean cache and re-activate mapped pages, then when
-we're low on clean cache we start to check ptes and unmap whatever is
-not found referenced.
+> > Just to understand the context better, is this really a problem. This
+> > can occur when we do really run out of memory. The idea of using
+> > slabcg + memcg together is good, except for our accounting process. I
+> > can repost percpu counter patches that adds fuzziness along with other
+> > tricks that Kame has to do batch accounting, that we will need to
+> > make sure we are able to do with slab allocations as well.
+> > 
+> 
+> I'm not sure I understand you concern. Can you elaborate, please?
+> 
 
-> Avoiding lock contention on light VM pressure is important than
-> strict lru order. I guess we don't need knob.
+The concern was mostly accounting when memcg + slabcg are integrated
+into the same framework. res_counters will need new scalability
+primitives.
 
-Hope so indeed. It's not just lock contention, that is exacerbated by
-certain workloads, but even in total absence of any lock contention I
-generally dislike the cpu waste itself of the pte loop to clear the
-young bit, and the interruption of userland as well when it receives a
-tlb flush for no good reason because 99% of the time plenty of
-unmapped clean cache is available. I know this performs best, even if
-there will be always someone that will want mapped and unmapped cache
-to be threat totally equal in lru terms (which then make me wonder why
-there are still & VM_EXEC magics in vmscan.c if all pages shall be
-threaded equal in the lru... especially given VM_EXEC is often
-meaningless [because potentially randomly set] unlike page_mapcount
-[which is never randomly set]), which is the reason I mentioned the
-knob.
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
