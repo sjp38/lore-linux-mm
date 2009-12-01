@@ -1,86 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 867C0600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 19:42:43 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB10gfjo031003
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 1 Dec 2009 09:42:41 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B315345DE57
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 09:42:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CBB845DE4F
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 09:42:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 702021DB8044
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 09:42:39 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AA981DB803E
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 09:42:38 +0900 (JST)
-Date: Tue, 1 Dec 2009 09:39:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 36AAC600309
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 23:14:25 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB14EMwW001785
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 1 Dec 2009 13:14:22 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CFF845DE4F
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 13:14:22 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C2AC45DE54
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 13:14:22 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E5FB11DB803C
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 13:14:21 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 42E8EE18018
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 13:14:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
-Message-Id: <20091201093945.8c24687f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091130120705.GD30235@random.random>
-References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils>
-	<Pine.LNX.4.64.0911241640590.25288@sister.anvils>
-	<20091130094616.8f3d94a7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091130120705.GD30235@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <Pine.LNX.4.64.0911301227530.24660@sister.anvils>
+References: <20091130180452.5BF6.A69D9226@jp.fujitsu.com> <Pine.LNX.4.64.0911301227530.24660@sister.anvils>
+Message-Id: <20091201125801.5C16.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue,  1 Dec 2009 13:14:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Nov 2009 13:07:05 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> On Mon, Nov 30, 2009 at 09:46:16AM +0900, KAMEZAWA Hiroyuki wrote:
-> > Hmm. I'm not sure how many pages are shared in a system but
-> > can't we add some threshold for avoidng too much scan against shared pages ?
-> > (in vmscan.c)
-> > like..
-> >       
-> >        if (page_mapcount(page) > (XXXX >> scan_priority))
-> > 		return 1;
-> > 
-> > I saw terrible slow downs in shmem-swap-out in old RHELs (at user support).
-> > (Added kosaki to CC.)
+> > btw, I'm not sure why bellow kmem_cache_zalloc() is necessary. Why can't we
+> > use stack?
 > 
-> If those ptes are all old there's no reason to keep those pages in ram
-> more... I don't like those magic number levels. If you saw slowdowns
-> it'd be interesting to get more information on those workloads. I
-> never seen swap out workloads in real life that are not 99% I/O
-> dominated, there's nothing that loads the cpu anything close to 100%,
-> so nothing that a magic check like above could affect. 
-
-I saw an user incident that all 64cpus hangs on shmem's spinlock and get
-great slow down, cluster fail over. 
-As workaround, we recommend them to use hugepage. It's not scanned.
-
-Hmm. Can KSM coalesce 10000+ of pages to a page ? In such case, lru
-need to scan 10000+ ptes with 10000+ anon_vma->lock and 10000+ pte locks
-for reclaiming a page.
-
-
-> Besides tmpfs
-> unmap methods are different from ksm and anon pages unmap methods, and
-> certain locks are coarser if there's userland taking i_mmap_lock for
-> I/O during paging.
+> Well, I didn't use stack: partly because I'm so ashamed of the pseudo-vmas
+> on the stack in mm/shmem.c, which have put shmem_getpage() into reports
+> of high stack users (I've unfinished patches to deal with that); and
+> partly because page_referenced_ksm() and try_to_unmap_ksm() are on
+> the page reclaim path, maybe way down deep on a very deep stack.
 > 
-maybe. 
+> But it's not something you or I should be worrying about: as the comment
+> says, this is just a temporary hack, to present a patch which gets KSM
+> swapping working in an understandable way, while leaving some corrections
+> and refinements to subsequent patches.  This pseudo-vma is removed in the
+> very next patch.
 
-Hmm, Larry Woodman reports another? issue.
-http://marc.info/?l=linux-mm&m=125961823921743&w=2
+I see. thanks for kindly explanation :)
 
-Maybe some modification to lru scanning is necessary independent from ksm.
-I think.
 
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
