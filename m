@@ -1,113 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 20074600309
-	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 19:05:02 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB104x79014800
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 1 Dec 2009 09:04:59 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 819AD45DE50
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 09:04:59 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 527C645DE53
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 09:04:59 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 250D91DB8041
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 09:04:59 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BE26D1DB8043
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 09:04:58 +0900 (JST)
-Date: Tue, 1 Dec 2009 09:02:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 5/9] ksm: share anon page without allocating
-Message-Id: <20091201090201.7acb3d90.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0911301054230.20054@sister.anvils>
-References: <Pine.LNX.4.64.0911241634170.24427@sister.anvils>
-	<Pine.LNX.4.64.0911241645460.25288@sister.anvils>
-	<20091130090448.71cf6138.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0911301054230.20054@sister.anvils>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A89A600744
+	for <linux-mm@kvack.org>; Mon, 30 Nov 2009 19:22:01 -0500 (EST)
+Subject: Re: lockdep complaints in slab allocator
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <alpine.DEB.2.00.0911301512250.12038@chino.kir.corp.google.com>
+References: <84144f020911192249l6c7fa495t1a05294c8f5b6ac8@mail.gmail.com>
+	 <1258729748.4104.223.camel@laptop> <1259002800.5630.1.camel@penberg-laptop>
+	 <1259003425.17871.328.camel@calx> <4B0ADEF5.9040001@cs.helsinki.fi>
+	 <1259080406.4531.1645.camel@laptop>
+	 <20091124170032.GC6831@linux.vnet.ibm.com>
+	 <1259082756.17871.607.camel@calx> <1259086459.4531.1752.camel@laptop>
+	 <1259090615.17871.696.camel@calx>
+	 <84144f020911241307u14cd2cf0h614827137e42378e@mail.gmail.com>
+	 <1259103315.17871.895.camel@calx>
+	 <alpine.DEB.2.00.0911251356130.11347@chino.kir.corp.google.com>
+	 <alpine.DEB.2.00.0911271127130.20368@router.home>
+	 <alpine.DEB.2.00.0911301512250.12038@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 30 Nov 2009 18:21:15 -0600
+Message-ID: <1259626875.29740.193.camel@calx>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Nov 2009 11:18:51 +0000 (GMT)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
-
-> On Mon, 30 Nov 2009, KAMEZAWA Hiroyuki wrote:
+On Mon, 2009-11-30 at 15:14 -0800, David Rientjes wrote:
+> On Fri, 27 Nov 2009, Christoph Lameter wrote:
+> 
+> > > > I'm afraid I have only anecdotal reports from SLOB users, and embedded
+> > > > folks are notorious for lack of feedback, but I only need a few people
+> > > > to tell me they're shipping 100k units/mo to be confident that SLOB is
+> > > > in use in millions of devices.
+> > > >
+> > >
+> > > It's much more popular than I had expected; do you think it would be
+> > > possible to merge slob's core into another allocator or will it require
+> > > seperation forever?
 > > 
-> > Sorry for delayed response.
-> 
-> No, thank you very much for spending your time on it.
-> 
+> > It would be possible to create a slab-common.c and isolate common handling
+> > of all allocators. SLUB and SLQB share quite a lot of code and SLAB could
+> > be cleaned up and made to fit into such a framework.
 > > 
-> > On Tue, 24 Nov 2009 16:48:46 +0000 (GMT)
-> > Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
-> > 
-> > > When ksm pages were unswappable, it made no sense to include them in
-> > > mem cgroup accounting; but now that they are swappable (although I see
-> > > no strict logical connection)
-> > I asked that for throwing away too complicated but wast of time things.
 > 
-> I'm sorry, I didn't understand that sentence at all!
-> 
-Sorry. At implementation of ksm. I don't want to consinder how to account it
-because there was problems around swap accounting. So, I asked to
-limit usage by itself.
+> Right, but the user is still left with a decision of which slab allocator 
+> to compile into their kernel, each with distinct advantages and 
+> disadvantages that get exploited for the wide range of workloads that it 
+> runs.  If slob could be merged into another allocator, it would be simple 
+> to remove the distinction of it being seperate altogether, the differences 
+> would depend on CONFIG_EMBEDDED instead.
 
-> > If not on LRU, its own limitation (ksm's page limit) works enough.
-> 
-> Yes, I think it made sense the way it was before when unswappable,
-> but that once they're swappable and that limitation is removed,
-> they do then need to participate in mem cgroup accounting.
-> 
-> I _think_ you're agreeing, but I'm not quite sure!
-> 
-I agree. No objections.
+No no no wrong wrong wrong. Again, SLOB is the least mergeable of the
+set. It has vastly different priorities, design, and code from the rest.
+Literally the only thing it has in common with the other three is the
+interface.
+
+And it's not even something that -most- of embedded devices will want to
+use, so it can't be keyed off CONFIG_EMBEDDED anyway. If you've got even
+16MB of memory, you probably want to use a SLAB-like allocator (ie not
+SLOB). But there are -millions- of devices being shipped that don't have
+that much memory, a situation that's likely to continue until you can
+fit a larger Linux system entirely in a <$1 microcontroller-sized device
+(probably 5 years off still).
 
 
-> > > @@ -864,15 +865,24 @@ static int try_to_merge_one_page(struct
-> ...
-> > >  
-> > > -	if ((vma->vm_flags & VM_LOCKED) && !err) {
-> > > +	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
-> > >  		munlock_vma_page(page);
-> > >  		if (!PageMlocked(kpage)) {
-> > >  			unlock_page(page);
-> > > -			lru_add_drain();
-> > 
-> > Is this related to memcg ?
-> > 
-> > >  			lock_page(kpage);
-> > >  			mlock_vma_page(kpage);
-> 
-> Is the removal of lru_add_drain() related to memcg?  No, or only to
-> the extent that reusing the original anon page is related to memcg.
-> 
-> I put lru_add_drain() in there before, because (for one of the calls
-> to try_to_merge_one_page) the kpage had just been allocated an instant
-> before, with lru_cache_add_lru putting it into the per-cpu array, so
-> in that case mlock_vma_page(kpage) would need an lru_add_drain() to
-> find it on the LRU (of course, we might be preempted to a different
-> cpu in between, and lru_add_drain not be enough: but I think we've
-> all come to the conclusion that lru_add_drain_all should be avoided
-> unless there's a very strong reason for it).
-> 
-> But with this patch we're reusing the existing anon page as ksm page,
-> and we know that it's been in place for at least one circuit of ksmd
-> (ignoring coincidences like the jhash of the page happens to be 0),
-> so we've every reason to believe that it will already be on its LRU:
-> no need for lru_add_drain().
-> 
+This thread is annoying. The problem that triggered this thread is not
+in SLOB/SLUB/SLQB, nor even in our bog-standard 10yo deep-maintenance
+known-to-work SLAB code. The problem was a FALSE POSITIVE from lockdep
+on code that PREDATES lockdep itself. There is nothing in this thread to
+indicate that there is a serious problem maintaining multiple
+allocators. In fact, considerably more time has been spent (as usual)
+debating non-existent problems than fixing real ones.
 
-Thank you for clarification.
+I agree that having only one of SLAB/SLUB/SLQB would be nice, but it's
+going to take a lot of heavy lifting in the form of hacking and
+benchmarking to have confidence that there's a clear performance winner.
+Given the multiple dimensions of performance
+(scalability/throughput/latency for starters), I don't even think
+there's good a priori reason to believe that a clear winner CAN exist.
+SLUB may always have better latency, and SLQB may always have better
+throughput. If you're NYSE, you might have different performance
+priorities than if you're Google or CERN or Sony that amount to millions
+of dollars. Repeatedly saying "but we should have only one allocator"
+isn't going to change that.
 
-Regards,
--Kame
+-- 
+http://selenic.com : development and support for Mercurial and Linux
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
