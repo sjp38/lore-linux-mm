@@ -1,52 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 365FD6003C2
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 03:11:15 -0500 (EST)
-Date: Wed, 2 Dec 2009 09:11:02 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 16/24] HWPOISON: limit hwpoison injector to known page
- types
-Message-ID: <20091202081102.GA16218@elte.hu>
-References: <20091202031231.735876003@intel.com>
- <20091202043045.711553780@intel.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C7D14600727
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 05:14:34 -0500 (EST)
+Message-ID: <4B163DF7.60305@parallels.com>
+Date: Wed, 02 Dec 2009 13:14:15 +0300
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091202043045.711553780@intel.com>
+Subject: Re: memcg: slab control
+References: <alpine.DEB.2.00.0911251500150.20198@chino.kir.corp.google.com> <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com> <20091126085031.GG2970@balbir.in.ibm.com> <20091126175606.f7df2f80.kamezawa.hiroyu@jp.fujitsu.com> <4B0E461C.50606@parallels.com> <20091126183335.7a18cb09.kamezawa.hiroyu@jp.fujitsu.com> <4B0E50B1.20602@parallels.com> <20091201073609.GQ2970@balbir.in.ibm.com> <4B14F29E.3090400@parallels.com> <20091201151431.GV2970@balbir.in.ibm.com>
+In-Reply-To: <20091201151431.GV2970@balbir.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Haicheng Li <haicheng.li@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Suleiman Souhlal <suleiman@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Balbir Singh wrote:
+> * Pavel Emelyanov <xemul@parallels.com> [2009-12-01 13:40:30]:
+> 
+>>> Just to understand the context better, is this really a problem. This
+>>> can occur when we do really run out of memory. The idea of using
+>>> slabcg + memcg together is good, except for our accounting process. I
+>>> can repost percpu counter patches that adds fuzziness along with other
+>>> tricks that Kame has to do batch accounting, that we will need to
+>>> make sure we are able to do with slab allocations as well.
+>>>
+>> I'm not sure I understand you concern. Can you elaborate, please?
+>>
+> 
+> The concern was mostly accounting when memcg + slabcg are integrated
+> into the same framework. res_counters will need new scalability
+> primitives.
+> 
 
-* Wu Fengguang <fengguang.wu@intel.com> wrote:
-
-> --- linux-mm.orig/mm/hwpoison-inject.c	2009-11-30 20:44:41.000000000 +0800
-> +++ linux-mm/mm/hwpoison-inject.c	2009-11-30 20:58:20.000000000 +0800
-> @@ -3,16 +3,41 @@
->  #include <linux/debugfs.h>
->  #include <linux/kernel.h>
->  #include <linux/mm.h>
-> +#include <linux/swap.h>
->  #include "internal.h"
->  
->  static struct dentry *hwpoison_dir;
->  
->  static int hwpoison_inject(void *data, u64 val)
->  {
-
-i'd like to raise a continuing conceptual objection against the ad-hoc 
-and specialistic nature of the event injection in the 
-mm/memory-failure*.c code. It should probably be using a standardized 
-interface by integrating with perf events - as i outlined it before.
-
-Where needed perf events should be extended - we can help with that. 
-There's no point in having scattered pieces of incompatible (and 
-user-ABI affecting) infrastructure all around the kernel.
-
-Thanks,
-
-	Ingo
+I see. I think the best we can do here is start with a separate controller.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
