@@ -1,143 +1,99 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 14/24] HWPOISON: return 0 if page is assured to be isolated
-Date: Wed, 02 Dec 2009 11:12:45 +0800
-Message-ID: <20091202043045.394560341@intel.com>
+Subject: [PATCH 16/24] HWPOISON: limit hwpoison injector to known page types
+Date: Wed, 02 Dec 2009 11:12:47 +0800
+Message-ID: <20091202043045.711553780@intel.com>
 References: <20091202031231.735876003@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 62CFF6007B7
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7973C6007B8
 	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:38 -0500 (EST)
-Content-Disposition: inline; filename=hwpoison-isolated.patch
+Content-Disposition: inline; filename=hwpoison-filter-limit-scope.patch
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Introduce hpc.page_isolated to record if page is assured to be
-isolated, ie. it won't be accessed in normal kernel code paths
-and therefore won't trigger another MCE event.
+__memory_failure()'s workflow is
 
-__memory_failure() will now return 0 to indicate that page is
-really isolated.  Note that the original used action result
-RECOVERED is not a reliable criterion.
+	set PG_hwpoison
+	//...
+	unset PG_hwpoison if didn't pass hwpoison filter
 
-Note that we now don't bother to risk returning 0 for the
-rare unpoison/truncated cases.
+That could kill unrelated process if it happens to page fault on the
+page with the (temporary) PG_hwpoison. The race should be big enough to
+appear in stress tests.
 
+Fix it by grabbing the page and checking filter at inject time.  This
+also avoids the very noisy "Injecting memory failure..." messages.
+
+- we don't touch madvise() based injection, because the filters are
+  generally not necessary for it.
+- if we want to apply the filters to h/w aided injection, we'd better to
+  rearrange the logic in __memory_failure() instead of this patch.
+
+CC: Haicheng Li <haicheng.li@intel.com>
 CC: Andi Kleen <andi@firstfloor.org> 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/memory-failure.c |   28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ mm/hwpoison-inject.c |   27 ++++++++++++++++++++++++++-
+ mm/internal.h        |    2 ++
+ 2 files changed, 28 insertions(+), 1 deletion(-)
 
---- linux-mm.orig/mm/memory-failure.c	2009-11-30 20:35:49.000000000 +0800
-+++ linux-mm/mm/memory-failure.c	2009-11-30 20:40:56.000000000 +0800
-@@ -332,6 +332,7 @@ struct hwpoison_control {
- 	struct page *p;		/* raw corrupted page */
- 	struct page *page;	/* compound page head */
- 	int result;
-+	unsigned page_isolated:1;
- };
+--- linux-mm.orig/mm/hwpoison-inject.c	2009-11-30 20:44:41.000000000 +0800
++++ linux-mm/mm/hwpoison-inject.c	2009-11-30 20:58:20.000000000 +0800
+@@ -3,16 +3,41 @@
+ #include <linux/debugfs.h>
+ #include <linux/kernel.h>
+ #include <linux/mm.h>
++#include <linux/swap.h>
+ #include "internal.h"
  
- /*
-@@ -529,9 +530,10 @@ static int me_swapcache_dirty(struct hwp
- 	/* Trigger EIO in shmem: */
- 	ClearPageUptodate(p);
+ static struct dentry *hwpoison_dir;
  
--	if (!delete_from_lru_cache(p))
-+	if (!delete_from_lru_cache(p)) {
-+		hpc->page_isolated = 1;
- 		return DELAYED;
--	else
-+	} else
- 		return FAILED;
- }
- 
-@@ -641,7 +643,7 @@ static void action_result(struct hwpoiso
- 		msg, hwpoison_result_name[result]);
- }
- 
--static int page_action(struct page_state *ps,
-+static void page_action(struct page_state *ps,
- 		       struct hwpoison_control *hpc)
+ static int hwpoison_inject(void *data, u64 val)
  {
- 	int result;
-@@ -656,12 +658,15 @@ static int page_action(struct page_state
- 		       "MCE %#lx: %s page still referenced by %d users\n",
- 		       hpc->pfn, ps->msg, count);
- 
-+	if (result == RECOVERED)
-+		hpc->page_isolated = 1;
-+	if (count || page_mapcount(hpc->page))
-+		hpc->page_isolated = 0;
++	unsigned long pfn = val;
++	struct page *p;
 +
- 	/* Could do more checks here if page looks ok */
- 	/*
- 	 * Could adjust zone counters here to correct for the missing page.
- 	 */
--
--	return result == RECOVERED ? 0 : -EBUSY;
+ 	if (!capable(CAP_SYS_ADMIN))
+ 		return -EPERM;
++
++	if (!pfn_valid(pfn))
++		return -ENXIO;
++
++	/*
++	 * This implies unable to support free buddy pages.
++	 */
++	p = pfn_to_page(pfn);
++	if (!get_page_unless_zero(p))
++		return 0;
++
++	if (!PageLRU(p))
++		lru_add_drain_all();
++	/*
++	 * do a racy check with elevated page count, to make sure PG_hwpoison
++	 * will only be set for the targeted owner (or on a free page).
++	 * __memory_failure() will redo the check reliably inside page lock.
++	 */
++	if (hwpoison_filter(p))
++		return 0;
++
+ 	printk(KERN_INFO "Injecting memory failure at pfn %Lx\n", val);
+-	return __memory_failure(val, 18, 0);
++	return __memory_failure(val, 18, 1);
  }
  
- #define N_UNMAP_TRIES 5
-@@ -767,7 +772,6 @@ int __memory_failure(unsigned long pfn, 
- 	struct page_state *ps;
- 	struct page *p;
- 	struct page *page;
--	int res;
+ static int hwpoison_forget(void *data, u64 val)
+--- linux-mm.orig/mm/internal.h	2009-11-30 20:44:41.000000000 +0800
++++ linux-mm/mm/internal.h	2009-11-30 20:52:11.000000000 +0800
+@@ -264,5 +264,7 @@ int __get_user_pages(struct task_struct 
+ #define ZONE_RECLAIM_SUCCESS	1
+ #endif
  
- 	if (!sysctl_memory_failure_recovery)
- 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
-@@ -785,6 +789,7 @@ int __memory_failure(unsigned long pfn, 
- 	hpc.pfn		= pfn;
- 	hpc.p		= p;
- 	hpc.page	= page;
-+	hpc.page_isolated = 0;
- 
- 	if (TestSetPageHWPoison(p)) {
- 		action_result(&hpc, "already hardware poisoned", IGNORED);
-@@ -842,7 +847,6 @@ int __memory_failure(unsigned long pfn, 
- 	 */
- 	if (!PageHWPoison(p)) {
- 		action_result(&hpc, "unpoisoned", IGNORED);
--		res = 0;
- 		goto out;
- 	}
- 
-@@ -852,30 +856,26 @@ int __memory_failure(unsigned long pfn, 
- 	 * Now take care of user space mappings.
- 	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
- 	 */
--	if (hwpoison_user_mappings(&hpc, trapno) != SWAP_SUCCESS) {
--		res = -EBUSY;
-+	if (hwpoison_user_mappings(&hpc, trapno) != SWAP_SUCCESS)
- 		goto out;
--	}
- 
- 	/*
- 	 * Torn down by someone else?
- 	 */
- 	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
- 		action_result(&hpc, "already truncated LRU", IGNORED);
--		res = 0;
- 		goto out;
- 	}
- 
--	res = -EBUSY;
- 	for (ps = error_states;; ps++) {
- 		if ((p->flags & ps->mask) == ps->res) {
--			res = page_action(ps, &hpc);
-+			page_action(ps, &hpc);
- 			break;
- 		}
- 	}
- out:
- 	unlock_page(p);
--	return res;
-+	return hpc.page_isolated ? 0 : -EBUSY;
- }
- EXPORT_SYMBOL_GPL(__memory_failure);
- 
++extern int hwpoison_filter(struct page *p);
++
+ extern u32 hwpoison_filter_dev_major;
+ extern u32 hwpoison_filter_dev_minor;
 
 
 --
