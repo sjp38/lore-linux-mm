@@ -1,41 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 53FB5600762
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:29:02 -0500 (EST)
-Date: Wed, 2 Dec 2009 21:28:19 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D3D41600762
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:31:24 -0500 (EST)
+Date: Wed, 2 Dec 2009 21:31:01 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 06/24] HWPOISON: abort on failed unmap
-Message-ID: <20091202132819.GC13277@localhost>
-References: <20091202031231.735876003@intel.com> <20091202043044.293905787@intel.com> <20091202131150.GE18989@one.firstfloor.org>
+Subject: Re: [PATCH 10/24] HWPOISON: remove the free buddy page handler
+Message-ID: <20091202133101.GD13277@localhost>
+References: <20091202031231.735876003@intel.com> <20091202043044.878843398@intel.com> <20091202131330.GF18989@one.firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091202131150.GE18989@one.firstfloor.org>
+In-Reply-To: <20091202131330.GF18989@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 02, 2009 at 09:11:50PM +0800, Andi Kleen wrote:
-> >  	 * Now take care of user space mappings.
-> > +	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
-> >  	 */
-> > -	hwpoison_user_mappings(p, pfn, trapno);
-> > +	if (hwpoison_user_mappings(p, pfn, trapno) != SWAP_SUCCESS) {
-> > +		res = -EBUSY;
-> > +		goto out;
+On Wed, Dec 02, 2009 at 09:13:30PM +0800, Andi Kleen wrote:
+> On Wed, Dec 02, 2009 at 11:12:41AM +0800, Wu Fengguang wrote:
+> > The buddy page has already be handled in the very beginning.
+> > So remove redundant code.
 > 
-> It would be good to print something in this case.
+> I think I prefer the table to be complete, even if some of the 
+> cases might not happen currently. A BUG() would be reasonable though.
 
-OK.
+I'd prefer not to carry around some useless bytes in kernel.
 
-> Did you actually see it during testing?
-
-Perhaps not.
-
-> Or maybe loop forever in the unmapper.
-
-!SWAP_SUCCESS should be rare, so not necessary to loop forever?
+What if we replace it with a comment line in the table?
 
 Thanks,
 Fengguang
