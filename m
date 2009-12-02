@@ -1,44 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D330C600762
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:26:16 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 82D796007D3
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:26:17 -0500 (EST)
 From: Roger Oksanen <roger.oksanen@cs.helsinki.fi>
-Subject: [RFC,PATCH 0/2] dmapool: allocation gfp changes
-Date: Wed, 2 Dec 2009 15:18:35 +0200
+Subject: [RFC,PATCH 2/2] dmapool: Honor GFP_* flags.
+Date: Wed, 2 Dec 2009 15:23:39 +0200
+References: <200912021518.35877.roger.oksanen@cs.helsinki.fi>
+In-Reply-To: <200912021518.35877.roger.oksanen@cs.helsinki.fi>
 MIME-Version: 1.0
+Message-Id: <200912021523.39696.roger.oksanen@cs.helsinki.fi>
 Content-Type: Text/Plain;
-  charset="us-ascii"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200912021518.35877.roger.oksanen@cs.helsinki.fi>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm <linux-mm@kvack.org>
-Cc: Roger Oksanen <roger.oksanen@cs.helsinki.fi>, Mel Gorman <mel@csn.ul.ie>
+Cc: Mel Gorman <mel@csn.ul.ie>, Roger Oksanen <roger.oksanen@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-When introducing dma pools to the e100 driver, it was noticed that allocation
-failure warnings were being generated to dmesg when allocations were being
-retried (in dma_pool_alloc). Patch #1 changes the allocator to suppress most
-warnings (a warning every 10th retry).
+dmapool: Honor GFP_* flags.
 
-Patch #2, which applies on top of patch #1, changes the GFP_ATOMIC
-allocation, which allows emergency pool usage, to use the callers GFP_*
-flags. This is a scary change that can cause delays in the allocation path,
-but is still imho the correct way. Discussion about this approach is welcome!
+dmapool silently discarded GFP flags and was always allowed to use the 
+emergency pool.
 
-Additionally, I'm wondering if dma_pool_alloc(..) should be allowed to
-fail after a while even when using __GFP_WAIT. Currently it loops forever
-if it can't find the requested memory. A quick grep reveals that memory
-allocation failures are handled in most drivers using (pci|dma)_pool_alloc.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Roger Oksanen <roger.oksanen@cs.helsinki.fi>
+---
+ mm/dmapool.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
-PATCH 1/2
-Don't warn when allowed to retry allocation.
-
-PATCH 2/2
-Honor GFP_* flags.
-
- mm/dmapool.c |   10 ++++++++--
- 1 files changed, 8 insertions(+), 2 deletions(-)
+diff --git a/mm/dmapool.c b/mm/dmapool.c
+index 2fdd7a1..e270f7f 100644
+--- a/mm/dmapool.c
++++ b/mm/dmapool.c
+@@ -312,6 +312,8 @@
+ 	void *retval;
+ 	int tries = 0;
+ 	const gfp_t can_wait = mem_flags & __GFP_WAIT;
++	/* dma_pool_alloc uses its own wait logic */
++	mem_flags &= ~__GFP_WAIT;
+ 
+ 	spin_lock_irqsave(&pool->lock, flags);
+  restart:
+@@ -320,7 +322,7 @@
+ 			goto ready;
+ 	}
+ 	tries++;
+-	page = pool_alloc_page(pool, GFP_ATOMIC | (can_wait && tries % 10
++	page = pool_alloc_page(pool, mem_flags | (can_wait && tries % 10
+ 						  ? __GFP_NOWARN : 0));
+ 	if (!page) {
+ 		if (can_wait) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
