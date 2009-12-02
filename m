@@ -1,13 +1,13 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 08/24] HWPOISON: comment dirty swapcache pages
-Date: Wed, 02 Dec 2009 11:12:39 +0800
-Message-ID: <20091202043044.572334411@intel.com>
+Subject: [PATCH 07/24] HWPOISON: comment the possible set_page_dirty() race
+Date: Wed, 02 Dec 2009 11:12:38 +0800
+Message-ID: <20091202043044.432444976@intel.com>
 References: <20091202031231.735876003@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CFBDC60079E
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CE14A60021B
 	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:37 -0500 (EST)
-Content-Disposition: inline; filename=hwpoison-comment-dirty-swapcache.patch
+Content-Disposition: inline; filename=hwpoison-comment-dirty.patch
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
@@ -16,22 +16,20 @@ List-Id: linux-mm.kvack.org
 CC: Andi Kleen <andi@firstfloor.org> 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/memory.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ mm/memory-failure.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
---- linux-mm.orig/mm/memory.c	2009-11-24 16:50:44.000000000 +0800
-+++ linux-mm/mm/memory.c	2009-11-30 10:35:39.000000000 +0800
-@@ -2540,6 +2540,10 @@ static int do_swap_page(struct mm_struct
- 		ret = VM_FAULT_MAJOR;
- 		count_vm_event(PGMAJFAULT);
- 	} else if (PageHWPoison(page)) {
-+		/*
-+		 * hwpoisoned dirty swapcache pages are kept for killing
-+		 * owner processes (which may be unknown at hwpoison time)
-+		 */
- 		ret = VM_FAULT_HWPOISON;
- 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 		goto out_release;
+--- linux-mm.orig/mm/memory-failure.c	2009-11-30 11:11:25.000000000 +0800
++++ linux-mm/mm/memory-failure.c	2009-11-30 11:12:41.000000000 +0800
+@@ -667,6 +667,8 @@ static int hwpoison_user_mappings(struct
+ 	/*
+ 	 * Propagate the dirty bit from PTEs to struct page first, because we
+ 	 * need this to decide if we should kill or just drop the page.
++	 * XXX: the dirty test could be racy: set_page_dirty() may not always
++	 * be called inside page lock (it's recommended but not enforced).
+ 	 */
+ 	mapping = page_mapping(p);
+ 	if (!PageDirty(p) && mapping && mapping_cap_writeback_dirty(mapping)) {
 
 
 --
