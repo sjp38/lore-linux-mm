@@ -1,53 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 51DEB6007DB
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 11:29:25 -0500 (EST)
-Subject: Re: [PATCH/RFC 1/6] numa: Use Generic Per-cpu Variables for
- numa_node_id()
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D39B96007DB
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 11:36:52 -0500 (EST)
+Subject: [PATCH] mlock:  replace stale comments in munlock_vma_page()
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <200912010043.36115.arnd@arndb.de>
-References: <20091113211714.15074.29078.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.1.10.0911201044320.25879@V090114053VZO-1>
-	 <1259612920.4663.156.camel@useless.americas.hpqcorp.net>
-	 <200912010043.36115.arnd@arndb.de>
 Content-Type: text/plain
-Date: Wed, 02 Dec 2009 11:29:21 -0500
-Message-Id: <1259771361.4088.25.camel@useless.americas.hpqcorp.net>
+Date: Wed, 02 Dec 2009 11:35:35 -0500
+Message-Id: <1259771735.4088.31.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Tejun Heo <tj@kernel.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-12-01 at 00:43 +0100, Arnd Bergmann wrote:
-> On Monday 30 November 2009, Lee Schermerhorn wrote:
-> > Looking at other asm/foo.h and asm-generic/foo.h relationships, I see
-> > that some define the generic version of the api in the asm-generic
-> > header if the arch asm header hasn't already defined it.  asm/topology.h
-> > is an instance of this.  It includes asm-generic/topology.h after
-> > defining arch specific versions of some of the api.
-> 
-> This works alright, but if you expect every architecture to include the
-> asm-generic version, you might just as well take that choice away from
-> the architecture and put the common code into the linux/foo.h file,
-> which you can still override with definitions in asm/foo.h.
-> 
-> Most of the asm-generic headers are just mostly generic, and get included
-> by some but not all architectures, the others defining the whole contents
-> of the asm-generic file themselves in a different way.
-> 
-> So if you e.g. want ia64 to do everything itself and all other architectures to
-> share some or all parts of asm-generic/topology, your approach is right,
-> otherwise just leave the code in some file in include/linux/.
 
-Actually, I just wanted to make the generic definitions of
-this_cpu_{read|write}() visible to topology.h when building on ia64 w/o
-the circular header dependencies.  Willy pointed out a way to do this by
-un-inlining __alloc_percpu().  Perhaps this is the way to go.  Tejun is
-looking at the patches.
 
-Lee
+Cleanup stale comments on munlock_vma_page().
+
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/mlock.c |   41 +++++++++++++++++++----------------------
+ 1 files changed, 19 insertions(+), 22 deletions(-)
+
+Index: linux-2.6.32-rc8/mm/mlock.c
+===================================================================
+--- linux-2.6.32-rc8.orig/mm/mlock.c	2009-11-24 13:19:58.000000000 -0500
++++ linux-2.6.32-rc8/mm/mlock.c	2009-12-01 13:27:25.000000000 -0500
+@@ -88,23 +88,20 @@ void mlock_vma_page(struct page *page)
+ 	}
+ }
+ 
+-/*
+- * called from munlock()/munmap() path with page supposedly on the LRU.
++/**
++ * munlock_vma_page - munlock a vma page
++ * @page - page to be unlocked
+  *
+- * Note:  unlike mlock_vma_page(), we can't just clear the PageMlocked
+- * [in try_to_munlock()] and then attempt to isolate the page.  We must
+- * isolate the page to keep others from messing with its unevictable
+- * and mlocked state while trying to munlock.  However, we pre-clear the
+- * mlocked state anyway as we might lose the isolation race and we might
+- * not get another chance to clear PageMlocked.  If we successfully
+- * isolate the page and try_to_munlock() detects other VM_LOCKED vmas
+- * mapping the page, it will restore the PageMlocked state, unless the page
+- * is mapped in a non-linear vma.  So, we go ahead and SetPageMlocked(),
+- * perhaps redundantly.
+- * If we lose the isolation race, and the page is mapped by other VM_LOCKED
+- * vmas, we'll detect this in vmscan--via try_to_munlock() or try_to_unmap()
+- * either of which will restore the PageMlocked state by calling
+- * mlock_vma_page() above, if it can grab the vma's mmap sem.
++ * called from munlock()/munmap() path with page supposedly on the LRU.
++ * When we munlock a page, because the vma where we found the page is being
++ * munlock()ed or munmap()ed, we want to check whether other vmas hold the
++ * page locked so that we can leave it on the unevictable lru list and not
++ * bother vmscan with it.  However, to walk the page's rmap list in
++ * try_to_munlock() we must isolate the page from the LRU.  If some other
++ * task has removed the page from the LRU, we won't be able to do that.
++ * So we clear the PageMlocked as we might not get another chance.  If we
++ * can't isolate the page, we leave it for putback_lru_page() and vmscan
++ * [page_referenced()/try_to_unmap()] to deal with.
+  */
+ static void munlock_vma_page(struct page *page)
+ {
+@@ -123,12 +120,12 @@ static void munlock_vma_page(struct page
+ 			putback_lru_page(page);
+ 		} else {
+ 			/*
+-			 * We lost the race.  let try_to_unmap() deal
+-			 * with it.  At least we get the page state and
+-			 * mlock stats right.  However, page is still on
+-			 * the noreclaim list.  We'll fix that up when
+-			 * the page is eventually freed or we scan the
+-			 * noreclaim list.
++			 * Some other task has removed the page from the LRU.
++			 * putback_lru_page() will take care of removing the
++			 * page from the unevictable list, if necessary.
++			 * vmscan [page_referenced()] will move the page back
++			 * to the unevictable list if some other vma has it
++			 * mlocked.
+ 			 */
+ 			if (PageUnevictable(page))
+ 				count_vm_event(UNEVICTABLE_PGSTRANDED);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
