@@ -1,88 +1,143 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 11/24] HWPOISON: detect free buddy pages explicitly
-Date: Wed, 02 Dec 2009 11:12:42 +0800
-Message-ID: <20091202043045.016245713@intel.com>
+Subject: [PATCH 14/24] HWPOISON: return 0 if page is assured to be isolated
+Date: Wed, 02 Dec 2009 11:12:45 +0800
+Message-ID: <20091202043045.394560341@intel.com>
 References: <20091202031231.735876003@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 62B3B6007AF
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 62CFF6007B7
 	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:38 -0500 (EST)
-Content-Disposition: inline; filename=hwpoison-is-free-page.patch
+Content-Disposition: inline; filename=hwpoison-isolated.patch
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Most free pages in the buddy system have no PG_buddy set.
-Introduce is_free_buddy_page() for detecting them reliably.
+Introduce hpc.page_isolated to record if page is assured to be
+isolated, ie. it won't be accessed in normal kernel code paths
+and therefore won't trigger another MCE event.
 
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Nick Piggin <npiggin@suse.de> 
-CC: Mel Gorman <mel@linux.vnet.ibm.com> 
+__memory_failure() will now return 0 to indicate that page is
+really isolated.  Note that the original used action result
+RECOVERED is not a reliable criterion.
+
+Note that we now don't bother to risk returning 0 for the
+rare unpoison/truncated cases.
+
+CC: Andi Kleen <andi@firstfloor.org> 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/internal.h       |    3 +++
- mm/memory-failure.c |    9 +++++++--
- mm/page_alloc.c     |   21 +++++++++++++++++++++
- 3 files changed, 31 insertions(+), 2 deletions(-)
+ mm/memory-failure.c |   28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)
 
---- linux-mm.orig/mm/memory-failure.c	2009-11-30 20:04:51.000000000 +0800
-+++ linux-mm/mm/memory-failure.c	2009-11-30 20:06:00.000000000 +0800
-@@ -783,8 +783,13 @@ int __memory_failure(unsigned long pfn, 
- 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
- 	 */
- 	if (!ref && !get_page_unless_zero(compound_head(p))) {
--		action_result(pfn, "free or high order kernel", IGNORED);
--		return PageBuddy(compound_head(p)) ? 0 : -EBUSY;
-+		if (is_free_buddy_page(p)) {
-+			action_result(pfn, "free buddy", DELAYED);
-+			return 0;
-+		} else {
-+			action_result(pfn, "high order kernel", IGNORED);
-+			return -EBUSY;
-+		}
- 	}
- 
- 	/*
---- linux-mm.orig/mm/internal.h	2009-11-30 11:08:34.000000000 +0800
-+++ linux-mm/mm/internal.h	2009-11-30 20:06:01.000000000 +0800
-@@ -50,6 +50,9 @@ extern void putback_lru_page(struct page
-  */
- extern void __free_pages_bootmem(struct page *page, unsigned int order);
- extern void prep_compound_page(struct page *page, unsigned long order);
-+#ifdef CONFIG_MEMORY_FAILURE
-+extern bool is_free_buddy_page(struct page *page);
-+#endif
- 
+--- linux-mm.orig/mm/memory-failure.c	2009-11-30 20:35:49.000000000 +0800
++++ linux-mm/mm/memory-failure.c	2009-11-30 20:40:56.000000000 +0800
+@@ -332,6 +332,7 @@ struct hwpoison_control {
+ 	struct page *p;		/* raw corrupted page */
+ 	struct page *page;	/* compound page head */
+ 	int result;
++	unsigned page_isolated:1;
+ };
  
  /*
---- linux-mm.orig/mm/page_alloc.c	2009-11-30 11:08:34.000000000 +0800
-+++ linux-mm/mm/page_alloc.c	2009-11-30 20:06:01.000000000 +0800
-@@ -5085,3 +5085,24 @@ __offline_isolated_pages(unsigned long s
- 	spin_unlock_irqrestore(&zone->lock, flags);
+@@ -529,9 +530,10 @@ static int me_swapcache_dirty(struct hwp
+ 	/* Trigger EIO in shmem: */
+ 	ClearPageUptodate(p);
+ 
+-	if (!delete_from_lru_cache(p))
++	if (!delete_from_lru_cache(p)) {
++		hpc->page_isolated = 1;
+ 		return DELAYED;
+-	else
++	} else
+ 		return FAILED;
  }
- #endif
+ 
+@@ -641,7 +643,7 @@ static void action_result(struct hwpoiso
+ 		msg, hwpoison_result_name[result]);
+ }
+ 
+-static int page_action(struct page_state *ps,
++static void page_action(struct page_state *ps,
+ 		       struct hwpoison_control *hpc)
+ {
+ 	int result;
+@@ -656,12 +658,15 @@ static int page_action(struct page_state
+ 		       "MCE %#lx: %s page still referenced by %d users\n",
+ 		       hpc->pfn, ps->msg, count);
+ 
++	if (result == RECOVERED)
++		hpc->page_isolated = 1;
++	if (count || page_mapcount(hpc->page))
++		hpc->page_isolated = 0;
 +
-+#ifdef CONFIG_MEMORY_FAILURE
-+bool is_free_buddy_page(struct page *page)
-+{
-+	struct zone *zone = page_zone(page);
-+	unsigned long pfn = page_to_pfn(page);
-+	unsigned long flags;
-+	int order;
-+
-+	spin_lock_irqsave(&zone->lock, flags);
-+	for (order = 0; order < MAX_ORDER; order++) {
-+		struct page *page_head = page - (pfn & ((1 << order) - 1));
-+
-+		if (PageBuddy(page_head) && page_order(page_head) >= order)
-+			break;
-+	}
-+	spin_unlock_irqrestore(&zone->lock, flags);
-+
-+	return order < MAX_ORDER;
-+}
-+#endif
+ 	/* Could do more checks here if page looks ok */
+ 	/*
+ 	 * Could adjust zone counters here to correct for the missing page.
+ 	 */
+-
+-	return result == RECOVERED ? 0 : -EBUSY;
+ }
+ 
+ #define N_UNMAP_TRIES 5
+@@ -767,7 +772,6 @@ int __memory_failure(unsigned long pfn, 
+ 	struct page_state *ps;
+ 	struct page *p;
+ 	struct page *page;
+-	int res;
+ 
+ 	if (!sysctl_memory_failure_recovery)
+ 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
+@@ -785,6 +789,7 @@ int __memory_failure(unsigned long pfn, 
+ 	hpc.pfn		= pfn;
+ 	hpc.p		= p;
+ 	hpc.page	= page;
++	hpc.page_isolated = 0;
+ 
+ 	if (TestSetPageHWPoison(p)) {
+ 		action_result(&hpc, "already hardware poisoned", IGNORED);
+@@ -842,7 +847,6 @@ int __memory_failure(unsigned long pfn, 
+ 	 */
+ 	if (!PageHWPoison(p)) {
+ 		action_result(&hpc, "unpoisoned", IGNORED);
+-		res = 0;
+ 		goto out;
+ 	}
+ 
+@@ -852,30 +856,26 @@ int __memory_failure(unsigned long pfn, 
+ 	 * Now take care of user space mappings.
+ 	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
+ 	 */
+-	if (hwpoison_user_mappings(&hpc, trapno) != SWAP_SUCCESS) {
+-		res = -EBUSY;
++	if (hwpoison_user_mappings(&hpc, trapno) != SWAP_SUCCESS)
+ 		goto out;
+-	}
+ 
+ 	/*
+ 	 * Torn down by someone else?
+ 	 */
+ 	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
+ 		action_result(&hpc, "already truncated LRU", IGNORED);
+-		res = 0;
+ 		goto out;
+ 	}
+ 
+-	res = -EBUSY;
+ 	for (ps = error_states;; ps++) {
+ 		if ((p->flags & ps->mask) == ps->res) {
+-			res = page_action(ps, &hpc);
++			page_action(ps, &hpc);
+ 			break;
+ 		}
+ 	}
+ out:
+ 	unlock_page(p);
+-	return res;
++	return hpc.page_isolated ? 0 : -EBUSY;
+ }
+ EXPORT_SYMBOL_GPL(__memory_failure);
+ 
 
 
 --
