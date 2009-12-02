@@ -1,55 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 82D796007D3
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:26:17 -0500 (EST)
-From: Roger Oksanen <roger.oksanen@cs.helsinki.fi>
-Subject: [RFC,PATCH 2/2] dmapool: Honor GFP_* flags.
-Date: Wed, 2 Dec 2009 15:23:39 +0200
-References: <200912021518.35877.roger.oksanen@cs.helsinki.fi>
-In-Reply-To: <200912021518.35877.roger.oksanen@cs.helsinki.fi>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 53FB5600762
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:29:02 -0500 (EST)
+Date: Wed, 2 Dec 2009 21:28:19 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 06/24] HWPOISON: abort on failed unmap
+Message-ID: <20091202132819.GC13277@localhost>
+References: <20091202031231.735876003@intel.com> <20091202043044.293905787@intel.com> <20091202131150.GE18989@one.firstfloor.org>
 MIME-Version: 1.0
-Message-Id: <200912021523.39696.roger.oksanen@cs.helsinki.fi>
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091202131150.GE18989@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Roger Oksanen <roger.oksanen@cs.helsinki.fi>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-dmapool: Honor GFP_* flags.
+On Wed, Dec 02, 2009 at 09:11:50PM +0800, Andi Kleen wrote:
+> >  	 * Now take care of user space mappings.
+> > +	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
+> >  	 */
+> > -	hwpoison_user_mappings(p, pfn, trapno);
+> > +	if (hwpoison_user_mappings(p, pfn, trapno) != SWAP_SUCCESS) {
+> > +		res = -EBUSY;
+> > +		goto out;
+> 
+> It would be good to print something in this case.
 
-dmapool silently discarded GFP flags and was always allowed to use the 
-emergency pool.
+OK.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Roger Oksanen <roger.oksanen@cs.helsinki.fi>
----
- mm/dmapool.c |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletions(-)
+> Did you actually see it during testing?
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index 2fdd7a1..e270f7f 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -312,6 +312,8 @@
- 	void *retval;
- 	int tries = 0;
- 	const gfp_t can_wait = mem_flags & __GFP_WAIT;
-+	/* dma_pool_alloc uses its own wait logic */
-+	mem_flags &= ~__GFP_WAIT;
- 
- 	spin_lock_irqsave(&pool->lock, flags);
-  restart:
-@@ -320,7 +322,7 @@
- 			goto ready;
- 	}
- 	tries++;
--	page = pool_alloc_page(pool, GFP_ATOMIC | (can_wait && tries % 10
-+	page = pool_alloc_page(pool, mem_flags | (can_wait && tries % 10
- 						  ? __GFP_NOWARN : 0));
- 	if (!page) {
- 		if (can_wait) {
+Perhaps not.
+
+> Or maybe loop forever in the unmapper.
+
+!SWAP_SUCCESS should be rare, so not necessary to loop forever?
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
