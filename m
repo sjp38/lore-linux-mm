@@ -1,97 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 69CE06007E3
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 16:30:26 -0500 (EST)
-Date: Wed, 2 Dec 2009 22:30:23 +0100 (CET)
-From: Tobias Oetiker <tobi@oetiker.ch>
-Subject: Re: still getting allocation failures (was Re: [PATCH] vmscan: Stop
- kswapd waiting on congestion when the min watermark is not being met V2)
-In-Reply-To: <20091202113241.GC1457@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.0912022210220.30023@sebohet.brgvxre.pu>
-References: <20091113142608.33B9.A69D9226@jp.fujitsu.com> <20091113135443.GF29804@csn.ul.ie> <20091114023138.3DA5.A69D9226@jp.fujitsu.com> <20091113181557.GM29804@csn.ul.ie> <2f11576a0911131033w4a9e6042k3349f0be290a167e@mail.gmail.com> <20091113200357.GO29804@csn.ul.ie>
- <alpine.DEB.2.00.0911261542500.21450@sebohet.brgvxre.pu> <alpine.DEB.2.00.0911290834470.20857@sebohet.brgvxre.pu> <20091202113241.GC1457@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C0D5D6007E3
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 16:42:16 -0500 (EST)
+From: Roger Oksanen <roger.oksanen@cs.helsinki.fi>
+Subject: Re: [RFC,PATCH 1/2] dmapool: Don't warn when allowed to retry allocation.
+Date: Wed, 2 Dec 2009 23:22:34 +0200
+References: <200912021518.35877.roger.oksanen@cs.helsinki.fi> <200912021520.12419.roger.oksanen@cs.helsinki.fi> <alpine.DEB.2.00.0912021355160.2547@router.home>
+In-Reply-To: <alpine.DEB.2.00.0912021355160.2547@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <200912022322.34363.roger.oksanen@cs.helsinki.fi>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Roger Oksanen <roger.oksanen@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+On Wednesday 02 December 2009 21:56:10 Christoph Lameter wrote:
+> On Wed, 2 Dec 2009, Roger Oksanen wrote:
+> > dmapool: Don't warn when allowed to retry allocation.
+> 
+> It warns after 10 attempts even when allowed to retry? Description is not
+> entirely accurate.
 
-Today Mel Gorman wrote:
+I left one part off by mistake. The whole descriptions should have read
+"dmapool uses it's own wait logic, so allocations failing may be retried
+if the called specified a waiting GFP_*. Unnecessary warnings only cause
+confusion. Every 10th retry will still cause a warning, to disclose a 
+possible problem."
 
-> On Sun, Nov 29, 2009 at 08:42:09AM +0100, Tobi Oetiker wrote:
-> > Hi Mel,
-> >
-> > Thursday Tobias Oetiker wrote:
-> > > Hi Mel,
-> > >
-> > > Nov 13 Mel Gorman wrote:
-> > >
-> > > > The last version has a stupid bug in it. Sorry.
-> > > >
-> > > > Changelog since V1
-> > > >   o Fix incorrect negation
-> > > >   o Rename kswapd_no_congestion_wait to kswapd_skip_congestion_wait as
-> > > >     suggested by Rik
-> > > >
-> > > > If reclaim fails to make sufficient progress, the priority is raised.
-> > > > Once the priority is higher, kswapd starts waiting on congestion.  However,
-> > > > if the zone is below the min watermark then kswapd needs to continue working
-> > > > without delay as there is a danger of an increased rate of GFP_ATOMIC
-> > > > allocation failure.
-> > > >
-> > > > This patch changes the conditions under which kswapd waits on
-> > > > congestion by only going to sleep if the min watermarks are being met.
-> > >
-> > > I finally got around to test this together with the whole series on
-> > > 2.6.31.6. after running it for a day I have not yet seen a single
-> > > order:5 allocation problem ... (while I had several an hour before)
-> >
-> > > for the record, my kernel is now running with the following
-> > > patches:
-> > >
-> > > patch1:Date: Thu, 12 Nov 2009 19:30:31 +0000
-> > > patch1:Subject: [PATCH 1/5] page allocator: Always wake kswapd when restarting an allocation attempt after direct reclaim failed
-> > >
-> > > patch2:Date: Thu, 12 Nov 2009 19:30:32 +0000
-> > > patch2:Subject: [PATCH 2/5] page allocator: Do not allow interrupts to use ALLOC_HARDER
-> > >
-> > > patch3:Date: Thu, 12 Nov 2009 19:30:33 +0000
-> > > patch3:Subject: [PATCH 3/5] page allocator: Wait on both sync and async congestion after direct reclaim
-> > >
-> > > patch4:Date: Thu, 12 Nov 2009 19:30:34 +0000
-> > > patch4:Subject: [PATCH 4/5] vmscan: Have kswapd sleep for a short interval and double check it should be asleep
-> > >
-> > > patch5:Date: Fri, 13 Nov 2009 20:03:57 +0000
-> > > patch5:Subject: [PATCH] vmscan: Stop kswapd waiting on congestion when the min watermark is not being met V2
-> > >
-> > > patch6:Date: Tue, 17 Nov 2009 10:34:21 +0000
-> > > patch6:Subject: [PATCH] vmscan: Have kswapd sleep for a short interval and double check it should be asleep fix 1
-> > >
-> > I have now been running the new kernel for a few days and I am
-> > sorry to report that about a day after booting the allocation
-> > failures started showing again. More order:4 instead of order:5 ...
-> >
->
-> Why has the order changed?
+10 retries (* POOL_TIMEOUT_JIFFIES) roughly means 1s, so then I assume there 
+is really some problems in finding the requested memory. If the pool allocator 
+was allowed to fail after n retries, then that point would probably be the 
+best place to warn on.
 
-? no idea ... the order has changed after applying the patches
-cited above.
-
-> Also, what allocator were you using in 2.6.30 and 2.6.31.6, SLAB or
-> SLUB? Did you happen to change them when upgrading the kernel?
-
-I have been and still am using SLUB  ...
-
-cheers
-tobi
-
-
+best regards,
 -- 
-Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
-http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
+Roger Oksanen <roger.oksanen@cs.helsinki.fi>
+http://www.cs.helsinki.fi/u/raoksane
++358 50 355 1990
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
