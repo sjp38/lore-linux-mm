@@ -1,113 +1,135 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 18/24] HWPOISON: add page flags filter
-Date: Wed, 02 Dec 2009 11:12:49 +0800
-Message-ID: <20091202043045.991390038@intel.com>
+Subject: [PATCH 09/24] HWPOISON: introduce delete_from_lru_cache()
+Date: Wed, 02 Dec 2009 11:12:40 +0800
+Message-ID: <20091202043044.709570707@intel.com>
 References: <20091202031231.735876003@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4137560079C
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:38 -0500 (EST)
-Content-Disposition: inline; filename=hwpoison-filter-pgflags.patch
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2FB536007AD
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:37 -0500 (EST)
+Content-Disposition: inline; filename=lru-flags.patch
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-When specified, only poison pages if ((page_flags & mask) == value).
+Introduce delete_from_lru_cache() to
+- clear PG_active, PG_unevictable to avoid complains at unpoison time
+- move the isolate_lru_page() call back to the handlers instead of the
+  entrance of __memory_failure(), this is more hwpoison filter friendly
 
--       corrupt-filter-flags-mask
--       corrupt-filter-flags-value
-
-This allows stress testing of many kinds of pages.
-
-Strictly speaking, the buddy pages requires taking zone lock, to avoid
-setting PG_hwpoison on a "was buddy but now allocated to someone" page.
-However we can just do nothing because we set PG_locked in the beginning,
-this prevents the page allocator from allocating it to someone. (It will
-BUG() on the unexpected PG_locked, which is fine for hwpoison testing.)
-
-CC: Nick Piggin <npiggin@suse.de>
 CC: Andi Kleen <andi@firstfloor.org>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/hwpoison-inject.c |   10 ++++++++++
- mm/internal.h        |    2 ++
- mm/memory-failure.c  |   18 ++++++++++++++++++
- 3 files changed, 30 insertions(+)
+ mm/memory-failure.c |   45 ++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 37 insertions(+), 8 deletions(-)
 
---- linux-mm.orig/mm/hwpoison-inject.c	2009-12-01 09:56:00.000000000 +0800
-+++ linux-mm/mm/hwpoison-inject.c	2009-12-01 09:56:06.000000000 +0800
-@@ -85,6 +85,16 @@ static int pfn_inject_init(void)
- 	if (!dentry)
- 		goto fail;
+--- linux-mm.orig/mm/memory-failure.c	2009-11-30 11:12:41.000000000 +0800
++++ linux-mm/mm/memory-failure.c	2009-11-30 20:04:43.000000000 +0800
+@@ -328,6 +328,30 @@ static const char *action_name[] = {
+ };
  
-+	dentry = debugfs_create_u64("corrupt-filter-flags-mask", 0600,
-+				    hwpoison_dir, &hwpoison_filter_flags_mask);
-+	if (!dentry)
-+		goto fail;
-+
-+	dentry = debugfs_create_u64("corrupt-filter-flags-value", 0600,
-+				    hwpoison_dir, &hwpoison_filter_flags_value);
-+	if (!dentry)
-+		goto fail;
-+
- 	return 0;
- fail:
- 	pfn_inject_exit();
---- linux-mm.orig/mm/internal.h	2009-12-01 09:56:00.000000000 +0800
-+++ linux-mm/mm/internal.h	2009-12-01 09:56:06.000000000 +0800
-@@ -268,3 +268,5 @@ extern int hwpoison_filter(struct page *
- 
- extern u32 hwpoison_filter_dev_major;
- extern u32 hwpoison_filter_dev_minor;
-+extern u64 hwpoison_filter_flags_mask;
-+extern u64 hwpoison_filter_flags_value;
---- linux-mm.orig/mm/memory-failure.c	2009-11-30 20:51:22.000000000 +0800
-+++ linux-mm/mm/memory-failure.c	2009-12-01 09:56:06.000000000 +0800
-@@ -34,6 +34,7 @@
- #include <linux/kernel.h>
- #include <linux/mm.h>
- #include <linux/page-flags.h>
-+#include <linux/kernel-page-flags.h>
- #include <linux/sched.h>
- #include <linux/ksm.h>
- #include <linux/rmap.h>
-@@ -50,6 +51,8 @@ atomic_long_t mce_bad_pages __read_mostl
- 
- u32 hwpoison_filter_dev_major = ~0U;
- u32 hwpoison_filter_dev_minor = ~0U;
-+u64 hwpoison_filter_flags_mask;
-+u64 hwpoison_filter_flags_value;
- 
- static int hwpoison_filter_dev(struct page *p)
- {
-@@ -81,11 +84,26 @@ static int hwpoison_filter_dev(struct pa
- 	return 0;
- }
- 
-+static int hwpoison_filter_flags(struct page *p)
+ /*
++ * XXX: It is possible that a page is isolated from LRU cache,
++ * and then kept in swap cache or failed to remove from page cache.
++ * The page count will stop it from being freed by unpoison.
++ * Stress tests should be aware of this memory leak problem.
++ */
++static int delete_from_lru_cache(struct page *p)
 +{
-+	if (!hwpoison_filter_flags_mask)
++	if (!isolate_lru_page(p)) {
++		/*
++		 * Clear sensible page flags, so that the buddy system won't
++		 * complain when the page is unpoison-and-freed.
++		 */
++		ClearPageActive(p);
++		ClearPageUnevictable(p);
++		/*
++		 * drop the page count elevated by isolate_lru_page()
++		 */
++		page_cache_release(p);
 +		return 0;
-+
-+	if ((stable_page_flags(p) & hwpoison_filter_flags_mask) ==
-+				    hwpoison_filter_flags_value)
-+		return 0;
-+	else
-+		return -EINVAL;
++	}
++	return -EIO;
 +}
 +
- int hwpoison_filter(struct page *p)
- {
- 	if (hwpoison_filter_dev(p))
- 		return -EINVAL;
++/*
+  * Error hit kernel page.
+  * Do nothing, try to be lucky and not touch this instead. For a few cases we
+  * could be more sophisticated.
+@@ -371,6 +395,8 @@ static int me_pagecache_clean(struct pag
+ 	int ret = FAILED;
+ 	struct address_space *mapping;
  
-+	if (hwpoison_filter_flags(p))
-+		return -EINVAL;
++	delete_from_lru_cache(p);
 +
- 	return 0;
+ 	/*
+ 	 * For anonymous pages we're done the only reference left
+ 	 * should be the one m_f() holds.
+@@ -500,14 +526,20 @@ static int me_swapcache_dirty(struct pag
+ 	/* Trigger EIO in shmem: */
+ 	ClearPageUptodate(p);
+ 
+-	return DELAYED;
++	if (!delete_from_lru_cache(p))
++		return DELAYED;
++	else
++		return FAILED;
  }
  
+ static int me_swapcache_clean(struct page *p, unsigned long pfn)
+ {
+ 	delete_from_swap_cache(p);
+ 
+-	return RECOVERED;
++	if (!delete_from_lru_cache(p))
++		return RECOVERED;
++	else
++		return FAILED;
+ }
+ 
+ /*
+@@ -726,7 +758,6 @@ static int hwpoison_user_mappings(struct
+ 
+ int __memory_failure(unsigned long pfn, int trapno, int ref)
+ {
+-	unsigned long lru_flag;
+ 	struct page_state *ps;
+ 	struct page *p;
+ 	int res;
+@@ -775,13 +806,11 @@ int __memory_failure(unsigned long pfn, 
+ 	 */
+ 	if (!PageLRU(p))
+ 		lru_add_drain_all();
+-	lru_flag = p->flags & lru;
+-	if (isolate_lru_page(p)) {
++	if (!PageLRU(p)) {
+ 		action_result(pfn, "non LRU", IGNORED);
+ 		put_page(p);
+ 		return -EBUSY;
+ 	}
+-	page_cache_release(p);
+ 
+ 	/*
+ 	 * Lock the page and wait for writeback to finish.
+@@ -803,7 +832,7 @@ int __memory_failure(unsigned long pfn, 
+ 	/*
+ 	 * Torn down by someone else?
+ 	 */
+-	if ((lru_flag & lru) && !PageSwapCache(p) && p->mapping == NULL) {
++	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
+ 		action_result(pfn, "already truncated LRU", IGNORED);
+ 		res = 0;
+ 		goto out;
+@@ -811,7 +840,7 @@ int __memory_failure(unsigned long pfn, 
+ 
+ 	res = -EBUSY;
+ 	for (ps = error_states;; ps++) {
+-		if (((p->flags | lru_flag)& ps->mask) == ps->res) {
++		if ((p->flags & ps->mask) == ps->res) {
+ 			res = page_action(ps, p, pfn);
+ 			break;
+ 		}
 
 
 --
