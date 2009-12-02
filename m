@@ -1,52 +1,40 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 10/24] HWPOISON: remove the free buddy page handler
-Date: Wed, 02 Dec 2009 11:12:41 +0800
-Message-ID: <20091202043044.878843398@intel.com>
+Subject: [PATCH 02/24] migrate: page could be locked by hwpoison, dont BUG()
+Date: Wed, 02 Dec 2009 11:12:33 +0800
+Message-ID: <20091202043043.840044332@intel.com>
 References: <20091202031231.735876003@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 05D486007A3
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 22EC36007A5
 	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:37 -0500 (EST)
-Content-Disposition: inline; filename=hwpoison-remove-free-handler.patch
+Content-Disposition: inline; filename=hwpoison-migrate-trylock-fix.patch
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-The buddy page has already be handled in the very beginning.
-So remove redundant code.
+The new page could be taken by hwpoison, in which case
+return EAGAIN to allocate a new page and retry.
 
-CC: Andi Kleen <andi@firstfloor.org>
+CC: Nick Piggin <npiggin@suse.de>
+CC: Christoph Lameter <cl@linux-foundation.org>
+CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/memory-failure.c |    9 ---------
- 1 file changed, 9 deletions(-)
+ mm/migrate.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- linux-mm.orig/mm/memory-failure.c	2009-11-09 10:57:50.000000000 +0800
-+++ linux-mm/mm/memory-failure.c	2009-11-09 10:59:26.000000000 +0800
-@@ -379,14 +379,6 @@ static int me_unknown(struct page *p, un
- }
+--- linux-mm.orig/mm/migrate.c	2009-11-02 10:18:45.000000000 +0800
++++ linux-mm/mm/migrate.c	2009-11-02 10:26:16.000000000 +0800
+@@ -556,7 +556,7 @@ static int move_to_new_page(struct page 
+ 	 * holding a reference to the new page at this point.
+ 	 */
+ 	if (!trylock_page(newpage))
+-		BUG();
++		return -EAGAIN;		/* got by hwpoison */
  
- /*
-- * Free memory
-- */
--static int me_free(struct page *p, unsigned long pfn)
--{
--	return DELAYED;
--}
--
--/*
-  * Clean (or cleaned) page cache page.
-  */
- static int me_pagecache_clean(struct page *p, unsigned long pfn)
-@@ -592,7 +584,6 @@ static struct page_state {
- 	int (*action)(struct page *p, unsigned long pfn);
- } error_states[] = {
- 	{ reserved,	reserved,	"reserved kernel",	me_ignore },
--	{ buddy,	buddy,		"free kernel",	me_free },
- 
- 	/*
- 	 * Could in theory check if slab page is free or if we can drop
+ 	/* Prepare mapping for the new page.*/
+ 	newpage->index = page->index;
 
 
 --
