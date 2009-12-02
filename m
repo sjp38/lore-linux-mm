@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DB3FF600762
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:44:18 -0500 (EST)
-Date: Wed, 2 Dec 2009 14:44:15 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 06/24] HWPOISON: abort on failed unmap
-Message-ID: <20091202134415.GJ18989@one.firstfloor.org>
-References: <20091202031231.735876003@intel.com> <20091202043044.293905787@intel.com> <20091202131150.GE18989@one.firstfloor.org> <20091202132819.GC13277@localhost>
-Mime-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3B45E600762
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:47:09 -0500 (EST)
+Date: Wed, 2 Dec 2009 21:46:45 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 12/24] HWPOISON: make it possible to unpoison pages
+Message-ID: <20091202134645.GA19274@localhost>
+References: <20091202031231.735876003@intel.com> <20091202043045.150526892@intel.com> <20091202131530.GG18989@one.firstfloor.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091202132819.GC13277@localhost>
+In-Reply-To: <20091202131530.GG18989@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 02, 2009 at 09:28:19PM +0800, Wu Fengguang wrote:
-> On Wed, Dec 02, 2009 at 09:11:50PM +0800, Andi Kleen wrote:
-> > >  	 * Now take care of user space mappings.
-> > > +	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
-> > >  	 */
-> > > -	hwpoison_user_mappings(p, pfn, trapno);
-> > > +	if (hwpoison_user_mappings(p, pfn, trapno) != SWAP_SUCCESS) {
-> > > +		res = -EBUSY;
-> > > +		goto out;
-> > 
-> > It would be good to print something in this case.
+On Wed, Dec 02, 2009 at 09:15:30PM +0800, Andi Kleen wrote:
+> > Note that it may leak pages silently - those who have been removed from
+> > LRU cache, but not isolated from page cache/swap cache at hwpoison time.
 > 
-> OK.
+> It would be better if we could detect that somehow and at least warn.
 
-I'll add it.
+We warned when some page cannot be isolated (but didn't mention it may
+lead to memory leak).
 
+We exported the hwpoison counter in /proc/meminfo.  The memory leak is
+mainly a problem with stress testing, and the test cases can make use
+of that counter to do sanity checking.
+
+> >  }
+> >  
+> > +static int hwpoison_forget(void *data, u64 val)
+> > +{
+> > +	if (!capable(CAP_SYS_ADMIN))
+> > +		return -EPERM;
+> > +
+> > +	return forget_memory_failure(val);
+> > +}
+> > +
+> >  DEFINE_SIMPLE_ATTRIBUTE(hwpoison_fops, NULL, hwpoison_inject, "%lli\n");
+> > +DEFINE_SIMPLE_ATTRIBUTE(unpoison_fops, NULL, hwpoison_forget, "%lli\n");
 > 
-> > Did you actually see it during testing?
-> 
-> Perhaps not.
-> 
-> > Or maybe loop forever in the unmapper.
-> 
-> !SWAP_SUCCESS should be rare, so not necessary to loop forever?
+> I'll rename it to unpoison, not forget. I think that's a more clear
+> name.
 
-I think the loop I originally added was overcautious and could
-be even removed possibly now. It probably needs some more analysis how l
-ikely unmapping failures really are.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+btw, do you feel comfortable with the interface name "renew-pfn"?
+(versus "unpoison-pfn")
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
