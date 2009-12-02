@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D145B6007DB
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 10:24:55 -0500 (EST)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e37.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id nB2FNb0e009671
-	for <linux-mm@kvack.org>; Wed, 2 Dec 2009 08:23:37 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nB2FOcIp037118
-	for <linux-mm@kvack.org>; Wed, 2 Dec 2009 08:24:38 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nB29FQl6009563
-	for <linux-mm@kvack.org>; Wed, 2 Dec 2009 02:15:26 -0700
-Subject: Re: [PATCH] hugetlb: Abort a hugepage pool resize if a signal is
- pending
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20091202141504.GE1457@csn.ul.ie>
-References: <20091202141504.GE1457@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with ESMTP id 51DEB6007DB
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 11:29:25 -0500 (EST)
+Subject: Re: [PATCH/RFC 1/6] numa: Use Generic Per-cpu Variables for
+ numa_node_id()
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <200912010043.36115.arnd@arndb.de>
+References: <20091113211714.15074.29078.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.1.10.0911201044320.25879@V090114053VZO-1>
+	 <1259612920.4663.156.camel@useless.americas.hpqcorp.net>
+	 <200912010043.36115.arnd@arndb.de>
 Content-Type: text/plain
-Date: Wed, 02 Dec 2009 07:24:35 -0800
-Message-Id: <1259767475.24696.2368.camel@nimitz>
+Date: Wed, 02 Dec 2009 11:29:21 -0500
+Message-Id: <1259771361.4088.25.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-12-02 at 14:15 +0000, Mel Gorman wrote:
-> If a user asks for a hugepage pool resize but specified a large number, the
-> machine can begin trashing. In response, they might hit ctrl-c but signals
-> are ignored and the pool resize continues until it fails an allocation. This
-> can take a considerable amount of time so this patch aborts a pool resize
-> if a signal is pending.
+On Tue, 2009-12-01 at 00:43 +0100, Arnd Bergmann wrote:
+> On Monday 30 November 2009, Lee Schermerhorn wrote:
+> > Looking at other asm/foo.h and asm-generic/foo.h relationships, I see
+> > that some define the generic version of the api in the asm-generic
+> > header if the arch asm header hasn't already defined it.  asm/topology.h
+> > is an instance of this.  It includes asm-generic/topology.h after
+> > defining arch specific versions of some of the api.
 > 
-> [dave@linux.vnet.ibm.com: His idea]
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/hugetlb.c |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
+> This works alright, but if you expect every architecture to include the
+> asm-generic version, you might just as well take that choice away from
+> the architecture and put the common code into the linux/foo.h file,
+> which you can still override with definitions in asm/foo.h.
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index af02ee8..a952cb8 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1238,6 +1238,9 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count)
->  		if (!ret)
->  			goto out;
+> Most of the asm-generic headers are just mostly generic, and get included
+> by some but not all architectures, the others defining the whole contents
+> of the asm-generic file themselves in a different way.
 > 
-> +		/* Bail for signals. Probably ctrl-c from user */
-> +		if (signal_pending(current))
-> +			goto out;
+> So if you e.g. want ia64 to do everything itself and all other architectures to
+> share some or all parts of asm-generic/topology, your approach is right,
+> otherwise just leave the code in some file in include/linux/.
 
-Thanks, Mel!
+Actually, I just wanted to make the generic definitions of
+this_cpu_{read|write}() visible to topology.h when building on ia64 w/o
+the circular header dependencies.  Willy pointed out a way to do this by
+un-inlining __alloc_percpu().  Perhaps this is the way to go.  Tejun is
+looking at the patches.
 
-This will help m unwedge my system the next time I fat-finger an extra
-zero or two into my hugepage pool size.
-
--- Dave
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
