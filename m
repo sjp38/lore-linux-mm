@@ -1,23 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BBD8B6007E3
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 14:45:24 -0500 (EST)
-Date: Wed, 2 Dec 2009 13:44:45 -0600 (CST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5339E6007E3
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 14:56:39 -0500 (EST)
+Date: Wed, 2 Dec 2009 13:56:10 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] mm:  remove unevictable_migrate_page function
-In-Reply-To: <1259778941.4088.176.camel@useless.americas.hpqcorp.net>
-Message-ID: <alpine.DEB.2.00.0912021344330.2547@router.home>
-References: <1259778941.4088.176.camel@useless.americas.hpqcorp.net>
+Subject: Re: [RFC,PATCH 1/2] dmapool: Don't warn when allowed to retry
+ allocation.
+In-Reply-To: <200912021520.12419.roger.oksanen@cs.helsinki.fi>
+Message-ID: <alpine.DEB.2.00.0912021355160.2547@router.home>
+References: <200912021518.35877.roger.oksanen@cs.helsinki.fi> <200912021520.12419.roger.oksanen@cs.helsinki.fi>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm <linux-mm@kvack.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Roger Oksanen <roger.oksanen@cs.helsinki.fi>
+Cc: linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 2 Dec 2009, Roger Oksanen wrote:
 
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+> dmapool: Don't warn when allowed to retry allocation.
 
+It warns after 10 attempts even when allowed to retry? Description is not
+entirely accurate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
