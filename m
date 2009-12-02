@@ -1,29 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D7356600762
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:09:08 -0500 (EST)
-Date: Wed, 2 Dec 2009 14:09:04 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F28B6600762
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:11:56 -0500 (EST)
+Date: Wed, 2 Dec 2009 14:11:50 +0100
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 02/24] migrate: page could be locked by hwpoison, dont BUG()
-Message-ID: <20091202130904.GD18989@one.firstfloor.org>
-References: <20091202031231.735876003@intel.com> <20091202043043.840044332@intel.com>
+Subject: Re: [PATCH 06/24] HWPOISON: abort on failed unmap
+Message-ID: <20091202131150.GE18989@one.firstfloor.org>
+References: <20091202031231.735876003@intel.com> <20091202043044.293905787@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091202043043.840044332@intel.com>
+In-Reply-To: <20091202043044.293905787@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 02, 2009 at 11:12:33AM +0800, Wu Fengguang wrote:
-> The new page could be taken by hwpoison, in which case
-> return EAGAIN to allocate a new page and retry.
+>  	 * Now take care of user space mappings.
+> +	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
+>  	 */
+> -	hwpoison_user_mappings(p, pfn, trapno);
+> +	if (hwpoison_user_mappings(p, pfn, trapno) != SWAP_SUCCESS) {
+> +		res = -EBUSY;
+> +		goto out;
 
-Previously there were some complaints about this patch, but I guess
-it doesn't hurt, so I'll add it.
+It would be good to print something in this case.
+
+Did you actually see it during testing?
+
+Or maybe loop forever in the unmapper.
 
 -Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
