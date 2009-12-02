@@ -1,36 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF41600762
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 07:44:51 -0500 (EST)
-Date: Wed, 2 Dec 2009 13:44:46 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D303600762
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 07:47:35 -0500 (EST)
+Date: Wed, 2 Dec 2009 13:47:30 +0100
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 22/24] HWPOISON: add memory cgroup filter
-Message-ID: <20091202124446.GA18989@one.firstfloor.org>
-References: <20091202031231.735876003@intel.com> <20091202043046.519053333@intel.com>
+Subject: Re: [PATCH 14/24] HWPOISON: return 0 if page is assured to be isolated
+Message-ID: <20091202124730.GB18989@one.firstfloor.org>
+References: <20091202031231.735876003@intel.com> <20091202043045.394560341@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091202043046.519053333@intel.com>
+In-Reply-To: <20091202043045.394560341@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
->  
-> +static int hwpoison_filter_task(struct page *p)
-> +{
+On Wed, Dec 02, 2009 at 11:12:45AM +0800, Wu Fengguang wrote:
+> Introduce hpc.page_isolated to record if page is assured to be
+> isolated, ie. it won't be accessed in normal kernel code paths
+> and therefore won't trigger another MCE event.
+> 
+> __memory_failure() will now return 0 to indicate that page is
+> really isolated.  Note that the original used action result
+> RECOVERED is not a reliable criterion.
+> 
+> Note that we now don't bother to risk returning 0 for the
+> rare unpoison/truncated cases.
 
-Can we make that ifdef instead of depends on ?
+That's the only user of the new hwpoison_control structure right?
+I think I prefer for that single bit to extend the return values
+and keep the arguments around. structures are not nice to read.
+
+I'll change the code.
 
 -Andi
->  config HWPOISON_INJECT
-> -	tristate "Poison pages injector"
-> +	tristate "HWPoison pages injector"
->  	depends on MEMORY_FAILURE && DEBUG_KERNEL
-> +	depends on CGROUP_MEM_RES_CTLR_SWAP
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
