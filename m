@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D39B96007DB
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 11:36:52 -0500 (EST)
-Subject: [PATCH] mlock:  replace stale comments in munlock_vma_page()
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 73DA06007E3
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 13:36:25 -0500 (EST)
+Subject: [PATCH] mm:  remove unevictable_migrate_page function
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 Content-Type: text/plain
-Date: Wed, 02 Dec 2009 11:35:35 -0500
-Message-Id: <1259771735.4088.31.camel@useless.americas.hpqcorp.net>
+Date: Wed, 02 Dec 2009 13:35:41 -0500
+Message-Id: <1259778941.4088.176.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -15,74 +15,54 @@ Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KOSAKI Motohiro <kosaki.motohiro@
 List-ID: <linux-mm.kvack.org>
 
 
-
-Cleanup stale comments on munlock_vma_page().
+unevictable_migrate_page() in mm/internal.h is a relic of the
+since removed UNEVICTABLE_LRU Kconfig option.  This patch removes
+the function and open codes the test in migrate_page_copy().
 
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
- mm/mlock.c |   41 +++++++++++++++++++----------------------
- 1 files changed, 19 insertions(+), 22 deletions(-)
+ mm/internal.h |   12 ------------
+ mm/migrate.c  |    4 ++--
+ 2 files changed, 2 insertions(+), 14 deletions(-)
 
-Index: linux-2.6.32-rc8/mm/mlock.c
+Index: linux-2.6.32-rc8/mm/internal.h
 ===================================================================
---- linux-2.6.32-rc8.orig/mm/mlock.c	2009-11-24 13:19:58.000000000 -0500
-+++ linux-2.6.32-rc8/mm/mlock.c	2009-12-01 13:27:25.000000000 -0500
-@@ -88,23 +88,20 @@ void mlock_vma_page(struct page *page)
- 	}
+--- linux-2.6.32-rc8.orig/mm/internal.h	2009-11-24 13:19:58.000000000 -0500
++++ linux-2.6.32-rc8/mm/internal.h	2009-12-01 13:33:11.000000000 -0500
+@@ -74,18 +74,6 @@ static inline void munlock_vma_pages_all
  }
+ #endif
  
 -/*
-- * called from munlock()/munmap() path with page supposedly on the LRU.
-+/**
-+ * munlock_vma_page - munlock a vma page
-+ * @page - page to be unlocked
-  *
-- * Note:  unlike mlock_vma_page(), we can't just clear the PageMlocked
-- * [in try_to_munlock()] and then attempt to isolate the page.  We must
-- * isolate the page to keep others from messing with its unevictable
-- * and mlocked state while trying to munlock.  However, we pre-clear the
-- * mlocked state anyway as we might lose the isolation race and we might
-- * not get another chance to clear PageMlocked.  If we successfully
-- * isolate the page and try_to_munlock() detects other VM_LOCKED vmas
-- * mapping the page, it will restore the PageMlocked state, unless the page
-- * is mapped in a non-linear vma.  So, we go ahead and SetPageMlocked(),
-- * perhaps redundantly.
-- * If we lose the isolation race, and the page is mapped by other VM_LOCKED
-- * vmas, we'll detect this in vmscan--via try_to_munlock() or try_to_unmap()
-- * either of which will restore the PageMlocked state by calling
-- * mlock_vma_page() above, if it can grab the vma's mmap sem.
-+ * called from munlock()/munmap() path with page supposedly on the LRU.
-+ * When we munlock a page, because the vma where we found the page is being
-+ * munlock()ed or munmap()ed, we want to check whether other vmas hold the
-+ * page locked so that we can leave it on the unevictable lru list and not
-+ * bother vmscan with it.  However, to walk the page's rmap list in
-+ * try_to_munlock() we must isolate the page from the LRU.  If some other
-+ * task has removed the page from the LRU, we won't be able to do that.
-+ * So we clear the PageMlocked as we might not get another chance.  If we
-+ * can't isolate the page, we leave it for putback_lru_page() and vmscan
-+ * [page_referenced()/try_to_unmap()] to deal with.
-  */
- static void munlock_vma_page(struct page *page)
- {
-@@ -123,12 +120,12 @@ static void munlock_vma_page(struct page
- 			putback_lru_page(page);
- 		} else {
- 			/*
--			 * We lost the race.  let try_to_unmap() deal
--			 * with it.  At least we get the page state and
--			 * mlock stats right.  However, page is still on
--			 * the noreclaim list.  We'll fix that up when
--			 * the page is eventually freed or we scan the
--			 * noreclaim list.
-+			 * Some other task has removed the page from the LRU.
-+			 * putback_lru_page() will take care of removing the
-+			 * page from the unevictable list, if necessary.
-+			 * vmscan [page_referenced()] will move the page back
-+			 * to the unevictable list if some other vma has it
-+			 * mlocked.
- 			 */
- 			if (PageUnevictable(page))
- 				count_vm_event(UNEVICTABLE_PGSTRANDED);
+- * unevictable_migrate_page() called only from migrate_page_copy() to
+- * migrate unevictable flag to new page.
+- * Note that the old page has been isolated from the LRU lists at this
+- * point so we don't need to worry about LRU statistics.
+- */
+-static inline void unevictable_migrate_page(struct page *new, struct page *old)
+-{
+-	if (TestClearPageUnevictable(old))
+-		SetPageUnevictable(new);
+-}
+-
+ #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
+ /*
+  * Called only in fault path via page_evictable() for a new page
+Index: linux-2.6.32-rc8/mm/migrate.c
+===================================================================
+--- linux-2.6.32-rc8.orig/mm/migrate.c	2009-11-24 13:19:58.000000000 -0500
++++ linux-2.6.32-rc8/mm/migrate.c	2009-12-01 13:32:48.000000000 -0500
+@@ -341,8 +341,8 @@ static void migrate_page_copy(struct pag
+ 	if (TestClearPageActive(page)) {
+ 		VM_BUG_ON(PageUnevictable(page));
+ 		SetPageActive(newpage);
+-	} else
+-		unevictable_migrate_page(newpage, page);
++	} else if (TestClearPageUnevictable(page))
++		SetPageUnevictable(newpage);
+ 	if (PageChecked(page))
+ 		SetPageChecked(newpage);
+ 	if (PageMappedToDisk(page))
 
 
 --
