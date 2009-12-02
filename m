@@ -1,154 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 177B660021B
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 22:28:30 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB23SS8D028571
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 2 Dec 2009 12:28:28 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 51A2945DE4F
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 12:28:28 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2182145DE4D
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 12:28:28 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ECC9E1DB803B
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 12:28:27 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F8B01DB8038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 12:28:27 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] Replace page_mapping_inuse() with page_mapped()
-In-Reply-To: <4B15D9F8.9090800@redhat.com>
-References: <20091202115358.5C4F.A69D9226@jp.fujitsu.com> <4B15D9F8.9090800@redhat.com>
-Message-Id: <20091202121152.5C52.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 009A16007BF
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:42:51 -0500 (EST)
+Date: Wed, 2 Dec 2009 12:42:45 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 17/24] mm: export stable page flags
+Message-ID: <20091202044244.GA29928@localhost>
+References: <20091202031231.735876003@intel.com> <20091202043045.852342473@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed,  2 Dec 2009 12:28:26 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091202043045.852342473@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> On 12/01/2009 09:55 PM, KOSAKI Motohiro wrote:
-> >> btw, current shrink_active_list() have unnecessary page_mapping_inuse(=
-) call.
-> >> it prevent to drop page reference bit from unmapped cache page. it mea=
-n
-> >> we protect unmapped cache page than mapped page. it is strange.
-> >>     =20
-> > How about this?
-> >
-> > ---------------------------------
-> > SplitLRU VM replacement algorithm assume shrink_active_list() clear
-> > the page's reference bit. but unnecessary page_mapping_inuse() test
-> > prevent it.
-> >
-> > This patch remove it.
-> >   =20
-> Shrink_page_list ignores the referenced bit on pages
-> that are !page_mapping_inuse().
->=20
->                  if (sc->order <=3D PAGE_ALLOC_COSTLY_ORDER &&
->                                          referenced &&=20
-> page_mapping_inuse(page)
-> && !(vm_flags & VM_LOCKED))
->                          goto activate_locked;
->=20
-> The reason we leave the referenced bit on unmapped
-> pages is that we want the next reference to a deactivated
-> page cache page to move that page back to the active
-> list.  We do not want to require that such a page gets
-> accessed twice before being reactivated while on the
-> inactive list, because (1) we know it was a frequently
-> accessed page already and (2) ongoing streaming IO
-> might evict it from the inactive list before it gets accessed
-> twice.
->=20
-> Arguably, we should just replace the page_mapping_inuse()
-> in both places with page_mapped() to simplify things.
+[corrected CC to Christoph Lameter <cl@linux-foundation.org>]
 
-Ah, yes. /me was slept. thanks correct me.
-
-
-=46rom 61340720e6e66b645db8d5410e89fd3b67eda907 Mon Sep 17 00:00:00 2001
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 2 Dec 2009 12:05:26 +0900
-Subject: [PATCH] Replace page_mapping_inuse() with page_mapped()
-
-page reclaim logic need to distingish mapped and unmapped pages.
-However page_mapping_inuse() don't provide proper test way. it test
-the address space (i.e. file) is mmpad(). Why `page' reclaim need
-care unrelated page's mapped state? it's unrelated.
-
-Thus, This patch replace page_mapping_inuse() with page_mapped()
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |   25 ++-----------------------
- 1 files changed, 2 insertions(+), 23 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 00156f2..350b9cc 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -277,27 +277,6 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t=
- gfp_mask,
- 	return ret;
- }
-=20
--/* Called without lock on whether page is mapped, so answer is unstable */
--static inline int page_mapping_inuse(struct page *page)
--{
--	struct address_space *mapping;
--
--	/* Page is in somebody's page tables. */
--	if (page_mapped(page))
--		return 1;
--
--	/* Be more reluctant to reclaim swapcache than pagecache */
--	if (PageSwapCache(page))
--		return 1;
--
--	mapping =3D page_mapping(page);
--	if (!mapping)
--		return 0;
--
--	/* File is mmap'd by somebody? */
--	return mapping_mapped(mapping);
--}
--
- static inline int is_page_cache_freeable(struct page *page)
- {
- 	/*
-@@ -663,7 +642,7 @@ static unsigned long shrink_page_list(struct list_head =
-*page_list,
- 		 * try_to_unmap moves it to unevictable list
- 		 */
- 		if (sc->order <=3D PAGE_ALLOC_COSTLY_ORDER &&
--					referenced && page_mapping_inuse(page)
-+					referenced && page_mapped(page)
- 					&& !(vm_flags & VM_LOCKED))
- 			goto activate_locked;
-=20
-@@ -1347,7 +1326,7 @@ static void shrink_active_list(unsigned long nr_pages=
-, struct zone *zone,
- 		}
-=20
- 		/* page_referenced clears PageReferenced */
--		if (page_mapping_inuse(page) &&
-+		if (page_mapped(page) &&
- 		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
- 			nr_rotated++;
- 			/*
---=20
-1.6.5.2
-
-
-
-
+On Wed, Dec 02, 2009 at 11:12:48AM +0800, Wu, Fengguang wrote:
+> Rename get_uflags() to stable_page_flags() and make it a global function
+> for use in the hwpoison page flags filter, which need to compare user
+> page flags with the value provided by user space.
+> 
+> Also move KPF_* to kernel-page-flags.h for use by user space tools.
+> 
+> CC: Matt Mackall <mpm@selenic.com>
+> CC: Nick Piggin <npiggin@suse.de>
+> CC: Christoph Lameter <clameter@sgi.com>
+> CC: Andi Kleen <andi@firstfloor.org>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/proc/page.c                    |   45 +--------------------------
+>  include/linux/kernel-page-flags.h |   46 ++++++++++++++++++++++++++++
+>  include/linux/page-flags.h        |    2 +
+>  3 files changed, 51 insertions(+), 42 deletions(-)
+> 
+> --- linux-mm.orig/fs/proc/page.c	2009-11-07 20:23:59.000000000 +0800
+> +++ linux-mm/fs/proc/page.c	2009-11-07 20:37:31.000000000 +0800
+> @@ -8,6 +8,7 @@
+>  #include <linux/proc_fs.h>
+>  #include <linux/seq_file.h>
+>  #include <linux/hugetlb.h>
+> +#include <linux/kernel-page-flags.h>
+>  #include <asm/uaccess.h>
+>  #include "internal.h"
+>  
+> @@ -71,52 +72,12 @@ static const struct file_operations proc
+>   * physical page flags.
+>   */
+>  
+> -/* These macros are used to decouple internal flags from exported ones */
+> -
+> -#define KPF_LOCKED		0
+> -#define KPF_ERROR		1
+> -#define KPF_REFERENCED		2
+> -#define KPF_UPTODATE		3
+> -#define KPF_DIRTY		4
+> -#define KPF_LRU			5
+> -#define KPF_ACTIVE		6
+> -#define KPF_SLAB		7
+> -#define KPF_WRITEBACK		8
+> -#define KPF_RECLAIM		9
+> -#define KPF_BUDDY		10
+> -
+> -/* 11-20: new additions in 2.6.31 */
+> -#define KPF_MMAP		11
+> -#define KPF_ANON		12
+> -#define KPF_SWAPCACHE		13
+> -#define KPF_SWAPBACKED		14
+> -#define KPF_COMPOUND_HEAD	15
+> -#define KPF_COMPOUND_TAIL	16
+> -#define KPF_HUGE		17
+> -#define KPF_UNEVICTABLE		18
+> -#define KPF_HWPOISON		19
+> -#define KPF_NOPAGE		20
+> -
+> -#define KPF_KSM			21
+> -
+> -/* kernel hacking assistances
+> - * WARNING: subject to change, never rely on them!
+> - */
+> -#define KPF_RESERVED		32
+> -#define KPF_MLOCKED		33
+> -#define KPF_MAPPEDTODISK	34
+> -#define KPF_PRIVATE		35
+> -#define KPF_PRIVATE_2		36
+> -#define KPF_OWNER_PRIVATE	37
+> -#define KPF_ARCH		38
+> -#define KPF_UNCACHED		39
+> -
+>  static inline u64 kpf_copy_bit(u64 kflags, int ubit, int kbit)
+>  {
+>  	return ((kflags >> kbit) & 1) << ubit;
+>  }
+>  
+> -static u64 get_uflags(struct page *page)
+> +u64 stable_page_flags(struct page *page)
+>  {
+>  	u64 k;
+>  	u64 u;
+> @@ -219,7 +180,7 @@ static ssize_t kpageflags_read(struct fi
+>  		else
+>  			ppage = NULL;
+>  
+> -		if (put_user(get_uflags(ppage), out)) {
+> +		if (put_user(stable_page_flags(ppage), out)) {
+>  			ret = -EFAULT;
+>  			break;
+>  		}
+> --- linux-mm.orig/include/linux/page-flags.h	2009-11-07 20:37:27.000000000 +0800
+> +++ linux-mm/include/linux/page-flags.h	2009-11-07 20:37:31.000000000 +0800
+> @@ -284,6 +284,8 @@ PAGEFLAG_FALSE(HWPoison)
+>  #define __PG_HWPOISON 0
+>  #endif
+>  
+> +u64 stable_page_flags(struct page *page);
+> +
+>  static inline int PageUptodate(struct page *page)
+>  {
+>  	int ret = test_bit(PG_uptodate, &(page)->flags);
+> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
+> +++ linux-mm/include/linux/kernel-page-flags.h	2009-11-07 20:37:31.000000000 +0800
+> @@ -0,0 +1,46 @@
+> +#ifndef LINUX_KERNEL_PAGE_FLAGS_H
+> +#define  LINUX_KERNEL_PAGE_FLAGS_H
+> +
+> +/*
+> + * Stable page flag bits exported to user space
+> + */
+> +
+> +#define KPF_LOCKED		0
+> +#define KPF_ERROR		1
+> +#define KPF_REFERENCED		2
+> +#define KPF_UPTODATE		3
+> +#define KPF_DIRTY		4
+> +#define KPF_LRU			5
+> +#define KPF_ACTIVE		6
+> +#define KPF_SLAB		7
+> +#define KPF_WRITEBACK		8
+> +#define KPF_RECLAIM		9
+> +#define KPF_BUDDY		10
+> +
+> +/* 11-20: new additions in 2.6.31 */
+> +#define KPF_MMAP		11
+> +#define KPF_ANON		12
+> +#define KPF_SWAPCACHE		13
+> +#define KPF_SWAPBACKED		14
+> +#define KPF_COMPOUND_HEAD	15
+> +#define KPF_COMPOUND_TAIL	16
+> +#define KPF_HUGE		17
+> +#define KPF_UNEVICTABLE		18
+> +#define KPF_HWPOISON		19
+> +#define KPF_NOPAGE		20
+> +
+> +#define KPF_KSM			21
+> +
+> +/* kernel hacking assistances
+> + * WARNING: subject to change, never rely on them!
+> + */
+> +#define KPF_RESERVED		32
+> +#define KPF_MLOCKED		33
+> +#define KPF_MAPPEDTODISK	34
+> +#define KPF_PRIVATE		35
+> +#define KPF_PRIVATE_2		36
+> +#define KPF_OWNER_PRIVATE	37
+> +#define KPF_ARCH		38
+> +#define KPF_UNCACHED		39
+> +
+> +#endif /* LINUX_KERNEL_PAGE_FLAGS_H */
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
