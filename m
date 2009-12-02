@@ -1,52 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 69103600762
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:16:17 -0500 (EST)
-Date: Wed, 2 Dec 2009 21:15:54 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 14/24] HWPOISON: return 0 if page is assured to be
-	isolated
-Message-ID: <20091202131554.GB13277@localhost>
-References: <20091202031231.735876003@intel.com> <20091202043045.394560341@intel.com> <20091202124730.GB18989@one.firstfloor.org>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A072600762
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 08:20:53 -0500 (EST)
+Date: Wed, 2 Dec 2009 14:20:48 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 24/24] HWPOISON: show corrupted file info
+Message-ID: <20091202132048.GI18989@one.firstfloor.org>
+References: <20091202031231.735876003@intel.com> <20091202043046.791112765@intel.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091202124730.GB18989@one.firstfloor.org>
+In-Reply-To: <20091202043046.791112765@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 02, 2009 at 08:47:30PM +0800, Andi Kleen wrote:
-> On Wed, Dec 02, 2009 at 11:12:45AM +0800, Wu Fengguang wrote:
-> > Introduce hpc.page_isolated to record if page is assured to be
-> > isolated, ie. it won't be accessed in normal kernel code paths
-> > and therefore won't trigger another MCE event.
-> > 
-> > __memory_failure() will now return 0 to indicate that page is
-> > really isolated.  Note that the original used action result
-> > RECOVERED is not a reliable criterion.
-> > 
-> > Note that we now don't bother to risk returning 0 for the
-> > rare unpoison/truncated cases.
-> 
-> That's the only user of the new hwpoison_control structure right?
-> I think I prefer for that single bit to extend the return values
-> and keep the arguments around. structures are not nice to read.
+> +	dentry = d_find_alias(inode);
+> +
+> +	if (dentry) {
+> +		spin_lock(&dentry->d_lock);
+> +		name = dentry->d_name.name;
+> +	}
 
-Easier to read but harder to extend.  I saw Haicheng add some debug
-bits to hwpoison_control to collect debug info ;)
+The standard way to do that is d_path()
+But the paths are somewhat meaningless without the root.
 
-> I'll change the code.
+Better to not print path names for now.
 
-I originally introduce "struct hwpoison_control" to collect more info
-(like data_recoverable) and to dump them via uevent. Then we decide to
-drop them unless there comes explicit user demands..
+And pgoff should be just a byte offset with a range
 
-In its current form, it does seem more clean to do without hwpoison_control.
+I'll skip this one for now.
 
-Thanks,
-Fengguang
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
