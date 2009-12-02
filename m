@@ -1,51 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D0D7600762
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 05:52:11 -0500 (EST)
-Message-ID: <4B1646C9.1040200@parallels.com>
-Date: Wed, 02 Dec 2009 13:51:53 +0300
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
-Subject: Re: memcg: slab control
-References: <20091126101414.829936d8.kamezawa.hiroyu@jp.fujitsu.com> <20091126085031.GG2970@balbir.in.ibm.com> <20091126175606.f7df2f80.kamezawa.hiroyu@jp.fujitsu.com> <4B0E461C.50606@parallels.com> <20091126183335.7a18cb09.kamezawa.hiroyu@jp.fujitsu.com> <4B0E50B1.20602@parallels.com> <20091201073609.GQ2970@balbir.in.ibm.com> <4B14F29E.3090400@parallels.com> <20091201151431.GV2970@balbir.in.ibm.com> <4B163DF7.60305@parallels.com> <20091202101915.GB3545@balbir.in.ibm.com>
-In-Reply-To: <20091202101915.GB3545@balbir.in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C353A600762
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 06:12:53 -0500 (EST)
+Date: Wed, 2 Dec 2009 12:07:32 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] Replace page_mapping_inuse() with page_mapped()
+Message-ID: <20091202110732.GA8693@cmpxchg.org>
+References: <20091202115358.5C4F.A69D9226@jp.fujitsu.com> <4B15D9F8.9090800@redhat.com> <20091202121152.5C52.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091202121152.5C52.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Suleiman Souhlal <suleiman@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * Pavel Emelyanov <xemul@parallels.com> [2009-12-02 13:14:15]:
-> 
->> Balbir Singh wrote:
->>> * Pavel Emelyanov <xemul@parallels.com> [2009-12-01 13:40:30]:
->>>
->>>>> Just to understand the context better, is this really a problem. This
->>>>> can occur when we do really run out of memory. The idea of using
->>>>> slabcg + memcg together is good, except for our accounting process. I
->>>>> can repost percpu counter patches that adds fuzziness along with other
->>>>> tricks that Kame has to do batch accounting, that we will need to
->>>>> make sure we are able to do with slab allocations as well.
->>>>>
->>>> I'm not sure I understand you concern. Can you elaborate, please?
->>>>
->>> The concern was mostly accounting when memcg + slabcg are integrated
->>> into the same framework. res_counters will need new scalability
->>> primitives.
->>>
->> I see. I think the best we can do here is start with a separate controller.
->>
-> 
-> I would think so as well, but setting up independent limits might be a
-> challenge, how does the user really estimate the amount of kernel
-> memory needed? This is the same problem that David posted sometime
-> back. 
+On Wed, Dec 02, 2009 at 12:28:26PM +0900, KOSAKI Motohiro wrote:
 
-I agree with you, but note, that the memcg consists of several part and
-the question "where to account bytes to" is quite independent from "what
-allocations to account" and "where to get the memcg context from on kfree" ;)
+> From 61340720e6e66b645db8d5410e89fd3b67eda907 Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: Wed, 2 Dec 2009 12:05:26 +0900
+> Subject: [PATCH] Replace page_mapping_inuse() with page_mapped()
+> 
+> page reclaim logic need to distingish mapped and unmapped pages.
+> However page_mapping_inuse() don't provide proper test way. it test
+> the address space (i.e. file) is mmpad(). Why `page' reclaim need
+> care unrelated page's mapped state? it's unrelated.
+> 
+> Thus, This patch replace page_mapping_inuse() with page_mapped()
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
