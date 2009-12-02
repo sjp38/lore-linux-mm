@@ -1,91 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B00526B003D
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 19:35:24 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB20ZLqe024833
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 2 Dec 2009 09:35:22 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A0B1445DE61
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 09:35:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 72EC445DE63
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 09:35:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 55F331DB8038
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 09:35:21 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 04BD81DB803B
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 09:35:21 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] oom_kill: use rss value instead of vm size for badness
-In-Reply-To: <alpine.DEB.2.00.0912011414510.27500@chino.kir.corp.google.com>
-References: <20091201131509.5C19.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0912011414510.27500@chino.kir.corp.google.com>
-Message-Id: <20091202091739.5C3D.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id C31F060021B
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 20:55:57 -0500 (EST)
+Message-ID: <4B15C902.4020008@redhat.com>
+Date: Tue, 01 Dec 2009 20:55:14 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC] high system time & lock contention running large mixed
+ workload
+References: <20091125133752.2683c3e4@bree.surriel.com> <1259618429.2345.3.camel@dhcp-100-19-198.bos.redhat.com>
+In-Reply-To: <1259618429.2345.3.camel@dhcp-100-19-198.bos.redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Wed,  2 Dec 2009 09:35:19 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, vedran.furac@gmail.com
+To: Larry Woodman <lwoodman@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 1 Dec 2009, KOSAKI Motohiro wrote:
-> 
-> > > The purpose of /proc/pid/oom_adj is not always to polarize the heuristic 
-> > > for the task it represents, it allows userspace to define when a task is 
-> > > rogue.  Working with total_vm as a baseline, it is simple to use the 
-> > > interface to tune the heuristic to prefer a certain task over another when 
-> > > its memory consumption goes beyond what is expected.  With this interface, 
-> > > I can easily define when an application should be oom killed because it is 
-> > > using far more memory than expected.  I can also disable oom killing 
-> > > completely for it, if necessary.  Unless you have a consistent baseline 
-> > > for all tasks, the adjustment wouldn't contextually make any sense.  Using 
-> > > rss does not allow users to statically define when a task is rogue and is 
-> > > dependent on the current state of memory at the time of oom.
-> > > 
-> > > I would support removing most of the other heuristics other than the 
-> > > baseline and the nodes intersection with mems_allowed to prefer tasks in 
-> > > the same cpuset, though, to make it easier to understand and tune.
-> > 
-> > I feel you talked about oom_adj doesn't fit your use case. probably you need
-> > /proc/{pid}/oom_priority new knob. oom adjustment doesn't fit you.
-> > you need job severity based oom killing order. severity doesn't depend on any
-> > hueristic.
-> > server administrator should know job severity on his system.
-> 
-> That's the complete opposite of what I wrote above, we use oom_adj to 
-> define when a user application is considered "rogue," meaning that it is 
-> using far more memory than expected and so we want it killed.  As you 
-> mentioned weeks ago, the kernel cannot identify a memory leaker; this is 
-> the user interface to allow the oom killer to identify a memory-hogging 
-> rogue task that will (probably) consume all system memory eventually.  
-> The way oom_adj is implemented, with a bit shift on a baseline of 
-> total_vm, it can also polarize the badness heuristic to kill an 
-> application based on priority by examining /proc/pid/oom_score, but that 
-> wasn't my concern in this case.  Using rss as a baseline reduces my 
-> ability to tune oom_adj appropriately to identify those rogue tasks 
-> because it is highly dynamic depending on the state of the VM at the time 
-> of oom.
+On 11/30/2009 05:00 PM, Larry Woodman wrote:
+> While running workloads that do lots of forking processes, exiting
+> processes and page reclamation(AIM 7) on large systems very high system
+> time(100%) and lots of lock contention was observed.
+>
+>
+>
+> CPU5:
+> [<ffffffff814afb48>] ? _spin_lock+0x27/0x48
+>   [<ffffffff81101deb>] ? anon_vma_link+0x2a/0x5a
+>   [<ffffffff8105d3d8>] ? dup_mm+0x242/0x40c
+>   [<ffffffff8105e0a9>] ? copy_process+0xab1/0x12be
+>   [<ffffffff8105ea07>] ? do_fork+0x151/0x330
+>   [<ffffffff81058407>] ? default_wake_function+0x0/0x36
+>   [<ffffffff814b0243>] ? _spin_lock_irqsave+0x2f/0x68
+>   [<ffffffff810121d3>] ? stub_clone+0x13/0x20
+> [<ffffffff81011e02>] ? system_call_fastpath+0x16/0x1b
+>
+> CPU4:
+> [<ffffffff814afb4a>] ? _spin_lock+0x29/0x48
+>   [<ffffffff81103062>] ? anon_vma_unlink+0x2a/0x84
+>   [<ffffffff810fbab7>] ? free_pgtables+0x3c/0xe1
+>   [<ffffffff810fd8b1>] ? exit_mmap+0xc5/0x110
+>   [<ffffffff8105ce4c>] ? mmput+0x55/0xd9
+>   [<ffffffff81061afd>] ? exit_mm+0x109/0x129
+>   [<ffffffff81063846>] ? do_exit+0x1d7/0x712
+>   [<ffffffff814b0243>] ? _spin_lock_irqsave+0x2f/0x68
+>   [<ffffffff81063e07>] ? do_group_exit+0x86/0xb2
+>   [<ffffffff81063e55>] ? sys_exit_group+0x22/0x3e
+> [<ffffffff81011e02>] ? system_call_fastpath+0x16/0x1b
+>
+> CPU0:
+> [<ffffffff814afb4a>] ? _spin_lock+0x29/0x48
+> [<ffffffff81101ad1>] ? page_check_address+0x9e/0x16f
+>   [<ffffffff81101cb8>] ? page_referenced_one+0x53/0x10b
+>   [<ffffffff81102f5a>] ? page_referenced+0xcd/0x167
+>   [<ffffffff810eb32d>] ? shrink_active_list+0x1ed/0x2a3
+>   [<ffffffff810ebde9>] ? shrink_zone+0xa06/0xa38
+>   [<ffffffff8108440a>] ? getnstimeofday+0x64/0xce
+>   [<ffffffff810ecaf9>] ? do_try_to_free_pages+0x1e5/0x362
+>   [<ffffffff810ecd9f>] ? try_to_free_pages+0x7a/0x94
+>   [<ffffffff810ea66f>] ? isolate_pages_global+0x0/0x242
+>   [<ffffffff810e57b9>] ? __alloc_pages_nodemask+0x397/0x572
+>   [<ffffffff810e3c1e>] ? __get_free_pages+0x19/0x6e
+>   [<ffffffff8105d6c9>] ? copy_process+0xd1/0x12be
+>   [<ffffffff81204eb2>] ? avc_has_perm+0x5c/0x84
+>   [<ffffffff81130db8>] ? user_path_at+0x65/0xa3
+>   [<ffffffff8105ea07>] ? do_fork+0x151/0x330
+>   [<ffffffff810b7935>] ? check_for_new_grace_period+0x78/0xab
+>   [<ffffffff810121d3>] ? stub_clone+0x13/0x20
+> [<ffffffff81011e02>] ? system_call_fastpath+0x16/0x1b
+>
+>
+> ------------------------------------------------------------------------------
+>     PerfTop:     864 irqs/sec  kernel:99.7% [100000 cycles],  (all, 8
+> CPUs)
+> ------------------------------------------------------------------------------
+>
+>               samples    pcnt         RIP          kernel function
+>    ______     _______   _____   ________________   _______________
+>
+>               3235.00 - 75.1% - ffffffff814afb21 : _spin_lock
+>                670.00 - 15.6% - ffffffff81101a33 : page_check_address
+>                165.00 -  3.8% - ffffffffa01cbc39 : rpc_sleep_on  [sunrpc]
+>                 40.00 -  0.9% - ffffffff81102113 : try_to_unmap_one
+>                 29.00 -  0.7% - ffffffff81101c65 : page_referenced_one
+>                 27.00 -  0.6% - ffffffff81101964 : vma_address
+>                  8.00 -  0.2% - ffffffff8125a5a0 : clear_page_c
+>                  6.00 -  0.1% - ffffffff8125a5f0 : copy_page_c
+>                  6.00 -  0.1% - ffffffff811023ca : try_to_unmap_anon
+>                  5.00 -  0.1% - ffffffff810fb014 : copy_page_range
+>                  5.00 -  0.1% - ffffffff810e4d18 : get_page_from_freelist
+>
+>
+>
+> The cause was determined to be the unconditional call to
+> page_referenced() for every mapped page encountered in
+> shrink_active_list().  page_referenced() takes the anon_vma->lock and
+> calls page_referenced_one() for each vma.  page_referenced_one() then
+> calls page_check_address() which takes the pte_lockptr spinlock.   If
+> several CPUs are doing this at the same time there is a lot of
+> pte_lockptr spinlock contention with the anon_vma->lock held.  This
+> causes contention on the anon_vma->lock, stalling in the fo and very
+> high system time.
+>
+> Before the splitLRU patch shrink_active_list() would only call
+> page_referenced() when reclaim_mapped got set.  reclaim_mapped only got
+> set when the priority worked its way from 12 all the way to 7. This
+> prevented page_referenced() from being called from shrink_active_list()
+> until the system was really struggling to reclaim memory.
+>
+> On way to prevent this is to change page_check_address() to execute a
+> spin_trylock(ptl) when it was called by shrink_active_list() and simply
+> fail if it could not get the pte_lockptr spinlock.  This will make
+> shrink_active_list() consider the page not referenced and allow the
+> anon_vma->lock to be dropped much quicker.
+>
+> The attached patch does just that, thoughts???
+>    
+My first thought is that you haven't read the code
+you are trying to patch.
 
- - I mean you don't need almost kernel heuristic. but desktop user need it.
- - All job scheduler provide memory limitation feature. but OOM killer isn't
-   for to implement memory limitation. we have memory cgroup.
- - if you need memory usage based know, read /proc/{pid}/statm and write
-   /proc/{pid}/oom_priority works well probably.
- - Unfortunatelly, We can't continue to use VSZ based heuristics. because
-   modern application waste 10x VSZ more than RSS comsumption. in nowadays,
-   VSZ isn't good approximation value of RSS. There isn't any good reason to
-   continue form desktop user view.
+The purpose of calling page_referenced on anonymous
+pages from shrink_active_list is to CLEAR the referenced
+bit, not to test it!
 
-IOW, kernel hueristic should adjust to target majority user. we provide a knob
-to help minority user.
-
-or, Can you have any detection idea to distigish typical desktop and your use case?
-
-
+Not clearing the referenced bit will break page replacement,
+because pages that were not recently referenced will appear
+to be, causing them to get another round on the active list,
+which in turn could increase the list movement...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
