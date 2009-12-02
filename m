@@ -1,135 +1,88 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 09/24] HWPOISON: introduce delete_from_lru_cache()
-Date: Wed, 02 Dec 2009 11:12:40 +0800
-Message-ID: <20091202043044.709570707@intel.com>
+Subject: [PATCH 11/24] HWPOISON: detect free buddy pages explicitly
+Date: Wed, 02 Dec 2009 11:12:42 +0800
+Message-ID: <20091202043045.016245713@intel.com>
 References: <20091202031231.735876003@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2FB536007AD
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:37 -0500 (EST)
-Content-Disposition: inline; filename=lru-flags.patch
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 62B3B6007AF
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:38 -0500 (EST)
+Content-Disposition: inline; filename=hwpoison-is-free-page.patch
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Introduce delete_from_lru_cache() to
-- clear PG_active, PG_unevictable to avoid complains at unpoison time
-- move the isolate_lru_page() call back to the handlers instead of the
-  entrance of __memory_failure(), this is more hwpoison filter friendly
+Most free pages in the buddy system have no PG_buddy set.
+Introduce is_free_buddy_page() for detecting them reliably.
 
 CC: Andi Kleen <andi@firstfloor.org>
+CC: Nick Piggin <npiggin@suse.de> 
+CC: Mel Gorman <mel@linux.vnet.ibm.com> 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/memory-failure.c |   45 ++++++++++++++++++++++++++++++++++--------
- 1 file changed, 37 insertions(+), 8 deletions(-)
+ mm/internal.h       |    3 +++
+ mm/memory-failure.c |    9 +++++++--
+ mm/page_alloc.c     |   21 +++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 2 deletions(-)
 
---- linux-mm.orig/mm/memory-failure.c	2009-11-30 11:12:41.000000000 +0800
-+++ linux-mm/mm/memory-failure.c	2009-11-30 20:04:43.000000000 +0800
-@@ -328,6 +328,30 @@ static const char *action_name[] = {
- };
- 
- /*
-+ * XXX: It is possible that a page is isolated from LRU cache,
-+ * and then kept in swap cache or failed to remove from page cache.
-+ * The page count will stop it from being freed by unpoison.
-+ * Stress tests should be aware of this memory leak problem.
-+ */
-+static int delete_from_lru_cache(struct page *p)
-+{
-+	if (!isolate_lru_page(p)) {
-+		/*
-+		 * Clear sensible page flags, so that the buddy system won't
-+		 * complain when the page is unpoison-and-freed.
-+		 */
-+		ClearPageActive(p);
-+		ClearPageUnevictable(p);
-+		/*
-+		 * drop the page count elevated by isolate_lru_page()
-+		 */
-+		page_cache_release(p);
-+		return 0;
-+	}
-+	return -EIO;
-+}
-+
-+/*
-  * Error hit kernel page.
-  * Do nothing, try to be lucky and not touch this instead. For a few cases we
-  * could be more sophisticated.
-@@ -371,6 +395,8 @@ static int me_pagecache_clean(struct pag
- 	int ret = FAILED;
- 	struct address_space *mapping;
- 
-+	delete_from_lru_cache(p);
-+
- 	/*
- 	 * For anonymous pages we're done the only reference left
- 	 * should be the one m_f() holds.
-@@ -500,14 +526,20 @@ static int me_swapcache_dirty(struct pag
- 	/* Trigger EIO in shmem: */
- 	ClearPageUptodate(p);
- 
--	return DELAYED;
-+	if (!delete_from_lru_cache(p))
-+		return DELAYED;
-+	else
-+		return FAILED;
- }
- 
- static int me_swapcache_clean(struct page *p, unsigned long pfn)
- {
- 	delete_from_swap_cache(p);
- 
--	return RECOVERED;
-+	if (!delete_from_lru_cache(p))
-+		return RECOVERED;
-+	else
-+		return FAILED;
- }
- 
- /*
-@@ -726,7 +758,6 @@ static int hwpoison_user_mappings(struct
- 
- int __memory_failure(unsigned long pfn, int trapno, int ref)
- {
--	unsigned long lru_flag;
- 	struct page_state *ps;
- 	struct page *p;
- 	int res;
-@@ -775,13 +806,11 @@ int __memory_failure(unsigned long pfn, 
+--- linux-mm.orig/mm/memory-failure.c	2009-11-30 20:04:51.000000000 +0800
++++ linux-mm/mm/memory-failure.c	2009-11-30 20:06:00.000000000 +0800
+@@ -783,8 +783,13 @@ int __memory_failure(unsigned long pfn, 
+ 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
  	 */
- 	if (!PageLRU(p))
- 		lru_add_drain_all();
--	lru_flag = p->flags & lru;
--	if (isolate_lru_page(p)) {
-+	if (!PageLRU(p)) {
- 		action_result(pfn, "non LRU", IGNORED);
- 		put_page(p);
- 		return -EBUSY;
+ 	if (!ref && !get_page_unless_zero(compound_head(p))) {
+-		action_result(pfn, "free or high order kernel", IGNORED);
+-		return PageBuddy(compound_head(p)) ? 0 : -EBUSY;
++		if (is_free_buddy_page(p)) {
++			action_result(pfn, "free buddy", DELAYED);
++			return 0;
++		} else {
++			action_result(pfn, "high order kernel", IGNORED);
++			return -EBUSY;
++		}
  	}
--	page_cache_release(p);
  
  	/*
- 	 * Lock the page and wait for writeback to finish.
-@@ -803,7 +832,7 @@ int __memory_failure(unsigned long pfn, 
- 	/*
- 	 * Torn down by someone else?
- 	 */
--	if ((lru_flag & lru) && !PageSwapCache(p) && p->mapping == NULL) {
-+	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
- 		action_result(pfn, "already truncated LRU", IGNORED);
- 		res = 0;
- 		goto out;
-@@ -811,7 +840,7 @@ int __memory_failure(unsigned long pfn, 
+--- linux-mm.orig/mm/internal.h	2009-11-30 11:08:34.000000000 +0800
++++ linux-mm/mm/internal.h	2009-11-30 20:06:01.000000000 +0800
+@@ -50,6 +50,9 @@ extern void putback_lru_page(struct page
+  */
+ extern void __free_pages_bootmem(struct page *page, unsigned int order);
+ extern void prep_compound_page(struct page *page, unsigned long order);
++#ifdef CONFIG_MEMORY_FAILURE
++extern bool is_free_buddy_page(struct page *page);
++#endif
  
- 	res = -EBUSY;
- 	for (ps = error_states;; ps++) {
--		if (((p->flags | lru_flag)& ps->mask) == ps->res) {
-+		if ((p->flags & ps->mask) == ps->res) {
- 			res = page_action(ps, p, pfn);
- 			break;
- 		}
+ 
+ /*
+--- linux-mm.orig/mm/page_alloc.c	2009-11-30 11:08:34.000000000 +0800
++++ linux-mm/mm/page_alloc.c	2009-11-30 20:06:01.000000000 +0800
+@@ -5085,3 +5085,24 @@ __offline_isolated_pages(unsigned long s
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ }
+ #endif
++
++#ifdef CONFIG_MEMORY_FAILURE
++bool is_free_buddy_page(struct page *page)
++{
++	struct zone *zone = page_zone(page);
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long flags;
++	int order;
++
++	spin_lock_irqsave(&zone->lock, flags);
++	for (order = 0; order < MAX_ORDER; order++) {
++		struct page *page_head = page - (pfn & ((1 << order) - 1));
++
++		if (PageBuddy(page_head) && page_order(page_head) >= order)
++			break;
++	}
++	spin_unlock_irqrestore(&zone->lock, flags);
++
++	return order < MAX_ORDER;
++}
++#endif
 
 
 --
