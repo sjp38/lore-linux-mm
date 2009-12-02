@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E473560021B
-	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 21:05:41 -0500 (EST)
-Message-ID: <4B15CB48.6000509@redhat.com>
-Date: Tue, 01 Dec 2009 21:04:56 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CBA1260021B
+	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 21:21:05 -0500 (EST)
+Message-ID: <4B15CEE0.2030503@redhat.com>
+Date: Tue, 01 Dec 2009 21:20:16 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [RFC] high system time & lock contention running large mixed
  workload
-References: <1259618429.2345.3.camel@dhcp-100-19-198.bos.redhat.com> <20091201100444.GN30235@random.random> <20091201212357.5C3A.A69D9226@jp.fujitsu.com> <20091201124619.GO30235@random.random>
-In-Reply-To: <20091201124619.GO30235@random.random>
+References: <20091125133752.2683c3e4@bree.surriel.com>	 <1259618429.2345.3.camel@dhcp-100-19-198.bos.redhat.com>	 <20091201102645.5C0A.A69D9226@jp.fujitsu.com> <1259685662.2345.11.camel@dhcp-100-19-198.bos.redhat.com>
+In-Reply-To: <1259685662.2345.11.camel@dhcp-100-19-198.bos.redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Larry Woodman <lwoodman@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> I taken number 7 purely as mentioned by Larry about old code, but I
-> don't mind what is the actual breakpoint level where we start to send
-> the ipi flood to destroy all userland tlbs mapping the page so the
-> young bit can be set by the cpu on the old pte. If you agree with me
-> at the lowest priority we shouldn't flood ipi and destroy tlb when
-> there's plenty of clean unmapped clean cache, we already agree ;). If
-> that's 7 or DEV_PRIORITY-1, that's ok. All I care is that it escalates
-> gradually, first clean cache and re-activate mapped pages, then when
-> we're low on clean cache we start to check ptes and unmap whatever is
-> not found referenced.
->    
+On 12/01/2009 11:41 AM, Larry Woodman wrote:
 >
-The code already does what you propose.
+> Agreed.  The attached updated patch only does a trylock in the
+> page_referenced() call from shrink_inactive_list() and only for
+> anonymous pages when the priority is either 10, 11 or
+> 12(DEF_PRIORITY-2).  I have never seen a problem like this with active
+> pagecache pages and it does not alter the existing shrink_page_list
+> behavior.  What do you think about this???
+This is reasonable, except for the fact that pages that are moved
+to the inactive list without having the referenced bit cleared are
+guaranteed to be moved back to the active list.
 
-It takes a heavy AIM7 run for Larry to run into the
-lock contention issue.  I suspect that the page cache
-was already very small by the time the lock contention
-issue was triggered.
+You'll be better off without that excess list movement, by simply
+moving pages directly back onto the active list if the trylock
+fails.
 
-Larry, do you have any more info on the state of the
-VM when you see the lock contention?
+Yes, this means that page_referenced can now return 3 different
+return values (not accessed, accessed, lock contended), which
+should probably be an enum so we can test for the values
+symbolically in the calling functions.
 
-Also, do you have the latest patches to shrink_list()
-by Kosaki and me applied?
+That way only pages where we did manage to clear the referenced bit
+will be moved onto the inactive list.  This not only reduces the
+amount of excess list movement, it also makes sure that the pages
+which do get onto the inactive list get a fair chance at being
+referenced again, instead of potentially being flooded out by pages
+where the trylock failed.
+
+A minor nitpick: maybe it would be good to rename the "try" parameter
+to "noblock".  That more closely matches the requested behaviour.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
