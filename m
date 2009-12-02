@@ -1,51 +1,83 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 01/24] page-types: add standard GPL license head
-Date: Wed, 02 Dec 2009 11:12:32 +0800
-Message-ID: <20091202043043.715851393@intel.com>
+Subject: [PATCH 06/24] HWPOISON: abort on failed unmap
+Date: Wed, 02 Dec 2009 11:12:37 +0800
+Message-ID: <20091202043044.293905787@intel.com>
 References: <20091202031231.735876003@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4DA726B007D
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 84FCF6B007B
 	for <linux-mm@kvack.org>; Tue,  1 Dec 2009 23:37:37 -0500 (EST)
-Content-Disposition: inline; filename=page-types-gpl.patch
+Content-Disposition: inline; filename=hwpoison-abort-on-failed-unmap.patch
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-CC: Andi Kleen <andi@firstfloor.org>
+Don't try to isolate a still mapped page. Otherwise we will hit the
+BUG_ON(page_mapped(page)) in __remove_from_page_cache().
+
+CC: Andi Kleen <andi@firstfloor.org> 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- Documentation/vm/page-types.c |   15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ mm/memory-failure.c |   19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
 
---- linux-mm.orig/Documentation/vm/page-types.c	2009-11-07 19:28:51.000000000 +0800
-+++ linux-mm/Documentation/vm/page-types.c	2009-11-08 22:04:04.000000000 +0800
-@@ -1,11 +1,22 @@
- /*
-  * page-types: Tool for querying page flags
-  *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License as published by the Free
-+ * Software Foundation; version 2.
-+ *
-+ * This program is distributed in the hope that it will be useful, but WITHOUT
-+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-+ * more details.
-+ *
-+ * You should find a copy of v2 of the GNU General Public License somewhere on
-+ * your Linux system; if not, write to the Free Software Foundation, Inc., 59
-+ * Temple Place, Suite 330, Boston, MA 02111-1307 USA.
-+ *
-  * Copyright (C) 2009 Intel corporation
-  *
-  * Authors: Wu Fengguang <fengguang.wu@intel.com>
-- *
-- * Released under the General Public License (GPL).
+--- linux-mm.orig/mm/memory-failure.c	2009-11-30 10:35:38.000000000 +0800
++++ linux-mm/mm/memory-failure.c	2009-11-30 11:11:25.000000000 +0800
+@@ -635,7 +635,7 @@ static int page_action(struct page_state
+  * Do all that is necessary to remove user space mappings. Unmap
+  * the pages and send SIGBUS to the processes if the data was dirty.
   */
+-static void hwpoison_user_mappings(struct page *p, unsigned long pfn,
++static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 				  int trapno)
+ {
+ 	enum ttu_flags ttu = TTU_UNMAP | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
+@@ -645,15 +645,18 @@ static void hwpoison_user_mappings(struc
+ 	int i;
+ 	int kill = 1;
  
- #define _LARGEFILE64_SOURCE
+-	if (PageReserved(p) || PageCompound(p) || PageSlab(p) || PageKsm(p))
+-		return;
++	if (PageReserved(p) || PageSlab(p))
++		return SWAP_SUCCESS;
+ 
+ 	/*
+ 	 * This check implies we don't kill processes if their pages
+ 	 * are in the swap cache early. Those are always late kills.
+ 	 */
+ 	if (!page_mapped(p))
+-		return;
++		return SWAP_SUCCESS;
++
++	if (PageCompound(p) || PageKsm(p))
++		return SWAP_FAIL;
+ 
+ 	if (PageSwapCache(p)) {
+ 		printk(KERN_ERR
+@@ -715,6 +718,8 @@ static void hwpoison_user_mappings(struc
+ 	 */
+ 	kill_procs_ao(&tokill, !!PageDirty(p), trapno,
+ 		      ret != SWAP_SUCCESS, pfn);
++
++	return ret;
+ }
+ 
+ int __memory_failure(unsigned long pfn, int trapno, int ref)
+@@ -786,8 +791,12 @@ int __memory_failure(unsigned long pfn, 
+ 
+ 	/*
+ 	 * Now take care of user space mappings.
++	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
+ 	 */
+-	hwpoison_user_mappings(p, pfn, trapno);
++	if (hwpoison_user_mappings(p, pfn, trapno) != SWAP_SUCCESS) {
++		res = -EBUSY;
++		goto out;
++	}
+ 
+ 	/*
+ 	 * Torn down by someone else?
 
 
 --
