@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0A76B003D
-	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 20:58:36 -0500 (EST)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp05.in.ibm.com (8.14.3/8.13.1) with ESMTP id nB31wUpV006397
-	for <linux-mm@kvack.org>; Thu, 3 Dec 2009 07:28:30 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nB31wUs52613480
-	for <linux-mm@kvack.org>; Thu, 3 Dec 2009 07:28:30 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nB31wU32008132
-	for <linux-mm@kvack.org>; Thu, 3 Dec 2009 12:58:30 +1100
-Date: Thu, 3 Dec 2009 07:28:27 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 19/24] memcg: rename and export
- try_get_mem_cgroup_from_page()
-Message-ID: <20091203015827.GG3545@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20091202031231.735876003@intel.com>
- <20091202043046.127781753@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20091202043046.127781753@intel.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 635356B003D
+	for <linux-mm@kvack.org>; Wed,  2 Dec 2009 21:01:06 -0500 (EST)
+Message-Id: <20091203020102.111394000@alcatraz.americas.sgi.com>
+Date: Wed, 02 Dec 2009 20:00:52 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: [patch 1/1] UV - XPC pass nasid instead of nid to gru_create_message_queue
+References: <20091203020051.967217000@alcatraz.americas.sgi.com>
+Content-Disposition: inline; filename=xpc_pass_nasid_to_gru_create_message_queue
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jack Steiner <steiner@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Wu Fengguang <fengguang.wu@intel.com> [2009-12-02 11:12:50]:
 
-> So that the hwpoison injector can get mem_cgroup for arbitrary page
-> and thus know whether it is owned by some mem_cgroup task(s).
-> 
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Currently, the UV xpc code is passing nid to the gru_create_message_queue
+instead of nasid as it expects.
 
-Sorry for the delay in reviewing, I am attending a conference this
-week. I'll try and get to them soon.
 
--- 
-	Balbir
+To: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Robin Holt <holt@sgi.com>
+Signed-off-by: Jack Steiner <steiner@sgi.com>
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+
+---
+
+ drivers/misc/sgi-xp/xpc_uv.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+
+Index: pv1000000/drivers/misc/sgi-xp/xpc_uv.c
+===================================================================
+--- pv1000000.orig/drivers/misc/sgi-xp/xpc_uv.c	2009-12-02 16:51:40.000000000 -0600
++++ pv1000000/drivers/misc/sgi-xp/xpc_uv.c	2009-12-02 16:58:31.000000000 -0600
+@@ -206,6 +206,7 @@ xpc_create_gru_mq_uv(unsigned int mq_siz
+ 	enum xp_retval xp_ret;
+ 	int ret;
+ 	int nid;
++	int nasid;
+ 	int pg_order;
+ 	struct page *page;
+ 	struct xpc_gru_mq_uv *mq;
+@@ -261,9 +262,11 @@ xpc_create_gru_mq_uv(unsigned int mq_siz
+ 		goto out_5;
+ 	}
+ 
++	nasid = UV_PNODE_TO_NASID(uv_cpu_to_pnode(cpu));
++
+ 	mmr_value = (struct uv_IO_APIC_route_entry *)&mq->mmr_value;
+ 	ret = gru_create_message_queue(mq->gru_mq_desc, mq->address, mq_size,
+-				       nid, mmr_value->vector, mmr_value->dest);
++				     nasid, mmr_value->vector, mmr_value->dest);
+ 	if (ret != 0) {
+ 		dev_err(xpc_part, "gru_create_message_queue() returned "
+ 			"error=%d\n", ret);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
