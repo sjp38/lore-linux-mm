@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2C27D6B007D
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 14:59:40 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 499556B0082
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 14:59:46 -0500 (EST)
 From: Eric Paris <eparis@redhat.com>
-Subject: [RFC PATCH 5/6] vfs: make init-file static
-Date: Thu, 03 Dec 2009 14:59:25 -0500
-Message-ID: <20091203195925.8925.21416.stgit@paris.rdu.redhat.com>
+Subject: [RFC PATCH 6/6] fs: move get_empty_filp() deffinition to internal.h
+Date: Thu, 03 Dec 2009 14:59:33 -0500
+Message-ID: <20091203195933.8925.8783.stgit@paris.rdu.redhat.com>
 In-Reply-To: <20091203195851.8925.30926.stgit@paris.rdu.redhat.com>
 References: <20091203195851.8925.30926.stgit@paris.rdu.redhat.com>
 MIME-Version: 1.0
@@ -16,128 +16,94 @@ To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.
 Cc: viro@zeniv.linux.org.uk, jmorris@namei.org, npiggin@suse.de, eparis@redhat.com, zohar@us.ibm.com, jack@suse.cz, jmalicki@metacarta.com, dsmith@redhat.com, serue@us.ibm.com, hch@lst.de, john@johnmccutchan.com, rlove@rlove.org, ebiederm@xmission.com, heiko.carstens@de.ibm.com, penguin-kernel@I-love.SAKURA.ne.jp, mszeredi@suse.cz, jens.axboe@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, hugh.dickins@tiscali.co.uk, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, davem@davemloft.net, arnd@arndb.de, eric.dumazet@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-init-file is no longer used by anything except alloc_file.  Make it static and
-remove from headers.
+All users outside of fs/ of get_empty_filp() have been removed.  This patch
+moves the definition from the include/ directory to internal.h so no new
+users crop up and removes the EXPORT_SYMBOL.  I'd love to see open intents
+stop using it too, but that's a problem for another day and a smarter
+developer!
 
 Signed-off-by: Eric Paris <eparis@redhat.com>
 ---
 
- fs/file_table.c      |   73 ++++++++++++++++++++++----------------------------
- include/linux/file.h |    3 --
- 2 files changed, 32 insertions(+), 44 deletions(-)
+ fs/file_table.c    |    4 ++--
+ fs/internal.h      |    1 +
+ fs/namei.c         |    2 ++
+ fs/open.c          |    2 ++
+ include/linux/fs.h |    1 -
+ 5 files changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/fs/file_table.c b/fs/file_table.c
-index 4bef4c0..0f9d2f2 100644
+index 0f9d2f2..629a167 100644
 --- a/fs/file_table.c
 +++ b/fs/file_table.c
-@@ -150,53 +150,16 @@ fail:
- EXPORT_SYMBOL(get_empty_filp);
+@@ -24,6 +24,8 @@
  
+ #include <asm/atomic.h>
+ 
++#include "internal.h"
++
+ /* sysctl tunables... */
+ struct files_stat_struct files_stat = {
+ 	.max_files = NR_FILE
+@@ -147,8 +149,6 @@ fail:
+ 	return NULL;
+ }
+ 
+-EXPORT_SYMBOL(get_empty_filp);
+-
  /**
-- * alloc_file - allocate and initialize a 'struct file'
-- * @mnt: the vfsmount on which the file will reside
-- * @dentry: the dentry representing the new file
-- * @mode: the mode with which the new file will be opened
-- * @fop: the 'struct file_operations' for the new file
-- *
-- * Use this instead of get_empty_filp() to get a new
-- * 'struct file'.  Do so because of the same initialization
-- * pitfalls reasons listed for init_file().  This is a
-- * preferred interface to using init_file().
-- *
-- * If all the callers of init_file() are eliminated, its
-- * code should be moved into this function.
-- */
--struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
--		fmode_t mode, const struct file_operations *fop)
--{
--	struct file *file;
--
--	file = get_empty_filp();
--	if (!file)
--		return NULL;
--
--	init_file(file, mnt, dentry, mode, fop);
--	return file;
--}
--EXPORT_SYMBOL(alloc_file);
--
--/**
   * init_file - initialize a 'struct file'
   * @file: the already allocated 'struct file' to initialized
-  * @mnt: the vfsmount on which the file resides
-  * @dentry: the dentry representing this file
-  * @mode: the mode the file is opened with
-  * @fop: the 'struct file_operations' for this file
-- *
-- * Use this instead of setting the members directly.  Doing so
-- * avoids making mistakes like forgetting the mntget() or
-- * forgetting to take a write on the mnt.
-- *
-- * Note: This is a crappy interface.  It is here to make
-- * merging with the existing users of get_empty_filp()
-- * who have complex failure logic easier.  All users
-- * of this should be moving to alloc_file().
+diff --git a/fs/internal.h b/fs/internal.h
+index 515175b..f67cd14 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -79,6 +79,7 @@ extern void chroot_fs_refs(struct path *, struct path *);
+  * file_table.c
   */
--int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
--	   fmode_t mode, const struct file_operations *fop)
-+static int init_file(struct file *file, struct vfsmount *mnt,
-+		     struct dentry *dentry, fmode_t mode,
-+		     const struct file_operations *fop)
+ extern void mark_files_ro(struct super_block *);
++extern struct file *get_empty_filp(void);
+ 
+ /*
+  * super.c
+diff --git a/fs/namei.c b/fs/namei.c
+index 87f97ba..d7ecd2f 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -35,6 +35,8 @@
+ #include <linux/fs_struct.h>
+ #include <asm/uaccess.h>
+ 
++#include "internal.h"
++
+ #define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
+ 
+ /* [Feb-1997 T. Schoebel-Theuer]
+diff --git a/fs/open.c b/fs/open.c
+index fa3bf4c..ebb74d4 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -31,6 +31,8 @@
+ #include <linux/falloc.h>
+ #include <linux/fs_struct.h>
+ 
++#include "internal.h"
++
+ int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
  {
- 	int error = 0;
- 	file->f_path.dentry = dentry;
-@@ -218,7 +181,35 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
- 	}
- 	return error;
+ 	int retval = -ENODEV;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 5de1bab..b8ed6bf 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2192,7 +2192,6 @@ static inline void insert_inode_hash(struct inode *inode) {
+ 	__insert_inode_hash(inode, inode->i_ino);
  }
--EXPORT_SYMBOL(init_file);
-+
-+/**
-+ * alloc_file - allocate and initialize a 'struct file'
-+ * @mnt: the vfsmount on which the file will reside
-+ * @dentry: the dentry representing the new file
-+ * @mode: the mode with which the new file will be opened
-+ * @fop: the 'struct file_operations' for the new file
-+ *
-+ * Use this instead of get_empty_filp() to get a new
-+ * 'struct file'.  Do so because of the same initialization
-+ * pitfalls reasons listed for init_file().  This is a
-+ * preferred interface to using init_file().
-+ *
-+ * If all the callers of init_file() are eliminated, its
-+ * code should be moved into this function.
-+ */
-+struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-+		fmode_t mode, const struct file_operations *fop)
-+{
-+	struct file *file;
-+
-+	file = get_empty_filp();
-+	if (!file)
-+		return NULL;
-+
-+	init_file(file, mnt, dentry, mode, fop);
-+	return file;
-+}
-+EXPORT_SYMBOL(alloc_file);
  
- void fput(struct file *file)
- {
-diff --git a/include/linux/file.h b/include/linux/file.h
-index 335a0a5..6a8d361 100644
---- a/include/linux/file.h
-+++ b/include/linux/file.h
-@@ -18,9 +18,6 @@ extern void drop_file_write_access(struct file *file);
- struct file_operations;
- struct vfsmount;
- struct dentry;
--extern int init_file(struct file *, struct vfsmount *mnt,
--		struct dentry *dentry, fmode_t mode,
--		const struct file_operations *fop);
- extern struct file *alloc_file(struct vfsmount *, struct dentry *dentry,
- 		fmode_t mode, const struct file_operations *fop);
- 
+-extern struct file * get_empty_filp(void);
+ extern void file_move(struct file *f, struct list_head *list);
+ extern void file_kill(struct file *f);
+ #ifdef CONFIG_BLOCK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
