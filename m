@@ -1,104 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CA6AA6B003D
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 00:08:43 -0500 (EST)
-Date: Thu, 3 Dec 2009 13:58:05 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mmotm 4/5] memcg: avoid oom during recharge at task
- move
-Message-Id: <20091203135805.23a8b0f7.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20091127135810.ef5fee0b.nishimura@mxp.nes.nec.co.jp>
-References: <20091119132734.1757fc42.nishimura@mxp.nes.nec.co.jp>
-	<20091119133030.8ef46be0.nishimura@mxp.nes.nec.co.jp>
-	<20091123051041.GQ31961@balbir.in.ibm.com>
-	<20091124114358.80e0cafe.nishimura@mxp.nes.nec.co.jp>
-	<20091127135810.ef5fee0b.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 16FC36B003D
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 00:15:15 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB35FB0u013295
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 3 Dec 2009 14:15:11 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 99C3345DE4E
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 14:15:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AAD045DE50
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 14:15:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3493A1DB803E
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 14:15:11 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D4DDEE38002
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 14:15:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
+In-Reply-To: <20091202125501.GD28697@random.random>
+References: <4B15F642.1080308@redhat.com> <20091202125501.GD28697@random.random>
+Message-Id: <20091203134610.586E.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu,  3 Dec 2009 14:15:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Nov 2009 13:58:10 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > Sorry, if I missed it, but I did not see any time overhead of moving a
-> > > task after these changes. Could you please help me understand the cost
-> > > of moving say a task with 1G anonymous memory to another group and
-> > > the cost of moving a task with 512MB anonymous and 512 page cache
-> > > mapped, etc. It would be nice to understand the overall cost.
-> > > 
-> > O.K.
-> > I'll test programs with big anonymous pages and measure the time and report.
+> On Wed, Dec 02, 2009 at 12:08:18AM -0500, Rik van Riel wrote:
+> > The VM needs to touch a few (but only a few) PTEs in
+> > that situation, to make sure that anonymous pages get
+> > moved to the inactive anon list and get to a real chance
+> > at being referenced before we try to evict anonymous
+> > pages.
 > > 
-> I measured the elapsed time of "echo <pid> > <some path>/tasks" on KVM guest
-> with 4CPU/4GB(Xeon/3GHz).
+> > Without a small amount of pre-aging, we would end up
+> > essentially doing FIFO replacement of anonymous memory,
+> > which has been known to be disastrous to performance
+> > for over 40 years now.
 > 
-> - used the attached simple program.
-> - made 2 directories(00, 01) under root, and enabled recharge_at_immigrate in both.
-> - measured the elapsed time by "time -p" for moving between:
+> So far the only kernel that hangs in fork is the newer one...
 > 
->   (1) root -> 00
->   (2) 00 -> 01
+> In general I cannot care less about FIFO, I care about no CPU waste on
+> 100% of my systems were swap is not needed. All my unmapped cache is
+> 100% garbage collectable, and there is never any reason to flush any
+> tlb and walk the rmap chain. Give me a knob to disable the CPU waste
+> given I know what is going on, on my systems. I am totally ok with
+> slightly slower swap performance and fifo replacement in case I
+> eventually hit swap for a little while, then over time if memory
+> pressure stays high swap behavior will improve regardless of
+> flooding ipis to clear young bit when there are hundred gigabytes of
+> freeaeble cache unmapped and clean.
 > 
->   we don't need to call res_counter_uncharge against root, so (1) would be smaller
->   than (2).
+> > Having said that - it may be beneficial to keep very heavily
+> > shared pages on the active list, without ever trying to scan
+> > the ptes associated with them.
 > 
->   (3) 00(setting mem.limit to half size of total) -> 01
-> 
->   To compare the overhead of anon and swap.
-> 
-> Results:
-> 
->        |  252M  |  512M  |   1G
->   -----+--------+--------+--------
->    (1) |  0.21  |  0.41  |  0.821
->   -----+--------+--------+--------
->    (2) |  0.43  |  0.85  |  1.71
->   -----+--------+--------+--------
->    (3) |  0.40  |  0.81  |  1.62
->   -----+--------+--------+--------
-> 
-I'm now trying to decrease these overhead as much as possible, and the current
-status is bellow.
+> Just mapped pages in general, not heavily... The other thing that is
+> beneficial likely is to stop page_referenced after 64 young bit clear,
+> that is referenced enough, you can enable this under my knob so that
+> it won't screw your algorithm. I don't have 1 terabyte of memory, so
+> you don't have to worry for me, I just want every cycle out of my cpu
+> without having to use O_DIRECT all the time.
 
-(support for moving swap charge has not been pushed yet in my tree, so I tested
-only (1) and (2) cases.)
+Umm?? Personally I don't like knob. If you have problematic workload,
+please tell it us. I will try to make reproduce environment on my box.
+If current code doesn't works on KVM or something-else, I really want
+to fix it.
 
-       |  252M  |  512M  |   1G
-  -----+--------+--------+--------
-   (1) |  0.20  |  0.40  |  0.81
-  -----+--------+--------+--------
-   (2) |  0.20  |  0.40  |  0.81
+I think Larry's trylock idea and your 64 young bit idea can be combinate.
+I only oppose the page move to inactive list without clear young bit. IOW,
+if VM pressure is very low and the page have lots young bit, the page should
+go back active list although trylock(ptelock) isn't contended.
 
-What I've done are are:
-- Instead of calling res_counter_uncharge() against the old cgroup in __mem_cgroup_move_account()
-  evrytime, call res_counter_uncharge(PAGE_SIZE * moved) at the end of task migration once.
-- Instead of calling try_charge repeatedly, call res_counter_charge(PAGE_SIZE * necessary)
-  in can_attach() if possible.
-- Not only res_counter_charge/uncharge, consolidate css_get()/put() too.
+But unfortunatelly I don't have problem workload as you mentioned. Anyway
+we need evaluate way to your idea. We obviouslly more info.
 
 
-BTW, KAMEZAWA-san, are you planning to add mm_counter for swap yet ?
-To tell the truth, instead of making use of mm_counter, I want to parse the page table
-in can_attach as I did before, because:
-- parsing the page table in can_attach seems not to add so big overheads(see below).
-- if we add support for file-cache and shmem in future, I think we need to parse the page table
-  anyway, because there is no independent mm_counter for shmem. I want to treat them
-  independently because users don't consider shmem as file-cahce, IMHO.
 
-(parsing the page table in can_attach)
-       |  252M  |  512M  |   1G
-  -----+--------+--------+--------
-   (1) |  0.21  |  0.41  |  0.83
-  -----+--------+--------+--------
-   (2) |  0.21  |  0.41  |  0.83
-
-Hopefully, I want to post a new version in this week.
-
-
-Regards,
-Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
