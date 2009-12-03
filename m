@@ -1,161 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EB91E600762
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 17:44:20 -0500 (EST)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id nB3MVs2k016763
-	for <linux-mm@kvack.org>; Thu, 3 Dec 2009 15:31:54 -0700
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id nB3Mi4a4159014
-	for <linux-mm@kvack.org>; Thu, 3 Dec 2009 15:44:08 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nB3Mi3eF023909
-	for <linux-mm@kvack.org>; Thu, 3 Dec 2009 15:44:04 -0700
-Date: Thu, 3 Dec 2009 16:44:02 -0600
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: [RFC PATCH 5/6] vfs: make init-file static
-Message-ID: <20091203224402.GA12995@us.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 05553600762
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 18:24:47 -0500 (EST)
+Subject: Re: [RFC PATCH 4/6] networking: rework socket to fd mapping using
+ alloc-file
+From: Eric Paris <eparis@redhat.com>
+In-Reply-To: <20091203.140045.67902314.davem@davemloft.net>
 References: <20091203195851.8925.30926.stgit@paris.rdu.redhat.com>
- <20091203195925.8925.21416.stgit@paris.rdu.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091203195925.8925.21416.stgit@paris.rdu.redhat.com>
+	 <20091203195917.8925.84203.stgit@paris.rdu.redhat.com>
+	 <20091203.140045.67902314.davem@davemloft.net>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 03 Dec 2009 18:24:30 -0500
+Message-Id: <1259882670.2670.20.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Eric Paris <eparis@redhat.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jmorris@namei.org, npiggin@suse.de, zohar@us.ibm.com, jack@suse.cz, jmalicki@metacarta.com, dsmith@redhat.com, hch@lst.de, john@johnmccutchan.com, rlove@rlove.org, ebiederm@xmission.com, heiko.carstens@de.ibm.com, penguin-kernel@I-love.SAKURA.ne.jp, mszeredi@suse.cz, jens.axboe@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, hugh.dickins@tiscali.co.uk, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, davem@davemloft.net, arnd@arndb.de, eric.dumazet@gmail.com
+To: David Miller <davem@davemloft.net>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jmorris@namei.org, npiggin@suse.de, zohar@us.ibm.com, jack@suse.cz, jmalicki@metacarta.com, dsmith@redhat.com, serue@us.ibm.com, hch@lst.de, john@johnmccutchan.com, rlove@rlove.org, ebiederm@xmission.com, heiko.carstens@de.ibm.com, penguin-kernel@I-love.SAKURA.ne.jp, mszeredi@suse.cz, jens.axboe@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, hugh.dickins@tiscali.co.uk, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, arnd@arndb.de, eric.dumazet@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Quoting Eric Paris (eparis@redhat.com):
-> init-file is no longer used by anything except alloc_file.  Make it static and
-> remove from headers.
+On Thu, 2009-12-03 at 14:00 -0800, David Miller wrote:
+> From: Eric Paris <eparis@redhat.com>
+> Date: Thu, 03 Dec 2009 14:59:17 -0500
+> 
+> > Currently the networking code does interesting things allocating its struct
+> > file and file descriptors.  This patch attempts to unify all of that and
+> > simplify the error paths.  It is also a part of my patch series trying to get
+> > rid of init-file and get-empty_filp and friends.
+> > 
+> > Signed-off-by: Eric Paris <eparis@redhat.com>
+> 
+> I'm fine with this:
+> 
+> Acked-by: David S. Miller <davem@davemloft.net>
 
-Should these go through a deprecation period?  (Same for the next patch)
+It's actually busted, I forgot to actually pass back the new file in
+sock_alloc_fd().  But I've got a fixed version and will resend the
+series once I see other comments....
 
-> Signed-off-by: Eric Paris <eparis@redhat.com>
-> ---
-> 
->  fs/file_table.c      |   73 ++++++++++++++++++++++----------------------------
->  include/linux/file.h |    3 --
->  2 files changed, 32 insertions(+), 44 deletions(-)
-> 
-> diff --git a/fs/file_table.c b/fs/file_table.c
-> index 4bef4c0..0f9d2f2 100644
-> --- a/fs/file_table.c
-> +++ b/fs/file_table.c
-> @@ -150,53 +150,16 @@ fail:
->  EXPORT_SYMBOL(get_empty_filp);
-> 
->  /**
-> - * alloc_file - allocate and initialize a 'struct file'
-> - * @mnt: the vfsmount on which the file will reside
-> - * @dentry: the dentry representing the new file
-> - * @mode: the mode with which the new file will be opened
-> - * @fop: the 'struct file_operations' for the new file
-> - *
-> - * Use this instead of get_empty_filp() to get a new
-> - * 'struct file'.  Do so because of the same initialization
-> - * pitfalls reasons listed for init_file().  This is a
-> - * preferred interface to using init_file().
-> - *
-> - * If all the callers of init_file() are eliminated, its
-> - * code should be moved into this function.
-> - */
-> -struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-> -		fmode_t mode, const struct file_operations *fop)
-> -{
-> -	struct file *file;
-> -
-> -	file = get_empty_filp();
-> -	if (!file)
-> -		return NULL;
-> -
-> -	init_file(file, mnt, dentry, mode, fop);
-> -	return file;
-> -}
-> -EXPORT_SYMBOL(alloc_file);
-> -
-> -/**
->   * init_file - initialize a 'struct file'
->   * @file: the already allocated 'struct file' to initialized
->   * @mnt: the vfsmount on which the file resides
->   * @dentry: the dentry representing this file
->   * @mode: the mode the file is opened with
->   * @fop: the 'struct file_operations' for this file
-> - *
-> - * Use this instead of setting the members directly.  Doing so
-> - * avoids making mistakes like forgetting the mntget() or
-> - * forgetting to take a write on the mnt.
-> - *
-> - * Note: This is a crappy interface.  It is here to make
-> - * merging with the existing users of get_empty_filp()
-> - * who have complex failure logic easier.  All users
-> - * of this should be moving to alloc_file().
->   */
-> -int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
-> -	   fmode_t mode, const struct file_operations *fop)
-> +static int init_file(struct file *file, struct vfsmount *mnt,
-> +		     struct dentry *dentry, fmode_t mode,
-> +		     const struct file_operations *fop)
->  {
->  	int error = 0;
->  	file->f_path.dentry = dentry;
-> @@ -218,7 +181,35 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
->  	}
->  	return error;
->  }
-> -EXPORT_SYMBOL(init_file);
-> +
-> +/**
-> + * alloc_file - allocate and initialize a 'struct file'
-> + * @mnt: the vfsmount on which the file will reside
-> + * @dentry: the dentry representing the new file
-> + * @mode: the mode with which the new file will be opened
-> + * @fop: the 'struct file_operations' for the new file
-> + *
-> + * Use this instead of get_empty_filp() to get a new
-> + * 'struct file'.  Do so because of the same initialization
-> + * pitfalls reasons listed for init_file().  This is a
-> + * preferred interface to using init_file().
-> + *
-> + * If all the callers of init_file() are eliminated, its
-> + * code should be moved into this function.
-> + */
-> +struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-> +		fmode_t mode, const struct file_operations *fop)
-> +{
-> +	struct file *file;
-> +
-> +	file = get_empty_filp();
-> +	if (!file)
-> +		return NULL;
-> +
-> +	init_file(file, mnt, dentry, mode, fop);
-> +	return file;
-> +}
-> +EXPORT_SYMBOL(alloc_file);
-> 
->  void fput(struct file *file)
->  {
-> diff --git a/include/linux/file.h b/include/linux/file.h
-> index 335a0a5..6a8d361 100644
-> --- a/include/linux/file.h
-> +++ b/include/linux/file.h
-> @@ -18,9 +18,6 @@ extern void drop_file_write_access(struct file *file);
->  struct file_operations;
->  struct vfsmount;
->  struct dentry;
-> -extern int init_file(struct file *, struct vfsmount *mnt,
-> -		struct dentry *dentry, fmode_t mode,
-> -		const struct file_operations *fop);
->  extern struct file *alloc_file(struct vfsmount *, struct dentry *dentry,
->  		fmode_t mode, const struct file_operations *fop);
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+inc diff below in case anyone is trying to test this series.
+
+diff --git a/net/socket.c b/net/socket.c
+index 41ac0b1..6620421 100644
+--- a/net/socket.c
++++ b/net/socket.c
+@@ -390,6 +390,7 @@ static int sock_alloc_fd(struct file **filep, struct
+socket *sock, int flags)
+                goto out_err;
+        }
+ 
++       *filep = file;
+        sock->file = file;
+        SOCK_INODE(sock)->i_fop = &socket_file_ops;
+        file->f_flags = O_RDWR | (flags & O_NONBLOCK);
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
