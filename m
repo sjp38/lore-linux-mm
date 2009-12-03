@@ -1,78 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AEE446B003D
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 07:10:20 -0500 (EST)
-Date: Thu, 3 Dec 2009 12:10:13 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC,PATCH 2/2] dmapool: Honor GFP_* flags.
-Message-ID: <20091203121012.GF26702@csn.ul.ie>
-References: <200912021518.35877.roger.oksanen@cs.helsinki.fi> <200912021523.39696.roger.oksanen@cs.helsinki.fi> <alpine.DEB.2.00.0912021358150.2547@router.home>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 96AF46B003D
+	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 10:10:13 -0500 (EST)
+Date: Thu, 3 Dec 2009 23:03:23 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 22/24] HWPOISON: add memory cgroup filter
+Message-ID: <20091203150323.GA15611@localhost>
+References: <20091202031231.735876003@intel.com> <20091202043046.519053333@intel.com> <20091202124446.GA18989@one.firstfloor.org> <20091202125842.GA13277@localhost> <20091203105229.afb0efc4.kamezawa.hiroyu@jp.fujitsu.com> <20091203021915.GA13587@localhost> <20091203112822.ecee5bf5.kamezawa.hiroyu@jp.fujitsu.com> <20091203024739.GB17716@localhost> <20091203115840.45f73bd3.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0912021358150.2547@router.home>
+In-Reply-To: <20091203115840.45f73bd3.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Roger Oksanen <roger.oksanen@cs.helsinki.fi>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 02, 2009 at 02:00:56PM -0600, Christoph Lameter wrote:
-> On Wed, 2 Dec 2009, Roger Oksanen wrote:
+On Thu, Dec 03, 2009 at 10:58:40AM +0800, KAMEZAWA Hiroyuki wrote:
+> On Thu, 3 Dec 2009 10:47:39 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> >  1 files changed, 3 insertions(+), 1 deletions(-)
-> >
-> > diff --git a/mm/dmapool.c b/mm/dmapool.c
-> > index 2fdd7a1..e270f7f 100644
-> > --- a/mm/dmapool.c
-> > +++ b/mm/dmapool.c
-> > @@ -312,6 +312,8 @@
-> >  	void *retval;
-> >  	int tries = 0;
-> >  	const gfp_t can_wait = mem_flags & __GFP_WAIT;
-> > +	/* dma_pool_alloc uses its own wait logic */
-> > +	mem_flags &= ~__GFP_WAIT;
+> > On Thu, Dec 03, 2009 at 10:28:22AM +0800, KAMEZAWA Hiroyuki wrote:
+> > Ah please forgive my memcg ignorance..  Then how about bring back the
+> > old css_id() based scheme (old patch follows)?
+> > 
+> maybe enough. but please take care of the fact that css is can be "reused"
+> once freed.
+
+OK.
+
+> > > If you have more patches to be usable the function above,
+> > > I recommend you to post this with some real-use patches, in step by step.
+> > 
+> > Do you mean user space test case? Here is a simple one:
+> > 
+> >         #!/bin/sh
+> > 
+> >         TEST_PROG=usemem
+> >         TEST_PARM="-m 100 -s 100"
+> > 
+> >         test -d /cgroup/hwpoison && rmdir /cgroup/hwpoison
+> >         mkdir /cgroup/hwpoison
+> > 
+> >         $TEST_PROG $TEST_PARM &
+> >         echo `pidof $TEST_PROG` > /cgroup/hwpoison/tasks
+> > 
+> >         memcg_id=$(</cgroup/hwpoison/memory.id)
+> >         echo $memcg_id > /debug/hwpoison/corrupt-filter-memcg
+> > 
+> >         ./corrupt-all-pfn
+> > 
+> Ah, this is nice to be put into changelog or some documentation.
+
+Good idea, I'll add it.
+
+> > > patch 19,20 is ok for me.
+> > 
+> > Thanks,
+> > Fengguang
+> > ---
+> > memcg: show memory.id in cgroupfs
+> > 
+> > The hwpoison test suite need to selectively inject hwpoison to some
+> > targeted task pages, and must not kill important system processes
+> > such as init.
+> > 
+> > The memory cgroup serves this purpose well. We can put the target
+> > processes under the control of a memory cgroup, tell the hwpoison
+> > injection code the id of that memory cgroup so that it will only
+> > poison pages associated with it.
+> > 
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 > 
-> Why mask the wait flag? If you can call the page allocator with __GFP_WAIT
-> then you dont have to loop.
+> No objections from me. please use "id" check. or adds new flag to
+> struct mem_cgroup, as you like.
+
+There's a 3rd option: inode number in cgroupfs.
+
+test case:
+                memcg_ino=$(ls -id /cgroup/hwpoison | cut -f1 -d' ')
+                echo $memcg_ino > /debug/hwpoison/corrupt-filter-memcg
+
+kernel code:
+                hwpoison_filter_memcg ==
+                memcg->css->cgroup->dentry->d_inode->i_ino
+
+It's pretty long chain, but performance is not a big concern for test
+purpose :) As long as the inode number will be accessible and unique
+in long term.
+
+This avoids adding extra interfaces to memcg. What do you think?
+
+> The style I prefer is
+> ==
+>  struct mem_cgroup {
+>   ....
+>   bool hwpoison_test_enabled;
+>  };
 > 
-
-Because the wait logic in the dma pool is significantly different to
-what the page allocator itself does. It's not obvious why that is
-or what the consequences would be if it was changed.
-
-What I would guess (but have not researched) is that the pages in use by
-the pool are expected to be more or less fixed and requests that exceed
-the pool size are rare. In the unlikely event the pool is depleted, it's
-preferred by the caller to wait for a short period instead of entering
-direct reclaim which may take far longer. Their expectation is that a
-short wait will be enough for a pool page to be returned and less costly
-than the normal wait logic.
-
-The intent of the patch is to cover the case where dma_pool_alloc() is called
-with a zone modifier. Grep doesn't show up cases where that happens but if
-a new user comes along and specifies GFP_DMA32 and doesn't test on a machine
-with enough memory, they'll get a lovely surprise.
-
-I don't think it's worth the risk at this time of converting the DMA pool
-to use the page allocators wait logic. The conversion itself would be
-simple enough but the testing is not and any potential benefits are
-unclear at best.
-
-> > -	page = pool_alloc_page(pool, GFP_ATOMIC | (can_wait && tries % 10
-> > +	page = pool_alloc_page(pool, mem_flags | (can_wait && tries % 10
-> >  						  ? __GFP_NOWARN : 0));
+> +#ifdef CONFIG_HWPOISON_INJECT /* for now, only user is hwpoison testing */
+> +	{
+> +		.name = "hwpoison_test_enable",
+> +		.read_u64 = ....
+> +	},
+> +#endif
 > 
-> You are now uselessly calling the page allocator with __GFP_WAIT cleared
-> although the context allows you to wait.
-> 
-> Just pass through the mem_flags? Rename them gfp_flags for consistencies
-> sake?
-> 
+> and.
+> 	mem = try_get_mem_cgroup_from_page(p);
+> 	if (mem_cgroup_is_under_poison_test(mem))
+> 		ret = true;
+> 	mem_cgroup_put(mem);	/* calls css_put() */
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+It seems mem_cgroup_put() does atomic_dec_and_test(&mem->refcnt).
+Is that changed to css_put() recently?
+
+> Maybe not difficult. and this is an usual way. But it's ok if you don't want to
+> scannter HWPOISON things to other function's files. This is test operation.
+> 
+> So, "including real use case and patches" is only my request, for this time.
+
+OK, thanks for the review!
+
+Regards,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
