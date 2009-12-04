@@ -1,338 +1,363 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7FA6007BA
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 02:35:05 -0500 (EST)
-Date: Fri, 4 Dec 2009 16:29:18 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mmotm 4/7] memcg: improbe performance in moving charge
-Message-Id: <20091204162918.98aed8c8.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20091204161004.146ae715.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A45E26007BA
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 02:35:36 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB47ZWgQ012647
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 4 Dec 2009 16:35:32 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DEAF45DE55
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:35:32 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 502D345DE4F
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:35:32 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 39AD6E78003
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:35:32 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E3E1FEF8004
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:35:31 +0900 (JST)
+Date: Fri, 4 Dec 2009 16:32:37 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH -mmotm 6/7] memcg: move charges of anonymous swap
+Message-Id: <20091204163237.996b0d89.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091204145255.85160b8b.nishimura@mxp.nes.nec.co.jp>
 References: <20091204144609.b61cc8c4.nishimura@mxp.nes.nec.co.jp>
-	<20091204145049.261b001b.nishimura@mxp.nes.nec.co.jp>
-	<20091204161004.146ae715.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091204145255.85160b8b.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Dec 2009 16:10:04 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 4 Dec 2009 14:50:49 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Fri, 4 Dec 2009 14:52:55 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+
+> This patch is another core part of this move-charge-at-task-migration feature.
+> It enables moving charges of anonymous swaps.
 > 
-> > This patch tries to reduce overheads in moving charge by:
-> > 
-> > - Instead of calling res_counter_uncharge against the old cgroup in
-> >   __mem_cgroup_move_account everytime, call res_counter_uncharge at the end of
-> >   task migration once.
-> > - Instead of calling res_counter_charge(via __mem_cgroup_try_charge) repeatedly,
-> >   call res_counter_charge(PAGE_SIZE * count) in can_attach() if possible.
-> > - Adds a new arg(count) to __css_put and make it decrement the css->refcnt
-> >   by "count", not 1.
-> > - Add a new function(__css_get), which takes "count" as a arg and increment
-> >   the css->recnt by "count".
-> > - Instead of calling css_get/css_put repeatedly, call new __css_get/__css_put
-> >   if possible.
-> > - removed css_get(&to->css) from __mem_cgroup_move_account(callers should have
-> >   already called css_get), and removed css_put(&to->css) too, which is called by
-> >   callers of move_account on success of move_account.
-> > 
-> > These changes reduces the overhead from 1.7sec to 0.6sec to move charges of 1G
-> > anonymous memory in my test environment.
-> > 
-> > Changelog: 2009/12/04
-> > - new patch
-> > 
-> seems nice in general.
->
-Thank you.
- 
+> To move the charge of swap, we need to exchange swap_cgroup's record.
 > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > ---
-> >  include/linux/cgroup.h |   12 +++-
-> >  kernel/cgroup.c        |    5 +-
-> >  mm/memcontrol.c        |  151 +++++++++++++++++++++++++++++++-----------------
-> >  3 files changed, 109 insertions(+), 59 deletions(-)
-> > 
-> > diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-> > index d4cc200..61f75ae 100644
-> > --- a/include/linux/cgroup.h
-> > +++ b/include/linux/cgroup.h
-> > @@ -75,6 +75,12 @@ enum {
-> >  	CSS_REMOVED, /* This CSS is dead */
-> >  };
-> >  
-> > +/* Caller must verify that the css is not for root cgroup */
-> > +static inline void __css_get(struct cgroup_subsys_state *css, int count)
-> > +{
-> > +	atomic_add(count, &css->refcnt);
-> > +}
-> > +
-> >  /*
-> >   * Call css_get() to hold a reference on the css; it can be used
-> >   * for a reference obtained via:
-> > @@ -86,7 +92,7 @@ static inline void css_get(struct cgroup_subsys_state *css)
-> >  {
-> >  	/* We don't need to reference count the root state */
-> >  	if (!test_bit(CSS_ROOT, &css->flags))
-> > -		atomic_inc(&css->refcnt);
-> > +		__css_get(css, 1);
-> >  }
-> >  
-> >  static inline bool css_is_removed(struct cgroup_subsys_state *css)
-> > @@ -117,11 +123,11 @@ static inline bool css_tryget(struct cgroup_subsys_state *css)
-> >   * css_get() or css_tryget()
-> >   */
-> >  
-> > -extern void __css_put(struct cgroup_subsys_state *css);
-> > +extern void __css_put(struct cgroup_subsys_state *css, int count);
-> >  static inline void css_put(struct cgroup_subsys_state *css)
-> >  {
-> >  	if (!test_bit(CSS_ROOT, &css->flags))
-> > -		__css_put(css);
-> > +		__css_put(css, 1);
-> >  }
-> > 
+> In current implementation, swap_cgroup's record is protected by:
 > 
-> Maybe it's better to divide cgroup part in other patches. Li or Paul has to review.
+>   - page lock: if the entry is on swap cache.
+>   - swap_lock: if the entry is not on swap cache.
 > 
+> This works well in usual swap-in/out activity.
+> 
+> But this behavior make the feature of moving swap charge check many conditions
+> to exchange swap_cgroup's record safely.
+> 
+> So I changed modification of swap_cgroup's recored(swap_cgroup_record())
+> to use xchg, and define a new function to cmpxchg swap_cgroup's record.
+> 
+> This patch also enables moving charge of non pte_present but not uncharged swap
+> caches, which can be exist on swap-out path, by getting the target pages via
+> find_get_page() as do_mincore() does.
+> 
+> Changelog: 2009/12/04
+> - minor changes in comments and valuable names.
+> Changelog: 2009/11/19
+> - in can_attach(), instead of parsing the page table, make use of per process
+>   mm_counter(swap_usage).
+> Changelog: 2009/11/06
+> - drop support for shmem's swap(revisit in future).
+> - add mem_cgroup_count_swap_user() to prevent moving charges of swaps used by
+>   multiple processes(revisit in future).
+> Changelog: 2009/09/24
+> - do no swap-in in moving swap account any more.
+> - add support for shmem's swap.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+>  include/linux/page_cgroup.h |    2 +
+>  include/linux/swap.h        |    1 +
+>  mm/memcontrol.c             |  154 +++++++++++++++++++++++++++++++++----------
+>  mm/page_cgroup.c            |   35 +++++++++-
+>  mm/swapfile.c               |   31 +++++++++
+>  5 files changed, 185 insertions(+), 38 deletions(-)
+> 
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index b0e4eb1..30b0813 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -118,6 +118,8 @@ static inline void __init page_cgroup_init_flatmem(void)
+>  #include <linux/swap.h>
 >  
-I agree.
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> +extern unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
+> +					unsigned short old, unsigned short new);
+>  extern unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id);
+>  extern unsigned short lookup_swap_cgroup(swp_entry_t ent);
+>  extern int swap_cgroup_swapon(int type, unsigned long max_pages);
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 9f0ca32..2a3209e 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -355,6 +355,7 @@ static inline void disable_swap_token(void)
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>  extern void
+>  mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout);
+> +extern int mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep);
+>  #else
+>  static inline void
+>  mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f50ad15..6b3d17f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -33,6 +33,7 @@
+>  #include <linux/rbtree.h>
+>  #include <linux/slab.h>
+>  #include <linux/swap.h>
+> +#include <linux/swapops.h>
+>  #include <linux/spinlock.h>
+>  #include <linux/fs.h>
+>  #include <linux/seq_file.h>
+> @@ -2258,6 +2259,53 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
+>  	}
+>  	rcu_read_unlock();
+>  }
+> +
+> +/**
+> + * mem_cgroup_move_swap_account - move swap charge and swap_cgroup's record.
+> + * @entry: swap entry to be moved
+> + * @from:  mem_cgroup which the entry is moved from
+> + * @to:  mem_cgroup which the entry is moved to
+> + *
+> + * It succeeds only when the swap_cgroup's record for this entry is the same
+> + * as the mem_cgroup's id of @from.
+> + *
+> + * Returns 0 on success, -EINVAL on failure.
+> + *
+> + * The caller must have charged to @to, IOW, called res_counter_charge() about
+> + * both res and memsw, and called css_get().
+> + */
+> +static int mem_cgroup_move_swap_account(swp_entry_t entry,
+> +				struct mem_cgroup *from, struct mem_cgroup *to)
+> +{
+> +	unsigned short old_id, new_id;
+> +
+> +	old_id = css_id(&from->css);
+> +	new_id = css_id(&to->css);
+> +
+> +	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
+> +		if (!mem_cgroup_is_root(from))
+> +			res_counter_uncharge(&from->memsw, PAGE_SIZE);
+> +		mem_cgroup_swap_statistics(from, false);
+> +		mem_cgroup_put(from);
+> +		/*
+> +		 * we charged both to->res and to->memsw, so we should uncharge
+> +		 * to->res.
+> +		 */
+> +		if (!mem_cgroup_is_root(to))
+> +			res_counter_uncharge(&to->res, PAGE_SIZE);
+> +		mem_cgroup_swap_statistics(to, true);
+> +		mem_cgroup_get(to);
+> +
+> +		return 0;
+> +	}
+> +	return -EINVAL;
+> +}
 
-> >  /* bits in struct cgroup flags field */
-> > diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-> > index d67d471..44f5924 100644
-> > --- a/kernel/cgroup.c
-> > +++ b/kernel/cgroup.c
-> > @@ -3729,12 +3729,13 @@ static void check_for_release(struct cgroup *cgrp)
-> >  	}
-> >  }
-> >  
-> > -void __css_put(struct cgroup_subsys_state *css)
-> > +/*  Caller must verify that the css is not for root cgroup */
-> > +void __css_put(struct cgroup_subsys_state *css, int count)
-> >  {
-> >  	struct cgroup *cgrp = css->cgroup;
-> >  	int val;
-> >  	rcu_read_lock();
-> > -	val = atomic_dec_return(&css->refcnt);
-> > +	val = atomic_sub_return(count, &css->refcnt);
-> >  	if (val == 1) {
-> >  		if (notify_on_release(cgrp)) {
-> >  			set_bit(CGRP_RELEASABLE, &cgrp->flags);
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index e38f211..769b85a 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -252,6 +252,7 @@ struct move_charge_struct {
-> >  	struct mem_cgroup *from;
-> >  	struct mem_cgroup *to;
-> >  	unsigned long precharge;
-> > +	unsigned long moved_charge;
-> >  };
-> >  static struct move_charge_struct mc;
-> >  
-> > @@ -1532,14 +1533,23 @@ nomem:
-> >   * This function is for that and do uncharge, put css's refcnt.
-> >   * gotten by try_charge().
-> >   */
-> > -static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
-> > +static void __mem_cgroup_cancel_charge(struct mem_cgroup *mem,
-> > +							unsigned long count)
-> >  {
-> >  	if (!mem_cgroup_is_root(mem)) {
-> > -		res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > +		res_counter_uncharge(&mem->res, PAGE_SIZE * count);
-> >  		if (do_swap_account)
-> > -			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > +			res_counter_uncharge(&mem->memsw, PAGE_SIZE * count);
-> > +		VM_BUG_ON(test_bit(CSS_ROOT, &mem->css.flags));
-> > +		WARN_ON_ONCE(count > INT_MAX);
-> 
-> Hmm. is this WARN_ON necessary ? ...maybe res_counter_uncharge() will catch
-> this, anyway.
-> 
-The arg of atomic_add/dec is "int", so IMHO, it would be better to check here
-(I think we neve hit this in real use).
+Hmm. Aren't there race with swapin ?
 
-> > +		__css_put(&mem->css, (int)count);
-> >  	}
-> > -	css_put(&mem->css);
-> > +	/* we don't need css_put for root */
-> > +}
-> > +
-> > +static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
-> > +{
-> > +	__mem_cgroup_cancel_charge(mem, 1);
-> >  }
-> >  
-> >  /*
-> > @@ -1645,17 +1655,20 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
-> >   * @pc:	page_cgroup of the page.
-> >   * @from: mem_cgroup which the page is moved from.
-> >   * @to:	mem_cgroup which the page is moved to. @from != @to.
-> > + * @uncharge: whether we should call uncharge and css_put against @from.
-> >   *
-> >   * The caller must confirm following.
-> >   * - page is not on LRU (isolate_page() is useful.)
-> >   * - the pc is locked, used, and ->mem_cgroup points to @from.
-> >   *
-> > - * This function does "uncharge" from old cgroup but doesn't do "charge" to
-> > - * new cgroup. It should be done by a caller.
-> > + * This function doesn't do "charge" nor css_get to new cgroup. It should be
-> > + * done by a caller(__mem_cgroup_try_charge would be usefull). If @uncharge is
-> > + * true, this function does "uncharge" from old cgroup, but it doesn't if
-> > + * @uncharge is false, so a caller should do "uncharge".
-> >   */
-> >  
-> >  static void __mem_cgroup_move_account(struct page_cgroup *pc,
-> > -	struct mem_cgroup *from, struct mem_cgroup *to)
-> > +	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-> >  {
-> >  	struct page *page;
-> >  	int cpu;
-> > @@ -1668,10 +1681,6 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
-> >  	VM_BUG_ON(!PageCgroupUsed(pc));
-> >  	VM_BUG_ON(pc->mem_cgroup != from);
-> >  
-> > -	if (!mem_cgroup_is_root(from))
-> > -		res_counter_uncharge(&from->res, PAGE_SIZE);
-> > -	mem_cgroup_charge_statistics(from, pc, false);
-> > -
-> >  	page = pc->page;
-> >  	if (page_mapped(page) && !PageAnon(page)) {
-> >  		cpu = smp_processor_id();
-> > @@ -1687,12 +1696,12 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
-> >  		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_FILE_MAPPED,
-> >  						1);
-> >  	}
-> > +	mem_cgroup_charge_statistics(from, pc, false);
-> > +	if (uncharge)
-> > +		/* This is not "cancel", but cancel_charge does all we need. */
-> > +		mem_cgroup_cancel_charge(from);
-> >  
-> > -	if (do_swap_account && !mem_cgroup_is_root(from))
-> > -		res_counter_uncharge(&from->memsw, PAGE_SIZE);
-> > -	css_put(&from->css);
-> > -
-> > -	css_get(&to->css);
-> > +	/* caller should have done css_get */
-> >  	pc->mem_cgroup = to;
-> >  	mem_cgroup_charge_statistics(to, pc, true);
-> >  	/*
-> > @@ -1709,12 +1718,12 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
-> >   * __mem_cgroup_move_account()
-> >   */
-> >  static int mem_cgroup_move_account(struct page_cgroup *pc,
-> > -				struct mem_cgroup *from, struct mem_cgroup *to)
-> > +		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-> >  {
-> >  	int ret = -EINVAL;
-> >  	lock_page_cgroup(pc);
-> >  	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
-> > -		__mem_cgroup_move_account(pc, from, to);
-> > +		__mem_cgroup_move_account(pc, from, to, uncharge);
-> >  		ret = 0;
-> >  	}
-> >  	unlock_page_cgroup(pc);
-> > @@ -1750,11 +1759,9 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
-> >  	if (ret || !parent)
-> >  		goto put_back;
-> >  
-> > -	ret = mem_cgroup_move_account(pc, child, parent);
-> > -	if (!ret)
-> > -		css_put(&parent->css);	/* drop extra refcnt by try_charge() */
-> > -	else
-> > -		mem_cgroup_cancel_charge(parent);	/* does css_put */
-> > +	ret = mem_cgroup_move_account(pc, child, parent, true);
-> > +	if (ret)
-> > +		mem_cgroup_cancel_charge(parent);
-> >  put_back:
-> >  	putback_lru_page(page);
-> >  put:
-> > @@ -3441,16 +3448,57 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
-> >  }
-> >  
-> >  /* Handlers for move charge at task migration. */
-> > -static int mem_cgroup_do_precharge(void)
-> > +#define PRECHARGE_COUNT_AT_ONCE	256
-> > +static int mem_cgroup_do_precharge(unsigned long count)
-> >  {
-> > -	int ret = -ENOMEM;
-> > +	int ret = 0;
-> > +	int batch_count = PRECHARGE_COUNT_AT_ONCE;
-> >  	struct mem_cgroup *mem = mc.to;
-> >  
-> > -	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false, NULL);
-> > -	if (ret || !mem)
-> > -		return -ENOMEM;
-> > -
-> > -	mc.precharge++;
-> > +	if (mem_cgroup_is_root(mem)) {
-> > +		mc.precharge += count;
-> > +		/* we don't need css_get for root */
-> > +		return ret;
-> > +	}
-> > +	/* try to charge at once */
-> > +	if (count > 1) {
-> > +		struct res_counter *dummy;
-> > +		/*
-> > +		 * "mem" cannot be under rmdir() because we've already checked
-> > +		 * by cgroup_lock_live_cgroup() that it is not removed and we
-> > +		 * are still under the same cgroup_mutex. So we can postpone
-> > +		 * css_get().
-> > +		 */
-> > +		if (res_counter_charge(&mem->res, PAGE_SIZE * count, &dummy))
-> > +			goto one_by_one;
-> 
->  if (do_swap_account) here.
-> 
-Ah, yes. you're right.
+    Thread A
+   ----------
+   do_swap_page()
+   mem_cgroup_try_charge_swapin() <<== charge "memory" against old memcg.
+   page table lock
+   mem_cgroup_commit_charge_swapin()
+         lookup memcg from swap_cgroup() <<=== finds new memcg, moved one.
+                res_counter_uncharge(&new_memcg->memsw,...)
+                 
+Then, Thread A does
+   old_memcg->res +1 
+   new_memcg->memsw -1
 
-> > +		if (res_counter_charge(&mem->memsw,
-> > +						PAGE_SIZE * count, &dummy)) {
-> > +			res_counter_uncharge(&mem->res, PAGE_SIZE * count);
-> > +			goto one_by_one;
-> > +		}
-> > +		mc.precharge += count;
-> > +		VM_BUG_ON(test_bit(CSS_ROOT, &mem->css.flags));
-> > +		WARN_ON_ONCE(count > INT_MAX);
-> > +		__css_get(&mem->css, (int)count);
-> > +		return ret;
-> > +	}
-> > +one_by_one:
-> > +	/* fall back to one by one charge */
-> > +	while (!ret && count--) {
-> 
-> !ret check seems unnecessary.
-yes.. will remove.
+move_swap_account() does
+   old_memcg->memsw - 1
+   new_memcg->res - 1
+   new_memcg->memsw + 1
 
-> > +		if (signal_pending(current)) {
-> > +			ret = -EINTR;
-> > +			break;
-> > +		}
-> > +		if (!batch_count--) {
-> > +			batch_count = PRECHARGE_COUNT_AT_ONCE;
-> > +			cond_resched();
-> > +		}
-> > +		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem,
-> > +								false, NULL);
-> > +		if (ret || !mem)
-> > +			return -ENOMEM;
-> 
-> returning without uncharge here ?
-> 
-If we return here with -ENOMEM, mem_cgroup_can_attach calls mem_cgroup_clear_mc,
-which will do uncharge. I will add some comments.
-
-Thank you for your careful review.
+Hmm. old_memcg->res doesn't leak ? I think some check in commit_charge()
+for this new race is necessary.
 
 
-Regards,
-Daisuke Nishimura.
+
+> +#else
+> +static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+> +				struct mem_cgroup *from, struct mem_cgroup *to)
+> +{
+> +	return -EINVAL;
+> +}
+>  #endif
+>  
+>  /*
+> @@ -3542,71 +3590,96 @@ one_by_one:
+>   * @vma: the vma the pte to be checked belongs
+>   * @addr: the address corresponding to the pte to be checked
+>   * @ptent: the pte to be checked
+> - * @target: the pointer the target page will be stored(can be NULL)
+> + * @target: the pointer the target page or swap ent will be stored(can be NULL)
+>   *
+>   * Returns
+>   *   0(MC_TARGET_NONE): if the pte is not a target for move charge.
+>   *   1(MC_TARGET_PAGE): if the page corresponding to this pte is a target for
+>   *     move charge. if @target is not NULL, the page is stored in target->page
+>   *     with extra refcnt got(Callers should handle it).
+> + *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
+> + *     target for charge migration. if @target is not NULL, the entry is stored
+> + *     in target->ent.
+>   *
+>   * Called with pte lock held.
+>   */
+> -/* We add a new member later. */
+>  union mc_target {
+>  	struct page	*page;
+> +	swp_entry_t	ent;
+>  };
+>  
+> -/* We add a new type later. */
+>  enum mc_target_type {
+>  	MC_TARGET_NONE,	/* not used */
+>  	MC_TARGET_PAGE,
+> +	MC_TARGET_SWAP,
+>  };
+>  
+>  static int is_target_pte_for_mc(struct vm_area_struct *vma,
+>  		unsigned long addr, pte_t ptent, union mc_target *target)
+>  {
+> -	struct page *page;
+> +	struct page *page = NULL;
+>  	struct page_cgroup *pc;
+>  	int ret = 0;
+> +	swp_entry_t ent = { .val = 0 };
+> +	int usage_count = 0;
+>  	bool move_anon = test_bit(MOVE_CHARGE_TYPE_ANON,
+>  					&mc.to->move_charge_at_immigrate);
+>  
+> -	if (!pte_present(ptent))
+> -		return 0;
+> -
+> -	page = vm_normal_page(vma, addr, ptent);
+> -	if (!page || !page_mapped(page))
+> -		return 0;
+> -	/*
+> -	 * TODO: We don't move charges of file(including shmem/tmpfs) pages for
+> -	 * now.
+> -	 */
+> -	if (!move_anon || !PageAnon(page))
+> -		return 0;
+> -	/*
+> -	 * TODO: We don't move charges of shared(used by multiple processes)
+> -	 * pages for now.
+> -	 */
+> -	if (page_mapcount(page) > 1)
+> -		return 0;
+> -	if (!get_page_unless_zero(page))
+> +	if (!pte_present(ptent)) {
+> +		/* TODO: handle swap of shmes/tmpfs */
+> +		if (pte_none(ptent) || pte_file(ptent))
+> +			return 0;
+> +		else if (is_swap_pte(ptent)) {
+> +			ent = pte_to_swp_entry(ptent);
+> +			if (!move_anon || non_swap_entry(ent))
+> +				return 0;
+> +			usage_count = mem_cgroup_count_swap_user(ent, &page);
+> +		}
+> +	} else {
+> +		page = vm_normal_page(vma, addr, ptent);
+> +		if (!page || !page_mapped(page))
+> +			return 0;
+> +		/*
+> +		 * TODO: We don't move charges of file(including shmem/tmpfs)
+> +		 * pages for now.
+> +		 */
+> +		if (!move_anon || !PageAnon(page))
+> +			return 0;
+> +		if (!get_page_unless_zero(page))
+> +			return 0;
+> +		usage_count = page_mapcount(page);
+> +	}
+> +	if (usage_count > 1) {
+> +		/*
+> +		 * TODO: We don't move charges of shared(used by multiple
+> +		 * processes) pages for now.
+> +		 */
+> +		if (page)
+> +			put_page(page);
+>  		return 0;
+> -
+> -	pc = lookup_page_cgroup(page);
+> -	/*
+> -	 * Do only loose check w/o page_cgroup lock. mem_cgroup_move_account()
+> -	 * checks the pc is valid or not under the lock.
+> -	 */
+> -	if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
+> -		ret = MC_TARGET_PAGE;
+> +	}
+> +	if (page) {
+> +		pc = lookup_page_cgroup(page);
+> +		/*
+> +		 * Do only loose check w/o page_cgroup lock.
+> +		 * mem_cgroup_move_account() checks the pc is valid or not under
+> +		 * the lock.
+> +		 */
+> +		if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
+> +			ret = MC_TARGET_PAGE;
+> +			if (target)
+> +				target->page = page;
+> +		}
+> +		if (!ret || !target)
+> +			put_page(page);
+> +	}
+> +	/* throught */
+> +	if (ent.val && do_swap_account && !ret &&
+> +			css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
+> +		ret = MC_TARGET_SWAP;
+>  		if (target)
+> -			target->page = page;
+> +			target->ent = ent;
+>  	}
+> -
+> -	if (!ret || !target)
+> -		put_page(page);
+> -
+>  	return ret;
+>  }
+>  
+> @@ -3745,6 +3818,7 @@ retry:
+>  		int type;
+>  		struct page *page;
+>  		struct page_cgroup *pc;
+> +		swp_entry_t ent;
+>  
+>  		if (!mc.precharge)
+>  			break;
+> @@ -3766,6 +3840,14 @@ retry:
+>  put:			/* is_target_pte_for_mc() gets the page */
+>  			put_page(page);
+>  			break;
+> +		case MC_TARGET_SWAP:
+> +			ent = target.ent;
+> +			if (!mem_cgroup_move_swap_account(ent,
+> +						mc.from, mc.to)) {
+> +				css_put(&mc.to->css);
+> +				mc.precharge--;
+> +			}
+> +			break;
+>  		default:
+>  			break;
+>  		}
+
+complicated than expected. But ok for the first version.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
