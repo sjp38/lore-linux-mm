@@ -1,108 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B16416007BA
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 03:41:40 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A01396007BA
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 03:42:25 -0500 (EST)
 Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB48fcZ6008566
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB48gM0P008957
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 4 Dec 2009 17:41:38 +0900
+	Fri, 4 Dec 2009 17:42:22 +0900
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF56345DE79
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:41:37 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0103745DE60
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:42:22 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E85245DE6F
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:41:37 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B254645DE79
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:42:21 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B0DB21DB8040
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:41:36 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 174301DB8049
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:41:36 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 743811DB803A
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:42:19 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 804D61DB8041
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:42:18 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 1/7] Replace page_mapping_inuse() with page_mapped()
+Subject: [PATCH 2/7] Introduce __page_check_address
 In-Reply-To: <20091204173233.5891.A69D9226@jp.fujitsu.com>
 References: <20091204173233.5891.A69D9226@jp.fujitsu.com>
-Message-Id: <20091204174016.5894.A69D9226@jp.fujitsu.com>
+Message-Id: <20091204174139.5897.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: quoted-printable
-Date: Fri,  4 Dec 2009 17:41:35 +0900 (JST)
+Date: Fri,  4 Dec 2009 17:42:15 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-=46rom c0cd3ee2bb13567a36728600a86f43abac3125b5 Mon Sep 17 00:00:00 2001
+=46rom 381108e1ff6309f45f45a67acf2a1dd66e41df4f Mon Sep 17 00:00:00 2001
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 2 Dec 2009 12:05:26 +0900
-Subject: [PATCH 1/7] Replace page_mapping_inuse() with page_mapped()
+Date: Thu, 3 Dec 2009 15:01:42 +0900
+Subject: [PATCH 2/7] Introduce __page_check_address
 
-page reclaim logic need to distingish mapped and unmapped pages.
-However page_mapping_inuse() don't provide proper test way. it test
-the address space (i.e. file) is mmpad(). Why `page' reclaim need
-care unrelated page's mapped state? it's unrelated.
+page_check_address() need to take ptelock. but it might be contended.
+Then we need trylock version and this patch introduce new helper function.
 
-Thus, This patch replace page_mapping_inuse() with page_mapped()
+it will be used latter patch.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- mm/vmscan.c |   25 ++-----------------------
- 1 files changed, 2 insertions(+), 23 deletions(-)
+ mm/rmap.c |   62 ++++++++++++++++++++++++++++++++++++++++++++++++---------=
+---
+ 1 files changed, 49 insertions(+), 13 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index da6cf42..4ba08da 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -262,27 +262,6 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t=
- gfp_mask,
- 	return ret;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 278cd27..1b50425 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -268,44 +268,80 @@ unsigned long page_address_in_vma(struct page *page, =
+struct vm_area_struct *vma)
+  * the page table lock when the pte is not present (helpful when reclaimin=
+g
+  * highly shared pages).
+  *
+- * On success returns with pte mapped and locked.
++ * if @noblock is true, page_check_address may return -EAGAIN if lock is
++ * contended.
++ *
++ * Returns valid pte pointer if success.
++ * Returns -EFAULT if address seems invalid.
++ * Returns -EAGAIN if trylock failed.
+  */
+-pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+-			  unsigned long address, spinlock_t **ptlp, int sync)
++static pte_t *__page_check_address(struct page *page, struct mm_struct *mm=
+,
++				   unsigned long address, spinlock_t **ptlp,
++				   int sync, int noblock)
+ {
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
++	int err =3D -EFAULT;
+=20
+ 	pgd =3D pgd_offset(mm, address);
+ 	if (!pgd_present(*pgd))
+-		return NULL;
++		goto out;
+=20
+ 	pud =3D pud_offset(pgd, address);
+ 	if (!pud_present(*pud))
+-		return NULL;
++		goto out;
+=20
+ 	pmd =3D pmd_offset(pud, address);
+ 	if (!pmd_present(*pmd))
+-		return NULL;
++		goto out;
+=20
+ 	pte =3D pte_offset_map(pmd, address);
+ 	/* Make a quick check before getting the lock */
+-	if (!sync && !pte_present(*pte)) {
+-		pte_unmap(pte);
+-		return NULL;
+-	}
++	if (!sync && !pte_present(*pte))
++		goto out_unmap;
+=20
+ 	ptl =3D pte_lockptr(mm, pmd);
+-	spin_lock(ptl);
++	if (noblock) {
++		if (!spin_trylock(ptl)) {
++			err =3D -EAGAIN;
++			goto out_unmap;
++		}
++	} else
++		spin_lock(ptl);
++
+ 	if (pte_present(*pte) && page_to_pfn(page) =3D=3D pte_pfn(*pte)) {
+ 		*ptlp =3D ptl;
+ 		return pte;
+ 	}
+-	pte_unmap_unlock(pte, ptl);
+-	return NULL;
++
++	spin_unlock(ptl);
++ out_unmap:
++	pte_unmap(pte);
++ out:
++	return ERR_PTR(err);
++}
++
++/*
++ * Check that @page is mapped at @address into @mm.
++ *
++ * If @sync is false, page_check_address may perform a racy check to avoid
++ * the page table lock when the pte is not present (helpful when reclaimin=
+g
++ * highly shared pages).
++ *
++ * On success returns with pte mapped and locked.
++ */
++pte_t *page_check_address(struct page *page, struct mm_struct *mm,
++			  unsigned long address, spinlock_t **ptlp, int sync)
++{
++	pte_t *pte;
++
++	pte =3D __page_check_address(page, mm, address, ptlp, sync, 0);
++	if (IS_ERR(pte))
++		return NULL;
++	return pte;
  }
 =20
--/* Called without lock on whether page is mapped, so answer is unstable */
--static inline int page_mapping_inuse(struct page *page)
--{
--	struct address_space *mapping;
--
--	/* Page is in somebody's page tables. */
--	if (page_mapped(page))
--		return 1;
--
--	/* Be more reluctant to reclaim swapcache than pagecache */
--	if (PageSwapCache(page))
--		return 1;
--
--	mapping =3D page_mapping(page);
--	if (!mapping)
--		return 0;
--
--	/* File is mmap'd by somebody? */
--	return mapping_mapped(mapping);
--}
--
- static inline int is_page_cache_freeable(struct page *page)
- {
- 	/*
-@@ -649,7 +628,7 @@ static unsigned long shrink_page_list(struct list_head =
-*page_list,
- 		 * try_to_unmap moves it to unevictable list
- 		 */
- 		if (sc->order <=3D PAGE_ALLOC_COSTLY_ORDER &&
--					referenced && page_mapping_inuse(page)
-+					referenced && page_mapped(page)
- 					&& !(vm_flags & VM_LOCKED))
- 			goto activate_locked;
-=20
-@@ -1356,7 +1335,7 @@ static void shrink_active_list(unsigned long nr_pages=
-, struct zone *zone,
- 		}
-=20
- 		/* page_referenced clears PageReferenced */
--		if (page_mapping_inuse(page) &&
-+		if (page_mapped(page) &&
- 		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
- 			nr_rotated++;
- 			/*
+ /**
 --=20
 1.6.5.2
 
