@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2FABC60021B
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 02:03:42 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB473bwq029713
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Dec 2009 16:03:37 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F1EA145DE4F
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:03:36 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D1AEE45DE4E
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:03:36 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BEF161DB8037
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:03:36 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 75C571DB8038
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:03:36 +0900 (JST)
-Date: Fri, 4 Dec 2009 16:00:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 0/7] memcg: move charge at task migration
- (04/Dec)
-Message-Id: <20091204160042.3e5fd83d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091204155317.2d570a55.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091204144609.b61cc8c4.nishimura@mxp.nes.nec.co.jp>
-	<20091204155317.2d570a55.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A13F60021B
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 02:10:03 -0500 (EST)
+In-reply-to: <20091203195917.8925.84203.stgit@paris.rdu.redhat.com> (message
+	from Eric Paris on Thu, 03 Dec 2009 14:59:17 -0500)
+Subject: Re: [RFC PATCH 4/6] networking: rework socket to fd mapping using
+	alloc-file
+References: <20091203195851.8925.30926.stgit@paris.rdu.redhat.com> <20091203195917.8925.84203.stgit@paris.rdu.redhat.com>
+Message-Id: <E1NGSIQ-0004nz-Lo@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Fri, 04 Dec 2009 08:09:42 +0100
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>
+To: Eric Paris <eparis@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jmorris@namei.org, npiggin@suse.de, zohar@us.ibm.com, jack@suse.cz, jmalicki@metacarta.com, dsmith@redhat.com, serue@us.ibm.com, hch@lst.de, john@johnmccutchan.com, rlove@rlove.org, ebiederm@xmission.com, heiko.carstens@de.ibm.com, penguin-kernel@I-love.SAKURA.ne.jp, mszeredi@suse.cz, jens.axboe@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, hugh.dickins@tiscali.co.uk, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, davem@davemloft.net, arnd@arndb.de, eric.dumazet@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Dec 2009 15:53:17 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, 03 Dec 2009, Eric Paris wrote:
+> @@ -391,32 +383,37 @@ static int sock_attach_fd(struct socket *sock, struct file *file, int flags)
+>  	dentry->d_flags &= ~DCACHE_UNHASHED;
+>  	d_instantiate(dentry, SOCK_INODE(sock));
+>  
+> +	file = alloc_file(sock_mnt, dentry, FMODE_READ | FMODE_WRITE,
+> +			  &socket_file_ops);
+> +	if (unlikely(!file)) {
+> +		rc = -ENFILE;
+> +		goto out_err;
+> +	}
+> +
+>  	sock->file = file;
+> -	init_file(file, sock_mnt, dentry, FMODE_READ | FMODE_WRITE,
+> -		  &socket_file_ops);
+>  	SOCK_INODE(sock)->i_fop = &socket_file_ops;
+>  	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
+> -	file->f_pos = 0;
+>  	file->private_data = sock;
+>  
+> -	return 0;
+> +	return fd;
+> +out_err:
+> +	if (fd >= 0)
+> +		put_unused_fd(fd);
+> +	if (dentry)
+> +		dput(dentry);
 
-> On Fri, 4 Dec 2009 14:46:09 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> > In this version:
-> >        |  252M  |  512M  |   1G
-> >   -----+--------+--------+--------
-> >    (1) |  0.15  |  0.30  |  0.60
-> >   -----+--------+--------+--------
-> >    (2) |  0.15  |  0.30  |  0.60
-> >   -----+--------+--------+--------
-> >    (3) |  0.22  |  0.44  |  0.89
-> > 
-> Nice !
-> 
-
-Ah. could you clarify...
-
- 1. How is fork()/exit() affected by this move ?
- 2. How long cpuset's migration-at-task-move requires ?
-    I guess much longer than this.
- 3. If need to reclaim memory for moving tasks, can this be longer ?
-    If so, we may need some trick to release cgroup_mutex in task moving.
+Could you please use separate labels intead of conditionals here?
 
 Thanks,
--Kame
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
