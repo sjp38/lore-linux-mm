@@ -1,90 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 958DA6007BA
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 02:37:40 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB47bad3013502
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Dec 2009 16:37:37 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C0CD45DE55
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:37:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D60545DE51
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:37:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B2D18F8005
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:37:36 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E15041DF8002
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 16:37:35 +0900 (JST)
-Date: Fri, 4 Dec 2009 16:34:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 0/7] memcg: move charge at task migration
- (04/Dec)
-Message-Id: <20091204163441.294a5ee8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091204160901.dac2e8bc.nishimura@mxp.nes.nec.co.jp>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 479EF6007BA
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 02:49:21 -0500 (EST)
+Date: Fri, 4 Dec 2009 16:43:55 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH -mmotm 5/7] memcg: avoid oom during moving charge
+Message-Id: <20091204164355.517f0cc3.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20091204161439.2e584630.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20091204144609.b61cc8c4.nishimura@mxp.nes.nec.co.jp>
-	<20091204155317.2d570a55.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091204160901.dac2e8bc.nishimura@mxp.nes.nec.co.jp>
+	<20091204145154.4d184f1d.nishimura@mxp.nes.nec.co.jp>
+	<20091204161439.2e584630.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Dec 2009 16:09:01 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Fri, 4 Dec 2009 15:53:17 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Fri, 4 Dec 2009 14:46:09 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > Hi.
-> > > 
-> > > These are current patches of my move-charge-at-task-migration feature.
-> > > 
-> > > The biggest change from previous(19/Nov) version is improvement in performance.
-> > > 
-> > > I measured the elapsed time of "echo [pid] > <some path>/tasks" on KVM guest
-> > > with 4CPU/4GB(Xeon/3GHz) in three patterns:
-> > > 
-> > >   (1) / -> /00
-> > >   (2) /00 -> /01
-> > > 
-> > >   we don't need to call res_counter_uncharge against root, so (1) would be smaller
-> > >   than (2).
-> > > 
-> > >   (3) /00(setting mem.limit to half size of total) -> /01
-> > > 
-> > >   To compare the overhead of anon and swap.
-> > >
-> > > Please read patch descriptions for each patch([4/7],[7/7]) for details of
-> > > how and how much the patch improved the performance.
-> > > 
-> > >   [1/7] cgroup: introduce cancel_attach()
-> > >   [2/7] memcg: add interface to move charge at task migration
-> > >   [3/7] memcg: move charges of anonymous page
-> > >   [4/7] memcg: improbe performance in moving charge
-> > >   [5/7] memcg: avoid oom during moving charge
-> > >   [6/7] memcg: move charges of anonymous swap
-> > >   [7/7] memcg: improbe performance in moving swap charge
-> > > 
-> > > Current version supports only recharge of non-shared(mapcount == 1) anonymous pages
-> > > and swaps of those pages. I think it's enough as a first step.
-> > > 
-> > Hmm. shared swap entry (very rare one?) is moved ?
-> > 
-> Well, do you mean the charge of shared swap entry(IOW, swap entry with swap_count > 1)
-> is moved ? If so, no. I check swap_count in mem_cgroup_count_swap_user(see [6/7]),
-> and don't move the charge of it if it's shared.
+On Fri, 4 Dec 2009 16:14:39 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Fri, 4 Dec 2009 14:51:54 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-I see. thank you for explanation.
+> > This move-charge-at-task-migration feature has extra charges on "to"(pre-charges)
+> > and "from"(leftover charges) during moving charge. This means unnecessary oom
+> > can happen.
+> > 
+> > This patch tries to avoid such oom.
+> > 
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > 
+> > Changelog: 2009/12/04
+> > - take account of "from" too, because we uncharge from "from" at once in
+> >   mem_cgroup_clear_mc(), so leftover charges exist during moving charge.
+> > - check use_hierarchy of "mem_over_limit", instead of "to" or "from"(bugfix).
+> > ---
+> >  mm/memcontrol.c |   38 ++++++++++++++++++++++++++++++++++++++
+> >  1 files changed, 38 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 769b85a..f50ad15 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -253,6 +253,7 @@ struct move_charge_struct {
+> >  	struct mem_cgroup *to;
+> >  	unsigned long precharge;
+> >  	unsigned long moved_charge;
+> > +	struct task_struct *moving_task;	/* a task moving charges */
+> >  };
+> >  static struct move_charge_struct mc;
+> >  
+> > @@ -1504,6 +1505,40 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+> >  		if (mem_cgroup_check_under_limit(mem_over_limit))
+> >  			continue;
+> >  
+> > +		/* try to avoid oom while someone is moving charge */
+> > +		if (mc.moving_task && current != mc.moving_task) {
+> > +			struct mem_cgroup *from, *to;
+> > +			bool do_continue = false;
+> > +			/*
+> > +			 * There is a small race that "from" or "to" can be
+> > +			 * freed by rmdir, so we use css_tryget().
+> > +			 */
+> > +			rcu_read_lock();
+> > +			from = mc.from;
+> > +			to = mc.to;
+> > +			if (from && css_tryget(&from->css)) {
+> > +				if (mem_over_limit->use_hierarchy)
+> > +					do_continue = css_is_ancestor(
+> > +							&from->css,
+> > +							&mem_over_limit->css);
+> > +				else
+> > +					do_continue = (from == mem_over_limit);
+> > +				css_put(&from->css);
+> > +			}
+> > +			if (!do_continue && to && css_tryget(&to->css)) {
+> > +				if (mem_over_limit->use_hierarchy)
+> > +					do_continue = css_is_ancestor(
+> > +							&to->css,
+> > +							&mem_over_limit->css);
+> > +				else
+> > +					do_continue = (to == mem_over_limit);
+> > +				css_put(&to->css);
+> > +			}
+> > +			rcu_read_unlock();
+> > +			if (do_continue)
+> > +				continue;
+> 
+> Hmm. do countine without any relaxing ? can't this occupy cpu ?
+> Can't we add schedule() or some and put into sleep ?
+> 
+> Maybe the best way is enqueue this thread to mc.wait_queue and wait for
+> the end of task moving.
+> 
+Good idea. I'll try it.
 
-Regards,
--Kame
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
