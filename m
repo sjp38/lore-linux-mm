@@ -1,70 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id CBE3C60021B
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 13:55:03 -0500 (EST)
-Subject: Re: [RFC PATCH 2/6] pipes: use alloc-file instead of duplicating
- code
-From: Eric Paris <eparis@redhat.com>
-In-Reply-To: <E1NGRLH-0004fr-Gb@pomaz-ex.szeredi.hu>
-References: <20091203195851.8925.30926.stgit@paris.rdu.redhat.com>
-	 <20091203195902.8925.2985.stgit@paris.rdu.redhat.com>
-	 <E1NGRLH-0004fr-Gb@pomaz-ex.szeredi.hu>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 04 Dec 2009 13:54:43 -0500
-Message-Id: <1259952883.2722.26.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 580C560021B
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:03:15 -0500 (EST)
+Date: Fri, 4 Dec 2009 11:03:10 -0800
+From: Chris Wright <chrisw@redhat.com>
+Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
+Message-ID: <20091204190310.GI19624@x200.localdomain>
+References: <20091202125501.GD28697@random.random>
+ <20091203134610.586E.A69D9226@jp.fujitsu.com>
+ <20091204135938.5886.A69D9226@jp.fujitsu.com>
+ <20091204141617.f4c491e7.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091204171640.GE19624@x200.localdomain>
+ <20091204185303.GL28697@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091204185303.GL28697@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jmorris@namei.org, npiggin@suse.de, zohar@us.ibm.com, jack@suse.cz, jmalicki@metacarta.com, dsmith@redhat.com, serue@us.ibm.com, hch@lst.de, john@johnmccutchan.com, rlove@rlove.org, ebiederm@xmission.com, heiko.carstens@de.ibm.com, penguin-kernel@I-love.SAKURA.ne.jp, mszeredi@suse.cz, jens.axboe@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, hugh.dickins@tiscali.co.uk, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, davem@davemloft.net, arnd@arndb.de, eric.dumazet@gmail.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Chris Wright <chrisw@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-12-04 at 07:08 +0100, Miklos Szeredi wrote:
-> On Thu, 03 Dec 2009, Eric Paris wrote:
-> > The pipe code duplicates the functionality of alloc-file and init-file.  Use
-> > the generic vfs functions instead of duplicating code.
-> > 
-> > Signed-off-by: Eric Paris <eparis@redhat.com>
+* Andrea Arcangeli (aarcange@redhat.com) wrote:
+> On Fri, Dec 04, 2009 at 09:16:40AM -0800, Chris Wright wrote:
+> > That's why I mentioned the page of zeroes as the prime example of
+> > something with a high mapcount that shouldn't really ever be evicted.
 > 
-> Acked-by: Miklos Szeredi <miklos@szeredi.hu>
-> 
-> As a side note: I wonder why we aren't passing a "struct path" to
-> alloc_file() and why are the refcount rules wrt. dentries/vfsmounts so
-> weird?
+> Just a nitpick, "never" is too much, it should remain evictable if
+> somebody halts all VM from monitor and starts a workloads that fills
+> RAM and runs for a very prolonged time pushing all VM into swap. This
+> is especially true if we stick to the below approach and it isn't
+> just 1 page in high-sharing.
 
-It's probably because of the slightly weird refcnt rules that it asks
-for the dentry and vfsmount separately rather than as a struct path.
-The rules make perfect sense if you consider
+Yup, I completely agree, that's what I was trying to convey by
+"shouldn't really ever" ;-)
 
-d_alloc()  <-- reference on dentry
-d_instantiate()
-alloc_file() <-- reference on vfsmount
-  so here file->f_path() is all good.
-
-Which a number of callers user.  They make less sense when you consider
-something that is not allocating the dentry right there (like this path)
-
-dget(dentry);  <-- reference here
-alloc_file() <-- reference on vfsmount;
-  so here file->f_path is all good.
-
-It would be a reasonable interface if it took a struct path and then
-took a reference on the struct path.  The second case would look more
-clean, but the first case would turn into
-
-d_alloc()
-d_instantiate()
-alloc_file()
-d_put() /* matches d_alloc() */
-
-and
-
-alloc_file()
-
-Is this better?  I'll gladly do it if other think so it makes more
-sense....
-
--Eric
+thanks,
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
