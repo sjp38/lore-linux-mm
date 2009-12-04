@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 04AEE600794
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 15:48:05 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E78F8600794
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 15:48:14 -0500 (EST)
 From: Eric Paris <eparis@redhat.com>
-Subject: [RFC PATCH 09/15] ima: only insert at inode creation time
-Date: Fri, 04 Dec 2009 15:47:52 -0500
-Message-ID: <20091204204752.18286.30603.stgit@paris.rdu.redhat.com>
+Subject: [RFC PATCH 10/15] IMA: clean up the IMA counts updating code
+Date: Fri, 04 Dec 2009 15:48:00 -0500
+Message-ID: <20091204204800.18286.94025.stgit@paris.rdu.redhat.com>
 In-Reply-To: <20091204204646.18286.24853.stgit@paris.rdu.redhat.com>
 References: <20091204204646.18286.24853.stgit@paris.rdu.redhat.com>
 MIME-Version: 1.0
@@ -16,173 +16,207 @@ To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.
 Cc: viro@zeniv.linux.org.uk, jmorris@namei.org, npiggin@suse.de, eparis@redhat.com, zohar@us.ibm.com, jack@suse.cz, jmalicki@metacarta.com, dsmith@redhat.com, serue@us.ibm.com, hch@lst.de, john@johnmccutchan.com, rlove@rlove.org, ebiederm@xmission.com, heiko.carstens@de.ibm.com, penguin-kernel@I-love.SAKURA.ne.jp, mszeredi@suse.cz, jens.axboe@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, hugh.dickins@tiscali.co.uk, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, davem@davemloft.net, arnd@arndb.de, eric.dumazet@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-iints are supposed to be allocated when an inode is allocated (during
-security_inode_alloc())  But we have code which will attempt to allocate
-an iint during measurement calls.  If we couldn't allocate the iint and we
-cared, we should have died during security_inode_alloc().  Not make the
-code more complex and less efficient.
+We currently have a lot of duplicated code around ima file counts.  Clean
+that all up.
 
 Signed-off-by: Eric Paris <eparis@redhat.com>
+Acked-by: Serge Hallyn <serue@us.ibm.com>
 ---
 
- security/integrity/ima/ima.h      |    1 -
- security/integrity/ima/ima_iint.c |   71 +++++--------------------------------
- security/integrity/ima/ima_main.c |    8 ++--
- 3 files changed, 14 insertions(+), 66 deletions(-)
+ security/integrity/ima/ima.h      |    1 
+ security/integrity/ima/ima_main.c |  118 ++++++++++++++++++++++---------------
+ 2 files changed, 70 insertions(+), 49 deletions(-)
 
 diff --git a/security/integrity/ima/ima.h b/security/integrity/ima/ima.h
-index 165eb53..349aabc 100644
+index 349aabc..268ef57 100644
 --- a/security/integrity/ima/ima.h
 +++ b/security/integrity/ima/ima.h
-@@ -128,7 +128,6 @@ void ima_template_show(struct seq_file *m, void *e,
-  */
- struct ima_iint_cache *ima_iint_insert(struct inode *inode);
- struct ima_iint_cache *ima_iint_find_get(struct inode *inode);
--struct ima_iint_cache *ima_iint_find_insert_get(struct inode *inode);
- void ima_iint_delete(struct inode *inode);
- void iint_free(struct kref *kref);
- void iint_rcu_free(struct rcu_head *rcu);
-diff --git a/security/integrity/ima/ima_iint.c b/security/integrity/ima/ima_iint.c
-index 4a53f39..2f6ab52 100644
---- a/security/integrity/ima/ima_iint.c
-+++ b/security/integrity/ima/ima_iint.c
-@@ -45,22 +45,21 @@ out:
- 	return iint;
- }
+@@ -97,7 +97,6 @@ static inline unsigned long ima_hash_key(u8 *digest)
  
--/* Allocate memory for the iint associated with the inode
-- * from the iint_cache slab, initialize the iint, and
-- * insert it into the radix tree.
-- *
-- * On success return a pointer to the iint; on failure return NULL.
-+/**
-+ * ima_inode_alloc - allocate an iint associated with an inode
-+ * @inode: pointer to the inode
-  */
--struct ima_iint_cache *ima_iint_insert(struct inode *inode)
-+int ima_inode_alloc(struct inode *inode)
- {
- 	struct ima_iint_cache *iint = NULL;
- 	int rc = 0;
+ /* iint cache flags */
+ #define IMA_MEASURED		1
+-#define IMA_IINT_DUMP_STACK	512
  
- 	if (!ima_initialized)
--		return iint;
-+		return 0;
-+
- 	iint = kmem_cache_alloc(iint_cache, GFP_NOFS);
- 	if (!iint)
--		return iint;
-+		return -ENOMEM;
- 
- 	rc = radix_tree_preload(GFP_NOFS);
- 	if (rc < 0)
-@@ -70,63 +69,13 @@ struct ima_iint_cache *ima_iint_insert(struct inode *inode)
- 	rc = radix_tree_insert(&ima_iint_store, (unsigned long)inode, iint);
- 	spin_unlock(&ima_iint_lock);
- out:
--	if (rc < 0) {
-+	if (rc < 0)
- 		kmem_cache_free(iint_cache, iint);
--		if (rc == -EEXIST) {
--			spin_lock(&ima_iint_lock);
--			iint = radix_tree_lookup(&ima_iint_store,
--						 (unsigned long)inode);
--			spin_unlock(&ima_iint_lock);
--		} else
--			iint = NULL;
--	}
--	radix_tree_preload_end();
--	return iint;
--}
--
--/**
-- * ima_inode_alloc - allocate an iint associated with an inode
-- * @inode: pointer to the inode
-- */
--int ima_inode_alloc(struct inode *inode)
--{
--	struct ima_iint_cache *iint;
--
--	if (!ima_initialized)
--		return 0;
--
--	iint = ima_iint_insert(inode);
--	if (!iint)
--		return -ENOMEM;
--	return 0;
--}
--
--/* ima_iint_find_insert_get - get the iint associated with an inode
-- *
-- * Most insertions are done at inode_alloc, except those allocated
-- * before late_initcall. When the iint does not exist, allocate it,
-- * initialize and insert it, and increment the iint refcount.
-- *
-- * (Can't initialize at security_initcall before any inodes are
-- * allocated, got to wait at least until proc_init.)
-- *
-- *  Return the iint.
-- */
--struct ima_iint_cache *ima_iint_find_insert_get(struct inode *inode)
--{
--	struct ima_iint_cache *iint = NULL;
- 
--	iint = ima_iint_find_get(inode);
--	if (iint)
--		return iint;
--
--	iint = ima_iint_insert(inode);
--	if (iint)
--		kref_get(&iint->refcount);
-+	radix_tree_preload_end();
- 
--	return iint;
-+	return rc;
- }
--EXPORT_SYMBOL_GPL(ima_iint_find_insert_get);
- 
- /* iint_free - called when the iint refcount goes to zero */
- void iint_free(struct kref *kref)
+ /* integrity data associated with an inode */
+ struct ima_iint_cache {
 diff --git a/security/integrity/ima/ima_main.c b/security/integrity/ima/ima_main.c
-index b85e61b..96fafc0 100644
+index 96fafc0..e041233 100644
 --- a/security/integrity/ima/ima_main.c
 +++ b/security/integrity/ima/ima_main.c
-@@ -161,7 +161,7 @@ int ima_path_check(struct path *path, int mask, int update_counts)
+@@ -13,8 +13,8 @@
+  * License.
+  *
+  * File: ima_main.c
+- *             implements the IMA hooks: ima_bprm_check, ima_file_mmap,
+- *             and ima_path_check.
++ *	implements the IMA hooks: ima_bprm_check, ima_file_mmap,
++ *	and ima_path_check.
+  */
+ #include <linux/module.h>
+ #include <linux/file.h>
+@@ -35,6 +35,69 @@ static int __init hash_setup(char *str)
+ }
+ __setup("ima_hash=", hash_setup);
  
- 	if (!ima_initialized || !S_ISREG(inode->i_mode))
- 		return 0;
--	iint = ima_iint_find_insert_get(inode);
-+	iint = ima_iint_find_get(inode);
- 	if (!iint)
- 		return 0;
- 
-@@ -219,7 +219,7 @@ static int process_measurement(struct file *file, const unsigned char *filename,
- 
- 	if (!ima_initialized || !S_ISREG(inode->i_mode))
- 		return 0;
--	iint = ima_iint_find_insert_get(inode);
-+	iint = ima_iint_find_get(inode);
- 	if (!iint)
- 		return -ENOMEM;
- 
-@@ -255,7 +255,7 @@ void ima_counts_put(struct path *path, int mask)
- 	 */
- 	if (!ima_initialized || !inode || !S_ISREG(inode->i_mode))
++/*
++ * Update the counts given an fmode_t
++ */
++static void ima_inc_counts(struct ima_iint_cache *iint, fmode_t mode)
++{
++	BUG_ON(!mutex_is_locked(&iint->mutex));
++
++	iint->opencount++;
++	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
++		iint->readcount++;
++	if (mode & FMODE_WRITE)
++		iint->writecount++;
++}
++
++/*
++ * Update the counts given open flags instead of fmode
++ */
++static void ima_inc_counts_flags(struct ima_iint_cache *iint, int flags)
++{
++	ima_inc_counts(iint, (__force fmode_t)((flags+1) & O_ACCMODE));
++}
++
++/*
++ * Decrement ima counts
++ */
++static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
++			   fmode_t mode)
++{
++	BUG_ON(!mutex_is_locked(&iint->mutex));
++
++	iint->opencount--;
++	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
++		iint->readcount--;
++	if (mode & FMODE_WRITE) {
++		iint->writecount--;
++		if (iint->writecount == 0) {
++			if (iint->version != inode->i_version)
++				iint->flags &= ~IMA_MEASURED;
++		}
++	}
++
++	if ((iint->opencount < 0) ||
++	    (iint->readcount < 0) ||
++	    (iint->writecount < 0)) {
++		static int dumped;
++
++		if (dumped)
++			return;
++		dumped = 1;
++
++		printk(KERN_INFO "%s: open/free imbalance (r:%ld w:%ld o:%ld)\n",
++		       __FUNCTION__, iint->readcount, iint->writecount,
++		       iint->opencount);
++		dump_stack();
++	}
++}
++
++static void ima_dec_counts_flags(struct ima_iint_cache *iint,
++				 struct inode *inode, int flags)
++{
++	ima_dec_counts(iint, inode, (__force fmode_t)((flags+1) & O_ACCMODE));
++}
++
+ /**
+  * ima_file_free - called on __fput()
+  * @file: pointer to file structure being freed
+@@ -54,29 +117,7 @@ void ima_file_free(struct file *file)
  		return;
--	iint = ima_iint_find_insert_get(inode);
-+	iint = ima_iint_find_get(inode);
- 	if (!iint)
+ 
+ 	mutex_lock(&iint->mutex);
+-	if (iint->opencount <= 0) {
+-		printk(KERN_INFO
+-		       "%s: %s open/free imbalance (r:%ld w:%ld o:%ld f:%ld)\n",
+-		       __FUNCTION__, file->f_dentry->d_name.name,
+-		       iint->readcount, iint->writecount,
+-		       iint->opencount, atomic_long_read(&file->f_count));
+-		if (!(iint->flags & IMA_IINT_DUMP_STACK)) {
+-			dump_stack();
+-			iint->flags |= IMA_IINT_DUMP_STACK;
+-		}
+-	}
+-	iint->opencount--;
+-
+-	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
+-		iint->readcount--;
+-
+-	if (file->f_mode & FMODE_WRITE) {
+-		iint->writecount--;
+-		if (iint->writecount == 0) {
+-			if (iint->version != inode->i_version)
+-				iint->flags &= ~IMA_MEASURED;
+-		}
+-	}
++	ima_dec_counts(iint, inode, file->f_mode);
+ 	mutex_unlock(&iint->mutex);
+ 	kref_put(&iint->refcount, iint_free);
+ }
+@@ -116,8 +157,7 @@ static int get_path_measurement(struct ima_iint_cache *iint, struct file *file,
+ {
+ 	int rc = 0;
+ 
+-	iint->opencount++;
+-	iint->readcount++;
++	ima_inc_counts(iint, file->f_mode);
+ 
+ 	rc = ima_collect_measurement(iint, file);
+ 	if (!rc)
+@@ -125,15 +165,6 @@ static int get_path_measurement(struct ima_iint_cache *iint, struct file *file,
+ 	return rc;
+ }
+ 
+-static void ima_update_counts(struct ima_iint_cache *iint, int mask)
+-{
+-	iint->opencount++;
+-	if ((mask & MAY_WRITE) || (mask == 0))
+-		iint->writecount++;
+-	else if (mask & (MAY_READ | MAY_EXEC))
+-		iint->readcount++;
+-}
+-
+ /**
+  * ima_path_check - based on policy, collect/store measurement.
+  * @path: contains a pointer to the path to be measured
+@@ -167,7 +198,7 @@ int ima_path_check(struct path *path, int mask, int update_counts)
+ 
+ 	mutex_lock(&iint->mutex);
+ 	if (update_counts)
+-		ima_update_counts(iint, mask);
++		ima_inc_counts_flags(iint, mask);
+ 
+ 	rc = ima_must_measure(iint, inode, MAY_READ, PATH_CHECK);
+ 	if (rc < 0)
+@@ -260,11 +291,7 @@ void ima_counts_put(struct path *path, int mask)
  		return;
  
-@@ -286,7 +286,7 @@ void ima_counts_get(struct file *file)
+ 	mutex_lock(&iint->mutex);
+-	iint->opencount--;
+-	if ((mask & MAY_WRITE) || (mask == 0))
+-		iint->writecount--;
+-	else if (mask & (MAY_READ | MAY_EXEC))
+-		iint->readcount--;
++	ima_dec_counts_flags(iint, inode, mask);
+ 	mutex_unlock(&iint->mutex);
  
- 	if (!ima_initialized || !S_ISREG(inode->i_mode))
- 		return;
--	iint = ima_iint_find_insert_get(inode);
-+	iint = ima_iint_find_get(inode);
+ 	kref_put(&iint->refcount, iint_free);
+@@ -290,12 +317,7 @@ void ima_counts_get(struct file *file)
  	if (!iint)
  		return;
  	mutex_lock(&iint->mutex);
+-	iint->opencount++;
+-	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
+-		iint->readcount++;
+-
+-	if (file->f_mode & FMODE_WRITE)
+-		iint->writecount++;
++	ima_inc_counts(iint, file->f_mode);
+ 	mutex_unlock(&iint->mutex);
+ 
+ 	kref_put(&iint->refcount, iint_free);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
