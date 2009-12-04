@@ -1,74 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A188860021B
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 00:19:23 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB45JKFS006344
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Dec 2009 14:19:20 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 44E5945DE64
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:19:20 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 197AC45DE55
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:19:20 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EE05E1DB803A
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:19:19 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FE50E78001
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:19:19 +0900 (JST)
-Date: Fri, 4 Dec 2009 14:16:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
-Message-Id: <20091204141617.f4c491e7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091204135938.5886.A69D9226@jp.fujitsu.com>
-References: <20091202125501.GD28697@random.random>
-	<20091203134610.586E.A69D9226@jp.fujitsu.com>
-	<20091204135938.5886.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EDF7560021B
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 00:59:15 -0500 (EST)
+In-reply-to: <20091203195851.8925.30926.stgit@paris.rdu.redhat.com> (message
+	from Eric Paris on Thu, 03 Dec 2009 14:58:51 -0500)
+Subject: Re: [RFC PATCH 1/6] shmem: use alloc_file instead of init_file
+References: <20091203195851.8925.30926.stgit@paris.rdu.redhat.com>
+Message-Id: <E1NGRBh-0004da-Cv@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Fri, 04 Dec 2009 06:58:41 +0100
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric Paris <eparis@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jmorris@namei.org, npiggin@suse.de, zohar@us.ibm.com, jack@suse.cz, jmalicki@metacarta.com, dsmith@redhat.com, serue@us.ibm.com, hch@lst.de, john@johnmccutchan.com, rlove@rlove.org, ebiederm@xmission.com, heiko.carstens@de.ibm.com, penguin-kernel@I-love.SAKURA.ne.jp, mszeredi@suse.cz, jens.axboe@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, hugh.dickins@tiscali.co.uk, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, davem@davemloft.net, arnd@arndb.de, eric.dumazet@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  4 Dec 2009 14:06:07 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Thu, 03 Dec 2009, Eric Paris wrote:
+> shmem uses get_empty_filp() and then init_file().  Their is no good reason
+> not to just use alloc_file() like everything else.
 
-> > Umm?? Personally I don't like knob. If you have problematic workload,
-> > please tell it us. I will try to make reproduce environment on my box.
-> > If current code doesn't works on KVM or something-else, I really want
-> > to fix it.
-> > 
-> > I think Larry's trylock idea and your 64 young bit idea can be combinate.
-> > I only oppose the page move to inactive list without clear young bit. IOW,
-> > if VM pressure is very low and the page have lots young bit, the page should
-> > go back active list although trylock(ptelock) isn't contended.
-> > 
-> > But unfortunatelly I don't have problem workload as you mentioned. Anyway
-> > we need evaluate way to your idea. We obviouslly more info.
-> 
-> [Off topic start]
-> 
-> Windows kernel have zero page thread and it clear the pages in free list
-> periodically. because many windows subsystem prerefer zero filled page.
-> hen, if we use windows guest, zero filled page have plenty mapcount rather
-> than other typical sharing pages, I guess.
-> 
-> So, can we mark as unevictable to zero filled ksm page? 
-> 
+There's a more in this patch, though, and none of that is explained...
 
-Hmm, can't we use ZERO_PAGE we have now ?
-If do so,
- - no mapcount check
- - never on LRU
- - don't have to maintain shared information because ZERO_PAGE itself has
-   copy-on-write nature.
+> 
+> Signed-off-by: Eric Paris <eparis@redhat.com>
+> ---
+> 
+>  mm/shmem.c |   20 ++++++++++----------
+>  1 files changed, 10 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 356dd99..831f8bb 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2640,32 +2640,32 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
+>  	if (!dentry)
+>  		goto put_memory;
+>  
+> -	error = -ENFILE;
+> -	file = get_empty_filp();
+> -	if (!file)
+> -		goto put_dentry;
+> -
+>  	error = -ENOSPC;
+>  	inode = shmem_get_inode(root->d_sb, S_IFREG | S_IRWXUGO, 0, flags);
+>  	if (!inode)
+> -		goto close_file;
+> +		goto put_dentry;
+>  
+>  	d_instantiate(dentry, inode);
+>  	inode->i_size = size;
+>  	inode->i_nlink = 0;	/* It is unlinked */
+> -	init_file(file, shm_mnt, dentry, FMODE_WRITE | FMODE_READ,
+> -		  &shmem_file_operations);
+> +
+> +	error = -ENFILE;
+> +	file = alloc_file(shm_mnt, dentry, FMODE_WRITE | FMODE_READ,
+> +			  &shmem_file_operations);
+> +	if (!file)
+> +		goto put_dentry;
+>  
+>  #ifndef CONFIG_MMU
+>  	error = ramfs_nommu_expand_for_mapping(inode, size);
+>  	if (error)
+>  		goto close_file;
+>  #endif
+> -	ima_counts_get(file);
 
-Thanks,
--Kame
+Where's this gone?
+
+>  	return file;
+>  
+> +#ifndef CONFIG_MMU
+>  close_file:
+
+I suggest moving this piece of cleanup into the ifdef above, instead
+of adding more ifdefs.
+
+> -	put_filp(file);
+> +	fput(file);
+
+OK, put_filp() seems to have been wrong here, but please document it
+in the changelog.
+
+> +#endif
+>  put_dentry:
+>  	dput(dentry);
+>  put_memory:
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
