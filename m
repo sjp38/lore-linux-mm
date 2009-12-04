@@ -1,160 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D32DA6B003D
-	for <linux-mm@kvack.org>; Thu,  3 Dec 2009 23:04:51 -0500 (EST)
-Date: Fri, 4 Dec 2009 05:04:43 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC PATCH 5/6] vfs: make init-file static
-Message-ID: <20091204040443.GD22022@wotan.suse.de>
-References: <20091203195851.8925.30926.stgit@paris.rdu.redhat.com> <20091203195925.8925.21416.stgit@paris.rdu.redhat.com> <20091203224402.GA12995@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091203224402.GA12995@us.ibm.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1E6036B003D
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 00:06:11 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB4568dc014657
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 4 Dec 2009 14:06:09 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C04C045DE53
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:06:08 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 92FE145DE4F
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:06:08 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 700211DB8041
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:06:08 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 25C321DB8037
+	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 14:06:08 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
+In-Reply-To: <20091203134610.586E.A69D9226@jp.fujitsu.com>
+References: <20091202125501.GD28697@random.random> <20091203134610.586E.A69D9226@jp.fujitsu.com>
+Message-Id: <20091204135938.5886.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri,  4 Dec 2009 14:06:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Serge E. Hallyn" <serue@us.ibm.com>
-Cc: Eric Paris <eparis@redhat.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jmorris@namei.org, zohar@us.ibm.com, jack@suse.cz, jmalicki@metacarta.com, dsmith@redhat.com, hch@lst.de, john@johnmccutchan.com, rlove@rlove.org, ebiederm@xmission.com, heiko.carstens@de.ibm.com, penguin-kernel@I-love.SAKURA.ne.jp, mszeredi@suse.cz, jens.axboe@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, hugh.dickins@tiscali.co.uk, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, davem@davemloft.net, arnd@arndb.de, eric.dumazet@gmail.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 03, 2009 at 04:44:02PM -0600, Serge E. Hallyn wrote:
-> Quoting Eric Paris (eparis@redhat.com):
-> > init-file is no longer used by anything except alloc_file.  Make it static and
-> > remove from headers.
+> Umm?? Personally I don't like knob. If you have problematic workload,
+> please tell it us. I will try to make reproduce environment on my box.
+> If current code doesn't works on KVM or something-else, I really want
+> to fix it.
+> 
+> I think Larry's trylock idea and your 64 young bit idea can be combinate.
+> I only oppose the page move to inactive list without clear young bit. IOW,
+> if VM pressure is very low and the page have lots young bit, the page should
+> go back active list although trylock(ptelock) isn't contended.
+> 
+> But unfortunatelly I don't have problem workload as you mentioned. Anyway
+> we need evaluate way to your idea. We obviouslly more info.
 
-These look like pretty good changes to me, FWIW. I had found myself
-wondering about this recently so it's good to see it improved.
+[Off topic start]
+
+Windows kernel have zero page thread and it clear the pages in free list
+periodically. because many windows subsystem prerefer zero filled page.
+hen, if we use windows guest, zero filled page have plenty mapcount rather
+than other typical sharing pages, I guess.
+
+So, can we mark as unevictable to zero filled ksm page? 
 
 
-> Should these go through a deprecation period?  (Same for the next patch)
-
-Maybe waiting a release or two couldn't hurt. Unless Eric you
-have some other changes in mind after these?
-
- 
-> > Signed-off-by: Eric Paris <eparis@redhat.com>
-> > ---
-> > 
-> >  fs/file_table.c      |   73 ++++++++++++++++++++++----------------------------
-> >  include/linux/file.h |    3 --
-> >  2 files changed, 32 insertions(+), 44 deletions(-)
-> > 
-> > diff --git a/fs/file_table.c b/fs/file_table.c
-> > index 4bef4c0..0f9d2f2 100644
-> > --- a/fs/file_table.c
-> > +++ b/fs/file_table.c
-> > @@ -150,53 +150,16 @@ fail:
-> >  EXPORT_SYMBOL(get_empty_filp);
-> > 
-> >  /**
-> > - * alloc_file - allocate and initialize a 'struct file'
-> > - * @mnt: the vfsmount on which the file will reside
-> > - * @dentry: the dentry representing the new file
-> > - * @mode: the mode with which the new file will be opened
-> > - * @fop: the 'struct file_operations' for the new file
-> > - *
-> > - * Use this instead of get_empty_filp() to get a new
-> > - * 'struct file'.  Do so because of the same initialization
-> > - * pitfalls reasons listed for init_file().  This is a
-> > - * preferred interface to using init_file().
-> > - *
-> > - * If all the callers of init_file() are eliminated, its
-> > - * code should be moved into this function.
-> > - */
-> > -struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-> > -		fmode_t mode, const struct file_operations *fop)
-> > -{
-> > -	struct file *file;
-> > -
-> > -	file = get_empty_filp();
-> > -	if (!file)
-> > -		return NULL;
-> > -
-> > -	init_file(file, mnt, dentry, mode, fop);
-> > -	return file;
-> > -}
-> > -EXPORT_SYMBOL(alloc_file);
-> > -
-> > -/**
-> >   * init_file - initialize a 'struct file'
-> >   * @file: the already allocated 'struct file' to initialized
-> >   * @mnt: the vfsmount on which the file resides
-> >   * @dentry: the dentry representing this file
-> >   * @mode: the mode the file is opened with
-> >   * @fop: the 'struct file_operations' for this file
-> > - *
-> > - * Use this instead of setting the members directly.  Doing so
-> > - * avoids making mistakes like forgetting the mntget() or
-> > - * forgetting to take a write on the mnt.
-> > - *
-> > - * Note: This is a crappy interface.  It is here to make
-> > - * merging with the existing users of get_empty_filp()
-> > - * who have complex failure logic easier.  All users
-> > - * of this should be moving to alloc_file().
-> >   */
-> > -int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
-> > -	   fmode_t mode, const struct file_operations *fop)
-> > +static int init_file(struct file *file, struct vfsmount *mnt,
-> > +		     struct dentry *dentry, fmode_t mode,
-> > +		     const struct file_operations *fop)
-> >  {
-> >  	int error = 0;
-> >  	file->f_path.dentry = dentry;
-> > @@ -218,7 +181,35 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
-> >  	}
-> >  	return error;
-> >  }
-> > -EXPORT_SYMBOL(init_file);
-> > +
-> > +/**
-> > + * alloc_file - allocate and initialize a 'struct file'
-> > + * @mnt: the vfsmount on which the file will reside
-> > + * @dentry: the dentry representing the new file
-> > + * @mode: the mode with which the new file will be opened
-> > + * @fop: the 'struct file_operations' for the new file
-> > + *
-> > + * Use this instead of get_empty_filp() to get a new
-> > + * 'struct file'.  Do so because of the same initialization
-> > + * pitfalls reasons listed for init_file().  This is a
-> > + * preferred interface to using init_file().
-> > + *
-> > + * If all the callers of init_file() are eliminated, its
-> > + * code should be moved into this function.
-> > + */
-> > +struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-> > +		fmode_t mode, const struct file_operations *fop)
-> > +{
-> > +	struct file *file;
-> > +
-> > +	file = get_empty_filp();
-> > +	if (!file)
-> > +		return NULL;
-> > +
-> > +	init_file(file, mnt, dentry, mode, fop);
-> > +	return file;
-> > +}
-> > +EXPORT_SYMBOL(alloc_file);
-> > 
-> >  void fput(struct file *file)
-> >  {
-> > diff --git a/include/linux/file.h b/include/linux/file.h
-> > index 335a0a5..6a8d361 100644
-> > --- a/include/linux/file.h
-> > +++ b/include/linux/file.h
-> > @@ -18,9 +18,6 @@ extern void drop_file_write_access(struct file *file);
-> >  struct file_operations;
-> >  struct vfsmount;
-> >  struct dentry;
-> > -extern int init_file(struct file *, struct vfsmount *mnt,
-> > -		struct dentry *dentry, fmode_t mode,
-> > -		const struct file_operations *fop);
-> >  extern struct file *alloc_file(struct vfsmount *, struct dentry *dentry,
-> >  		fmode_t mode, const struct file_operations *fop);
-> > 
-> > 
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
