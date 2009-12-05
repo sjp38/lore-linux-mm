@@ -1,74 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C65566B0044
-	for <linux-mm@kvack.org>; Sat,  5 Dec 2009 07:41:37 -0500 (EST)
-Date: Sat, 5 Dec 2009 12:41:26 +0000 (GMT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7ED126B0044
+	for <linux-mm@kvack.org>; Sat,  5 Dec 2009 07:55:10 -0500 (EST)
+Date: Sat, 5 Dec 2009 12:54:58 +0000 (GMT)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] hugetlb: Acquire the i_mmap_lock before walking the
- prio_tree to unmap a page V2
-In-Reply-To: <20091202222049.GC26702@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0912051237060.31181@sister.anvils>
-References: <20091202222049.GC26702@csn.ul.ie>
+Subject: Re: [PATCH] mlock:  replace stale comments in munlock_vma_page()
+In-Reply-To: <1259771735.4088.31.camel@useless.americas.hpqcorp.net>
+Message-ID: <Pine.LNX.4.64.0912051246420.32005@sister.anvils>
+References: <1259771735.4088.31.camel@useless.americas.hpqcorp.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 Dec 2009, Mel Gorman wrote:
-
-> Changelog since V1
-> o Delete stupid comment from the description
+On Wed, 2 Dec 2009, Lee Schermerhorn wrote:
 > 
-> When the owner of a mapping fails  COW because a child process is holding
-> a reference, the children VMAs are walked and the page is unmapped. The
-> i_mmap_lock is taken for the unmapping of the page but not the walking of
-> the prio_tree. In theory, that tree could be changing if the lock is not
-> held. This patch takes the i_mmap_lock properly for the duration of the
-> prio_tree walk.
+> Cleanup stale comments on munlock_vma_page().
 > 
-> [hugh.dickins@tiscali.co.uk: Spotted the problem in the first place]
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
 Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-(and Andrew has already put this version into mmotm, thanks)
+(and Andrew has already put this into mmotm, thanks)
 
-> ---
->  mm/hugetlb.c |    9 ++++++++-
->  1 files changed, 8 insertions(+), 1 deletions(-)
+Sorry for not Cc'ing you earlier, Lee: git blame attributed those
+lines to Nick, but I think that was because you'd started from an
+old patch of Nick's, and graciously attributed it all to him.
+
+I still don't find the comments give me complete confidence in these
+manipulations and races - but that is asking for more than comments
+on functions can give, especially to a sceptic like me!
+Thanks a lot for updating and improving them.
+
+Hugh
+
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index a952cb8..5adc284 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1906,6 +1906,12 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
->  		+ (vma->vm_pgoff >> PAGE_SHIFT);
->  	mapping = (struct address_space *)page_private(page);
->  
-> +	/*
-> +	 * Take the mapping lock for the duration of the table walk. As
-> +	 * this mapping should be shared between all the VMAs,
-> +	 * __unmap_hugepage_range() is called as the lock is already held
-> +	 */
-> +	spin_lock(&mapping->i_mmap_lock);
->  	vma_prio_tree_foreach(iter_vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
->  		/* Do not unmap the current VMA */
->  		if (iter_vma == vma)
-> @@ -1919,10 +1925,11 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
->  		 * from the time of fork. This would look like data corruption
->  		 */
->  		if (!is_vma_resv_set(iter_vma, HPAGE_RESV_OWNER))
-> -			unmap_hugepage_range(iter_vma,
-> +			__unmap_hugepage_range(iter_vma,
->  				address, address + huge_page_size(h),
->  				page);
+>  mm/mlock.c |   41 +++++++++++++++++++----------------------
+>  1 files changed, 19 insertions(+), 22 deletions(-)
+> 
+> Index: linux-2.6.32-rc8/mm/mlock.c
+> ===================================================================
+> --- linux-2.6.32-rc8.orig/mm/mlock.c	2009-11-24 13:19:58.000000000 -0500
+> +++ linux-2.6.32-rc8/mm/mlock.c	2009-12-01 13:27:25.000000000 -0500
+> @@ -88,23 +88,20 @@ void mlock_vma_page(struct page *page)
 >  	}
-> +	spin_unlock(&mapping->i_mmap_lock);
->  
->  	return 1;
 >  }
+>  
+> -/*
+> - * called from munlock()/munmap() path with page supposedly on the LRU.
+> +/**
+> + * munlock_vma_page - munlock a vma page
+> + * @page - page to be unlocked
+>   *
+> - * Note:  unlike mlock_vma_page(), we can't just clear the PageMlocked
+> - * [in try_to_munlock()] and then attempt to isolate the page.  We must
+> - * isolate the page to keep others from messing with its unevictable
+> - * and mlocked state while trying to munlock.  However, we pre-clear the
+> - * mlocked state anyway as we might lose the isolation race and we might
+> - * not get another chance to clear PageMlocked.  If we successfully
+> - * isolate the page and try_to_munlock() detects other VM_LOCKED vmas
+> - * mapping the page, it will restore the PageMlocked state, unless the page
+> - * is mapped in a non-linear vma.  So, we go ahead and SetPageMlocked(),
+> - * perhaps redundantly.
+> - * If we lose the isolation race, and the page is mapped by other VM_LOCKED
+> - * vmas, we'll detect this in vmscan--via try_to_munlock() or try_to_unmap()
+> - * either of which will restore the PageMlocked state by calling
+> - * mlock_vma_page() above, if it can grab the vma's mmap sem.
+> + * called from munlock()/munmap() path with page supposedly on the LRU.
+> + * When we munlock a page, because the vma where we found the page is being
+> + * munlock()ed or munmap()ed, we want to check whether other vmas hold the
+> + * page locked so that we can leave it on the unevictable lru list and not
+> + * bother vmscan with it.  However, to walk the page's rmap list in
+> + * try_to_munlock() we must isolate the page from the LRU.  If some other
+> + * task has removed the page from the LRU, we won't be able to do that.
+> + * So we clear the PageMlocked as we might not get another chance.  If we
+> + * can't isolate the page, we leave it for putback_lru_page() and vmscan
+> + * [page_referenced()/try_to_unmap()] to deal with.
+>   */
+>  static void munlock_vma_page(struct page *page)
+>  {
+> @@ -123,12 +120,12 @@ static void munlock_vma_page(struct page
+>  			putback_lru_page(page);
+>  		} else {
+>  			/*
+> -			 * We lost the race.  let try_to_unmap() deal
+> -			 * with it.  At least we get the page state and
+> -			 * mlock stats right.  However, page is still on
+> -			 * the noreclaim list.  We'll fix that up when
+> -			 * the page is eventually freed or we scan the
+> -			 * noreclaim list.
+> +			 * Some other task has removed the page from the LRU.
+> +			 * putback_lru_page() will take care of removing the
+> +			 * page from the unevictable list, if necessary.
+> +			 * vmscan [page_referenced()] will move the page back
+> +			 * to the unevictable list if some other vma has it
+> +			 * mlocked.
+>  			 */
+>  			if (PageUnevictable(page))
+>  				count_vm_event(UNEVICTABLE_PGSTRANDED);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
