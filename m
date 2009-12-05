@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 451896B0044
-	for <linux-mm@kvack.org>; Sat,  5 Dec 2009 15:23:29 -0500 (EST)
-Date: Sat, 5 Dec 2009 20:23:18 +0000 (GMT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 65C116B0044
+	for <linux-mm@kvack.org>; Sat,  5 Dec 2009 15:26:49 -0500 (EST)
+Date: Sat, 5 Dec 2009 20:26:39 +0000 (GMT)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [RFC PATCH 01/15] shmem: do not call fput_filp on an initialized
- filp
-In-Reply-To: <20091204204646.18286.24853.stgit@paris.rdu.redhat.com>
-Message-ID: <Pine.LNX.4.64.0912052020360.6368@sister.anvils>
+Subject: Re: [RFC PATCH 02/15] shmem: use alloc_file instead of init_file
+In-Reply-To: <20091204204656.18286.15131.stgit@paris.rdu.redhat.com>
+Message-ID: <Pine.LNX.4.64.0912052023270.6368@sister.anvils>
 References: <20091204204646.18286.24853.stgit@paris.rdu.redhat.com>
+ <20091204204656.18286.15131.stgit@paris.rdu.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,52 +18,68 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 4 Dec 2009, Eric Paris wrote:
 
-> fput_filp is supposed to be used when the filp was not used.  But in the
+> shmem uses get_empty_filp() and then init_file().  Their is no good reason
 
-   put_filp
+                                                     There
 
-> ifndef CONFIG_MMU case shmem_setup_file could call this one an initialized
-
-                                                          on
-
-> filp.  It should be using fput() instead.  Since the fput() will dec the ima
-> counts we also need to move the ima hook to make sure that is set up before
-> the fput().
+> not to just use alloc_file() like everything else.
 > 
-> Signed-off-by: Eric Paris <eparis@redhat.com>
 > Acked-by: Miklos Szeredi <miklos@szeredi.hu>
+> Signed-off-by: Eric Paris <eparis@redhat.com>
 
-Thanks,
+Right, what deterred me from using alloc_file() when it came in,
+was that d_instantiate() done before the alloc_file().  But looking
+through it now, I think it's okay, and I'm hoping you know it's okay.
+
 Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
 > ---
 > 
->  mm/shmem.c |    9 ++++++---
->  1 files changed, 6 insertions(+), 3 deletions(-)
+>  mm/shmem.c |   17 +++++++----------
+>  1 files changed, 7 insertions(+), 10 deletions(-)
 > 
 > diff --git a/mm/shmem.c b/mm/shmem.c
-> index 356dd99..e7f8968 100644
+> index e7f8968..b212184 100644
 > --- a/mm/shmem.c
 > +++ b/mm/shmem.c
-> @@ -2656,12 +2656,15 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
->  	init_file(file, shm_mnt, dentry, FMODE_WRITE | FMODE_READ,
->  		  &shmem_file_operations);
+> @@ -2640,21 +2640,20 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
+>  	if (!dentry)
+>  		goto put_memory;
 >  
-> +	ima_counts_get(file);
-> +
->  #ifndef CONFIG_MMU
->  	error = ramfs_nommu_expand_for_mapping(inode, size);
-> -	if (error)
+> -	error = -ENFILE;
+> -	file = get_empty_filp();
+> -	if (!file)
+> -		goto put_dentry;
+> -
+>  	error = -ENOSPC;
+>  	inode = shmem_get_inode(root->d_sb, S_IFREG | S_IRWXUGO, 0, flags);
+>  	if (!inode)
 > -		goto close_file;
-> +	if (error) {
-> +		fput(file);
-> +		return error;
-> +	}
+> +		goto put_dentry;
+>  
+>  	d_instantiate(dentry, inode);
+>  	inode->i_size = size;
+>  	inode->i_nlink = 0;	/* It is unlinked */
+> -	init_file(file, shm_mnt, dentry, FMODE_WRITE | FMODE_READ,
+> -		  &shmem_file_operations);
+> +
+> +	error = -ENFILE;
+> +	file = alloc_file(shm_mnt, dentry, FMODE_WRITE | FMODE_READ,
+> +			  &shmem_file_operations);
+> +	if (!file)
+> +		goto put_dentry;
+>  
+>  	ima_counts_get(file);
+>  
+> @@ -2667,8 +2666,6 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 >  #endif
-> -	ima_counts_get(file);
 >  	return file;
 >  
->  close_file:
+> -close_file:
+> -	put_filp(file);
+>  put_dentry:
+>  	dput(dentry);
+>  put_memory:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
