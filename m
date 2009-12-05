@@ -1,89 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A6066B003D
-	for <linux-mm@kvack.org>; Fri,  4 Dec 2009 17:18:37 -0500 (EST)
-Date: Fri, 4 Dec 2009 14:17:33 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH] page-types: kernel pageflags mode
-Message-Id: <20091204141733.b756039c.randy.dunlap@oracle.com>
-In-Reply-To: <20091204212606.29258.98531.stgit@bob.kio>
-References: <20091204212606.29258.98531.stgit@bob.kio>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 83B126B0044
+	for <linux-mm@kvack.org>; Sat,  5 Dec 2009 07:37:13 -0500 (EST)
+Date: Sat, 5 Dec 2009 12:37:00 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] hugetlb: Acquire the i_mmap_lock before walking the
+ prio_tree to unmap a page
+In-Reply-To: <20091202221947.GB26702@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0912051235001.31181@sister.anvils>
+References: <20091202141930.GF1457@csn.ul.ie> <Pine.LNX.4.64.0912022003100.8113@sister.anvils>
+ <20091202221602.GA26702@csn.ul.ie> <20091202221947.GB26702@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Alex Chiang <achiang@hp.com>
-Cc: akpm@linux-foundation.org, Haicheng Li <haicheng.li@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, fengguang.wu@intel.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 04 Dec 2009 14:29:48 -0700 Alex Chiang wrote:
+On Wed, 2 Dec 2009, Mel Gorman wrote:
+> On Wed, Dec 02, 2009 at 10:16:02PM +0000, Mel Gorman wrote:
+> > On Wed, Dec 02, 2009 at 08:13:39PM +0000, Hugh Dickins wrote:
+> > > 
+> > > But the comment seems wrong to me: hugetlb_instantiation_mutex
+> > > guards against concurrent hugetlb_fault()s; but the structure of
+> > > the prio_tree shifts as vmas based on that inode are inserted into
+> > > (mmap'ed) and removed from (munmap'ed) that tree (always while
+> > > holding i_mmap_lock).  I don't see hugetlb_instantiation_mutex
+> > > giving us any protection against this at present.
+> > > 
+> > 
+> > You're right of course. I'll report without that nonsense included.
+> > 
+> 
+> Actually, shouldn't the mmap_sem be protecting against concurrent mmap and
+> munmap altering the tree? The comment is still bogus of course.
 
-> An earlier commit taught page-types the -d|--describe argument, which
-> allows the user to describe page flags passed on the command line:
-> 
->   # ./Documentation/vm/page-types -d 0x4000
->   0x0000000000004000  ______________b___________________  swapbacked
-> 
-> In -d mode, page-types expects the page flag bits in the order generated
-> by the kernel function get_uflags().
-> 
-> However, those bits are rearranged compared to what is actually stored
-> in struct page->flags. A kernel developer dumping a page's flags
-> using printk, e.g., may get misleading results in -d mode.
-> 
-> Teach page-types the -k mode, which parses and describes the bits in
-> the internal kernel order:
-> 
->   # ./Documentation/vm/page-types -k 0x4000
->   0x0000000000004000  ______________H_________  compound_head
-> 
-> Note that the recommended way to build page-types is from the top-level
-> kernel source directory. This ensures that it will get the same CONFIG_*
-> defines used to build the kernel source.
-> 
->   # make Documentation/vm/
-> 
-> The implication is that attempting to use page-types -k on a kernel
-> with different CONFIG_* settings may lead to surprising and misleading
-> results. To retain sanity, always use the page-types built out of the
-> kernel tree you are actually testing.
-> 
-> Cc: fengguang.wu@intel.com
-> Cc: Haicheng Li <haicheng.li@intel.com>
-> Cc: Andi Kleen <andi@firstfloor.org>
-> Cc: Randy Dunlap <randy.dunlap@oracle.com>
-> Signed-off-by: Alex Chiang <achiang@hp.com>
-> ---
-> 
-> Applies on top of mmotm.
-> 
->  Documentation/vm/Makefile     |    2 +
->  Documentation/vm/page-types.c |  117 +++++++++++++++++++++++++++++++++++++++--
->  2 files changed, 113 insertions(+), 6 deletions(-)
-> 
-> diff --git a/Documentation/vm/Makefile b/Documentation/vm/Makefile
-> index 5bd269b..1bebc43 100644
-> --- a/Documentation/vm/Makefile
-> +++ b/Documentation/vm/Makefile
-> @@ -1,6 +1,8 @@
->  # kbuild trick to avoid linker error. Can be omitted if a module is built.
->  obj- := dummy.o
->  
-> +HOSTCFLAGS_page-types.o += $(LINUXINCLUDE)
-> +
->  # List of programs to build
->  hostprogs-y := slabinfo page-types
+No, the mmap_sem can only protect against other threads sharing that
+same mm: whereas the prio_tree can shift around according to concurrent
+mmaps and munmaps of the same file in other mms.
 
-I can ack the Makefile part.  Thanks for the patch.
-
-Not that I expect this patch to change for this, but I think that we
-need to move tools (like this one) from Documentation/ to tools/ and
-possibly move examples from Documentation/ to samples/ or tools/.
-
-
-
----
-~Randy
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
