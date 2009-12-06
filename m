@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 886BD60021B
-	for <linux-mm@kvack.org>; Sun,  6 Dec 2009 15:34:34 -0500 (EST)
-Message-ID: <4B1C1554.5060007@redhat.com>
-Date: Sun, 06 Dec 2009 15:34:28 -0500
+	by kanga.kvack.org (Postfix) with SMTP id 1694B60021B
+	for <linux-mm@kvack.org>; Sun,  6 Dec 2009 16:01:50 -0500 (EST)
+Message-ID: <4B1C1BB8.9080301@redhat.com>
+Date: Sun, 06 Dec 2009 16:01:44 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/7] Don't deactivate the page if trylock_page() is failed.
-References: <20091204173233.5891.A69D9226@jp.fujitsu.com> <20091204174347.58A0.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20091204174347.58A0.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 6/7] wipe_page_reference return SWAP_AGAIN if VM pressulre
+ is low and lock contention is detected.
+References: <20091204173233.5891.A69D9226@jp.fujitsu.com> <20091204174439.58A3.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091204174439.58A3.A69D9226@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,24 +17,25 @@ To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 12/04/2009 03:44 AM, KOSAKI Motohiro wrote:
->  From 7635eaa033cfcce7f351b5023952f23f0daffefe Mon Sep 17 00:00:00 2001
+On 12/04/2009 03:45 AM, KOSAKI Motohiro wrote:
+>  From 3fb2a585729a37e205c5ea42ac6c48d4a6c0a29c Mon Sep 17 00:00:00 2001
 > From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Date: Fri, 4 Dec 2009 12:03:07 +0900
-> Subject: [PATCH 5/7] Don't deactivate the page if trylock_page() is failed.
+> Date: Fri, 4 Dec 2009 12:54:37 +0900
+> Subject: [PATCH 6/7] wipe_page_reference return SWAP_AGAIN if VM pressulre is low and lock contention is detected.
 >
-> Currently, wipe_page_reference() increment refctx->referenced variable
-> if trylock_page() is failed. but it is meaningless at all.
-> shrink_active_list() deactivate the page although the page was
-> referenced. The page shouldn't be deactivated with young bit. it
-> break reclaim basic theory and decrease reclaim throughput.
->
-> This patch introduce new SWAP_AGAIN return value to
-> wipe_page_reference().
->
-> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Larry Woodman reported AIM7 makes serious ptelock and anon_vma_lock
+> contention on current VM. because SplitLRU VM (since 2.6.28) remove
+> calc_reclaim_mapped() test, then shrink_active_list() always call
+> page_referenced() against mapped page although VM pressure is low.
+> Lightweight VM pressure is very common situation and it easily makes
+> ptelock contention with page fault. then, anon_vma_lock is holding
+> long time and it makes another lock contention. then, fork/exit
+> throughput decrease a lot.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+It looks good to me.   Larry, does this patch series resolve
+your issue?
+
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed.
