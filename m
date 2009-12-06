@@ -1,57 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 232986B0044
-	for <linux-mm@kvack.org>; Sun,  6 Dec 2009 08:30:53 -0500 (EST)
-Date: Sun, 6 Dec 2009 22:30:46 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [PATCH] memcg: correct return value at mem_cgroup reclaim
-Message-Id: <20091206223046.4b08cbfb.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <COL115-W58F42F7BEEB67BF8324B2A9F910@phx.gbl>
-References: <COL115-W58F42F7BEEB67BF8324B2A9F910@phx.gbl>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 175BE6B0044
+	for <linux-mm@kvack.org>; Sun,  6 Dec 2009 09:55:43 -0500 (EST)
+Message-ID: <4B1BC5EA.5040200@redhat.com>
+Date: Sun, 06 Dec 2009 09:55:38 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/7] Introduce __page_check_address
+References: <20091204173233.5891.A69D9226@jp.fujitsu.com> <20091204174139.5897.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091204174139.5897.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Liu bo <bo-liu@hotmail.com>
-Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-hi,
+On 12/04/2009 03:42 AM, KOSAKI Motohiro wrote:
+>  From 381108e1ff6309f45f45a67acf2a1dd66e41df4f Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Date: Thu, 3 Dec 2009 15:01:42 +0900
+> Subject: [PATCH 2/7] Introduce __page_check_address
+>
+> page_check_address() need to take ptelock. but it might be contended.
+> Then we need trylock version and this patch introduce new helper function.
+>
+> it will be used latter patch.
+>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
-On Sun, 6 Dec 2009 18:16:14 +0800
-Liu bo <bo-liu@hotmail.com> wrote:
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-> 
-> In order to indicate reclaim has succeeded, mem_cgroup_hierarchical_reclaim() used to return 1.
-> Now the return value is without indicating whether reclaim has successded usage, so just return the total reclaimed pages don't plus 1.
->  
-> Signed-off-by: Liu Bo <bo-liu@hotmail.com>
-> ---
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 14593f5..51b6b3c 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -737,7 +737,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->    css_put(&victim->css);
->    total += ret;
->    if (mem_cgroup_check_under_limit(root_mem))
-> -   return 1 + total;
-> +   return total;
->   }
->   return total;
->  } 		 	   		  
-What's the benefit of this change ?
-I can't find any benefit to bother changing current behavior.
-
-P.S.
-You should run ./scripts/checkpatch.pl before sending your patch,
-and refer to Documentation/email-clients.txt and check your email client setting.
-
-
-Regards,
-Daisuke Nishimura.
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
