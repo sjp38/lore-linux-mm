@@ -1,73 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 70BC26B0044
-	for <linux-mm@kvack.org>; Sun,  6 Dec 2009 21:24:01 -0500 (EST)
-Received: by pxi41 with SMTP id 41so89729pxi.23
-        for <linux-mm@kvack.org>; Sun, 06 Dec 2009 18:23:59 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9144F6B0044
+	for <linux-mm@kvack.org>; Sun,  6 Dec 2009 21:37:26 -0500 (EST)
+Received: by pwi1 with SMTP id 1so18292pwi.6
+        for <linux-mm@kvack.org>; Sun, 06 Dec 2009 18:37:24 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <COL115-W12ECCA5335D3BFBB60D5829F900@phx.gbl>
-References: <COL115-W58F42F7BEEB67BF8324B2A9F910@phx.gbl>
-	 <20091206223046.4b08cbfb.d-nishimura@mtf.biglobe.ne.jp>
-	 <COL115-W12ECCA5335D3BFBB60D5829F900@phx.gbl>
-Date: Mon, 7 Dec 2009 10:23:59 +0800
-Message-ID: <cf18f8340912061823q76921a5fuc036514f25c734c9@mail.gmail.com>
-Subject: Re: [PATCH] memcg: correct return value at mem_cgroup reclaim
+Date: Mon, 7 Dec 2009 10:37:24 +0800
+Message-ID: <cf18f8340912061837j16c9aa25vc6af8a4a1fce989c@mail.gmail.com>
+Subject: [PATCH] memcg: code clean,rm unused variable in mem_cgroup_resize_limit
 From: Bob Liu <lliubbo@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: d-nishimura@mtf.biglobe.ne.jp
-Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, lliubbo@gmail.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 6 Dec 2009 22:30:46 +0900
-Daisuke Nishimura wrote:
->
-> hi,
->
-> On Sun, 6 Dec 2009 18:16:14 +0800
-> Liu bo wrote:
->
->>
->> In order to indicate reclaim has succeeded, mem_cgroup_hierarchical_reclaim() used to return 1.
->> Now the return value is without indicating whether reclaim has successded usage, so just return the total reclaimed pages don't plus 1.
->>
->> Signed-off-by: Liu Bo
->> ---
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 14593f5..51b6b3c 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -737,7 +737,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->> css_put(&victim->css);
->> total += ret;
->> if (mem_cgroup_check_under_limit(root_mem))
->> - return 1 + total;
->> + return total;
->> }
->> return total;
->> }
-> What's the benefit of this change ?
-> I can't find any benefit to bother changing current behavior.
->
-en..I think there is just a little unnormal logic. The function
-recliam total pages,
-but return 1 + total to the caller. I am unclear why do this,it have
-no benefit too.
+Variable progress isn't used in funtion mem_cgroup_resize_limit anymore.
+Remove it.
 
-Anyway,yes,there is no benifit of this change in current code.
-Please just ignore this patch.
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 984cf27..9d4776e 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2100,7 +2100,6 @@ static int mem_cgroup_resize_limit(struct
+mem_cgroup *memcg,
+ 				unsigned long long val)
+ {
+ 	int retry_count;
+-	int progress;
+ 	u64 memswlimit;
+ 	int ret = 0;
+ 	int children = mem_cgroup_count_children(memcg);
+@@ -2144,7 +2143,7 @@ static int mem_cgroup_resize_limit(struct
+mem_cgroup *memcg,
+ 		if (!ret)
+ 			break;
 
-> P.S.
-> You should run ./scripts/checkpatch.pl before sending your patch,
-> and refer to Documentation/email-clients.txt and check your email client setting.
->
-
-Sorry, I registered a gmail and hoping it will be ok! :-)
-Thanks!
+-		progress = mem_cgroup_hierarchical_reclaim(memcg, NULL,
++		mem_cgroup_hierarchical_reclaim(memcg, NULL,
+ 						GFP_KERNEL,
+ 						MEM_CGROUP_RECLAIM_SHRINK);
+ 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
 -- 
-Regards,
--Bob Liu
+1.6.0.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
