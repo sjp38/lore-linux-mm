@@ -1,94 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E3060021B
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2009 11:24:08 -0500 (EST)
-Message-Id: <4B1D3A3302000078000241CD@vpn.id2.novell.com>
-Date: Mon, 07 Dec 2009 16:24:03 +0000
-From: "Jan Beulich" <JBeulich@novell.com>
-Subject: [PATCH] mm/vmalloc: don't use vmalloc_end
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 921BB60021B
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2009 13:10:34 -0500 (EST)
+Message-ID: <4B1D4513.1020206@redhat.com>
+Date: Mon, 07 Dec 2009 13:10:27 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [early RFC][PATCH 8/7] vmscan: Don't deactivate many touched
+ page
+References: <20091204173233.5891.A69D9226@jp.fujitsu.com> <20091207203427.E955.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091207203427.E955.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: tony.luck@intel.com, tj@kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Larry Woodman <lwoodman@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-At least on ia64 vmalloc_end is a global variable that VMALLOC_END
-expands to. Hence having a local variable named vmalloc_end and
-initialized from VMALLOC_END won't work on such platforms. Rename
-these variables, and for consistency also rename vmalloc_start.
+On 12/07/2009 06:36 AM, KOSAKI Motohiro wrote:
+>
+> Andrea, Can you please try following patch on your workload?
+>
+>
+>  From a7758c66d36a136d5fbbcf0b042839445f0ca522 Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Date: Mon, 7 Dec 2009 18:37:20 +0900
+> Subject: [PATCH] [RFC] vmscan: Don't deactivate many touched page
+>
+> Changelog
+>   o from andrea's original patch
+>     - Rebase topon my patches.
+>     - Use list_cut_position/list_splice_tail pair instead
+>       list_del/list_add to make pte scan fairness.
+>     - Only use max young threshold when soft_try is true.
+>       It avoid wrong OOM sideeffect.
+>     - Return SWAP_AGAIN instead successful result if max
+>       young threshold exceed. It prevent the pages without clear
+>       pte young bit will be deactivated wrongly.
+>     - Add to treat ksm page logic
 
-Signed-off-by: Jan Beulich <jbeulich@novell.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Tony Luck <tony.luck@intel.com>
+I like the concept and your changes, and really only
+have a few small nitpicks :)
 
----
- mm/vmalloc.c |   16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+First, the VM uses a mix of "referenced", "accessed" and
+"young".  We should probably avoid adding "active" to that
+mix, and may even want to think about moving to just one
+or two terms :)
 
---- linux-2.6.32/mm/vmalloc.c
-+++ 2.6.32-dont-use-vmalloc_end/mm/vmalloc.c
-@@ -2060,13 +2060,13 @@ static unsigned long pvm_determine_end(s
- 				       struct vmap_area **pprev,
- 				       unsigned long align)
- {
--	const unsigned long vmalloc_end =3D VMALLOC_END & ~(align - 1);
-+	const unsigned long end =3D VMALLOC_END & ~(align - 1);
- 	unsigned long addr;
-=20
- 	if (*pnext)
--		addr =3D min((*pnext)->va_start & ~(align - 1), vmalloc_end=
-);
-+		addr =3D min((*pnext)->va_start & ~(align - 1), end);
- 	else
--		addr =3D vmalloc_end;
-+		addr =3D end;
-=20
- 	while (*pprev && (*pprev)->va_end > addr) {
- 		*pnext =3D *pprev;
-@@ -2105,8 +2105,8 @@ struct vm_struct **pcpu_get_vm_areas(con
- 				     const size_t *sizes, int nr_vms,
- 				     size_t align, gfp_t gfp_mask)
- {
--	const unsigned long vmalloc_start =3D ALIGN(VMALLOC_START, align);
--	const unsigned long vmalloc_end =3D VMALLOC_END & ~(align - 1);
-+	const unsigned long vstart =3D ALIGN(VMALLOC_START, align);
-+	const unsigned long vend =3D VMALLOC_END & ~(align - 1);
- 	struct vmap_area **vas, *prev, *next;
- 	struct vm_struct **vms;
- 	int area, area2, last_area, term_area;
-@@ -2142,7 +2142,7 @@ struct vm_struct **pcpu_get_vm_areas(con
- 	}
- 	last_end =3D offsets[last_area] + sizes[last_area];
-=20
--	if (vmalloc_end - vmalloc_start < last_end) {
-+	if (vend - vstart < last_end) {
- 		WARN_ON(true);
- 		return NULL;
- 	}
-@@ -2167,7 +2167,7 @@ retry:
- 	end =3D start + sizes[area];
-=20
- 	if (!pvm_find_next_prev(vmap_area_pcpu_hole, &next, &prev)) {
--		base =3D vmalloc_end - last_end;
-+		base =3D vend - last_end;
- 		goto found;
- 	}
- 	base =3D pvm_determine_end(&next, &prev, align) - end;
-@@ -2180,7 +2180,7 @@ retry:
- 		 * base might have underflowed, add last_end before
- 		 * comparing.
- 		 */
--		if (base + last_end < vmalloc_start + last_end) {
-+		if (base + last_end < vstart + last_end) {
- 			spin_unlock(&vmap_area_lock);
- 			if (!purged) {
- 				purge_vmap_area_lazy();
+> +#define MAX_YOUNG_BIT_CLEARED 64
+> +/*
+> + * if VM pressure is low and the page have too many active mappings, there isn't
+> + * any reason to continue clear young bit of other ptes. Otherwise,
+> + *  - Makes meaningless cpu wasting, many touched page sholdn't be reclaimed.
+> + *  - Makes lots IPI for pte change and it might cause another sadly lock
+> + *    contention.
+> + */
 
+If VM pressure is low and the page has lots of active users, we only
+clear up to MAX_YOUNG_BIT_CLEARED accessed bits at a time.  Clearing
+accessed bits takes CPU time, needs TLB invalidate IPIs and could
+cause lock contention.  Since a heavily shared page is very likely
+to be used again soon, the cost outweighs the benefit of making such
+a heavily shared page a candidate for eviction.
 
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index cfda0a0..f4517f3 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -473,6 +473,21 @@ static int wipe_page_reference_anon(struct page *page,
+>   		ret = wipe_page_reference_one(page, refctx, vma, address);
+>   		if (ret != SWAP_SUCCESS)
+>   			break;
+> +		if (too_many_young_bit_found(refctx)) {
+> +			LIST_HEAD(tmp_list);
+> +
+> +			/*
+> +			 * The scanned ptes move to list tail. it help every ptes
+> +			 * on this page will be tested by ptep_clear_young().
+> +			 * Otherwise, this shortcut makes unfair thing.
+> +			 */
+> +			list_cut_position(&tmp_list,
+> +					&vma->anon_vma_node,
+> +					&anon_vma->head);
+> +			list_splice_tail(&tmp_list,&vma->anon_vma_node);
+> +			ret = SWAP_AGAIN;
+> +			break;
+> +		}
+
+I do not understand the unfairness here, since all a page needs
+to stay on the active list is >64 referenced PTEs.  It does not
+matter which of the PTEs mapping the page were recently referenced.
+
+However, rotating the anon vmas around may help spread out lock
+pressure in the VM and help things that way, so the code looks
+useful to me.
+
+In short, you can give the next version of this patch my
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+All I have are comment nitpicks :)
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
