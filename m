@@ -1,45 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 567986B0044
-	for <linux-mm@kvack.org>; Sun,  6 Dec 2009 21:02:27 -0500 (EST)
-Date: Mon, 7 Dec 2009 10:02:22 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC] print symbolic page flag names in bad_page()
-Message-ID: <20091207020222.GB7502@localhost>
-References: <20091204212606.29258.98531.stgit@bob.kio> <20091206034636.GA7109@localhost> <20091206230016.GA18989@one.firstfloor.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 70BC26B0044
+	for <linux-mm@kvack.org>; Sun,  6 Dec 2009 21:24:01 -0500 (EST)
+Received: by pxi41 with SMTP id 41so89729pxi.23
+        for <linux-mm@kvack.org>; Sun, 06 Dec 2009 18:23:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091206230016.GA18989@one.firstfloor.org>
+In-Reply-To: <COL115-W12ECCA5335D3BFBB60D5829F900@phx.gbl>
+References: <COL115-W58F42F7BEEB67BF8324B2A9F910@phx.gbl>
+	 <20091206223046.4b08cbfb.d-nishimura@mtf.biglobe.ne.jp>
+	 <COL115-W12ECCA5335D3BFBB60D5829F900@phx.gbl>
+Date: Mon, 7 Dec 2009 10:23:59 +0800
+Message-ID: <cf18f8340912061823q76921a5fuc036514f25c734c9@mail.gmail.com>
+Subject: Re: [PATCH] memcg: correct return value at mem_cgroup reclaim
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Alex Chiang <achiang@hp.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Li, Haicheng" <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: d-nishimura@mtf.biglobe.ne.jp
+Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, lliubbo@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 07, 2009 at 07:00:16AM +0800, Andi Kleen wrote:
-> > So how about this patch?
-> 
-> I like it. Decoding the flags by hand is always a very unpleasant experience.
-> Bonus: dump_page can be called from kgdb too.
+On Sun, 6 Dec 2009 22:30:46 +0900
+Daisuke Nishimura wrote:
+>
+> hi,
+>
+> On Sun, 6 Dec 2009 18:16:14 +0800
+> Liu bo wrote:
+>
+>>
+>> In order to indicate reclaim has succeeded, mem_cgroup_hierarchical_reclaim() used to return 1.
+>> Now the return value is without indicating whether reclaim has successded usage, so just return the total reclaimed pages don't plus 1.
+>>
+>> Signed-off-by: Liu Bo
+>> ---
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 14593f5..51b6b3c 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -737,7 +737,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+>> css_put(&victim->css);
+>> total += ret;
+>> if (mem_cgroup_check_under_limit(root_mem))
+>> - return 1 + total;
+>> + return total;
+>> }
+>> return total;
+>> }
+> What's the benefit of this change ?
+> I can't find any benefit to bother changing current behavior.
+>
+en..I think there is just a little unnormal logic. The function
+recliam total pages,
+but return 1 + total to the caller. I am unclear why do this,it have
+no benefit too.
 
-Thank you.  And I'd like to elaborate a bit more on the rational.
+Anyway,yes,there is no benifit of this change in current code.
+Please just ignore this patch.
 
-Making the page-types tool depend on .config is fragile and dangerous.
-It would seem to work but silently return wrong results for a newbie
-user or a careless hacker.
+> P.S.
+> You should run ./scripts/checkpatch.pl before sending your patch,
+> and refer to Documentation/email-clients.txt and check your email client setting.
+>
 
-And it's troublesome even for home made kernels by a kernel developer.
-
-For example, typically I run many kernel trees with different versions and
-kconfigs (both of which change frequently) concurrently.  This means I
-would have to judge to run "this" page-types or "that" page-types, and
-to check if this page-types is uptodate, and if the .config is in sync
-with the running kernel image..
-
-An in-kernel dump_page() makes life easier.
-
-Thanks,
-Fengguang
+Sorry, I registered a gmail and hoping it will be ok! :-)
+Thanks!
+-- 
+Regards,
+-Bob Liu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
