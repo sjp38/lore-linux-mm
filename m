@@ -1,243 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C782600774
-	for <linux-mm@kvack.org>; Mon,  7 Dec 2009 04:30:55 -0500 (EST)
-Date: Mon, 7 Dec 2009 09:30:45 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC] print symbolic page flag names in bad_page()
-Message-ID: <20091207093045.GA2107@csn.ul.ie>
-References: <20091204212606.29258.98531.stgit@bob.kio> <20091206034636.GA7109@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+	by kanga.kvack.org (Postfix) with ESMTP id 0E1C560021B
+	for <linux-mm@kvack.org>; Mon,  7 Dec 2009 06:27:35 -0500 (EST)
+Date: Mon, 7 Dec 2009 12:27:05 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/7] Replace page_mapping_inuse() with page_mapped()
+Message-ID: <20091207112705.GA5772@cmpxchg.org>
+References: <20091204173233.5891.A69D9226@jp.fujitsu.com> <20091204174016.5894.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091206034636.GA7109@localhost>
+In-Reply-To: <20091204174016.5894.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Alex Chiang <achiang@hp.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Li, Haicheng" <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Dec 06, 2009 at 11:46:36AM +0800, Wu Fengguang wrote:
-> Hi Alex,
+On Fri, Dec 04, 2009 at 05:41:35PM +0900, KOSAKI Motohiro wrote:
+> From c0cd3ee2bb13567a36728600a86f43abac3125b5 Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: Wed, 2 Dec 2009 12:05:26 +0900
+> Subject: [PATCH 1/7] Replace page_mapping_inuse() with page_mapped()
 > 
-> On Sat, Dec 05, 2009 at 05:29:48AM +0800, Alex Chiang wrote:
-> [...]
-> > Teach page-types the -k mode, which parses and describes the bits in
-> > the internal kernel order:
-> > 
-> >   # ./Documentation/vm/page-types -k 0x4000
-> >   0x0000000000004000  ______________H_________  compound_head
-> [...]
-> > The implication is that attempting to use page-types -k on a kernel
-> > with different CONFIG_* settings may lead to surprising and misleading
-> > results. To retain sanity, always use the page-types built out of the
-> > kernel tree you are actually testing.
+> page reclaim logic need to distingish mapped and unmapped pages.
+> However page_mapping_inuse() don't provide proper test way. it test
+> the address space (i.e. file) is mmpad(). Why `page' reclaim need
+> care unrelated page's mapped state? it's unrelated.
 > 
-> This is useful feature, however not as convenient if the kernel can
-> print its page flag names directly :)
-> (especially when the dmesg comes from some end user)
+> Thus, This patch replace page_mapping_inuse() with page_mapped()
 > 
-> So how about this patch?
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
 
-There is a neat way of declaring strings that are used for the symbolic
-printing of flags in a bitfield. It's orientated around ftrace so not
-immediately usable for printk. Maybe the approaches can be merged but
-minimally, it'd be nice to match the declaration style. An example is
-show_gfp_flags in include/event/trace/kmem.h
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 
 > ---
+>  mm/vmscan.c |   25 ++-----------------------
+>  1 files changed, 2 insertions(+), 23 deletions(-)
 > 
-> mm: introduce dump_page()
-> 
-> - introduce dump_page() to print the page info for debugging some error condition.
-> - print an extra field: the symbolic names of page->flags
-> - convert three mm users: bad_page(), print_bad_pte() and memory offline failure. 
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/internal.h       |    2 +
->  mm/memory.c         |    8 +---
->  mm/memory_hotplug.c |    6 +--
->  mm/page_alloc.c     |   75 +++++++++++++++++++++++++++++++++++++++---
->  4 files changed, 78 insertions(+), 13 deletions(-)
-> 
-> --- linux-mm.orig/mm/page_alloc.c	2009-12-06 10:11:08.000000000 +0800
-> +++ linux-mm/mm/page_alloc.c	2009-12-06 11:22:58.000000000 +0800
-> @@ -48,6 +48,7 @@
->  #include <linux/page_cgroup.h>
->  #include <linux/debugobjects.h>
->  #include <linux/kmemleak.h>
-> +#include <linux/kernel-page-flags.h>
->  #include <trace/events/kmem.h>
->  
->  #include <asm/tlbflush.h>
-> @@ -262,10 +263,7 @@ static void bad_page(struct page *page)
->  
->  	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
->  		current->comm, page_to_pfn(page));
-> -	printk(KERN_ALERT
-> -		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
-> -		page, (void *)page->flags, page_count(page),
-> -		page_mapcount(page), page->mapping, page->index);
-> +	dump_page(page);
->  
->  	dump_stack();
->  out:
-> @@ -5106,3 +5104,72 @@ bool is_free_buddy_page(struct page *pag
->  	return order < MAX_ORDER;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index da6cf42..4ba08da 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -262,27 +262,6 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+>  	return ret;
 >  }
->  #endif
-> +
-> +static char *page_flag_names[] = {
-> +	[KPF_LOCKED]		= "L:locked",
-> +	[KPF_ERROR]		= "E:error",
-> +	[KPF_REFERENCED]	= "R:referenced",
-> +	[KPF_UPTODATE]		= "U:uptodate",
-> +	[KPF_DIRTY]		= "D:dirty",
-> +	[KPF_LRU]		= "l:lru",
-> +	[KPF_ACTIVE]		= "A:active",
-> +	[KPF_SLAB]		= "S:slab",
-> +	[KPF_WRITEBACK]		= "W:writeback",
-> +	[KPF_RECLAIM]		= "I:reclaim",
-> +	[KPF_BUDDY]		= "B:buddy",
-> +
-> +	[KPF_MMAP]		= "M:mmap",
-> +	[KPF_ANON]		= "a:anonymous",
-> +	[KPF_SWAPCACHE]		= "s:swapcache",
-> +	[KPF_SWAPBACKED]	= "b:swapbacked",
-> +	[KPF_COMPOUND_HEAD]	= "H:compound_head",
-> +	[KPF_COMPOUND_TAIL]	= "T:compound_tail",
-> +	[KPF_HUGE]		= "G:huge",
-> +	[KPF_UNEVICTABLE]	= "u:unevictable",
-> +	[KPF_HWPOISON]		= "X:hwpoison",
-> +	[KPF_NOPAGE]		= "n:nopage",
-> +	[KPF_KSM]		= "V:shared",
-> +
-> +	[KPF_RESERVED]		= "r:reserved",
-> +	[KPF_MLOCKED]		= "m:mlocked",
-> +	[KPF_MAPPEDTODISK]	= "d:mappedtodisk",
-> +	[KPF_PRIVATE]		= "P:private",
-> +	[KPF_PRIVATE_2]		= "p:private_2",
-> +	[KPF_OWNER_PRIVATE]	= "O:owner_private",
-> +	[KPF_ARCH]		= "h:arch",
-> +	[KPF_UNCACHED]		= "c:uncached",
-> +};
-> +
-> +static char *page_flags_longname(struct page *page, char *buf, int buflen)
-> +{
-> +	int i, n;
-> +	u64 flags;
-> +
-> +	flags = stable_page_flags(page);
-> +
-
-I don't see where this is defined. I assume there is a patch dependency
-I'm not seeing.
-
-> +	for (i = 0, n = 0; i < ARRAY_SIZE(page_flag_names); i++) {
-> +		if (!page_flag_names[i])
-> +			continue;
-
-How it is possible to get flags that are not recognised? Surely that
-that spark some sort of warning.
-
-> +		if ((flags >> i) & 1)
-> +			n += snprintf(buf + n, buflen - n, "%s,",
-> +					page_flag_names[i] + 2);
-
-Should that be | instead of , ?
-Why page_flag_names[i] + 2?
-
-> +	}
-> +	if (n)
-> +		n--;
-> +	buf[n] = '\0';
-> +
-> +	return buf;
-> +}
-
-As the symbolic long name is always going to printk(), why buffer it?
-It's slower to call printk() multiple times but it's hardly a
-performance-critical path and it avoids the declaration of buf.
-
-> +
-> +void dump_page(struct page *page)
-> +{
-> +	char buf[1024];
-> +
-
-Ingo flagged this already.
-
-> +	printk(KERN_ALERT
-> +	"page:%p flags:%p(%s) count:%d mapcount:%d mapping:%p index:%lx\n",
-> +		page, (void *)page->flags,
-> +		page_flags_longname(page, buf, sizeof(buf)),
-
-This can push things like count, mapcount and the like beyond the edge
-of 80 columns. While it rarely matters, it can get truncated on serial
-consoles depending on how they are being recorded. Can the string go to
-a line of it's own?
-
-> +		page_count(page), page_mapcount(page),
-> +		page->mapping, page->index);
-> +}
-> +EXPORT_SYMBOL(dump_page);
-
-Ingo pointed out that this is exported GPL but I'm confused as to why
-it's exported at all. What module needs it?
-
-> --- linux-mm.orig/mm/memory.c	2009-12-06 10:37:47.000000000 +0800
-> +++ linux-mm/mm/memory.c	2009-12-06 10:57:25.000000000 +0800
-> @@ -430,12 +430,8 @@ static void print_bad_pte(struct vm_area
->  		"BUG: Bad page map in process %s  pte:%08llx pmd:%08llx\n",
->  		current->comm,
->  		(long long)pte_val(pte), (long long)pmd_val(*pmd));
-> -	if (page) {
-> -		printk(KERN_ALERT
-> -		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
-> -		page, (void *)page->flags, page_count(page),
-> -		page_mapcount(page), page->mapping, page->index);
-> -	}
-> +	if (page)
-> +		dump_page(page);
->  	printk(KERN_ALERT
->  		"addr:%p vm_flags:%08lx anon_vma:%p mapping:%p index:%lx\n",
->  		(void *)addr, vma->vm_flags, vma->anon_vma, mapping, index);
-> --- linux-mm.orig/mm/internal.h	2009-12-06 10:47:37.000000000 +0800
-> +++ linux-mm/mm/internal.h	2009-12-06 11:03:53.000000000 +0800
-> @@ -264,6 +264,8 @@ int __get_user_pages(struct task_struct 
->  #define ZONE_RECLAIM_SUCCESS	1
->  #endif
 >  
-> +void dump_page(struct page *page);
-> +
->  extern int hwpoison_filter(struct page *p);
+> -/* Called without lock on whether page is mapped, so answer is unstable */
+> -static inline int page_mapping_inuse(struct page *page)
+> -{
+> -	struct address_space *mapping;
+> -
+> -	/* Page is in somebody's page tables. */
+> -	if (page_mapped(page))
+> -		return 1;
+> -
+> -	/* Be more reluctant to reclaim swapcache than pagecache */
+> -	if (PageSwapCache(page))
+> -		return 1;
+> -
+> -	mapping = page_mapping(page);
+> -	if (!mapping)
+> -		return 0;
+> -
+> -	/* File is mmap'd by somebody? */
+> -	return mapping_mapped(mapping);
+> -}
+> -
+>  static inline int is_page_cache_freeable(struct page *page)
+>  {
+>  	/*
+> @@ -649,7 +628,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		 * try_to_unmap moves it to unevictable list
+>  		 */
+>  		if (sc->order <= PAGE_ALLOC_COSTLY_ORDER &&
+> -					referenced && page_mapping_inuse(page)
+> +					referenced && page_mapped(page)
+>  					&& !(vm_flags & VM_LOCKED))
+>  			goto activate_locked;
 >  
->  extern u32 hwpoison_filter_dev_major;
-> --- linux-mm.orig/mm/memory_hotplug.c	2009-12-06 11:01:20.000000000 +0800
-> +++ linux-mm/mm/memory_hotplug.c	2009-12-06 11:01:23.000000000 +0800
-> @@ -678,9 +678,9 @@ do_migrate_range(unsigned long start_pfn
->  			if (page_count(page))
->  				not_managed++;
->  #ifdef CONFIG_DEBUG_VM
-> -			printk(KERN_INFO "removing from LRU failed"
-> -					 " %lx/%d/%lx\n",
-> -				pfn, page_count(page), page->flags);
-> +			printk(KERN_INFO "removing pfn %lx from LRU failed\n",
-> +				pfn);
-> +			dump_page(page);
-
-The message is printed at KERN_INFO and the dump at KERN_ALERT. Is this
-intentional?
-
->  #endif
+> @@ -1356,7 +1335,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 >  		}
->  	}
+>  
+>  		/* page_referenced clears PageReferenced */
+> -		if (page_mapping_inuse(page) &&
+> +		if (page_mapped(page) &&
+>  		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
+>  			nr_rotated++;
+>  			/*
+> -- 
+> 1.6.5.2
 > 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
