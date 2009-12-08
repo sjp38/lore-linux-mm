@@ -1,109 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A13F600762
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:43 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A172600762
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:45 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200912081016.198135742@firstfloor.org>
 In-Reply-To: <200912081016.198135742@firstfloor.org>
-Subject: [PATCH] [15/31] HWPOISON: make semantics of IGNORED/DELAYED clear
-Message-Id: <20091208211631.6B8A1B151F@basil.firstfloor.org>
-Date: Tue,  8 Dec 2009 22:16:31 +0100 (CET)
+Subject: [PATCH] [24/31] HWPOISON: add an interface to switch off/on all the page filters
+Message-Id: <20091208211640.8767AB151F@basil.firstfloor.org>
+Date: Tue,  8 Dec 2009 22:16:40 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.comfengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: haicheng.li@linux.intel.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-From: Wu Fengguang <fengguang.wu@intel.com>
+From: Haicheng Li <haicheng.li@linux.intel.com>
 
-Change semantics for
-- IGNORED: not handled; it may well be _unsafe_
-- DELAYED: to be handled later; it is _safe_
+In some use cases, user doesn't need extra filtering. E.g. user program
+can inject errors through madvise syscall to its own pages, however it
+might not know what the page state exactly is or which inode the page
+belongs to.
 
-With this change,
-- IGNORED/FAILED mean (maybe) Error
-- DELAYED/RECOVERED mean Success
+So introduce an one-off interface "corrupt-filter-enable".
 
+Echo 0 to switch off page filters, and echo 1 to switch on the filters.
+[AK: changed default to 0]
+
+Signed-off-by: Haicheng Li <haicheng.li@linux.intel.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/memory-failure.c |   22 +++++++---------------
- 1 file changed, 7 insertions(+), 15 deletions(-)
+ mm/hwpoison-inject.c |    5 +++++
+ mm/internal.h        |    1 +
+ mm/memory-failure.c  |    5 +++++
+ 3 files changed, 11 insertions(+)
 
+Index: linux/mm/hwpoison-inject.c
+===================================================================
+--- linux.orig/mm/hwpoison-inject.c
++++ linux/mm/hwpoison-inject.c
+@@ -92,6 +92,11 @@ static int pfn_inject_init(void)
+ 	if (!dentry)
+ 		goto fail;
+ 
++	dentry = debugfs_create_u32("corrupt-filter-enable", 0600,
++				    hwpoison_dir, &hwpoison_filter_enable);
++	if (!dentry)
++		goto fail;
++
+ 	dentry = debugfs_create_u32("corrupt-filter-dev-major", 0600,
+ 				    hwpoison_dir, &hwpoison_filter_dev_major);
+ 	if (!dentry)
+Index: linux/mm/internal.h
+===================================================================
+--- linux.orig/mm/internal.h
++++ linux/mm/internal.h
+@@ -271,3 +271,4 @@ extern u32 hwpoison_filter_dev_minor;
+ extern u64 hwpoison_filter_flags_mask;
+ extern u64 hwpoison_filter_flags_value;
+ extern u64 hwpoison_filter_memcg;
++extern u32 hwpoison_filter_enable;
 Index: linux/mm/memory-failure.c
 ===================================================================
 --- linux.orig/mm/memory-failure.c
 +++ linux/mm/memory-failure.c
-@@ -336,16 +336,16 @@ static void collect_procs(struct page *p
-  */
+@@ -49,10 +49,12 @@ int sysctl_memory_failure_recovery __rea
  
- enum outcome {
--	FAILED,		/* Error handling failed */
-+	IGNORED,	/* Error: cannot be handled */
-+	FAILED,		/* Error: handling failed */
- 	DELAYED,	/* Will be handled later */
--	IGNORED,	/* Error safely ignored */
- 	RECOVERED,	/* Successfully recovered */
- };
+ atomic_long_t mce_bad_pages __read_mostly = ATOMIC_LONG_INIT(0);
  
- static const char *action_name[] = {
-+	[IGNORED] = "Ignored",
- 	[FAILED] = "Failed",
- 	[DELAYED] = "Delayed",
--	[IGNORED] = "Ignored",
- 	[RECOVERED] = "Recovered",
- };
++u32 hwpoison_filter_enable = 0;
+ u32 hwpoison_filter_dev_major = ~0U;
+ u32 hwpoison_filter_dev_minor = ~0U;
+ u64 hwpoison_filter_flags_mask;
+ u64 hwpoison_filter_flags_value;
++EXPORT_SYMBOL_GPL(hwpoison_filter_enable);
+ EXPORT_SYMBOL_GPL(hwpoison_filter_dev_major);
+ EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
+ EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
+@@ -141,6 +143,9 @@ static int hwpoison_filter_task(struct p
  
-@@ -380,14 +380,6 @@ static int delete_from_lru_cache(struct
-  */
- static int me_kernel(struct page *p, unsigned long pfn)
+ int hwpoison_filter(struct page *p)
  {
--	return DELAYED;
--}
--
--/*
-- * Already poisoned page.
-- */
--static int me_ignore(struct page *p, unsigned long pfn)
--{
- 	return IGNORED;
- }
- 
-@@ -604,7 +596,7 @@ static struct page_state {
- 	char *msg;
- 	int (*action)(struct page *p, unsigned long pfn);
- } error_states[] = {
--	{ reserved,	reserved,	"reserved kernel",	me_ignore },
-+	{ reserved,	reserved,	"reserved kernel",	me_kernel },
- 	/*
- 	 * free pages are specially detected outside this table:
- 	 * PG_buddy pages only make a small fraction of all free pages.
-@@ -790,7 +782,7 @@ int __memory_failure(unsigned long pfn,
- 
- 	p = pfn_to_page(pfn);
- 	if (TestSetPageHWPoison(p)) {
--		action_result(pfn, "already hardware poisoned", IGNORED);
-+		printk(KERN_ERR "MCE %#lx: already hardware poisoned\n", pfn);
- 		return 0;
- 	}
- 
-@@ -845,7 +837,7 @@ int __memory_failure(unsigned long pfn,
- 	 * unpoison always clear PG_hwpoison inside page lock
- 	 */
- 	if (!PageHWPoison(p)) {
--		action_result(pfn, "unpoisoned", IGNORED);
-+		printk(KERN_ERR "MCE %#lx: just unpoisoned\n", pfn);
- 		res = 0;
- 		goto out;
- 	}
-@@ -867,7 +859,7 @@ int __memory_failure(unsigned long pfn,
- 	 */
- 	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
- 		action_result(pfn, "already truncated LRU", IGNORED);
--		res = 0;
-+		res = -EBUSY;
- 		goto out;
- 	}
++	if (!hwpoison_filter_enable)
++		return 0;
++
+ 	if (hwpoison_filter_dev(p))
+ 		return -EINVAL;
  
 
 --
