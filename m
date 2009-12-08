@@ -1,89 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A570D6007B7
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D4DF76007B9
 	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:51 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200912081016.198135742@firstfloor.org>
 In-Reply-To: <200912081016.198135742@firstfloor.org>
-Subject: [PATCH] [31/31] HWPOISON: Add a madvise() injector for soft page offlining
-Message-Id: <20091208211647.9B032B151F@basil.firstfloor.org>
-Date: Tue,  8 Dec 2009 22:16:47 +0100 (CET)
+Subject: [PATCH] [12/31] HWPOISON: remove the free buddy page handler
+Message-Id: <20091208211628.63512B151F@basil.firstfloor.org>
+Date: Tue,  8 Dec 2009 22:16:28 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: fengguang.wu@intel.comfengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-Process based injection is much easier to handle for test programs,
-who can first bring a page into a specific state and then test.
-So add a new MADV_SOFT_OFFLINE to soft offline a page, similar
-to the existing hard offline injector.
+From: Wu Fengguang <fengguang.wu@intel.com>
 
+The buddy page has already be handled in the very beginning.
+So remove redundant code.
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/asm-generic/mman-common.h |    1 +
- mm/madvise.c                      |   15 ++++++++++++---
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ mm/memory-failure.c |   14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)
 
-Index: linux/include/asm-generic/mman-common.h
+Index: linux/mm/memory-failure.c
 ===================================================================
---- linux.orig/include/asm-generic/mman-common.h
-+++ linux/include/asm-generic/mman-common.h
-@@ -35,6 +35,7 @@
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
- #define MADV_HWPOISON	100		/* poison a page for testing */
-+#define MADV_SOFT_OFFLINE 101		/* soft offline page for testing */
+--- linux.orig/mm/memory-failure.c
++++ linux/mm/memory-failure.c
+@@ -401,14 +401,6 @@ static int me_unknown(struct page *p, un
+ }
  
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
-Index: linux/mm/madvise.c
-===================================================================
---- linux.orig/mm/madvise.c
-+++ linux/mm/madvise.c
-@@ -9,6 +9,7 @@
- #include <linux/pagemap.h>
- #include <linux/syscalls.h>
- #include <linux/mempolicy.h>
-+#include <linux/page-isolation.h>
- #include <linux/hugetlb.h>
- #include <linux/sched.h>
- #include <linux/ksm.h>
-@@ -222,7 +223,7 @@ static long madvise_remove(struct vm_are
  /*
-  * Error injection support for memory error handling.
+- * Free memory
+- */
+-static int me_free(struct page *p, unsigned long pfn)
+-{
+-	return DELAYED;
+-}
+-
+-/*
+  * Clean (or cleaned) page cache page.
   */
--static int madvise_hwpoison(unsigned long start, unsigned long end)
-+static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
- {
- 	int ret = 0;
+ static int me_pagecache_clean(struct page *p, unsigned long pfn)
+@@ -604,7 +596,6 @@ static int me_huge_page(struct page *p,
+ #define tail		(1UL << PG_tail)
+ #define compound	(1UL << PG_compound)
+ #define slab		(1UL << PG_slab)
+-#define buddy		(1UL << PG_buddy)
+ #define reserved	(1UL << PG_reserved)
  
-@@ -233,6 +234,14 @@ static int madvise_hwpoison(unsigned lon
- 		int ret = get_user_pages_fast(start, 1, 0, &p);
- 		if (ret != 1)
- 			return ret;
-+		if (bhv == MADV_SOFT_OFFLINE) {
-+			printk(KERN_INFO "Soft offlining page %lx at %lx\n",
-+				page_to_pfn(p), start);
-+			ret = soft_offline_page(p, MF_COUNT_INCREASED);
-+			if (ret)
-+				break;
-+			continue;
-+		}
- 		printk(KERN_INFO "Injecting memory failure for page %lx at %lx\n",
- 		       page_to_pfn(p), start);
- 		/* Ignore return value for now */
-@@ -333,8 +342,8 @@ SYSCALL_DEFINE3(madvise, unsigned long,
- 	size_t len;
+ static struct page_state {
+@@ -614,7 +605,10 @@ static struct page_state {
+ 	int (*action)(struct page *p, unsigned long pfn);
+ } error_states[] = {
+ 	{ reserved,	reserved,	"reserved kernel",	me_ignore },
+-	{ buddy,	buddy,		"free kernel",	me_free },
++	/*
++	 * free pages are specially detected outside this table:
++	 * PG_buddy pages only make a small fraction of all free pages.
++	 */
  
- #ifdef CONFIG_MEMORY_FAILURE
--	if (behavior == MADV_HWPOISON)
--		return madvise_hwpoison(start, start+len_in);
-+	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
-+		return madvise_hwpoison(behavior, start, start+len_in);
- #endif
- 	if (!madvise_behavior_valid(behavior))
- 		return error;
+ 	/*
+ 	 * Could in theory check if slab page is free or if we can drop
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
