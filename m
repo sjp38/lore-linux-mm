@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 237EF600762
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:25 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 90BA8600762
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:27 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200912081016.198135742@firstfloor.org>
 In-Reply-To: <200912081016.198135742@firstfloor.org>
-Subject: [PATCH] [5/31] HWPOISON: return ENXIO on invalid page number
-Message-Id: <20091208211621.50759B151F@basil.firstfloor.org>
-Date: Tue,  8 Dec 2009 22:16:21 +0100 (CET)
+Subject: [PATCH] [6/31] HWPOISON: avoid grabbing the page count multiple times during madvise injection
+Message-Id: <20091208211622.54209B151F@basil.firstfloor.org>
+Date: Tue,  8 Dec 2009 22:16:22 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 To: fengguang.wu@intel.comfengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -15,51 +15,70 @@ List-ID: <linux-mm.kvack.org>
 
 From: Wu Fengguang <fengguang.wu@intel.com>
 
-Use a different errno than the usual EIO for invalid page numbers. 
-This is mainly for better reporting for the injector.
-
-This also avoids calling action_result() with invalid pfn.
+If page is double referenced in madvise_hwpoison() and __memory_failure(),
+remove_mapping() will fail because it expects page_count=2. Fix it by
+not grabbing extra page count in __memory_failure().
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/memory-failure.c |   12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ mm/madvise.c        |    1 -
+ mm/memory-failure.c |    8 ++++----
+ 2 files changed, 4 insertions(+), 5 deletions(-)
 
+Index: linux/mm/madvise.c
+===================================================================
+--- linux.orig/mm/madvise.c
++++ linux/mm/madvise.c
+@@ -238,7 +238,6 @@ static int madvise_hwpoison(unsigned lon
+ 		       page_to_pfn(p), start);
+ 		/* Ignore return value for now */
+ 		__memory_failure(page_to_pfn(p), 0, 1);
+-		put_page(p);
+ 	}
+ 	return ret;
+ }
 Index: linux/mm/memory-failure.c
 ===================================================================
 --- linux.orig/mm/memory-failure.c
 +++ linux/mm/memory-failure.c
-@@ -620,13 +620,11 @@ static struct page_state {
- 
- static void action_result(unsigned long pfn, char *msg, int result)
- {
--	struct page *page = NULL;
--	if (pfn_valid(pfn))
--		page = pfn_to_page(pfn);
-+	struct page *page = pfn_to_page(pfn);
- 
- 	printk(KERN_ERR "MCE %#lx: %s%s page recovery: %s\n",
- 		pfn,
--		page && PageDirty(page) ? "dirty " : "",
-+		PageDirty(page) ? "dirty " : "",
- 		msg, action_name[result]);
+@@ -629,7 +629,7 @@ static void action_result(unsigned long
  }
  
-@@ -752,8 +750,10 @@ int __memory_failure(unsigned long pfn,
- 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
+ static int page_action(struct page_state *ps, struct page *p,
+-			unsigned long pfn, int ref)
++			unsigned long pfn)
+ {
+ 	int result;
+ 	int count;
+@@ -637,7 +637,7 @@ static int page_action(struct page_state
+ 	result = ps->action(p, pfn);
+ 	action_result(pfn, ps->msg, result);
  
- 	if (!pfn_valid(pfn)) {
--		action_result(pfn, "memory outside kernel control", IGNORED);
--		return -EIO;
-+		printk(KERN_ERR
-+		       "MCE %#lx: memory outside kernel control\n",
-+		       pfn);
-+		return -ENXIO;
+-	count = page_count(p) - 1 - ref;
++	count = page_count(p) - 1;
+ 	if (count != 0)
+ 		printk(KERN_ERR
+ 		       "MCE %#lx: %s page still referenced by %d users\n",
+@@ -775,7 +775,7 @@ int __memory_failure(unsigned long pfn,
+ 	 * In fact it's dangerous to directly bump up page count from 0,
+ 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
+ 	 */
+-	if (!get_page_unless_zero(compound_head(p))) {
++	if (!ref && !get_page_unless_zero(compound_head(p))) {
+ 		action_result(pfn, "free or high order kernel", IGNORED);
+ 		return PageBuddy(compound_head(p)) ? 0 : -EBUSY;
  	}
- 
- 	p = pfn_to_page(pfn);
+@@ -823,7 +823,7 @@ int __memory_failure(unsigned long pfn,
+ 	res = -EBUSY;
+ 	for (ps = error_states;; ps++) {
+ 		if (((p->flags | lru_flag)& ps->mask) == ps->res) {
+-			res = page_action(ps, p, pfn, ref);
++			res = page_action(ps, p, pfn);
+ 			break;
+ 		}
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
