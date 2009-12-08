@@ -1,40 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 18450600762
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:40:54 -0500 (EST)
-From: Yehuda Sadeh <yehuda@hq.newdream.net>
-Subject: [PATCH] mm/page-writeback: export account_page_dirtied()
-Date: Tue,  8 Dec 2009 13:41:59 -0800
-Message-Id: <1260308519-16899-1-git-send-email-yehuda@hq.newdream.net>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C3ADF60021B
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 17:35:54 -0500 (EST)
+Date: Tue, 8 Dec 2009 14:35:06 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm hugetlb x86: fix hugepage memory leak in mincore()
+Message-Id: <20091208143506.250b47c7.akpm@linux-foundation.org>
+In-Reply-To: <4B1CB5D2.7020403@ah.jp.nec.com>
+References: <1260172193-14397-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<4B1CB5D2.7020403@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Yehuda Sadeh <yehuda@hq.newdream.net>, linux-kernel@vger.kernel.org, sage@newdream.net
+To: n-horiguchi@ah.jp.nec.com
+Cc: LKML <linux-kernel@vger.kernel.org>, hugh.dickins@tiscali.co.uk, linux-mm <linux-mm@kvack.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The ceph filesystem implementation of set_page_dirty is based on
-__set_page_dirty_nobuffers(), and needs to use account_page_dirtied(). It
-uses its own implementation as it needs to set the page private bit and
-value under the tree lock. This exports it using EXPORT_SYMBOL_GPL.
+On Mon, 07 Dec 2009 16:59:14 +0900
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-Signed-off-by: Yehuda Sadeh <yehuda@hq.newdream.net>
----
- mm/page-writeback.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+> Most callers of pmd_none_or_clear_bad() check whether the target
+> page is in a hugepage or not, but mincore() and walk_page_range()
+> do not check it. So if we use mincore() on a hugepage on x86 machine,
+> the hugepage memory is leaked as shown below.
+> This patch fixes it by extending mincore() system call to support hugepages.
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index a3b1409..4f8412a 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1095,6 +1095,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- 		task_io_account_write(PAGE_CACHE_SIZE);
- 	}
- }
-+EXPORT_SYMBOL_GPL(account_page_dirtied);
- 
- /*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
--- 
-1.5.6.5
+This bug is fairly embarrassing.  I tagged the patch for a -stable
+backport.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
