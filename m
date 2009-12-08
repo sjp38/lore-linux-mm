@@ -1,79 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DE337600762
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:22 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 237EF600762
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:25 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200912081016.198135742@firstfloor.org>
 In-Reply-To: <200912081016.198135742@firstfloor.org>
-Subject: [PATCH] [2/31] HWPOISON: Be more aggressive at freeing non LRU caches
-Message-Id: <20091208211618.48603B151F@basil.firstfloor.org>
-Date: Tue,  8 Dec 2009 22:16:18 +0100 (CET)
+Subject: [PATCH] [5/31] HWPOISON: return ENXIO on invalid page number
+Message-Id: <20091208211621.50759B151F@basil.firstfloor.org>
+Date: Tue,  8 Dec 2009 22:16:21 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: fengguang.wu@intel.comfengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-shake_page handles more types of page caches than lru_drain_all()
+From: Wu Fengguang <fengguang.wu@intel.com>
 
-- per cpu page allocator pages
-- per CPU LRU
+Use a different errno than the usual EIO for invalid page numbers. 
+This is mainly for better reporting for the injector.
 
-Stops early when the page became free.
+This also avoids calling action_result() with invalid pfn.
 
-Used in followon patches.
-
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/mm.h  |    1 +
- mm/memory-failure.c |   22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ mm/memory-failure.c |   12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
 Index: linux/mm/memory-failure.c
 ===================================================================
 --- linux.orig/mm/memory-failure.c
 +++ linux/mm/memory-failure.c
-@@ -83,6 +83,28 @@ static int kill_proc_ao(struct task_stru
+@@ -620,13 +620,11 @@ static struct page_state {
+ 
+ static void action_result(unsigned long pfn, char *msg, int result)
+ {
+-	struct page *page = NULL;
+-	if (pfn_valid(pfn))
+-		page = pfn_to_page(pfn);
++	struct page *page = pfn_to_page(pfn);
+ 
+ 	printk(KERN_ERR "MCE %#lx: %s%s page recovery: %s\n",
+ 		pfn,
+-		page && PageDirty(page) ? "dirty " : "",
++		PageDirty(page) ? "dirty " : "",
+ 		msg, action_name[result]);
  }
  
- /*
-+ * When a unknown page type is encountered drain as many buffers as possible
-+ * in the hope to turn the page into a LRU or free page, which we can handle.
-+ */
-+void shake_page(struct page *p)
-+{
-+	if (!PageSlab(p)) {
-+		lru_add_drain_all();
-+		if (PageLRU(p))
-+			return;
-+		drain_all_pages();
-+		if (PageLRU(p) || is_free_buddy_page(p))
-+			return;
-+	}
-+	/*
-+	 * Could call shrink_slab here (which would also
-+	 * shrink other caches). Unfortunately that might
-+	 * also access the corrupted page, which could be fatal.
-+	 */
-+}
-+EXPORT_SYMBOL_GPL(shake_page);
-+
-+/*
-  * Kill all processes that have a poisoned page mapped and then isolate
-  * the page.
-  *
-Index: linux/include/linux/mm.h
-===================================================================
---- linux.orig/include/linux/mm.h
-+++ linux/include/linux/mm.h
-@@ -1320,6 +1320,7 @@ extern void memory_failure(unsigned long
- extern int __memory_failure(unsigned long pfn, int trapno, int ref);
- extern int sysctl_memory_failure_early_kill;
- extern int sysctl_memory_failure_recovery;
-+extern void shake_page(struct page *p);
- extern atomic_long_t mce_bad_pages;
+@@ -752,8 +750,10 @@ int __memory_failure(unsigned long pfn,
+ 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
  
- #endif /* __KERNEL__ */
+ 	if (!pfn_valid(pfn)) {
+-		action_result(pfn, "memory outside kernel control", IGNORED);
+-		return -EIO;
++		printk(KERN_ERR
++		       "MCE %#lx: memory outside kernel control\n",
++		       pfn);
++		return -ENXIO;
+ 	}
+ 
+ 	p = pfn_to_page(pfn);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
