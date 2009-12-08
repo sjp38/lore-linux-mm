@@ -1,86 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id ED5BF60021B
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 01:56:25 -0500 (EST)
-Message-ID: <4B1DF8D4.2010202@novell.com>
-Date: Tue, 08 Dec 2009 15:57:24 +0900
-From: Tejun Heo <teheo@novell.com>
-MIME-Version: 1.0
-Subject: [PATCH] m68k: don't alias VMALLOC_END to vmalloc_end
-References: <4B1D3A3302000078000241CD@vpn.id2.novell.com> <20091207153552.0fadf335.akpm@linux-foundation.org> <4B1DA06A.1050004@kernel.org>
-In-Reply-To: <4B1DA06A.1050004@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C4AA60021B
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 03:23:45 -0500 (EST)
+Message-Id: <4B1E1B1B0200007800024345@vpn.id2.novell.com>
+Date: Tue, 08 Dec 2009 08:23:39 +0000
+From: "Jan Beulich" <JBeulich@novell.com>
+Subject: Re: [PATCH] mm/vmalloc: don't use vmalloc_end
+References: <4B1D3A3302000078000241CD@vpn.id2.novell.com>
+ <20091207153552.0fadf335.akpm@linux-foundation.org>
+In-Reply-To: <20091207153552.0fadf335.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Beulich <JBeulich@novell.com>, linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Roman Zippel <zippel@linux-m68k.org>
+Cc: tony.luck@intel.com, tj@kernel.org, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On SUN3, m68k defines macro VMALLOC_END as unsigned long variable
-vmalloc_end which is adjusted from mmu_emu_init().  This becomes
-problematic if a local variables vmalloc_end is defined in some
-function (not very unlikely) and VMALLOC_END is used in the function -
-the function thinks its referencing the global VMALLOC_END value but
-would be referencing its own local vmalloc_end variable.
+>>> Andrew Morton <akpm@linux-foundation.org> 08.12.09 00:35 >>>
+>(cc linux-ia64)
+>
+>On Mon, 07 Dec 2009 16:24:03 +0000
+>"Jan Beulich" <JBeulich@novell.com> wrote:
+>
+>> At least on ia64 vmalloc_end is a global variable that VMALLOC_END
+>> expands to. Hence having a local variable named vmalloc_end and
+>> initialized from VMALLOC_END won't work on such platforms. Rename
+>> these variables, and for consistency also rename vmalloc_start.
+>>=20
+>
+>erk.  So does 2.6.32's vmalloc() actually work correctly on ia64?
 
-There's no reason VMALLOC_END should be a macro.  Just define it as an
-unsigned long variable to avoid nasty surprises.
+According to Tejun the problem is just cosmetic (i.e. causes build
+warnings), since the functions affected aren't being used (yet) on
+ia64. So feel free to drop the patch again, given that he has a patch
+queued to address the issue by renaming the arch variable.
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Roman Zippel <zippel@linux-m68k.org>
----
-Okay, here it is.  Compile tested.  Geert, Roman, if you guys don't
-object, I'd like to push it with the rest of percpu changes to Linus.
-What do you think?
+I wonder though why that code is being built on ia64 at all if it's not
+being used (i.e. why it doesn't depend on a CONFIG_*, HAVE_*, or
+NEED_* manifest constant).
 
-Thanks.
-
- arch/m68k/include/asm/pgtable_mm.h |    3 +--
- arch/m68k/sun3/mmu_emu.c           |    8 ++++----
- 2 files changed, 5 insertions(+), 6 deletions(-)
-
-diff --git a/arch/m68k/include/asm/pgtable_mm.h b/arch/m68k/include/asm/pgtable_mm.h
-index fe60e1a..0ea9f09 100644
---- a/arch/m68k/include/asm/pgtable_mm.h
-+++ b/arch/m68k/include/asm/pgtable_mm.h
-@@ -83,9 +83,8 @@
- #define VMALLOC_START (((unsigned long) high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
- #define VMALLOC_END KMAP_START
- #else
--extern unsigned long vmalloc_end;
- #define VMALLOC_START 0x0f800000
--#define VMALLOC_END vmalloc_end
-+extern unsigned long VMALLOC_END;
- #endif /* CONFIG_SUN3 */
- 
- /* zero page used for uninitialized stuff */
-diff --git a/arch/m68k/sun3/mmu_emu.c b/arch/m68k/sun3/mmu_emu.c
-index 3cd1939..25e2b14 100644
---- a/arch/m68k/sun3/mmu_emu.c
-+++ b/arch/m68k/sun3/mmu_emu.c
-@@ -45,8 +45,8 @@
- ** Globals
- */
- 
--unsigned long vmalloc_end;
--EXPORT_SYMBOL(vmalloc_end);
-+unsigned long VMALLOC_END;
-+EXPORT_SYMBOL(VMALLOC_END);
- 
- unsigned long pmeg_vaddr[PMEGS_NUM];
- unsigned char pmeg_alloc[PMEGS_NUM];
-@@ -172,8 +172,8 @@ void mmu_emu_init(unsigned long bootmem_end)
- #endif
- 			// the lowest mapping here is the end of our
- 			// vmalloc region
--			if(!vmalloc_end)
--				vmalloc_end = seg;
-+			if (!VMALLOC_END)
-+				VMALLOC_END = seg;
- 
- 			// mark the segmap alloc'd, and reserve any
- 			// of the first 0xbff pages the hardware is
+Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
