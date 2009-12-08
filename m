@@ -1,84 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 90BA8600762
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:27 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6CC600762
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:29 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
-References: <200912081016.198135742@firstfloor.org>
-In-Reply-To: <200912081016.198135742@firstfloor.org>
-Subject: [PATCH] [6/31] HWPOISON: avoid grabbing the page count multiple times during madvise injection
-Message-Id: <20091208211622.54209B151F@basil.firstfloor.org>
-Date: Tue,  8 Dec 2009 22:16:22 +0100 (CET)
+Message-Id: <200912081016.198135742@firstfloor.org>
+Subject: [PATCH] [0/31] HWPOISON 2.6.33 pre-merge posting
+Date: Tue,  8 Dec 2009 22:16:16 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.comfengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-From: Wu Fengguang <fengguang.wu@intel.com>
+These are the hwpoison updates for 2.6.33
+I plan to send the following patchkit to Linus in a few days.
+Any additional review would be appreciated.
 
-If page is double referenced in madvise_hwpoison() and __memory_failure(),
-remove_mapping() will fail because it expects page_count=2. Fix it by
-not grabbing extra page count in __memory_failure().
+Major new features:
+- Be more aggressive at flushing caches to get access to a page
+- Various fixes for the core memory_failure path
+- Handle free memory better by detecting higher-order buddy pages
+reliably too.
+- Reliable return value for memory_failure. This allows to implement
+some other functionality later on.
+- New soft offlining feature:
+Offline a page without killing a process.
+This allows to implement predictive failure analysis for memory, by
+watching error trends per page and offlining a page that has too many
+corrected errors.  The policy is all in user space; the kernel just 
+offlines the page and reports the errors.
+The current git mcelog has support for using this interface.
+- Provide a new sysfs interface for both hard and soft offlining.
+The existing debugfs interface is still there.
+- unpoison support
+Unpoison a page. This is mainly for testing, it does not do unpoisioning
+on the hardware level.
+- hwpoison filter
+Various filters to the hwpoison PFN error injection, including 
+memcg, page type, block device and others.
+This is used by the mce-test stress suite to protect the test suite itself
+and
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
+This touches some code outside hwpoison, mostly for the memcg support
+and for the page types. All these changes are straight-forward,
+are in linux-next and have been posted before.
 
----
- mm/madvise.c        |    1 -
- mm/memory-failure.c |    8 ++++----
- 2 files changed, 4 insertions(+), 5 deletions(-)
-
-Index: linux/mm/madvise.c
-===================================================================
---- linux.orig/mm/madvise.c
-+++ linux/mm/madvise.c
-@@ -238,7 +238,6 @@ static int madvise_hwpoison(unsigned lon
- 		       page_to_pfn(p), start);
- 		/* Ignore return value for now */
- 		__memory_failure(page_to_pfn(p), 0, 1);
--		put_page(p);
- 	}
- 	return ret;
- }
-Index: linux/mm/memory-failure.c
-===================================================================
---- linux.orig/mm/memory-failure.c
-+++ linux/mm/memory-failure.c
-@@ -629,7 +629,7 @@ static void action_result(unsigned long
- }
- 
- static int page_action(struct page_state *ps, struct page *p,
--			unsigned long pfn, int ref)
-+			unsigned long pfn)
- {
- 	int result;
- 	int count;
-@@ -637,7 +637,7 @@ static int page_action(struct page_state
- 	result = ps->action(p, pfn);
- 	action_result(pfn, ps->msg, result);
- 
--	count = page_count(p) - 1 - ref;
-+	count = page_count(p) - 1;
- 	if (count != 0)
- 		printk(KERN_ERR
- 		       "MCE %#lx: %s page still referenced by %d users\n",
-@@ -775,7 +775,7 @@ int __memory_failure(unsigned long pfn,
- 	 * In fact it's dangerous to directly bump up page count from 0,
- 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
- 	 */
--	if (!get_page_unless_zero(compound_head(p))) {
-+	if (!ref && !get_page_unless_zero(compound_head(p))) {
- 		action_result(pfn, "free or high order kernel", IGNORED);
- 		return PageBuddy(compound_head(p)) ? 0 : -EBUSY;
- 	}
-@@ -823,7 +823,7 @@ int __memory_failure(unsigned long pfn,
- 	res = -EBUSY;
- 	for (ps = error_states;; ps++) {
- 		if (((p->flags | lru_flag)& ps->mask) == ps->res) {
--			res = page_action(ps, p, pfn, ref);
-+			res = page_action(ps, p, pfn);
- 			break;
- 		}
- 	}
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
