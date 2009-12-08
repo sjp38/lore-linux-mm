@@ -1,134 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3BA1260021B
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 01:27:51 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nB86RmjV020967
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 8 Dec 2009 15:27:48 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E1A3D45DE4F
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 15:27:47 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B40C445DE51
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 15:27:47 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 864A81DB803C
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 15:27:47 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F3C71DB8043
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 15:27:47 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [early RFC][PATCH 8/7] vmscan: Don't deactivate many touched page
-In-Reply-To: <4B1D4513.1020206@redhat.com>
-References: <20091207203427.E955.A69D9226@jp.fujitsu.com> <4B1D4513.1020206@redhat.com>
-Message-Id: <20091208093134.B578.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id ED5BF60021B
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 01:56:25 -0500 (EST)
+Message-ID: <4B1DF8D4.2010202@novell.com>
+Date: Tue, 08 Dec 2009 15:57:24 +0900
+From: Tejun Heo <teheo@novell.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue,  8 Dec 2009 15:27:46 +0900 (JST)
+Subject: [PATCH] m68k: don't alias VMALLOC_END to vmalloc_end
+References: <4B1D3A3302000078000241CD@vpn.id2.novell.com> <20091207153552.0fadf335.akpm@linux-foundation.org> <4B1DA06A.1050004@kernel.org>
+In-Reply-To: <4B1DA06A.1050004@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Larry Woodman <lwoodman@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Beulich <JBeulich@novell.com>, linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Roman Zippel <zippel@linux-m68k.org>
 List-ID: <linux-mm.kvack.org>
 
-> On 12/07/2009 06:36 AM, KOSAKI Motohiro wrote:
-> >
-> > Andrea, Can you please try following patch on your workload?
-> >
-> >
-> >  From a7758c66d36a136d5fbbcf0b042839445f0ca522 Mon Sep 17 00:00:00 2001
-> > From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> > Date: Mon, 7 Dec 2009 18:37:20 +0900
-> > Subject: [PATCH] [RFC] vmscan: Don't deactivate many touched page
-> >
-> > Changelog
-> >   o from andrea's original patch
-> >     - Rebase topon my patches.
-> >     - Use list_cut_position/list_splice_tail pair instead
-> >       list_del/list_add to make pte scan fairness.
-> >     - Only use max young threshold when soft_try is true.
-> >       It avoid wrong OOM sideeffect.
-> >     - Return SWAP_AGAIN instead successful result if max
-> >       young threshold exceed. It prevent the pages without clear
-> >       pte young bit will be deactivated wrongly.
-> >     - Add to treat ksm page logic
-> 
-> I like the concept and your changes, and really only
-> have a few small nitpicks :)
-> 
-> First, the VM uses a mix of "referenced", "accessed" and
-> "young".  We should probably avoid adding "active" to that
-> mix, and may even want to think about moving to just one
-> or two terms :)
+On SUN3, m68k defines macro VMALLOC_END as unsigned long variable
+vmalloc_end which is adjusted from mmu_emu_init().  This becomes
+problematic if a local variables vmalloc_end is defined in some
+function (not very unlikely) and VMALLOC_END is used in the function -
+the function thinks its referencing the global VMALLOC_END value but
+would be referencing its own local vmalloc_end variable.
 
-Ah yes, certainly.
+There's no reason VMALLOC_END should be a macro.  Just define it as an
+unsigned long variable to avoid nasty surprises.
 
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Roman Zippel <zippel@linux-m68k.org>
+---
+Okay, here it is.  Compile tested.  Geert, Roman, if you guys don't
+object, I'd like to push it with the rest of percpu changes to Linus.
+What do you think?
 
-> > +#define MAX_YOUNG_BIT_CLEARED 64
-> > +/*
-> > + * if VM pressure is low and the page have too many active mappings, there isn't
-> > + * any reason to continue clear young bit of other ptes. Otherwise,
-> > + *  - Makes meaningless cpu wasting, many touched page sholdn't be reclaimed.
-> > + *  - Makes lots IPI for pte change and it might cause another sadly lock
-> > + *    contention.
-> > + */
-> 
-> If VM pressure is low and the page has lots of active users, we only
-> clear up to MAX_YOUNG_BIT_CLEARED accessed bits at a time.  Clearing
-> accessed bits takes CPU time, needs TLB invalidate IPIs and could
-> cause lock contention.  Since a heavily shared page is very likely
-> to be used again soon, the cost outweighs the benefit of making such
-> a heavily shared page a candidate for eviction.
+Thanks.
 
-Thanks. Will fix.
+ arch/m68k/include/asm/pgtable_mm.h |    3 +--
+ arch/m68k/sun3/mmu_emu.c           |    8 ++++----
+ 2 files changed, 5 insertions(+), 6 deletions(-)
 
-
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index cfda0a0..f4517f3 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -473,6 +473,21 @@ static int wipe_page_reference_anon(struct page *page,
-> >   		ret = wipe_page_reference_one(page, refctx, vma, address);
-> >   		if (ret != SWAP_SUCCESS)
-> >   			break;
-> > +		if (too_many_young_bit_found(refctx)) {
-> > +			LIST_HEAD(tmp_list);
-> > +
-> > +			/*
-> > +			 * The scanned ptes move to list tail. it help every ptes
-> > +			 * on this page will be tested by ptep_clear_young().
-> > +			 * Otherwise, this shortcut makes unfair thing.
-> > +			 */
-> > +			list_cut_position(&tmp_list,
-> > +					&vma->anon_vma_node,
-> > +					&anon_vma->head);
-> > +			list_splice_tail(&tmp_list,&vma->anon_vma_node);
-> > +			ret = SWAP_AGAIN;
-> > +			break;
-> > +		}
-> 
-> I do not understand the unfairness here, since all a page needs
-> to stay on the active list is >64 referenced PTEs.  It does not
-> matter which of the PTEs mapping the page were recently referenced.
-> 
-> However, rotating the anon vmas around may help spread out lock
-> pressure in the VM and help things that way, so the code looks
-> useful to me.
-
-agreed. I have to rewrite the comment.
-
-
-> In short, you can give the next version of this patch my
-> 
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> 
-> All I have are comment nitpicks :)
-
-No. It's really worth.
-
-Thank you.
-
+diff --git a/arch/m68k/include/asm/pgtable_mm.h b/arch/m68k/include/asm/pgtable_mm.h
+index fe60e1a..0ea9f09 100644
+--- a/arch/m68k/include/asm/pgtable_mm.h
++++ b/arch/m68k/include/asm/pgtable_mm.h
+@@ -83,9 +83,8 @@
+ #define VMALLOC_START (((unsigned long) high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
+ #define VMALLOC_END KMAP_START
+ #else
+-extern unsigned long vmalloc_end;
+ #define VMALLOC_START 0x0f800000
+-#define VMALLOC_END vmalloc_end
++extern unsigned long VMALLOC_END;
+ #endif /* CONFIG_SUN3 */
+ 
+ /* zero page used for uninitialized stuff */
+diff --git a/arch/m68k/sun3/mmu_emu.c b/arch/m68k/sun3/mmu_emu.c
+index 3cd1939..25e2b14 100644
+--- a/arch/m68k/sun3/mmu_emu.c
++++ b/arch/m68k/sun3/mmu_emu.c
+@@ -45,8 +45,8 @@
+ ** Globals
+ */
+ 
+-unsigned long vmalloc_end;
+-EXPORT_SYMBOL(vmalloc_end);
++unsigned long VMALLOC_END;
++EXPORT_SYMBOL(VMALLOC_END);
+ 
+ unsigned long pmeg_vaddr[PMEGS_NUM];
+ unsigned char pmeg_alloc[PMEGS_NUM];
+@@ -172,8 +172,8 @@ void mmu_emu_init(unsigned long bootmem_end)
+ #endif
+ 			// the lowest mapping here is the end of our
+ 			// vmalloc region
+-			if(!vmalloc_end)
+-				vmalloc_end = seg;
++			if (!VMALLOC_END)
++				VMALLOC_END = seg;
+ 
+ 			// mark the segmap alloc'd, and reserve any
+ 			// of the first 0xbff pages the hardware is
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
