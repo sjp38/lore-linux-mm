@@ -1,50 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F6CC600762
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0938A600783
 	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 16:16:29 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
-Message-Id: <200912081016.198135742@firstfloor.org>
-Subject: [PATCH] [0/31] HWPOISON 2.6.33 pre-merge posting
-Date: Tue,  8 Dec 2009 22:16:16 +0100 (CET)
+References: <200912081016.198135742@firstfloor.org>
+In-Reply-To: <200912081016.198135742@firstfloor.org>
+Subject: [PATCH] [10/31] HWPOISON: comment dirty swapcache pages
+Message-Id: <20091208211626.5E29EB151F@basil.firstfloor.org>
+Date: Tue,  8 Dec 2009 22:16:26 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: fengguang.wu@intel.comfengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-These are the hwpoison updates for 2.6.33
-I plan to send the following patchkit to Linus in a few days.
-Any additional review would be appreciated.
+From: Wu Fengguang <fengguang.wu@intel.com>
 
-Major new features:
-- Be more aggressive at flushing caches to get access to a page
-- Various fixes for the core memory_failure path
-- Handle free memory better by detecting higher-order buddy pages
-reliably too.
-- Reliable return value for memory_failure. This allows to implement
-some other functionality later on.
-- New soft offlining feature:
-Offline a page without killing a process.
-This allows to implement predictive failure analysis for memory, by
-watching error trends per page and offlining a page that has too many
-corrected errors.  The policy is all in user space; the kernel just 
-offlines the page and reports the errors.
-The current git mcelog has support for using this interface.
-- Provide a new sysfs interface for both hard and soft offlining.
-The existing debugfs interface is still there.
-- unpoison support
-Unpoison a page. This is mainly for testing, it does not do unpoisioning
-on the hardware level.
-- hwpoison filter
-Various filters to the hwpoison PFN error injection, including 
-memcg, page type, block device and others.
-This is used by the mce-test stress suite to protect the test suite itself
-and
+AK: Improve comment
 
-This touches some code outside hwpoison, mostly for the memcg support
-and for the page types. All these changes are straight-forward,
-are in linux-next and have been posted before.
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
--Andi
+---
+ mm/memory.c |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+Index: linux/mm/memory.c
+===================================================================
+--- linux.orig/mm/memory.c
++++ linux/mm/memory.c
+@@ -2540,6 +2540,10 @@ static int do_swap_page(struct mm_struct
+ 		ret = VM_FAULT_MAJOR;
+ 		count_vm_event(PGMAJFAULT);
+ 	} else if (PageHWPoison(page)) {
++		/*
++		 * hwpoisoned dirty swapcache pages are kept for killing
++		 * owner processes (which may be unknown at hwpoison time)
++		 */
+ 		ret = VM_FAULT_HWPOISON;
+ 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 		goto out_release;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
