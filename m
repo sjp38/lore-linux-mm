@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7E71E60021B
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 06:50:09 -0500 (EST)
-Date: Tue, 8 Dec 2009 21:48:03 +1100
-From: Nick Piggin <npiggin@suse.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F9F760021B
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 07:02:00 -0500 (EST)
+Date: Tue, 8 Dec 2009 13:01:56 +0100
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: hwpoison madvise code
-Message-ID: <20091208104803.GC3511@nick>
-References: <20091208112412.GA6038@wotan.suse.de> <20091208112623.GX18989@one.firstfloor.org>
-MIME-Version: 1.0
+Message-ID: <20091208120156.GZ18989@one.firstfloor.org>
+References: <20091208112412.GA6038@wotan.suse.de> <20091208112623.GX18989@one.firstfloor.org> <20091208104803.GC3511@nick>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091208112623.GX18989@one.firstfloor.org>
+In-Reply-To: <20091208104803.GC3511@nick>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: fengguang.wu@intel.com, Linux Memory Management List <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, fengguang.wu@intel.com, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 08, 2009 at 12:26:23PM +0100, Andi Kleen wrote:
-> On Tue, Dec 08, 2009 at 12:24:12PM +0100, Nick Piggin wrote:
-> > Hi,
+> > > Buggy: it doesn't take mmap_sem. If it followed the pattern, it
+> > > wouldn't have had this bug.
 > > 
-> > Seems like the madvise hwpoison code is ugly and buggy, not to
-> > put too fine a point on it :)
-> > 
-> > Ugly: it should have just followed the same pattern as the other
-> > transient advices.
+> > get_user_pages takes mmap_sem if needed.
 > 
-> That wouldn't work.
+> On the contrary it is clearly documented as requiring mmap_sem.
 
-Of course it will. You may have no need to be given the actual
-vma, but that's no big deal. Much better than making up your own
-way of doing things.
+True, I forgot about that. I think at some point I had gup_fast
+in there, I'll just switch back to that. Thanks for the kind note.
 
- 
-> > Buggy: it doesn't take mmap_sem. If it followed the pattern, it
-> > wouldn't have had this bug.
-> 
-> get_user_pages takes mmap_sem if needed.
+BTW looking over the tree I find at least one other caller that doesn't
+hold it, like futex.c:fault_in_user_writeable. I'll send a separate
+patch for t hat.
 
-On the contrary it is clearly documented as requiring mmap_sem.
+-Andi
 
-Nick
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
