@@ -1,43 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1E0BC60021B
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 12:09:28 -0500 (EST)
-Received: from chimera.site ([96.253.169.185]) by xenotime.net for <linux-mm@kvack.org>; Wed, 9 Dec 2009 09:09:22 -0800
-Date: Wed, 9 Dec 2009 09:09:21 -0800
-From: Randy Dunlap <rdunlap@xenotime.net>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DFD5460021B
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 12:25:58 -0500 (EST)
+Date: Wed, 9 Dec 2009 18:25:55 +0100
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: linux-next: Tree for December 9 (hwpoison)
-Message-Id: <20091209090921.a3293706.rdunlap@xenotime.net>
-In-Reply-To: <20091209174738.3b8c28a6.sfr@canb.auug.org.au>
-References: <20091209174738.3b8c28a6.sfr@canb.auug.org.au>
+Message-ID: <20091209172555.GG18989@one.firstfloor.org>
+References: <20091209174738.3b8c28a6.sfr@canb.auug.org.au> <20091209090921.a3293706.rdunlap@xenotime.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091209090921.a3293706.rdunlap@xenotime.net>
 Sender: owner-linux-mm@kvack.org
-To: Stephen Rothwell <sfr@canb.auug.org.au>, Andi Kleen <andi@firstfloor.org>
-Cc: linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Andi Kleen <andi@firstfloor.org>, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Dec 2009 17:47:38 +1100 Stephen Rothwell wrote:
-
-> Hi all,
+On Wed, Dec 09, 2009 at 09:09:21AM -0800, Randy Dunlap wrote:
+> On Wed, 9 Dec 2009 17:47:38 +1100 Stephen Rothwell wrote:
 > 
-> My usual call for calm: please do not put stuff destined for 2.6.34 into
-> linux-next trees until after 2.6.33-rc1.
+> > Hi all,
+> > 
+> > My usual call for calm: please do not put stuff destined for 2.6.34 into
+> > linux-next trees until after 2.6.33-rc1.
+> > 
+> > Changes since 20091208:
+> > 
+> > 
+> > The hwpoison tree lost its build failure.
 > 
-> Changes since 20091208:
+> 
+> CONFIG_PROC_PAGE_MONITOR is not enabled:
 > 
 > 
-> The hwpoison tree lost its build failure.
+> mm/built-in.o: In function `hwpoison_filter':
+> (.text+0x43cce): undefined reference to `stable_page_flags'
 
+Thanks. Fengguang fixed that already, but I haven't pushed out 
+an update tree yet. Will do soon.
+-Andi
 
-CONFIG_PROC_PAGE_MONITOR is not enabled:
-
-
-mm/built-in.o: In function `hwpoison_filter':
-(.text+0x43cce): undefined reference to `stable_page_flags'
-
----
-~Randy
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
