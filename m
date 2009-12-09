@@ -1,75 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 157CA60021B
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 01:22:37 -0500 (EST)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp01.au.ibm.com (8.14.3/8.13.1) with ESMTP id nB96KpBR023135
-	for <linux-mm@kvack.org>; Wed, 9 Dec 2009 17:20:51 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nB96ImTR1188038
-	for <linux-mm@kvack.org>; Wed, 9 Dec 2009 17:18:48 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nB96MV1Z017603
-	for <linux-mm@kvack.org>; Wed, 9 Dec 2009 17:22:32 +1100
-Date: Wed, 9 Dec 2009 11:52:28 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] memcg: correct return value at mem_cgroup reclaim
-Message-ID: <20091209062228.GD3722@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <COL115-W58F42F7BEEB67BF8324B2A9F910@phx.gbl>
- <20091206223046.4b08cbfb.d-nishimura@mtf.biglobe.ne.jp>
- <20091209092842.03a2b0dc.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0E4B160021B
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 03:46:42 -0500 (EST)
+Message-ID: <4B1F6433.3090006@novell.com>
+Date: Wed, 09 Dec 2009 17:47:47 +0900
+From: Tejun Heo <teheo@novell.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20091209092842.03a2b0dc.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] m68k: rename global variable vmalloc_end to m68k_vmalloc_end
+References: <4B1D3A3302000078000241CD@vpn.id2.novell.com>	 <20091207153552.0fadf335.akpm@linux-foundation.org> <10f740e80912080111l57b0562doebedb1f878592105@mail.gmail.com> <4B1E1B68.5050503@kernel.org>
+In-Reply-To: <4B1E1B68.5050503@kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, Liu bo <bo-liu@hotmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Beulich <JBeulich@novell.com>, linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-12-09 09:28:42]:
+On SUN3, m68k defines macro VMALLOC_END as unsigned long variable
+vmalloc_end which is adjusted from mmu_emu_init().  This becomes
+problematic if a local variables vmalloc_end is defined in some
+function (not very unlikely) and VMALLOC_END is used in the function -
+the function thinks its referencing the global VMALLOC_END value but
+would be referencing its own local vmalloc_end variable.
 
-> On Sun, 6 Dec 2009 22:30:46 +0900
-> Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
-> 
-> > hi,
-> > 
-> > On Sun, 6 Dec 2009 18:16:14 +0800
-> > Liu bo <bo-liu@hotmail.com> wrote:
-> > 
-> > > 
-> > > In order to indicate reclaim has succeeded, mem_cgroup_hierarchical_reclaim() used to return 1.
-> > > Now the return value is without indicating whether reclaim has successded usage, so just return the total reclaimed pages don't plus 1.
-> > >  
-> > > Signed-off-by: Liu Bo <bo-liu@hotmail.com>
-> > > ---
-> > >  
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 14593f5..51b6b3c 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -737,7 +737,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
-> > >    css_put(&victim->css);
-> > >    total += ret;
-> > >    if (mem_cgroup_check_under_limit(root_mem))
-> > > -   return 1 + total;
-> > > +   return total;
-> > >   }
-> > >   return total;
-> > >  } 		 	   		  
-> > What's the benefit of this change ?
-> > I can't find any benefit to bother changing current behavior.
-> > 
-> 
-> please leave this as it is or adds comment.
-> This "1 + total" means "returning success, not 0" even if this has no behavior changes.
->
+Rename the global variable to m68k_vmlloc_end which is much less
+likely to be used as local variable name.
 
-I prefer adding the comments, I will get to it if Liu does not.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Roman Zippel <zippel@linux-m68k.org>
+---
+This patch has been queued to percpu#for-linus.  Thanks.
 
+ arch/m68k/include/asm/pgtable_mm.h |    4 ++--
+ arch/m68k/sun3/mmu_emu.c           |    8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/arch/m68k/include/asm/pgtable_mm.h b/arch/m68k/include/asm/pgtable_mm.h
+index fe60e1a..aca0e28 100644
+--- a/arch/m68k/include/asm/pgtable_mm.h
++++ b/arch/m68k/include/asm/pgtable_mm.h
+@@ -83,9 +83,9 @@
+ #define VMALLOC_START (((unsigned long) high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
+ #define VMALLOC_END KMAP_START
+ #else
+-extern unsigned long vmalloc_end;
++extern unsigned long m68k_vmalloc_end;
+ #define VMALLOC_START 0x0f800000
+-#define VMALLOC_END vmalloc_end
++#define VMALLOC_END m68k_vmalloc_end
+ #endif /* CONFIG_SUN3 */
+ 
+ /* zero page used for uninitialized stuff */
+diff --git a/arch/m68k/sun3/mmu_emu.c b/arch/m68k/sun3/mmu_emu.c
+index 3cd1939..94f81ec 100644
+--- a/arch/m68k/sun3/mmu_emu.c
++++ b/arch/m68k/sun3/mmu_emu.c
+@@ -45,8 +45,8 @@
+ ** Globals
+ */
+ 
+-unsigned long vmalloc_end;
+-EXPORT_SYMBOL(vmalloc_end);
++unsigned long m68k_vmalloc_end;
++EXPORT_SYMBOL(m68k_vmalloc_end);
+ 
+ unsigned long pmeg_vaddr[PMEGS_NUM];
+ unsigned char pmeg_alloc[PMEGS_NUM];
+@@ -172,8 +172,8 @@ void mmu_emu_init(unsigned long bootmem_end)
+ #endif
+ 			// the lowest mapping here is the end of our
+ 			// vmalloc region
+-			if(!vmalloc_end)
+-				vmalloc_end = seg;
++			if (!m68k_vmalloc_end)
++				m68k_vmalloc_end = seg;
+ 
+ 			// mark the segmap alloc'd, and reserve any
+ 			// of the first 0xbff pages the hardware is
 -- 
-	Balbir
+1.6.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
