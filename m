@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6F83860021B
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 13:47:07 -0500 (EST)
-Date: Wed, 9 Dec 2009 12:46:24 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] mm/vmalloc: don't use vmalloc_end
-In-Reply-To: <4B1FEE5C.1030303@sgi.com>
-Message-ID: <alpine.DEB.2.00.0912091241370.16491@router.home>
-References: <4B1D3A3302000078000241CD@vpn.id2.novell.com> <20091207153552.0fadf335.akpm@linux-foundation.org> <4B1E1B1B0200007800024345@vpn.id2.novell.com> <alpine.DEB.2.00.0912091128280.16491@router.home> <4B1FE81F.30408@sgi.com> <alpine.DEB.2.00.0912091218060.16491@router.home>
- <4B1FEE5C.1030303@sgi.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0795960021B
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 15:47:37 -0500 (EST)
+Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
+	by smtp-out.google.com with ESMTP id nB9KlV73016055
+	for <linux-mm@kvack.org>; Wed, 9 Dec 2009 20:47:31 GMT
+Received: from pzk14 (pzk14.prod.google.com [10.243.19.142])
+	by spaceape13.eur.corp.google.com with ESMTP id nB9KlRe5013893
+	for <linux-mm@kvack.org>; Wed, 9 Dec 2009 12:47:28 -0800
+Received: by pzk14 with SMTP id 14so5773198pzk.23
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2009 12:47:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20091208211639.8499FB151F@basil.firstfloor.org>
+References: <200912081016.198135742@firstfloor.org>
+	 <20091208211639.8499FB151F@basil.firstfloor.org>
+Date: Wed, 9 Dec 2009 12:47:27 -0800
+Message-ID: <6599ad830912091247v1270a86er45ea8ceeff28e727@mail.gmail.com>
+Subject: Re: [PATCH] [23/31] HWPOISON: add memory cgroup filter
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Mike Travis <travis@sgi.com>
-Cc: tony.luck@intel.com, Andrew Morton <akpm@linux-foundation.org>, Jan Beulich <JBeulich@novell.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, hugh.dickins@tiscali.co.uk, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, lizf@cn.fujitsu.com, npiggin@suse.de, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Dec 2009, Mike Travis wrote:
-
-> > Boot with 2.6.32 and see if the per cpu allocator works. Check if there
-> > are any changes to memory consumption. Create a few thousand virtual
-> > ethernet devices and see if the system keels over.
+On Tue, Dec 8, 2009 at 1:16 PM, Andi Kleen <andi@firstfloor.org> wrote:
 >
-> Any advice on how to go about the above would be helpful... ;-)
+> The hwpoison test suite need to inject hwpoison to a collection of
+> selected task pages, and must not touch pages not owned by them and
+> thus kill important system processes such as init. (But it's OK to
+> mis-hwpoison free/unowned pages as well as shared clean pages.
+> Mis-hwpoison of shared dirty pages will kill all tasks, so the test
+> suite will target all or non of such tasks in the first place.)
 
-I believe you can create an additional alias device with
+While the functionality sounds useful, the interface (passing an inode
+number) feels a bit ugly to me. Also, if that group is deleted and a
+new cgroup created, you could end up reusing the inode number.
 
-ifconfig eth0:<N>
+How about an approach where you write either the cgroup path (relative
+to the memcg mount) or an fd open on the desired cgroup? Then you
+could store a (counted) css reference rather than an inode number,
+which would make the filter function cleaner too, since it would just
+need to compare css objects.
 
-or so.
-
-> I'm doing some aim7/9 comparisons right now between SPARSE and DISCONTIG
-> memory configs using sles11 + 2.6.32.  Which other benchmarks would you
-> recommend for the other tests?
-
-See f.e. http://kernel-perf.sourceforge.net/about_tests.php
-
-lmbench?
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
