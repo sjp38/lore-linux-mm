@@ -1,50 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E240760021B
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 20:11:32 -0500 (EST)
-Message-ID: <4B1EF8AB.6010806@ah.jp.nec.com>
-Date: Wed, 09 Dec 2009 10:08:59 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Reply-To: n-horiguchi@ah.jp.nec.com
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 28F3A60021B
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 21:00:47 -0500 (EST)
+Date: Wed, 9 Dec 2009 10:00:42 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [19/31] mm: export stable page flags
+Message-ID: <20091209020042.GA7751@localhost>
+References: <200912081016.198135742@firstfloor.org> <20091208211635.7965AB151F@basil.firstfloor.org> <1260311251.31323.129.camel@calx>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] mm hugetlb x86: add hugepage support to pagemap
-References: <4B1CB5D6.9080007@ah.jp.nec.com> <20091208143928.f3aa0ad2.akpm@linux-foundation.org>
-In-Reply-To: <20091208143928.f3aa0ad2.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1260311251.31323.129.camel@calx>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, hugh.dickins@tiscali.co.uk, ak@linux.intel.com, Wu Fengguang <fengguang.wu@intel.com>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "npiggin@suse.de" <npiggin@suse.de>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> I kind of dislike the practice of putting all the changelog in patch
-> [0/n] and then leaving the patches themselves practically
-> unchangelogged.  Because
+On Wed, Dec 09, 2009 at 06:27:31AM +0800, Matt Mackall wrote:
+> On Tue, 2009-12-08 at 22:16 +0100, Andi Kleen wrote:
+> > From: Wu Fengguang <fengguang.wu@intel.com>
+> > 
+> > Rename get_uflags() to stable_page_flags() and make it a global function
+> > for use in the hwpoison page flags filter, which need to compare user
+> > page flags with the value provided by user space.
+> > 
+> > Also move KPF_* to kernel-page-flags.h for use by user space tools.
+> > 
+> > CC: Matt Mackall <mpm@selenic.com>
+> > CC: Nick Piggin <npiggin@suse.de>
+> > CC: Christoph Lameter <cl@linux-foundation.org>
+> > CC: Andi Kleen <andi@firstfloor.org>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> 
+> Acked-by: Matt Mackall <mpm@selenic.com>
 
-Sorry, I agree.
+Andi and Matt,
 
-> 
-> a) Someone (ie: me) needs to go and shuffle all the text around so
->    that the information gets itself into the git record.  We don't add
->    changelog-only commits to git!
-> 
-> b) Someone (ie: me) might decide to backport a subset of the patches
->    into -stable.  Now someone (ie: me) needs to carve up the changelogs
->    so that the pieces which go into -stable still make standalone sense.
-> 
-> I'm not sure that I did this particularly well in this case.  Oh well.
-> 
-> 
-> Please confirm that
-> mm-hugetlb-fix-hugepage-memory-leak-in-walk_page_range.patch is
-> suitable for a -stable backport without inclusion of
-> mm-hugetlb-add-hugepage-support-to-pagemap.patch.  I think it is.
-> 
+Sorry the stable_page_flags() will be undefined on
+!CONFIG_PROC_PAGE_MONITOR (it is almost always on,
+except for some embedded systems).
 
-I think that's OK.
+Currently the easy solution is to add a Kconfig dependency to
+CONFIG_PROC_PAGE_MONITOR.  When there comes more users (ie. some
+ftrace event), we can then always compile in stable_page_flags().
 
 Thanks,
-Naoya Horiguchi
+Fengguang
+---
+ mm/Kconfig          |    1 +
+ mm/memory-failure.c |    4 ++++
+ 2 files changed, 5 insertions(+)
+
+--- linux-mm.orig/mm/Kconfig	2009-12-09 09:47:51.000000000 +0800
++++ linux-mm/mm/Kconfig	2009-12-09 09:58:54.000000000 +0800
+@@ -259,6 +259,7 @@ config MEMORY_FAILURE
+ config HWPOISON_INJECT
+ 	tristate "HWPoison pages injector"
+ 	depends on MEMORY_FAILURE && DEBUG_KERNEL
++	depends on PROC_PAGE_MONITOR
+ 
+ config NOMMU_INITIAL_TRIM_EXCESS
+ 	int "Turn on mmap() excess space trimming before booting"
+--- linux-mm.orig/mm/memory-failure.c	2009-12-09 09:49:13.000000000 +0800
++++ linux-mm/mm/memory-failure.c	2009-12-09 09:55:42.000000000 +0800
+@@ -51,6 +51,7 @@ int sysctl_memory_failure_recovery __rea
+ 
+ atomic_long_t mce_bad_pages __read_mostly = ATOMIC_LONG_INIT(0);
+ 
++#ifdef CONFIG_HWPOISON_INJECT
+ u32 hwpoison_filter_enable = 1;
+ u32 hwpoison_filter_dev_major = ~0U;
+ u32 hwpoison_filter_dev_minor = ~0U;
+@@ -160,6 +161,9 @@ int hwpoison_filter(struct page *p)
+ 	return 0;
+ }
+ EXPORT_SYMBOL_GPL(hwpoison_filter);
++#else
++int hwpoison_filter(struct page *p) { return 0; }
++#endif
+ 
+ /*
+  * Send all the processes who have the page mapped an ``action optional''
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
