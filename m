@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E159F60021B
-	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 20:04:25 -0500 (EST)
-Date: Tue, 8 Dec 2009 17:04:19 -0800
-From: Chris Wright <chrisw@redhat.com>
-Subject: Re: [PATCH 2/9] ksm: let shared pages be swappable
-Message-ID: <20091209010419.GG28655@x200.localdomain>
-References: <20091202125501.GD28697@random.random>
- <20091203134610.586E.A69D9226@jp.fujitsu.com>
- <20091204135938.5886.A69D9226@jp.fujitsu.com>
- <20091204141617.f4c491e7.kamezawa.hiroyu@jp.fujitsu.com>
- <20091204171640.GE19624@x200.localdomain>
- <20091209094331.a1f53e6d.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E240760021B
+	for <linux-mm@kvack.org>; Tue,  8 Dec 2009 20:11:32 -0500 (EST)
+Message-ID: <4B1EF8AB.6010806@ah.jp.nec.com>
+Date: Wed, 09 Dec 2009 10:08:59 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reply-To: n-horiguchi@ah.jp.nec.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091209094331.a1f53e6d.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/2] mm hugetlb x86: add hugepage support to pagemap
+References: <4B1CB5D6.9080007@ah.jp.nec.com> <20091208143928.f3aa0ad2.akpm@linux-foundation.org>
+In-Reply-To: <20091208143928.f3aa0ad2.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Chris Wright <chrisw@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, hugh.dickins@tiscali.co.uk, ak@linux.intel.com, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki (kamezawa.hiroyu@jp.fujitsu.com) wrote:
-> On Fri, 4 Dec 2009 09:16:40 -0800
-> Chris Wright <chrisw@redhat.com> wrote:
-> > * KAMEZAWA Hiroyuki (kamezawa.hiroyu@jp.fujitsu.com) wrote:
-> > > Hmm, can't we use ZERO_PAGE we have now ?
-> > > If do so,
-> > >  - no mapcount check
-> > >  - never on LRU
-> > >  - don't have to maintain shared information because ZERO_PAGE itself has
-> > >    copy-on-write nature.
-> > 
-> > It's a somewhat special case, but wouldn't it be useful to have a generic
-> > method to recognize this kind of sharing since it's a generic issue?
+> I kind of dislike the practice of putting all the changelog in patch
+> [0/n] and then leaving the patches themselves practically
+> unchangelogged.  Because
+
+Sorry, I agree.
+
 > 
-> I just remembered that why ZERO_PAGE was removed (in past). It was becasue
-> cache-line ping-pong at fork beacause of page->mapcount. And KSM introduces
-> zero-pages which have mapcount again. If no problems in realitsitc usage of
-> KVM, ignore me.
+> a) Someone (ie: me) needs to go and shuffle all the text around so
+>    that the information gets itself into the git record.  We don't add
+>    changelog-only commits to git!
+> 
+> b) Someone (ie: me) might decide to backport a subset of the patches
+>    into -stable.  Now someone (ie: me) needs to carve up the changelogs
+>    so that the pieces which go into -stable still make standalone sense.
+> 
+> I'm not sure that I did this particularly well in this case.  Oh well.
+> 
+> 
+> Please confirm that
+> mm-hugetlb-fix-hugepage-memory-leak-in-walk_page_range.patch is
+> suitable for a -stable backport without inclusion of
+> mm-hugetlb-add-hugepage-support-to-pagemap.patch.  I think it is.
+> 
 
-KVM is not exactly fork heavy (although it's not the only possible user
-of KSM).  And the CoW path has fault + copy already.
+I think that's OK.
 
-Semi-related...it can make good sense to make the KSM trees per NUMA
-node.  Would mean things like page of zeroes would collapse to number
-of NUMA nodes pages rather than a single page, but has the benefit of
-not adding remote access (although, probably more useful for text pages
-than zero pages).
-
-thanks,
--chris
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
