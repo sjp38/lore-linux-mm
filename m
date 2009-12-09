@@ -1,39 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2E67A60021B
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 06:30:38 -0500 (EST)
-Date: Wed, 9 Dec 2009 20:30:18 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [BUG?] [PATCH] soft limits and root cgroups
-Message-Id: <20091209203018.7a85d304.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <cc557aab0912090137l5f4c923by9b3fbe5241bbf49a@mail.gmail.com>
-References: <cc557aab0912071041j5c5731dbj9fd669ef26e6f2ae@mail.gmail.com>
-	<cc557aab0912090137l5f4c923by9b3fbe5241bbf49a@mail.gmail.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 533CC60021B
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 09:49:21 -0500 (EST)
+Date: Wed, 9 Dec 2009 14:49:08 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: An mm bug in today's 2.6.32 git tree
+In-Reply-To: <2375c9f90912090238u7487019eq2458210aac4b602@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0912091442360.30748@sister.anvils>
+References: <2375c9f90912090238u7487019eq2458210aac4b602@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1942787429-1260370148=:30748"
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, nishimura@mxp.nes.nec.co.jp
+To: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Dec 2009 11:37:30 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> On Mon, Dec 7, 2009 at 8:41 PM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > Currently, mem_cgroup_update_tree() on root cgroup calls only on
-> > uncharge, not on charge.
-> >
-> > Is it a bug or not?
-> 
-> Any comments?
-> 
-It's not a bug.
-Please see my comments and patch ;)
+--8323584-1942787429-1260370148=:30748
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+
+On Wed, 9 Dec 2009, Am=C3=A9rico Wang wrote:
+
+> Hi, mm experts,
+>=20
+> I met the following bug in the kernel from today's git tree, accidentally=
+=2E
+> I don't know how to reproduce it, just saw it twice when doing different
+> work. Machine is x86_64.
+>=20
+> Is this bug known?
+
+Thanks for the report.  Not known to me.
+It looks like something has corrupted the start of a pagetable.
+No idea what that something might be, but probably not bad RAM.
+
+>=20
+> Please feel free to let me know if you need more info.
+
+You say you saw it twice: please post what the other occasion
+showed (unless the first six lines were identical to this and it
+occurred around the same time i.e. separate report of the same).
 
 Thanks,
-Daisuke Nishimura.
+Hugh
+
+>=20
+> Thanks!
+>=20
+> ----------------
+> swap_free: Bad swap offset entry 09003c00
+> BUG: Bad page map in process vim  pte:1200780000 pmd:22f221067
+> addr:000000319ce0f000 vm_flags:08000075 anon_vma:(null)
+> mapping:ffff88022efa8848 index:f
+> vma->vm_ops->fault: filemap_fault+0x0/0x593
+> vma->vm_file->f_op->mmap: generic_file_mmap+0x0/0x63
+> Pid: 659, comm: vim Tainted: G    B      2.6.32 #55
+> Call Trace:
+>  [<ffffffff81116d32>] ? print_bad_pte+0x29b/0x2c2
+>  [<ffffffff81118550>] ? unmap_vmas+0x8bc/0xbd5
+>  [<ffffffff8111eaf9>] ? exit_mmap+0x13b/0x232
+>  [<ffffffff810593de>] ? mmput+0x57/0x123
+>  [<ffffffff8105f8ce>] ? exit_mm+0x1af/0x1c1
+>  [<ffffffff81089da6>] ? up_read+0x10/0x19
+>  [<ffffffff81061607>] ? do_exit+0x2f2/0xa61
+>  [<ffffffff81089da6>] ? up_read+0x10/0x19
+>  [<ffffffff81061e75>] ? sys_exit_group+0x0/0x24
+>  [<ffffffff81061e8e>] ? sys_exit_group+0x19/0x24
+>  [<ffffffff810039ab>] ? system_call_fastpath+0x16/0x1b
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+--8323584-1942787429-1260370148=:30748--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
