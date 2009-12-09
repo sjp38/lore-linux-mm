@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4D9BE60021B
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 04:37:40 -0500 (EST)
-Received: by fxm9 with SMTP id 9so6343877fxm.10
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2009 01:37:30 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 020EF60021B
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 05:38:41 -0500 (EST)
+Received: by qyk14 with SMTP id 14so2767814qyk.11
+        for <linux-mm@kvack.org>; Wed, 09 Dec 2009 02:38:40 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <cc557aab0912071041j5c5731dbj9fd669ef26e6f2ae@mail.gmail.com>
-References: <cc557aab0912071041j5c5731dbj9fd669ef26e6f2ae@mail.gmail.com>
-Date: Wed, 9 Dec 2009 11:37:30 +0200
-Message-ID: <cc557aab0912090137l5f4c923by9b3fbe5241bbf49a@mail.gmail.com>
-Subject: Re: [BUG?] [PATCH] soft limits and root cgroups
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Date: Wed, 9 Dec 2009 18:38:40 +0800
+Message-ID: <2375c9f90912090238u7487019eq2458210aac4b602@mail.gmail.com>
+Subject: An mm bug in today's 2.6.32 git tree
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>
+Cc: LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 7, 2009 at 8:41 PM, Kirill A. Shutemov <kirill@shutemov.name> w=
-rote:
-> Currently, mem_cgroup_update_tree() on root cgroup calls only on
-> uncharge, not on charge.
->
-> Is it a bug or not?
+Hi, mm experts,
 
-Any comments?
+I met the following bug in the kernel from today's git tree, accidentally.
+I don't know how to reproduce it, just saw it twice when doing different
+work. Machine is x86_64.
 
-> Patch to fix, if it's a bug:
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8aa6026..6babef1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1366,13 +1366,15 @@ static int __mem_cgroup_try_charge(struct mm_stru=
-ct *mm
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0goto nomem;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> +
-> +done:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Insert ancestor (and ancestor's ancestors),=
- to softlimit RB-tree.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * if they exceeds softlimit.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (mem_cgroup_soft_limit_check(mem))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem_cgroup_update_=
-tree(mem, page);
-> -done:
-> +
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
-> =C2=A0nomem:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0css_put(&mem->css);
->
+Is this bug known?
+
+Please feel free to let me know if you need more info.
+
+Thanks!
+
+----------------
+swap_free: Bad swap offset entry 09003c00
+BUG: Bad page map in process vim  pte:1200780000 pmd:22f221067
+addr:000000319ce0f000 vm_flags:08000075 anon_vma:(null)
+mapping:ffff88022efa8848 index:f
+vma->vm_ops->fault: filemap_fault+0x0/0x593
+vma->vm_file->f_op->mmap: generic_file_mmap+0x0/0x63
+Pid: 659, comm: vim Tainted: G    B      2.6.32 #55
+Call Trace:
+ [<ffffffff81116d32>] ? print_bad_pte+0x29b/0x2c2
+ [<ffffffff81118550>] ? unmap_vmas+0x8bc/0xbd5
+ [<ffffffff8111eaf9>] ? exit_mmap+0x13b/0x232
+ [<ffffffff810593de>] ? mmput+0x57/0x123
+ [<ffffffff8105f8ce>] ? exit_mm+0x1af/0x1c1
+ [<ffffffff81089da6>] ? up_read+0x10/0x19
+ [<ffffffff81061607>] ? do_exit+0x2f2/0xa61
+ [<ffffffff81089da6>] ? up_read+0x10/0x19
+ [<ffffffff81061e75>] ? sys_exit_group+0x0/0x24
+ [<ffffffff81061e8e>] ? sys_exit_group+0x19/0x24
+ [<ffffffff810039ab>] ? system_call_fastpath+0x16/0x1b
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
