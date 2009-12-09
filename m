@@ -1,47 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DFD5460021B
-	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 12:25:58 -0500 (EST)
-Date: Wed, 9 Dec 2009 18:25:55 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: linux-next: Tree for December 9 (hwpoison)
-Message-ID: <20091209172555.GG18989@one.firstfloor.org>
-References: <20091209174738.3b8c28a6.sfr@canb.auug.org.au> <20091209090921.a3293706.rdunlap@xenotime.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091209090921.a3293706.rdunlap@xenotime.net>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id ED27060021B
+	for <linux-mm@kvack.org>; Wed,  9 Dec 2009 12:32:03 -0500 (EST)
+Date: Wed, 9 Dec 2009 11:31:20 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] mm/vmalloc: don't use vmalloc_end
+In-Reply-To: <4B1E1B1B0200007800024345@vpn.id2.novell.com>
+Message-ID: <alpine.DEB.2.00.0912091128280.16491@router.home>
+References: <4B1D3A3302000078000241CD@vpn.id2.novell.com> <20091207153552.0fadf335.akpm@linux-foundation.org> <4B1E1B1B0200007800024345@vpn.id2.novell.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Andi Kleen <andi@firstfloor.org>, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: tony.luck@intel.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Beulich <JBeulich@novell.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 09, 2009 at 09:09:21AM -0800, Randy Dunlap wrote:
-> On Wed, 9 Dec 2009 17:47:38 +1100 Stephen Rothwell wrote:
-> 
-> > Hi all,
-> > 
-> > My usual call for calm: please do not put stuff destined for 2.6.34 into
-> > linux-next trees until after 2.6.33-rc1.
-> > 
-> > Changes since 20091208:
-> > 
-> > 
-> > The hwpoison tree lost its build failure.
-> 
-> 
-> CONFIG_PROC_PAGE_MONITOR is not enabled:
-> 
-> 
-> mm/built-in.o: In function `hwpoison_filter':
-> (.text+0x43cce): undefined reference to `stable_page_flags'
+On Tue, 8 Dec 2009, Jan Beulich wrote:
 
-Thanks. Fengguang fixed that already, but I haven't pushed out 
-an update tree yet. Will do soon.
--Andi
+> According to Tejun the problem is just cosmetic (i.e. causes build
+> warnings), since the functions affected aren't being used (yet) on
+> ia64. So feel free to drop the patch again, given that he has a patch
+> queued to address the issue by renaming the arch variable.
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+I thought the new code must be used in order for the new percpu allocator
+to work? Or is this referring to other code?
+
+> I wonder though why that code is being built on ia64 at all if it's not
+> being used (i.e. why it doesn't depend on a CONFIG_*, HAVE_*, or
+> NEED_* manifest constant).
+
+Tony: Can you confirm that the new percpu stuff works on IA64? (Or is
+there nobody left to care?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
