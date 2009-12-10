@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D0DB56B003D
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 02:36:23 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B43306B003D
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 02:38:10 -0500 (EST)
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBA7aKom025921
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBA7c7R4025643
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 10 Dec 2009 16:36:20 +0900
+	Thu, 10 Dec 2009 16:38:07 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E7E8A45DE52
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:36:19 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EA0F445DE61
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:38:00 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C511045DE4E
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:36:19 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C4AD645DE5C
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:37:57 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 802DD1DB803B
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:36:19 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E1D971DB804F
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:37:49 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 179641DB8037
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:36:19 +0900 (JST)
-Date: Thu, 10 Dec 2009 16:33:26 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E9521DB8055
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:37:43 +0900 (JST)
+Date: Thu, 10 Dec 2009 16:34:48 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC mm][PATCH 1/5] mm counter cleanup
-Message-Id: <20091210163326.28bb7eb8.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC mm][PATCH 2/5] percpu cached mm counter
+Message-Id: <20091210163448.338a0bd2.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20091210163115.463d96a3.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20091210163115.463d96a3.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,560 +34,306 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, per-mm statistics counter is defined by macro in sched.h
+Now, mm's counter information is updated by atomic_long_xxx() functions if
+USE_SPLIT_PTLOCKS is defined. This causes cache-miss when page faults happens
+simultaneously in prural cpus. (Almost all process-shared objects is...)
 
-This patch modifies it to
-  - Define them in mm.h as inline functions
-  - Use array instead of macro's name creation. For making easier to add
-    new coutners.
+Considering accounting per-mm page usage more, one of problems is cost of
+this counter.
 
-This patch is for reducing patch size in future patch to modify
-implementation of per-mm counter.
+This patch implements per-cpu mm cache. This per-cpu cache is loosely
+synchronized with mm's counter. Current design is..
+
+  - prepare per-cpu object curr_mmc. curr_mmc containes pointer to mm and
+    array of counters.
+  - At page fault,
+     * if curr_mmc.mm != NULL, update curr_mmc.mm counter.
+     * if curr_mmc.mm == NULL, fill curr_mmc.mm = current->mm and account 1.
+  - At schedule()
+     * if curr_mm.mm != NULL, synchronize and invalidate cached information.
+     * if curr_mmc.mm == NULL, nothing to do.
+
+By this.
+  - no atomic ops, which tends to cache-miss, under page table lock.
+  - mm->counters are synchronized when schedule() is called.
+  - No bad thing to read-side.
+
+Concern:
+  - added cost to schedule().
+
+Micro Benchmark:
+  measured the number of page faults with 2 threads on 2 sockets.
+
+ Before:
+   Performance counter stats for './multi-fault 2' (5 runs):
+
+       45122351  page-faults                ( +-   1.125% )
+      989608571  cache-references           ( +-   1.198% )
+      205308558  cache-misses               ( +-   0.159% )
+   29263096648639268  bus-cycles                 ( +-   0.004% )
+
+   60.003427500  seconds time elapsed   ( +-   0.003% )
+
+ After:
+    Performance counter stats for './multi-fault 2' (5 runs):
+
+       46997471  page-faults                ( +-   0.720% )
+     1004100076  cache-references           ( +-   0.734% )
+      180959964  cache-misses               ( +-   0.374% )
+   29263437363580464  bus-cycles                 ( +-   0.002% )
+
+   60.003315683  seconds time elapsed   ( +-   0.004% )
+
+   cachemiss/page faults is reduced from 4.55 miss/faults to be 3.85miss/faults
+
+   This microbencmark doesn't do usual behavior (page fault ->madvise(DONTNEED)
+   but reducing cache-miss cost sounds good to me even if it's very small.
+
+Changelog 2009/12/09:
+ - loosely update curr_mmc.mm at the 1st page fault.
+ - removed hooks in tick.(update_process_times)
+ - exported curr_mmc and check curr_mmc.mm directly.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- fs/proc/task_mmu.c       |    4 -
- include/linux/mm.h       |   95 +++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/mm_types.h |   21 ++++++----
- include/linux/sched.h    |   54 --------------------------
- kernel/fork.c            |    6 +-
- kernel/tsacct.c          |    1 
- mm/filemap_xip.c         |    2 
- mm/fremap.c              |    2 
- mm/memory.c              |   58 +++++++++++++++++-----------
- mm/oom_kill.c            |    4 -
- mm/rmap.c                |   10 ++--
- mm/swapfile.c            |    2 
- 12 files changed, 161 insertions(+), 98 deletions(-)
+ include/linux/mm.h       |   37 ++++++++++++++++++++++++++++
+ include/linux/mm_types.h |   12 +++++++++
+ kernel/exit.c            |    3 +-
+ kernel/sched.c           |    6 ++++
+ mm/memory.c              |   60 ++++++++++++++++++++++++++++++++++++++++-------
+ 5 files changed, 108 insertions(+), 10 deletions(-)
 
-Index: mmotm-2.6.32-Dec8/include/linux/mm.h
-===================================================================
---- mmotm-2.6.32-Dec8.orig/include/linux/mm.h
-+++ mmotm-2.6.32-Dec8/include/linux/mm.h
-@@ -868,6 +868,101 @@ extern int mprotect_fixup(struct vm_area
-  */
- int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 			  struct page **pages);
-+/*
-+ * per-process(per-mm_struct) statistics.
-+ */
-+#if USE_SPLIT_PTLOCKS
-+/*
-+ * The mm counters are not protected by its page_table_lock,
-+ * so must be incremented atomically.
-+ */
-+static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
-+{
-+	atomic_long_set(&(mm)->counters[member], value);
-+}
-+
-+static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
-+{
-+	return (unsigned long)atomic_long_read(&(mm)->counters[member]);
-+}
-+
-+static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
-+{
-+	atomic_long_add(value, &(mm)->counters[member]);
-+}
-+
-+static inline void inc_mm_counter(struct mm_struct *mm, int member)
-+{
-+	atomic_long_inc(&(mm)->counters[member]);
-+}
-+
-+static inline void dec_mm_counter(struct mm_struct *mm, int member)
-+{
-+	atomic_long_dec(&(mm)->counters[member]);
-+}
-+
-+#else  /* !USE_SPLIT_PTLOCKS */
-+/*
-+ * The mm counters are protected by its page_table_lock,
-+ * so can be incremented directly.
-+ */
-+static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
-+{
-+	mm->counters[member] = value;
-+}
-+
-+static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
-+{
-+	return mm->counters[member];
-+}
-+
-+static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
-+{
-+	mm->counters[member] += value;
-+}
-+
-+static inline void inc_mm_counter(struct mm_struct *mm, int member)
-+{
-+	mm->counters[member]++;
-+}
-+
-+static inline void dec_mm_counter(struct mm_struct *mm, int member)
-+{
-+	mm->counters[member]--;
-+}
-+
-+#endif /* !USE_SPLIT_PTLOCKS */
-+
-+#define get_mm_rss(mm)					\
-+	(get_mm_counter(mm, MM_FILEPAGES) + get_mm_counter(mm, MM_ANONPAGES))
-+#define update_hiwater_rss(mm)	do {			\
-+	unsigned long _rss = get_mm_rss(mm);		\
-+	if ((mm)->hiwater_rss < _rss)			\
-+		(mm)->hiwater_rss = _rss;		\
-+} while (0)
-+#define update_hiwater_vm(mm)	do {			\
-+	if ((mm)->hiwater_vm < (mm)->total_vm)		\
-+		(mm)->hiwater_vm = (mm)->total_vm;	\
-+} while (0)
-+
-+static inline unsigned long get_mm_hiwater_rss(struct mm_struct *mm)
-+{
-+	return max(mm->hiwater_rss, get_mm_rss(mm));
-+}
-+
-+static inline void setmax_mm_hiwater_rss(unsigned long *maxrss,
-+					 struct mm_struct *mm)
-+{
-+	unsigned long hiwater_rss = get_mm_hiwater_rss(mm);
-+
-+	if (*maxrss < hiwater_rss)
-+		*maxrss = hiwater_rss;
-+}
-+
-+static inline unsigned long get_mm_hiwater_vm(struct mm_struct *mm)
-+{
-+	return max(mm->hiwater_vm, mm->total_vm);
-+}
- 
- /*
-  * A callback you can register to apply pressure to ageable caches.
 Index: mmotm-2.6.32-Dec8/include/linux/mm_types.h
 ===================================================================
 --- mmotm-2.6.32-Dec8.orig/include/linux/mm_types.h
 +++ mmotm-2.6.32-Dec8/include/linux/mm_types.h
-@@ -24,12 +24,6 @@ struct address_space;
- 
- #define USE_SPLIT_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
- 
--#if USE_SPLIT_PTLOCKS
--typedef atomic_long_t mm_counter_t;
--#else  /* !USE_SPLIT_PTLOCKS */
--typedef unsigned long mm_counter_t;
--#endif /* !USE_SPLIT_PTLOCKS */
--
- /*
-  * Each physical page in the system has a struct page associated with
-  * it to keep track of whatever it is we are using the page for at the
-@@ -199,6 +193,18 @@ struct core_state {
- 	struct completion startup;
- };
+@@ -297,4 +297,16 @@ struct mm_struct {
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+ #define mm_cpumask(mm) (&(mm)->cpu_vm_mask)
  
 +#if USE_SPLIT_PTLOCKS
-+typedef atomic_long_t mm_counter_t;
-+#else  /* !USE_SPLIT_PTLOCKS */
-+typedef unsigned long mm_counter_t;
-+#endif /* !USE_SPLIT_PTLOCKS */
-+
-+enum {
-+	MM_FILEPAGES,
-+	MM_ANONPAGES,
-+	NR_MM_COUNTERS
++/*
++ * percpu object used for caching thread->mm information.
++ */
++struct pcp_mm_cache {
++	struct mm_struct *mm;
++	unsigned long counters[NR_MM_COUNTERS];
 +};
 +
- struct mm_struct {
- 	struct vm_area_struct * mmap;		/* list of VMAs */
- 	struct rb_root mm_rb;
-@@ -226,8 +232,7 @@ struct mm_struct {
- 	/* Special counters, in some configurations protected by the
- 	 * page_table_lock, in other configurations by being atomic.
- 	 */
--	mm_counter_t _file_rss;
--	mm_counter_t _anon_rss;
-+	mm_counter_t counters[NR_MM_COUNTERS];
- 
- 	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
- 	unsigned long hiwater_vm;	/* High-water virtual memory usage */
-Index: mmotm-2.6.32-Dec8/include/linux/sched.h
++DECLARE_PER_CPU(struct pcp_mm_cache, curr_mmc);
++#endif
++
+ #endif /* _LINUX_MM_TYPES_H */
+Index: mmotm-2.6.32-Dec8/include/linux/mm.h
 ===================================================================
---- mmotm-2.6.32-Dec8.orig/include/linux/sched.h
-+++ mmotm-2.6.32-Dec8/include/linux/sched.h
-@@ -385,60 +385,6 @@ arch_get_unmapped_area_topdown(struct fi
- extern void arch_unmap_area(struct mm_struct *, unsigned long);
- extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
+--- mmotm-2.6.32-Dec8.orig/include/linux/mm.h
++++ mmotm-2.6.32-Dec8/include/linux/mm.h
+@@ -883,7 +883,16 @@ static inline void set_mm_counter(struct
  
--#if USE_SPLIT_PTLOCKS
--/*
-- * The mm counters are not protected by its page_table_lock,
-- * so must be incremented atomically.
-- */
--#define set_mm_counter(mm, member, value) atomic_long_set(&(mm)->_##member, value)
--#define get_mm_counter(mm, member) ((unsigned long)atomic_long_read(&(mm)->_##member))
--#define add_mm_counter(mm, member, value) atomic_long_add(value, &(mm)->_##member)
--#define inc_mm_counter(mm, member) atomic_long_inc(&(mm)->_##member)
--#define dec_mm_counter(mm, member) atomic_long_dec(&(mm)->_##member)
--
--#else  /* !USE_SPLIT_PTLOCKS */
--/*
-- * The mm counters are protected by its page_table_lock,
-- * so can be incremented directly.
-- */
--#define set_mm_counter(mm, member, value) (mm)->_##member = (value)
--#define get_mm_counter(mm, member) ((mm)->_##member)
--#define add_mm_counter(mm, member, value) (mm)->_##member += (value)
--#define inc_mm_counter(mm, member) (mm)->_##member++
--#define dec_mm_counter(mm, member) (mm)->_##member--
--
--#endif /* !USE_SPLIT_PTLOCKS */
--
--#define get_mm_rss(mm)					\
--	(get_mm_counter(mm, file_rss) + get_mm_counter(mm, anon_rss))
--#define update_hiwater_rss(mm)	do {			\
--	unsigned long _rss = get_mm_rss(mm);		\
--	if ((mm)->hiwater_rss < _rss)			\
--		(mm)->hiwater_rss = _rss;		\
--} while (0)
--#define update_hiwater_vm(mm)	do {			\
--	if ((mm)->hiwater_vm < (mm)->total_vm)		\
--		(mm)->hiwater_vm = (mm)->total_vm;	\
--} while (0)
--
--static inline unsigned long get_mm_hiwater_rss(struct mm_struct *mm)
--{
--	return max(mm->hiwater_rss, get_mm_rss(mm));
--}
--
--static inline void setmax_mm_hiwater_rss(unsigned long *maxrss,
--					 struct mm_struct *mm)
--{
--	unsigned long hiwater_rss = get_mm_hiwater_rss(mm);
--
--	if (*maxrss < hiwater_rss)
--		*maxrss = hiwater_rss;
--}
--
--static inline unsigned long get_mm_hiwater_vm(struct mm_struct *mm)
--{
--	return max(mm->hiwater_vm, mm->total_vm);
--}
+ static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
+ {
+-	return (unsigned long)atomic_long_read(&(mm)->counters[member]);
++	long ret;
++	/*
++	 * Because this counter is loosely synchronized with percpu cached
++ 	 * information, it's possible that value gets to be minus. For user's
++ 	 * convenience/sanity, avoid returning minus.
++ 	 */
++	ret = atomic_long_read(&(mm)->counters[member]);
++	if (unlikely(ret < 0))
++		return 0;
++	return (unsigned long)ret;
+ }
  
- extern void set_dumpable(struct mm_struct *mm, int value);
- extern int get_dumpable(struct mm_struct *mm);
+ static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
+@@ -900,6 +909,25 @@ static inline void dec_mm_counter(struct
+ {
+ 	atomic_long_dec(&(mm)->counters[member]);
+ }
++extern void __sync_mm_counters(struct mm_struct *mm);
++/* Called under non-preemptable context, for syncing cached information */
++static inline void sync_mm_counters_atomic(void)
++{
++	struct mm_struct *mm;
++
++	mm = percpu_read(curr_mmc.mm);
++	if (mm) {
++		__sync_mm_counters(mm);
++		percpu_write(curr_mmc.mm, NULL);
++	}
++}
++/* called at thread exit */
++static inline void exit_mm_counters(void)
++{
++	preempt_disable();
++	sync_mm_counters_atomic();
++	preempt_enable();
++}
+ 
+ #else  /* !USE_SPLIT_PTLOCKS */
+ /*
+@@ -931,6 +959,13 @@ static inline void dec_mm_counter(struct
+ 	mm->counters[member]--;
+ }
+ 
++static inline void sync_mm_counters_atomic(void)
++{
++}
++
++static inline void exit_mm_counters(void)
++{
++}
+ #endif /* !USE_SPLIT_PTLOCKS */
+ 
+ #define get_mm_rss(mm)					\
 Index: mmotm-2.6.32-Dec8/mm/memory.c
 ===================================================================
 --- mmotm-2.6.32-Dec8.orig/mm/memory.c
 +++ mmotm-2.6.32-Dec8/mm/memory.c
-@@ -376,12 +376,21 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
- 	return 0;
+@@ -121,6 +121,50 @@ static int __init init_zero_pfn(void)
  }
+ core_initcall(init_zero_pfn);
  
--static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
-+static inline void init_rss_vec(int *rss)
- {
--	if (file_rss)
--		add_mm_counter(mm, file_rss, file_rss);
--	if (anon_rss)
--		add_mm_counter(mm, anon_rss, anon_rss);
++#if USE_SPLIT_PTLOCKS
++
++DEFINE_PER_CPU(struct pcp_mm_cache, curr_mmc);
++
++void __sync_mm_counters(struct mm_struct *mm)
++{
++	struct pcp_mm_cache *mmc = &per_cpu(curr_mmc, smp_processor_id());
 +	int i;
 +
-+	for (i = 0; i < NR_MM_COUNTERS; i++)
-+		rss[i] = 0;
++	for (i = 0; i < NR_MM_COUNTERS; i++) {
++		if (mmc->counters[i] != 0) {
++			atomic_long_add(mmc->counters[i], &mm->counters[i]);
++			mmc->counters[i] = 0;
++		}
++	}
++	return;
++}
++/*
++ * This add_mm_counter_fast() works well only when it's expexted that
++ * mm == current->mm. So, use of this function is limited under memory.c
++ * This add_mm_counter_fast() is called under page table lock.
++ */
++static void add_mm_counter_fast(struct mm_struct *mm, int member, int val)
++{
++	struct mm_struct *cached = percpu_read(curr_mmc.mm);
++
++	if (likely(cached == mm)) { /* fast path */
++		percpu_add(curr_mmc.counters[member], val);
++	} else if (mm == current->mm) { /* 1st page fault in this period */
++		percpu_write(curr_mmc.mm, mm);
++		percpu_write(curr_mmc.counters[member], val);
++	} else /* page fault via side-path context (get_user_pages()) */
++		add_mm_counter(mm, member, val);
 +}
 +
-+static inline void add_mm_rss_vec(struct mm_struct *mm, int *rss)
-+{
-+	int i;
++#define inc_mm_counter_fast(mm, member)	add_mm_counter_fast(mm, member, 1)
++#define dec_mm_counter_fast(mm, member)	add_mm_counter_fast(mm, member, -1)
++#else
 +
-+	for (i = 0; i < NR_MM_COUNTERS; i++)
-+		if (rss[i])
-+			add_mm_counter(mm, i, rss[i]);
- }
- 
++#define inc_mm_counter_fast(mm, member)	inc_mm_counter(mm, member)
++#define dec_mm_counter_fast(mm, member)	dec_mm_counter(mm, member)
++
++#endif
++
  /*
-@@ -632,7 +641,10 @@ copy_one_pte(struct mm_struct *dst_mm, s
- 	if (page) {
- 		get_page(page);
- 		page_dup_rmap(page);
--		rss[PageAnon(page)]++;
-+		if (PageAnon(page))
-+			rss[MM_ANONPAGES]++;
-+		else
-+			rss[MM_FILEPAGES]++;
- 	}
- 
- out_set_pte:
-@@ -648,11 +660,12 @@ static int copy_pte_range(struct mm_stru
- 	pte_t *src_pte, *dst_pte;
- 	spinlock_t *src_ptl, *dst_ptl;
- 	int progress = 0;
--	int rss[2];
-+	int rss[NR_MM_COUNTERS];
- 	swp_entry_t entry = (swp_entry_t){0};
- 
- again:
--	rss[1] = rss[0] = 0;
-+	init_rss_vec(rss);
-+
- 	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
- 	if (!dst_pte)
- 		return -ENOMEM;
-@@ -688,7 +701,7 @@ again:
- 	arch_leave_lazy_mmu_mode();
- 	spin_unlock(src_ptl);
- 	pte_unmap_nested(orig_src_pte);
--	add_mm_rss(dst_mm, rss[0], rss[1]);
-+	add_mm_rss_vec(dst_mm, rss);
- 	pte_unmap_unlock(orig_dst_pte, dst_ptl);
- 	cond_resched();
- 
-@@ -816,8 +829,9 @@ static unsigned long zap_pte_range(struc
- 	struct mm_struct *mm = tlb->mm;
- 	pte_t *pte;
- 	spinlock_t *ptl;
--	int file_rss = 0;
--	int anon_rss = 0;
-+	int rss[NR_MM_COUNTERS];
-+
-+	init_rss_vec(rss);
- 
- 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	arch_enter_lazy_mmu_mode();
-@@ -863,14 +877,14 @@ static unsigned long zap_pte_range(struc
- 				set_pte_at(mm, addr, pte,
- 					   pgoff_to_pte(page->index));
- 			if (PageAnon(page))
--				anon_rss--;
-+				rss[MM_ANONPAGES]--;
- 			else {
- 				if (pte_dirty(ptent))
- 					set_page_dirty(page);
- 				if (pte_young(ptent) &&
- 				    likely(!VM_SequentialReadHint(vma)))
- 					mark_page_accessed(page);
--				file_rss--;
-+				rss[MM_FILEPAGES]--;
- 			}
- 			page_remove_rmap(page);
- 			if (unlikely(page_mapcount(page) < 0))
-@@ -893,7 +907,7 @@ static unsigned long zap_pte_range(struc
- 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
- 	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
- 
--	add_mm_rss(mm, file_rss, anon_rss);
-+	add_mm_rss_vec(mm, rss);
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(pte - 1, ptl);
- 
-@@ -1527,7 +1541,7 @@ static int insert_page(struct vm_area_st
+  * If a p?d_bad entry is found while walking page tables, report
+  * the error, before resetting entry to p?d_none.  Usually (but
+@@ -1541,7 +1585,7 @@ static int insert_page(struct vm_area_st
  
  	/* Ok, finally just insert the thing.. */
  	get_page(page);
--	inc_mm_counter(mm, file_rss);
-+	inc_mm_counter(mm, MM_FILEPAGES);
+-	inc_mm_counter(mm, MM_FILEPAGES);
++	inc_mm_counter_fast(mm, MM_FILEPAGES);
  	page_add_file_rmap(page);
  	set_pte_at(mm, addr, pte, mk_pte(page, prot));
  
-@@ -2163,11 +2177,11 @@ gotten:
+@@ -2177,11 +2221,11 @@ gotten:
  	if (likely(pte_same(*page_table, orig_pte))) {
  		if (old_page) {
  			if (!PageAnon(old_page)) {
--				dec_mm_counter(mm, file_rss);
--				inc_mm_counter(mm, anon_rss);
-+				dec_mm_counter(mm, MM_FILEPAGES);
-+				inc_mm_counter(mm, MM_ANONPAGES);
+-				dec_mm_counter(mm, MM_FILEPAGES);
+-				inc_mm_counter(mm, MM_ANONPAGES);
++				dec_mm_counter_fast(mm, MM_FILEPAGES);
++				inc_mm_counter_fast(mm, MM_ANONPAGES);
  			}
  		} else
--			inc_mm_counter(mm, anon_rss);
-+			inc_mm_counter(mm, MM_ANONPAGES);
+-			inc_mm_counter(mm, MM_ANONPAGES);
++			inc_mm_counter_fast(mm, MM_ANONPAGES);
  		flush_cache_page(vma, address, pte_pfn(orig_pte));
  		entry = mk_pte(new_page, vma->vm_page_prot);
  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-@@ -2600,7 +2614,7 @@ static int do_swap_page(struct mm_struct
+@@ -2614,7 +2658,7 @@ static int do_swap_page(struct mm_struct
  	 * discarded at swap_free().
  	 */
  
--	inc_mm_counter(mm, anon_rss);
-+	inc_mm_counter(mm, MM_ANONPAGES);
+-	inc_mm_counter(mm, MM_ANONPAGES);
++	inc_mm_counter_fast(mm, MM_ANONPAGES);
  	pte = mk_pte(page, vma->vm_page_prot);
  	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
  		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-@@ -2684,7 +2698,7 @@ static int do_anonymous_page(struct mm_s
+@@ -2698,7 +2742,7 @@ static int do_anonymous_page(struct mm_s
  	if (!pte_none(*page_table))
  		goto release;
  
--	inc_mm_counter(mm, anon_rss);
-+	inc_mm_counter(mm, MM_ANONPAGES);
+-	inc_mm_counter(mm, MM_ANONPAGES);
++	inc_mm_counter_fast(mm, MM_ANONPAGES);
  	page_add_new_anon_rmap(page, vma, address);
  setpte:
  	set_pte_at(mm, address, page_table, entry);
-@@ -2838,10 +2852,10 @@ static int __do_fault(struct mm_struct *
+@@ -2852,10 +2896,10 @@ static int __do_fault(struct mm_struct *
  		if (flags & FAULT_FLAG_WRITE)
  			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
  		if (anon) {
--			inc_mm_counter(mm, anon_rss);
-+			inc_mm_counter(mm, MM_ANONPAGES);
+-			inc_mm_counter(mm, MM_ANONPAGES);
++			inc_mm_counter_fast(mm, MM_ANONPAGES);
  			page_add_new_anon_rmap(page, vma, address);
  		} else {
--			inc_mm_counter(mm, file_rss);
-+			inc_mm_counter(mm, MM_FILEPAGES);
+-			inc_mm_counter(mm, MM_FILEPAGES);
++			inc_mm_counter_fast(mm, MM_FILEPAGES);
  			page_add_file_rmap(page);
  			if (flags & FAULT_FLAG_WRITE) {
  				dirty_page = page;
-Index: mmotm-2.6.32-Dec8/fs/proc/task_mmu.c
+Index: mmotm-2.6.32-Dec8/kernel/sched.c
 ===================================================================
---- mmotm-2.6.32-Dec8.orig/fs/proc/task_mmu.c
-+++ mmotm-2.6.32-Dec8/fs/proc/task_mmu.c
-@@ -65,11 +65,11 @@ unsigned long task_vsize(struct mm_struc
- int task_statm(struct mm_struct *mm, int *shared, int *text,
- 	       int *data, int *resident)
- {
--	*shared = get_mm_counter(mm, file_rss);
-+	*shared = get_mm_counter(mm, MM_FILEPAGES);
- 	*text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK))
- 								>> PAGE_SHIFT;
- 	*data = mm->total_vm - mm->shared_vm;
--	*resident = *shared + get_mm_counter(mm, anon_rss);
-+	*resident = *shared + get_mm_counter(mm, MM_ANONPAGES);
- 	return mm->total_vm;
- }
- 
-Index: mmotm-2.6.32-Dec8/kernel/fork.c
-===================================================================
---- mmotm-2.6.32-Dec8.orig/kernel/fork.c
-+++ mmotm-2.6.32-Dec8/kernel/fork.c
-@@ -446,6 +446,8 @@ static void mm_init_aio(struct mm_struct
- 
- static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
- {
-+	int i;
+--- mmotm-2.6.32-Dec8.orig/kernel/sched.c
++++ mmotm-2.6.32-Dec8/kernel/sched.c
+@@ -2858,6 +2858,7 @@ context_switch(struct rq *rq, struct tas
+ 	trace_sched_switch(rq, prev, next);
+ 	mm = next->mm;
+ 	oldmm = prev->active_mm;
 +
- 	atomic_set(&mm->mm_users, 1);
- 	atomic_set(&mm->mm_count, 1);
- 	init_rwsem(&mm->mmap_sem);
-@@ -454,8 +456,8 @@ static struct mm_struct * mm_init(struct
- 		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
- 	mm->core_state = NULL;
- 	mm->nr_ptes = 0;
--	set_mm_counter(mm, file_rss, 0);
--	set_mm_counter(mm, anon_rss, 0);
-+	for (i = 0; i < NR_MM_COUNTERS; i++)
-+		set_mm_counter(mm, i, 0);
- 	spin_lock_init(&mm->page_table_lock);
- 	mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	mm->cached_hole_size = ~0UL;
-Index: mmotm-2.6.32-Dec8/kernel/tsacct.c
-===================================================================
---- mmotm-2.6.32-Dec8.orig/kernel/tsacct.c
-+++ mmotm-2.6.32-Dec8/kernel/tsacct.c
-@@ -21,6 +21,7 @@
- #include <linux/tsacct_kern.h>
- #include <linux/acct.h>
- #include <linux/jiffies.h>
-+#include <linux/mm.h>
- 
- /*
-  * fill in basic accounting fields
-Index: mmotm-2.6.32-Dec8/mm/filemap_xip.c
-===================================================================
---- mmotm-2.6.32-Dec8.orig/mm/filemap_xip.c
-+++ mmotm-2.6.32-Dec8/mm/filemap_xip.c
-@@ -194,7 +194,7 @@ retry:
- 			flush_cache_page(vma, address, pte_pfn(*pte));
- 			pteval = ptep_clear_flush_notify(vma, address, pte);
- 			page_remove_rmap(page);
--			dec_mm_counter(mm, file_rss);
-+			dec_mm_counter(mm, MM_FILEPAGES);
- 			BUG_ON(pte_dirty(pteval));
- 			pte_unmap_unlock(pte, ptl);
- 			page_cache_release(page);
-Index: mmotm-2.6.32-Dec8/mm/fremap.c
-===================================================================
---- mmotm-2.6.32-Dec8.orig/mm/fremap.c
-+++ mmotm-2.6.32-Dec8/mm/fremap.c
-@@ -40,7 +40,7 @@ static void zap_pte(struct mm_struct *mm
- 			page_remove_rmap(page);
- 			page_cache_release(page);
- 			update_hiwater_rss(mm);
--			dec_mm_counter(mm, file_rss);
-+			dec_mm_counter(mm, MM_FILEPAGES);
- 		}
- 	} else {
- 		if (!pte_file(pte))
-Index: mmotm-2.6.32-Dec8/mm/oom_kill.c
-===================================================================
---- mmotm-2.6.32-Dec8.orig/mm/oom_kill.c
-+++ mmotm-2.6.32-Dec8/mm/oom_kill.c
-@@ -401,8 +401,8 @@ static void __oom_kill_task(struct task_
- 		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
- 		       task_pid_nr(p), p->comm,
- 		       K(p->mm->total_vm),
--		       K(get_mm_counter(p->mm, anon_rss)),
--		       K(get_mm_counter(p->mm, file_rss)));
-+		       K(get_mm_counter(p->mm, MM_ANONPAGES)),
-+		       K(get_mm_counter(p->mm, MM_FILEPAGES)));
- 	task_unlock(p);
- 
  	/*
-Index: mmotm-2.6.32-Dec8/mm/rmap.c
+ 	 * For paravirt, this is coupled with an exit in switch_to to
+ 	 * combine the page table reload and the switch backend into
+@@ -5477,6 +5478,11 @@ need_resched_nonpreemptible:
+ 
+ 	if (sched_feat(HRTICK))
+ 		hrtick_clear(rq);
++	/*
++	 * sync/invaldidate per-cpu cached mm related information
++	 * before taling rq->lock. (see include/linux/mm.h)
++	 */
++	sync_mm_counters_atomic();
+ 
+ 	spin_lock_irq(&rq->lock);
+ 	update_rq_clock(rq);
+Index: mmotm-2.6.32-Dec8/kernel/exit.c
 ===================================================================
---- mmotm-2.6.32-Dec8.orig/mm/rmap.c
-+++ mmotm-2.6.32-Dec8/mm/rmap.c
-@@ -815,9 +815,9 @@ int try_to_unmap_one(struct page *page, 
+--- mmotm-2.6.32-Dec8.orig/kernel/exit.c
++++ mmotm-2.6.32-Dec8/kernel/exit.c
+@@ -942,7 +942,8 @@ NORET_TYPE void do_exit(long code)
+ 		printk(KERN_INFO "note: %s[%d] exited with preempt_count %d\n",
+ 				current->comm, task_pid_nr(current),
+ 				preempt_count());
+-
++	/* synchronize per-cpu cached mm related information before account */
++	exit_mm_counters();
+ 	acct_update_integrals(tsk);
  
- 	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
- 		if (PageAnon(page))
--			dec_mm_counter(mm, anon_rss);
-+			dec_mm_counter(mm, MM_ANONPAGES);
- 		else
--			dec_mm_counter(mm, file_rss);
-+			dec_mm_counter(mm, MM_FILEPAGES);
- 		set_pte_at(mm, address, pte,
- 				swp_entry_to_pte(make_hwpoison_entry(page)));
- 	} else if (PageAnon(page)) {
-@@ -839,7 +839,7 @@ int try_to_unmap_one(struct page *page, 
- 					list_add(&mm->mmlist, &init_mm.mmlist);
- 				spin_unlock(&mmlist_lock);
- 			}
--			dec_mm_counter(mm, anon_rss);
-+			dec_mm_counter(mm, MM_ANONPAGES);
- 		} else if (PAGE_MIGRATION) {
- 			/*
- 			 * Store the pfn of the page in a special migration
-@@ -857,7 +857,7 @@ int try_to_unmap_one(struct page *page, 
- 		entry = make_migration_entry(page, pte_write(pteval));
- 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
- 	} else
--		dec_mm_counter(mm, file_rss);
-+		dec_mm_counter(mm, MM_FILEPAGES);
- 
- 	page_remove_rmap(page);
- 	page_cache_release(page);
-@@ -996,7 +996,7 @@ static int try_to_unmap_cluster(unsigned
- 
- 		page_remove_rmap(page);
- 		page_cache_release(page);
--		dec_mm_counter(mm, file_rss);
-+		dec_mm_counter(mm, MM_FILEPAGES);
- 		(*mapcount)--;
- 	}
- 	pte_unmap_unlock(pte - 1, ptl);
-Index: mmotm-2.6.32-Dec8/mm/swapfile.c
-===================================================================
---- mmotm-2.6.32-Dec8.orig/mm/swapfile.c
-+++ mmotm-2.6.32-Dec8/mm/swapfile.c
-@@ -840,7 +840,7 @@ static int unuse_pte(struct vm_area_stru
- 		goto out;
- 	}
- 
--	inc_mm_counter(vma->vm_mm, anon_rss);
-+	inc_mm_counter(vma->vm_mm, MM_ANONPAGES);
- 	get_page(page);
- 	set_pte_at(vma->vm_mm, addr, pte,
- 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
+ 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
