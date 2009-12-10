@@ -1,81 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6474C6B0044
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 18:46:29 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBANkQ6x031766
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 11 Dec 2009 08:46:27 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A3FA45DE52
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:46:26 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A5BC45DE4E
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:46:26 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D86AE1800B
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:46:26 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E88491DB8040
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:46:25 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH v2  4/8] Replace page_referenced() with wipe_page_reference()
-In-Reply-To: <4B20EF88.7050402@redhat.com>
-References: <20091210163123.255C.A69D9226@jp.fujitsu.com> <4B20EF88.7050402@redhat.com>
-Message-Id: <20091211082410.257D.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 23E4F6B003D
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 18:56:34 -0500 (EST)
+Date: Thu, 10 Dec 2009 18:56:26 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
+Message-ID: <20091210185626.26f9828a@cuia.bos.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Fri, 11 Dec 2009 08:46:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: lwoodman@redhat.com
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-> KOSAKI Motohiro wrote:
-> > @@ -578,7 +577,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >
-> > +		struct page_reference_context refctx = {
-> > +			.is_page_locked = 1,
-> >
-> >   *
-> > @@ -1289,7 +1291,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
-> >
-> > +		struct page_reference_context refctx = {
-> > +			.is_page_locked = 0,
-> > +		};
-> > +
-> >   
-> are these whole structs properly initialized on the kernel stack?
+Under very heavy multi-process workloads, like AIM7, the VM can
+get into trouble in a variety of ways.  The trouble start when
+there are hundreds, or even thousands of processes active in the
+page reclaim code.
 
-Yes. C spec says
+Not only can the system suffer enormous slowdowns because of
+lock contention (and conditional reschedules) between thousands
+of processes in the page reclaim code, but each process will try
+to free up to SWAP_CLUSTER_MAX pages, even when the system already
+has lots of memory free.  In Larry's case, this resulted in over
+6000 processes fighting over locks in the page reclaim code, even
+though the system already had 1.5GB of free memory.
 
-3.5.7 Initialization
+It should be possible to avoid both of those issues at once, by
+simply limiting how many processes are active in the page reclaim
+code simultaneously.
 
-Syntax
+If too many processes are active doing page reclaim in one zone,
+simply go to sleep in shrink_zone().
 
-          initializer:
-                  assignment-expression
-                  {  initializer-list } 
-                  {  initializer-list , }
+On wakeup, check whether enough memory has been freed already
+before jumping into the page reclaim code ourselves.  We want
+to use the same threshold here that is used in the page allocator
+for deciding whether or not to call the page reclaim code in the
+first place, otherwise some unlucky processes could end up freeing
+memory for the rest of the system.
 
-          initializer-list:
-                  initializer
-                  initializer-list ,  initializer
-(snip)
+Reported-by: Larry Woodman <lwoodman@redhat.com>
+Signed-off-by: Rik van Riel <riel@redhat.com>
 
-   If there are fewer initializers in a list than there are members of
-an aggregate, the remainder of the aggregate shall be initialized
-implicitly the same as objects that have static storage duration.
+--- 
+This patch is against today's MMOTM tree. It has only been compile tested,
+I do not have an AIM7 system standing by.
 
-Referenced to
-  Draft ANSI C Standard (ANSI X3J11/88-090) (May 13, 1988) http://flash-gordon.me.uk/ansi.c.txt
+Larry, does this fix your issue?
 
+ Documentation/sysctl/vm.txt |   18 ++++++++++++++++++
+ include/linux/mmzone.h      |    4 ++++
+ include/linux/swap.h        |    1 +
+ kernel/sysctl.c             |    7 +++++++
+ mm/page_alloc.c             |    3 +++
+ mm/vmscan.c                 |   38 ++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 71 insertions(+)
 
-Probably, google "{0}" help your understand to initializer in C.
-
-
-
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index fc5790d..5cf766f 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -32,6 +32,7 @@ Currently, these files are in /proc/sys/vm:
+ - legacy_va_layout
+ - lowmem_reserve_ratio
+ - max_map_count
++- max_zone_concurrent_reclaim
+ - memory_failure_early_kill
+ - memory_failure_recovery
+ - min_free_kbytes
+@@ -278,6 +279,23 @@ The default value is 65536.
+ 
+ =============================================================
+ 
++max_zone_concurrent_reclaim:
++
++The number of processes that are allowed to simultaneously reclaim
++memory from a particular memory zone.
++
++With certain workloads, hundreds of processes end up in the page
++reclaim code simultaneously.  This can cause large slowdowns due
++to lock contention, freeing of way too much memory and occasionally
++false OOM kills.
++
++To avoid these problems, only allow a smaller number of processes
++to reclaim pages from each memory zone simultaneously.
++
++The default value is 8.
++
++=============================================================
++
+ memory_failure_early_kill:
+ 
+ Control how to kill processes when uncorrected memory error (typically
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 30fe668..ed614b8 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -345,6 +345,10 @@ struct zone {
+ 	/* Zone statistics */
+ 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
+ 
++	/* Number of processes running page reclaim code on this zone. */
++	atomic_t		concurrent_reclaimers;
++	wait_queue_head_t	reclaim_wait;
++
+ 	/*
+ 	 * prev_priority holds the scanning priority for this zone.  It is
+ 	 * defined as the scanning priority at which we achieved our reclaim
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index a2602a8..661eec7 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -254,6 +254,7 @@ extern unsigned long shrink_all_memory(unsigned long nr_pages);
+ extern int vm_swappiness;
+ extern int remove_mapping(struct address_space *mapping, struct page *page);
+ extern long vm_total_pages;
++extern int max_zone_concurrent_reclaimers;
+ 
+ #ifdef CONFIG_NUMA
+ extern int zone_reclaim_mode;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 6ff0ae6..89b919c 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1270,6 +1270,13 @@ static struct ctl_table vm_table[] = {
+ 		.extra1		= &zero,
+ 		.extra2		= &one,
+ 	},
++	{
++		.procname	= "max_zone_concurrent_reclaimers",
++		.data		= &max_zone_concurrent_reclaimers,
++		.maxlen		= sizeof(max_zone_concurrent_reclaimers),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
+ #endif
+ 
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 11ae66e..ca9cae1 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3852,6 +3852,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 
+ 		zone->prev_priority = DEF_PRIORITY;
+ 
++		atomic_set(&zone->concurrent_reclaimers, 0);
++		init_waitqueue_head(&zone->reclaim_wait);
++
+ 		zone_pcp_init(zone);
+ 		for_each_lru(l) {
+ 			INIT_LIST_HEAD(&zone->lru[l].list);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2bbee91..cf3ef29 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -40,6 +40,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/delayacct.h>
+ #include <linux/sysctl.h>
++#include <linux/wait.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -129,6 +130,17 @@ struct scan_control {
+ int vm_swappiness = 60;
+ long vm_total_pages;	/* The total number of pages which the VM controls */
+ 
++/*
++ * Maximum number of processes concurrently running the page
++ * reclaim code in a memory zone.  Having too many processes
++ * just results in them burning CPU time waiting for locks,
++ * so we're better off limiting page reclaim to a sane number
++ * of processes at a time.  We do this per zone so local node
++ * reclaim on one NUMA node will not block other nodes from
++ * making progress.
++ */
++int max_zone_concurrent_reclaimers = 8;
++
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
+ 
+@@ -1600,6 +1612,29 @@ static void shrink_zone(int priority, struct zone *zone,
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 	int noswap = 0;
+ 
++	if (!current_is_kswapd() && atomic_read(&zone->concurrent_reclaimers) >
++					max_zone_concurrent_reclaimers) {
++		/*
++		 * Do not add to the lock contention if this zone has
++		 * enough processes doing page reclaim already, since
++		 * we would just make things slower.
++		 */
++		sleep_on(&zone->reclaim_wait);
++
++		/*
++		 * If other processes freed enough memory while we waited,
++		 * break out of the loop and go back to the allocator.
++		 */
++		if (zone_watermark_ok(zone, sc->order, low_wmark_pages(zone),
++					0, 0)) {
++			wake_up(&zone->reclaim_wait);
++			sc->nr_reclaimed += nr_to_reclaim;
++			return;
++		}
++	}
++
++	atomic_inc(&zone->concurrent_reclaimers);
++
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+ 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+ 		noswap = 1;
+@@ -1655,6 +1690,9 @@ static void shrink_zone(int priority, struct zone *zone,
+ 		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+ 
+ 	throttle_vm_writeout(sc->gfp_mask);
++
++	atomic_dec(&zone->concurrent_reclaimers);
++	wake_up(&zone->reclaim_wait);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
