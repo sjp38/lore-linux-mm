@@ -1,52 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 262286B003D
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 04:56:47 -0500 (EST)
-Date: Thu, 10 Dec 2009 09:56:36 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: An mm bug in today's 2.6.32 git tree
-In-Reply-To: <2375c9f90912092259pe86356cvb716232ba7a4d604@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0912100951130.31654@sister.anvils>
-References: <2375c9f90912090238u7487019eq2458210aac4b602@mail.gmail.com>
- <Pine.LNX.4.64.0912091442360.30748@sister.anvils>
- <2375c9f90912092259pe86356cvb716232ba7a4d604@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 043166B003D
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 07:59:49 -0500 (EST)
+Message-ID: <4B20EF88.7050402@redhat.com>
+Date: Thu, 10 Dec 2009 07:54:32 -0500
+From: Larry Woodman <lwoodman@redhat.com>
+Reply-To: lwoodman@redhat.com
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1357647399-1260438996=:31654"
+Subject: Re: [RFC][PATCH v2  4/8] Replace page_referenced() with wipe_page_reference()
+References: <20091210154822.2550.A69D9226@jp.fujitsu.com> <20091210163123.255C.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091210163123.255C.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---8323584-1357647399-1260438996=:31654
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
-
-On Thu, 10 Dec 2009, Am=C3=A9rico Wang wrote:
-> On Wed, Dec 9, 2009 at 10:49 PM, Hugh Dickins
-> >
-> > Thanks for the report. =C2=A0Not known to me.
-> > It looks like something has corrupted the start of a pagetable.
-                                  no, not the start
-> > No idea what that something might be, but probably not bad RAM.
-> >
-> >>
-> >> Please feel free to let me know if you need more info.
-> >
-> > You say you saw it twice: please post what the other occasion
-> > showed (unless the first six lines were identical to this and it
-> > occurred around the same time i.e. separate report of the same).
-> >
->=20
-> Yes, the rest are almost the same, the only difference is the 'addr'
-> shows different addresses.
-
-Please post what this other occasion showed, if you still have the log.
-
-Hugh
---8323584-1357647399-1260438996=:31654--
+KOSAKI Motohiro wrote:
+> @@ -578,7 +577,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>
+> +		struct page_reference_context refctx = {
+> +			.is_page_locked = 1,
+>
+>   *
+> @@ -1289,7 +1291,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+>
+> +		struct page_reference_context refctx = {
+> +			.is_page_locked = 0,
+> +		};
+> +
+>   
+are these whole structs properly initialized on the kernel stack?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
