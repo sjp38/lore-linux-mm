@@ -1,35 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 272E76B003D
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 08:42:04 -0500 (EST)
-Date: Thu, 10 Dec 2009 14:42:00 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [19/31] mm: export stable page flags
-Message-ID: <20091210134200.GP18989@one.firstfloor.org>
-References: <200912081016.198135742@firstfloor.org> <20091208211635.7965AB151F@basil.firstfloor.org> <1260311251.31323.129.camel@calx> <20091209020042.GA7751@localhost> <20091210015014.GK18989@one.firstfloor.org> <20091210020927.GA11017@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091210020927.GA11017@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 118B26B003D
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 12:32:01 -0500 (EST)
+Date: Thu, 10 Dec 2009 11:30:46 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC mm][PATCH 1/5] mm counter cleanup
+In-Reply-To: <20091210163326.28bb7eb8.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0912101126480.5481@router.home>
+References: <20091210163115.463d96a3.kamezawa.hiroyu@jp.fujitsu.com> <20091210163326.28bb7eb8.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Matt Mackall <mpm@selenic.com>, "npiggin@suse.de" <npiggin@suse.de>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-> > Your original patch didn't handle hwpoison as module btw.
-> 
-> Yes I realized it later..
+On Thu, 10 Dec 2009, KAMEZAWA Hiroyuki wrote:
 
-It's always a big trap, I've seen lots of people (including myself)
-run into it.
+> This patch modifies it to
+>   - Define them in mm.h as inline functions
+>   - Use array instead of macro's name creation. For making easier to add
+>     new coutners.
 
-I preferred to not have the ifdefs in the core module, simply
-because it's very little additional code.
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
--Andi
+> @@ -454,8 +456,8 @@ static struct mm_struct * mm_init(struct
+>  		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
+>  	mm->core_state = NULL;
+>  	mm->nr_ptes = 0;
+> -	set_mm_counter(mm, file_rss, 0);
+> -	set_mm_counter(mm, anon_rss, 0);
+> +	for (i = 0; i < NR_MM_COUNTERS; i++)
+> +		set_mm_counter(mm, i, 0);
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+
+memset? Or add a clear_mm_counter function? This also occurred earlier in
+init_rss_vec().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
