@@ -1,57 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C68486B003D
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 01:59:29 -0500 (EST)
-Received: by qyk15 with SMTP id 15so3269236qyk.23
-        for <linux-mm@kvack.org>; Wed, 09 Dec 2009 22:59:28 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9C4DD6B003D
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 02:28:53 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBA7Sp5P010809
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 10 Dec 2009 16:28:51 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BB86145DE51
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:28:50 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 99E6845DE50
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:28:50 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E4EE1DB8042
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:28:50 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 214151DB803E
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 16:28:50 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [RFC][PATCH v2  0/8] vmscan: AIM7 scalability improvement 
+Message-Id: <20091210154822.2550.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.64.0912091442360.30748@sister.anvils>
-References: <2375c9f90912090238u7487019eq2458210aac4b602@mail.gmail.com>
-	 <Pine.LNX.4.64.0912091442360.30748@sister.anvils>
-Date: Thu, 10 Dec 2009 14:59:28 +0800
-Message-ID: <2375c9f90912092259pe86356cvb716232ba7a4d604@mail.gmail.com>
-Subject: Re: An mm bug in today's 2.6.32 git tree
-From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 10 Dec 2009 16:28:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 9, 2009 at 10:49 PM, Hugh Dickins
-<hugh.dickins@tiscali.co.uk> wrote:
-> On Wed, 9 Dec 2009, Am=C3=A9rico Wang wrote:
->
->> Hi, mm experts,
->>
->> I met the following bug in the kernel from today's git tree, accidentall=
-y.
->> I don't know how to reproduce it, just saw it twice when doing different
->> work. Machine is x86_64.
->>
->> Is this bug known?
->
-> Thanks for the report. =C2=A0Not known to me.
-> It looks like something has corrupted the start of a pagetable.
-> No idea what that something might be, but probably not bad RAM.
->
->>
->> Please feel free to let me know if you need more info.
->
-> You say you saw it twice: please post what the other occasion
-> showed (unless the first six lines were identical to this and it
-> occurred around the same time i.e. separate report of the same).
->
+Larry Woodman reported current VM has big performance regression when
+AIM7 benchmark. It use very much processes and fork/exit/page-fault frequently.
+(i.e. it makes serious lock contention of ptelock and anon_vma-lock.)
 
-Yes, the rest are almost the same, the only difference is the 'addr'
-shows different addresses.
+At 2.6.28, we removed calc_reclaim_mapped() and it made vmscan, then
+vmscan always call page_referenced() although VM pressure is low.
+It increased lock contention more, unfortunately.
 
-The one I reported happened when I exited vim, after editing a file.
-The other one happened when I did a network upload, either over
-NFS or ftp or something like that.
 
-Thanks.
+Larry, can you please try this patch series on your big box?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
