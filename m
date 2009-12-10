@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8BBDC6B0083
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 12:55:48 -0500 (EST)
-Date: Thu, 10 Dec 2009 11:55:25 -0600 (CST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 44AED6B0087
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 12:59:26 -0500 (EST)
+Date: Thu, 10 Dec 2009 11:59:11 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC mm][PATCH 3/5] counting swap ents per mm
-In-Reply-To: <20091210165911.97850977.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0912101153130.5481@router.home>
-References: <20091210163115.463d96a3.kamezawa.hiroyu@jp.fujitsu.com> <20091210165911.97850977.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC mm][PATCH 4/5] add a lowmem check function
+In-Reply-To: <20091210170036.dde2c147.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0912101155490.5481@router.home>
+References: <20091210163115.463d96a3.kamezawa.hiroyu@jp.fujitsu.com> <20091210170036.dde2c147.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,21 +17,12 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 10 Dec 2009, KAMEZAWA Hiroyuki wrote:
 
-> Index: mmotm-2.6.32-Dec8/mm/rmap.c
-> ===================================================================
-> --- mmotm-2.6.32-Dec8.orig/mm/rmap.c
-> +++ mmotm-2.6.32-Dec8/mm/rmap.c
-> @@ -814,7 +814,7 @@ int try_to_unmap_one(struct page *page,
->  	update_hiwater_rss(mm);
->
->  	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-> -		if (PageAnon(page))
-> +		if (PageAnon(page)) /* Not increments swapents counter */
->  			dec_mm_counter(mm, MM_ANONPAGES);
+> This patch adds an integer lowmem_zone, which is initialized to -1.
+> If zone_idx(zone) <= lowmem_zone, the zone is lowmem.
 
-Remove comment. Its not helping.
-
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+There is already a policy_zone in mempolicy.h. lowmem is if the zone
+number is  lower than policy_zone. Can we avoid adding another zone
+limiter?
 
 
 --
