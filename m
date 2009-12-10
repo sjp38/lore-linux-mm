@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 45AC66B0047
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 12:34:27 -0500 (EST)
-Date: Thu, 10 Dec 2009 11:34:03 -0600 (CST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8A88A6B0071
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 12:35:42 -0500 (EST)
+Date: Thu, 10 Dec 2009 11:35:27 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
 Subject: Re: [RFC mm][PATCH 2/5] percpu cached mm counter
-In-Reply-To: <20091210075454.GB25549@elte.hu>
-Message-ID: <alpine.DEB.2.00.0912101131200.5481@router.home>
-References: <20091210163115.463d96a3.kamezawa.hiroyu@jp.fujitsu.com> <20091210163448.338a0bd2.kamezawa.hiroyu@jp.fujitsu.com> <20091210075454.GB25549@elte.hu>
+In-Reply-To: <20091210083310.GB6834@elte.hu>
+Message-ID: <alpine.DEB.2.00.0912101134220.5481@router.home>
+References: <20091210163115.463d96a3.kamezawa.hiroyu@jp.fujitsu.com> <20091210163448.338a0bd2.kamezawa.hiroyu@jp.fujitsu.com> <20091210075454.GB25549@elte.hu> <20091210172040.37d259d3.kamezawa.hiroyu@jp.fujitsu.com> <20091210083310.GB6834@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,16 +17,16 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 10 Dec 2009, Ingo Molnar wrote:
 
-> I.e. why not expose these stats via perf events and counts as well,
-> beyond the current (rather minimal) set of MM stats perf supports
-> currently?
+>
+> No, i'm not suggesting that - i'm just suggesting that right now MM
+> stats are not very well suited to be exposed via perf. If we wanted to
+> measure/sample the information in /proc/<pid>/statm it just wouldnt be
+> possible. We have a few events like pagefaults and a few tracepoints as
+> well - but more would be possible IMO.
 
-Certainly one can write perf events that do a simular thing but that is
-beyond the scope of the work here. This is the result of a test program.
-The point here is to avoid fault regressions while introducing new process
-specific counters that are then used by other VM code to make decisions
-about a process.
-
+vital MM stats are exposed via /proc/<pid> interfaces. Performance
+monitoring is something optional MM VM stats are used for VM decision on
+memory and process handling.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
