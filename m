@@ -1,121 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5E33C6B0062
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 21:03:55 -0500 (EST)
-Received: by pwi1 with SMTP id 1so365427pwi.6
-        for <linux-mm@kvack.org>; Thu, 10 Dec 2009 18:03:53 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CBF5F6B0071
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 21:11:35 -0500 (EST)
+Received: by pzk27 with SMTP id 27so345615pzk.12
+        for <linux-mm@kvack.org>; Thu, 10 Dec 2009 18:11:33 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20091210185626.26f9828a@cuia.bos.redhat.com>
-References: <20091210185626.26f9828a@cuia.bos.redhat.com>
-Date: Fri, 11 Dec 2009 11:03:53 +0900
-Message-ID: <28c262360912101803i7b43db78se8cf9ec61d92ee0f@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
+In-Reply-To: <20091210163429.2568.A69D9226@jp.fujitsu.com>
+References: <20091210154822.2550.A69D9226@jp.fujitsu.com>
+	 <20091210163429.2568.A69D9226@jp.fujitsu.com>
+Date: Fri, 11 Dec 2009 11:11:33 +0900
+Message-ID: <28c262360912101811x1d76d1c3v46ff6773620f94a2@mail.gmail.com>
+Subject: Re: [RFC][PATCH v2 8/8] Don't deactivate many touched page
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: lwoodman@redhat.com, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Rik.
+Hi, Kosaki.
 
-
-On Fri, Dec 11, 2009 at 8:56 AM, Rik van Riel <riel@redhat.com> wrote:
-> Under very heavy multi-process workloads, like AIM7, the VM can
-> get into trouble in a variety of ways. =C2=A0The trouble start when
-> there are hundreds, or even thousands of processes active in the
-> page reclaim code.
+On Thu, Dec 10, 2009 at 4:35 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Changelog
+> =C2=A0o from v1
+> =C2=A0 - Fix comments.
+> =C2=A0 - Rename too_many_young_bit_found() with too_many_referenced()
+> =C2=A0 =C2=A0 [as Rik's mention].
+> =C2=A0o from andrea's original patch
+> =C2=A0 - Rebase topon my patches.
+> =C2=A0 - Use list_cut_position/list_splice_tail pair instead
+> =C2=A0 =C2=A0 list_del/list_add to make pte scan fairness.
+> =C2=A0 - Only use max young threshold when soft_try is true.
+> =C2=A0 =C2=A0 It avoid wrong OOM sideeffect.
+> =C2=A0 - Return SWAP_AGAIN instead successful result if max
+> =C2=A0 =C2=A0 young threshold exceed. It prevent the pages without clear
+> =C2=A0 =C2=A0 pte young bit will be deactivated wrongly.
+> =C2=A0 - Add to treat ksm page logic
 >
-> Not only can the system suffer enormous slowdowns because of
-> lock contention (and conditional reschedules) between thousands
-> of processes in the page reclaim code, but each process will try
-> to free up to SWAP_CLUSTER_MAX pages, even when the system already
-> has lots of memory free. =C2=A0In Larry's case, this resulted in over
-> 6000 processes fighting over locks in the page reclaim code, even
-> though the system already had 1.5GB of free memory.
+> Many shared and frequently used page don't need deactivate and
+> try_to_unamp(). It's pointless while VM pressure is low, the page
+> might reactivate soon. it's only makes cpu wasting.
 >
-> It should be possible to avoid both of those issues at once, by
-> simply limiting how many processes are active in the page reclaim
-> code simultaneously.
+> Then, This patch makes to stop pte scan if wipe_page_reference()
+> found lots young pte bit.
 >
-> If too many processes are active doing page reclaim in one zone,
-> simply go to sleep in shrink_zone().
->
-> On wakeup, check whether enough memory has been freed already
-> before jumping into the page reclaim code ourselves. =C2=A0We want
-> to use the same threshold here that is used in the page allocator
-> for deciding whether or not to call the page reclaim code in the
-> first place, otherwise some unlucky processes could end up freeing
-> memory for the rest of the system.
->
-> Reported-by: Larry Woodman <lwoodman@redhat.com>
-> Signed-off-by: Rik van Riel <riel@redhat.com>
->
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
 > ---
-> This patch is against today's MMOTM tree. It has only been compile tested=
-,
-> I do not have an AIM7 system standing by.
+> =C2=A0include/linux/rmap.h | =C2=A0 18 ++++++++++++++++++
+> =C2=A0mm/ksm.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =C2=A04=
+ ++++
+> =C2=A0mm/rmap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 19 ++++=
++++++++++++++++
+> =C2=A03 files changed, 41 insertions(+), 0 deletions(-)
 >
-> Larry, does this fix your issue?
+> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> index 499972e..ddf2578 100644
+> --- a/include/linux/rmap.h
+> +++ b/include/linux/rmap.h
+> @@ -128,6 +128,24 @@ int wipe_page_reference_one(struct page *page,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0struct page_reference_context *refctx,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0struct vm_area_struct *vma, unsigned long address);
 >
-> =C2=A0Documentation/sysctl/vm.txt | =C2=A0 18 ++++++++++++++++++
-> =C2=A0include/linux/mmzone.h =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A04 ++++
-> =C2=A0include/linux/swap.h =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A01 +
-> =C2=A0kernel/sysctl.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =
-=C2=A07 +++++++
-> =C2=A0mm/page_alloc.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =
-=C2=A03 +++
-> =C2=A0mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- | =C2=A0 38 ++++++++++++++++++++++++++++++++++++++
-> =C2=A06 files changed, 71 insertions(+)
->
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index fc5790d..5cf766f 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -32,6 +32,7 @@ Currently, these files are in /proc/sys/vm:
-> =C2=A0- legacy_va_layout
-> =C2=A0- lowmem_reserve_ratio
-> =C2=A0- max_map_count
-> +- max_zone_concurrent_reclaim
-> =C2=A0- memory_failure_early_kill
-> =C2=A0- memory_failure_recovery
-> =C2=A0- min_free_kbytes
-> @@ -278,6 +279,23 @@ The default value is 65536.
->
-> =C2=A0=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->
-> +max_zone_concurrent_reclaim:
-> +
-> +The number of processes that are allowed to simultaneously reclaim
-> +memory from a particular memory zone.
-> +
-> +With certain workloads, hundreds of processes end up in the page
-> +reclaim code simultaneously. =C2=A0This can cause large slowdowns due
-> +to lock contention, freeing of way too much memory and occasionally
-> +false OOM kills.
-> +
-> +To avoid these problems, only allow a smaller number of processes
-> +to reclaim pages from each memory zone simultaneously.
-> +
-> +The default value is 8.
-> +
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> +#define MAX_YOUNG_BIT_CLEARED 64
+> +/*
 
-I like this. but why do you select default value as constant 8?
-Do you have any reason?
+This idea is good at embedded system which don't have access bit by hardwar=
+e.
 
-I think it would be better to select the number proportional to NR_CPU.
-ex) NR_CPU * 2 or something.
+Such system emulates access bit as minor page fault AFAIK.
+It means when VM clears young bit, kernel mark page table as non-permission
+or something for refaulting.
+So when next touch happens that address, kernel can do young bit set again.
+It would be rather costly operation than one which have access bit by hardw=
+are.
 
-Otherwise looks good to me.
+So  this idea is good in embedded system.
+But 64 is rather big. many embedded system don't have many processes.
+So I want to scale this number according to memory size like
+inactive_raio for example.
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Thanks for good idea and effort. :)
 
 --=20
 Kind regards,
