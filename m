@@ -1,30 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3533B6B003D
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:35:17 -0500 (EST)
-Date: Fri, 11 Dec 2009 07:35:02 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC mm][PATCH 4/5] add a lowmem check function
-In-Reply-To: <20091211093938.70214f9c.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0912110733310.30295@router.home>
-References: <20091210163115.463d96a3.kamezawa.hiroyu@jp.fujitsu.com> <20091210170036.dde2c147.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0912101155490.5481@router.home> <20091211093938.70214f9c.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id CA9B96B003D
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:41:29 -0500 (EST)
+Received: by pwi1 with SMTP id 1so723473pwi.6
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2009 05:41:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <4B2235F0.4080606@redhat.com>
+References: <20091210185626.26f9828a@cuia.bos.redhat.com>
+	 <28c262360912101803i7b43db78se8cf9ec61d92ee0f@mail.gmail.com>
+	 <4B2235F0.4080606@redhat.com>
+Date: Fri, 11 Dec 2009 22:41:27 +0900
+Message-ID: <28c262360912110541m2839e151hc9d49b0c251e1b67@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com, Ingo Molnar <mingo@elte.hu>, Lee.Schermerhorn@hp.com
+To: lwoodman@redhat.com
+Cc: Rik van Riel <riel@redhat.com>, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 11 Dec 2009, KAMEZAWA Hiroyuki wrote:
+Hi, Larry.
 
-> Hmm, How about adding following kind of patch after this
+On Fri, Dec 11, 2009 at 9:07 PM, Larry Woodman <lwoodman@redhat.com> wrote:
+> Minchan Kim wrote:
+>>
+>> I like this. but why do you select default value as constant 8?
+>> Do you have any reason?
+>>
+>> I think it would be better to select the number proportional to NR_CPU.
+>> ex) NR_CPU * 2 or something.
+>>
+>> Otherwise looks good to me.
+>>
+>> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+>>
+>>
 >
-> #define policy_zone (lowmem_zone + 1)
->
-> and remove policy_zone ? I think the name of "policy_zone" implies
-> "this is for mempolicy, NUMA" and don't think good name for generic use.
+> This is a per-zone count so perhaps a reasonable default is the number of
+> CPUs on the
+> NUMA node that the zone resides on ?
 
-Good idea but lets hear Lee's opinion about this one too.
+For example, It assume one CPU per node.
+It means your default value is 1.
+On the CPU, process A try to reclaim HIGH zone.
+Process B want to reclaim NORMAL zone.
+But Process B can't enter reclaim path sincev throttle default value is 1
+Even kswap can't reclaim.
+
+I think it's really agressive throttle approach although it would
+solve your problem.
+
+I have another idea.
+
+We make default value rather big and we provide latency vaule as knob.
+So first many processes can enter reclaim path. When shrinking time exceeds
+our konb(ex, some HZ), we can decrease default value of number of concurrent
+reclaim process. If shrink time is still long alghouth we do it, we
+can decrease
+default vaule again. When shrink time is fast, we can allow to enter
+reclaim path of another processes as increase the number.
+
+It's like old pdflush mechanism. but it's more complex than Rik's one.
+If Rik's approach solve this problem well, my approach is rather
+overkill, I think.
+
+I am looking forward to Rik's approach work well.
+
+>
+>
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
