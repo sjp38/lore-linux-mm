@@ -1,43 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A67C06B003D
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:48:20 -0500 (EST)
-Message-ID: <4B224D9C.6070804@redhat.com>
-Date: Fri, 11 Dec 2009 08:48:12 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
-References: <20091210185626.26f9828a@cuia.bos.redhat.com> <28c262360912101803i7b43db78se8cf9ec61d92ee0f@mail.gmail.com> <4B2235F0.4080606@redhat.com>
-In-Reply-To: <4B2235F0.4080606@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2D32D6B0044
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:49:51 -0500 (EST)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20091210004703.148689096@linutronix.de>
+References: <20091210004703.148689096@linutronix.de> <20091210001308.247025548@linutronix.de>
+Subject: Re: [patch 4/9] oom: Add missing rcu protection of __task_cred() in dump_tasks
+Date: Fri, 11 Dec 2009 13:49:31 +0000
+Message-ID: <13284.1260539371@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: lwoodman@redhat.com
-Cc: Minchan Kim <minchan.kim@gmail.com>, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: dhowells@redhat.com, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@tv-sign.ru>, Al Viro <viro@zeniv.linux.org.uk>, James Morris <jmorris@namei.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12/11/2009 07:07 AM, Larry Woodman wrote:
-> Minchan Kim wrote:
->>
->> I like this. but why do you select default value as constant 8?
->> Do you have any reason?
->>
->> I think it would be better to select the number proportional to NR_CPU.
->> ex) NR_CPU * 2 or something.
->>
->> Otherwise looks good to me.
->>
->> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
->>
-> This is a per-zone count so perhaps a reasonable default is the number
-> of CPUs on the
-> NUMA node that the zone resides on ?
+Thomas Gleixner <tglx@linutronix.de> wrote:
 
-One reason I made it tunable is so people can easily test
-what a good value would be :)
+> +		/* Protect __task_cred() access */
+> +		rcu_read_lock();
+>  		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
+>  		       p->pid, __task_cred(p)->uid, p->tgid, mm->total_vm,
+>  		       get_mm_rss(mm), (int)task_cpu(p), p->signal->oom_adj,
+>  		       p->comm);
+> +		rcu_read_unlock();
 
--- 
-All rights reversed.
+No.  If there's only one access to __task_cred() like this, use
+task_cred_xxx() or one of its wrappers instead:
+
+-		       p->pid, __task_cred(p)->uid, p->tgid, mm->total_vm,
++		       p->pid, task_uid(p), p->tgid, mm->total_vm,
+
+that limits the size of the critical section.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
