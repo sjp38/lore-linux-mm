@@ -1,73 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 81FC16B00AE
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 02:46:13 -0500 (EST)
-Message-ID: <4B21F8AE.6020804@cn.fujitsu.com>
-Date: Fri, 11 Dec 2009 15:45:50 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: [PATCH 2/2] tracing: Fix no callsite ifndef CONFIG_KMEMTRACE
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 18EB26B00B0
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 02:56:19 -0500 (EST)
+Date: Fri, 11 Dec 2009 08:56:04 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 1/2] tracing: Define kmem_cache_alloc_notrace ifdef
+ CONFIG_TRACING
+Message-ID: <20091211075604.GC31149@elte.hu>
 References: <4B21F89A.7000801@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <4B21F89A.7000801@cn.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
+To: Li Zefan <lizf@cn.fujitsu.com>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 List-ID: <linux-mm.kvack.org>
 
-For slab, if CONFIG_KMEMTRACE and CONFIG_DEBUG_SLAB are not set,
-__do_kmalloc() will not track callers:
 
- # ./perf record -f -a -R -e kmem:kmalloc
- ^C
- # ./perf trace
- ...
-          perf-2204  [000]   147.376774: kmalloc: call_site=c0529d2d ...
-          perf-2204  [000]   147.400997: kmalloc: call_site=c0529d2d ...
-          Xorg-1461  [001]   147.405413: kmalloc: call_site=0 ...
-          Xorg-1461  [001]   147.405609: kmalloc: call_site=0 ...
-       konsole-1776  [001]   147.405786: kmalloc: call_site=0 ...
+* Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
----
- mm/slab.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+> Define kmem_trace_alloc_{,node}_notrace() if CONFIG_TRACING is
+> enabled, otherwise perf-kmem will show wrong stats ifndef
+> CONFIG_KMEM_TRACE, because a kmalloc() memory allocation may
+> be traced by both trace_kmalloc() and trace_kmem_cache_alloc().
+> 
+> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+> ---
+>  include/linux/slab_def.h |    4 ++--
+>  include/linux/slub_def.h |    4 ++--
+>  mm/slab.c                |    6 +++---
+>  mm/slub.c                |    4 ++--
+>  4 files changed, 9 insertions(+), 9 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 9733bb4..c3d092d 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3649,7 +3649,7 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, void *caller)
- 	return ret;
- }
- 
--#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_KMEMTRACE)
-+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
- void *__kmalloc_node(size_t size, gfp_t flags, int node)
- {
- 	return __do_kmalloc_node(size, flags, node,
-@@ -3669,7 +3669,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
- 	return __do_kmalloc_node(size, flags, node, NULL);
- }
- EXPORT_SYMBOL(__kmalloc_node);
--#endif /* CONFIG_DEBUG_SLAB */
-+#endif /* CONFIG_DEBUG_SLAB || CONFIG_TRACING */
- #endif /* CONFIG_NUMA */
- 
- /**
-@@ -3701,7 +3701,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
- }
- 
- 
--#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_KMEMTRACE)
-+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
- void *__kmalloc(size_t size, gfp_t flags)
- {
- 	return __do_kmalloc(size, flags, __builtin_return_address(0));
--- 
-1.6.3
+Pekka, can i add your Reviewed-by or Acked-by to this v2 version of the 
+patch?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
