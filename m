@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 888B86B007B
-	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 21:14:11 -0500 (EST)
-Date: Fri, 11 Dec 2009 10:14:05 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [23/31] HWPOISON: add memory cgroup filter
-Message-ID: <20091211021405.GA10693@localhost>
-References: <200912081016.198135742@firstfloor.org> <20091208211639.8499FB151F@basil.firstfloor.org> <6599ad830912091247v1270a86er45ea8ceeff28e727@mail.gmail.com> <20091210014212.GI18989@one.firstfloor.org> <20091210022113.GJ3722@balbir.in.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5D2E86B0082
+	for <linux-mm@kvack.org>; Thu, 10 Dec 2009 22:19:55 -0500 (EST)
+Message-ID: <4B21BA54.1090103@redhat.com>
+Date: Thu, 10 Dec 2009 22:19:48 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091210022113.GJ3722@balbir.in.ibm.com>
+Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
+References: <20091210185626.26f9828a@cuia.bos.redhat.com> <28c262360912101803i7b43db78se8cf9ec61d92ee0f@mail.gmail.com>
+In-Reply-To: <28c262360912101803i7b43db78se8cf9ec61d92ee0f@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Paul Menage <menage@google.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "npiggin@suse.de" <npiggin@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Haicheng" <haicheng.li@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: lwoodman@redhat.com, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 10, 2009 at 10:21:13AM +0800, Balbir Singh wrote:
-> * Andi Kleen <andi@firstfloor.org> [2009-12-10 02:42:12]:
-> 
-> > > While the functionality sounds useful, the interface (passing an inode
-> > > number) feels a bit ugly to me. Also, if that group is deleted and a
-> > > new cgroup created, you could end up reusing the inode number.
-> > 
-> > Please note this is just a testing interface, doesn't need to be
-> > 100% fool-proof. It'll never be used in production.
-> > 
-> > > 
-> > > How about an approach where you write either the cgroup path (relative
-> > > to the memcg mount) or an fd open on the desired cgroup? Then you
-> > > could store a (counted) css reference rather than an inode number,
-> > > which would make the filter function cleaner too, since it would just
-> > > need to compare css objects.
-> > 
-> > Sounds complicated, I assume it would be much more code?
-> > I would prefer to keep the testing interfaces as simple as possible.
-> >
-> 
-> We do this for cgroupstats and the code is not very complicated. In
-> case you want to look, the user space code is at
-> Documentation/accounting/getdelays.c and the kernel code is in
-> kernel/taskstats.c 
+On 12/10/2009 09:03 PM, Minchan Kim wrote:
 
-Balbir, thanks for the tip.
+>> +The default value is 8.
+>> +
+>> +=============================================================
+>
+> I like this. but why do you select default value as constant 8?
+> Do you have any reason?
+>
+> I think it would be better to select the number proportional to NR_CPU.
+> ex) NR_CPU * 2 or something.
+>
+> Otherwise looks good to me.
 
-We could keep an fd open on the desired cgroup, in user space: 
+Pessimistically, I assume that the pageout code spends maybe
+10% of its time on locking (we have seen far, far worse than
+this with thousands of processes in the pageout code).  That
+means if we have more than 10 threads in the pageout code,
+we could end up spending more time on locking and less doing
+real work - slowing everybody down.
 
-        #!/bin/bash
+I rounded it down to the closest power of 2 to come up with
+an arbitrary number that looked safe :)
 
-        mkdir /cgroup/hwpoison && \
-        exec 9<>/cgroup/hwpoison/tasks || exit 1
+However, this number is per zone - I imagine that really large
+systems will have multiple memory zones, so they can run with
+more than 8 processes in the pageout code simultaneously.
 
-A bit simpler than an in-kernel fget_light() or CSS refcount :)
+> Reviewed-by: Minchan Kim<minchan.kim@gmail.com>
 
-Thanks,
-Fengguang
+Thank you.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
