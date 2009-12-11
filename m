@@ -1,42 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 544C16B00A7
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 01:35:18 -0500 (EST)
-Message-ID: <4B21E826.5060502@cs.helsinki.fi>
-Date: Fri, 11 Dec 2009 08:35:18 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 806EF6B00AB
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 02:06:45 -0500 (EST)
+Message-ID: <4B21EF6D.4070207@cn.fujitsu.com>
+Date: Fri, 11 Dec 2009 15:06:21 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/2] tracing: Define kmem_trace_alloc_notrace unconditionally
-References: <4B21DD88.7080806@cn.fujitsu.com> <4B21DF33.7010906@cs.helsinki.fi> <4B21E028.3030107@cs.helsinki.fi> <4B21E29E.2030507@cn.fujitsu.com>
-In-Reply-To: <4B21E29E.2030507@cn.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+References: <4B21DD88.7080806@cn.fujitsu.com> <4B21DF33.7010906@cs.helsinki.fi> <4B21E07B.9040301@cn.fujitsu.com> <4B21E806.6070207@cs.helsinki.fi>
+In-Reply-To: <4B21E806.6070207@cs.helsinki.fi>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 List-ID: <linux-mm.kvack.org>
 
-Li Zefan kirjoitti:
-> ao? 2009a1'12ae??11ae?JPY 14:01, Pekka Enberg a??e??:
->> Pekka Enberg wrote:
->>> Li Zefan wrote:
 >>>> Always define kmem_trace_alloc_{,node}_notrace(), otherwise
 >>>> perf-kmem will show wrong stats ifndef CONFIG_KMEMTRACE,
 >>>> because a kmalloc() memory allocation may be traced by
 >>>> both trace_kmalloc() and trace_kmem_cache_alloc().
 >>>>
 >>>> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
->>> Did you check how much this will make kernel text bigger because of
->>> the inlining happening in kmem_cache_alloc_notrace()?
->> Maybe use CONFIG_TRACING instead of CONFIG_KMEMTRACE here like in the
->> other patch?
+>>> Did you check how much this will make kernel text bigger because of the
+>>> inlining happening in kmem_cache_alloc_notrace()?
+>>>
 >>
+>> I'm not sure I understood what you meant, but I'm not inlining
+>> kmem_cache_alloc_notrace(), and instead I'm removing the inline
+>> version in !CONFIG_KMEMTRACE case.
 > 
-> Wouldn't removing CONFIG_KMEMTRACE make the code cleaner?
-> Anyway, if CONFIG_TRACING is not enabled, all the trace_xxx()
-> will be turned into no-op.
+> In SLUB, slab_alloc() will be inlined to kmem_cache_alloc_notrace()
+> increasing mm/slub.o size so we don't want to define
+> kmem_cache_alloc_notrace() unconditionally.
+> 
 
-Again, I am talking about kernel text size increase in mm/slub.c.
+I got your point. I'll make a new patch based on your suggestion.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
