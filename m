@@ -1,228 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 942996B003D
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 16:47:02 -0500 (EST)
-Date: Fri, 11 Dec 2009 16:46:51 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
-Message-ID: <20091211164651.036f5340@annuminas.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4C4346B003D
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 17:59:33 -0500 (EST)
+Received: by fxm5 with SMTP id 5so1597054fxm.28
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2009 14:59:31 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH RFC v2 0/4] cgroup notifications API and memory thresholds
+Date: Sat, 12 Dec 2009 00:59:15 +0200
+Message-Id: <cover.1260571675.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: lwoodman@redhat.com
-Cc: akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: containers@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-Under very heavy multi-process workloads, like AIM7, the VM can
-get into trouble in a variety of ways.  The trouble start when
-there are hundreds, or even thousands of processes active in the
-page reclaim code.
+This patchset introduces eventfd-based API for notifications in cgroups and
+implements memory notifications on top of it.
 
-Not only can the system suffer enormous slowdowns because of
-lock contention (and conditional reschedules) between thousands
-of processes in the page reclaim code, but each process will try
-to free up to SWAP_CLUSTER_MAX pages, even when the system already
-has lots of memory free.
+It uses statistics in memory controler to track memory usage.
 
-It should be possible to avoid both of those issues at once, by
-simply limiting how many processes are active in the page reclaim
-code simultaneously.
+Before changes:
 
-If too many processes are active doing page reclaim in one zone,
-simply go to sleep in shrink_zone().
+Root cgroup
+ Performance counter stats for './multi-fault 2' (5 runs):
 
-On wakeup, check whether enough memory has been freed already
-before jumping into the page reclaim code ourselves.  We want
-to use the same threshold here that is used in the page allocator
-for deciding whether or not to call the page reclaim code in the
-first place, otherwise some unlucky processes could end up freeing
-memory for the rest of the system.
+  117596.249864  task-clock-msecs         #      1.960 CPUs    ( +-   0.043% )
+          80114  context-switches         #      0.001 M/sec   ( +-   0.234% )
+             80  CPU-migrations           #      0.000 M/sec   ( +-  24.934% )
+       39120862  page-faults              #      0.333 M/sec   ( +-   0.138% )
+   294682530295  cycles                   #   2505.884 M/sec   ( +-   0.076% )  (scaled from 70.00%)
+   191303772329  instructions             #      0.649 IPC     ( +-   0.041% )  (scaled from 80.01%)
+    39400843259  branches                 #    335.052 M/sec   ( +-   0.062% )  (scaled from 80.02%)
+      497810459  branch-misses            #      1.263 %       ( +-   1.584% )  (scaled from 80.02%)
+     3352408601  cache-references         #     28.508 M/sec   ( +-   0.251% )  (scaled from 19.98%)
+         128744  cache-misses             #      0.001 M/sec   ( +-   4.542% )  (scaled from 19.98%)
 
-Reported-by: Larry Woodman <lwoodman@redhat.com>
-Signed-off-by: Rik van Riel <riel@redhat.com>
+   60.001025199  seconds time elapsed   ( +-   0.000% )
 
---- 
-v2:
-- fix typos in sysctl.c and vm.txt
-- move the code in sysctl.c out from under the ifdef
-- only __GFP_FS|__GFP_IO tasks can wait
+Non-root cgroup
+ Performance counter stats for './multi-fault 2' (5 runs):
 
- Documentation/sysctl/vm.txt |   18 ++++++++++++++
- include/linux/mmzone.h      |    4 +++
- include/linux/swap.h        |    1 +
- kernel/sysctl.c             |    7 +++++
- mm/page_alloc.c             |    3 ++
- mm/vmscan.c                 |   40 +++++++++++++++++++++++++++++++++
- 6 files changed, 73 insertions(+), 0 deletions(-)
+  116907.543887  task-clock-msecs         #      1.948 CPUs    ( +-   0.087% )
+          70497  context-switches         #      0.001 M/sec   ( +-   0.204% )
+             94  CPU-migrations           #      0.000 M/sec   ( +-  11.854% )
+       33894593  page-faults              #      0.290 M/sec   ( +-   0.123% )
+   291912994149  cycles                   #   2496.956 M/sec   ( +-   0.102% )  (scaled from 70.03%)
+   194998499007  instructions             #      0.668 IPC     ( +-   0.109% )  (scaled from 80.01%)
+    41752189092  branches                 #    357.139 M/sec   ( +-   0.118% )  (scaled from 79.96%)
+      487437901  branch-misses            #      1.167 %       ( +-   0.378% )  (scaled from 79.95%)
+     3076284269  cache-references         #     26.314 M/sec   ( +-   0.471% )  (scaled from 20.04%)
+         170468  cache-misses             #      0.001 M/sec   ( +-   1.481% )  (scaled from 20.05%)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index fc5790d..8bd1a96 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -32,6 +32,7 @@ Currently, these files are in /proc/sys/vm:
- - legacy_va_layout
- - lowmem_reserve_ratio
- - max_map_count
-+- max_zone_concurrent_reclaimers
- - memory_failure_early_kill
- - memory_failure_recovery
- - min_free_kbytes
-@@ -278,6 +279,23 @@ The default value is 65536.
- 
- =============================================================
- 
-+max_zone_concurrent_reclaimers:
-+
-+The number of processes that are allowed to simultaneously reclaim
-+memory from a particular memory zone.
-+
-+With certain workloads, hundreds of processes end up in the page
-+reclaim code simultaneously.  This can cause large slowdowns due
-+to lock contention, freeing of way too much memory and occasionally
-+false OOM kills.
-+
-+To avoid these problems, only allow a smaller number of processes
-+to reclaim pages from each memory zone simultaneously.
-+
-+The default value is 8.
-+
-+=============================================================
-+
- memory_failure_early_kill:
- 
- Control how to kill processes when uncorrected memory error (typically
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 30fe668..ed614b8 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -345,6 +345,10 @@ struct zone {
- 	/* Zone statistics */
- 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
- 
-+	/* Number of processes running page reclaim code on this zone. */
-+	atomic_t		concurrent_reclaimers;
-+	wait_queue_head_t	reclaim_wait;
-+
- 	/*
- 	 * prev_priority holds the scanning priority for this zone.  It is
- 	 * defined as the scanning priority at which we achieved our reclaim
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index a2602a8..661eec7 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -254,6 +254,7 @@ extern unsigned long shrink_all_memory(unsigned long nr_pages);
- extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
- extern long vm_total_pages;
-+extern int max_zone_concurrent_reclaimers;
- 
- #ifdef CONFIG_NUMA
- extern int zone_reclaim_mode;
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 6ff0ae6..4ec17ed 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1271,6 +1271,13 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
- 	},
- #endif
-+	{
-+		.procname	= "max_zone_concurrent_reclaimers",
-+		.data		= &max_zone_concurrent_reclaimers,
-+		.maxlen		= sizeof(max_zone_concurrent_reclaimers),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
- 
- /*
-  * NOTE: do not add new entries to this table unless you have read
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 11ae66e..ca9cae1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3852,6 +3852,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 		zone->prev_priority = DEF_PRIORITY;
- 
-+		atomic_set(&zone->concurrent_reclaimers, 0);
-+		init_waitqueue_head(&zone->reclaim_wait);
-+
- 		zone_pcp_init(zone);
- 		for_each_lru(l) {
- 			INIT_LIST_HEAD(&zone->lru[l].list);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2bbee91..ecfe28c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -40,6 +40,7 @@
- #include <linux/memcontrol.h>
- #include <linux/delayacct.h>
- #include <linux/sysctl.h>
-+#include <linux/wait.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -129,6 +130,17 @@ struct scan_control {
- int vm_swappiness = 60;
- long vm_total_pages;	/* The total number of pages which the VM controls */
- 
-+/*
-+ * Maximum number of processes concurrently running the page
-+ * reclaim code in a memory zone.  Having too many processes
-+ * just results in them burning CPU time waiting for locks,
-+ * so we're better off limiting page reclaim to a sane number
-+ * of processes at a time.  We do this per zone so local node
-+ * reclaim on one NUMA node will not block other nodes from
-+ * making progress.
-+ */
-+int max_zone_concurrent_reclaimers = 8;
-+
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
- 
-@@ -1600,6 +1612,31 @@ static void shrink_zone(int priority, struct zone *zone,
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
- 	int noswap = 0;
- 
-+	if (!current_is_kswapd() && atomic_read(&zone->concurrent_reclaimers) >
-+				max_zone_concurrent_reclaimers &&
-+				(sc->gfp_mask & (__GFP_IO|__GFP_FS)) ==
-+				(__GFP_IO|__GFP_FS)) {
-+		/*
-+		 * Do not add to the lock contention if this zone has
-+		 * enough processes doing page reclaim already, since
-+		 * we would just make things slower.
-+		 */
-+		sleep_on(&zone->reclaim_wait);
-+
-+		/*
-+		 * If other processes freed enough memory while we waited,
-+		 * break out of the loop and go back to the allocator.
-+		 */
-+		if (zone_watermark_ok(zone, sc->order, low_wmark_pages(zone),
-+					0, 0)) {
-+			wake_up(&zone->reclaim_wait);
-+			sc->nr_reclaimed += nr_to_reclaim;
-+			return;
-+		}
-+	}
-+
-+	atomic_inc(&zone->concurrent_reclaimers);
-+
- 	/* If we have no swap space, do not bother scanning anon pages. */
- 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
- 		noswap = 1;
-@@ -1655,6 +1692,9 @@ static void shrink_zone(int priority, struct zone *zone,
- 		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
- 
- 	throttle_vm_writeout(sc->gfp_mask);
-+
-+	atomic_dec(&zone->concurrent_reclaimers);
-+	wake_up(&zone->reclaim_wait);
- }
- 
- /*
+   60.001211398  seconds time elapsed   ( +-   0.000% )
+
+After changes:
+
+Root cgroup
+ Performance counter stats for './multi-fault 2' (5 runs):
+
+  117396.738764  task-clock-msecs         #      1.957 CPUs    ( +-   0.047% )
+          78763  context-switches         #      0.001 M/sec   ( +-   0.132% )
+            109  CPU-migrations           #      0.000 M/sec   ( +-  25.646% )
+       38141062  page-faults              #      0.325 M/sec   ( +-   0.107% )
+   294257674123  cycles                   #   2506.523 M/sec   ( +-   0.045% )  (scaled from 70.01%)
+   194937378540  instructions             #      0.662 IPC     ( +-   0.120% )  (scaled from 79.98%)
+    40694602714  branches                 #    346.642 M/sec   ( +-   0.127% )  (scaled from 79.95%)
+      529968529  branch-misses            #      1.302 %       ( +-   1.668% )  (scaled from 79.94%)
+     3196763471  cache-references         #     27.230 M/sec   ( +-   0.262% )  (scaled from 20.05%)
+         201095  cache-misses             #      0.002 M/sec   ( +-   3.315% )  (scaled from 20.06%)
+
+   60.001025546  seconds time elapsed   ( +-   0.000% )
+
+Non-root cgroup:
+ Performance counter stats for './multi-fault 2' (5 runs):
+
+  116471.855099  task-clock-msecs         #      1.941 CPUs    ( +-   0.067% )
+          69393  context-switches         #      0.001 M/sec   ( +-   0.099% )
+            117  CPU-migrations           #      0.000 M/sec   ( +-  14.049% )
+       33043048  page-faults              #      0.284 M/sec   ( +-   0.086% )
+   290751403642  cycles                   #   2496.323 M/sec   ( +-   0.073% )  (scaled from 69.97%)
+   196594115294  instructions             #      0.676 IPC     ( +-   0.065% )  (scaled from 79.97%)
+    42507307304  branches                 #    364.958 M/sec   ( +-   0.054% )  (scaled from 79.96%)
+      500670691  branch-misses            #      1.178 %       ( +-   0.729% )  (scaled from 79.98%)
+     2935664654  cache-references         #     25.205 M/sec   ( +-   0.153% )  (scaled from 20.04%)
+         224967  cache-misses             #      0.002 M/sec   ( +-   2.462% )  (scaled from 20.02%)
+
+   60.001218531  seconds time elapsed   ( +-   0.000% )
+
+Any comments?
+
+TODO:
+ - documentation.
+
+v1 -> v2:
+ - use statistics instead of res_counter to track resource usage;
+ - fix bugs with locking;
+
+v0 -> v1:
+ - memsw support implemented.
+
+Kirill A. Shutemov (4):
+  cgroup: implement eventfd-based generic API for notifications
+  memcg: extract mem_group_usage() from mem_cgroup_read()
+  memcg: rework usage of stats by soft limit
+  memcg: implement memory thresholds
+
+ include/linux/cgroup.h |   20 +++
+ kernel/cgroup.c        |  215 ++++++++++++++++++++++++++++++-
+ mm/memcontrol.c        |  335 ++++++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 543 insertions(+), 27 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
