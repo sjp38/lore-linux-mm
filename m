@@ -1,44 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ACAB46B003D
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 08:53:18 -0500 (EST)
-Date: Fri, 11 Dec 2009 14:52:48 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [patch 4/9] oom: Add missing rcu protection of __task_cred() in
- dump_tasks
-In-Reply-To: <13284.1260539371@redhat.com>
-Message-ID: <alpine.LFD.2.00.0912111452360.3089@localhost.localdomain>
-References: <20091210004703.148689096@linutronix.de> <20091210001308.247025548@linutronix.de> <13284.1260539371@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6001F6B003D
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 09:08:44 -0500 (EST)
+Received: by pwi1 with SMTP id 1so738966pwi.6
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2009 06:08:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <4B224E7A.2060708@redhat.com>
+References: <20091210185626.26f9828a@cuia.bos.redhat.com>
+	 <28c262360912101803i7b43db78se8cf9ec61d92ee0f@mail.gmail.com>
+	 <4B2235F0.4080606@redhat.com>
+	 <28c262360912110541m2839e151hc9d49b0c251e1b67@mail.gmail.com>
+	 <4B224E7A.2060708@redhat.com>
+Date: Fri, 11 Dec 2009 23:08:42 +0900
+Message-ID: <28c262360912110608y13c76af0g4acff99d39173493@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@tv-sign.ru>, Al Viro <viro@zeniv.linux.org.uk>, James Morris <jmorris@namei.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: lwoodman@redhat.com, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 11 Dec 2009, David Howells wrote:
+On Fri, Dec 11, 2009 at 10:51 PM, Rik van Riel <riel@redhat.com> wrote:
+> On 12/11/2009 08:41 AM, Minchan Kim wrote:
+>>
+>> Hi, Larry.
+>>
+>> On Fri, Dec 11, 2009 at 9:07 PM, Larry Woodman<lwoodman@redhat.com>
+>> =C2=A0wrote:
+>>>
+>>> Minchan Kim wrote:
+>>>>
+>>>> I like this. but why do you select default value as constant 8?
+>>>> Do you have any reason?
+>>>>
+>>>> I think it would be better to select the number proportional to NR_CPU=
+.
+>>>> ex) NR_CPU * 2 or something.
+>>>>
+>>>> Otherwise looks good to me.
+>>>>
+>>>> Reviewed-by: Minchan Kim<minchan.kim@gmail.com>
+>>>>
+>>>>
+>>>
+>>> This is a per-zone count so perhaps a reasonable default is the number =
+of
+>>> CPUs on the
+>>> NUMA node that the zone resides on ?
+>>
+>> For example, It assume one CPU per node.
+>> It means your default value is 1.
+>> On the CPU, process A try to reclaim HIGH zone.
+>> Process B want to reclaim NORMAL zone.
+>> But Process B can't enter reclaim path sincev throttle default value is =
+1
+>> Even kswap can't reclaim.
+>
+> 1) the value is per zone, so process B can go ahead
 
-> Thomas Gleixner <tglx@linutronix.de> wrote:
-> 
-> > +		/* Protect __task_cred() access */
-> > +		rcu_read_lock();
-> >  		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
-> >  		       p->pid, __task_cred(p)->uid, p->tgid, mm->total_vm,
-> >  		       get_mm_rss(mm), (int)task_cpu(p), p->signal->oom_adj,
-> >  		       p->comm);
-> > +		rcu_read_unlock();
-> 
-> No.  If there's only one access to __task_cred() like this, use
-> task_cred_xxx() or one of its wrappers instead:
-> 
-> -		       p->pid, __task_cred(p)->uid, p->tgid, mm->total_vm,
-> +		       p->pid, task_uid(p), p->tgid, mm->total_vm,
-> 
-> that limits the size of the critical section.
+Sorry. I misunderstood Larry's point.
+I though Larry mentioned global limit not per zone.
 
-Fair enough.
+> 2) kswapd is always excempt from this limit, since
+> =C2=A0 there is only 1 kswapd per node anyway
 
-     tglx
+Larry could test with Rik's patch for what's good default value.
+If it proves NR_CPU on node is proper as default value,
+We can change default value with it.
+
+
+> --
+> All rights reversed.
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
