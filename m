@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D1B8A6B003D
-	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 17:59:34 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 55D2B6B0044
+	for <linux-mm@kvack.org>; Fri, 11 Dec 2009 17:59:36 -0500 (EST)
 Received: by mail-fx0-f213.google.com with SMTP id 5so1597054fxm.28
-        for <linux-mm@kvack.org>; Fri, 11 Dec 2009 14:59:32 -0800 (PST)
+        for <linux-mm@kvack.org>; Fri, 11 Dec 2009 14:59:34 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH RFC v2 1/4] cgroup: implement eventfd-based generic API for notifications
-Date: Sat, 12 Dec 2009 00:59:16 +0200
-Message-Id: <ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
-In-Reply-To: <cover.1260571675.git.kirill@shutemov.name>
+Subject: [PATCH RFC v2 2/4] memcg: extract mem_group_usage() from mem_cgroup_read()
+Date: Sat, 12 Dec 2009 00:59:17 +0200
+Message-Id: <c1847dfb5c4fed1374b7add236d38e0db02eeef3.1260571675.git.kirill@shutemov.name>
+In-Reply-To: <ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
 References: <cover.1260571675.git.kirill@shutemov.name>
+ <ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
 In-Reply-To: <cover.1260571675.git.kirill@shutemov.name>
 References: <cover.1260571675.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
@@ -17,351 +18,89 @@ To: containers@lists.linux-foundation.org, linux-mm@kvack.org
 Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-This patch introduces write-only file "cgroup.event_control" in every
-cgroup.
-
-To register new notification handler you need:
-- create an eventfd;
-- open a control file to be monitored. Callbacks register_event() and
-  unregister_event() must be defined for the control file;
-- write "<event_fd> <control_fd> <args>" to cgroup.event_control.
-  Interpretation of args is defined by control file implementation;
-
-eventfd will be woken up by control file implementation or when the
-cgroup is removed.
-
-To unregister notification handler just close eventfd.
-
-If you need notification functionality for a control file you have to
-implement callbacks register_event() and unregister_event() in the
-struct cftype.
+Helper to get memory or mem+swap usage of the cgroup.
 
 Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 ---
- include/linux/cgroup.h |   20 +++++
- kernel/cgroup.c        |  215 +++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 234 insertions(+), 1 deletions(-)
+ mm/memcontrol.c |   53 ++++++++++++++++++++++++++++++++---------------------
+ 1 files changed, 32 insertions(+), 21 deletions(-)
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 0008dee..7ad3078 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -220,6 +220,10 @@ struct cgroup {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c31a310..0ff65ed 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2510,39 +2510,50 @@ mem_cgroup_get_recursive_idx_stat(struct mem_cgroup *mem,
+ 	*val = d.val;
+ }
  
- 	/* For RCU-protected deletion */
- 	struct rcu_head rcu_head;
++static inline u64 mem_cgroup_usage(struct mem_cgroup *mem, bool swap)
++{
++	u64 idx_val, val;
 +
-+	/* List of events which userspace want to recieve */
-+	struct list_head event_list;
-+	struct mutex event_list_mutex;
- };
- 
- /*
-@@ -362,6 +366,22 @@ struct cftype {
- 	int (*trigger)(struct cgroup *cgrp, unsigned int event);
- 
- 	int (*release)(struct inode *inode, struct file *file);
++	if (!mem_cgroup_is_root(mem)) {
++		if (!swap)
++			return res_counter_read_u64(&mem->res, RES_USAGE);
++		else
++			return res_counter_read_u64(&mem->memsw, RES_USAGE);
++	}
 +
-+	/*
-+	 * register_event() callback will be used to add new userspace
-+	 * waiter for changes related to the cftype. Implement it if
-+	 * you want to provide this functionality. Use eventfd_signal()
-+	 * on eventfd to send notification to userspace.
-+	 */
-+	int (*register_event)(struct cgroup *cgrp, struct cftype *cft,
-+			struct eventfd_ctx *eventfd, const char *args);
-+	/*
-+	 * unregister_event() callback will be called when userspace
-+	 * close the eventfd. This callback must be implemented, if you
-+	 * provide register_event().
-+	 */
-+	int (*unregister_event)(struct cgroup *cgrp, struct cftype *cft,
-+			struct eventfd_ctx *eventfd);
- };
- 
- struct cgroup_scanner {
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 0249f4b..f7ec3ca 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -4,6 +4,10 @@
-  *  Based originally on the cpuset system, extracted by Paul Menage
-  *  Copyright (C) 2006 Google, Inc
-  *
-+ *  Notifiactions support
-+ *  Copyright (C) 2009 Nokia Corporation
-+ *  Author: Kirill A. Shutemov
-+ *
-  *  Copyright notices from the original cpuset code:
-  *  --------------------------------------------------
-  *  Copyright (C) 2003 BULL SA.
-@@ -51,6 +55,8 @@
- #include <linux/pid_namespace.h>
- #include <linux/idr.h>
- #include <linux/vmalloc.h> /* TODO: replace with more sophisticated array */
-+#include <linux/eventfd.h>
-+#include <linux/poll.h>
- 
- #include <asm/atomic.h>
- 
-@@ -146,6 +152,36 @@ struct css_id {
- 	unsigned short stack[0]; /* Array of Length (depth+1) */
- };
- 
-+/*
-+ * cgroup_event represents event which userspace want to recieve.
-+ */
-+struct cgroup_event {
-+	/*
-+	 * Cgroup which the event belongs to.
-+	 */
-+	struct cgroup *cgrp;
-+	/*
-+	 * Control file which the event associated.
-+	 */
-+	struct cftype *cft;
-+	/*
-+	 * eventfd to signal userspace about the event.
-+	 */
-+	struct eventfd_ctx *eventfd;
-+	/*
-+	 * Each of these stored in a list by the cgroup.
-+	 */
-+	struct list_head list;
-+	/*
-+	 * All fields below needed to unregister event when
-+	 * userspace closes eventfd.
-+	 */
-+	poll_table pt;
-+	wait_queue_head_t *wqh;
-+	wait_queue_t wait;
-+	struct work_struct remove;
-+};
-+static void cgroup_event_remove(struct cgroup_event *event);
- 
- /* The list of hierarchy roots */
- 
-@@ -734,14 +770,29 @@ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
- static int cgroup_call_pre_destroy(struct cgroup *cgrp)
++	mem_cgroup_get_recursive_idx_stat(mem, MEM_CGROUP_STAT_CACHE, &idx_val);
++	val = idx_val;
++	mem_cgroup_get_recursive_idx_stat(mem, MEM_CGROUP_STAT_RSS, &idx_val);
++	val += idx_val;
++
++	if (swap) {
++		mem_cgroup_get_recursive_idx_stat(mem,
++				MEM_CGROUP_STAT_SWAPOUT, &idx_val);
++		val += idx_val;
++	}
++
++	return val << PAGE_SHIFT;
++}
++
+ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
  {
- 	struct cgroup_subsys *ss;
-+	struct cgroup_event *event, *tmp;
- 	int ret = 0;
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+-	u64 idx_val, val;
++	u64 val;
+ 	int type, name;
  
- 	for_each_subsys(cgrp->root, ss)
- 		if (ss->pre_destroy) {
- 			ret = ss->pre_destroy(ss, cgrp);
- 			if (ret)
--				break;
-+				goto out;
- 		}
-+
-+	/*
-+	 * Unregister events and notify userspace.
-+	 * FIXME: How to avoid race with cgroup_event_remove_work()
-+	 *        which runs from workqueue?
-+	 */
-+	mutex_lock(&cgrp->event_list_mutex);
-+	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
-+		cgroup_event_remove(event);
-+		eventfd_signal(event->eventfd, 1);
-+	}
-+	mutex_unlock(&cgrp->event_list_mutex);
-+
-+out:
- 	return ret;
- }
- 
-@@ -1136,6 +1187,8 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
- 	INIT_LIST_HEAD(&cgrp->release_list);
- 	INIT_LIST_HEAD(&cgrp->pidlists);
- 	mutex_init(&cgrp->pidlist_mutex);
-+	INIT_LIST_HEAD(&cgrp->event_list);
-+	mutex_init(&cgrp->event_list_mutex);
- }
- 
- static void init_cgroup_root(struct cgroupfs_root *root)
-@@ -1935,6 +1988,16 @@ static const struct inode_operations cgroup_dir_inode_operations = {
- 	.rename = cgroup_rename,
- };
- 
-+/*
-+ * Check if a file is a control file
-+ */
-+static inline struct cftype *__file_cft(struct file *file)
-+{
-+	if (file->f_dentry->d_inode->i_fop != &cgroup_file_operations)
-+		return ERR_PTR(-EINVAL);
-+	return __d_cft(file->f_dentry);
-+}
-+
- static int cgroup_create_file(struct dentry *dentry, mode_t mode,
- 				struct super_block *sb)
- {
-@@ -2789,6 +2852,151 @@ static int cgroup_write_notify_on_release(struct cgroup *cgrp,
- 	return 0;
- }
- 
-+static inline void cgroup_event_remove(struct cgroup_event *event)
-+{
-+	struct cgroup *cgrp = event->cgrp;
-+
-+	BUG_ON(event->cft->unregister_event(cgrp, event->cft, event->eventfd));
-+	eventfd_ctx_put(event->eventfd);
-+	remove_wait_queue(event->wqh, &event->wait);
-+	list_del(&event->list);
-+	kfree(event);
-+}
-+
-+static void cgroup_event_remove_work(struct work_struct *work)
-+{
-+	struct cgroup_event *event = container_of(work, struct cgroup_event,
-+			remove);
-+	struct cgroup *cgrp = event->cgrp;
-+
-+	mutex_lock(&cgrp->event_list_mutex);
-+	cgroup_event_remove(event);
-+	mutex_unlock(&cgrp->event_list_mutex);
-+}
-+
-+static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
-+		int sync, void *key)
-+{
-+	struct cgroup_event *event = container_of(wait,
-+			struct cgroup_event, wait);
-+	unsigned long flags = (unsigned long)key;
-+
-+	if (flags & POLLHUP)
-+		/*
-+		 * This function called with spinlock taken, but
-+		 * cgroup_event_remove() may sleep, so we have
-+		 * to run it in a workqueue.
-+		 */
-+		schedule_work(&event->remove);
-+
-+	return 0;
-+}
-+
-+static void cgroup_event_ptable_queue_proc(struct file *file,
-+		wait_queue_head_t *wqh, poll_table *pt)
-+{
-+	struct cgroup_event *event = container_of(pt,
-+			struct cgroup_event, pt);
-+
-+	event->wqh = wqh;
-+	add_wait_queue(wqh, &event->wait);
-+}
-+
-+static int cgroup_write_event_control(struct cgroup *cont, struct cftype *cft,
-+				      const char *buffer)
-+{
-+	struct cgroup_event *event = NULL;
-+	unsigned int efd, cfd;
-+	struct file *efile = NULL;
-+	struct file *cfile = NULL;
-+	char *endp;
-+	int ret;
-+
-+	efd = simple_strtoul(buffer, &endp, 10);
-+	if (*endp != ' ')
-+		return -EINVAL;
-+	buffer = endp + 1;
-+
-+	cfd = simple_strtoul(buffer, &endp, 10);
-+	if ((*endp != ' ') && (*endp != '\0'))
-+		return -EINVAL;
-+	buffer = endp + 1;
-+
-+	event = kzalloc(sizeof(*event), GFP_KERNEL);
-+	if (!event)
-+		return -ENOMEM;
-+	event->cgrp = cont;
-+	INIT_LIST_HEAD(&event->list);
-+	init_poll_funcptr(&event->pt, cgroup_event_ptable_queue_proc);
-+	init_waitqueue_func_entry(&event->wait, cgroup_event_wake);
-+	INIT_WORK(&event->remove, cgroup_event_remove_work);
-+
-+	efile = eventfd_fget(efd);
-+	if (IS_ERR(efile)) {
-+		ret = PTR_ERR(efile);
-+		goto fail;
-+	}
-+
-+	event->eventfd = eventfd_ctx_fileget(efile);
-+	if (IS_ERR(event->eventfd)) {
-+		ret = PTR_ERR(event->eventfd);
-+		goto fail;
-+	}
-+
-+	cfile = fget(cfd);
-+	if (!cfile) {
-+		ret = -EBADF;
-+		goto fail;
-+	}
-+
-+	/* the process need read permission on control file */
-+	ret = file_permission(cfile, MAY_READ);
-+	if (ret < 0)
-+		goto fail;
-+
-+	event->cft = __file_cft(cfile);
-+	if (IS_ERR(event->cft)) {
-+		ret = PTR_ERR(event->cft);
-+		goto fail;
-+	}
-+
-+	if (!event->cft->register_event || !event->cft->unregister_event) {
-+		ret = -EINVAL;
-+		goto fail;
-+	}
-+
-+	ret = event->cft->register_event(cont, event->cft,
-+			event->eventfd, buffer);
-+	if (ret)
-+		goto fail;
-+
-+	efile->f_op->poll(efile, &event->pt);
-+
-+	mutex_lock(&cont->event_list_mutex);
-+	list_add(&event->list, &cont->event_list);
-+	mutex_unlock(&cont->event_list_mutex);
-+
-+	fput(cfile);
-+	fput(efile);
-+
-+	return 0;
-+
-+fail:
-+	if (!IS_ERR(cfile))
-+		fput(cfile);
-+
-+	if (event && event->eventfd && !IS_ERR(event->eventfd))
-+		eventfd_ctx_put(event->eventfd);
-+
-+	if (!IS_ERR(efile))
-+		fput(efile);
-+
-+	if (event)
-+		kfree(event);
-+
-+	return ret;
-+}
-+
- /*
-  * for the common functions, 'private' gives the type of file
-  */
-@@ -2814,6 +3022,11 @@ static struct cftype files[] = {
- 		.read_u64 = cgroup_read_notify_on_release,
- 		.write_u64 = cgroup_write_notify_on_release,
- 	},
-+	{
-+		.name = CGROUP_FILE_GENERIC_PREFIX "event_control",
-+		.write_string = cgroup_write_event_control,
-+		.mode = S_IWUGO,
-+	},
- };
- 
- static struct cftype cft_release_agent = {
+ 	type = MEMFILE_TYPE(cft->private);
+ 	name = MEMFILE_ATTR(cft->private);
+ 	switch (type) {
+ 	case _MEM:
+-		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
+-			mem_cgroup_get_recursive_idx_stat(mem,
+-				MEM_CGROUP_STAT_CACHE, &idx_val);
+-			val = idx_val;
+-			mem_cgroup_get_recursive_idx_stat(mem,
+-				MEM_CGROUP_STAT_RSS, &idx_val);
+-			val += idx_val;
+-			val <<= PAGE_SHIFT;
+-		} else
++		if (name == RES_USAGE)
++			val = mem_cgroup_usage(mem, false);
++		else
+ 			val = res_counter_read_u64(&mem->res, name);
+ 		break;
+ 	case _MEMSWAP:
+-		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
+-			mem_cgroup_get_recursive_idx_stat(mem,
+-				MEM_CGROUP_STAT_CACHE, &idx_val);
+-			val = idx_val;
+-			mem_cgroup_get_recursive_idx_stat(mem,
+-				MEM_CGROUP_STAT_RSS, &idx_val);
+-			val += idx_val;
+-			mem_cgroup_get_recursive_idx_stat(mem,
+-				MEM_CGROUP_STAT_SWAPOUT, &idx_val);
+-			val <<= PAGE_SHIFT;
+-		} else
++		if (name == RES_USAGE)
++			val = mem_cgroup_usage(mem, true);
++		else
+ 			val = res_counter_read_u64(&mem->memsw, name);
+ 		break;
+ 	default:
 -- 
 1.6.5.3
 
