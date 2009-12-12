@@ -1,19 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3C05C6B003D
-	for <linux-mm@kvack.org>; Sat, 12 Dec 2009 08:06:55 -0500 (EST)
-Received: by fxm9 with SMTP id 9so1787460fxm.10
-        for <linux-mm@kvack.org>; Sat, 12 Dec 2009 05:06:52 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 59B8B6B003D
+	for <linux-mm@kvack.org>; Sat, 12 Dec 2009 08:11:36 -0500 (EST)
+Received: by fxm9 with SMTP id 9so1789659fxm.10
+        for <linux-mm@kvack.org>; Sat, 12 Dec 2009 05:11:33 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20091212125046.14df3134.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20091212121902.e95f9561.d-nishimura@mtf.biglobe.ne.jp>
 References: <cover.1260571675.git.kirill@shutemov.name>
 	 <ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
 	 <c1847dfb5c4fed1374b7add236d38e0db02eeef3.1260571675.git.kirill@shutemov.name>
 	 <747ea0ec22b9348208c80f86f7a813728bf8e50a.1260571675.git.kirill@shutemov.name>
-	 <20091212125046.14df3134.d-nishimura@mtf.biglobe.ne.jp>
-Date: Sat, 12 Dec 2009 15:06:52 +0200
-Message-ID: <cc557aab0912120506x56b9a707ob556035fdcf40a22@mail.gmail.com>
-Subject: Re: [PATCH RFC v2 3/4] memcg: rework usage of stats by soft limit
+	 <9e6e8d687224c6cbc54281f7c3d07983f701f93d.1260571675.git.kirill@shutemov.name>
+	 <20091212121902.e95f9561.d-nishimura@mtf.biglobe.ne.jp>
+Date: Sat, 12 Dec 2009 15:11:33 +0200
+Message-ID: <cc557aab0912120511r7c83e97di3f97d2bb5eae326c@mail.gmail.com>
+Subject: Re: [PATCH RFC v2 4/4] memcg: implement memory thresholds
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
@@ -22,41 +23,65 @@ To: nishimura@mxp.nes.nec.co.jp
 Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Dec 12, 2009 at 5:50 AM, Daisuke Nishimura
+On Sat, Dec 12, 2009 at 5:19 AM, Daisuke Nishimura
 <d-nishimura@mtf.biglobe.ne.jp> wrote:
-> Sorry, I disagree this change.
->
-> mem_cgroup_soft_limit_check() is used for checking how much current usage=
- exceeds
-> the soft_limit_in_bytes and updating softlimit tree asynchronously, inste=
-ad of
-> checking every charge/uncharge. What if you change the soft_limit_in_byte=
-s,
-> but the number of charges and uncharges are very balanced afterwards ?
-> The softlimit tree will not be updated for a long time.
+>> @@ -56,6 +61,7 @@ static int really_do_swap_account __initdata =3D 1; /*=
+ for remember boot option*/
+>>
+>> =C2=A0static DEFINE_MUTEX(memcg_tasklist); /* can be hold under cgroup_m=
+utex */
+> This mutex has already removed in current mmotm.
+> Please write a patch for memcg based on mmot.
 
-I don't see how my patch affects the logic you've described.
-Statistics updates and
-checks in the same place. It just uses decrement instead of increment.
+Ok.
 
 >
-> And IIUC, it's the same for your threshold feature, right ?
-> I think it would be better:
+>> =C2=A0#define SOFTLIMIT_EVENTS_THRESH (1000)
+>> +#define THRESHOLDS_EVENTS_THRESH (100)
+>>
+>> =C2=A0/*
+>> =C2=A0 * Statistics for memory cgroup.
 >
-> - discard this change.
-> - in 4/4, rename mem_cgroup_soft_limit_check to mem_cgroup_event_check,
-> =C2=A0and instead of adding a new STAT counter, do like:
+> (snip)
 >
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (mem_cgroup_event_check(mem)) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem_cgroup_update_=
-tree(mem, page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem_cgroup_thresho=
-ld(mem);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>> @@ -1363,6 +1395,11 @@ static int __mem_cgroup_try_charge(struct mm_stru=
+ct *mm,
+>> =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_soft_limit_check(mem))
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_update_tree(=
+mem, page);
+>> =C2=A0done:
+>> + =C2=A0 =C2=A0 if (mem_cgroup_threshold_check(mem)) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_threshold(mem, fa=
+lse);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (do_swap_account)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+mem_cgroup_threshold(mem, true);
+>> + =C2=A0 =C2=A0 }
+>> =C2=A0 =C2=A0 =C2=A0 return 0;
+>> =C2=A0nomem:
+>> =C2=A0 =C2=A0 =C2=A0 css_put(&mem->css);
+>> @@ -1906,6 +1943,11 @@ __mem_cgroup_uncharge_common(struct page *page, e=
+num charge_type ctype)
+>>
+>> =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_soft_limit_check(mem))
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_update_tree(=
+mem, page);
+>> + =C2=A0 =C2=A0 if (mem_cgroup_threshold_check(mem)) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_threshold(mem, fa=
+lse);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (do_swap_account)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+mem_cgroup_threshold(mem, true);
+>> + =C2=A0 =C2=A0 }
+>> =C2=A0 =C2=A0 =C2=A0 /* at swapout, this memcg will be accessed to recor=
+d to swap */
+>> =C2=A0 =C2=A0 =C2=A0 if (ctype !=3D MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 css_put(&mem->css);
+> Can "if (do_swap_account)" check be moved into mem_cgroup_threshold ?
 
-I think that mem_cgroup_update_tree() and mem_cgroup_threshold() should be
-run with different frequency. How to share MEM_CGROUP_STAT_EVENTS
-between soft limits and thresholds in this case?
+Ok, I'll move it. It will affect performance of
+mem_cgroup_invalidate_thresholds(),
+but I don't think that it's important.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
