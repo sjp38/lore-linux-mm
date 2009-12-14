@@ -1,83 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A8B06B003D
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 08:08:15 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F02A96B003D
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 08:15:03 -0500 (EST)
+Date: Mon, 14 Dec 2009 08:14:44 -0500
+From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
-From: Andi Kleen <andi@firstfloor.org>
+Message-ID: <20091214131444.GA8990@infradead.org>
 References: <20091210185626.26f9828a@cuia.bos.redhat.com>
-Date: Mon, 14 Dec 2009 14:08:09 +0100
-In-Reply-To: <20091210185626.26f9828a@cuia.bos.redhat.com> (Rik van Riel's message of "Thu, 10 Dec 2009 18:56:26 -0500")
-Message-ID: <87pr6hya86.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091210185626.26f9828a@cuia.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <riel@redhat.com>
 Cc: lwoodman@redhat.com, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@redhat.com> writes:
+On Thu, Dec 10, 2009 at 06:56:26PM -0500, Rik van Riel wrote:
+> Under very heavy multi-process workloads, like AIM7, the VM can
+> get into trouble in a variety of ways.  The trouble start when
+> there are hundreds, or even thousands of processes active in the
+> page reclaim code.
+> 
+> Not only can the system suffer enormous slowdowns because of
+> lock contention (and conditional reschedules) between thousands
+> of processes in the page reclaim code, but each process will try
+> to free up to SWAP_CLUSTER_MAX pages, even when the system already
+> has lots of memory free.  In Larry's case, this resulted in over
+> 6000 processes fighting over locks in the page reclaim code, even
+> though the system already had 1.5GB of free memory.
+>
+> It should be possible to avoid both of those issues at once, by
+> simply limiting how many processes are active in the page reclaim
+> code simultaneously.
+> 
 
-> +max_zone_concurrent_reclaim:
-> +
-> +The number of processes that are allowed to simultaneously reclaim
-> +memory from a particular memory zone.
-> +
-> +With certain workloads, hundreds of processes end up in the page
-> +reclaim code simultaneously.  This can cause large slowdowns due
-> +to lock contention, freeing of way too much memory and occasionally
-> +false OOM kills.
-> +
-> +To avoid these problems, only allow a smaller number of processes
-> +to reclaim pages from each memory zone simultaneously.
-> +
-> +The default value is 8.
+This sounds like a very good argument against using direct reclaim at
+all.  It reminds a bit of the issue we had in XFS with lots of processes
+pushing the AIL and causing massive slowdowns due to lock contention
+and cacheline bonucing.  Moving all the AIL pushing into a dedicated
+thread solved that nicely.  In the VM we already have that dedicated
+per-node kswapd thread, so moving off as much as possible work to
+should be equivalent.
 
-I don't like the hardcoded number. Is the same number good for a 128MB
-embedded system as for as 1TB server?  Seems doubtful.
-
-This should be perhaps scaled with memory size and number of CPUs?
-
-> +/*
-> + * Maximum number of processes concurrently running the page
-> + * reclaim code in a memory zone.  Having too many processes
-> + * just results in them burning CPU time waiting for locks,
-> + * so we're better off limiting page reclaim to a sane number
-> + * of processes at a time.  We do this per zone so local node
-> + * reclaim on one NUMA node will not block other nodes from
-> + * making progress.
-> + */
-> +int max_zone_concurrent_reclaimers = 8;
-
-__read_mostly
-
-> +
->  static LIST_HEAD(shrinker_list);
->  static DECLARE_RWSEM(shrinker_rwsem);
->  
-> @@ -1600,6 +1612,29 @@ static void shrink_zone(int priority, struct zone *zone,
->  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
->  	int noswap = 0;
->  
-> +	if (!current_is_kswapd() && atomic_read(&zone->concurrent_reclaimers) >
-> +					max_zone_concurrent_reclaimers) {
-> +		/*
-> +		 * Do not add to the lock contention if this zone has
-> +		 * enough processes doing page reclaim already, since
-> +		 * we would just make things slower.
-> +		 */
-> +		sleep_on(&zone->reclaim_wait);
-
-wait_event()? sleep_on is a really deprecated racy interface.
-
-This would still badly thunder the herd if not enough memory is freed
-, won't it? It would be better to only wake up a single process if memory got freed.
-
-How about for each page freed do a wake up for one thread?
-
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Of course any of this kind of tuning really requires a lot of testing
+and benchrmarking to verify those assumptions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
