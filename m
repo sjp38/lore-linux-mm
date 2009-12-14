@@ -1,87 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B51F16B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 09:20:38 -0500 (EST)
-Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
-From: Larry Woodman <lwoodman@redhat.com>
-In-Reply-To: <87pr6hya86.fsf@basil.nowhere.org>
-References: <20091210185626.26f9828a@cuia.bos.redhat.com>
-	 <87pr6hya86.fsf@basil.nowhere.org>
-Content-Type: text/plain
-Date: Mon, 14 Dec 2009 09:23:19 -0500
-Message-Id: <1260800599.6666.4.camel@dhcp-100-19-198.bos.redhat.com>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E34DC6B003D
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 09:33:53 -0500 (EST)
+Message-ID: <4B264CCA.5010609@redhat.com>
+Date: Mon, 14 Dec 2009 09:33:46 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 4/8] Use prepare_to_wait_exclusive() instead prepare_to_wait()
+References: <20091211164651.036f5340@annuminas.surriel.com> <20091214210823.BBAE.A69D9226@jp.fujitsu.com> <20091214212936.BBBA.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091214212936.BBBA.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Rik van Riel <riel@redhat.com>, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-12-14 at 14:08 +0100, Andi Kleen wrote:
-> Rik van Riel <riel@redhat.com> writes:
-> 
-> > +max_zone_concurrent_reclaim:
-> > +
-> > +The number of processes that are allowed to simultaneously reclaim
-> > +memory from a particular memory zone.
-> > +
-> > +With certain workloads, hundreds of processes end up in the page
-> > +reclaim code simultaneously.  This can cause large slowdowns due
-> > +to lock contention, freeing of way too much memory and occasionally
-> > +false OOM kills.
-> > +
-> > +To avoid these problems, only allow a smaller number of processes
-> > +to reclaim pages from each memory zone simultaneously.
-> > +
-> > +The default value is 8.
-> 
-> I don't like the hardcoded number. Is the same number good for a 128MB
-> embedded system as for as 1TB server?  Seems doubtful.
-> 
-> This should be perhaps scaled with memory size and number of CPUs?
+On 12/14/2009 07:30 AM, KOSAKI Motohiro wrote:
+> if we don't use exclusive queue, wake_up() function wake _all_ waited
+> task. This is simply cpu wasting.
+>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
-Remember this a per-zone number.
+>   		if (zone_watermark_ok(zone, sc->order, low_wmark_pages(zone),
+>   					0, 0)) {
+> -			wake_up(wq);
+> +			wake_up_all(wq);
+>   			finish_wait(wq,&wait);
+>   			sc->nr_reclaimed += sc->nr_to_reclaim;
+>   			return -ERESTARTSYS;
 
-> 
-> > +/*
-> > + * Maximum number of processes concurrently running the page
-> > + * reclaim code in a memory zone.  Having too many processes
-> > + * just results in them burning CPU time waiting for locks,
-> > + * so we're better off limiting page reclaim to a sane number
-> > + * of processes at a time.  We do this per zone so local node
-> > + * reclaim on one NUMA node will not block other nodes from
-> > + * making progress.
-> > + */
-> > +int max_zone_concurrent_reclaimers = 8;
-> 
-> __read_mostly
-> 
-> > +
-> >  static LIST_HEAD(shrinker_list);
-> >  static DECLARE_RWSEM(shrinker_rwsem);
-> >  
-> > @@ -1600,6 +1612,29 @@ static void shrink_zone(int priority, struct zone *zone,
-> >  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-> >  	int noswap = 0;
-> >  
-> > +	if (!current_is_kswapd() && atomic_read(&zone->concurrent_reclaimers) >
-> > +					max_zone_concurrent_reclaimers) {
-> > +		/*
-> > +		 * Do not add to the lock contention if this zone has
-> > +		 * enough processes doing page reclaim already, since
-> > +		 * we would just make things slower.
-> > +		 */
-> > +		sleep_on(&zone->reclaim_wait);
-> 
-> wait_event()? sleep_on is a really deprecated racy interface.
-> 
-> This would still badly thunder the herd if not enough memory is freed
-> , won't it? It would be better to only wake up a single process if memory got freed.
-> 
-> How about for each page freed do a wake up for one thread?
-> 
-> 
-> -Andi
+I believe we want to wake the processes up one at a time
+here.  If the queue of waiting processes is very large
+and the amount of excess free memory is fairly low, the
+first processes that wake up can take the amount of free
+memory back down below the threshold.  The rest of the
+waiters should stay asleep when this happens.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
