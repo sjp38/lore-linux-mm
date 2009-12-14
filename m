@@ -1,72 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 193226B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 14:23:48 -0500 (EST)
-Date: Mon, 14 Dec 2009 20:23:23 +0100
-From: "Hans J. Koch" <hjk@linutronix.de>
-Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
-Message-ID: <20091214192322.GA3245@bluebox.local>
-References: <1228379942.5092.14.camel@twins> <4B22DD89.2020901@agilent.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B22DD89.2020901@agilent.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 66D846B0044
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 17:44:59 -0500 (EST)
+Received: by ywh3 with SMTP id 3so3661635ywh.22
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2009 14:44:57 -0800 (PST)
+Date: Tue, 15 Dec 2009 07:39:22 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [cleanup][PATCH 1/8] vmscan: Make shrink_zone_begin/end helper
+ function
+Message-Id: <20091215073922.494c3e66.minchan.kim@barrios-desktop>
+In-Reply-To: <20091214212308.BBB1.A69D9226@jp.fujitsu.com>
+References: <20091211164651.036f5340@annuminas.surriel.com>
+	<20091214210823.BBAE.A69D9226@jp.fujitsu.com>
+	<20091214212308.BBB1.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Earl Chew <earl_chew@agilent.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, hjk@linutronix.de, gregkh@suse.de, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 11, 2009 at 04:02:17PM -0800, Earl Chew wrote:
-> I'm taking another look at the changes that were submitted in
-> 
-> http://lkml.org/lkml/2008/12/3/453
-> 
-> to see if they can be made more palatable.
-> 
-> 
-> In http://lkml.org/lkml/2008/12/4/64 you wrote:
-> 
-> > Why not create another special device that will give you DMA memory when
-> > you mmap it? That would also allow you to obtain the physical address
-> > without this utter horrid hack of writing it in the mmap'ed memory.
-> > 
-> > /dev/uioN-dma would seem like a fine name for that.
-> 
-> 
-> I understand the main objection was the hack to return the physical
-> address of the allocated DMA buffer within the buffer itself amongst
-> some other things.
+On Mon, 14 Dec 2009 21:23:46 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-The general thing is this: The UIO core supports only static mappings.
-The possible number of mappings is usually set at compile time or module
-load time and is currently limited to MAX_UIO_MAPS (== 5). This number
-is usually sufficient for devices like PCI cards, which have a limited
-number of mappings, too. All drivers currently in the kernel only need
-one or two.
-
-The current implementation of the UIO core is simply not made for
-dynamic allocation of an unlimited amount of new mappings at runtime. As
-we have seen in this patch, it needs raping of a documented kernel
-interface to userspace. This is not acceptable.
-
-So the easiest correct solution is to create a new device (e.g.
-/dev/uioN-dma, as Peter suggested). It should only be created for a UIO
-driver if it has a certain flag set, something like UIO_NEEDS_DYN_DMA_ALLOC.
-
+> concurrent_reclaimers limitation related code made mess to shrink_zone.
+> To introduce helper function increase readability.
 > 
-> Your suggestion was to create /dev/uioN-dma for the purpose of
-> allocating DMA memory.
-> 
-> I'm having trouble figuring out how this would help to return the
-> physical (bus) address of the DMA memory in a more elegant manner.
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-If you create this new device, you can invent any (reasonable) interface you
-like. It should probably be something in sysfs, where you can write to a
-file to allocate a new buffer, and read the address from some other.
-It should also be possible to free a buffer again.
+Through looking over patch series, it's nice clean up.
 
-Thanks,
-Hans
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
