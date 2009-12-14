@@ -1,112 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id F20CB6B003D
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 00:00:59 -0500 (EST)
-Received: by pwi1 with SMTP id 1so2192579pwi.6
-        for <linux-mm@kvack.org>; Sun, 13 Dec 2009 21:00:58 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E056C6B003D
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 00:59:11 -0500 (EST)
+Date: Mon, 14 Dec 2009 06:59:08 +0100 (CET)
+From: Tobias Oetiker <tobi@oetiker.ch>
+Subject: Re: still getting allocation failures (was Re: [PATCH] vmscan: Stop
+ kswapd waiting on congestion when the min watermark is not being met V2)
+In-Reply-To: <4e5e476b0912031226i5b0e6cf9hdfd5519182ccdefa@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.0912140646550.12657@sebohet.brgvxre.pu>
+References: <20091113142608.33B9.A69D9226@jp.fujitsu.com>  <20091113135443.GF29804@csn.ul.ie>  <20091114023138.3DA5.A69D9226@jp.fujitsu.com>  <20091113181557.GM29804@csn.ul.ie>  <2f11576a0911131033w4a9e6042k3349f0be290a167e@mail.gmail.com>
+ <20091113200357.GO29804@csn.ul.ie>  <alpine.DEB.2.00.0911261542500.21450@sebohet.brgvxre.pu>  <alpine.DEB.2.00.0911290834470.20857@sebohet.brgvxre.pu>  <20091202113241.GC1457@csn.ul.ie>  <alpine.DEB.2.00.0912022210220.30023@sebohet.brgvxre.pu>
+ <4e5e476b0912031226i5b0e6cf9hdfd5519182ccdefa@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <4B25BF39.5020401@redhat.com>
-References: <20091211164651.036f5340@annuminas.surriel.com>
-	 <28c262360912131614h62d8e0f7qf6ea9ab882f446d4@mail.gmail.com>
-	 <4B25BA6E.5010002@redhat.com>
-	 <28c262360912132019u7c0b8efpf89b11a6cbe512b3@mail.gmail.com>
-	 <4B25BF39.5020401@redhat.com>
-Date: Mon, 14 Dec 2009 14:00:57 +0900
-Message-ID: <28c262360912132100u689118fob4b72c40a1393846@mail.gmail.com>
-Subject: Re: [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: lwoodman@redhat.com, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Corrado Zoccolo <czoccolo@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 14, 2009 at 1:29 PM, Rik van Riel <riel@redhat.com> wrote:
-> On 12/13/2009 11:19 PM, Minchan Kim wrote:
->>
->> On Mon, Dec 14, 2009 at 1:09 PM, Rik van Riel<riel@redhat.com> =C2=A0wro=
-te:
->
->>> A simpler solution may be to use sleep_on_interruptible, and
->>> simply have the process continue into shrink_zone() if it
->>> gets a signal.
->>
->> I thought it but I was not sure.
->> Okay. If it is possible, It' more simple.
->> Could you repost patch with that?
->
-> Sure, not a problem.
->
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 +The default value is 8.
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 +
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->>
->>
->> =C2=A0 =C2=A0 I like this. but why do you select default value as consta=
-nt 8?
->> =C2=A0 =C2=A0 Do you have any reason?
->>
->> =C2=A0 =C2=A0 I think it would be better to select the number proportion=
-al to
->> NR_CPU.
->> =C2=A0 =C2=A0 ex) NR_CPU * 2 or something.
->>
->> =C2=A0 =C2=A0 Otherwise looks good to me.
->>
->>
->> Pessimistically, I assume that the pageout code spends maybe
->> 10% of its time on locking (we have seen far, far worse than
->> this with thousands of processes in the pageout code). =C2=A0That
->> means if we have more than 10 threads in the pageout code,
->> we could end up spending more time on locking and less doing
->> real work - slowing everybody down.
->>
->> I rounded it down to the closest power of 2 to come up with
->> an arbitrary number that looked safe :)
->> =3D=3D=3D
->>
->> We discussed above.
->> I want to add your desciption into changelog.
->
-> The thing is, I don't know if 8 is the best value for
-> the default, which is a reason I made it tunable in
-> the first place.
->
-> There are a lot of assumptions in my reasoning, and
-> they may be wrong. =C2=A0I suspect that documenting something
-> wrong is probably worse than letting people wonder out
-> the default (and maybe finding a better one).
+Hi Corrado,
 
-Indeed. But whenever I see magic values in kernel, I have a question
-about that.
-Actually I used to doubt the value because I guess
-"that value was determined by server or desktop experiments.
-so probably it don't proper small system."
-At least if we put the logical why which might be wrong,
-later people can think that value is not proper any more now or his
-system(ex, small or super computer and so on) by based on our
-description.
-so they can improve it.
+Dec 3 Corrado Zoccolo wrote:
 
-I think it isn't important your reasoning is right or wrong.
-Most important thing is which logical reason determines that value.
+> Hi Tobias,
+> does the patch in http://lkml.org/lkml/2009/11/30/301 help with your
+> high order allocation problems?
+> It seems that you have lot of memory, but high order pages do not show up.
+> The patch should make them more likely to appear.
+> On my machine (that has much less ram than yours), with the patch, I
+> always have order-10 pages available.
 
-I want to not bother you if you mind my suggestion.
-Pz, think it was just nitpick. :)
+I have tried it and ... it does not work, the  page allocation
+failure still shows. BUT while testing it on two machines I found that it
+only shows on on machine. The workload on the two machines is
+similar (they both run virtualbox) and also the available memory.
 
+Could it be caused by a hardware driver ?
 
-> --
-> All rights reversed.
->
+cheers
+tobi
 
-
-
---=20
-Kind regards,
-Minchan Kim
+-- 
+Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
+http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
