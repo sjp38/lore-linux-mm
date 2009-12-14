@@ -1,79 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5809C6B003D
-	for <linux-mm@kvack.org>; Sat, 12 Dec 2009 20:30:37 -0500 (EST)
-Date: Sun, 13 Dec 2009 10:30:21 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [PATCH RFC v2 3/4] memcg: rework usage of stats by soft limit
-Message-Id: <20091213103021.405374b4.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <cc557aab0912121146y276a8d26v8baee15be1f83a97@mail.gmail.com>
-References: <cover.1260571675.git.kirill@shutemov.name>
-	<ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
-	<c1847dfb5c4fed1374b7add236d38e0db02eeef3.1260571675.git.kirill@shutemov.name>
-	<747ea0ec22b9348208c80f86f7a813728bf8e50a.1260571675.git.kirill@shutemov.name>
-	<20091212125046.14df3134.d-nishimura@mtf.biglobe.ne.jp>
-	<cc557aab0912120506x56b9a707ob556035fdcf40a22@mail.gmail.com>
-	<20091212233409.60da66fb.d-nishimura@mtf.biglobe.ne.jp>
-	<cc557aab0912121146y276a8d26v8baee15be1f83a97@mail.gmail.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 882B56B003D
+	for <linux-mm@kvack.org>; Sun, 13 Dec 2009 19:14:40 -0500 (EST)
+Received: by pwi1 with SMTP id 1so2062771pwi.6
+        for <linux-mm@kvack.org>; Sun, 13 Dec 2009 16:14:39 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20091211164651.036f5340@annuminas.surriel.com>
+References: <20091211164651.036f5340@annuminas.surriel.com>
+Date: Mon, 14 Dec 2009 09:14:39 +0900
+Message-ID: <28c262360912131614h62d8e0f7qf6ea9ab882f446d4@mail.gmail.com>
+Subject: Re: [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
+From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, linux-kernel@vger.kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Rik van Riel <riel@redhat.com>
+Cc: lwoodman@redhat.com, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 12 Dec 2009 21:46:08 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+Hi, Rik.
 
-> On Sat, Dec 12, 2009 at 4:34 PM, Daisuke Nishimura
-> <d-nishimura@mtf.biglobe.ne.jp> wrote:
-> > On Sat, 12 Dec 2009 15:06:52 +0200
-> > "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> >
-> >> On Sat, Dec 12, 2009 at 5:50 AM, Daisuke Nishimura
-> >> <d-nishimura@mtf.biglobe.ne.jp> wrote:
-> >> > And IIUC, it's the same for your threshold feature, right ?
-> >> > I think it would be better:
-> >> >
-> >> > - discard this change.
-> >> > - in 4/4, rename mem_cgroup_soft_limit_check to mem_cgroup_event_check,
-> >> > A and instead of adding a new STAT counter, do like:
-> >> >
-> >> > A  A  A  A if (mem_cgroup_event_check(mem)) {
-> >> > A  A  A  A  A  A  A  A mem_cgroup_update_tree(mem, page);
-> >> > A  A  A  A  A  A  A  A mem_cgroup_threshold(mem);
-> >> > A  A  A  A }
-> >>
-> >> I think that mem_cgroup_update_tree() and mem_cgroup_threshold() should be
-> >> run with different frequency. How to share MEM_CGROUP_STAT_EVENTS
-> >> between soft limits and thresholds in this case?
-> >>
-> > hmm, both softlimit and your threshold count events at the same place(charge and uncharge).
-> > So, I think those events can be shared.
-> > Is there any reason they should run in different frequency ?
-> 
-> SOFTLIMIT_EVENTS_THRESH is 1000. If use the same value for thresholds,
-> a threshold can
-> be exceed on 1000*nr_cpu_id pages. It's too many. I think, that 100 is
-> a reasonable value.
-> 
-O.K. I see.
+On Sat, Dec 12, 2009 at 6:46 AM, Rik van Riel <riel@redhat.com> wrote:
+> Under very heavy multi-process workloads, like AIM7, the VM can
+> get into trouble in a variety of ways. =C2=A0The trouble start when
+> there are hundreds, or even thousands of processes active in the
+> page reclaim code.
+>
+> Not only can the system suffer enormous slowdowns because of
+> lock contention (and conditional reschedules) between thousands
+> of processes in the page reclaim code, but each process will try
+> to free up to SWAP_CLUSTER_MAX pages, even when the system already
+> has lots of memory free.
+>
+> It should be possible to avoid both of those issues at once, by
+> simply limiting how many processes are active in the page reclaim
+> code simultaneously.
+>
+> If too many processes are active doing page reclaim in one zone,
+> simply go to sleep in shrink_zone().
+>
+> On wakeup, check whether enough memory has been freed already
+> before jumping into the page reclaim code ourselves. =C2=A0We want
+> to use the same threshold here that is used in the page allocator
+> for deciding whether or not to call the page reclaim code in the
+> first place, otherwise some unlucky processes could end up freeing
+> memory for the rest of the system.
 
-> mem_cgroup_soft_limit_check() resets MEM_CGROUP_STAT_EVENTS when it reaches
-> SOFTLIMIT_EVENTS_THRESH. If I will do the same thing for
-> THRESHOLDS_EVENTS_THRESH
-> (which is 100) , mem_cgroup_event_check() will never be 'true'. Any
-> idea how to share
-> MEM_CGROUP_STAT_EVENTS in this case?
-> 
-It's impossible if they have different frequency as you say.
+I am worried about one.
 
-Thank you for your clarification.
+Now, we can put too many processes reclaim_wait with NR_UNINTERRUBTIBLE sta=
+te.
+If OOM happens, OOM will kill many innocent processes since
+uninterruptible task
+can't handle kill signal until the processes free from reclaim_wait list.
 
+I think reclaim_wait list staying time might be long if VM pressure is heav=
+y.
+Is this a exaggeration?
 
-Daisuke Nishimura.
+If it is serious problem, how about this?
+
+We add new PF_RECLAIM_BLOCK flag and don't pick the process
+in select_bad_process.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
