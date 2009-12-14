@@ -1,32 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 16BF96B003D
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 09:37:46 -0500 (EST)
-Message-ID: <4B264DAA.1080900@redhat.com>
-Date: Mon, 14 Dec 2009 09:37:30 -0500
+	by kanga.kvack.org (Postfix) with SMTP id 883C66B003D
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 09:40:47 -0500 (EST)
+Message-ID: <4B264E66.9050206@redhat.com>
+Date: Mon, 14 Dec 2009 09:40:38 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/8] Use io_schedule() instead schedule()
-References: <20091211164651.036f5340@annuminas.surriel.com> <20091214210823.BBAE.A69D9226@jp.fujitsu.com> <20091214213026.BBBD.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20091214213026.BBBD.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
+References: <20091210185626.26f9828a@cuia.bos.redhat.com> <87pr6hya86.fsf@basil.nowhere.org>
+In-Reply-To: <87pr6hya86.fsf@basil.nowhere.org>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: lwoodman@redhat.com, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On 12/14/2009 07:30 AM, KOSAKI Motohiro wrote:
-> All task sleeping point in vmscan (e.g. congestion_wait) use
-> io_schedule. then shrink_zone_begin use it too.
+On 12/14/2009 08:08 AM, Andi Kleen wrote:
+> Rik van Riel<riel@redhat.com>  writes:
+>
+>> +max_zone_concurrent_reclaim:
+>> +
+>> +The number of processes that are allowed to simultaneously reclaim
+>> +memory from a particular memory zone.
+>> +
+>> +With certain workloads, hundreds of processes end up in the page
+>> +reclaim code simultaneously.  This can cause large slowdowns due
+>> +to lock contention, freeing of way too much memory and occasionally
+>> +false OOM kills.
+>> +
+>> +To avoid these problems, only allow a smaller number of processes
+>> +to reclaim pages from each memory zone simultaneously.
+>> +
+>> +The default value is 8.
+>
+> I don't like the hardcoded number. Is the same number good for a 128MB
+> embedded system as for as 1TB server?  Seems doubtful.
+>
+> This should be perhaps scaled with memory size and number of CPUs?
 
-I'm not sure we really are in io wait when waiting on this
-queue, but there's a fair chance we may be so this is a
-reasonable change.
+The limit is per _zone_, so the number of concurrent reclaimers
+is automatically scaled by the number of memory zones in the
+system.
 
-> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-
-Acked-by: Rik van Riel <riel@redhat.com>
+Scaling up the per-zone value as well looks like it could lead
+to the kind of lock contention we are aiming to avoid in the
+first place.
 
 -- 
 All rights reversed.
