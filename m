@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D8E36B003D
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 11:02:46 -0500 (EST)
-Date: Mon, 14 Dec 2009 08:04:52 -0800
-From: Arjan van de Ven <arjan@infradead.org>
-Subject: Re: [PATCH 2/8] Mark sleep_on as deprecated
-Message-ID: <20091214080452.18516dc1@infradead.org>
-In-Reply-To: <20091214130302.GA25797@infradead.org>
-References: <20091211164651.036f5340@annuminas.surriel.com>
-	<20091214210823.BBAE.A69D9226@jp.fujitsu.com>
-	<20091214212351.BBB4.A69D9226@jp.fujitsu.com>
-	<20091214130302.GA25797@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 372706B003D
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 11:19:53 -0500 (EST)
+Date: Mon, 14 Dec 2009 17:19:44 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] vmscan: limit concurrent reclaimers in shrink_zone
+Message-ID: <20091214161944.GB16474@basil.fritz.box>
+References: <20091210185626.26f9828a@cuia.bos.redhat.com> <87pr6hya86.fsf@basil.nowhere.org> <1260800599.6666.4.camel@dhcp-100-19-198.bos.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1260800599.6666.4.camel@dhcp-100-19-198.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: Larry Woodman <lwoodman@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Dec 2009 08:03:02 -0500
-Christoph Hellwig <hch@infradead.org> wrote:
-
-> On Mon, Dec 14, 2009 at 09:24:40PM +0900, KOSAKI Motohiro wrote:
+On Mon, Dec 14, 2009 at 09:23:19AM -0500, Larry Woodman wrote:
+> On Mon, 2009-12-14 at 14:08 +0100, Andi Kleen wrote:
+> > Rik van Riel <riel@redhat.com> writes:
 > > 
+> > > +max_zone_concurrent_reclaim:
+> > > +
+> > > +The number of processes that are allowed to simultaneously reclaim
+> > > +memory from a particular memory zone.
+> > > +
+> > > +With certain workloads, hundreds of processes end up in the page
+> > > +reclaim code simultaneously.  This can cause large slowdowns due
+> > > +to lock contention, freeing of way too much memory and occasionally
+> > > +false OOM kills.
+> > > +
+> > > +To avoid these problems, only allow a smaller number of processes
+> > > +to reclaim pages from each memory zone simultaneously.
+> > > +
+> > > +The default value is 8.
 > > 
-> > sleep_on() function is SMP and/or kernel preemption unsafe. we
-> > shouldn't use it on new code.
+> > I don't like the hardcoded number. Is the same number good for a 128MB
+> > embedded system as for as 1TB server?  Seems doubtful.
+> > 
+> > This should be perhaps scaled with memory size and number of CPUs?
 > 
-> And the best way to archive this is to remove the function.
-> 
-> In Linus' current tree I find:
-> 
->  - 5 instances of sleep_on(), all in old and obscure block drivers
->  - 2 instances of sleep_on_timeout(), both in old and obscure drivers 
+> Remember this a per-zone number.
 
-these should both die; the sleep_on() ones using BROKEN in Kconfig..
-.. sleep_on() has not worked in the 2.6 series ever.... ;)
+A zone could be 64MB or 32GB. And the system could have 1 or 1024 CPUs.
 
-
->  
->  - 28 instances of interruptible_sleep_on_timeout(), mostly in obscure
->    drivers with a high concentration in the old oss core which should
-> be killed anyway.  And unfortunately a few relatively recent additions
->    like the SGI xpc driver or usbvision driver
-
-can we also make sure that checkpatch.pl catches any new addition?
-(not saying checkpatch.pl is the end-all, but the people who do run it
-at least have now have a chance ;-)
-
+-Andi
 
 -- 
-Arjan van de Ven 	Intel Open Source Technology Centre
-For development, discussion and tips for power savings, 
-visit http://www.lesswatts.org
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
