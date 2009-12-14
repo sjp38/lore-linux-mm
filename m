@@ -1,89 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BC1FC6B003D
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 03:49:39 -0500 (EST)
-Received: by yxe10 with SMTP id 10so2572449yxe.12
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2009 00:49:32 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id DAC426B003D
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 07:22:31 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBECMSul022002
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 14 Dec 2009 21:22:29 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 887AD45DE51
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 21:22:28 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6123E45DD76
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 21:22:28 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BDB01DB803A
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 21:22:28 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CA0811DB803B
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 21:22:24 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
+In-Reply-To: <20091211164651.036f5340@annuminas.surriel.com>
+References: <20091211164651.036f5340@annuminas.surriel.com>
+Message-Id: <20091214210823.BBAE.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.0912140646550.12657@sebohet.brgvxre.pu>
-References: <20091113142608.33B9.A69D9226@jp.fujitsu.com>
-	 <20091113181557.GM29804@csn.ul.ie>
-	 <2f11576a0911131033w4a9e6042k3349f0be290a167e@mail.gmail.com>
-	 <20091113200357.GO29804@csn.ul.ie>
-	 <alpine.DEB.2.00.0911261542500.21450@sebohet.brgvxre.pu>
-	 <alpine.DEB.2.00.0911290834470.20857@sebohet.brgvxre.pu>
-	 <20091202113241.GC1457@csn.ul.ie>
-	 <alpine.DEB.2.00.0912022210220.30023@sebohet.brgvxre.pu>
-	 <4e5e476b0912031226i5b0e6cf9hdfd5519182ccdefa@mail.gmail.com>
-	 <alpine.DEB.2.00.0912140646550.12657@sebohet.brgvxre.pu>
-Date: Mon, 14 Dec 2009 09:49:32 +0100
-Message-ID: <4e5e476b0912140049x29d2905epf1a21bfdbd1709a6@mail.gmail.com>
-Subject: Re: still getting allocation failures (was Re: [PATCH] vmscan: Stop
-	kswapd waiting on congestion when the min watermark is not being met V2)
-From: Corrado Zoccolo <czoccolo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 14 Dec 2009 21:22:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Tobias Oetiker <tobi@oetiker.ch>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Tobi,
-On Mon, Dec 14, 2009 at 6:59 AM, Tobias Oetiker <tobi@oetiker.ch> wrote:
-> Hi Corrado,
->
-> Dec 3 Corrado Zoccolo wrote:
->
->> Hi Tobias,
->> does the patch in http://lkml.org/lkml/2009/11/30/301 help with your
->> high order allocation problems?
->> It seems that you have lot of memory, but high order pages do not show u=
-p.
->> The patch should make them more likely to appear.
->> On my machine (that has much less ram than yours), with the patch, I
->> always have order-10 pages available.
->
-> I have tried it and ... it does not work, the =C2=A0page allocation
-> failure still shows. BUT while testing it on two machines I found that it
-> only shows on on machine. The workload on the two machines is
-> similar (they both run virtualbox) and also the available memory.
+> Under very heavy multi-process workloads, like AIM7, the VM can
+> get into trouble in a variety of ways.  The trouble start when
+> there are hundreds, or even thousands of processes active in the
+> page reclaim code.
+> 
+> Not only can the system suffer enormous slowdowns because of
+> lock contention (and conditional reschedules) between thousands
+> of processes in the page reclaim code, but each process will try
+> to free up to SWAP_CLUSTER_MAX pages, even when the system already
+> has lots of memory free.
+> 
+> It should be possible to avoid both of those issues at once, by
+> simply limiting how many processes are active in the page reclaim
+> code simultaneously.
+> 
+> If too many processes are active doing page reclaim in one zone,
+> simply go to sleep in shrink_zone().
+> 
+> On wakeup, check whether enough memory has been freed already
+> before jumping into the page reclaim code ourselves.  We want
+> to use the same threshold here that is used in the page allocator
+> for deciding whether or not to call the page reclaim code in the
+> first place, otherwise some unlucky processes could end up freeing
+> memory for the rest of the system.
 
-Where those both failing before the patch?
-Did the order of failure change?
+This patch seems very similar to my old effort. afaik, there are another
+two benefit.
 
-> Could it be caused by a hardware driver ?
-It should be something that is taking more time to release pages, but
-I don't know what can it be. What happens if you drop the caches when
-you are getting failures? Does the failure rate drops as if you had
-just rebooted?
-Can you log at regular intervals the content of /proc/buddyinfo, and
-try  correlating when the number of pages of the requested order are
-becoming scarce with some other event?
+1. Improve resource gurantee
+   if thousands tasks start to vmscan at the same time, they eat all memory for
+   PF_MEMALLOC. it might cause another dangerous problem. some filesystem
+   and io device don't handle allocation failure properly.
 
-Thanks,
-Corrado
->
-> cheers
-> tobi
->
-> --
-> Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
-> http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
->
+2. Improve OOM contidion behavior
+   Currently, vmscan don't handle SIGKILL at all. then if the system
+   have hevy memory pressure, OOM killer can't kill the target process
+   soon. it might cause OOM killer kill next innocent process.
+   This patch can fix it.
 
 
 
---=20
-__________________________________________________________________________
+> @@ -1600,6 +1612,31 @@ static void shrink_zone(int priority, struct zone *zone,
+>  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+>  	int noswap = 0;
+>  
+> +	if (!current_is_kswapd() && atomic_read(&zone->concurrent_reclaimers) >
+> +				max_zone_concurrent_reclaimers &&
+> +				(sc->gfp_mask & (__GFP_IO|__GFP_FS)) ==
+> +				(__GFP_IO|__GFP_FS)) {
+> +		/*
+> +		 * Do not add to the lock contention if this zone has
+> +		 * enough processes doing page reclaim already, since
+> +		 * we would just make things slower.
+> +		 */
+> +		sleep_on(&zone->reclaim_wait);
 
-dott. Corrado Zoccolo                          mailto:czoccolo@gmail.com
-PhD - Department of Computer Science - University of Pisa, Italy
---------------------------------------------------------------------------
-The self-confidence of a warrior is not the self-confidence of the average
-man. The average man seeks certainty in the eyes of the onlooker and calls
-that self-confidence. The warrior seeks impeccability in his own eyes and
-calls that humbleness.
-                               Tales of Power - C. Castaneda
+Oops. this is bug. sleep_on() is not SMP safe.
+
+
+I made few fixing patch today. I'll post it soon.
+
+
+btw, following is mesurement result by hackbench.
+================
+
+unit: sec
+
+parameter			old		new
+130 (5200 processes)		5.463		4.442
+140 (5600 processes)		479.357		7.792
+150 (6000 processes)		729.640		20.529
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
