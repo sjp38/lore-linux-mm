@@ -1,48 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E056C6B003D
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 00:59:11 -0500 (EST)
-Date: Mon, 14 Dec 2009 06:59:08 +0100 (CET)
-From: Tobias Oetiker <tobi@oetiker.ch>
-Subject: Re: still getting allocation failures (was Re: [PATCH] vmscan: Stop
- kswapd waiting on congestion when the min watermark is not being met V2)
-In-Reply-To: <4e5e476b0912031226i5b0e6cf9hdfd5519182ccdefa@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.0912140646550.12657@sebohet.brgvxre.pu>
-References: <20091113142608.33B9.A69D9226@jp.fujitsu.com>  <20091113135443.GF29804@csn.ul.ie>  <20091114023138.3DA5.A69D9226@jp.fujitsu.com>  <20091113181557.GM29804@csn.ul.ie>  <2f11576a0911131033w4a9e6042k3349f0be290a167e@mail.gmail.com>
- <20091113200357.GO29804@csn.ul.ie>  <alpine.DEB.2.00.0911261542500.21450@sebohet.brgvxre.pu>  <alpine.DEB.2.00.0911290834470.20857@sebohet.brgvxre.pu>  <20091202113241.GC1457@csn.ul.ie>  <alpine.DEB.2.00.0912022210220.30023@sebohet.brgvxre.pu>
- <4e5e476b0912031226i5b0e6cf9hdfd5519182ccdefa@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 88E586B003D
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 01:25:13 -0500 (EST)
+Date: Mon, 14 Dec 2009 15:17:48 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 0/8] memcg: move charge at task migration (14/Dec)
+Message-Id: <20091214151748.bf9c4978.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Corrado Zoccolo <czoccolo@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Frans Pop <elendil@planet.nl>, Jiri Kosina <jkosina@suse.cz>, Sven Geggus <lists@fuchsschwanzdomain.de>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephan von Krawczynski <skraw@ithnet.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi Corrado,
+Hi.
 
-Dec 3 Corrado Zoccolo wrote:
+These are current patches of my move-charge-at-task-migration feature.
 
-> Hi Tobias,
-> does the patch in http://lkml.org/lkml/2009/11/30/301 help with your
-> high order allocation problems?
-> It seems that you have lot of memory, but high order pages do not show up.
-> The patch should make them more likely to appear.
-> On my machine (that has much less ram than yours), with the patch, I
-> always have order-10 pages available.
+* They have not been mature enough to be merged into linus tree yet. *
 
-I have tried it and ... it does not work, the  page allocation
-failure still shows. BUT while testing it on two machines I found that it
-only shows on on machine. The workload on the two machines is
-similar (they both run virtualbox) and also the available memory.
+Actually, there is a NULL pointer dereference BUG, which I found in my stress
+test after about 40 hours running and I'm digging now.
+I post these patches just to share my current status.
 
-Could it be caused by a hardware driver ?
+  [1/8] cgroup: introduce cancel_attach()
+  [2/8] cgroup: introduce coalesce css_get() and css_put()
+  [3/8] memcg: add interface to move charge at task migration
+  [4/8] memcg: move charges of anonymous page
+  [5/8] memcg: improve performance in moving charge
+  [6/8] memcg: avoid oom during moving charge
+  [7/8] memcg: move charges of anonymous swap
+  [8/8] memcg: improbe performance in moving swap charge
 
-cheers
-tobi
+Overall history of this patch set:
+2009/12/14
+- rebase on mmotm-2009-12-10-17-19.
+- split performance improvement patch into cgroup part and memcg part.
+- make use of waitq in avoid-oom patch.
+- add TODO section in memory.txt.
+2009/12/04
+- rebase on mmotm-2009-11-24-16-47.
+- change the term "recharge" to "move charge".
+- improve performance in moving charge.
+- parse the page table in can_attach() phase again(go back to the old behavior),
+  because it doesn't add so big overheads, so it would be better to calculate
+    the precharge count more accurately.
+2009/11/19
+- rebase on mmotm-2009-11-17-14-03 + KAMEZAWA-san's show per-process swap usage
+  via procfs patch(v3).
+- in can_attach(), instead of parsing the page table, make use of per process
+  mm_counter(anon_rss, swap_usage).
+- handle recharge_at_immigrate as bitmask(as I did in first version)
+2009/11/06
+- remove "[RFC]".
+- rebase on mmotm-2009-11-01-10-01.
+- drop support for file cache and shmem/tmpfs(revisit in future).
+- update Documentation/cgroup/memory.txt.
+2009/10/13
+- rebase on mmotm-2009-10-09-01-07 + KAMEZAWA-san's batched charge/uncharge(Oct09) + part
+of KAMEZAWA-san's cleanup/fix patches(4,5,7 of Sep25 with some fixes).
+- change the term "migrate" to "recharge".
+2009/09/24
+- change "migrate_charge" flag from "int" to "bool".
+- in can_attach(), parse the page table of the task and count only the number
+  of target ptes and call try_charge() repeatedly. No isolation at this phase.
+- in attach(), parse the page table of the task again, and isolate the target
+  page and call move_account() one by one.
+- do no swap-in in moving swap account any more.
+- add support for shmem/tmpfs's swap.
+- update Documentation/cgroup/cgroup.txt.
+2009/09/17
+- first version
 
--- 
-Tobi Oetiker, OETIKER+PARTNER AG, Aarweg 15 CH-4600 Olten, Switzerland
-http://it.oetiker.ch tobi@oetiker.ch ++41 62 775 9902 / sb: -9900
+
+Regards,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
