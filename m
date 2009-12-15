@@ -1,60 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6C4A46B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 19:49:30 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 9798A6B0044
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 19:50:50 -0500 (EST)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF0nRM6014713
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF0omMo015080
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 15 Dec 2009 09:49:27 +0900
+	Tue, 15 Dec 2009 09:50:48 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BBF545DE52
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:49:27 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 681BA45DE52
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:50:48 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 59B6945DE4E
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:49:27 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B26945DE4F
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:50:48 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 438091DB8045
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:49:27 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EFB031DB803E
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:49:26 +0900 (JST)
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 097F61DB8043
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:50:48 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BA45A1DB803F
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:50:47 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
-In-Reply-To: <1260810481.6666.13.camel@dhcp-100-19-198.bos.redhat.com>
-References: <20091211164651.036f5340@annuminas.surriel.com> <1260810481.6666.13.camel@dhcp-100-19-198.bos.redhat.com>
-Message-Id: <20091215094815.CDBB.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 8/8] mm: Give up allocation if the task have fatal signal
+In-Reply-To: <20091215085455.13eb65cc.minchan.kim@barrios-desktop>
+References: <20091214213224.BBC6.A69D9226@jp.fujitsu.com> <20091215085455.13eb65cc.minchan.kim@barrios-desktop>
+Message-Id: <20091215094659.CDB8.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 15 Dec 2009 09:49:26 +0900 (JST)
+Date: Tue, 15 Dec 2009 09:50:47 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Larry Woodman <lwoodman@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 2009-12-11 at 16:46 -0500, Rik van Riel wrote:
+> >  	/*
+> > +	 * If the allocation is for userland page and we have fatal signal,
+> > +	 * there isn't any reason to continue allocation. instead, the task
+> > +	 * should exit soon.
+> > +	 */
+> > +	if (fatal_signal_pending(current) && (gfp_mask & __GFP_HIGHMEM))
+> > +		goto nopage;
 > 
-> Rik, the latest patch appears to have a problem although I dont know
-> what the problem is yet.  When the system ran out of memory we see
-> thousands of runnable processes and 100% system time:
-> 
-> 
->  9420  2  29824  79856  62676  19564    0    0     0     0 8054  379  0 
-> 100  0  0  0
-> 9420  2  29824  79368  62292  19564    0    0     0     0 8691  413  0 
-> 100  0  0  0
-> 9421  1  29824  79780  61780  19820    0    0     0     0 8928  408  0 
-> 100  0  0  0
-> 
-> The system would not respond so I dont know whats going on yet.  I'll
-> add debug code to figure out why its in that state as soon as I get
-> access to the hardware.
-> 
-> Larry
+> If we jump nopage, we meets dump_stack and show_mem. 
+> Even, we can meet OOM which might kill innocent process.
 
-There are 9421 running processces. it mean concurrent task limitation
-don't works well. hmm?
-
+Which point you oppose? noprint is better?
 
 
 --
