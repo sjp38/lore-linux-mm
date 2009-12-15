@@ -1,79 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5B5396B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 19:56:57 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF0usTG025625
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 15 Dec 2009 09:56:54 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B27A45DE6E
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:56:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1917345DE60
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:56:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0169E1DB8037
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:56:54 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88A7A1DB8043
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:56:50 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 5/8] Use io_schedule() instead schedule()
-In-Reply-To: <20091215084636.c7790658.minchan.kim@barrios-desktop>
-References: <20091214213026.BBBD.A69D9226@jp.fujitsu.com> <20091215084636.c7790658.minchan.kim@barrios-desktop>
-Message-Id: <20091215090441.CDB0.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+	by kanga.kvack.org (Postfix) with SMTP id CE2E36B0044
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:09:15 -0500 (EST)
+Received: by ywh3 with SMTP id 3so3778858ywh.22
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2009 17:09:14 -0800 (PST)
+Date: Tue, 15 Dec 2009 10:03:42 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 8/8] mm: Give up allocation if the task have fatal
+ signal
+Message-Id: <20091215100342.e77c8cbe.minchan.kim@barrios-desktop>
+In-Reply-To: <20091215094659.CDB8.A69D9226@jp.fujitsu.com>
+References: <20091214213224.BBC6.A69D9226@jp.fujitsu.com>
+	<20091215085455.13eb65cc.minchan.kim@barrios-desktop>
+	<20091215094659.CDB8.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 15 Dec 2009 09:56:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 14 Dec 2009 21:30:54 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > All task sleeping point in vmscan (e.g. congestion_wait) use
-> > io_schedule. then shrink_zone_begin use it too.
+On Tue, 15 Dec 2009 09:50:47 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> > >  	/*
+> > > +	 * If the allocation is for userland page and we have fatal signal,
+> > > +	 * there isn't any reason to continue allocation. instead, the task
+> > > +	 * should exit soon.
+> > > +	 */
+> > > +	if (fatal_signal_pending(current) && (gfp_mask & __GFP_HIGHMEM))
+> > > +		goto nopage;
 > > 
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > ---
-> >  mm/vmscan.c |    2 +-
-> >  1 files changed, 1 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 3562a2d..0880668 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1624,7 +1624,7 @@ static int shrink_zone_begin(struct zone *zone, struct scan_control *sc)
-> >  		    max_zone_concurrent_reclaimers)
-> >  			break;
-> >  
-> > -		schedule();
-> > +		io_schedule();
+> > If we jump nopage, we meets dump_stack and show_mem. 
+> > Even, we can meet OOM which might kill innocent process.
 > 
-> Hmm. We have many cond_resched which is not io_schedule in vmscan.c.
-
-cond_resched don't mean sleep on wait queue. it's similar to yield.
-
-> In addition, if system doesn't have swap device space and out of page cache 
-> due to heavy memory pressue, VM might scan & drop pages until priority is zero
-> or zone is unreclaimable. 
+> Which point you oppose? noprint is better?
 > 
-> I think it would be not a IO wait.
+> 
 
-two point.
-1. For long time, Administrator usually watch iowait% at heavy memory pressure. I
-don't hope change this without reasonable reason. 2. iowait makes scheduler
-bonus a bit, vmscan task should have many time slice than memory consume
-task. it improve VM stabilization.
+Sorry fot not clarity.
+My point was following as. 
 
-but I agree the benefit isn't so big. if we have reasonable reason, I
-don't oppose use schedule().
+First,
+I don't want to print.
+Why do we print stack and mem when the process receives the SIGKILL?
 
+Second, 
+1) A process try to allocate anon page in do_anonymous_page.
+2) A process receives SIGKILL.
+3) kernel doesn't allocate page to A process by your patch.
+4) do_anonymous_page returns VF_FAULT_OOM.
+5) call mm_fault_error
+6) call out_of_memory 
+7) It migth kill innocent task. 
 
+If I missed something, Pz, corret me. :)
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
