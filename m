@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D1FFB6B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:58:39 -0500 (EST)
-Message-ID: <4B27A417.3040206@redhat.com>
-Date: Tue, 15 Dec 2009 09:58:31 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1B6A16B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 10:03:40 -0500 (EST)
+Received: by fxm25 with SMTP id 25so4371808fxm.6
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2009 07:03:37 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/8] Use prepare_to_wait_exclusive() instead prepare_to_wait()
-References: <20091214212936.BBBA.A69D9226@jp.fujitsu.com>	 <4B264CCA.5010609@redhat.com> <20091215085631.CDAD.A69D9226@jp.fujitsu.com> <1260855146.6126.30.camel@marge.simson.net>
-In-Reply-To: <1260855146.6126.30.camel@marge.simson.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20091215183533.1a1e87d9.kamezawa.hiroyu@jp.fujitsu.com>
+References: <cover.1260571675.git.kirill@shutemov.name>
+	 <ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
+	 <cc557aab0912150111k41517b41t8999568db3bd8daa@mail.gmail.com>
+	 <20091215183533.1a1e87d9.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 15 Dec 2009 17:03:37 +0200
+Message-ID: <cc557aab0912150703qcfe6458paa7da71cb032cb93@mail.gmail.com>
+Subject: Re: [PATCH RFC v2 1/4] cgroup: implement eventfd-based generic API
+	for notifications
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mike Galbraith <efault@gmx.de>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12/15/2009 12:32 AM, Mike Galbraith wrote:
-> On Tue, 2009-12-15 at 09:45 +0900, KOSAKI Motohiro wrote:
->>> On 12/14/2009 07:30 AM, KOSAKI Motohiro wrote:
->>>> if we don't use exclusive queue, wake_up() function wake _all_ waited
->>>> task. This is simply cpu wasting.
->>>>
->>>> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
->>>
->>>>    		if (zone_watermark_ok(zone, sc->order, low_wmark_pages(zone),
->>>>    					0, 0)) {
->>>> -			wake_up(wq);
->>>> +			wake_up_all(wq);
->>>>    			finish_wait(wq,&wait);
->>>>    			sc->nr_reclaimed += sc->nr_to_reclaim;
->>>>    			return -ERESTARTSYS;
->>>
->>> I believe we want to wake the processes up one at a time
->>> here.
+On Tue, Dec 15, 2009 at 11:35 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 15 Dec 2009 11:11:16 +0200
+> "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+>
+>> Could anybody review the patch?
+>>
+>> Thank you.
+>
+> some nitpicks.
+>
+>>
+>> On Sat, Dec 12, 2009 at 12:59 AM, Kirill A. Shutemov
+>> <kirill@shutemov.name> wrote:
+>
+>> > + =C2=A0 =C2=A0 =C2=A0 /*
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Unregister events and notify userspace.
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* FIXME: How to avoid race with cgroup_ev=
+ent_remove_work()
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* =C2=A0 =C2=A0 =C2=A0 =C2=A0which runs f=
+rom workqueue?
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>> > + =C2=A0 =C2=A0 =C2=A0 mutex_lock(&cgrp->event_list_mutex);
+>> > + =C2=A0 =C2=A0 =C2=A0 list_for_each_entry_safe(event, tmp, &cgrp->eve=
+nt_list, list) {
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cgroup_event_remove=
+(event);
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 eventfd_signal(even=
+t->eventfd, 1);
+>> > + =C2=A0 =C2=A0 =C2=A0 }
+>> > + =C2=A0 =C2=A0 =C2=A0 mutex_unlock(&cgrp->event_list_mutex);
+>> > +
+>> > +out:
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
+>> > =C2=A0}
+>
+> How ciritical is this FIXME ?
+> But Hmm..can't we use RCU ?
 
->> Actually, wake_up() and wake_up_all() aren't different so much.
->> Although we use wake_up(), the task wake up next task before
->> try to alloate memory. then, it's similar to wake_up_all().
-
-That is a good point.  Maybe processes need to wait a little
-in this if() condition, before the wake_up().  That would give
-the previous process a chance to allocate memory and we can
-avoid waking up too many processes.
-
-> What happens to waiters should running tasks not allocate for a while?
-
-When a waiter is woken up, it will either:
-1) see that there is enough free memory and wake up the next guy, or
-2) run shrink_zone and wake up the next guy
-
-Either way, the processes that just got woken up will ensure that
-the sleepers behind them in the queue will get woken up.
-
--- 
-All rights reversed.
+It's not reasonable to have RCU here, since event_list isn't mostly-read.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
