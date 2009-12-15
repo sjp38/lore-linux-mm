@@ -1,60 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B64E06B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 14:34:00 -0500 (EST)
-Message-ID: <4B27E49E.6000305@redhat.com>
-Date: Tue, 15 Dec 2009 14:33:50 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 118B16B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 16:01:11 -0500 (EST)
+Date: Tue, 15 Dec 2009 22:00:03 +0100
+From: "Hans J. Koch" <hjk@linutronix.de>
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+Message-ID: <20091215210002.GA2432@local>
+References: <1228379942.5092.14.camel@twins>
+ <4B22DD89.2020901@agilent.com>
+ <20091214192322.GA3245@bluebox.local>
+ <4B27905B.4080006@agilent.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/8] Use prepare_to_wait_exclusive() instead prepare_to_wait()
-References: <20091214212936.BBBA.A69D9226@jp.fujitsu.com>	 <4B264CCA.5010609@redhat.com> <20091215085631.CDAD.A69D9226@jp.fujitsu.com>	 <1260855146.6126.30.camel@marge.simson.net>  <4B27A417.3040206@redhat.com> <1260902610.5913.19.camel@marge.simson.net>
-In-Reply-To: <1260902610.5913.19.camel@marge.simson.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B27905B.4080006@agilent.com>
 Sender: owner-linux-mm@kvack.org
-To: Mike Galbraith <efault@gmx.de>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: Earl Chew <earl_chew@agilent.com>
+Cc: "Hans J. Koch" <hjk@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, gregkh@suse.de, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On 12/15/2009 01:43 PM, Mike Galbraith wrote:
-> On Tue, 2009-12-15 at 09:58 -0500, Rik van Riel wrote:
->> On 12/15/2009 12:32 AM, Mike Galbraith wrote:
->>> On Tue, 2009-12-15 at 09:45 +0900, KOSAKI Motohiro wrote:
->>>>> On 12/14/2009 07:30 AM, KOSAKI Motohiro wrote:
->>>>>> if we don't use exclusive queue, wake_up() function wake _all_ waited
->>>>>> task. This is simply cpu wasting.
->>>>>>
->>>>>> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
->>>>>
->>>>>>     		if (zone_watermark_ok(zone, sc->order, low_wmark_pages(zone),
->>>>>>     					0, 0)) {
->>>>>> -			wake_up(wq);
->>>>>> +			wake_up_all(wq);
->>>>>>     			finish_wait(wq,&wait);
->>>>>>     			sc->nr_reclaimed += sc->nr_to_reclaim;
->>>>>>     			return -ERESTARTSYS;
->>>>>
->>>>> I believe we want to wake the processes up one at a time
->>>>> here.
->>
->>>> Actually, wake_up() and wake_up_all() aren't different so much.
->>>> Although we use wake_up(), the task wake up next task before
->>>> try to alloate memory. then, it's similar to wake_up_all().
->>
->> That is a good point.  Maybe processes need to wait a little
->> in this if() condition, before the wake_up().  That would give
->> the previous process a chance to allocate memory and we can
->> avoid waking up too many processes.
->
-> Pondering, I think I'd at least wake NR_CPUS.  If there's not enough to
-> go round, oh darn, but if there is, you have full utilization quicker.
+On Tue, Dec 15, 2009 at 05:34:19AM -0800, Earl Chew wrote:
+> Hans,
 
-That depends on what the other CPUs in the system are doing.
+Hi Earl,
 
-If they were doing work, you've just wasted some resources.
+> 
+> Thanks for the considered reply.
+> 
+> 
+> Hans J. Koch wrote:
+> > The general thing is this: The UIO core supports only static mappings.
+> > The possible number of mappings is usually set at compile time or module
+> > load time and is currently limited to MAX_UIO_MAPS (== 5). This number
+> > is usually sufficient for devices like PCI cards, which have a limited
+> > number of mappings, too. All drivers currently in the kernel only need
+> > one or two.
+> 
+> 
+> I'd like to proceed by changing struct uio_mem [MAX_UIO_MAPS] to a
+> linked list.
+> 
+> The driver code in uio_find_mem_index(), uio_dev_add_attributes(), etc,
+> iterate through the (small) array anyway, and the list space and
+> performance overhead is not significant for the cases mentioned.
+> 
+> Such a change would make it easier to track dynamically allocated
+> regions as well as pre-allocated mapping regions in the same data
+> structure.
 
--- 
-All rights reversed.
+Sorry, I think I wasn't clear enough: The current interface for static
+mappings shouldn't be changed. Dynamically added mappings need a new
+interface.
+
+> 
+> It also plays more nicely into the next part ...
+> 
+> > The current implementation of the UIO core is simply not made for
+> > dynamic allocation of an unlimited amount of new mappings at runtime. As
+> > we have seen in this patch, it needs raping of a documented kernel
+> > interface to userspace. This is not acceptable.
+> > 
+> > So the easiest correct solution is to create a new device (e.g.
+> > /dev/uioN-dma, as Peter suggested). It should only be created for a UIO
+> > driver if it has a certain flag set, something like UIO_NEEDS_DYN_DMA_ALLOC.
+> 
+> An approach which would play better with our existing codebase would
+> be to introduce a two-step ioctl-mmap.
+> 
+> a. Use an ioctl() to allocate the DMA buffer. The ioctl returns two
+>    things:
+
+No. We don't want any new ioctls in the kernel.
+
+> 
+> 	1.  A mapping (page) number
+> 	2.  A physical (bus) address
+> 
+> 
+> b. Use the existing mmap() interface to gain access to the
+>    DMA buffer allocated in (a). Clients would invoke mmap()
+>    and use the mapping (page) number returned in (a) to
+>    obtain userspace access to the DMA buffer.
+> 
+> 
+> I think that the second step (b) would play nicely with the existing
+> mmap() interface exposed by the UIO driver.
+
+The existing interface is for static mappings only.
+
+> 
+> 
+> Using an ioctl() provides a cleaner way to return the physical
+> (bus) address of the DMA buffer.
+
+ioctl() is out of fashion today. We have sysfs. Note that ioctls are neither
+typesafe nor much faster than sysfs.
+
+> 
+> 
+> Existing client code that is not interested in DMA buffers do
+> not incur a penalty because it will not invoke the new ioctl().
+
+What about userspace tools that rely on the fact that the number of mappings
+for a UIO device cannot change? This is a documented property of UIO.
+
+Dynamically allocated mappings really call for a new device as Peter suggested.
+In fact, that would make life much easier for you. Since your the one who
+implements that stuff, your free to define a new interface. Surely that new
+interface will be discussed and rejected two or three times, but in the end
+we'll have a nice interface that allows UIO to use DMA, even with dyynamically
+allocated buffers.
+
+Use that freedom and create a new device with a new interface. There's no
+point in trying to change existing and well documented interfaces to userspace.
+
+Thanks,
+Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
