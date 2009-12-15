@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6463A6B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 23:39:25 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 00E4D6B0044
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 23:46:31 -0500 (EST)
 Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF4dF0T026388
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF4kTaj016210
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 15 Dec 2009 13:39:16 +0900
+	Tue, 15 Dec 2009 13:46:29 +0900
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A7FE145DE52
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:39:15 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 20EBA45DE4E
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:46:29 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B3C945DE4E
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:39:15 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E92C845DE4D
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:46:28 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6815E1DB8044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:39:14 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 130931DB8047
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:39:11 +0900 (JST)
-Date: Tue, 15 Dec 2009 13:35:46 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D73421DB803F
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:46:28 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F4F71DB803C
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:46:28 +0900 (JST)
+Date: Tue, 15 Dec 2009 13:43:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with
  nodemask v4.2
-Message-Id: <20091215133546.6872fc4f.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20091215134327.6c46b586.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <alpine.DEB.2.00.0912142025090.29243@chino.kir.corp.google.com>
 References: <20091110162121.361B.A69D9226@jp.fujitsu.com>
 	<20091110170338.9f3bb417.nishimura@mxp.nes.nec.co.jp>
@@ -50,21 +50,34 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 14 Dec 2009 20:30:37 -0800 (PST)
 David Rientjes <rientjes@google.com> wrote:
-> >     2 ideas which I can think of now are..
-> >     1) add sysctl_oom_calc_on_committed_memory 
-> >        If this is set, use vm-size instead of rss.
+
+> On Tue, 15 Dec 2009, KAMEZAWA Hiroyuki wrote:
+> 
+> >     I'm now preparing more counters for mm's statistics. It's better to
+> >     wait  and to see what we can do more. And other patches for total
+> >     oom-killer improvement is under development.
 > > 
+> >     And, there is a compatibility problem.
+> >     As David says, this may break some crazy software which uses
+> >     fake_numa+cpuset+oom_killer+oom_adj for resource controlling.
+> >    (even if I recommend them to use memcg rather than crazy tricks...)
+> >     
 > 
-> I would agree only if the oom killer used total_vm as a the default, it is 
-> long-standing and allows for the aforementioned capability that you lose 
-> with rss.  I have no problem with the added sysctl to use rss as the 
-> baseline when enabled.
+> That's not at all what I said.  I said using total_vm as a baseline allows 
+> users to define when a process is to be considered "rogue," that is, using 
+> more memory than expected.  Using rss would be inappropriate since it is 
+> highly dynamic and depends on the state of the VM at the time of oom, 
+> which userspace cannot possibly keep updated.
 > 
-I'll prepare a patch for adds
+> You consistently ignore that point: the power of /proc/pid/oom_adj to 
+> influence when a process, such as a memory leaker, is to be considered as 
+> a high priority for an oom kill.  It has absolutely nothing to do with 
+> fake NUMA, cpusets, or memcg.
+> 
+You also ignore that it's not sane to use oom kill for resource control ;)
 
-  sysctl_oom_kill_based_on_rss (default=0)
-
-ok ?
+Anyway, rss patch was dropped as you want.
+I'll prepare other ones.
 
 Thanks,
 -Kame
