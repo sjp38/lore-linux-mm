@@ -1,96 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AF1A16B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 19:45:31 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF0jTOt012915
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6C4A46B0044
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 19:49:30 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF0nRM6014713
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 15 Dec 2009 09:45:29 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E67A45DE59
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:45:29 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 292EA45DE51
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:45:29 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CD1E1DB8046
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:45:29 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B26781DB8043
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:45:28 +0900 (JST)
+	Tue, 15 Dec 2009 09:49:27 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BBF545DE52
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:49:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 59B6945DE4E
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:49:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 438091DB8045
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:49:27 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EFB031DB803E
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 09:49:26 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/8] Use prepare_to_wait_exclusive() instead prepare_to_wait()
-In-Reply-To: <4B264CCA.5010609@redhat.com>
-References: <20091214212936.BBBA.A69D9226@jp.fujitsu.com> <4B264CCA.5010609@redhat.com>
-Message-Id: <20091215085631.CDAD.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
+In-Reply-To: <1260810481.6666.13.camel@dhcp-100-19-198.bos.redhat.com>
+References: <20091211164651.036f5340@annuminas.surriel.com> <1260810481.6666.13.camel@dhcp-100-19-198.bos.redhat.com>
+Message-Id: <20091215094815.CDBB.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue, 15 Dec 2009 09:45:27 +0900 (JST)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 15 Dec 2009 09:49:26 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: Larry Woodman <lwoodman@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-> On 12/14/2009 07:30 AM, KOSAKI Motohiro wrote:
-> > if we don't use exclusive queue, wake_up() function wake _all_ waited
-> > task. This is simply cpu wasting.
-> >
-> > Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> On Fri, 2009-12-11 at 16:46 -0500, Rik van Riel wrote:
 > 
-> >   		if (zone_watermark_ok(zone, sc->order, low_wmark_pages(zone),
-> >   					0, 0)) {
-> > -			wake_up(wq);
-> > +			wake_up_all(wq);
-> >   			finish_wait(wq,&wait);
-> >   			sc->nr_reclaimed += sc->nr_to_reclaim;
-> >   			return -ERESTARTSYS;
+> Rik, the latest patch appears to have a problem although I dont know
+> what the problem is yet.  When the system ran out of memory we see
+> thousands of runnable processes and 100% system time:
 > 
-> I believe we want to wake the processes up one at a time
-> here.  If the queue of waiting processes is very large
-> and the amount of excess free memory is fairly low, the
-> first processes that wake up can take the amount of free
-> memory back down below the threshold.  The rest of the
-> waiters should stay asleep when this happens.
+> 
+>  9420  2  29824  79856  62676  19564    0    0     0     0 8054  379  0 
+> 100  0  0  0
+> 9420  2  29824  79368  62292  19564    0    0     0     0 8691  413  0 
+> 100  0  0  0
+> 9421  1  29824  79780  61780  19820    0    0     0     0 8928  408  0 
+> 100  0  0  0
+> 
+> The system would not respond so I dont know whats going on yet.  I'll
+> add debug code to figure out why its in that state as soon as I get
+> access to the hardware.
+> 
+> Larry
 
-OK.
-
-Actually, wake_up() and wake_up_all() aren't different so much.
-Although we use wake_up(), the task wake up next task before
-try to alloate memory. then, it's similar to wake_up_all().
-
-However, there are few difference. recent scheduler latency improvement
-effort reduce default scheduler latency target. it mean, if we have
-lots tasks of running state, the task have very few time slice. too
-frequently context switch decrease VM efficiency.
-Thank you, Rik. I didn't notice wake_up() makes better performance than
-wake_up_all() on current kernel.
-
-
-Subject: [PATCH 9/8] replace wake_up_all with wake_up
-
-Fix typo.
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e5adb7a..b3b4e77 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1644,7 +1644,7 @@ static int shrink_zone_begin(struct zone *zone, struct scan_control *sc)
- 	return 0;
- 
-  found_lots_memory:
--	wake_up_all(wq);
-+	wake_up(wq);
-  stop_reclaim:
- 	finish_wait(wq, &wait);
- 	sc->nr_reclaimed += sc->nr_to_reclaim;
--- 
-1.6.5.2
+There are 9421 running processces. it mean concurrent task limitation
+don't works well. hmm?
 
 
 
