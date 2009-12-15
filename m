@@ -1,69 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BEF936B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 17:28:31 -0500 (EST)
-Date: Tue, 15 Dec 2009 23:28:11 +0100
-From: "Hans J. Koch" <hjk@linutronix.de>
-Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
-Message-ID: <20091215222811.GC2432@local>
-References: <1228379942.5092.14.camel@twins>
- <4B22DD89.2020901@agilent.com>
- <20091214192322.GA3245@bluebox.local>
- <4B27905B.4080006@agilent.com>
- <20091215210002.GA2432@local>
- <4B2803D8.10704@agilent.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B2803D8.10704@agilent.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 34ABE6B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 18:31:27 -0500 (EST)
+Received: by yxe10 with SMTP id 10so437427yxe.12
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2009 15:31:24 -0800 (PST)
+Date: Wed, 16 Dec 2009 08:25:29 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [mmotm][PATCH 1/5] clean up mm_counter
+Message-Id: <20091216082529.8fc0d3c4.minchan.kim@barrios-desktop>
+In-Reply-To: <20091215181116.ee2c31f7.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20091215180904.c307629f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091215181116.ee2c31f7.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Earl Chew <earl_chew@agilent.com>
-Cc: "Hans J. Koch" <hjk@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, gregkh@suse.de, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, cl@linux-foundation.org, minchan.kim@gmail.com, Lee.Schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 15, 2009 at 01:47:04PM -0800, Earl Chew wrote:
-> Hans J. Koch wrote:
-> > Sorry, I think I wasn't clear enough: The current interface for static
-> > mappings shouldn't be changed. Dynamically added mappings need a new
-> > interface.
+On Tue, 15 Dec 2009 18:11:16 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Thanks for the quick reply.
+> Now, per-mm statistics counter is defined by macro in sched.h
 > 
-> Are you ok with changes to the (internal) struct uio_device ?
+> This patch modifies it to
+>   - defined in mm.h as inlinf functions
+>   - use array instead of macro's name creation.
+> 
+> This patch is for reducing patch size in future patch to modify
+> implementation of per-mm counter.
+> 
+> Changelog: 2009/12/14
+>  - added a struct rss_stat instead of bare counters.
+>  - use memset instead of for() loop.
+>  - rewrite macros into static inline functions.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  fs/proc/task_mmu.c       |    4 -
+>  include/linux/mm.h       |  104 +++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/mm_types.h |   33 +++++++++-----
+>  include/linux/sched.h    |   54 ------------------------
+>  kernel/fork.c            |    3 -
+>  kernel/tsacct.c          |    1 
+>  mm/filemap_xip.c         |    2 
+>  mm/fremap.c              |    2 
+>  mm/memory.c              |   56 +++++++++++++++----------
+>  mm/oom_kill.c            |    4 -
+>  mm/rmap.c                |   10 ++--
+>  mm/swapfile.c            |    2 
+>  12 files changed, 174 insertions(+), 101 deletions(-)
+> 
+> Index: mmotm-2.6.32-Dec8-pth/include/linux/mm.h
+> ===================================================================
+> --- mmotm-2.6.32-Dec8-pth.orig/include/linux/mm.h
+> +++ mmotm-2.6.32-Dec8-pth/include/linux/mm.h
+> @@ -868,6 +868,110 @@ extern int mprotect_fixup(struct vm_area
+>   */
+>  int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  			  struct page **pages);
+> +/*
+> + * per-process(per-mm_struct) statistics.
+> + */
+> +#if USE_SPLIT_PTLOCKS
+> +/*
+> + * The mm counters are not protected by its page_table_lock,
+> + * so must be incremented atomically.
+> + */
+> +static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
+> +{
+> +	atomic_long_set(&mm->rss_stat.count[member], value);
+> +}
 
-Hey, we live in a free world :)
-Anything can be changed as long as it's a technically sensible solution and
-doesn't break existing interfaces to userspace.
+I can't find mm->rss_stat in this patch.
+Maybe it's part of next patch. 
+It could break bisect.
 
-The DMA-for-UIO thing is something that shouldn't be taken lightly. If we
-define an interface for that, it should cover all possible applications.
-There are not only devices that need to allocate new DMA buffers at runtime,
-but also devices which could very well live with one or two statically
-allocated DMA buffers. We need to cover all these cases.
+Otherwise, Looks good to me. 
 
-One example: An A/D converter has an on-chip 32k buffer. It causes an
-interrupt as soon as the buffer is filled up to a certain high-water mark.
-Such cases would easily fit into the current UIO system. The UIO core could
-simply DMA the data to one of the mappings. A new flag for that mapping and
-a few other changes are all it takes. After the DMA transfer is complete, the
-interrupt is passed on to userspace, which would find the buffer already
-filled with the desired data. Just a thought, unfortunately I haven't got
-such hardware to try it.
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-When it comes to dynamically allocated DMA buffers, it might well be possible
-to add a new directory in sysfs besides the "mem" directory, e.g. something
-like /sys/class/uio/uioN/dma-mem/. This would save us the trouble of creating
-a new device. Maybe the example above would better fit in here, too. Who knows.
-
-These are only some thoughts, I haven't got any DMA capable hardware to deal
-with ATM.
-
-You certainly notice that there are important design decisions to make.
-Remember that once a kernel interface to userspace exists, it is etched in
-stone forever.
-
-Thanks,
-Hans
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
