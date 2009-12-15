@@ -1,87 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 34ABE6B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 18:31:27 -0500 (EST)
-Received: by yxe10 with SMTP id 10so437427yxe.12
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2009 15:31:24 -0800 (PST)
-Date: Wed, 16 Dec 2009 08:25:29 +0900
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 08FB86B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 18:54:55 -0500 (EST)
+Received: by ywh3 with SMTP id 3so490029ywh.22
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2009 15:54:53 -0800 (PST)
+Date: Wed, 16 Dec 2009 08:48:59 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [mmotm][PATCH 1/5] clean up mm_counter
-Message-Id: <20091216082529.8fc0d3c4.minchan.kim@barrios-desktop>
-In-Reply-To: <20091215181116.ee2c31f7.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [mmotm][PATCH 2/5] mm : avoid  false sharing on mm_counter
+Message-Id: <20091216084859.a93c9727.minchan.kim@barrios-desktop>
+In-Reply-To: <alpine.DEB.2.00.0912150920160.16754@router.home>
 References: <20091215180904.c307629f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091215181116.ee2c31f7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091215181337.1c4f638d.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0912150920160.16754@router.home>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, cl@linux-foundation.org, minchan.kim@gmail.com, Lee.Schermerhorn@hp.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com, Lee.Schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Dec 2009 18:11:16 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Hi, Christoph. 
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Now, per-mm statistics counter is defined by macro in sched.h
-> 
-> This patch modifies it to
->   - defined in mm.h as inlinf functions
->   - use array instead of macro's name creation.
-> 
-> This patch is for reducing patch size in future patch to modify
-> implementation of per-mm counter.
-> 
-> Changelog: 2009/12/14
->  - added a struct rss_stat instead of bare counters.
->  - use memset instead of for() loop.
->  - rewrite macros into static inline functions.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  fs/proc/task_mmu.c       |    4 -
->  include/linux/mm.h       |  104 +++++++++++++++++++++++++++++++++++++++++++++++
->  include/linux/mm_types.h |   33 +++++++++-----
->  include/linux/sched.h    |   54 ------------------------
->  kernel/fork.c            |    3 -
->  kernel/tsacct.c          |    1 
->  mm/filemap_xip.c         |    2 
->  mm/fremap.c              |    2 
->  mm/memory.c              |   56 +++++++++++++++----------
->  mm/oom_kill.c            |    4 -
->  mm/rmap.c                |   10 ++--
->  mm/swapfile.c            |    2 
->  12 files changed, 174 insertions(+), 101 deletions(-)
-> 
-> Index: mmotm-2.6.32-Dec8-pth/include/linux/mm.h
-> ===================================================================
-> --- mmotm-2.6.32-Dec8-pth.orig/include/linux/mm.h
-> +++ mmotm-2.6.32-Dec8-pth/include/linux/mm.h
-> @@ -868,6 +868,110 @@ extern int mprotect_fixup(struct vm_area
->   */
->  int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->  			  struct page **pages);
-> +/*
-> + * per-process(per-mm_struct) statistics.
-> + */
-> +#if USE_SPLIT_PTLOCKS
-> +/*
-> + * The mm counters are not protected by its page_table_lock,
-> + * so must be incremented atomically.
-> + */
-> +static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
-> +{
-> +	atomic_long_set(&mm->rss_stat.count[member], value);
-> +}
+On Tue, 15 Dec 2009 09:25:01 -0600 (CST)
+Christoph Lameter <cl@linux-foundation.org> wrote:
 
-I can't find mm->rss_stat in this patch.
-Maybe it's part of next patch. 
-It could break bisect.
+> On Tue, 15 Dec 2009, KAMEZAWA Hiroyuki wrote:
+> 
+> >  #if USE_SPLIT_PTLOCKS
+> > +#define SPLIT_RSS_COUNTING
+> >  struct mm_rss_stat {
+> >  	atomic_long_t count[NR_MM_COUNTERS];
+> >  };
+> > +/* per-thread cached information, */
+> > +struct task_rss_stat {
+> > +	int events;	/* for synchronization threshold */
+> 
+> Why count events? Just always increment the task counters and fold them
+> at appropriate points into mm_struct. Or get rid of the mm_struct counters
+> and only sum them up on the fly if needed?
 
-Otherwise, Looks good to me. 
+We are now suffering from finding appropriate points you mentioned.
+That's because we want to remove read-side overhead with no regression.
+So I think Kame removed schedule update hook.
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Although the hooks is almost no overhead, I don't want to make mm counters
+stale because it depends on schedule point.
+If any process makes many faults in its time slice and it's not preempted
+(ex, RT) as extreme case, we could show stale counters. 
+
+But now it makes consistency to merge counters.
+Worst case is 64. 
+
+In this aspect, I like this idea. 
 
 -- 
 Kind regards,
