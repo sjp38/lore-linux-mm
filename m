@@ -1,129 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DCC876B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 03:10:23 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF8AJpE024726
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 15 Dec 2009 17:10:20 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BE1A645DE4F
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 17:10:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9389245DE4D
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 17:10:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DAB51DB803E
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 17:10:19 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 27C4C1DB8040
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 17:10:16 +0900 (JST)
-Date: Tue, 15 Dec 2009 17:07:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH RFC v2 3/4] memcg: rework usage of stats by soft limit
-Message-Id: <20091215170705.3dca982a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <cc557aab0912142348j6d0f6206qd751f74e416c6710@mail.gmail.com>
-References: <cover.1260571675.git.kirill@shutemov.name>
-	<ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
-	<c1847dfb5c4fed1374b7add236d38e0db02eeef3.1260571675.git.kirill@shutemov.name>
-	<747ea0ec22b9348208c80f86f7a813728bf8e50a.1260571675.git.kirill@shutemov.name>
-	<20091212125046.14df3134.d-nishimura@mtf.biglobe.ne.jp>
-	<cc557aab0912120506x56b9a707ob556035fdcf40a22@mail.gmail.com>
-	<20091212233409.60da66fb.d-nishimura@mtf.biglobe.ne.jp>
-	<cc557aab0912121146y276a8d26v8baee15be1f83a97@mail.gmail.com>
-	<20091215103517.75645536.kamezawa.hiroyu@jp.fujitsu.com>
-	<cc557aab0912142348j6d0f6206qd751f74e416c6710@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1FD666B0047
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 03:29:04 -0500 (EST)
+Subject: Re: [PATCH 4/8] Use prepare_to_wait_exclusive() instead
+ prepare_to_wait()
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <1260855146.6126.30.camel@marge.simson.net>
+References: <20091214212936.BBBA.A69D9226@jp.fujitsu.com>
+	 <4B264CCA.5010609@redhat.com> <20091215085631.CDAD.A69D9226@jp.fujitsu.com>
+	 <1260855146.6126.30.camel@marge.simson.net>
+Content-Type: text/plain
+Date: Tue, 15 Dec 2009 09:28:59 +0100
+Message-Id: <1260865739.30062.16.camel@marge.simson.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: nishimura@mxp.nes.nec.co.jp, containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Dec 2009 09:48:09 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> On Tue, Dec 15, 2009 at 3:35 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Sat, 12 Dec 2009 21:46:08 +0200
-> > "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> >
-> >> On Sat, Dec 12, 2009 at 4:34 PM, Daisuke Nishimura
-> >> <d-nishimura@mtf.biglobe.ne.jp> wrote:
-> >> > On Sat, 12 Dec 2009 15:06:52 +0200
-> >> > "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> >> >
-> >> >> On Sat, Dec 12, 2009 at 5:50 AM, Daisuke Nishimura
-> >> >> <d-nishimura@mtf.biglobe.ne.jp> wrote:
-> >> >> > And IIUC, it's the same for your threshold feature, right ?
-> >> >> > I think it would be better:
-> >> >> >
-> >> >> > - discard this change.
-> >> >> > - in 4/4, rename mem_cgroup_soft_limit_check to mem_cgroup_event_check,
-> >> >> > A and instead of adding a new STAT counter, do like:
-> >> >> >
-> >> >> > A  A  A  A if (mem_cgroup_event_check(mem)) {
-> >> >> > A  A  A  A  A  A  A  A mem_cgroup_update_tree(mem, page);
-> >> >> > A  A  A  A  A  A  A  A mem_cgroup_threshold(mem);
-> >> >> > A  A  A  A }
-> >> >>
-> >> >> I think that mem_cgroup_update_tree() and mem_cgroup_threshold() should be
-> >> >> run with different frequency. How to share MEM_CGROUP_STAT_EVENTS
-> >> >> between soft limits and thresholds in this case?
-> >> >>
-> >> > hmm, both softlimit and your threshold count events at the same place(charge and uncharge).
-> >> > So, I think those events can be shared.
-> >> > Is there any reason they should run in different frequency ?
-> >>
-> >> SOFTLIMIT_EVENTS_THRESH is 1000. If use the same value for thresholds,
-> >> a threshold can
-> >> be exceed on 1000*nr_cpu_id pages. It's too many. I think, that 100 is
-> >> a reasonable value.
-> >>
-> >
-> > Hmm, then what amount of costs does this code add ?
-> >
-> > Do you have benchmark result ?
+On Tue, 2009-12-15 at 06:32 +0100, Mike Galbraith wrote:
+> On Tue, 2009-12-15 at 09:45 +0900, KOSAKI Motohiro wrote:
+> > > On 12/14/2009 07:30 AM, KOSAKI Motohiro wrote:
+> > > > if we don't use exclusive queue, wake_up() function wake _all_ waited
+> > > > task. This is simply cpu wasting.
+> > > >
+> > > > Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> > > 
+> > > >   		if (zone_watermark_ok(zone, sc->order, low_wmark_pages(zone),
+> > > >   					0, 0)) {
+> > > > -			wake_up(wq);
+> > > > +			wake_up_all(wq);
+> > > >   			finish_wait(wq,&wait);
+> > > >   			sc->nr_reclaimed += sc->nr_to_reclaim;
+> > > >   			return -ERESTARTSYS;
+> > > 
+> > > I believe we want to wake the processes up one at a time
+> > > here.  If the queue of waiting processes is very large
+> > > and the amount of excess free memory is fairly low, the
+> > > first processes that wake up can take the amount of free
+> > > memory back down below the threshold.  The rest of the
+> > > waiters should stay asleep when this happens.
+> > 
+> > OK.
+> > 
+> > Actually, wake_up() and wake_up_all() aren't different so much.
+> > Although we use wake_up(), the task wake up next task before
+> > try to alloate memory. then, it's similar to wake_up_all().
 > 
-> I've post some numbers how the patchset affects performance:
-> http://article.gmane.org/gmane.linux.kernel.mm/41880
+> What happens to waiters should running tasks not allocate for a while?
 > 
-> Do you need any other results?
+> > However, there are few difference. recent scheduler latency improvement
+> > effort reduce default scheduler latency target. it mean, if we have
+> > lots tasks of running state, the task have very few time slice. too
+> > frequently context switch decrease VM efficiency.
+> > Thank you, Rik. I didn't notice wake_up() makes better performance than
+> > wake_up_all() on current kernel.
 > 
-Ah, sorry. I missed that. The numbers seems good.
+> Perhaps this is a spot where an explicit wake_up_all_nopreempt() would
+> be handy....
 
-(off topic)
-multi-fault is too special, It's just a my toy ;)
+Maybe something like below.  I can also imagine that under _heavy_ vm
+pressure, it'd likely be good for throughput to not provide for sleeper
+fairness for these wakeups as well, as that increases vruntime spread,
+and thus increases preemption with no benefit in sight.
 
-The test I recommend you is kernel-make on tmpfs.
-This is my setup script.
-==
-#!/bin/sh
+---
+ include/linux/sched.h |    1 +
+ include/linux/wait.h  |    3 +++
+ kernel/sched.c        |   21 +++++++++++++++++++++
+ kernel/sched_fair.c   |    2 +-
+ 4 files changed, 26 insertions(+), 1 deletion(-)
 
-mount -t tmpfs none /home/kamezawa/tmpfs
-cp /home/kamezawa/linux-2.6.30.tar.bz2 /home/kamezawa/tmpfs
-cd /home/kamezawa/tmpfs
-mkdir /home/kamezawa/tmpfs/tmp
-tar xvpjf linux-2.6.30.tar.bz2
-cd linux-2.6.30
-make defconfig
+Index: linux-2.6/include/linux/sched.h
+===================================================================
+--- linux-2.6.orig/include/linux/sched.h
++++ linux-2.6/include/linux/sched.h
+@@ -1065,6 +1065,7 @@ struct sched_domain;
+  */
+ #define WF_SYNC		0x01		/* waker goes to sleep after wakup */
+ #define WF_FORK		0x02		/* child wakeup after fork */
++#define WF_NOPREEMPT	0x04		/* wakeup is not preemptive */
+ 
+ struct sched_class {
+ 	const struct sched_class *next;
+Index: linux-2.6/include/linux/wait.h
+===================================================================
+--- linux-2.6.orig/include/linux/wait.h
++++ linux-2.6/include/linux/wait.h
+@@ -140,6 +140,7 @@ static inline void __remove_wait_queue(w
+ }
+ 
+ void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
++void __wake_up_nopreempt(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
+ void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
+ void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr,
+ 			void *key);
+@@ -154,8 +155,10 @@ int out_of_line_wait_on_bit_lock(void *,
+ wait_queue_head_t *bit_waitqueue(void *, int);
+ 
+ #define wake_up(x)			__wake_up(x, TASK_NORMAL, 1, NULL)
++#define wake_up_nopreempt(x)		__wake_up_nopreempt(x, TASK_NORMAL, 1, NULL)
+ #define wake_up_nr(x, nr)		__wake_up(x, TASK_NORMAL, nr, NULL)
+ #define wake_up_all(x)			__wake_up(x, TASK_NORMAL, 0, NULL)
++#define wake_up_all_nopreempt(x)	__wake_up_nopreempt(x, TASK_NORMAL, 0, NULL)
+ #define wake_up_locked(x)		__wake_up_locked((x), TASK_NORMAL)
+ 
+ #define wake_up_interruptible(x)	__wake_up(x, TASK_INTERRUPTIBLE, 1, NULL)
+Index: linux-2.6/kernel/sched.c
+===================================================================
+--- linux-2.6.orig/kernel/sched.c
++++ linux-2.6/kernel/sched.c
+@@ -5682,6 +5682,27 @@ void __wake_up(wait_queue_head_t *q, uns
+ }
+ EXPORT_SYMBOL(__wake_up);
+ 
++/**
++ * __wake_up_nopreempt - wake up threads blocked on a waitqueue.
++ * @q: the waitqueue
++ * @mode: which threads
++ * @nr_exclusive: how many wake-one or wake-many threads to wake up
++ * @key: is directly passed to the wakeup function
++ *
++ * It may be assumed that this function implies a write memory barrier before
++ * changing the task state if and only if any tasks are woken up.
++ */
++void __wake_up_nopreempt(wait_queue_head_t *q, unsigned int mode,
++			int nr_exclusive, void *key)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&q->lock, flags);
++	__wake_up_common(q, mode, nr_exclusive, WF_NOPREEMPT, key);
++	spin_unlock_irqrestore(&q->lock, flags);
++}
++EXPORT_SYMBOL(__wake_up_nopreempt);
++
+ /*
+  * Same as __wake_up but called with the spinlock in wait_queue_head_t held.
+  */
+Index: linux-2.6/kernel/sched_fair.c
+===================================================================
+--- linux-2.6.orig/kernel/sched_fair.c
++++ linux-2.6/kernel/sched_fair.c
+@@ -1709,7 +1709,7 @@ static void check_preempt_wakeup(struct
+ 			pse->avg_overlap < sysctl_sched_migration_cost)
+ 		goto preempt;
+ 
+-	if (!sched_feat(WAKEUP_PREEMPT))
++	if (!sched_feat(WAKEUP_PREEMPT) || (wake_flags & WF_NOPREEMPT))
+ 		return;
+ 
+ 	update_curr(cfs_rq);
 
-and making gcc's tmporarly strage(TMPDIR) on tmpfs.
-
-#make clean; make -j 8 or some.
-
-and check "stime"
-
-But I don't ask you to do this, now.
-The whole patch seems attractive to me. Please fix something pointed out.
-
-I stop my patches for memcg's percpu counter rewriting until yours and
-Nishimura's patch goes. You can leave your threshold-event-counter as it
-is. I'll think of I can do total-rewrite of that counter or not.
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
