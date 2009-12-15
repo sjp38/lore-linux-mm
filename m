@@ -1,104 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6AB216B0062
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 00:19:54 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF5JpnY000905
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 15 Dec 2009 14:19:52 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CAA645DE58
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 14:19:51 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C99045DE52
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 14:19:51 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 22466E1800A
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 14:19:51 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A4AB11DB8043
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 14:19:50 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask v4.2
-In-Reply-To: <alpine.DEB.2.00.0912142046070.436@chino.kir.corp.google.com>
-References: <20091215133546.6872fc4f.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0912142046070.436@chino.kir.corp.google.com>
-Message-Id: <20091215135902.CDD6.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 02A676B0062
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 00:32:32 -0500 (EST)
+Subject: Re: [PATCH 4/8] Use prepare_to_wait_exclusive() instead
+ prepare_to_wait()
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <20091215085631.CDAD.A69D9226@jp.fujitsu.com>
+References: <20091214212936.BBBA.A69D9226@jp.fujitsu.com>
+	 <4B264CCA.5010609@redhat.com> <20091215085631.CDAD.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 15 Dec 2009 06:32:26 +0100
+Message-Id: <1260855146.6126.30.camel@marge.simson.net>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Tue, 15 Dec 2009 14:19:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 15 Dec 2009, KAMEZAWA Hiroyuki wrote:
-> 
-> > > I would agree only if the oom killer used total_vm as a the default, it is 
-> > > long-standing and allows for the aforementioned capability that you lose 
-> > > with rss.  I have no problem with the added sysctl to use rss as the 
-> > > baseline when enabled.
-> > > 
-> > I'll prepare a patch for adds
+On Tue, 2009-12-15 at 09:45 +0900, KOSAKI Motohiro wrote:
+> > On 12/14/2009 07:30 AM, KOSAKI Motohiro wrote:
+> > > if we don't use exclusive queue, wake_up() function wake _all_ waited
+> > > task. This is simply cpu wasting.
+> > >
+> > > Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 > > 
-> >   sysctl_oom_kill_based_on_rss (default=0)
+> > >   		if (zone_watermark_ok(zone, sc->order, low_wmark_pages(zone),
+> > >   					0, 0)) {
+> > > -			wake_up(wq);
+> > > +			wake_up_all(wq);
+> > >   			finish_wait(wq,&wait);
+> > >   			sc->nr_reclaimed += sc->nr_to_reclaim;
+> > >   			return -ERESTARTSYS;
 > > 
-> > ok ?
-> > 
+> > I believe we want to wake the processes up one at a time
+> > here.  If the queue of waiting processes is very large
+> > and the amount of excess free memory is fairly low, the
+> > first processes that wake up can take the amount of free
+> > memory back down below the threshold.  The rest of the
+> > waiters should stay asleep when this happens.
 > 
-> I have no strong feelings either for or against that, I guess users who 
-> want to always kill the biggest memory hogger even when single page 
-> __GFP_WAIT allocations fail could use it.  I'm not sure it would get much 
-> use, though.
+> OK.
 > 
-> I think we should methodically work out an oom killer badness rewrite that 
-> won't compound the problem by adding more and more userspace knobs.  In 
-> other words, we should slow down, construct a list of goals that we want 
-> to achieve, and then see what type of solution we can create.
-> 
-> A few requirements that I have:
+> Actually, wake_up() and wake_up_all() aren't different so much.
+> Although we use wake_up(), the task wake up next task before
+> try to alloate memory. then, it's similar to wake_up_all().
 
-Um, good analysis! really.
+What happens to waiters should running tasks not allocate for a while?
 
->
->  - we must be able to define when a task is a memory hogger; this is
->    currently done by /proc/pid/oom_adj relying on the overall total_vm
->    size of the task as a baseline.  Most users should have a good sense
->    of when their task is using more memory than expected and killing a
->    memory leaker should always be the optimal oom killer result.  A better 
->    set of units other than a shift on total_vm would be helpful, though.
+> However, there are few difference. recent scheduler latency improvement
+> effort reduce default scheduler latency target. it mean, if we have
+> lots tasks of running state, the task have very few time slice. too
+> frequently context switch decrease VM efficiency.
+> Thank you, Rik. I didn't notice wake_up() makes better performance than
+> wake_up_all() on current kernel.
 
-nit: What's mean "Most users"? desktop user(one of most majority users)
-don't have any expection of memory usage.
+Perhaps this is a spot where an explicit wake_up_all_nopreempt() would
+be handy.  Excessive wakeup preemption from wake_up_all() has long been
+annoying when there are many waiters, but converting it to only have the
+first wakeup be preemptive proved harmful to performance.  Recent tweaks
+will have aggravated the problem somewhat, but it's not new.
 
-but, if admin have memory expection, they should be able to tune
-optimal oom result.
-
-I think you pointed right thing.
-
-
->  - we must prefer tasks that run on a cpuset or mempolicy's nodes if the 
->    oom condition is constrained by that cpuset or mempolicy and its not a
->    system-wide issue.
-
-agreed. (who disagree it?)
-
-
->  - we must be able to polarize the badness heuristic to always select a
->    particular task is if its very low priority or disable oom killing for
->    a task if its must-run.
-
-Probably I haven't catch your point. What's mean "polarize"? Can you
-please describe more?
-
-
-> The proposal may be to remove /proc/pid/oom_adj completely since I know 
-> both you and KOSAKI-san dislike it, but we'd need an alternative which 
-> keeps the above functionality intact.
-
-Yes, To provide alternative way is must.
-
-
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
