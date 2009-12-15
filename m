@@ -1,63 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id CE2E36B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:09:15 -0500 (EST)
-Received: by ywh3 with SMTP id 3so3778858ywh.22
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2009 17:09:14 -0800 (PST)
-Date: Tue, 15 Dec 2009 10:03:42 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C69356B0044
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:13:51 -0500 (EST)
+Received: by pwi1 with SMTP id 1so2911423pwi.6
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2009 17:13:49 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20091215090441.CDB0.A69D9226@jp.fujitsu.com>
+References: <20091214213026.BBBD.A69D9226@jp.fujitsu.com>
+	 <20091215084636.c7790658.minchan.kim@barrios-desktop>
+	 <20091215090441.CDB0.A69D9226@jp.fujitsu.com>
+Date: Tue, 15 Dec 2009 10:13:48 +0900
+Message-ID: <28c262360912141713t6e0e5915m3bb30aa099914c40@mail.gmail.com>
+Subject: Re: [PATCH 5/8] Use io_schedule() instead schedule()
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 8/8] mm: Give up allocation if the task have fatal
- signal
-Message-Id: <20091215100342.e77c8cbe.minchan.kim@barrios-desktop>
-In-Reply-To: <20091215094659.CDB8.A69D9226@jp.fujitsu.com>
-References: <20091214213224.BBC6.A69D9226@jp.fujitsu.com>
-	<20091215085455.13eb65cc.minchan.kim@barrios-desktop>
-	<20091215094659.CDB8.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Dec 2009 09:50:47 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue, Dec 15, 2009 at 9:56 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> On Mon, 14 Dec 2009 21:30:54 +0900 (JST)
+>> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>>
+>> > All task sleeping point in vmscan (e.g. congestion_wait) use
+>> > io_schedule. then shrink_zone_begin use it too.
+>> >
+>> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> > ---
+>> > =C2=A0mm/vmscan.c | =C2=A0 =C2=A02 +-
+>> > =C2=A01 files changed, 1 insertions(+), 1 deletions(-)
+>> >
+>> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> > index 3562a2d..0880668 100644
+>> > --- a/mm/vmscan.c
+>> > +++ b/mm/vmscan.c
+>> > @@ -1624,7 +1624,7 @@ static int shrink_zone_begin(struct zone *zone, =
+struct scan_control *sc)
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 max_zone_concu=
+rrent_reclaimers)
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+break;
+>> >
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 schedule();
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 io_schedule();
+>>
+>> Hmm. We have many cond_resched which is not io_schedule in vmscan.c.
+>
+> cond_resched don't mean sleep on wait queue. it's similar to yield.
 
-> > >  	/*
-> > > +	 * If the allocation is for userland page and we have fatal signal,
-> > > +	 * there isn't any reason to continue allocation. instead, the task
-> > > +	 * should exit soon.
-> > > +	 */
-> > > +	if (fatal_signal_pending(current) && (gfp_mask & __GFP_HIGHMEM))
-> > > +		goto nopage;
-> > 
-> > If we jump nopage, we meets dump_stack and show_mem. 
-> > Even, we can meet OOM which might kill innocent process.
-> 
-> Which point you oppose? noprint is better?
-> 
-> 
+I confused it.
+Thanks for correcting me. :)
 
-Sorry fot not clarity.
-My point was following as. 
+>
+>> In addition, if system doesn't have swap device space and out of page ca=
+che
+>> due to heavy memory pressue, VM might scan & drop pages until priority i=
+s zero
+>> or zone is unreclaimable.
+>>
+>> I think it would be not a IO wait.
+>
+> two point.
+> 1. For long time, Administrator usually watch iowait% at heavy memory pre=
+ssure. I
+> don't hope change this without reasonable reason. 2. iowait makes schedul=
+er
+> bonus a bit, vmscan task should have many time slice than memory consume
+> task. it improve VM stabilization.
 
-First,
-I don't want to print.
-Why do we print stack and mem when the process receives the SIGKILL?
+AFAIK, CFS scheduler doesn't give the bonus to I/O wait task any more.
 
-Second, 
-1) A process try to allocate anon page in do_anonymous_page.
-2) A process receives SIGKILL.
-3) kernel doesn't allocate page to A process by your patch.
-4) do_anonymous_page returns VF_FAULT_OOM.
-5) call mm_fault_error
-6) call out_of_memory 
-7) It migth kill innocent task. 
+>
+> but I agree the benefit isn't so big. if we have reasonable reason, I
+> don't oppose use schedule().
+>
+>
+>
+>
 
-If I missed something, Pz, corret me. :)
 
--- 
+
+--=20
 Kind regards,
 Minchan Kim
 
