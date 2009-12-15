@@ -1,105 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 817886B006A
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 06:12:42 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBFBCaet012089
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 15 Dec 2009 20:12:36 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 71BE145DE51
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 20:12:36 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 47EF945DE4E
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 20:12:36 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E646E18009
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 20:12:36 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DA9211DB8038
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 20:12:35 +0900 (JST)
-Date: Tue, 15 Dec 2009 20:09:27 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH RFC v2 4/4] memcg: implement memory thresholds
-Message-Id: <20091215200927.68126d96.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <cc557aab0912150246k476aa85m6c1b61045fb0b26e@mail.gmail.com>
-References: <cover.1260571675.git.kirill@shutemov.name>
-	<ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
-	<c1847dfb5c4fed1374b7add236d38e0db02eeef3.1260571675.git.kirill@shutemov.name>
-	<747ea0ec22b9348208c80f86f7a813728bf8e50a.1260571675.git.kirill@shutemov.name>
-	<9e6e8d687224c6cbc54281f7c3d07983f701f93d.1260571675.git.kirill@shutemov.name>
-	<20091215105850.87203454.kamezawa.hiroyu@jp.fujitsu.com>
-	<cc557aab0912150246k476aa85m6c1b61045fb0b26e@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D513C6B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 08:35:10 -0500 (EST)
+Message-ID: <4B27905B.4080006@agilent.com>
+Date: Tue, 15 Dec 2009 05:34:19 -0800
+From: Earl Chew <earl_chew@agilent.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+References: <1228379942.5092.14.camel@twins> <4B22DD89.2020901@agilent.com> <20091214192322.GA3245@bluebox.local>
+In-Reply-To: <20091214192322.GA3245@bluebox.local>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
+To: "Hans J. Koch" <hjk@linutronix.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, gregkh@suse.de, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Dec 2009 12:46:32 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+Hans,
 
-> On Tue, Dec 15, 2009 at 3:58 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Sat, 12 Dec 2009 00:59:19 +0200
-> > "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+Thanks for the considered reply.
 
-> > If you use have to use spinlock here, this is a system-wide spinlock,
-> > threshold as "100" is too small, I think.
+
+Hans J. Koch wrote:
+> The general thing is this: The UIO core supports only static mappings.
+> The possible number of mappings is usually set at compile time or module
+> load time and is currently limited to MAX_UIO_MAPS (== 5). This number
+> is usually sufficient for devices like PCI cards, which have a limited
+> number of mappings, too. All drivers currently in the kernel only need
+> one or two.
+
+
+I'd like to proceed by changing struct uio_mem [MAX_UIO_MAPS] to a
+linked list.
+
+The driver code in uio_find_mem_index(), uio_dev_add_attributes(), etc,
+iterate through the (small) array anyway, and the list space and
+performance overhead is not significant for the cases mentioned.
+
+Such a change would make it easier to track dynamically allocated
+regions as well as pre-allocated mapping regions in the same data
+structure.
+
+It also plays more nicely into the next part ...
+
+> The current implementation of the UIO core is simply not made for
+> dynamic allocation of an unlimited amount of new mappings at runtime. As
+> we have seen in this patch, it needs raping of a documented kernel
+> interface to userspace. This is not acceptable.
 > 
-> What is reasonable value for THRESHOLDS_EVENTS_THRESH for you?
-> 
-> In most cases spinlock taken only for two checks. Is it significant time?
-> 
-I tend to think about "bad case" when I see spinlock. 
+> So the easiest correct solution is to create a new device (e.g.
+> /dev/uioN-dma, as Peter suggested). It should only be created for a UIO
+> driver if it has a certain flag set, something like UIO_NEEDS_DYN_DMA_ALLOC.
 
-And...I'm not sure but, recently, there are many VM users.
-spinlock can be a big pitfall in some enviroment if not para-virtualized.
-(I'm sorry I misunderstand somehing and VM handle this well...)
+An approach which would play better with our existing codebase would
+be to introduce a two-step ioctl-mmap.
 
-> Unfortunately, I can't test it on a big box. I have only dual-core system.
-> It's not enough to test scalability.
-> 
+a. Use an ioctl() to allocate the DMA buffer. The ioctl returns two
+   things:
 
-please leave it as 100 for now. But there is a chance to do simple optimization
-for reducing the number of checks.
-
-example)
-static void mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
-{
-	/* For handle memory allocation in rush, check jiffies */
-	*/
-	smp_rmb();
-	if (memcg->last_checkpoint_jiffies == jiffies)
-		return;   /* reset event to half value ..*/
-	memcg->last_checkpoint_jiffies = jiffies;
-	smp_wmb();
-	.....
-
-I think this kind of check is necessary for handle "Rushing" memory allocation
-in scalable way. Above one is just an example, 1 tick may be too long.
-
-Other simple plan is
-
-	/* Allow only one thread to do scan the list at the same time. */
-	if (atomic_inc_not_zero(&memcg->threahold_scan_count) {
-		atomic_dec(&memcg->threshold_scan_count);
-		return;
-	}
-	...
-	atomic_dec(&memcg->threahold_scan_count)
-
-Some easy logic (as above) for taking care of scalability and commenary for that
-is enough at 1st stage. Then, if there seems to be a trouble/concern, someone
-(me?) will do some work later.
+	1.  A mapping (page) number
+	2.  A physical (bus) address
 
 
+b. Use the existing mmap() interface to gain access to the
+   DMA buffer allocated in (a). Clients would invoke mmap()
+   and use the mapping (page) number returned in (a) to
+   obtain userspace access to the DMA buffer.
 
 
-Thanks,
--Kame
+I think that the second step (b) would play nicely with the existing
+mmap() interface exposed by the UIO driver.
+
+
+Using an ioctl() provides a cleaner way to return the physical
+(bus) address of the DMA buffer.
+
+
+Existing client code that is not interested in DMA buffers do
+not incur a penalty because it will not invoke the new ioctl().
+
+
+Earl
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
