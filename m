@@ -1,276 +1,358 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 88D3D6B0096
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 05:30:32 -0500 (EST)
-Received: by fxm25 with SMTP id 25so4113730fxm.6
-        for <linux-mm@kvack.org>; Tue, 15 Dec 2009 02:30:28 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id C677B6B0093
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 05:46:35 -0500 (EST)
+Received: by fxm25 with SMTP id 25so4127110fxm.6
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2009 02:46:32 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20091215183533.1a1e87d9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091215105850.87203454.kamezawa.hiroyu@jp.fujitsu.com>
 References: <cover.1260571675.git.kirill@shutemov.name>
 	 <ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
-	 <cc557aab0912150111k41517b41t8999568db3bd8daa@mail.gmail.com>
-	 <20091215183533.1a1e87d9.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 15 Dec 2009 12:30:27 +0200
-Message-ID: <cc557aab0912150230g54863bb8rabc8b8c1c58d5a55@mail.gmail.com>
-Subject: Re: [PATCH RFC v2 1/4] cgroup: implement eventfd-based generic API
-	for notifications
+	 <c1847dfb5c4fed1374b7add236d38e0db02eeef3.1260571675.git.kirill@shutemov.name>
+	 <747ea0ec22b9348208c80f86f7a813728bf8e50a.1260571675.git.kirill@shutemov.name>
+	 <9e6e8d687224c6cbc54281f7c3d07983f701f93d.1260571675.git.kirill@shutemov.name>
+	 <20091215105850.87203454.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 15 Dec 2009 12:46:32 +0200
+Message-ID: <cc557aab0912150246k476aa85m6c1b61045fb0b26e@mail.gmail.com>
+Subject: Re: [PATCH RFC v2 4/4] memcg: implement memory thresholds
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 15, 2009 at 11:35 AM, KAMEZAWA Hiroyuki
+On Tue, Dec 15, 2009 at 3:58 AM, KAMEZAWA Hiroyuki
 <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 15 Dec 2009 11:11:16 +0200
+> On Sat, 12 Dec 2009 00:59:19 +0200
 > "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 >
->> Could anybody review the patch?
+>> It allows to register multiple memory and memsw thresholds and gets
+>> notifications when it crosses.
 >>
->> Thank you.
->
-> some nitpicks.
->
+>> To register a threshold application need:
+>> - create an eventfd;
+>> - open memory.usage_in_bytes or memory.memsw.usage_in_bytes;
+>> - write string like "<event_fd> <memory.usage_in_bytes> <threshold>" to
+>> =C2=A0 cgroup.event_control.
 >>
->> On Sat, Dec 12, 2009 at 12:59 AM, Kirill A. Shutemov
->> <kirill@shutemov.name> wrote:
+>> Application will be notified through eventfd when memory usage crosses
+>> threshold in any direction.
+>>
+>> It's applicable for root and non-root cgroup.
+>>
+>> It uses stats to track memory usage, simmilar to soft limits. It checks
+>> if we need to send event to userspace on every 100 page in/out. I guess
+>> it's good compromise between performance and accuracy of thresholds.
+>>
+>> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+>> ---
+>> =C2=A0mm/memcontrol.c | =C2=A0263 ++++++++++++++++++++++++++++++++++++++=
++++++++++++++++++
+>> =C2=A01 files changed, 263 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index c6081cc..5ba2140 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -6,6 +6,10 @@
+>> =C2=A0 * Copyright 2007 OpenVZ SWsoft Inc
+>> =C2=A0 * Author: Pavel Emelianov <xemul@openvz.org>
+>> =C2=A0 *
+>> + * Memory thresholds
+>> + * Copyright (C) 2009 Nokia Corporation
+>> + * Author: Kirill A. Shutemov
+>> + *
+>> =C2=A0 * This program is free software; you can redistribute it and/or m=
+odify
+>> =C2=A0 * it under the terms of the GNU General Public License as publish=
+ed by
+>> =C2=A0 * the Free Software Foundation; either version 2 of the License, =
+or
+>> @@ -38,6 +42,7 @@
+>> =C2=A0#include <linux/vmalloc.h>
+>> =C2=A0#include <linux/mm_inline.h>
+>> =C2=A0#include <linux/page_cgroup.h>
+>> +#include <linux/eventfd.h>
+>> =C2=A0#include "internal.h"
+>>
+>> =C2=A0#include <asm/uaccess.h>
+>> @@ -56,6 +61,7 @@ static int really_do_swap_account __initdata =3D 1; /*=
+ for remember boot option*/
+>>
+>> =C2=A0static DEFINE_MUTEX(memcg_tasklist); /* can be hold under cgroup_m=
+utex */
+>> =C2=A0#define SOFTLIMIT_EVENTS_THRESH (1000)
+>> +#define THRESHOLDS_EVENTS_THRESH (100)
+>>
+>> =C2=A0/*
+>> =C2=A0 * Statistics for memory cgroup.
+>> @@ -72,6 +78,8 @@ enum mem_cgroup_stat_index {
+>> =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out=
+ */
+>> =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_SOFTLIMIT, /* decrements on each pa=
+ge in/out.
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 used by soft=
+ limit implementation */
+>> + =C2=A0 =C2=A0 MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each page i=
+n/out.
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 used by threshold i=
+mplementation */
+>>
+>> =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_NSTATS,
+>> =C2=A0};
+>> @@ -182,6 +190,15 @@ struct mem_cgroup_tree {
+>>
+>> =C2=A0static struct mem_cgroup_tree soft_limit_tree __read_mostly;
+>>
+>> +struct mem_cgroup_threshold {
+>> + =C2=A0 =C2=A0 struct list_head list;
+>> + =C2=A0 =C2=A0 struct eventfd_ctx *eventfd;
+>> + =C2=A0 =C2=A0 u64 threshold;
+>> +};
+>> +
+>> +static bool mem_cgroup_threshold_check(struct mem_cgroup* mem);
+>> +static void mem_cgroup_threshold(struct mem_cgroup* mem, bool swap);
+>> +
+>> =C2=A0/*
+>> =C2=A0 * The memory controller data structure. The memory controller con=
+trols both
+>> =C2=A0 * page cache and RSS per cgroup. We would eventually like to prov=
+ide
+>> @@ -233,6 +250,19 @@ struct mem_cgroup {
+>> =C2=A0 =C2=A0 =C2=A0 /* set when res.limit =3D=3D memsw.limit */
+>> =C2=A0 =C2=A0 =C2=A0 bool =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0memsw=
+_is_minimum;
+>>
+>> + =C2=A0 =C2=A0 /* protect lists of thresholds*/
+>> + =C2=A0 =C2=A0 spinlock_t thresholds_lock;
+>> +
+>> + =C2=A0 =C2=A0 /* thresholds for memory usage */
+>> + =C2=A0 =C2=A0 struct list_head thresholds;
+>> + =C2=A0 =C2=A0 struct mem_cgroup_threshold *below_threshold;
+>> + =C2=A0 =C2=A0 struct mem_cgroup_threshold *above_threshold;
+>> +
+>> + =C2=A0 =C2=A0 /* thresholds for mem+swap usage */
+>> + =C2=A0 =C2=A0 struct list_head memsw_thresholds;
+>> + =C2=A0 =C2=A0 struct mem_cgroup_threshold *memsw_below_threshold;
+>> + =C2=A0 =C2=A0 struct mem_cgroup_threshold *memsw_above_threshold;
+>> +
+>> =C2=A0 =C2=A0 =C2=A0 /*
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0* statistics. This must be placed at the end =
+of memcg.
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>> @@ -519,6 +549,8 @@ static void mem_cgroup_charge_statistics(struct mem_=
+cgroup *mem,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __mem_cgroup_stat_add_s=
+afe(cpustat,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_PGPGOUT_COUNT, 1);
+>> =C2=A0 =C2=A0 =C2=A0 __mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT=
+_SOFTLIMIT, -1);
+>> + =C2=A0 =C2=A0 __mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_THRE=
+SHOLDS, -1);
+>> +
+>> =C2=A0 =C2=A0 =C2=A0 put_cpu();
+>> =C2=A0}
+>>
+>> @@ -1363,6 +1395,11 @@ static int __mem_cgroup_try_charge(struct mm_stru=
+ct *mm,
+>> =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_soft_limit_check(mem))
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_update_tree(=
+mem, page);
+>> =C2=A0done:
+>> + =C2=A0 =C2=A0 if (mem_cgroup_threshold_check(mem)) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_threshold(mem, fa=
+lse);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (do_swap_account)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+mem_cgroup_threshold(mem, true);
+>> + =C2=A0 =C2=A0 }
+>> =C2=A0 =C2=A0 =C2=A0 return 0;
+>> =C2=A0nomem:
+>> =C2=A0 =C2=A0 =C2=A0 css_put(&mem->css);
+>> @@ -1906,6 +1943,11 @@ __mem_cgroup_uncharge_common(struct page *page, e=
+num charge_type ctype)
+>>
+>> =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_soft_limit_check(mem))
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_update_tree(=
+mem, page);
+>> + =C2=A0 =C2=A0 if (mem_cgroup_threshold_check(mem)) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_threshold(mem, fa=
+lse);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (do_swap_account)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+mem_cgroup_threshold(mem, true);
+>> + =C2=A0 =C2=A0 }
+>> =C2=A0 =C2=A0 =C2=A0 /* at swapout, this memcg will be accessed to recor=
+d to swap */
+>> =C2=A0 =C2=A0 =C2=A0 if (ctype !=3D MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 css_put(&mem->css);
+>> @@ -2860,11 +2902,181 @@ static int mem_cgroup_swappiness_write(struct c=
+group *cgrp, struct cftype *cft,
+>> =C2=A0}
+>>
+>>
+>> +static bool mem_cgroup_threshold_check(struct mem_cgroup *mem)
+>> +{
+>> + =C2=A0 =C2=A0 bool ret =3D false;
+>> + =C2=A0 =C2=A0 int cpu;
+>> + =C2=A0 =C2=A0 s64 val;
+>> + =C2=A0 =C2=A0 struct mem_cgroup_stat_cpu *cpustat;
+>> +
+>> + =C2=A0 =C2=A0 cpu =3D get_cpu();
+>> + =C2=A0 =C2=A0 cpustat =3D &mem->stat.cpustat[cpu];
+>> + =C2=A0 =C2=A0 val =3D __mem_cgroup_stat_read_local(cpustat, MEM_CGROUP=
+_STAT_THRESHOLDS);
+>> + =C2=A0 =C2=A0 if (unlikely(val < 0)) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __mem_cgroup_stat_set(cpusta=
+t, MEM_CGROUP_STAT_THRESHOLDS,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 THRESHOLDS_EVENTS_THRESH);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D true;
+>> + =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 put_cpu();
+>> + =C2=A0 =C2=A0 return ret;
+>> +}
+>> +
 >
->> > + =C2=A0 =C2=A0 =C2=A0 /*
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Unregister events and notify userspace.
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* FIXME: How to avoid race with cgroup_ev=
-ent_remove_work()
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* =C2=A0 =C2=A0 =C2=A0 =C2=A0which runs f=
-rom workqueue?
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> > + =C2=A0 =C2=A0 =C2=A0 mutex_lock(&cgrp->event_list_mutex);
->> > + =C2=A0 =C2=A0 =C2=A0 list_for_each_entry_safe(event, tmp, &cgrp->eve=
-nt_list, list) {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cgroup_event_remove=
-(event);
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 eventfd_signal(even=
-t->eventfd, 1);
->> > + =C2=A0 =C2=A0 =C2=A0 }
->> > + =C2=A0 =C2=A0 =C2=A0 mutex_unlock(&cgrp->event_list_mutex);
->> > +
->> > +out:
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
->> > =C2=A0}
+> Hmm. please check
 >
-> How ciritical is this FIXME ?
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (likely(list_empty(&mem->thesholds) &&
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_empty=
+(&mem->memsw_thresholds)))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return;
 
-There is potential race. I have never seen it. When userspace closes
-eventfd associated
-with cgroup event, cgroup_event_remove() will not be called
-immediately. It will be called
-later from workqueue. If somebody removes cgroup before the workqueue calls
-cgroup_event_remove() we will get problem.
-It's unlikely, but theoretically possible.
+These lists are never be empty. They have at least two fake threshold for 0
+and RESOURCE_MAX.
 
-> But Hmm..can't we use RCU ?
+>
+> or adds a flag as mem->no_threshold_check to skip this routine quickly.
+>
+> _OR_
+> I personally don't like to have 2 counters to catch events.
+>
+> How about this ?
+>
+> =C2=A0 adds
+> =C2=A0 struct mem_cgroup {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0atomic_t =C2=A0 =C2=A0 =C2=A0 =C2=A0event_coun=
+ter; // this is incremented per 32
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 p=
+age-in/out
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0atomic_t last_softlimit_check;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0atomic_t last_thresh_check;
+> =C2=A0 };
+>
+> static bool mem_cgroup_threshold_check(struct mem_cgroup *mem)
+> {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0decrement percpu event counter.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (percpu counter reaches 0) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if =C2=A0(atomic_d=
+ec_and_test(&mem->check_thresh) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0check threashold.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0reset counter.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if =C2=A0(atomic_d=
+ec_and_test(&memc->check_softlimit) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0update softlimit tree.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0reset counter.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0reset percpu count=
+er.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> }
+>
+> Then, you can have a counter like system-wide event counter.
+
+I leave it as is for now, as you mention in other letter.
+
+>> +static void mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
+>> +{
+>> + =C2=A0 =C2=A0 struct mem_cgroup_threshold **below, **above;
+>> + =C2=A0 =C2=A0 struct list_head *thresholds;
+>> + =C2=A0 =C2=A0 u64 usage =3D mem_cgroup_usage(memcg, swap);
+>> +
+>> + =C2=A0 =C2=A0 if (!swap) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 thresholds =3D &memcg->thres=
+holds;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 above =3D &memcg->above_thre=
+shold;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 below =3D &memcg->below_thre=
+shold;
+>> + =C2=A0 =C2=A0 } else {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 thresholds =3D &memcg->memsw=
+_thresholds;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 above =3D &memcg->memsw_abov=
+e_threshold;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 below =3D &memcg->memsw_belo=
+w_threshold;
+>> + =C2=A0 =C2=A0 }
+>> +
+>> + =C2=A0 =C2=A0 spin_lock(&memcg->thresholds_lock);
+>> + =C2=A0 =C2=A0 if ((*above)->threshold <=3D usage) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 *below =3D *above;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_for_each_entry_continue=
+((*above), thresholds, list) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+eventfd_signal((*below)->eventfd, 1);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+if ((*above)->threshold > usage)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+*below =3D *above;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 } else if ((*below)->threshold > usage) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 *above =3D *below;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_for_each_entry_continue=
+_reverse((*below), thresholds,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 list) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+eventfd_signal((*above)->eventfd, 1);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+if ((*below)->threshold <=3D usage)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+*above =3D *below;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 spin_unlock(&memcg->thresholds_lock);
+>> +}
+>
+> Could you adds comment on above check ?
+
+I'll add comments in next version of patchset.
+
+> And do we need *spin_lock* here ? Can't you use RCU list walk ?
 
 I'll play with it.
 
->> >
->> > @@ -1136,6 +1187,8 @@ static void init_cgroup_housekeeping(struct cgro=
-up *cgrp)
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0INIT_LIST_HEAD(&cgrp->release_list);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0INIT_LIST_HEAD(&cgrp->pidlists);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0mutex_init(&cgrp->pidlist_mutex);
->> > + =C2=A0 =C2=A0 =C2=A0 INIT_LIST_HEAD(&cgrp->event_list);
->> > + =C2=A0 =C2=A0 =C2=A0 mutex_init(&cgrp->event_list_mutex);
->> > =C2=A0}
->> >
->> > =C2=A0static void init_cgroup_root(struct cgroupfs_root *root)
->> > @@ -1935,6 +1988,16 @@ static const struct inode_operations cgroup_dir=
-_inode_operations =3D {
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0.rename =3D cgroup_rename,
->> > =C2=A0};
->> >
->> > +/*
->> > + * Check if a file is a control file
->> > + */
->> > +static inline struct cftype *__file_cft(struct file *file)
->> > +{
->> > + =C2=A0 =C2=A0 =C2=A0 if (file->f_dentry->d_inode->i_fop !=3D &cgroup=
-_file_operations)
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ERR_PTR(-EIN=
-VAL);
->> > + =C2=A0 =C2=A0 =C2=A0 return __d_cft(file->f_dentry);
->> > +}
->> > +
->> > =C2=A0static int cgroup_create_file(struct dentry *dentry, mode_t mode=
-,
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct super_block *sb)
->> > =C2=A0{
->> > @@ -2789,6 +2852,151 @@ static int cgroup_write_notify_on_release(stru=
-ct cgroup *cgrp,
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
->> > =C2=A0}
->> >
->> > +static inline void cgroup_event_remove(struct cgroup_event *event)
->> > +{
->> > + =C2=A0 =C2=A0 =C2=A0 struct cgroup *cgrp =3D event->cgrp;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 BUG_ON(event->cft->unregister_event(cgrp, event=
-->cft, event->eventfd));
+> If you use have to use spinlock here, this is a system-wide spinlock,
+> threshold as "100" is too small, I think.
+
+What is reasonable value for THRESHOLDS_EVENTS_THRESH for you?
+
+In most cases spinlock taken only for two checks. Is it significant time?
+
+Unfortunately, I can't test it on a big box. I have only dual-core system.
+It's not enough to test scalability.
+
+> Even if you can't use spinlock, please use mutex. (with checking gfp_mask=
+).
 >
-> Hmm ? BUG ? If bug, please add document or comment.
-
-I'll remove it, since we check it in cgroup_write_event_control().
-
->> > + =C2=A0 =C2=A0 =C2=A0 eventfd_ctx_put(event->eventfd);
->> > + =C2=A0 =C2=A0 =C2=A0 remove_wait_queue(event->wqh, &event->wait);
->> > + =C2=A0 =C2=A0 =C2=A0 list_del(&event->list);
->
-> please add comment as /* event_list_mutex must be held */
-
-Ok.
-
->> > + =C2=A0 =C2=A0 =C2=A0 kfree(event);
->> > +}
->> > +
->> > +static void cgroup_event_remove_work(struct work_struct *work)
->> > +{
->> > + =C2=A0 =C2=A0 =C2=A0 struct cgroup_event *event =3D container_of(wor=
-k, struct cgroup_event,
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 remove);
->> > + =C2=A0 =C2=A0 =C2=A0 struct cgroup *cgrp =3D event->cgrp;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 mutex_lock(&cgrp->event_list_mutex);
->> > + =C2=A0 =C2=A0 =C2=A0 cgroup_event_remove(event);
->> > + =C2=A0 =C2=A0 =C2=A0 mutex_unlock(&cgrp->event_list_mutex);
->> > +}
->> > +
->> > +static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int sync, void *key=
-)
->> > +{
->> > + =C2=A0 =C2=A0 =C2=A0 struct cgroup_event *event =3D container_of(wai=
-t,
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 struct cgroup_event, wait);
->> > + =C2=A0 =C2=A0 =C2=A0 unsigned long flags =3D (unsigned long)key;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 if (flags & POLLHUP)
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* This functi=
-on called with spinlock taken, but
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* cgroup_even=
-t_remove() may sleep, so we have
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* to run it i=
-n a workqueue.
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 schedule_work(&even=
-t->remove);
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 return 0;
->> > +}
->
->> > +
->> > +static void cgroup_event_ptable_queue_proc(struct file *file,
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 wait_queue_head_t *=
-wqh, poll_table *pt)
->> > +{
->> > + =C2=A0 =C2=A0 =C2=A0 struct cgroup_event *event =3D container_of(pt,
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 struct cgroup_event, pt);
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 event->wqh =3D wqh;
->> > + =C2=A0 =C2=A0 =C2=A0 add_wait_queue(wqh, &event->wait);
->> > +}
->> > +
->> > +static int cgroup_write_event_control(struct cgroup *cont, struct cft=
-ype *cft,
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 const char *buf=
-fer)
->> > +{
->> > + =C2=A0 =C2=A0 =C2=A0 struct cgroup_event *event =3D NULL;
->> > + =C2=A0 =C2=A0 =C2=A0 unsigned int efd, cfd;
->> > + =C2=A0 =C2=A0 =C2=A0 struct file *efile =3D NULL;
->> > + =C2=A0 =C2=A0 =C2=A0 struct file *cfile =3D NULL;
->> > + =C2=A0 =C2=A0 =C2=A0 char *endp;
->> > + =C2=A0 =C2=A0 =C2=A0 int ret;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 efd =3D simple_strtoul(buffer, &endp, 10);
->> > + =C2=A0 =C2=A0 =C2=A0 if (*endp !=3D ' ')
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -EINVAL;
->> > + =C2=A0 =C2=A0 =C2=A0 buffer =3D endp + 1;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 cfd =3D simple_strtoul(buffer, &endp, 10);
->> > + =C2=A0 =C2=A0 =C2=A0 if ((*endp !=3D ' ') && (*endp !=3D '\0'))
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -EINVAL;
->> > + =C2=A0 =C2=A0 =C2=A0 buffer =3D endp + 1;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 event =3D kzalloc(sizeof(*event), GFP_KERNEL);
->> > + =C2=A0 =C2=A0 =C2=A0 if (!event)
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -ENOMEM;
->> > + =C2=A0 =C2=A0 =C2=A0 event->cgrp =3D cont;
->> > + =C2=A0 =C2=A0 =C2=A0 INIT_LIST_HEAD(&event->list);
->> > + =C2=A0 =C2=A0 =C2=A0 init_poll_funcptr(&event->pt, cgroup_event_ptab=
-le_queue_proc);
->> > + =C2=A0 =C2=A0 =C2=A0 init_waitqueue_func_entry(&event->wait, cgroup_=
-event_wake);
->> > + =C2=A0 =C2=A0 =C2=A0 INIT_WORK(&event->remove, cgroup_event_remove_w=
-ork);
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 efile =3D eventfd_fget(efd);
->> > + =C2=A0 =C2=A0 =C2=A0 if (IS_ERR(efile)) {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D PTR_ERR(efi=
-le);
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto fail;
->> > + =C2=A0 =C2=A0 =C2=A0 }
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 event->eventfd =3D eventfd_ctx_fileget(efile);
->> > + =C2=A0 =C2=A0 =C2=A0 if (IS_ERR(event->eventfd)) {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D PTR_ERR(eve=
-nt->eventfd);
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto fail;
->> > + =C2=A0 =C2=A0 =C2=A0 }
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 cfile =3D fget(cfd);
->> > + =C2=A0 =C2=A0 =C2=A0 if (!cfile) {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D -EBADF;
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto fail;
->> > + =C2=A0 =C2=A0 =C2=A0 }
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 /* the process need read permission on control =
-file */
->> > + =C2=A0 =C2=A0 =C2=A0 ret =3D file_permission(cfile, MAY_READ);
->> > + =C2=A0 =C2=A0 =C2=A0 if (ret < 0)
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto fail;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 event->cft =3D __file_cft(cfile);
->> > + =C2=A0 =C2=A0 =C2=A0 if (IS_ERR(event->cft)) {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D PTR_ERR(eve=
-nt->cft);
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto fail;
->> > + =C2=A0 =C2=A0 =C2=A0 }
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 if (!event->cft->register_event || !event->cft-=
->unregister_event) {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D -EINVAL;
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto fail;
->> > + =C2=A0 =C2=A0 =C2=A0 }
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 ret =3D event->cft->register_event(cont, event-=
->cft,
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 event->eventfd, buffer);
->> > + =C2=A0 =C2=A0 =C2=A0 if (ret)
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto fail;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 efile->f_op->poll(efile, &event->pt);
->
-> Not necessary to check return value ?
-
-You are right. We need to check return value for POLLHUP.
-
-Thanks!
+> Thanks,
+> -Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
