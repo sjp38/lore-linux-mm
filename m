@@ -1,77 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 997776B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:16:58 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBF1Gts0025966
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 15 Dec 2009 10:16:55 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AB24645DE70
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 10:16:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BC3345DE60
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 10:16:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 164B61DB803B
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 10:16:55 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FB0E1DB803A
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 10:16:54 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 8/8] mm: Give up allocation if the task have fatal signal
-In-Reply-To: <20091215100342.e77c8cbe.minchan.kim@barrios-desktop>
-References: <20091215094659.CDB8.A69D9226@jp.fujitsu.com> <20091215100342.e77c8cbe.minchan.kim@barrios-desktop>
-Message-Id: <20091215101512.CDC4.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 149176B0047
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:17:24 -0500 (EST)
+Date: Mon, 14 Dec 2009 17:16:32 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with
+ nodemask v4.2
+Message-Id: <20091214171632.0b34d833.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.0911171725050.13760@chino.kir.corp.google.com>
+References: <20091110162121.361B.A69D9226@jp.fujitsu.com>
+	<20091110162445.c6db7521.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091110163419.361E.A69D9226@jp.fujitsu.com>
+	<20091110164055.a1b44a4b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091110170338.9f3bb417.nishimura@mxp.nes.nec.co.jp>
+	<20091110171704.3800f081.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091111134514.4edd3011.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091111142811.eb16f062.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0911102155580.2924@chino.kir.corp.google.com>
+	<20091111152004.3d585cee.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0911102224440.6652@chino.kir.corp.google.com>
+	<20091111153414.3c263842.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0911171609370.12532@chino.kir.corp.google.com>
+	<20091118095824.076c211f.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0911171725050.13760@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 15 Dec 2009 10:16:53 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 15 Dec 2009 09:50:47 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > > >  	/*
-> > > > +	 * If the allocation is for userland page and we have fatal signal,
-> > > > +	 * there isn't any reason to continue allocation. instead, the task
-> > > > +	 * should exit soon.
-> > > > +	 */
-> > > > +	if (fatal_signal_pending(current) && (gfp_mask & __GFP_HIGHMEM))
-> > > > +		goto nopage;
-> > > 
-> > > If we jump nopage, we meets dump_stack and show_mem. 
-> > > Even, we can meet OOM which might kill innocent process.
-> > 
-> > Which point you oppose? noprint is better?
-> > 
-> > 
-> 
-> Sorry fot not clarity.
-> My point was following as. 
-> 
-> First,
-> I don't want to print.
-> Why do we print stack and mem when the process receives the SIGKILL?
-> 
-> Second, 
-> 1) A process try to allocate anon page in do_anonymous_page.
-> 2) A process receives SIGKILL.
-> 3) kernel doesn't allocate page to A process by your patch.
-> 4) do_anonymous_page returns VF_FAULT_OOM.
-> 5) call mm_fault_error
-> 6) call out_of_memory 
-> 7) It migth kill innocent task. 
-> 
-> If I missed something, Pz, corret me. :)
 
-Doh, you are complely right. I had forgot recent meaning change of VM_FAULT_OOM.
-yes, this patch is crap. I need to remake it.
+So I have a note-to-self here that these patches:
 
+oom_kill-use-rss-value-instead-of-vm-size-for-badness.patch
+oom-kill-show-virtual-size-and-rss-information-of-the-killed-process.patch
+oom-kill-fix-numa-consraint-check-with-nodemask-v42.patch
 
+are tentative and it was unclear whether I should merge them.
+
+What do we think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
