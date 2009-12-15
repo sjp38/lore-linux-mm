@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EF8CB6B0044
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 23:54:46 -0500 (EST)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id nBF4sinV025405
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:54:44 -0800
-Received: from pzk7 (pzk7.prod.google.com [10.243.19.135])
-	by kpbe17.cbf.corp.google.com with ESMTP id nBF4seWI021718
-	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:54:41 -0800
-Received: by pzk7 with SMTP id 7so7137634pzk.30
-        for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:54:40 -0800 (PST)
-Date: Mon, 14 Dec 2009 20:54:37 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B9C96B0044
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 23:58:03 -0500 (EST)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id nBF4vx88009903
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 04:57:59 GMT
+Received: from pwj11 (pwj11.prod.google.com [10.241.219.75])
+	by wpaz1.hot.corp.google.com with ESMTP id nBF4vtnP008868
+	for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:57:56 -0800
+Received: by pwj11 with SMTP id 11so2083717pwj.22
+        for <linux-mm@kvack.org>; Mon, 14 Dec 2009 20:57:55 -0800 (PST)
+Date: Mon, 14 Dec 2009 20:57:53 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask
  v4.2
-In-Reply-To: <20091215133546.6872fc4f.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0912142046070.436@chino.kir.corp.google.com>
+In-Reply-To: <20091215134327.6c46b586.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0912142054520.436@chino.kir.corp.google.com>
 References: <20091110162121.361B.A69D9226@jp.fujitsu.com> <20091110171704.3800f081.kamezawa.hiroyu@jp.fujitsu.com> <20091111112404.0026e601.kamezawa.hiroyu@jp.fujitsu.com> <20091111134514.4edd3011.kamezawa.hiroyu@jp.fujitsu.com>
  <20091111142811.eb16f062.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0911102155580.2924@chino.kir.corp.google.com> <20091111152004.3d585cee.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0911102224440.6652@chino.kir.corp.google.com>
  <20091111153414.3c263842.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0911171609370.12532@chino.kir.corp.google.com> <20091118095824.076c211f.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0911171725050.13760@chino.kir.corp.google.com>
- <20091214171632.0b34d833.akpm@linux-foundation.org> <20091215103202.eacfd64e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0912142025090.29243@chino.kir.corp.google.com> <20091215133546.6872fc4f.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091214171632.0b34d833.akpm@linux-foundation.org> <20091215103202.eacfd64e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0912142025090.29243@chino.kir.corp.google.com> <20091215134327.6c46b586.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -29,48 +29,30 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 15 Dec 2009, KAMEZAWA Hiroyuki wrote:
 
-> > I would agree only if the oom killer used total_vm as a the default, it is 
-> > long-standing and allows for the aforementioned capability that you lose 
-> > with rss.  I have no problem with the added sysctl to use rss as the 
-> > baseline when enabled.
+> > That's not at all what I said.  I said using total_vm as a baseline allows 
+> > users to define when a process is to be considered "rogue," that is, using 
+> > more memory than expected.  Using rss would be inappropriate since it is 
+> > highly dynamic and depends on the state of the VM at the time of oom, 
+> > which userspace cannot possibly keep updated.
 > > 
-> I'll prepare a patch for adds
+> > You consistently ignore that point: the power of /proc/pid/oom_adj to 
+> > influence when a process, such as a memory leaker, is to be considered as 
+> > a high priority for an oom kill.  It has absolutely nothing to do with 
+> > fake NUMA, cpusets, or memcg.
+> > 
+> You also ignore that it's not sane to use oom kill for resource control ;)
 > 
->   sysctl_oom_kill_based_on_rss (default=0)
-> 
-> ok ?
-> 
 
-I have no strong feelings either for or against that, I guess users who 
-want to always kill the biggest memory hogger even when single page 
-__GFP_WAIT allocations fail could use it.  I'm not sure it would get much 
-use, though.
-
-I think we should methodically work out an oom killer badness rewrite that 
-won't compound the problem by adding more and more userspace knobs.  In 
-other words, we should slow down, construct a list of goals that we want 
-to achieve, and then see what type of solution we can create.
-
-A few requirements that I have:
-
- - we must be able to define when a task is a memory hogger; this is
-   currently done by /proc/pid/oom_adj relying on the overall total_vm
-   size of the task as a baseline.  Most users should have a good sense
-   of when their task is using more memory than expected and killing a
-   memory leaker should always be the optimal oom killer result.  A better 
-   set of units other than a shift on total_vm would be helpful, though.
-
- - we must prefer tasks that run on a cpuset or mempolicy's nodes if the 
-   oom condition is constrained by that cpuset or mempolicy and its not a
-   system-wide issue.
-
- - we must be able to polarize the badness heuristic to always select a
-   particular task is if its very low priority or disable oom killing for
-   a task if its must-run.
-
-The proposal may be to remove /proc/pid/oom_adj completely since I know 
-both you and KOSAKI-san dislike it, but we'd need an alternative which 
-keeps the above functionality intact.
+Please read my email.  Did I say anything about resource control AT ALL?  
+I said /proc/pid/oom_adj currently allows userspace to define when a task 
+is "rogue," meaning its consuming much more memory than expected.  Those 
+memory leakers should always be the optimal result for the oom killer to 
+kill.  Using rss as the baseline would not allow userspace to effectively 
+do the same thing since it's dynamic and depends on the state of the VM at 
+the time of oom which is probably not reflected in the /proc/pid/oom_adj 
+values for all tasks.  It has absolutely nothing to do with resource 
+control, so please address this very trivial issue without going off on 
+tangents.  Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
