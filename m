@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5851F6B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:17:30 -0500 (EST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3D29D6B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 13:43:38 -0500 (EST)
 Subject: Re: [PATCH 4/8] Use prepare_to_wait_exclusive() instead
  prepare_to_wait()
 From: Mike Galbraith <efault@gmx.de>
@@ -10,8 +10,8 @@ References: <20091214212936.BBBA.A69D9226@jp.fujitsu.com>
 	 <4B264CCA.5010609@redhat.com> <20091215085631.CDAD.A69D9226@jp.fujitsu.com>
 	 <1260855146.6126.30.camel@marge.simson.net>  <4B27A417.3040206@redhat.com>
 Content-Type: text/plain
-Date: Tue, 15 Dec 2009 19:17:22 +0100
-Message-Id: <1260901042.5913.12.camel@marge.simson.net>
+Date: Tue, 15 Dec 2009 19:43:30 +0100
+Message-Id: <1260902610.5913.19.camel@marge.simson.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -47,23 +47,11 @@ On Tue, 2009-12-15 at 09:58 -0500, Rik van Riel wrote:
 > in this if() condition, before the wake_up().  That would give
 > the previous process a chance to allocate memory and we can
 > avoid waking up too many processes.
-> 
-> > What happens to waiters should running tasks not allocate for a while?
-> 
-> When a waiter is woken up, it will either:
-> 1) see that there is enough free memory and wake up the next guy, or
-> 2) run shrink_zone and wake up the next guy
-> 
-> Either way, the processes that just got woken up will ensure that
-> the sleepers behind them in the queue will get woken up.
 
-OK, that more or less covers my worry.  From the scheduler standpoint
-though, you're better off turning them all loose and letting them race,
-_with_ the caveat than thundering herds do indeed make thunder (reason
-for patch).  Turning them loose piecemeal spreads things out over time,
-which prolongs surge operations, possibly much longer than necessary.
-We had the same long ago with everyone waiting for kswapd to do all the
-work.  Sticky problem, this roll-down to inevitable wait.
+Pondering, I think I'd at least wake NR_CPUS.  If there's not enough to
+go round, oh darn, but if there is, you have full utilization quicker.
+
+$.02.
 
 	-Mike
 
