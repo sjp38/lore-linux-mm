@@ -1,69 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 554D36B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 18:59:06 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBFNx2El016447
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 16 Dec 2009 08:59:02 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9922B45DE50
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 08:59:02 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 76BA545DE4F
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 08:59:02 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 588B41DB8038
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 08:59:02 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F02321DB803A
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 08:59:01 +0900 (JST)
-Date: Wed, 16 Dec 2009 08:55:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH RFC v2 1/4] cgroup: implement eventfd-based generic API
-  for notifications
-Message-Id: <20091216085552.91ebc559.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <cc557aab0912150703qcfe6458paa7da71cb032cb93@mail.gmail.com>
-References: <cover.1260571675.git.kirill@shutemov.name>
-	<ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name>
-	<cc557aab0912150111k41517b41t8999568db3bd8daa@mail.gmail.com>
-	<20091215183533.1a1e87d9.kamezawa.hiroyu@jp.fujitsu.com>
-	<cc557aab0912150703qcfe6458paa7da71cb032cb93@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 70B1C6B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 19:21:29 -0500 (EST)
+Message-ID: <4B2827E8.60602@agilent.com>
+Date: Tue, 15 Dec 2009 16:20:56 -0800
+From: Earl Chew <earl_chew@agilent.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+References: <1228379942.5092.14.camel@twins> <4B22DD89.2020901@agilent.com> <20091214192322.GA3245@bluebox.local> <4B27905B.4080006@agilent.com> <20091215210002.GA2432@local> <4B2803D8.10704@agilent.com> <20091215222811.GC2432@local>
+In-Reply-To: <20091215222811.GC2432@local>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Hans J. Koch" <hjk@linutronix.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, gregkh@suse.de, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Dec 2009 17:03:37 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> >> > + A  A  A  /*
-> >> > + A  A  A  A * Unregister events and notify userspace.
-> >> > + A  A  A  A * FIXME: How to avoid race with cgroup_event_remove_work()
-> >> > + A  A  A  A * A  A  A  A which runs from workqueue?
-> >> > + A  A  A  A */
-> >> > + A  A  A  mutex_lock(&cgrp->event_list_mutex);
-> >> > + A  A  A  list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
-> >> > + A  A  A  A  A  A  A  cgroup_event_remove(event);
-> >> > + A  A  A  A  A  A  A  eventfd_signal(event->eventfd, 1);
-> >> > + A  A  A  }
-> >> > + A  A  A  mutex_unlock(&cgrp->event_list_mutex);
-> >> > +
-> >> > +out:
-> >> > A  A  A  A return ret;
-> >> > A }
-> >
-> > How ciritical is this FIXME ?
-> > But Hmm..can't we use RCU ?
-> 
-> It's not reasonable to have RCU here, since event_list isn't mostly-read.
-> 
-ok.
+Hans J. Koch wrote:
+> One example: An A/D converter has an on-chip 32k buffer. It causes an
+> interrupt as soon as the buffer is filled up to a certain high-water mark.
+> Such cases would easily fit into the current UIO system. The UIO core could
+> simply DMA the data to one of the mappings. A new flag for that mapping and
+> a few other changes are all it takes. After the DMA transfer is complete, the
+> interrupt is passed on to userspace, which would find the buffer already
+> filled with the desired data. Just a thought, unfortunately I haven't got
+> such hardware to try it.
 
-Thanks,
--Kame
+Hans,
+
+Is this case already covered by the pre-existing UIO_MEM_LOGICAL
+option ?
+
+I'm thinking that since the memory is statically defined, it can be
+described using one of the existing struct uio_mem mem[] slots in
+struct uio_info and marked as UIO_MEM_LOGICAL.
+
+The userspace program can map that into its process space using the
+existing mmap() interface.
+
+What am I missing?
+
+> When it comes to dynamically allocated DMA buffers, it might well be possible
+> to add a new directory in sysfs besides the "mem" directory, e.g. something
+> like /sys/class/uio/uioN/dma-mem/. This would save us the trouble of creating
+> a new device. Maybe the example above would better fit in here, too. Who knows.
+
+I looked at the 2.6.32 source at
+
+http://lxr.linux.no/#linux+v2.6.32/drivers/uio/uio.c
+
+and didn't see any reference to /sys/class/uio/uioN/mem .  Perhaps
+you're referring to something new.
+
+In any case, I think you're describing adding
+
+/sys/class/uio/uioN/dma-mem
+
+as a means to control /dev/uioN .  Presumably writing to
+/sys/class/uio/uioN/dma-mem would create additional dynamic
+DMA buffers.
+
+I can't yet see a way to make this request-response. When requesting
+a dynamic buffer I need to indicate the size that I want, and in
+return I need to obtain a handle to the buffer (either its mapping
+number, address, etc). Once I have that, I can query other
+interesting information (eg its bus address).
+
+
+Earl
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
