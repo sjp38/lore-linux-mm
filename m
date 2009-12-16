@@ -1,76 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A6C8C6B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 22:03:24 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7495F6B0047
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 22:04:45 -0500 (EST)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBG33LI2024091
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBG34gnM024517
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 16 Dec 2009 12:03:21 +0900
+	Wed, 16 Dec 2009 12:04:42 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 89FEC45DE52
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:03:21 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A1E9545DE4E
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:04:42 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C76845DE4F
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:03:21 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 784CD45DE4C
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:04:42 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A0AB1DB803E
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:03:21 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DA4A11DB8038
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:03:20 +0900 (JST)
-Date: Wed, 16 Dec 2009 12:00:11 +0900
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F8EA1DB803A
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:04:42 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C2031DB8038
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:04:42 +0900 (JST)
+Date: Wed, 16 Dec 2009 12:01:34 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [mm][RFC][PATCH 0/11] mm accessor updates.
-Message-Id: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [mm][RFC][PATCH 1/11] mm accessor for replacing mmap_sem
+Message-Id: <20091216120134.0221457e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, andi@firstfloor.org, minchan.kim@gmail.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, andi@firstfloor.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-This is from Christoph Lameter's mm_accessor patch posted 5/Nov.
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Replacing all access to mm->mmap_sem with mm-accessor functions as
- mm_read_lock,
- mm_write_lock,
- etc...
+This patch implements mm accessor, functions for get/release mm->mmap_sem.
+For doing some work related to mmap_sem (relaxing it or count events etc..),
+bare access to mm->mmap_sem is the first obstacle.
 
-This kind of function allows us to improve page fault performance etc..
-For example, skil down_read(mmap_sem) in some situation.
-(as: http://marc.info/?l=linux-mm&m=125809791306459&w=2)
+This patch is for removing direct access to mm->mmap_sem.
+(For debugging, renaming mm->mmap_sem is better. But considering bisection,
+ this patch leave it as it is. The last patch of this series will rename it.)
 
-Because I like this idea, I updated his patch. But the size of patch is
-very big and mmap_sem is used in many place, some senario for merging
-will be required. Spliting into small pieace and go ahead in step by step.
+Following patches will replace direct access to mmap_sem to use these
+accessors.
 
-My plan is...
-  1. leave  mm->mmap_sem as it is for a while.
-  2. replace all mmap_sem access under /kernel /mm /fs etc..
-  3. replace all mmap_sem callers under /driver
-  4. And finally, post per-arch patches.
+Based on Christoph Lameter's original work.
 
-Now this set is organized as
- [1/11] mm_accessor definition
- [2/11] a patch for kernel, mm
- [3/11] a patch for fs (procfs and codes around get_user_page())
- [4/11] a patch for kvm
- [5/11] a patch for tomoyo
- [6/11] a patch for driver/gpu
- [7/11] a patch for infiniband
- [8/11] a patch for driver/media/video
- [9/11] a patch for sgi gru
- [10/11] a patch for misc drivers
- [11/11] a patch for x86.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/mm_accessor.h |   68 ++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/mm_types.h    |    3 +
+ 2 files changed, 71 insertions(+)
 
-I think, once I push [1/11] (and 2/11]), I can update other calls in each tree.
-And finally successfully rename mm->mmap_sem to some other name.
-
-Any comment is welcome.
-
-Thanks,
--Kame
+Index: mmotm-mm-accessor/include/linux/mm_accessor.h
+===================================================================
+--- /dev/null
++++ mmotm-mm-accessor/include/linux/mm_accessor.h
+@@ -0,0 +1,68 @@
++#ifndef __LINUX_MM_ACCESSOR_H
++#define __LINUX_MM_ACCESSOR_H
++
++static inline void mm_read_lock(struct mm_struct *mm)
++{
++	down_read(&mm->mmap_sem);
++}
++
++static inline int mm_read_trylock(struct mm_struct *mm)
++{
++	return down_read_trylock(&mm->mmap_sem);
++}
++
++static inline void mm_read_unlock(struct mm_struct *mm)
++{
++	up_read(&mm->mmap_sem);
++}
++
++static inline void mm_write_lock(struct mm_struct *mm)
++{
++	down_write(&mm->mmap_sem);
++}
++
++static inline void mm_write_unlock(struct mm_struct *mm)
++{
++	up_write(&mm->mmap_sem);
++}
++
++static inline int mm_write_trylock(struct mm_struct *mm)
++{
++	return down_write_trylock(&mm->mmap_sem);
++}
++
++static inline int mm_is_locked(struct mm_struct *mm)
++{
++	return rwsem_is_locked(&mm->mmap_sem);
++}
++
++static inline void mm_write_to_read_lock(struct mm_struct *mm)
++{
++	downgrade_write(&mm->mmap_sem);
++}
++
++static inline void mm_write_lock_nested(struct mm_struct *mm, int x)
++{
++	down_write_nested(&mm->mmap_sem, x);
++}
++
++static inline void mm_lock_init(struct mm_struct *mm)
++{
++	init_rwsem(&mm->mmap_sem);
++}
++
++static inline void mm_lock_prefetch(struct mm_struct *mm)
++{
++	prefetchw(&mm->mmap_sem);
++}
++
++static inline void mm_nest_spin_lock(spinlock_t *s, struct mm_struct *mm)
++{
++	spin_lock_nest_lock(s, &mm->mmap_sem);
++}
++
++static inline void mm_read_might_lock(struct mm_struct *mm)
++{
++	might_lock_read(&mm->mmap_sem);
++}
++#endif
+Index: mmotm-mm-accessor/include/linux/mm_types.h
+===================================================================
+--- mmotm-mm-accessor.orig/include/linux/mm_types.h
++++ mmotm-mm-accessor/include/linux/mm_types.h
+@@ -292,4 +292,7 @@ struct mm_struct {
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+ #define mm_cpumask(mm) (&(mm)->cpu_vm_mask)
+ 
++/* Functions for accessing mm_struct */
++#include <linux/mm_accessor.h>
++
+ #endif /* _LINUX_MM_TYPES_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
