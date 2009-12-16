@@ -1,34 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3577A6B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 21:00:53 -0500 (EST)
-Message-ID: <4B283F40.5080706@cn.fujitsu.com>
-Date: Wed, 16 Dec 2009 10:00:32 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C3D36B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 21:14:31 -0500 (EST)
+Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
+	by smtp-out.google.com with ESMTP id nBG2EQfl020664
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 02:14:26 GMT
+Received: from pzk1 (pzk1.prod.google.com [10.243.19.129])
+	by spaceape9.eur.corp.google.com with ESMTP id nBG2ENGG024793
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 18:14:23 -0800
+Received: by pzk1 with SMTP id 1so348140pzk.33
+        for <linux-mm@kvack.org>; Tue, 15 Dec 2009 18:14:22 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC v2 1/4] cgroup: implement eventfd-based generic API
- for notifications
-References: <cover.1260571675.git.kirill@shutemov.name> <ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name> <4B283B7F.2050403@cn.fujitsu.com>
-In-Reply-To: <4B283B7F.2050403@cn.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20091214151943.3893112f.nishimura@mxp.nes.nec.co.jp>
+References: <20091214151748.bf9c4978.nishimura@mxp.nes.nec.co.jp>
+	 <20091214151943.3893112f.nishimura@mxp.nes.nec.co.jp>
+Date: Tue, 15 Dec 2009 18:14:22 -0800
+Message-ID: <6599ad830912151814i1ef48cexf86ae95bca2955ff@mail.gmail.com>
+Subject: Re: [PATCH -mmotm 2/8] cgroup: introduce coalesce css_get() and
+	css_put()
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
->> +/*
->> + * Check if a file is a control file
->> + */
->> +static inline struct cftype *__file_cft(struct file *file)
->> +{
->> +	if (file->f_dentry->d_inode->i_fop != &cgroup_file_operations)
->> +		return ERR_PTR(-EINVAL);
-> 
-> I don't think this check is needed.
-> 
+On Sun, Dec 13, 2009 at 10:19 PM, Daisuke Nishimura
+<nishimura@mxp.nes.nec.co.jp> wrote:
+> Current css_get() and css_put() increment/decrement css->refcnt one by on=
+e.
+>
+> This patch add a new function __css_get(), which takes "count" as a arg a=
+nd
+> increment the css->refcnt by "count". And this patch also add a new arg("=
+count")
+> to __css_put() and change the function to decrement the css->refcnt by "c=
+ount".
+>
+> These coalesce version of __css_get()/__css_put() will be used to improve
+> performance of memcg's moving charge feature later, where instead of call=
+ing
+> css_get()/css_put() repeatedly, these new functions will be used.
+>
+> No change is needed for current users of css_get()/css_put().
+>
+> Changelog: 2009/12/14
+> - new patch(I split "[4/7] memcg: improbe performance in moving charge" o=
+f
+> =A004/Dec version into 2 part: cgroup part and memcg part. This is the cg=
+roup
+> =A0part.)
+>
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Sorry, please ignore this comment
+Acked-by: Paul Menage <menage@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
