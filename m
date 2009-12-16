@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BDCD6B0047
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 18:02:23 -0500 (EST)
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.DEB.2.00.0912161025290.8572@router.home>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091216101107.GA15031@basil.fritz.box>
-	 <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091216102806.GC15031@basil.fritz.box>
-	 <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091216104951.GD15031@basil.fritz.box>
-	 <20091216201218.42ff7f05.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091216113158.GE15031@basil.fritz.box>
-	 <alpine.DEB.2.00.0912161025290.8572@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 17 Dec 2009 00:01:55 +0100
-Message-ID: <1261004515.21028.510.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D2AF06B0044
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 18:13:35 -0500 (EST)
+Date: Wed, 16 Dec 2009 15:12:10 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [stable] [PATCH -stable] vmalloc: conditionalize build of
+ pcpu_get_vm_areas()
+Message-ID: <20091216231210.GB9421@kroah.com>
+References: <4B1D3A3302000078000241CD@vpn.id2.novell.com>
+ <20091207153552.0fadf335.akpm@linux-foundation.org>
+ <4B1E1B1B0200007800024345@vpn.id2.novell.com>
+ <4B1E0E56.8020003@kernel.org>
+ <4B1E1EE60200007800024364@vpn.id2.novell.com>
+ <4B1E1513.3020000@kernel.org>
+ <4B203614.1010907@novell.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B203614.1010907@novell.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
+To: Tejun Heo <teheo@novell.com>
+Cc: stable@kernel.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Beulich <JBeulich@novell.com>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-12-16 at 10:27 -0600, Christoph Lameter wrote:
-> On Wed, 16 Dec 2009, Andi Kleen wrote:
+On Thu, Dec 10, 2009 at 08:43:16AM +0900, Tejun Heo wrote:
+> pcpu_get_vm_areas() is used only when dynamic percpu allocator is used
+> by the architecture.  In 2.6.32, ia64 doesn't use dynamic percpu
+> allocator and has a macro which makes pcpu_get_vm_areas() buggy via
+> local/global variable aliasing and triggers compile warning.
 > 
-> > > Do you have alternative recommendation rather than wrapping all accesses by
-> > > special functions ?
-> >
-> > Work out what changes need to be done for ranged mmap locks and do them all
-> > in one pass.
+> The problem is fixed in upstream and ia64 uses dynamic percpu
+> allocators, so the only left issue is inclusion of unnecessary code
+> and compile warning on ia64 on 2.6.32.
 > 
-> Locking ranges is already possible through the split ptlock and
-> could be enhanced through placing locks in the vma structures.
+> Don't build pcpu_get_vm_areas() if legacy percpu allocator is in use.
 > 
-> That does nothing solve the basic locking issues of mmap_sem. We need
-> Kame-sans abstraction layer. A vma based lock or a ptlock still needs to
-> ensure that the mm struct does not vanish while the lock is held.
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Reported-by: Jan Beulich <JBeulich@novell.com>
+> Cc: stable@kernel.org
+> ---
+> Please note that this commit won't appear on upstream.
 
-It should, you shouldn't be able to remove a mm while there's still
-vma's around, and you shouldn't be able to remove a vma when there's
-still pagetables around. And if you rcu-free all of them you're stable
-enough for lots of speculative behaviour.
+So this is only needed for the .32 kernel stable tree?  Not .31?  And
+it's not upstream as it was solved differently there?
 
-No need to retain mmap_sem for any of that.
+thanks,
 
-As for per-vma locks, those are pretty much useless too, there's plenty
-applications doing lots of work on a few very large vmas.
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
