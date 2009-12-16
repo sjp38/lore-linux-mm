@@ -1,72 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 81DD76B0044
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 18:01:09 -0500 (EST)
-Date: Wed, 16 Dec 2009 23:00:48 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: RFC: change swap_map to be 32bits varible instead of 16
-In-Reply-To: <20091216210432.33de4e98@redhat.com>
-Message-ID: <Pine.LNX.4.64.0912162232520.24424@sister.anvils>
-References: <20091216210432.33de4e98@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BDCD6B0047
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 18:02:23 -0500 (EST)
+Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <alpine.DEB.2.00.0912161025290.8572@router.home>
+References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20091216101107.GA15031@basil.fritz.box>
+	 <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20091216102806.GC15031@basil.fritz.box>
+	 <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20091216104951.GD15031@basil.fritz.box>
+	 <20091216201218.42ff7f05.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20091216113158.GE15031@basil.fritz.box>
+	 <alpine.DEB.2.00.0912161025290.8572@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 17 Dec 2009 00:01:55 +0100
+Message-ID: <1261004515.21028.510.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Izik,
-
-On Wed, 16 Dec 2009, Izik Eidus wrote:
+On Wed, 2009-12-16 at 10:27 -0600, Christoph Lameter wrote:
+> On Wed, 16 Dec 2009, Andi Kleen wrote:
 > 
-> When i backported Hugh patches into the rhel6 kernel today, I noticed
-> during my testing that at very high load of swap tests i get the
-> following error:
+> > > Do you have alternative recommendation rather than wrapping all accesses by
+> > > special functions ?
+> >
+> > Work out what changes need to be done for ranged mmap locks and do them all
+> > in one pass.
 > 
+> Locking ranges is already possible through the split ptlock and
+> could be enhanced through placing locks in the vma structures.
 > 
-> Dec 16 17:06:25 dhcp-1-211 kernel: swap_dup: swap entry overflow
-> Dec 16 17:06:25 dhcp-1-211 kernel: swap_dup: swap entry overflow
-> Dec 16 17:06:25 dhcp-1-211 kernel: swap_dup: swap entry overflow
-> Dec 16 17:06:25 dhcp-1-211 kernel: swap_dup: swap entry overflow
-> 
-> 
-> The problem probably happen due to the swap_map limitation of being
-> able to address just ~128mb of memory, and with the zero_page mapped
-> when using ksm much more than this amount of memory it was triggered
-> 
-> There may be many soultions to this problem, and I send for RFC the
-> easiest one (just increase the map_count to be unsiged int and allow
-> ~8terabyte of memory)
+> That does nothing solve the basic locking issues of mmap_sem. We need
+> Kame-sans abstraction layer. A vma based lock or a ptlock still needs to
+> ensure that the mm struct does not vanish while the lock is held.
 
-The problem here is that you've backported too little: there's a group
-of 9 "swap_info" patches, before the "mm" patches which prepare for
-ksm swapping, and the "ksm" swapping patches themselves.
+It should, you shouldn't be able to remove a mm while there's still
+vma's around, and you shouldn't be able to remove a vma when there's
+still pagetables around. And if you rcu-free all of them you're stable
+enough for lots of speculative behaviour.
 
-I did include the swap_info patches in the latter rollup I sent you
-privately, and did highlight this issue when I sent an earlier rollup:
-it was an amusing surprise to me that KSM suddenly required our years
-old bad assumptions in swapoff to be fixed in a hurry.
+No need to retain mmap_sem for any of that.
 
-But I didn't Cc you on them when I sent to Andrew, mistakenly thinking
-that they weren't "KSM enough" to be of interest you - I hadn't
-realized that you were planning a backport, sorry.
-
-Maybe you should also include the set of patches which reintroduce the
-zero page (which won't be swapped and won't be inspected by KSM, being
-not PageAnon); but that wouldn't be sufficient in itself, since I found
-it very easy for KSM to overflow the unsigned short *swap_map even with
-non-zero pages.
-
-Or, dare I say it, maybe you should just use 2.6.33?
-
-The patch you sent as RFC, changing from unsigned short to unsigned int
-*swap_map: that may be sufficient - I admit it's a very much smaller patch
-than my lot - I'm not certain.  But it's not the way I wanted mainline
-to go, since most people will never use more than one byte of your
-32-bit swap map elements, and vmalloc space may be at a premium on
-32-bit architectures.
-
-Hugh
+As for per-vma locks, those are pretty much useless too, there's plenty
+applications doing lots of work on a few very large vmas.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
