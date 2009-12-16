@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D9FD86B0044
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 11:24:54 -0500 (EST)
-Date: Wed, 16 Dec 2009 10:24:32 -0600 (CST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8A2266B0044
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 11:28:04 -0500 (EST)
+Date: Wed, 16 Dec 2009 10:27:39 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
 Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-In-Reply-To: <20091216101107.GA15031@basil.fritz.box>
-Message-ID: <alpine.DEB.2.00.0912161023300.8572@router.home>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com> <20091216101107.GA15031@basil.fritz.box>
+In-Reply-To: <20091216113158.GE15031@basil.fritz.box>
+Message-ID: <alpine.DEB.2.00.0912161025290.8572@router.home>
+References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com> <20091216101107.GA15031@basil.fritz.box> <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com> <20091216102806.GC15031@basil.fritz.box> <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091216104951.GD15031@basil.fritz.box> <20091216201218.42ff7f05.kamezawa.hiroyu@jp.fujitsu.com> <20091216113158.GE15031@basil.fritz.box>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,11 +18,18 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 16 Dec 2009, Andi Kleen wrote:
 
-> The problem is that it also slows down the writers, and we have
-> some workloads where writing is the bottleneck.
+> > Do you have alternative recommendation rather than wrapping all accesses by
+> > special functions ?
+>
+> Work out what changes need to be done for ranged mmap locks and do them all
+> in one pass.
 
-There is no code change here. This is just a way to make it possible to
-change mmap_sem in the future.
+Locking ranges is already possible through the split ptlock and
+could be enhanced through placing locks in the vma structures.
+
+That does nothing solve the basic locking issues of mmap_sem. We need
+Kame-sans abstraction layer. A vma based lock or a ptlock still needs to
+ensure that the mm struct does not vanish while the lock is held.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
