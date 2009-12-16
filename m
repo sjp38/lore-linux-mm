@@ -1,47 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D40C6B0044
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 20:46:31 -0500 (EST)
-Message-ID: <4B283BB7.4050802@agilent.com>
-Date: Tue, 15 Dec 2009 17:45:27 -0800
-From: Earl Chew <earl_chew@agilent.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3577A6B0044
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 21:00:53 -0500 (EST)
+Message-ID: <4B283F40.5080706@cn.fujitsu.com>
+Date: Wed, 16 Dec 2009 10:00:32 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
-References: <1228379942.5092.14.camel@twins> <4B22DD89.2020901@agilent.com> <20091214192322.GA3245@bluebox.local> <4B27905B.4080006@agilent.com> <20091215210002.GA2432@local> <4B2803D8.10704@agilent.com> <20091215222811.GC2432@local> <4B2827E8.60602@agilent.com> <20091216012347.GD2432@local>
-In-Reply-To: <20091216012347.GD2432@local>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH RFC v2 1/4] cgroup: implement eventfd-based generic API
+ for notifications
+References: <cover.1260571675.git.kirill@shutemov.name> <ca59c422b495907678915db636f70a8d029cbf3a.1260571675.git.kirill@shutemov.name> <4B283B7F.2050403@cn.fujitsu.com>
+In-Reply-To: <4B283B7F.2050403@cn.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Hans J. Koch" <hjk@linutronix.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, gregkh@suse.de, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hans J. Koch wrote:
-> No, dma-mem would be a directory containing some more attributes. Maybe one
-> called "create" that allocates a new buffer.
+>> +/*
+>> + * Check if a file is a control file
+>> + */
+>> +static inline struct cftype *__file_cft(struct file *file)
+>> +{
+>> +	if (file->f_dentry->d_inode->i_fop != &cgroup_file_operations)
+>> +		return ERR_PTR(-EINVAL);
 > 
-[ .. snip ..]
-> Writing the size to that supposed "create" attribute could allocate the
-> buffer and and create more attributes that contain the information you need.
+> I don't think this check is needed.
+> 
 
-Hmm ... I can't see how to make this into a transaction.
-
-Suppose two threads write to /sys/.../create simultaneously (or
-very close together) and further suppose that each call succeeds.
-
-It's not clear to me how each can figure out where to find the
-outcome of its operation because write() doesn't return anything
-other than the number of octets written.
-
-Writing "id, size" might work, but sorting out a good enough id
-might be a little clunky. A process id wouldn't be good enough (with
-different threads), and a thread id might get recycled.
-
-Any other ideas ?
-
-Earl
-
-
+Sorry, please ignore this comment
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
