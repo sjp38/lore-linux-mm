@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 86D876B0078
-	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 22:10:34 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBG3AWc7032256
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BB9056B0071
+	for <linux-mm@kvack.org>; Tue, 15 Dec 2009 22:11:42 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBG3BdWm027537
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 16 Dec 2009 12:10:32 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D48C145DE6E
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:10:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AD7C745DE7A
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:10:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8342C1DB8040
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:10:31 +0900 (JST)
+	Wed, 16 Dec 2009 12:11:39 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6630D45DE53
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:11:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 415AB45DE51
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:11:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D6521DB8041
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:11:39 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 264301DB803E
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:10:31 +0900 (JST)
-Date: Wed, 16 Dec 2009 12:07:24 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B0FB31DB8040
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:11:38 +0900 (JST)
+Date: Wed, 16 Dec 2009 12:08:34 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [mm][RFC][PATCH 7/11] mm accessor for inifiniband
-Message-Id: <20091216120724.cb424ed3.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [mm][RFC][PATCH 8/11] mm accessor for video
+Message-Id: <20091216120834.0a7376a4.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -32,134 +32,151 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, andi@firstfloor.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Replacing mmap_sem with mm_accessor, for inifiniband.
+Replacing mmap_sem with mm_accessor functions.
+for driver/media/video
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- drivers/infiniband/core/umem.c                 |   14 +++++++-------
- drivers/infiniband/hw/ipath/ipath_user_pages.c |   12 ++++++------
- drivers/infiniband/hw/ipath/ipath_user_sdma.c  |    4 ++--
- 3 files changed, 15 insertions(+), 15 deletions(-)
+ drivers/media/video/davinci/vpif_capture.c |    4 ++--
+ drivers/media/video/davinci/vpif_display.c |    5 +++--
+ drivers/media/video/ivtv/ivtv-udma.c       |    4 ++--
+ drivers/media/video/ivtv/ivtv-yuv.c        |    4 ++--
+ drivers/media/video/videobuf-core.c        |    4 ++--
+ drivers/media/video/videobuf-dma-contig.c  |    4 ++--
+ drivers/media/video/videobuf-dma-sg.c      |    4 ++--
+ 7 files changed, 15 insertions(+), 14 deletions(-)
 
-Index: mmotm-mm-accessor/drivers/infiniband/hw/ipath/ipath_user_pages.c
+Index: mmotm-mm-accessor/drivers/media/video/davinci/vpif_capture.c
 ===================================================================
---- mmotm-mm-accessor.orig/drivers/infiniband/hw/ipath/ipath_user_pages.c
-+++ mmotm-mm-accessor/drivers/infiniband/hw/ipath/ipath_user_pages.c
-@@ -162,24 +162,24 @@ int ipath_get_user_pages(unsigned long s
- {
- 	int ret;
+--- mmotm-mm-accessor.orig/drivers/media/video/davinci/vpif_capture.c
++++ mmotm-mm-accessor/drivers/media/video/davinci/vpif_capture.c
+@@ -122,11 +122,11 @@ static inline u32 vpif_uservirt_to_phys(
+ 		int res, nr_pages = 1;
+ 			struct page *pages;
  
--	down_write(&current->mm->mmap_sem);
-+	mm_write_lock(current->mm);
+-		down_read(&current->mm->mmap_sem);
++		mm_read_lock(current->mm);
  
- 	ret = __get_user_pages(start_page, num_pages, p, NULL);
+ 		res = get_user_pages(current, current->mm,
+ 				     virtp, nr_pages, 1, 0, &pages, NULL);
+-		up_read(&current->mm->mmap_sem);
++		mm_read_unlock(current->mm);
  
--	up_write(&current->mm->mmap_sem);
-+	mm_write_unlock(current->mm);
+ 		if (res == nr_pages)
+ 			physp = __pa(page_address(&pages[0]) +
+Index: mmotm-mm-accessor/drivers/media/video/ivtv/ivtv-udma.c
+===================================================================
+--- mmotm-mm-accessor.orig/drivers/media/video/ivtv/ivtv-udma.c
++++ mmotm-mm-accessor/drivers/media/video/ivtv/ivtv-udma.c
+@@ -124,10 +124,10 @@ int ivtv_udma_setup(struct ivtv *itv, un
+ 	}
+ 
+ 	/* Get user pages for DMA Xfer */
+-	down_read(&current->mm->mmap_sem);
++	mm_read_lock(current->mm);
+ 	err = get_user_pages(current, current->mm,
+ 			user_dma.uaddr, user_dma.page_count, 0, 1, dma->map, NULL);
+-	up_read(&current->mm->mmap_sem);
++	mm_read_unlock(current->mm);
+ 
+ 	if (user_dma.page_count != err) {
+ 		IVTV_DEBUG_WARN("failed to map user pages, returned %d instead of %d\n",
+Index: mmotm-mm-accessor/drivers/media/video/ivtv/ivtv-yuv.c
+===================================================================
+--- mmotm-mm-accessor.orig/drivers/media/video/ivtv/ivtv-yuv.c
++++ mmotm-mm-accessor/drivers/media/video/ivtv/ivtv-yuv.c
+@@ -75,10 +75,10 @@ static int ivtv_yuv_prep_user_dma(struct
+ 	ivtv_udma_get_page_info (&uv_dma, (unsigned long)args->uv_source, 360 * uv_decode_height);
+ 
+ 	/* Get user pages for DMA Xfer */
+-	down_read(&current->mm->mmap_sem);
++	mm_read_lock(current->mm);
+ 	y_pages = get_user_pages(current, current->mm, y_dma.uaddr, y_dma.page_count, 0, 1, &dma->map[0], NULL);
+ 	uv_pages = get_user_pages(current, current->mm, uv_dma.uaddr, uv_dma.page_count, 0, 1, &dma->map[y_pages], NULL);
+-	up_read(&current->mm->mmap_sem);
++	mm_read_unlock(current->mm);
+ 
+ 	dma->page_count = y_dma.page_count + uv_dma.page_count;
+ 
+Index: mmotm-mm-accessor/drivers/media/video/videobuf-core.c
+===================================================================
+--- mmotm-mm-accessor.orig/drivers/media/video/videobuf-core.c
++++ mmotm-mm-accessor/drivers/media/video/videobuf-core.c
+@@ -485,7 +485,7 @@ int videobuf_qbuf(struct videobuf_queue 
+ 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
+ 
+ 	if (b->memory == V4L2_MEMORY_MMAP)
+-		down_read(&current->mm->mmap_sem);
++		mm_read_lock(current->mm);
+ 
+ 	mutex_lock(&q->vb_lock);
+ 	retval = -EBUSY;
+@@ -575,7 +575,7 @@ int videobuf_qbuf(struct videobuf_queue 
+ 	mutex_unlock(&q->vb_lock);
+ 
+ 	if (b->memory == V4L2_MEMORY_MMAP)
+-		up_read(&current->mm->mmap_sem);
++		mm_read_unlock(current->mm);
+ 
+ 	return retval;
+ }
+Index: mmotm-mm-accessor/drivers/media/video/videobuf-dma-contig.c
+===================================================================
+--- mmotm-mm-accessor.orig/drivers/media/video/videobuf-dma-contig.c
++++ mmotm-mm-accessor/drivers/media/video/videobuf-dma-contig.c
+@@ -147,7 +147,7 @@ static int videobuf_dma_contig_user_get(
+ 	mem->is_userptr = 0;
+ 	ret = -EINVAL;
+ 
+-	down_read(&mm->mmap_sem);
++	mm_read_lock(mm);
+ 
+ 	vma = find_vma(mm, vb->baddr);
+ 	if (!vma)
+@@ -182,7 +182,7 @@ static int videobuf_dma_contig_user_get(
+ 		mem->is_userptr = 1;
+ 
+  out_up:
+-	up_read(&current->mm->mmap_sem);
++	mm_read_unlock(current->mm);
  
  	return ret;
  }
- 
- void ipath_release_user_pages(struct page **p, size_t num_pages)
- {
--	down_write(&current->mm->mmap_sem);
-+	mm_write_lock(current->mm);
- 
- 	__ipath_release_user_pages(p, num_pages, 1);
- 
- 	current->mm->locked_vm -= num_pages;
- 
--	up_write(&current->mm->mmap_sem);
-+	mm_write_unlock(current->mm);
- }
- 
- struct ipath_user_pages_work {
-@@ -193,9 +193,9 @@ static void user_pages_account(struct wo
- 	struct ipath_user_pages_work *work =
- 		container_of(_work, struct ipath_user_pages_work, work);
- 
--	down_write(&work->mm->mmap_sem);
-+	mm_write_lock(work->mm);
- 	work->mm->locked_vm -= work->num_pages;
--	up_write(&work->mm->mmap_sem);
-+	mm_write_unlock(work->mm);
- 	mmput(work->mm);
- 	kfree(work);
- }
-Index: mmotm-mm-accessor/drivers/infiniband/hw/ipath/ipath_user_sdma.c
+Index: mmotm-mm-accessor/drivers/media/video/videobuf-dma-sg.c
 ===================================================================
---- mmotm-mm-accessor.orig/drivers/infiniband/hw/ipath/ipath_user_sdma.c
-+++ mmotm-mm-accessor/drivers/infiniband/hw/ipath/ipath_user_sdma.c
-@@ -811,9 +811,9 @@ int ipath_user_sdma_writev(struct ipath_
- 	while (dim) {
- 		const int mxp = 8;
- 
--		down_write(&current->mm->mmap_sem);
-+		mm_write_lock(current->mm);
- 		ret = ipath_user_sdma_queue_pkts(dd, pq, &list, iov, dim, mxp);
--		up_write(&current->mm->mmap_sem);
-+		mm_write_unlock(current->mm);
- 
- 		if (ret <= 0)
- 			goto done_unlock;
-Index: mmotm-mm-accessor/drivers/infiniband/core/umem.c
-===================================================================
---- mmotm-mm-accessor.orig/drivers/infiniband/core/umem.c
-+++ mmotm-mm-accessor/drivers/infiniband/core/umem.c
-@@ -133,7 +133,7 @@ struct ib_umem *ib_umem_get(struct ib_uc
- 
- 	npages = PAGE_ALIGN(size + umem->offset) >> PAGE_SHIFT;
- 
--	down_write(&current->mm->mmap_sem);
-+	mm_write_lock(current->mm);
- 
- 	locked     = npages + current->mm->locked_vm;
- 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-@@ -207,7 +207,7 @@ out:
- 	} else
- 		current->mm->locked_vm = locked;
- 
--	up_write(&current->mm->mmap_sem);
-+	mm_write_unlock(current->mm);
- 	if (vma_list)
- 		free_page((unsigned long) vma_list);
- 	free_page((unsigned long) page_list);
-@@ -220,9 +220,9 @@ static void ib_umem_account(struct work_
+--- mmotm-mm-accessor.orig/drivers/media/video/videobuf-dma-sg.c
++++ mmotm-mm-accessor/drivers/media/video/videobuf-dma-sg.c
+@@ -179,9 +179,9 @@ int videobuf_dma_init_user(struct videob
+ 			   unsigned long data, unsigned long size)
  {
- 	struct ib_umem *umem = container_of(work, struct ib_umem, work);
+ 	int ret;
+-	down_read(&current->mm->mmap_sem);
++	mm_read_lock(current->mm);
+ 	ret = videobuf_dma_init_user_locked(dma, direction, data, size);
+-	up_read(&current->mm->mmap_sem);
++	mm_read_unlock(current->mm);
  
--	down_write(&umem->mm->mmap_sem);
-+	mm_write_lock(umem->mm);
- 	umem->mm->locked_vm -= umem->diff;
--	up_write(&umem->mm->mmap_sem);
-+	mm_write_unlock(umem->mm);
- 	mmput(umem->mm);
- 	kfree(umem);
+ 	return ret;
  }
-@@ -256,7 +256,7 @@ void ib_umem_release(struct ib_umem *ume
- 	 * we defer the vm_locked accounting to the system workqueue.
- 	 */
- 	if (context->closing) {
--		if (!down_write_trylock(&mm->mmap_sem)) {
-+		if (!mm_write_trylock(mm)) {
- 			INIT_WORK(&umem->work, ib_umem_account);
- 			umem->mm   = mm;
- 			umem->diff = diff;
-@@ -265,10 +265,10 @@ void ib_umem_release(struct ib_umem *ume
- 			return;
- 		}
- 	} else
--		down_write(&mm->mmap_sem);
-+		mm_write_lock(mm);
+Index: mmotm-mm-accessor/drivers/media/video/davinci/vpif_display.c
+===================================================================
+--- mmotm-mm-accessor.orig/drivers/media/video/davinci/vpif_display.c
++++ mmotm-mm-accessor/drivers/media/video/davinci/vpif_display.c
+@@ -116,11 +116,12 @@ static u32 vpif_uservirt_to_phys(u32 vir
+ 		/* otherwise, use get_user_pages() for general userland pages */
+ 		int res, nr_pages = 1;
+ 		struct page *pages;
+-		down_read(&current->mm->mmap_sem);
++
++		mm_read_lock(current->mm);
  
- 	current->mm->locked_vm -= diff;
--	up_write(&mm->mmap_sem);
-+	mm_write_unlock(mm);
- 	mmput(mm);
- 	kfree(umem);
- }
+ 		res = get_user_pages(current, current->mm,
+ 				     virtp, nr_pages, 1, 0, &pages, NULL);
+-		up_read(&current->mm->mmap_sem);
++		mm_read_unlock(current->mm);
+ 
+ 		if (res == nr_pages) {
+ 			physp = __pa(page_address(&pages[0]) +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
