@@ -1,35 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8A2266B0044
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 11:28:04 -0500 (EST)
-Date: Wed, 16 Dec 2009 10:27:39 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-In-Reply-To: <20091216113158.GE15031@basil.fritz.box>
-Message-ID: <alpine.DEB.2.00.0912161025290.8572@router.home>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com> <20091216101107.GA15031@basil.fritz.box> <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com> <20091216102806.GC15031@basil.fritz.box> <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com>
- <20091216104951.GD15031@basil.fritz.box> <20091216201218.42ff7f05.kamezawa.hiroyu@jp.fujitsu.com> <20091216113158.GE15031@basil.fritz.box>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 9FC876B0044
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:18:31 -0500 (EST)
+Received: from int-mx04.intmail.prod.int.phx2.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.17])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id nBGHITH5011895
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:18:30 -0500
+Received: from redhat.com (ovpn01.gateway.prod.ext.phx2.redhat.com [10.5.9.1])
+	by int-mx04.intmail.prod.int.phx2.redhat.com (8.13.8/8.13.8) with ESMTP id nBGHIS3A017081
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 12:18:29 -0500
+From: David Howells <dhowells@redhat.com>
+Subject: KSM broken in the CONFIG_MMU=n case
+Date: Wed, 16 Dec 2009 16:38:35 +0000
+Message-ID: <19082.1260981515@redhat.com>
+Resent-To: linux-mm@kvack.org
+Resent-Message-ID: <20746.1260983907@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: dhowells@redhat.com, aarcange@redhat.com, torvalds@osdl.org, akpm@linux-foundation.org, linux-mm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Dec 2009, Andi Kleen wrote:
 
-> > Do you have alternative recommendation rather than wrapping all accesses by
-> > special functions ?
->
-> Work out what changes need to be done for ranged mmap locks and do them all
-> in one pass.
+Hi Hugh,
 
-Locking ranges is already possible through the split ptlock and
-could be enhanced through placing locks in the vma structures.
+The KSM code is broken in the CONFIG_MMU=n case as enum ttu_flags is required,
+but not defined.  Simply predeclaring it doesn't help as the argument isn't a
+pointer to a value of that type.
 
-That does nothing solve the basic locking issues of mmap_sem. We need
-Kame-sans abstraction layer. A vma based lock or a ptlock still needs to
-ensure that the mm struct does not vanish while the lock is held.
+I've attached a patch below to deal with it; it's a bit messy, though, as the
+fallback ksm_exit() is required in both the NOMMU and no-KSM cases.
+
+David
+---
+From: David Howells <dhowells@redhat.com>
+Subject: [PATCH] NOMMU: Fix KSM in the CONFIG_MMU=n case
+
+Fix KSM in the CONFIG_MMU=n case:
+
+In file included from kernel/fork.c:52:
+include/linux/ksm.h:129: warning: 'enum ttu_flags' declared inside parameter list
+include/linux/ksm.h:129: warning: its scope is only this definition or declaration, which is probably not what you want
+include/linux/ksm.h:129: error: parameter 2 ('flags') has incomplete type
+
+by making most of linux/ksm.h contingent on CONFIG_MMU=y.  The fallback
+version of ksm_exit() requires special handling as that is also used in the
+MMU=y, KSM=n case.
+
+Signed-off-by: David Howells <dhowells@redhat.com>
+---
+
+ include/linux/ksm.h |   12 ++++++++----
+ 1 files changed, 8 insertions(+), 4 deletions(-)
+
+
+diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+index bed5f16..7f1e1f0 100644
+--- a/include/linux/ksm.h
++++ b/include/linux/ksm.h
+@@ -16,6 +16,7 @@
+ struct stable_node;
+ struct mem_cgroup;
+ 
++#ifdef CONFIG_MMU
+ #ifdef CONFIG_KSM
+ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+ 		unsigned long end, int advice, unsigned long *vm_flags);
+@@ -105,10 +106,6 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
+ 	return 0;
+ }
+ 
+-static inline void ksm_exit(struct mm_struct *mm)
+-{
+-}
+-
+ static inline int PageKsm(struct page *page)
+ {
+ 	return 0;
+@@ -141,5 +138,12 @@ static inline void ksm_migrate_page(struct page *newpage, struct page *oldpage)
+ {
+ }
+ #endif /* !CONFIG_KSM */
++#endif /* CONFIG_MMU */
++
++#if !defined(CONFIG_MMU) || !defined(CONFIG_KSM)
++static inline void ksm_exit(struct mm_struct *mm)
++{
++}
++#endif
+ 
+ #endif /* __LINUX_KSM_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
