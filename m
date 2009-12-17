@@ -1,48 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 75AA76B0093
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 15:08:29 -0500 (EST)
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.DEB.2.00.0912171331300.3638@router.home>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091216101107.GA15031@basil.fritz.box>
-	 <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091216102806.GC15031@basil.fritz.box>
-	 <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1261004224.21028.500.camel@laptop> <20091217084046.GA9804@basil.fritz.box>
-	 <alpine.DEB.2.00.0912171331300.3638@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 17 Dec 2009 21:07:50 +0100
-Message-ID: <1261080470.27920.798.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 586376B0093
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 15:11:14 -0500 (EST)
+Date: Thu, 17 Dec 2009 14:09:47 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
+In-Reply-To: <4B2A8D83.30305@redhat.com>
+Message-ID: <alpine.DEB.2.00.0912171402550.4640@router.home>
+References: <patchbomb.1261076403@v2.random> <alpine.DEB.2.00.0912171352330.4640@router.home> <4B2A8D83.30305@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-12-17 at 13:33 -0600, Christoph Lameter wrote:
-> On Thu, 17 Dec 2009, Andi Kleen wrote:
-> 
-> > > There are a few interesting cases like stack extention and hugetlbfs,
-> > > but I think we could start by falling back to mmap_sem locked behaviour
-> > > if the speculative thing fails.
+On Thu, 17 Dec 2009, Rik van Riel wrote:
+
+> Christoph Lameter wrote:
+> > Would it be possible to start out with a version of huge page support that
+> > does not require the complex splitting and joining of huge pages?
 > >
-> > You mean fall back to mmap_sem if anything sleeps? Maybe. Would need
-> > to check how many such points are really there.
-> 
-> You always need some reference on the mm_struct (mm_read_lock) if you are
-> going to sleep to ensure that mm_struct still exists after waking up (page
-> fault, page allocation). RCU and other spin locks are not helping there.
+> > Without that we would not need additional refcounts.
+> >
+> > Maybe a patch to allow simply the use of anonymous huge pages without a
+> > hugetlbfs mmap in the middle? IMHO its useful even if we cannot swap it
+> > out.
+>
+> Christoph, we need a way to swap these anonymous huge
+> pages.  You make it look as if you just want the
+> anonymous huge pages and a way to then veto any attempts
+> to make them swappable (on account of added overhead).
 
-Depends what you go to sleep for, the page fault retry patches simply
-retook the whole fault and there is no way the mm could have gone away
-when userspace isn't executing.
+Can we do this step by step? This splitting thing and its
+associated overhead causes me concerns.
 
-Also pinning a page will pin the vma will pin the mm, and then you can
-always take explicit mm_struct refs, but you really want to avoid that
-since that's a global cacheline again.
+> I believe it will be more useful if we figure out a way
+> forward together.  Do you have any ideas on how to solve
+> the hugepage swapping problem?
+
+Frankly I am not sure that there is a problem. The word swap is mostly
+synonymous with "problem". Huge pages are good. I dont think one
+needs to necessarily associate something good (huge page) with a known
+problem (swap) otherwise the whole may not improve.
+
+
+
 
 
 
