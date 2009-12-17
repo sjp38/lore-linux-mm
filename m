@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 461DB6B0071
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 03:41:44 -0500 (EST)
-Date: Thu, 17 Dec 2009 09:41:39 +0100
-From: Andi Kleen <andi@firstfloor.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D54D6B0078
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 03:46:19 -0500 (EST)
 Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-Message-ID: <20091217084138.GB9804@basil.fritz.box>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com> <20091216101107.GA15031@basil.fritz.box> <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com> <20091216102806.GC15031@basil.fritz.box> <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com> <20091216104951.GD15031@basil.fritz.box> <20091216201218.42ff7f05.kamezawa.hiroyu@jp.fujitsu.com> <20091216113158.GE15031@basil.fritz.box> <alpine.DEB.2.00.0912161025290.8572@router.home> <1261004515.21028.510.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1261004515.21028.510.camel@laptop>
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20091217084046.GA9804@basil.fritz.box>
+References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20091216101107.GA15031@basil.fritz.box>
+	 <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20091216102806.GC15031@basil.fritz.box>
+	 <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1261004224.21028.500.camel@laptop> <20091217084046.GA9804@basil.fritz.box>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 17 Dec 2009 09:45:34 +0100
+Message-ID: <1261039534.27920.67.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 17, 2009 at 12:01:55AM +0100, Peter Zijlstra wrote:
-> On Wed, 2009-12-16 at 10:27 -0600, Christoph Lameter wrote:
-> > On Wed, 16 Dec 2009, Andi Kleen wrote:
+On Thu, 2009-12-17 at 09:40 +0100, Andi Kleen wrote:
+> On Wed, Dec 16, 2009 at 11:57:04PM +0100, Peter Zijlstra wrote:
+> > On Wed, 2009-12-16 at 19:31 +0900, KAMEZAWA Hiroyuki wrote:
 > > 
-> > > > Do you have alternative recommendation rather than wrapping all accesses by
-> > > > special functions ?
-> > >
-> > > Work out what changes need to be done for ranged mmap locks and do them all
-> > > in one pass.
+> > > The problem of range locking is more than mmap_sem, anyway. I don't think
+> > > it's possible easily.
 > > 
-> > Locking ranges is already possible through the split ptlock and
-> > could be enhanced through placing locks in the vma structures.
+> > We already have a natural range lock in the form of the split pte lock.
 > > 
-> > That does nothing solve the basic locking issues of mmap_sem. We need
-> > Kame-sans abstraction layer. A vma based lock or a ptlock still needs to
-> > ensure that the mm struct does not vanish while the lock is held.
+> > If we make the vma lookup speculative using RCU, we can use the pte lock
 > 
-> It should, you shouldn't be able to remove a mm while there's still
-> vma's around, and you shouldn't be able to remove a vma when there's
-> still pagetables around. And if you rcu-free all of them you're stable
-> enough for lots of speculative behaviour.
+> One problem is here that mmap_sem currently contains sleeps
+> and RCU doesn't work for blocking operations until a custom
+> quiescent period is defined.
 
-Yes, the existing reference counts are probably sufficient for all that.
+Right, so one thing we could do is always have preemptible rcu present
+in another RCU flavour, like
 
-Still need list stability.
+rcu_read_lock_sleep()
+rcu_read_unlock_sleep()
+call_rcu_sleep()
 
-> As for per-vma locks, those are pretty much useless too, there's plenty
-> applications doing lots of work on a few very large vmas.
-
-True.
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+or whatever name that would be, and have PREEMPT_RCU=y only flip the
+regular rcu implementation between the sched/sleep one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
