@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8FCBE6B0088
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:51 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 27B3E6B0096
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:52 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 06 of 28] no paravirt version of pmd ops
-Message-Id: <6b13874ad0f1199d5e5d.1261076409@v2.random>
+Subject: [PATCH 20 of 28] split_huge_page paging
+Message-Id: <df5b6217a6b933d25f86.1261076423@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:09 -0000
+Date: Thu, 17 Dec 2009 19:00:23 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,31 +18,55 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No paravirt version of set_pmd_at/pmd_update/pmd_update_defer.
+Paging logic that splits the page before it is unmapped and added to swap to
+ensure backwards compatibility with the legacy swap code. Eventually swap
+should natively pageout the hugepages to increase performance and decrease
+seeking and fragmentation of swap space. swapoff can just skip over huge pmd as
+they cannot be part of swap yet.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -33,6 +33,7 @@ extern struct list_head pgd_list;
- #else  /* !CONFIG_PARAVIRT */
- #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
- #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
-+#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1176,6 +1176,10 @@ int try_to_unmap(struct page *page, enum
  
- #define set_pte_atomic(ptep, pte)					\
- 	native_set_pte_atomic(ptep, pte)
-@@ -57,6 +58,8 @@ extern struct list_head pgd_list;
+ 	BUG_ON(!PageLocked(page));
  
- #define pte_update(mm, addr, ptep)              do { } while (0)
- #define pte_update_defer(mm, addr, ptep)        do { } while (0)
-+#define pmd_update(mm, addr, ptep)              do { } while (0)
-+#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
++	if (unlikely(PageCompound(page)))
++		if (unlikely(split_huge_page(page)))
++			return SWAP_AGAIN;
++
+ 	if (unlikely(PageKsm(page)))
+ 		ret = try_to_unmap_ksm(page, flags);
+ 	else if (PageAnon(page))
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -152,6 +152,10 @@ int add_to_swap(struct page *page)
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(!PageUptodate(page));
  
- #define pgd_val(x)	native_pgd_val(x)
- #define __pgd(x)	native_make_pgd(x)
++	if (unlikely(PageCompound(page)))
++		if (unlikely(split_huge_page(page)))
++			return 0;
++
+ 	entry = get_swap_page();
+ 	if (!entry.val)
+ 		return 0;
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -905,6 +905,8 @@ static inline int unuse_pmd_range(struct
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		if (unlikely(pmd_trans_huge(*pmd)))
++			continue;
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
