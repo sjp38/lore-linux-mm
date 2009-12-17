@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id AD5796B0044
+	by kanga.kvack.org (Postfix) with SMTP id DBD596B0078
 	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:39 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 28 of 28] memcg huge memory
-Message-Id: <d9c8d2160feb7d82736b.1261076431@v2.random>
+Subject: [PATCH 12 of 28] special pmd_trans_* functions
+Message-Id: <2822718e053c22dd04b8.1261076415@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:31 -0000
+Date: Thu, 17 Dec 2009 19:00:15 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,96 +18,62 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add memcg charge/uncharge to hugepage faults in huge_memory.c.
+These returns 0 at compile time when the config option is disabled, to allow
+gcc to eliminate the transparent hugepage function calls at compile time
+without additional #ifdefs (only the export of those functions have to be
+visible to gcc but they won't be required at link time and huge_memory.o can be
+not built at all).
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -207,6 +207,7 @@ static int __do_huge_anonymous_page(stru
- 	VM_BUG_ON(!PageCompound(page));
- 	pgtable = pte_alloc_one(mm, address);
- 	if (unlikely(!pgtable)) {
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		return VM_FAULT_OOM;
- 	}
-@@ -218,6 +219,7 @@ static int __do_huge_anonymous_page(stru
- 
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_none(*pmd))) {
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		pte_free(mm, pgtable);
- 	} else {
-@@ -251,6 +253,10 @@ int do_huge_anonymous_page(struct mm_str
- 				   HPAGE_ORDER);
- 		if (unlikely(!page))
- 			goto out;
-+		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+			put_page(page);
-+			goto out;
-+		}
- 
- 		return __do_huge_anonymous_page(mm, vma,
- 						address, pmd,
-@@ -379,9 +385,16 @@ int do_huge_wp_page(struct mm_struct *mm
- 		for (i = 0; i < HPAGE_NR; i++) {
- 			pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
- 						  vma, address);
--			if (unlikely(!pages[i])) {
--				while (--i >= 0)
-+			if (unlikely(!pages[i] ||
-+				     mem_cgroup_newpage_charge(pages[i],
-+							       mm,
-+							       GFP_KERNEL))) {
-+				if (pages[i])
- 					put_page(pages[i]);
-+				while (--i >= 0) {
-+					mem_cgroup_uncharge_page(pages[i]);
-+					put_page(pages[i]);
-+				}
- 				kfree(pages);
- 				ret |= VM_FAULT_OOM;
- 				goto out;
-@@ -439,15 +452,21 @@ int do_huge_wp_page(struct mm_struct *mm
- 		goto out;
- 	}
- 
-+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-+		put_page(new_page);
-+		ret |= VM_FAULT_OOM;
-+		goto out;
-+	}
- 	copy_huge_page(new_page, page, haddr, vma, HPAGE_NR);
- 	__SetPageUptodate(new_page);
- 
- 	smp_wmb();
- 
- 	spin_lock(&mm->page_table_lock);
--	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-+	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-+		mem_cgroup_uncharge_page(new_page);
- 		put_page(new_page);
--	else {
-+	} else {
- 		pmd_t entry;
- 		entry = mk_pmd(new_page, vma->vm_page_prot);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-@@ -466,8 +485,10 @@ out:
- 	return ret;
- 
- out_free_pages:
--	for (i = 0; i < HPAGE_NR; i++)
-+	for (i = 0; i < HPAGE_NR; i++) {
-+		mem_cgroup_uncharge_page(pages[i]);
- 		put_page(pages[i]);
-+	}
- 	kfree(pages);
- 	goto out_unlock;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -394,6 +394,24 @@ static inline int pmd_present(pmd_t pmd)
+ 	return pmd_flags(pmd) & _PAGE_PRESENT;
  }
+ 
++static inline int pmd_trans_splitting(pmd_t pmd)
++{
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	return pmd_val(pmd) & _PAGE_SPLITTING;
++#else
++	return 0;
++#endif
++}
++
++static inline int pmd_trans_huge(pmd_t pmd)
++{
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	return pmd_val(pmd) & _PAGE_PSE;
++#else
++	return 0;
++#endif
++}
++
+ static inline int pmd_none(pmd_t pmd)
+ {
+ 	/* Only check low word on 32-bit platforms, since it might be
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -22,6 +22,7 @@
+ #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
+ #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
+ #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
++#define _PAGE_BIT_SPLITTING	_PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
+ #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
+ 
+ /* If _PAGE_BIT_PRESENT is clear, we use these: */
+@@ -45,6 +46,7 @@
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+ #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
++#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
+ #define __HAVE_ARCH_PTE_SPECIAL
+ 
+ #ifdef CONFIG_KMEMCHECK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
