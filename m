@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 25FE46B0092
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CC52D6B009A
 	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:53 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 07 of 28] export maybe_mkwrite
-Message-Id: <e8072f34a74bb668f823.1261076410@v2.random>
+Subject: [PATCH 16 of 28] clear page compound
+Message-Id: <fb2069235cb2187bcdf8.1261076419@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:10 -0000
+Date: Thu, 17 Dec 2009 19:00:19 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,58 +18,53 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-huge_memory.c needs it too when it fallbacks in copying hugepages into regular
-fragmented pages if hugepage allocation fails during COW.
+split_huge_page must transform a compound page to a regular page and needs
+ClearPageCompound.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -380,6 +380,19 @@ static inline void set_compound_order(st
- }
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -347,7 +347,7 @@ static inline void set_page_writeback(st
+  * tests can be used in performance sensitive paths. PageCompound is
+  * generally not used in hot code paths.
+  */
+-__PAGEFLAG(Head, head)
++__PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
+ __PAGEFLAG(Tail, tail)
  
- /*
-+ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-+ * servicing faults for write access.  In the normal case, do always want
-+ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-+ * that do not have writing enabled, when used by access_process_vm.
-+ */
-+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+ static inline int PageCompound(struct page *page)
+@@ -355,6 +355,13 @@ static inline int PageCompound(struct pa
+ 	return page->flags & ((1L << PG_head) | (1L << PG_tail));
+ 
+ }
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void ClearPageCompound(struct page *page)
 +{
-+	if (likely(vma->vm_flags & VM_WRITE))
-+		pte = pte_mkwrite(pte);
-+	return pte;
++	BUG_ON(!PageHead(page));
++	ClearPageHead(page);
 +}
-+
-+/*
-  * Multiple processes may "see" the same page. E.g. for untouched
-  * mappings of /dev/null, all processes see the same page full of
-  * zeroes, and text pages of executables and shared libraries have
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1943,19 +1943,6 @@ static inline int pte_unmap_same(struct 
- 	return same;
++#endif
+ #else
+ /*
+  * Reduce page flag use as much as possible by overlapping
+@@ -392,6 +399,14 @@ static inline void __ClearPageTail(struc
+ 	page->flags &= ~PG_head_tail_mask;
  }
  
--/*
-- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-- * servicing faults for write access.  In the normal case, do always want
-- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-- * that do not have writing enabled, when used by access_process_vm.
-- */
--static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
--{
--	if (likely(vma->vm_flags & VM_WRITE))
--		pte = pte_mkwrite(pte);
--	return pte;
--}
--
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
- {
- 	/*
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void ClearPageCompound(struct page *page)
++{
++	BUG_ON(page->flags & PG_head_tail_mask != (1L << PG_compound));
++	ClearPageCompound(page);
++}
++#endif
++
+ #endif /* !PAGEFLAGS_EXTENDED */
+ 
+ #ifdef CONFIG_MMU
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
