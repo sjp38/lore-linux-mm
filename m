@@ -1,87 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A0E9F6B0044
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 16:16:08 -0500 (EST)
-Date: Thu, 17 Dec 2009 21:05:23 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: FWD:  [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
-In-Reply-To: <4B2A8CA8.6090704@redhat.com>
-Message-ID: <Pine.LNX.4.64.0912172055570.15788@sister.anvils>
-References: <20091211164651.036f5340@annuminas.surriel.com>
- <1260810481.6666.13.camel@dhcp-100-19-198.bos.redhat.com>
- <20091217193818.9FA9.A69D9226@jp.fujitsu.com> <4B2A22C0.8080001@redhat.com>
- <4B2A8CA8.6090704@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A89596B0044
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 17:22:04 -0500 (EST)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id nBHMLwdW008855
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:21:58 -0800
+Received: from pwj16 (pwj16.prod.google.com [10.241.219.80])
+	by wpaz37.hot.corp.google.com with ESMTP id nBHMLta0005888
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:21:56 -0800
+Received: by pwj16 with SMTP id 16so1793865pwj.25
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:21:55 -0800 (PST)
+Date: Thu, 17 Dec 2009 14:21:49 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask
+ v4.2
+In-Reply-To: <20091215135902.CDD6.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0912171412280.4089@chino.kir.corp.google.com>
+References: <20091215133546.6872fc4f.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0912142046070.436@chino.kir.corp.google.com> <20091215135902.CDD6.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: lwoodman@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Dec 2009, Rik van Riel wrote:
+On Tue, 15 Dec 2009, KOSAKI Motohiro wrote:
 
-> After removing some more immediate bottlenecks with
-> the patches by Kosaki and me, Larry ran into a really
-> big one:
+> > A few requirements that I have:
 > 
-> Larry Woodman wrote:
+> Um, good analysis! really.
 > 
-> > Finally, having said all that, the system still struggles reclaiming memory
-> > with
-> > ~10000 processes trying at the same time, you fix one bottleneck and it 
-> > moves
-> > somewhere else.  The latest run showed all but one running process spinning
-> > in
-> > page_lock_anon_vma() trying for the anon_vma_lock.  I noticed that there are
-> > ~5000 vma's linked to one anon_vma, this seems excessive!!!
-> > 
-> > I changed the anon_vma->lock to a rwlock_t and page_lock_anon_vma() to use
-> > read_lock() so multiple callers could execute the page_reference_anon code.
-> > This seems to help quite a bit.
+> >
+> >  - we must be able to define when a task is a memory hogger; this is
+> >    currently done by /proc/pid/oom_adj relying on the overall total_vm
+> >    size of the task as a baseline.  Most users should have a good sense
+> >    of when their task is using more memory than expected and killing a
+> >    memory leaker should always be the optimal oom killer result.  A better 
+> >    set of units other than a shift on total_vm would be helpful, though.
 > 
-> The system has 10000 processes, all of which are child
-> processes of the same parent.
+> nit: What's mean "Most users"? desktop user(one of most majority users)
+> don't have any expection of memory usage.
 > 
-> Pretty much all memory is anonymous memory.
+> but, if admin have memory expection, they should be able to tune
+> optimal oom result.
 > 
-> This means that pretty much every anonymous page in the
-> system:
-> 1) belongs to just one process, but
-> 2) belongs to an anon_vma which is attached to 10,000 VMAs!
+> I think you pointed right thing.
 > 
-> This results in page_referenced scanning 10,000 VMAs for
-> every page, despite the fact that each page is typically
-> only mapped into one process.
-> 
-> This seems to be our real scalability issue.
-> 
-> The only way out I can think is to have a new anon_vma
-> when we start a child process and to have COW place new
-> pages in the new anon_vma.
-> 
-> However, this is a bit of a paradigm shift in our object
-> rmap system and I am wondering if somebody else has a
-> better idea :)
 
-Please first clarify whether what Larry is running is actually
-a workload that people need to behave well in real life.
+This is mostly referring to production server users where memory 
+consumption by particular applications can be estimated, which allows the 
+kernel to determine when a task is using a wildly unexpected amount that 
+happens to become egregious enough to force the oom killer into killing a 
+task.
 
->From time to time such cases have been constructed, but we've
-usually found better things to do than solve them, because
-they've been no more than academic problems.
+That is contrast to using rss as a baseline where we prefer on killing the 
+application with the most resident RAM.  It is not always ideal to kill a 
+task with 8GB of rss when we fail to allocate a single page for a low 
+priority task.
 
-I'm not asserting that this one is purely academic, but I do
-think we need more than an artificial case to worry much about it.
+> >  - we must prefer tasks that run on a cpuset or mempolicy's nodes if the 
+> >    oom condition is constrained by that cpuset or mempolicy and its not a
+> >    system-wide issue.
+> 
+> agreed. (who disagree it?)
+> 
 
-An rwlock there has been proposed on several occasions, but
-we resist because that change benefits this case but performs
-worse on more common cases (I believe: no numbers to back that up).
+It's possible to nullify the current penalization in the badness heuristic 
+(order 3 reduction) if a candidate task does not share nodes with 
+current's allowed set either by way of cpusets or mempolicies.  For 
+example, an oom caused by an application with an MPOL_BIND on a single 
+node can easily kill a task that has no memory resident on that node if 
+its usage (or rss) is 3 orders higher than any candidate that is allowed 
+on my bound node.
 
-Substitute a MAP_SHARED file underneath those 10000 vmas,
-and don't you have an equal problem with the prio_tree,
-which would be harder to solve than the anon_vma case?
+> >  - we must be able to polarize the badness heuristic to always select a
+> >    particular task is if its very low priority or disable oom killing for
+> >    a task if its must-run.
+> 
+> Probably I haven't catch your point. What's mean "polarize"? Can you
+> please describe more?
+> 
 
-Hugh
+We need to be able to polarize tasks so they are always killed regardless 
+of any kernel heuristic (/proc/pid/oom_adj of +15, currently) or always 
+chosen last (-16, currently).  We also need a way of completely disabling 
+oom killing for certain tasks such as with OOM_DISABLE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
