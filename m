@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B47B86B0082
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:42 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 657F06B007D
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:43 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 18 of 28] ensure mapcount is taken on head pages
-Message-Id: <f784dc1b2a11804345ed.1261076421@v2.random>
+Subject: [PATCH 03 of 28] clear compound mapping
+Message-Id: <669ae4b5beb65cf46041.1261076406@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:21 -0000
+Date: Thu, 17 Dec 2009 19:00:06 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,42 +18,24 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Unlike the page count, the page mapcount cannot be taken on PageTail compound
-pages.
+Clear compound mapping for anonymous compound pages like it already happens for
+regular anonymous pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -105,6 +105,7 @@ void page_remove_rmap(struct page *);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -583,6 +583,8 @@ static void __free_pages_ok(struct page 
  
- static inline void page_dup_rmap(struct page *page)
- {
-+	VM_BUG_ON(PageTail(page));
- 	atomic_inc(&page->_mapcount);
- }
+ 	kmemcheck_free_shadow(page, order);
  
-diff --git a/mm/rmap.c b/mm/rmap.c
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -733,6 +733,7 @@ void page_add_file_rmap(struct page *pag
-  */
- void page_remove_rmap(struct page *page)
- {
-+	VM_BUG_ON(PageTail(page));
- 	/* page still mapped by someone else? */
- 	if (!atomic_add_negative(-1, &page->_mapcount))
- 		return;
-@@ -1281,6 +1282,7 @@ static int rmap_walk_file(struct page *p
- int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
- 		struct vm_area_struct *, unsigned long, void *), void *arg)
- {
-+	VM_BUG_ON(PageTail(page));
- 	VM_BUG_ON(!PageLocked(page));
- 
- 	if (unlikely(PageKsm(page)))
++	if (PageAnon(page))
++		page->mapping = NULL;
+ 	for (i = 0 ; i < (1 << order) ; ++i)
+ 		bad += free_pages_check(page + i);
+ 	if (bad)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
