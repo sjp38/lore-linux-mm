@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A434E6B0044
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:43 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4BE136B0088
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:44 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 19 of 28] split_huge_page_mm/vma
-Message-Id: <9c970349b9f8cd20211a.1261076422@v2.random>
+Subject: [PATCH 22 of 28] clear_huge_page fix
+Message-Id: <1a99eca9036dcf88bf0f.1261076425@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:22 -0000
+Date: Thu, 17 Dec 2009 19:00:25 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,79 +18,23 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-split_huge_page_mm/vma compat code. Each one of those would need to be expanded
-to hundred of lines of complex code without a fully reliable
-split_huge_page_mm/vma functionality.
+sz is in bytes, MAX_ORDER_NR_PAGES is in pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
---- a/arch/x86/kernel/vm86_32.c
-+++ b/arch/x86/kernel/vm86_32.c
-@@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm
- 	if (pud_none_or_clear_bad(pud))
- 		goto out;
- 	pmd = pmd_offset(pud, 0xA0000);
-+	split_huge_page_mm(mm, 0xA0000, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		goto out;
- 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -446,6 +446,7 @@ static inline int check_pmd_range(struct
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_vma(vma, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		if (check_pte_range(vma, pmd, addr, next, nodes,
-diff --git a/mm/mincore.c b/mm/mincore.c
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -132,6 +132,7 @@ static long do_mincore(unsigned long add
- 	if (pud_none_or_clear_bad(pud))
- 		goto none_mapped;
- 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_vma(vma, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		goto none_mapped;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -402,7 +402,7 @@ static void clear_huge_page(struct page 
+ {
+ 	int i;
  
-diff --git a/mm/mprotect.c b/mm/mprotect.c
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -89,6 +89,7 @@ static inline void change_pmd_range(stru
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_mm(mm, addr, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
-diff --git a/mm/mremap.c b/mm/mremap.c
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -42,6 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
- 		return NULL;
- 
- 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_mm(mm, addr, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		return NULL;
- 
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -34,6 +34,7 @@ static int walk_pmd_range(pud_t *pud, un
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_mm(walk->mm, addr, pmd);
- 		if (pmd_none_or_clear_bad(pmd)) {
- 			if (walk->pte_hole)
- 				err = walk->pte_hole(addr, next, walk);
+-	if (unlikely(sz > MAX_ORDER_NR_PAGES)) {
++	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
+ 		clear_gigantic_page(page, addr, sz);
+ 		return;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
