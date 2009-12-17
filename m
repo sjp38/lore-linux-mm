@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 344D06B007D
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 03:54:36 -0500 (EST)
-Date: Thu, 17 Dec 2009 09:54:30 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-Message-ID: <20091217085430.GG9804@basil.fritz.box>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com> <20091216101107.GA15031@basil.fritz.box> <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com> <20091216102806.GC15031@basil.fritz.box> <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com> <1261004224.21028.500.camel@laptop> <20091217084046.GA9804@basil.fritz.box> <1261039534.27920.67.camel@laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3B6286B0082
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 04:54:36 -0500 (EST)
+Date: Thu, 17 Dec 2009 09:54:10 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: Question about pte_offset_map_lock
+In-Reply-To: <20091217114630.d353907a.minchan.kim@barrios-desktop>
+Message-ID: <Pine.LNX.4.64.0912170937450.3176@sister.anvils>
+References: <20091217114630.d353907a.minchan.kim@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1261039534.27920.67.camel@laptop>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com, paulmck@linux.vnet.ibm.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 17, 2009 at 09:45:34AM +0100, Peter Zijlstra wrote:
-> On Thu, 2009-12-17 at 09:40 +0100, Andi Kleen wrote:
-> > On Wed, Dec 16, 2009 at 11:57:04PM +0100, Peter Zijlstra wrote:
-> > > On Wed, 2009-12-16 at 19:31 +0900, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > > > The problem of range locking is more than mmap_sem, anyway. I don't think
-> > > > it's possible easily.
-> > > 
-> > > We already have a natural range lock in the form of the split pte lock.
-> > > 
-> > > If we make the vma lookup speculative using RCU, we can use the pte lock
-> > 
-> > One problem is here that mmap_sem currently contains sleeps
-> > and RCU doesn't work for blocking operations until a custom
-> > quiescent period is defined.
+On Thu, 17 Dec 2009, Minchan Kim wrote:
+> It may be a dumb question.
 > 
-> Right, so one thing we could do is always have preemptible rcu present
-> in another RCU flavour, like
+> As I read the code of pte_lock, I have a question. 
+> Now, there is pte_offset_map_lock following as. 
 > 
-> rcu_read_lock_sleep()
-> rcu_read_unlock_sleep()
-> call_rcu_sleep()
+> #define pte_offset_map_lock(mm, pmd, address, ptlp)     \
+> ({                                                      \
+>         spinlock_t *__ptl = pte_lockptr(mm, pmd);       \
+>         pte_t *__pte = pte_offset_map(pmd, address);    \
+>         *(ptlp) = __ptl;                                \
+>         spin_lock(__ptl);                               \
+>         __pte;                                          \
+> })
 > 
-> or whatever name that would be, and have PREEMPT_RCU=y only flip the
-> regular rcu implementation between the sched/sleep one.
+> Why do we grab the lock after getting __pte?
+> Is it possible that __pte might be changed before we grab the spin_lock?
+> 
+> Some codes in mm checks original pte by pte_same. 
+> There are not-checked cases in proc. As looking over the cases,
+> It seems no problem. But in future, new user of pte_offset_map_lock 
+> could mistake with that?
 
-That could work yes.
+I think you wouldn't be asking the question if we'd called it __ptep.
 
--Andi
+It's a (perhaps kmap_atomic) pointer into the page table: the virtual
+address of a page table entry, not the page table entry itself.
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+You're right that the entry itself could change before we get the lock,
+and pte_same() is what we use to check that an entry is still what we
+were expecting; but the containing page table will remain the same,
+until munmap() or exit_mmap() at least.
+
+(For completeness, I ought to add that the entry might even change
+while we have the lock: accessed and dirty bits could get set by a
+racing thread in userspace.  There are places where we have to be
+very careful about not missing a dirty bit, but missing an accessed
+bit on rare occasions doesn't matter.)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
