@@ -1,71 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 158A06B009A
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 10:03:01 -0500 (EST)
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20091217144551.GA6819@linux.vnet.ibm.com>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091216101107.GA15031@basil.fritz.box>
-	 <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20091216102806.GC15031@basil.fritz.box>
-	 <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1261004224.21028.500.camel@laptop> <20091217084046.GA9804@basil.fritz.box>
-	 <1261039534.27920.67.camel@laptop> <20091217085430.GG9804@basil.fritz.box>
-	 <20091217144551.GA6819@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 17 Dec 2009 16:02:12 +0100
-Message-ID: <1261062132.27920.469.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3BC806B009C
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 10:04:01 -0500 (EST)
+Received: by pwi1 with SMTP id 1so1643927pwi.6
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2009 07:02:53 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <Pine.LNX.4.64.0912170937450.3176@sister.anvils>
+References: <20091217114630.d353907a.minchan.kim@barrios-desktop>
+	 <Pine.LNX.4.64.0912170937450.3176@sister.anvils>
+Date: Fri, 18 Dec 2009 00:02:53 +0900
+Message-ID: <28c262360912170702j108d7514pb0aa0919aed53e7@mail.gmail.com>
+Subject: Re: Question about pte_offset_map_lock
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: paulmck@linux.vnet.ibm.com
-Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-12-17 at 06:45 -0800, Paul E. McKenney wrote:
-> On Thu, Dec 17, 2009 at 09:54:30AM +0100, Andi Kleen wrote:
-> > On Thu, Dec 17, 2009 at 09:45:34AM +0100, Peter Zijlstra wrote:
-> > > On Thu, 2009-12-17 at 09:40 +0100, Andi Kleen wrote:
-> > > > On Wed, Dec 16, 2009 at 11:57:04PM +0100, Peter Zijlstra wrote:
-> > > > > On Wed, 2009-12-16 at 19:31 +0900, KAMEZAWA Hiroyuki wrote:
-> > > > > 
-> > > > > > The problem of range locking is more than mmap_sem, anyway. I don't think
-> > > > > > it's possible easily.
-> > > > > 
-> > > > > We already have a natural range lock in the form of the split pte lock.
-> > > > > 
-> > > > > If we make the vma lookup speculative using RCU, we can use the pte lock
-> > > > 
-> > > > One problem is here that mmap_sem currently contains sleeps
-> > > > and RCU doesn't work for blocking operations until a custom
-> > > > quiescent period is defined.
-> > > 
-> > > Right, so one thing we could do is always have preemptible rcu present
-> > > in another RCU flavour, like
-> > > 
-> > > rcu_read_lock_sleep()
-> > > rcu_read_unlock_sleep()
-> > > call_rcu_sleep()
-> > > 
-> > > or whatever name that would be, and have PREEMPT_RCU=y only flip the
-> > > regular rcu implementation between the sched/sleep one.
-> > 
-> > That could work yes.
-> 
-> OK, I have to ask...
-> 
-> Why not just use the already-existing SRCU in this case?
+Hi, Hugh.
 
-Because somehow the preemptible RCU implementation seems superior to
-SRCU, but sure, when developing all this one can start by simply
-mandating PREEMPT_RCU=y, then maybe use SRCU or try to drop the rcu lock
-when sleeping.
+On Thu, Dec 17, 2009 at 6:54 PM, Hugh Dickins
+<hugh.dickins@tiscali.co.uk> wrote:
+> On Thu, 17 Dec 2009, Minchan Kim wrote:
+>> It may be a dumb question.
+>>
+>> As I read the code of pte_lock, I have a question.
+>> Now, there is pte_offset_map_lock following as.
+>>
+>> #define pte_offset_map_lock(mm, pmd, address, ptlp) =C2=A0 =C2=A0 \
+>> ({ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0\
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 spinlock_t *__ptl =3D pte_lockptr(mm, pmd); =
+=C2=A0 =C2=A0 =C2=A0 \
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 pte_t *__pte =3D pte_offset_map(pmd, address=
+); =C2=A0 =C2=A0\
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 *(ptlp) =3D __ptl; =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0\
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_lock(__ptl); =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 \
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 __pte; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0\
+>> })
+>>
+>> Why do we grab the lock after getting __pte?
+>> Is it possible that __pte might be changed before we grab the spin_lock?
+>>
+>> Some codes in mm checks original pte by pte_same.
+>> There are not-checked cases in proc. As looking over the cases,
+>> It seems no problem. But in future, new user of pte_offset_map_lock
+>> could mistake with that?
+>
+> I think you wouldn't be asking the question if we'd called it __ptep.
 
-That mmap_sem lockbreak on wait_page() seems like a sensible idea
-anyway, regardless of what we do with the rest of the locking.
+Absolutely.
+
+>
+> It's a (perhaps kmap_atomic) pointer into the page table: the virtual
+> address of a page table entry, not the page table entry itself.
+>
+> You're right that the entry itself could change before we get the lock,
+> and pte_same() is what we use to check that an entry is still what we
+> were expecting; but the containing page table will remain the same,
+> until munmap() or exit_mmap() at least
+
+Yes, In unmap case, it can be protected by mmap_sem.  :)
+
+>
+> (For completeness, I ought to add that the entry might even change
+> while we have the lock: accessed and dirty bits could get set by a
+> racing thread in userspace. =C2=A0There are places where we have to be
+> very careful about not missing a dirty bit, but missing an accessed
+> bit on rare occasions doesn't matter.)
+
+Indeed!.
+Thanks! Hugh.
+
+> Hugh
+>
 
 
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
