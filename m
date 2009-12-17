@@ -1,93 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 60ABE6B008C
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 07:33:48 -0500 (EST)
-Date: Thu, 17 Dec 2009 14:33:37 +0200
-From: Izik Eidus <ieidus@redhat.com>
-Subject: Re: RFC: change swap_map to be 32bits varible instead of 16
-Message-ID: <20091217143337.06de62fa@redhat.com>
-In-Reply-To: <Pine.LNX.4.64.0912162232520.24424@sister.anvils>
-References: <20091216210432.33de4e98@redhat.com>
-	<Pine.LNX.4.64.0912162232520.24424@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1D15B6B0092
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 09:45:21 -0500 (EST)
+Message-ID: <4B2A438A.6000908@redhat.com>
+Date: Thu, 17 Dec 2009 09:43:22 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: FWD:  [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
+References: <20091211164651.036f5340@annuminas.surriel.com> <1260810481.6666.13.camel@dhcp-100-19-198.bos.redhat.com> <20091217193818.9FA9.A69D9226@jp.fujitsu.com> <4B2A22C0.8080001@redhat.com>
+In-Reply-To: <4B2A22C0.8080001@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@redhat.com>, linux-mm@kvack.org
+To: lwoodman@redhat.com
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Dec 2009 23:00:48 +0000 (GMT)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+On 12/17/2009 07:23 AM, Larry Woodman wrote:
 
-> Hi Izik,
-> 
-> On Wed, 16 Dec 2009, Izik Eidus wrote:
-> > 
-> > When i backported Hugh patches into the rhel6 kernel today, I
-> > noticed during my testing that at very high load of swap tests i
-> > get the following error:
-> > 
-> > 
-> > Dec 16 17:06:25 dhcp-1-211 kernel: swap_dup: swap entry overflow
-> > Dec 16 17:06:25 dhcp-1-211 kernel: swap_dup: swap entry overflow
-> > Dec 16 17:06:25 dhcp-1-211 kernel: swap_dup: swap entry overflow
-> > Dec 16 17:06:25 dhcp-1-211 kernel: swap_dup: swap entry overflow
-> > 
-> > 
-> > The problem probably happen due to the swap_map limitation of being
-> > able to address just ~128mb of memory, and with the zero_page mapped
-> > when using ksm much more than this amount of memory it was triggered
-> > 
-> > There may be many soultions to this problem, and I send for RFC the
-> > easiest one (just increase the map_count to be unsiged int and allow
-> > ~8terabyte of memory)
-> 
-> The problem here is that you've backported too little: there's a group
-> of 9 "swap_info" patches, before the "mm" patches which prepare for
-> ksm swapping, and the "ksm" swapping patches themselves.
+>>> The system would not respond so I dont know whats going on yet. I'll
+>>> add debug code to figure out why its in that state as soon as I get
+>>> access to the hardware.
+>
+> This was in response to Rik's first patch and seems to be fixed by the
+> latest path set.
+>
+> Finally, having said all that, the system still struggles reclaiming
+> memory with
+> ~10000 processes trying at the same time, you fix one bottleneck and it
+> moves
+> somewhere else. The latest run showed all but one running process
+> spinning in
+> page_lock_anon_vma() trying for the anon_vma_lock. I noticed that there are
+> ~5000 vma's linked to one anon_vma, this seems excessive!!!
 
-Ok, that expline.
+I have some ideas on how to keep processes waiting better
+on the per zone reclaim_wait waitqueue.
 
-> 
-> I did include the swap_info patches in the latter rollup I sent you
-> privately, and did highlight this issue when I sent an earlier rollup:
-> it was an amusing surprise to me that KSM suddenly required our years
-> old bad assumptions in swapoff to be fixed in a hurry.
-> 
-> But I didn't Cc you on them when I sent to Andrew, mistakenly thinking
-> that they weren't "KSM enough" to be of interest you - I hadn't
-> realized that you were planning a backport, sorry.
+For one, we should probably only do the lots-free wakeup
+if we have more than zone->pages_high free pages in the
+zone - having each of the waiters free some memory one
+after another should not be a problem as long as we do
+not have too much free memory in the zone.
 
-Yes I have backported by mails I got from the final summbit...
+Currently it's a hair trigger, with the threshold for
+processes going into the page reclaim path and processes
+exiting it "plenty free" being exactly the same.
 
-> 
-> Maybe you should also include the set of patches which reintroduce the
-> zero page (which won't be swapped and won't be inspected by KSM, being
-> not PageAnon); but that wouldn't be sufficient in itself, since I
-> found it very easy for KSM to overflow the unsigned short *swap_map
-> even with non-zero pages.
-> 
-> Or, dare I say it, maybe you should just use 2.6.33?
+Some hysteresis there could help.
 
-Not think is possible (Rhel 6 schdule...) :)
-
-> 
-> The patch you sent as RFC, changing from unsigned short to unsigned
-> int *swap_map: that may be sufficient - I admit it's a very much
-> smaller patch than my lot - I'm not certain.  But it's not the way I
-> wanted mainline to go, since most people will never use more than one
-> byte of your 32-bit swap map elements, and vmalloc space may be at a
-> premium on 32-bit architectures.
-
-
-No problem, I will just backport your patch`s, no point in making rhel
-6 bheave diffrently than what in mainline...
-
-Thanks.
-
-> 
-> Hugh
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
