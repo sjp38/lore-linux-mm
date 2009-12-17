@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A4D3D6B0044
-	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 19:03:23 -0500 (EST)
-Date: Wed, 16 Dec 2009 16:02:53 -0800
-From: Greg KH <greg@kroah.com>
-Subject: Re: [stable] [PATCH -stable] vmalloc: conditionalize build of
- pcpu_get_vm_areas()
-Message-ID: <20091217000253.GA3225@kroah.com>
-References: <4B1D3A3302000078000241CD@vpn.id2.novell.com>
- <20091207153552.0fadf335.akpm@linux-foundation.org>
- <4B1E1B1B0200007800024345@vpn.id2.novell.com>
- <4B1E0E56.8020003@kernel.org>
- <4B1E1EE60200007800024364@vpn.id2.novell.com>
- <4B1E1513.3020000@kernel.org>
- <4B203614.1010907@novell.com>
- <20091216231210.GB9421@kroah.com>
- <4B2974F0.1030505@novell.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 125F06B0044
+	for <linux-mm@kvack.org>; Wed, 16 Dec 2009 19:34:34 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBH0YVKP017631
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 17 Dec 2009 09:34:32 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9846E45DE56
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 09:34:31 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 62E6C45DE4E
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 09:34:31 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 362A91DB8043
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 09:34:31 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5DD61DB803E
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 09:34:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: introduce dump_page() and print symbolic flag names
+In-Reply-To: <20091216152856.GB2804@hack>
+References: <20091216122640.GA13817@localhost> <20091216152856.GB2804@hack>
+Message-Id: <20091217092720.7ACC.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B2974F0.1030505@novell.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Thu, 17 Dec 2009 09:34:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <teheo@novell.com>
-Cc: stable@kernel.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, Jan Beulich <JBeulich@novell.com>, linux-mm@kvack.org, Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Americo Wang <xiyou.wangcong@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, Alex Chiang <achiang@hp.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Li, Haicheng" <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 17, 2009 at 09:01:52AM +0900, Tejun Heo wrote:
-> Hello, Greg.
+> On Wed, Dec 16, 2009 at 08:26:40PM +0800, Wu Fengguang wrote:
+> >- introduce dump_page() to print the page info for debugging some error condition.
 > 
-> On 12/17/2009 08:12 AM, Greg KH wrote:
-> >> Please note that this commit won't appear on upstream.
-> > 
-> > So this is only needed for the .32 kernel stable tree?  Not .31?  And
-> > it's not upstream as it was solved differently there?
-> 
-> Yeap, .32 is the only affected one and in the upstream the problem is
-> solved way back and ia64 is already using the new dynamic allocator.
+> Since it is for debugging, shouldn't it be surrounded by
+> CONFIG_DEBUG_VM too? :-/
 
-Great, I've queued this up now, thanks for letting me know.
+No.
+typically, wrong driver makes bad_page() calling and MM developer suggested
+how to fix in lkml. then, MM developer hope it is enabled on end user's
+machine.
 
-greg k-h
+Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
