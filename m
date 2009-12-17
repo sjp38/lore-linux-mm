@@ -1,39 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 059F36B008A
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:59:53 -0500 (EST)
-Message-ID: <4B2A8D83.30305@redhat.com>
-Date: Thu, 17 Dec 2009 14:58:59 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
-References: <patchbomb.1261076403@v2.random> <alpine.DEB.2.00.0912171352330.4640@router.home>
-In-Reply-To: <alpine.DEB.2.00.0912171352330.4640@router.home>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EC156B0092
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 15:07:10 -0500 (EST)
+Date: Thu, 17 Dec 2009 12:06:44 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: [PATCH] mm tracing: cleanup Documentation/trace/events-kmem.txt
+Message-Id: <20091217120644.b32a3e5c.randy.dunlap@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, akpm <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> Would it be possible to start out with a version of huge page support that
-> does not require the complex splitting and joining of huge pages?
-> 
-> Without that we would not need additional refcounts.
-> 
-> Maybe a patch to allow simply the use of anonymous huge pages without a
-> hugetlbfs mmap in the middle? IMHO its useful even if we cannot swap it
-> out.
+From: Randy Dunlap <randy.dunlap@oracle.com>
 
-Christoph, we need a way to swap these anonymous huge
-pages.  You make it look as if you just want the
-anonymous huge pages and a way to then veto any attempts
-to make them swappable (on account of added overhead).
+Clean up typos/grammos/spellos in events-kmem.txt.
 
-I believe it will be more useful if we figure out a way
-forward together.  Do you have any ideas on how to solve
-the hugepage swapping problem?
+Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+---
+ Documentation/trace/events-kmem.txt |   14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+--- linux-2.6.32-git14.orig/Documentation/trace/events-kmem.txt
++++ linux-2.6.32-git14/Documentation/trace/events-kmem.txt
+@@ -1,7 +1,7 @@
+ 			Subsystem Trace Points: kmem
+ 
+-The tracing system kmem captures events related to object and page allocation
+-within the kernel. Broadly speaking there are four major subheadings.
++The kmem tracing system captures events related to object and page allocation
++within the kernel. Broadly speaking there are five major subheadings.
+ 
+   o Slab allocation of small objects of unknown type (kmalloc)
+   o Slab allocation of small objects of known type
+@@ -9,7 +9,7 @@ within the kernel. Broadly speaking ther
+   o Per-CPU Allocator Activity
+   o External Fragmentation
+ 
+-This document will describe what each of the tracepoints are and why they
++This document describes what each of the tracepoints is and why they
+ might be useful.
+ 
+ 1. Slab allocation of small objects of unknown type
+@@ -34,7 +34,7 @@ kmem_cache_free		call_site=%lx ptr=%p
+ These events are similar in usage to the kmalloc-related events except that
+ it is likely easier to pin the event down to a specific cache. At the time
+ of writing, no information is available on what slab is being allocated from,
+-but the call_site can usually be used to extrapolate that information
++but the call_site can usually be used to extrapolate that information.
+ 
+ 3. Page allocation
+ ==================
+@@ -80,9 +80,9 @@ event indicating whether it is for a per
+ When the per-CPU list is too full, a number of pages are freed, each one
+ which triggers a mm_page_pcpu_drain event.
+ 
+-The individual nature of the events are so that pages can be tracked
++The individual nature of the events is so that pages can be tracked
+ between allocation and freeing. A number of drain or refill pages that occur
+-consecutively imply the zone->lock being taken once. Large amounts of PCP
++consecutively imply the zone->lock being taken once. Large amounts of per-CPU
+ refills and drains could imply an imbalance between CPUs where too much work
+ is being concentrated in one place. It could also indicate that the per-CPU
+ lists should be a larger size. Finally, large amounts of refills on one CPU
+@@ -102,6 +102,6 @@ is important.
+ 
+ Large numbers of this event implies that memory is fragmenting and
+ high-order allocations will start failing at some time in the future. One
+-means of reducing the occurange of this event is to increase the size of
++means of reducing the occurrence of this event is to increase the size of
+ min_free_kbytes in increments of 3*pageblock_size*nr_online_nodes where
+ pageblock_size is usually the size of the default hugepage size.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
