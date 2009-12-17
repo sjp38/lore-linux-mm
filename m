@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 385906B007E
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B47B86B0082
 	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:42 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 17 of 28] add pmd_huge_pte to mm_struct
-Message-Id: <78d6e6217489af0208f4.1261076420@v2.random>
+Subject: [PATCH 18 of 28] ensure mapcount is taken on head pages
+Message-Id: <f784dc1b2a11804345ed.1261076421@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:20 -0000
+Date: Thu, 17 Dec 2009 19:00:21 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,58 +18,42 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-This increase the size of the mm struct a bit but it is needed to preallocate
-one pte for each hugepage so that split_huge_page will not require a fail path.
-Guarantee of success is a fundamental property of split_huge_page to avoid
-decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
-would otherwise force the hugepage-unaware VM code to learn rolling back in the
-middle of its pte mangling operations (if something we need it to learn
-handling pmd_trans_huge natively rather being capable of rollback). When
-split_huge_page runs a pte is needed to succeed the split, to map the newly
-splitted regular pages with a regular pte.  This way all existing VM code
-remains backwards compatible by just adding a split_huge_page* one liner. The
-memory waste of those preallocated ptes is negligible and so it is worth it.
+Unlike the page count, the page mapcount cannot be taken on PageTail compound
+pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -287,6 +287,9 @@ struct mm_struct {
- #ifdef CONFIG_MMU_NOTIFIER
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
-+#endif
- };
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -105,6 +105,7 @@ void page_remove_rmap(struct page *);
  
- /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-diff --git a/kernel/fork.c b/kernel/fork.c
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -498,6 +498,9 @@ void __mmdrop(struct mm_struct *mm)
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
- 	mmu_notifier_mm_destroy(mm);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	VM_BUG_ON(mm->pmd_huge_pte);
-+#endif
- 	free_mm(mm);
+ static inline void page_dup_rmap(struct page *page)
+ {
++	VM_BUG_ON(PageTail(page));
+ 	atomic_inc(&page->_mapcount);
  }
- EXPORT_SYMBOL_GPL(__mmdrop);
-@@ -638,6 +641,10 @@ struct mm_struct *dup_mm(struct task_str
- 	mm->token_priority = 0;
- 	mm->last_interval = 0;
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	mm->pmd_huge_pte = NULL;
-+#endif
-+
- 	if (!mm_init(mm, tsk))
- 		goto fail_nomem;
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -733,6 +733,7 @@ void page_add_file_rmap(struct page *pag
+  */
+ void page_remove_rmap(struct page *page)
+ {
++	VM_BUG_ON(PageTail(page));
+ 	/* page still mapped by someone else? */
+ 	if (!atomic_add_negative(-1, &page->_mapcount))
+ 		return;
+@@ -1281,6 +1282,7 @@ static int rmap_walk_file(struct page *p
+ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+ {
++	VM_BUG_ON(PageTail(page));
+ 	VM_BUG_ON(!PageLocked(page));
  
+ 	if (unlikely(PageKsm(page)))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
