@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3B6286B0082
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 04:54:36 -0500 (EST)
-Date: Thu, 17 Dec 2009 09:54:10 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: Question about pte_offset_map_lock
-In-Reply-To: <20091217114630.d353907a.minchan.kim@barrios-desktop>
-Message-ID: <Pine.LNX.4.64.0912170937450.3176@sister.anvils>
-References: <20091217114630.d353907a.minchan.kim@barrios-desktop>
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3AE6B0087
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 04:56:59 -0500 (EST)
+Date: Thu, 17 Dec 2009 09:56:41 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: CPU consumption is going as high as 95% on ARM Cortex A8
+Message-ID: <20091217095641.GA399@n2100.arm.linux.org.uk>
+References: <19F8576C6E063C45BE387C64729E73940449F43857@dbde02.ent.ti.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <19F8576C6E063C45BE387C64729E73940449F43857@dbde02.ent.ti.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: "Hiremath, Vaibhav" <hvaibhav@ti.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Dec 2009, Minchan Kim wrote:
-> It may be a dumb question.
+On Thu, Dec 17, 2009 at 11:08:31AM +0530, Hiremath, Vaibhav wrote:
+> Issue/Usage :- 
+> -------------
+> The V4l2-Capture driver captures the data from video decoder into buffer
+> and the application does some processing on this buffer. The mmap
+> implementation can be found at drivers/media/video/videobuf-dma-contig.c,
+> function__videobuf_mmap_mapper().
+
+        vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+will result in the memory being mapped as 'Strongly Ordered', resulting
+in there being multiple mappings with differing types.  In later
+kernels, we have pgprot_dmacoherent() and I'd suggest changing the above
+macro for that.
+
+> Without PAGE_READONLY/PAGE_SHARED
 > 
-> As I read the code of pte_lock, I have a question. 
-> Now, there is pte_offset_map_lock following as. 
+> Important bits are [0-9] - 0x383
 > 
-> #define pte_offset_map_lock(mm, pmd, address, ptlp)     \
-> ({                                                      \
->         spinlock_t *__ptl = pte_lockptr(mm, pmd);       \
->         pte_t *__pte = pte_offset_map(pmd, address);    \
->         *(ptlp) = __ptl;                                \
->         spin_lock(__ptl);                               \
->         __pte;                                          \
-> })
+> With PAGE_READONLY/PAGE_SHARED set
 > 
-> Why do we grab the lock after getting __pte?
-> Is it possible that __pte might be changed before we grab the spin_lock?
+> Important bits are [0-9] - 0x38F
+
+So the difference is the C and B bits, which is more or less expected
+with the change you've made.
+
 > 
-> Some codes in mm checks original pte by pte_same. 
-> There are not-checked cases in proc. As looking over the cases,
-> It seems no problem. But in future, new user of pte_offset_map_lock 
-> could mistake with that?
+> The lines inside function "cpu_v7_set_pte_ext", is using the flag as shown below -
+> 
+>    tst     r1, #L_PTE_USER
+>    orrne   r3, r3, #PTE_EXT_AP1
+>    tstne   r3, #PTE_EXT_APX
+>    bicne   r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
+> 
+> Without PAGE_READONLY/PAGE_SHARED		With flags set
+> 
+> Access perm = reserved				Access Perm = Read Only
 
-I think you wouldn't be asking the question if we'd called it __ptep.
+The bits you quote above are L_PTE_* bits, so you need to be careful
+decoding them.  0x383 gives
 
-It's a (perhaps kmap_atomic) pointer into the page table: the virtual
-address of a page table entry, not the page table entry itself.
+	L_PTE_EXEC|L_PTE_USER|L_PTE_WRITE|L_PTE_YOUNG|L_PTE_PRESENT
 
-You're right that the entry itself could change before we get the lock,
-and pte_same() is what we use to check that an entry is still what we
-were expecting; but the containing page table will remain the same,
-until munmap() or exit_mmap() at least.
+which is as expected, and will be translated into: APX=0 AP1=1 AP0=0
+which is user r/o, system r/w.  The same will be true of 0x38f.
 
-(For completeness, I ought to add that the entry might even change
-while we have the lock: accessed and dirty bits could get set by a
-racing thread in userspace.  There are places where we have to be
-very careful about not missing a dirty bit, but missing an accessed
-bit on rare occasions doesn't matter.)
+> - I tried the same thing with another platform (ARM9) and it works fine there.
+> 
+> Can somebody help me to understand the flag PAGE_SHARED/PAGE_READONLY
+> and access permissions? Am I debugging this into right path? Does
+> anybody have seen/observed similar issue before?
 
-Hugh
+I think you're just seeing the effects of 'strongly ordered' memory
+rather than anything actually wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
