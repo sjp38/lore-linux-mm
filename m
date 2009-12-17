@@ -1,95 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B1F536B0062
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 01:24:24 -0500 (EST)
-From: "Shilimkar, Santosh" <santosh.shilimkar@ti.com>
-Date: Thu, 17 Dec 2009 11:54:10 +0530
-Subject: RE: CPU consumption is going as high as 95% on ARM Cortex A8
-Message-ID: <EAF47CD23C76F840A9E7FCE10091EFAB02BFB58568@dbde02.ent.ti.com>
-References: <19F8576C6E063C45BE387C64729E73940449F43857@dbde02.ent.ti.com>
-In-Reply-To: <19F8576C6E063C45BE387C64729E73940449F43857@dbde02.ent.ti.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CCA3E6B0062
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 02:03:40 -0500 (EST)
+Date: Thu, 17 Dec 2009 16:00:09 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH -mmotm 0/8] memcg: move charge at task migration
+ (14/Dec)
+Message-Id: <20091217160009.57eb946f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20091215131421.00b87ad1.nishimura@mxp.nes.nec.co.jp>
+References: <20091214151748.bf9c4978.nishimura@mxp.nes.nec.co.jp>
+	<20091215033000.GD6036@balbir.in.ibm.com>
+	<20091215131421.00b87ad1.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Hiremath, Vaibhav" <hvaibhav@ti.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 15 Dec 2009 13:14:21 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> On Tue, 15 Dec 2009 09:00:00 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-12-14 15:17:48]:
+> > 
+> > > Hi.
+> > > 
+> > > These are current patches of my move-charge-at-task-migration feature.
+> > > 
+> > > * They have not been mature enough to be merged into linus tree yet. *
+> > > 
+> > > Actually, there is a NULL pointer dereference BUG, which I found in my stress
+> > > test after about 40 hours running and I'm digging now.
+> > > I post these patches just to share my current status.
+> > >
+> > Could this be because of the css_get() and css_put() changes from the
+> > previous release?
+> > 
+> I suspect so. Perhaps, [5/8] or [8/8] might be the guilt.
+> 
+> I'm now running test without [8/8]. It has survived for 24h so far, but
+> I must run for more time to verify it's all right or not.
+> I'm also looking closely into my patches again.
+> 
+I think I get the cause of this bug.
 
-> -----Original Message-----
-> From: linux-arm-kernel-bounces@lists.infradead.org [mailto:linux-arm-kern=
-el-
-> bounces@lists.infradead.org] On Behalf Of Hiremath, Vaibhav
-> Sent: Thursday, December 17, 2009 11:09 AM
-> To: linux@arm.linux.org.uk
-> Cc: linux-mm@kvack.org; linux-omap@vger.kernel.org; linux-arm-kernel@list=
-s.infradead.org
-> Subject: CPU consumption is going as high as 95% on ARM Cortex A8
->=20
-> Hi,
->=20
-> I am seeing some strange behavior while accessing buffers through User Sp=
-ace (mapped using mmap call)
->=20
-> Background :-
-> ------------
-> Platform - TI AM3517
-> CPU - ARM Cortex A8
->=20
-> root@am3517-evm:~#
-> root@am3517-evm:~# cat /proc/cpuinfo
-> Processor       : ARMv7 Processor rev 7 (v7l)
-> BogoMIPS        : 499.92
-> Features        : swp half thumb fastmult vfp edsp neon vfpv3
-> CPU implementer : 0x41
-> CPU architecture: 7
-> CPU variant     : 0x1
-> CPU part        : 0xc08
-> CPU revision    : 7
-> Hardware        : OMAP3517/AM3517 EVM
-> Revision        : 0020
-> Serial          : 0000000000000000
-> root@omap3517-evm:~#
->=20
->=20
-> Issue/Usage :-
-> -------------
-> The V4l2-Capture driver captures the data from video decoder into buffer =
-and the application does
-> some processing on this buffer. The mmap implementation can be found at d=
-rivers/media/video/videobuf-
-> dma-contig.c, function__videobuf_mmap_mapper().
->=20
-> Observation -
-> The CPU consumption goes as high as 95% on read buffer operation, please =
-note that write operation on
-> these buffers also gives 60-70% CPU consumption. (Using memcpy/memset API=
-'s for read and write
-> operation).
->=20
-> Some more inputs :-
-> ------------------
-> - If I specify PAGE_READONLY or PAGE_SHARED (actual flag is L_PTE_USER) w=
-hile mapping the buffer to
-> UserSpace in mmap system call, the CPU consumption goes down to expected =
-value (20-27%).
-> Then I reached till the function cpu_v7_set_pte_ext, where we are configu=
-ring level 2 translation
-> table entries, which makes use of these flags.
->=20
-> - Below is the value of r0, r1 and r2 register (ptep, pteval, ext) in bot=
-h the cases -
->=20
->=20
-> Without PAGE_READONLY/PAGE_SHARED
->=20
-> ptep - cfb5de10, pte - 8d200383, ext - 800
-> ptep - cfb5de14, pte - 8d201383, ext - 800
+In [8/8], I postponed calling mem_cgroup_get() till the end of task migration
+(i.e. I called __mem_cgroup_get() in mem_cgroup_clear_mc()).
+But if a process which has been moved to a new group does swap-in, it calls
+mem_cgroup_put() against the new mem_cgroup. This means the mem_cgroup->refcnt
+of the new group might be decreased to 0, so that the mem_cgroup can be freed
+(__mem_cgroup_free() is called) unexpectedly.
 
-Which kernel version is this? Can you please also give values of PRRR, NMRR=
- and SCTLR=20
+I'll fix this by not postponing mem_cgroup_get(postponing mem_cgroup_put() would be
+all right), and test it during this weekend.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
