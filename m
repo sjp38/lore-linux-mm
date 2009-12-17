@@ -1,33 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BA7AA6B0047
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:33:40 -0500 (EST)
-Date: Thu, 17 Dec 2009 13:33:01 -0600 (CST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3D7D66B0044
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:47:31 -0500 (EST)
+Date: Thu, 17 Dec 2009 13:46:50 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-In-Reply-To: <20091217084046.GA9804@basil.fritz.box>
-Message-ID: <alpine.DEB.2.00.0912171331300.3638@router.home>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com> <20091216101107.GA15031@basil.fritz.box> <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com> <20091216102806.GC15031@basil.fritz.box> <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com>
- <1261004224.21028.500.camel@laptop> <20091217084046.GA9804@basil.fritz.box>
+Subject: Re: [PATCH 01 of 28] compound_lock
+In-Reply-To: <7418f21427a000ad1665.1261076404@v2.random>
+Message-ID: <alpine.DEB.2.00.0912171346180.4640@router.home>
+References: <patchbomb.1261076403@v2.random> <7418f21427a000ad1665.1261076404@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Dec 2009, Andi Kleen wrote:
+On Thu, 17 Dec 2009, Andrea Arcangeli wrote:
 
-> > There are a few interesting cases like stack extention and hugetlbfs,
-> > but I think we could start by falling back to mmap_sem locked behaviour
-> > if the speculative thing fails.
->
-> You mean fall back to mmap_sem if anything sleeps? Maybe. Would need
-> to check how many such points are really there.
+>  	if (unlikely(PageTail(page)))
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -108,6 +108,7 @@ enum pageflags {
+>  #ifdef CONFIG_MEMORY_FAILURE
+>  	PG_hwpoison,		/* hardware poisoned page. Don't touch */
+>  #endif
+> +	PG_compound_lock,
+>  	__NR_PAGEFLAGS,
 
-You always need some reference on the mm_struct (mm_read_lock) if you are
-going to sleep to ensure that mm_struct still exists after waking up (page
-fault, page allocation). RCU and other spin locks are not helping there.
+Eats up a rare page bit.
+
+#ifdef CONFIG_TRANSP_HUGE?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
