@@ -1,46 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 814D86B0044
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:08:17 -0500 (EST)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e5.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nBHIuWxR009794
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 13:56:32 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBHJ86AR946298
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:08:06 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nBHJ84Uj004502
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:08:05 -0500
-Date: Thu, 17 Dec 2009 11:08:04 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-Message-ID: <20091217190804.GB6788@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20091216101107.GA15031@basil.fritz.box> <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com> <20091216102806.GC15031@basil.fritz.box> <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com> <1261004224.21028.500.camel@laptop> <20091217084046.GA9804@basil.fritz.box> <1261039534.27920.67.camel@laptop> <20091217085430.GG9804@basil.fritz.box> <20091217144551.GA6819@linux.vnet.ibm.com> <20091217175338.GL9804@basil.fritz.box>
+	by kanga.kvack.org (Postfix) with SMTP id ED6F46B0044
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:38 -0500 (EST)
+Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091217175338.GL9804@basil.fritz.box>
+Content-Transfer-Encoding: 7bit
+Subject: [PATCH 11 of 28] add pmd mangling generic functions
+Message-Id: <8759002a47de51c7be46.1261076414@v2.random>
+In-Reply-To: <patchbomb.1261076403@v2.random>
+References: <patchbomb.1261076403@v2.random>
+Date: Thu, 17 Dec 2009 19:00:14 -0000
+From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
+To: linux-mm@kvack.org
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 17, 2009 at 06:53:39PM +0100, Andi Kleen wrote:
-> > OK, I have to ask...
-> > 
-> > Why not just use the already-existing SRCU in this case?
-> 
-> You right, SRCU could work. 
-> 
-> Still needs a lot more work of course.
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-As discussed with Peter on IRC, I have been idly thinking about how I
-would implement SRCU if I were starting on it today.  If you would like
-to see some specific improvements to SRCU, telling me about them would
-greatly increase the probability of my doing something about them.  ;-)
+Some are needed to build but not actually used on archs not supporting
+transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
 
-							Thanx, Paul
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -23,6 +23,19 @@
+ 	}								  \
+ 	__changed;							  \
+ })
++
++#define pmdp_set_access_flags(__vma, __address, __pmdp, __entry, __dirty) \
++	({								\
++		int __changed = !pmd_same(*(__pmdp), __entry);		\
++		VM_BUG_ON((__address) & ~HPAGE_MASK);			\
++		if (__changed) {					\
++			set_pmd_at((__vma)->vm_mm, __address, __pmdp,	\
++				   __entry);				\
++			flush_tlb_range(__vma, __address,		\
++					(__address) + HPAGE_SIZE);	\
++		}							\
++		__changed;						\
++	})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+@@ -37,6 +50,17 @@
+ 			   (__ptep), pte_mkold(__pte));			\
+ 	r;								\
+ })
++#define pmdp_test_and_clear_young(__vma, __address, __pmdp)		\
++({									\
++	pmd_t __pmd = *(__pmdp);					\
++	int r = 1;							\
++	if (!pmd_young(__pmd))						\
++		r = 0;							\
++	else								\
++		set_pmd_at((__vma)->vm_mm, (__address),			\
++			   (__pmdp), pmd_mkold(__pmd));			\
++	r;								\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+@@ -48,6 +72,16 @@
+ 		flush_tlb_page(__vma, __address);			\
+ 	__young;							\
+ })
++#define pmdp_clear_flush_young(__vma, __address, __pmdp)		\
++({									\
++	int __young;							\
++	VM_BUG_ON((__address) & ~HPAGE_MASK);				\
++	__young = pmdp_test_and_clear_young(__vma, __address, __pmdp);	\
++	if (__young)							\
++		flush_tlb_range(__vma, __address,			\
++				(__address) + HPAGE_SIZE);		\
++	__young;							\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR
+@@ -57,6 +91,13 @@
+ 	pte_clear((__mm), (__address), (__ptep));			\
+ 	__pte;								\
+ })
++
++#define pmdp_get_and_clear(__mm, __address, __pmdp)			\
++({									\
++	pmd_t __pmd = *(__pmdp);					\
++	pmd_clear((__mm), (__address), (__pmdp));			\
++	__pmd;								\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+@@ -88,6 +129,15 @@ do {									\
+ 	flush_tlb_page(__vma, __address);				\
+ 	__pte;								\
+ })
++
++#define pmdp_clear_flush(__vma, __address, __pmdp)			\
++({									\
++	pmd_t __pmd;							\
++	VM_BUG_ON((__address) & ~HPAGE_MASK);				\
++	__pmd = pmdp_get_and_clear((__vma)->vm_mm, __address, __pmdp);	\
++	flush_tlb_range(__vma, __address, (__address) + HPAGE_SIZE);	\
++	__pmd;								\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_SET_WRPROTECT
+@@ -97,10 +147,26 @@ static inline void ptep_set_wrprotect(st
+ 	pte_t old_pte = *ptep;
+ 	set_pte_at(mm, address, ptep, pte_wrprotect(old_pte));
+ }
++
++static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long address, pmd_t *pmdp)
++{
++	pmd_t old_pmd = *pmdp;
++	set_pmd_at(mm, address, pmdp, pmd_wrprotect(old_pmd));
++}
++
++#define pmdp_splitting_flush(__vma, __address, __pmdp)			\
++({									\
++	pmd_t __pmd = pmd_mksplitting(*(__pmdp));			\
++	VM_BUG_ON((__address) & ~HPAGE_MASK);				\
++	set_pmd_at((__vma)->vm_mm, __address, __pmdp, __pmd);		\
++	/* tlb flush only to serialize against gup-fast */		\
++	flush_tlb_range(__vma, __address, (__address) + HPAGE_SIZE);	\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTE_SAME
+ #define pte_same(A,B)	(pte_val(A) == pte_val(B))
++#define pmd_same(A,B)	(pmd_val(A) == pmd_val(B))
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PAGE_TEST_DIRTY
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
