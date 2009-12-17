@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E12466B0044
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 03:01:59 -0500 (EST)
-Subject: Re: Question about pte_offset_map_lock
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20091217114630.d353907a.minchan.kim@barrios-desktop>
-References: <20091217114630.d353907a.minchan.kim@barrios-desktop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 17 Dec 2009 09:01:19 +0100
-Message-ID: <1261036879.27920.11.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C1796B0062
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 03:40:56 -0500 (EST)
+Date: Thu, 17 Dec 2009 09:40:46 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
+Message-ID: <20091217084046.GA9804@basil.fritz.box>
+References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com> <20091216101107.GA15031@basil.fritz.box> <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com> <20091216102806.GC15031@basil.fritz.box> <20091216193109.778b881b.kamezawa.hiroyu@jp.fujitsu.com> <1261004224.21028.500.camel@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1261004224.21028.500.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-12-17 at 11:46 +0900, Minchan Kim wrote:
-> It may be a dumb question.
+On Wed, Dec 16, 2009 at 11:57:04PM +0100, Peter Zijlstra wrote:
+> On Wed, 2009-12-16 at 19:31 +0900, KAMEZAWA Hiroyuki wrote:
 > 
-> As I read the code of pte_lock, I have a question. 
-> Now, there is pte_offset_map_lock following as. 
+> > The problem of range locking is more than mmap_sem, anyway. I don't think
+> > it's possible easily.
 > 
-> #define pte_offset_map_lock(mm, pmd, address, ptlp)     \
-> ({                                                      \
->         spinlock_t *__ptl = pte_lockptr(mm, pmd);       \
->         pte_t *__pte = pte_offset_map(pmd, address);    \
->         *(ptlp) = __ptl;                                \
->         spin_lock(__ptl);                               \
->         __pte;                                          \
-> })
+> We already have a natural range lock in the form of the split pte lock.
 > 
-> Why do we grab the lock after getting __pte?
-> Is it possible that __pte might be changed before we grab the spin_lock?
-> 
-> Some codes in mm checks original pte by pte_same. 
-> There are not-checked cases in proc. As looking over the cases,
-> It seems no problem. But in future, new user of pte_offset_map_lock 
-> could mistake with that?
+> If we make the vma lookup speculative using RCU, we can use the pte lock
 
-I think currently mmap_sem serializes all that. Cases like faults that
-take the mmap_sem for reading sometimes need the pte validation to check
-if they didn't race with another fault etc.
+One problem is here that mmap_sem currently contains sleeps
+and RCU doesn't work for blocking operations until a custom
+quiescent period is defined.
 
-But since mmap_sem is held for reading the vma can't dissapear and the
-memory map is stable in the sense that the page tables will be present
-(or can be instantiated when needed), since munmap removes the
-pagetables for vmas.
+> to verify we got the right vma, because munmap requires the pte lock to
+> complete the unmap.
+
+Ok.
+
+> 
+> The fun bit is dealing with the fallout if we got it wrong, since we
+> might then have instantiated page-tables not covered by a vma just to
+> take the pte lock, it also requires we RCU free the page-tables iirc.
+
+That makes sense.
+
+> 
+> There are a few interesting cases like stack extention and hugetlbfs,
+> but I think we could start by falling back to mmap_sem locked behaviour
+> if the speculative thing fails.
+
+You mean fall back to mmap_sem if anything sleeps? Maybe. Would need
+to check how many such points are really there.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
