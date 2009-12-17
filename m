@@ -1,49 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D605E6B0044
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 15:47:49 -0500 (EST)
-Message-ID: <4B2A98E6.5080406@sgi.com>
-Date: Thu, 17 Dec 2009 12:47:34 -0800
-From: Mike Travis <travis@sgi.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A0E9F6B0044
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 16:16:08 -0500 (EST)
+Date: Thu, 17 Dec 2009 21:05:23 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: FWD:  [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
+In-Reply-To: <4B2A8CA8.6090704@redhat.com>
+Message-ID: <Pine.LNX.4.64.0912172055570.15788@sister.anvils>
+References: <20091211164651.036f5340@annuminas.surriel.com>
+ <1260810481.6666.13.camel@dhcp-100-19-198.bos.redhat.com>
+ <20091217193818.9FA9.A69D9226@jp.fujitsu.com> <4B2A22C0.8080001@redhat.com>
+ <4B2A8CA8.6090704@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
-References: <patchbomb.1261076403@v2.random> <alpine.DEB.2.00.0912171352330.4640@router.home> <4B2A8D83.30305@redhat.com>
-In-Reply-To: <4B2A8D83.30305@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <riel@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: lwoodman@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 17 Dec 2009, Rik van Riel wrote:
 
-
-Rik van Riel wrote:
-> Christoph Lameter wrote:
->> Would it be possible to start out with a version of huge page support 
->> that
->> does not require the complex splitting and joining of huge pages?
->>
->> Without that we would not need additional refcounts.
->>
->> Maybe a patch to allow simply the use of anonymous huge pages without a
->> hugetlbfs mmap in the middle? IMHO its useful even if we cannot swap it
->> out.
+> After removing some more immediate bottlenecks with
+> the patches by Kosaki and me, Larry ran into a really
+> big one:
 > 
-> Christoph, we need a way to swap these anonymous huge
-> pages.  You make it look as if you just want the
-> anonymous huge pages and a way to then veto any attempts
-> to make them swappable (on account of added overhead).
-
-On very large SMP systems with huge amounts of memory, the
-gains from huge pages will be significant.  And swapping
-will not be an issue.  I agree that the two should be
-split up and perhaps even make swapping an option?
-
+> Larry Woodman wrote:
 > 
-> I believe it will be more useful if we figure out a way
-> forward together.  Do you have any ideas on how to solve
-> the hugepage swapping problem?
+> > Finally, having said all that, the system still struggles reclaiming memory
+> > with
+> > ~10000 processes trying at the same time, you fix one bottleneck and it 
+> > moves
+> > somewhere else.  The latest run showed all but one running process spinning
+> > in
+> > page_lock_anon_vma() trying for the anon_vma_lock.  I noticed that there are
+> > ~5000 vma's linked to one anon_vma, this seems excessive!!!
+> > 
+> > I changed the anon_vma->lock to a rwlock_t and page_lock_anon_vma() to use
+> > read_lock() so multiple callers could execute the page_reference_anon code.
+> > This seems to help quite a bit.
+> 
+> The system has 10000 processes, all of which are child
+> processes of the same parent.
+> 
+> Pretty much all memory is anonymous memory.
+> 
+> This means that pretty much every anonymous page in the
+> system:
+> 1) belongs to just one process, but
+> 2) belongs to an anon_vma which is attached to 10,000 VMAs!
+> 
+> This results in page_referenced scanning 10,000 VMAs for
+> every page, despite the fact that each page is typically
+> only mapped into one process.
+> 
+> This seems to be our real scalability issue.
+> 
+> The only way out I can think is to have a new anon_vma
+> when we start a child process and to have COW place new
+> pages in the new anon_vma.
+> 
+> However, this is a bit of a paradigm shift in our object
+> rmap system and I am wondering if somebody else has a
+> better idea :)
+
+Please first clarify whether what Larry is running is actually
+a workload that people need to behave well in real life.
+
+>From time to time such cases have been constructed, but we've
+usually found better things to do than solve them, because
+they've been no more than academic problems.
+
+I'm not asserting that this one is purely academic, but I do
+think we need more than an artificial case to worry much about it.
+
+An rwlock there has been proposed on several occasions, but
+we resist because that change benefits this case but performs
+worse on more common cases (I believe: no numbers to back that up).
+
+Substitute a MAP_SHARED file underneath those 10000 vmas,
+and don't you have an equal problem with the prio_tree,
+which would be harder to solve than the anon_vma case?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
