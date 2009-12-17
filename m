@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CC4946B0062
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:41 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 385906B007E
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:42 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 21 of 28] pmd_trans_huge migrate bugcheck
-Message-Id: <d6846de3455aa1dd8872.1261076424@v2.random>
+Subject: [PATCH 17 of 28] add pmd_huge_pte to mm_struct
+Message-Id: <78d6e6217489af0208f4.1261076420@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:24 -0000
+Date: Thu, 17 Dec 2009 19:00:20 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,22 +18,57 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No pmd_trans_huge should ever materialize in migration ptes areas, because
-try_to_unmap will split the hugepage before migration ptes are instantiated.
+This increase the size of the mm struct a bit but it is needed to preallocate
+one pte for each hugepage so that split_huge_page will not require a fail path.
+Guarantee of success is a fundamental property of split_huge_page to avoid
+decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
+would otherwise force the hugepage-unaware VM code to learn rolling back in the
+middle of its pte mangling operations (if something we need it to learn
+handling pmd_trans_huge natively rather being capable of rollback). When
+split_huge_page runs a pte is needed to succeed the split, to map the newly
+splitted regular pages with a regular pte.  This way all existing VM code
+remains backwards compatible by just adding a split_huge_page* one liner. The
+memory waste of those preallocated ptes is negligible and so it is worth it.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/migrate.c b/mm/migrate.c
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -99,6 +99,7 @@ static int remove_migration_pte(struct p
- 		goto out;
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -287,6 +287,9 @@ struct mm_struct {
+ #ifdef CONFIG_MMU_NOTIFIER
+ 	struct mmu_notifier_mm *mmu_notifier_mm;
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
++#endif
+ };
  
- 	pmd = pmd_offset(pud, addr);
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	if (!pmd_present(*pmd))
- 		goto out;
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+diff --git a/kernel/fork.c b/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -498,6 +498,9 @@ void __mmdrop(struct mm_struct *mm)
+ 	mm_free_pgd(mm);
+ 	destroy_context(mm);
+ 	mmu_notifier_mm_destroy(mm);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	VM_BUG_ON(mm->pmd_huge_pte);
++#endif
+ 	free_mm(mm);
+ }
+ EXPORT_SYMBOL_GPL(__mmdrop);
+@@ -638,6 +641,10 @@ struct mm_struct *dup_mm(struct task_str
+ 	mm->token_priority = 0;
+ 	mm->last_interval = 0;
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	mm->pmd_huge_pte = NULL;
++#endif
++
+ 	if (!mm_init(mm, tsk))
+ 		goto fail_nomem;
  
 
 --
