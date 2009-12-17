@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4BE136B0088
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:44 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 140766B0087
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:45 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 22 of 28] clear_huge_page fix
-Message-Id: <1a99eca9036dcf88bf0f.1261076425@v2.random>
+Subject: [PATCH 08 of 28] comment reminder in destroy_compound_page
+Message-Id: <f05ddb760dc95a5fcbbe.1261076411@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:25 -0000
+Date: Thu, 17 Dec 2009 19:00:11 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,23 +18,23 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-sz is in bytes, MAX_ORDER_NR_PAGES is in pages.
+Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
+on its internal behavior.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -402,7 +402,7 @@ static void clear_huge_page(struct page 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -310,6 +310,7 @@ void prep_compound_page(struct page *pag
+ 	}
+ }
+ 
++/* update __split_huge_page_refcount if you change this function */
+ static int destroy_compound_page(struct page *page, unsigned long order)
  {
  	int i;
- 
--	if (unlikely(sz > MAX_ORDER_NR_PAGES)) {
-+	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
- 		clear_gigantic_page(page, addr, sz);
- 		return;
- 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
