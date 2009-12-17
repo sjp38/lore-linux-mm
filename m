@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CC52D6B009A
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:53 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A73556B009A
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 14:16:58 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 16 of 28] clear page compound
-Message-Id: <fb2069235cb2187bcdf8.1261076419@v2.random>
+Subject: [PATCH 15 of 28] add pmd mmu_notifier helpers
+Message-Id: <d4c962e0e28d54cb9579.1261076418@v2.random>
 In-Reply-To: <patchbomb.1261076403@v2.random>
 References: <patchbomb.1261076403@v2.random>
-Date: Thu, 17 Dec 2009 19:00:19 -0000
+Date: Thu, 17 Dec 2009 19:00:18 -0000
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,53 +18,76 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-split_huge_page must transform a compound page to a regular page and needs
-ClearPageCompound.
+Add mmu notifier helpers to handle pmd huge operations.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -347,7 +347,7 @@ static inline void set_page_writeback(st
-  * tests can be used in performance sensitive paths. PageCompound is
-  * generally not used in hot code paths.
-  */
--__PAGEFLAG(Head, head)
-+__PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
- __PAGEFLAG(Tail, tail)
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -243,6 +243,32 @@ static inline void mmu_notifier_mm_destr
+ 	__pte;								\
+ })
  
- static inline int PageCompound(struct page *page)
-@@ -355,6 +355,13 @@ static inline int PageCompound(struct pa
- 	return page->flags & ((1L << PG_head) | (1L << PG_tail));
- 
- }
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON(!PageHead(page));
-+	ClearPageHead(page);
-+}
-+#endif
- #else
- /*
-  * Reduce page flag use as much as possible by overlapping
-@@ -392,6 +399,14 @@ static inline void __ClearPageTail(struc
- 	page->flags &= ~PG_head_tail_mask;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON(page->flags & PG_head_tail_mask != (1L << PG_compound));
-+	ClearPageCompound(page);
-+}
-+#endif
++#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
++({									\
++	pmd_t __pmd;							\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	VM_BUG_ON(__address & ~HPAGE_MASK);				\
++	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
++					    (__address)+HPAGE_SIZE);	\
++	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
++	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
++					  (__address)+HPAGE_SIZE);	\
++	__pmd;								\
++})
 +
- #endif /* !PAGEFLAGS_EXTENDED */
++#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
++({									\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	VM_BUG_ON(__address & ~HPAGE_MASK);				\
++	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
++					    (__address)+HPAGE_SIZE);	\
++	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
++	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
++					  (__address)+HPAGE_SIZE);	\
++})
++
+ #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
+ ({									\
+ 	int __young;							\
+@@ -254,6 +280,17 @@ static inline void mmu_notifier_mm_destr
+ 	__young;							\
+ })
  
- #ifdef CONFIG_MMU
++#define pmdp_clear_flush_young_notify(__vma, __address, __pmdp)		\
++({									\
++	int __young;							\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
++	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
++						  ___address);		\
++	__young;							\
++})
++
+ #define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
+ ({									\
+ 	struct mm_struct *___mm = __mm;					\
+@@ -305,7 +342,10 @@ static inline void mmu_notifier_mm_destr
+ }
+ 
+ #define ptep_clear_flush_young_notify ptep_clear_flush_young
++#define pmdp_clear_flush_young_notify pmdp_clear_flush_young
+ #define ptep_clear_flush_notify ptep_clear_flush
++#define pmdp_clear_flush_notify pmdp_clear_flush
++#define pmdp_splitting_flush_notify pmdp_splitting_flush
+ #define set_pte_at_notify set_pte_at
+ 
+ #endif /* CONFIG_MMU_NOTIFIER */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
