@@ -1,65 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id AD78D6B007E
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 12:12:53 -0500 (EST)
-Date: Fri, 18 Dec 2009 18:12:40 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-Message-ID: <20091218171240.GB1354@elte.hu>
-References: <20091217085430.GG9804@basil.fritz.box>
- <20091217144551.GA6819@linux.vnet.ibm.com>
- <20091217175338.GL9804@basil.fritz.box>
- <20091217190804.GB6788@linux.vnet.ibm.com>
- <20091217195530.GM9804@basil.fritz.box>
- <alpine.DEB.2.00.0912171356020.4640@router.home>
- <1261080855.27920.807.camel@laptop>
- <alpine.DEB.2.00.0912171439380.4640@router.home>
- <20091218051754.GC417@elte.hu>
- <4B2BB52A.7050103@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A94266B007E
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 12:43:50 -0500 (EST)
+Message-ID: <4B2BBF44.2090104@redhat.com>
+Date: Fri, 18 Dec 2009 12:43:32 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B2BB52A.7050103@redhat.com>
+Subject: Re: FWD:  [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
+References: <20091211164651.036f5340@annuminas.surriel.com> <1260810481.6666.13.camel@dhcp-100-19-198.bos.redhat.com> <20091217193818.9FA9.A69D9226@jp.fujitsu.com> <4B2A22C0.8080001@redhat.com> <4B2A8CA8.6090704@redhat.com> <Pine.LNX.4.64.0912172055570.15788@sister.anvils> <20091218162332.GR29790@random.random>
+In-Reply-To: <20091218162332.GR29790@random.random>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andi Kleen <andi@firstfloor.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, lwoodman@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On 12/18/2009 11:23 AM, Andrea Arcangeli wrote:
+> On Thu, Dec 17, 2009 at 09:05:23PM +0000, Hugh Dickins wrote:
 
-* Avi Kivity <avi@redhat.com> wrote:
+>> An rwlock there has been proposed on several occasions, but
+>> we resist because that change benefits this case but performs
+>> worse on more common cases (I believe: no numbers to back that up).
+>
+> I think rwlock for anon_vma is a must. Whatever higher overhead of the
+> fast path with no contention is practically zero, and in large smp it
+> allows rmap on long chains to run in parallel, so very much worth it
+> because downside is practically zero and upside may be measurable
+> instead in certain corner cases. I don't think it'll be enough, but I
+> definitely like it.
 
-> On 12/18/2009 07:17 AM, Ingo Molnar wrote:
-> >
-> >>It is not about naming. The accessors hide the locking mechanism for
-> >>mmap_sem. Then you can change the locking in a central place.
-> >>
-> >>The locking may even become configurable later. Maybe an embedded solution
-> >>will want the existing scheme but dual quad socket may want a distributed
-> >>reference counter to avoid bouncing cachelines on faults.
-> >Hiding the locking is pretty much the worst design decision one can make.
-> >
-> 
-> It does allow incremental updates.  For example if we go with range locks, 
-> the accessor turns into a range lock of the entire address space; users can 
-> be converted one by one to use their true ranges in order of importance.
+I agree, changing the anon_vma lock to an rwlock should
+work a lot better than what we have today.  The tradeoff
+is a tiny slowdown in medium contention cases, at the
+benefit of avoiding catastrophic slowdown in some cases.
 
-This has been brought up in favor of say the mmap_sem wrappers in the past 
-(but also mentioned for other wrappers), but the supposed advantage never 
-materialized.
+With Nick Piggin's fair rwlocks, there should be no issue
+at all.
 
-In reality updating the locking usage is never a big issue - it's almost 
-mechanic and the compiler is our friend if we want to change semantics. Hiding 
-the true nature and the true dependencies of the code, hiding the type of the 
-lock is a bigger issue.
+> Rik suggested to me to have a cowed newly allocated page to use its
+> own anon_vma. Conceptually Rik's idea is fine one, but the only
+> complication then is how to chain the same vma into multiple anon_vma
+> (in practice insert/removal will be slower and more metadata will be
+> needed for additional anon_vmas and vams queued in more than
+> anon_vma). But this only will help if the mapcount of the page is 1,
+> if the mapcount is 10000 no change to anon_vma or prio_tree will solve
+> this,
 
-We've been through this many times in the past within the kernel: many times 
-when we hid some locking primitive within some clever wrapping scheme the 
-quality of locking started to deteriorate. In most of the important cases we 
-got rid of the indirection and went with an existing core kernel locking 
-primitive which are all well known and have clear semantics and lead to more 
-maintainable code.
+It's even more complex than this for anonymous pages.
 
-	Ingo
+Anonymous pages get COW copied in child (and parent)
+processes, potentially resulting in one page, at each
+offset into the anon_vma, for every process attached
+to the anon_vma.
+
+As a result, with 10000 child processes, page_referenced
+can end up searching through 10000 VMAs even for pages
+with a mapcount of 1!
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
