@@ -1,86 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 185F96B0044
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 05:05:10 -0500 (EST)
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id nBIA54lr028706
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 02:05:05 -0800
-Received: from pxi33 (pxi33.prod.google.com [10.243.27.33])
-	by spaceape14.eur.corp.google.com with ESMTP id nBIA4lf0019850
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 02:05:01 -0800
-Received: by pxi33 with SMTP id 33so1910381pxi.10
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2009 02:04:59 -0800 (PST)
-Date: Fri, 18 Dec 2009 02:04:52 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [BUGFIX][PATCH] oom-kill: fix NUMA consraint check with nodemask
- v4.2
-In-Reply-To: <20091218094359.652F.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0912180158040.26019@chino.kir.corp.google.com>
-References: <20091215135902.CDD6.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0912171412280.4089@chino.kir.corp.google.com> <20091218094359.652F.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6E9C36B0044
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 05:28:04 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBIAS1ds007585
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 18 Dec 2009 19:28:01 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 351EE45DE4F
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 19:28:01 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 00E2845DE52
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 19:28:01 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D056A1DB8060
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 19:28:00 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7455E1DB805A
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 19:28:00 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v2] vmscan: limit concurrent reclaimers in shrink_zone
+In-Reply-To: <4B2A22C0.8080001@redhat.com>
+References: <20091217193818.9FA9.A69D9226@jp.fujitsu.com> <4B2A22C0.8080001@redhat.com>
+Message-Id: <20091218184046.6547.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 18 Dec 2009 19:27:59 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>
+To: lwoodman@redhat.com
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Dec 2009, KOSAKI Motohiro wrote:
-
-> > That is contrast to using rss as a baseline where we prefer on killing the 
-> > application with the most resident RAM.  It is not always ideal to kill a 
-> > task with 8GB of rss when we fail to allocate a single page for a low 
-> > priority task.
+> KOSAKI Motohiro wrote:
+> > (offlist)
+> >
+> > Larry, May I ask current status of following your issue?
+> > I don't reproduce it. and I don't hope to keep lots patch are up in the air.
+> >   
 > 
-> VSZ has the same problem if low priority task allocate last single page.
+> Yes, sorry for the delay but I dont have direct or exclusive access to 
+> these large systems
+> and workloads.  As far as I can tell this patch series does help prevent 
+> total system
+> hangs running AIM7.  I did have trouble with the early postings mostly 
+> due to using sleep_on()
+> and wakeup() but those appear to be fixed. 
 > 
+> However, I did add more debug code and see ~10000 processes blocked in 
+> shrink_zone_begin().
+> This is expected but bothersome, practically all of the processes remain 
+> runnable for the entire
+> duration of these AIM runs.  Collectively all these runnable processes 
+> overwhelm the VM system. 
+> There are many more runnable processes now than were ever seen before, 
+> ~10000 now versus
+> ~100 on RHEL5(2.6.18 based).  So, we have also been experimenting around 
+> with some of the
+> CFS scheduler tunables to see of this is responsible... 
 
-I don't understand what you're trying to say, sorry.  Why, in your mind, 
-do we always want to prefer to kill the application with the largest 
-amount of memory present in physical RAM for a single, failed order-0 
-allocation attempt from a lower priority task?
+What point you bother? throughput, latency or somethingelse? Actually, 
+unfairness itself is right thing from VM view. because perfectly fairness
+VM easily makes livelock. (e.g. process-A swap out process-B's page, parocess-B
+swap out process-A's page). swap token solve above simplest case. but run
+many process easily makes similar circulation dependency. recovering from
+heavy memory pressure need lots unfairness.
 
-Additionally, when would it be sufficient to simply fail a ~__GFP_NOFAIL 
-allocation instead of killing anything?
+Of cource, if the unfairness makes performance regression, it's bug. it should be
+fixed.
 
-> yes, possible. however its heuristic is intensional. the code comment says:
+
+> The only problem I noticed with the page_referenced patch was an 
+> increase in the
+> try_to_unmap() failures which causes more re-activations.  This is very 
+> obvious with
+> the using tracepoints I have posted over the past few months but they 
+> were never
+> included. I didnt get a chance to figure out the exact cause due to 
+> access to the hardware
+> and workload.  This patch series also seems to help the overall stalls 
+> in the VM system.
+
+I (and many VM developer) don't forget your tracepoint effort. we only
+hope to solve the regression at first.
+
+
+> >> Rik, the latest patch appears to have a problem although I dont know
+> >> what the problem is yet.  When the system ran out of memory we see
+> >> thousands of runnable processes and 100% system time:
+> >>
+> >>
+> >>  9420  2  29824  79856  62676  19564    0    0     0     0 8054  379  0 
+> >> 100  0  0  0
+> >> 9420  2  29824  79368  62292  19564    0    0     0     0 8691  413  0 
+> >> 100  0  0  0
+> >> 9421  1  29824  79780  61780  19820    0    0     0     0 8928  408  0 
+> >> 100  0  0  0
+> >>
+> >> The system would not respond so I dont know whats going on yet.  I'll
+> >> add debug code to figure out why its in that state as soon as I get
+> >> access to the hardware.
+> >>     
 > 
->         /*
->          * If p's nodes don't overlap ours, it may still help to kill p
->          * because p may have allocated or otherwise mapped memory on
->          * this node before. However it will be less likely.
->          */
+> This was in response to Rik's first patch and seems to be fixed by the 
+> latest path set.
 > 
-> do you have alternative plan? How do we know the task don't have any
-> page in memory busted node? we can't add any statistics for oom because
-> almost systems never ever use oom. thus, many developer oppose such slowdown.
+> Finally, having said all that, the system still struggles reclaiming 
+> memory with
+> ~10000 processes trying at the same time, you fix one bottleneck and it 
+> moves
+> somewhere else.  The latest run showed all but one running process 
+> spinning in
+> page_lock_anon_vma() trying for the anon_vma_lock.  I noticed that there 
+> are
+> ~5000 vma's linked to one anon_vma, this seems excessive!!!
 > 
+> I changed the anon_vma->lock to a rwlock_t and page_lock_anon_vma() to use
+> read_lock() so multiple callers could execute the page_reference_anon code.
+> This seems to help quite a bit.
 
-There's nothing wrong with that currently (except it doesn't work for 
-mempolicies), I'm stating that it is a requirement that we keep such a 
-penalization in our heuristic if we plan on rewriting it.  I was 
-attempting to get a list of requirements for oom killing decisions so that 
-we can write a sane heuristic and you're simply defending the status quo 
-which you insist we should change.
+Ug. no. rw-spinlock is evil. please don't use it. rw-spinlock has bad 
+performance characteristics, plenty read_lock block write_lock for very
+long time.
 
-> > We need to be able to polarize tasks so they are always killed regardless 
-> > of any kernel heuristic (/proc/pid/oom_adj of +15, currently) or always 
-> > chosen last (-16, currently).  We also need a way of completely disabling 
-> > oom killing for certain tasks such as with OOM_DISABLE.
-> 
-> afaik, when admin use +15 or -16 adjustment, usually they hope to don't use
-> kernel heuristic.
+and I would like to confirm one thing. anon_vma design didn't change
+for long year. Is this really performance regression? Do we strike
+right regression point?
 
-That's exactly what I said above.
 
-> This is the reason that I proposed /proc/pid/oom_priority
-> new tunable knob.
-> 
-
-In addition to /proc/pid/oom_adj??  oom_priority on it's own does not 
-allow us to define when a task is a memory leaker based on the expected 
-memory consumption of a single application.  That should be the single 
-biggest consideration in the new badness heuristic: to define when a task 
-should be killed because it is rogue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
