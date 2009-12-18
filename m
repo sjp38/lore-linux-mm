@@ -1,42 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1F0FF6B0044
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 09:30:45 -0500 (EST)
-Date: Fri, 18 Dec 2009 15:30:25 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 02 of 28] alter compound get_page/put_page
-Message-ID: <20091218143025.GJ29790@random.random>
-References: <patchbomb.1261076403@v2.random>
- <1bc7617980f2f148888e.1261076405@v2.random>
- <alpine.DEB.2.00.0912171349220.4640@router.home>
+	by kanga.kvack.org (Postfix) with ESMTP id E44426B0044
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 09:45:37 -0500 (EST)
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate1.uk.ibm.com (8.13.1/8.13.1) with ESMTP id nBIEjY3T007382
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 14:45:34 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBIEjYCo663696
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 14:45:34 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id nBIEjYw6011176
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 14:45:34 GMT
+Date: Fri, 18 Dec 2009 15:45:33 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [2.6.33-rc1] slab: possible recursive locking detected
+Message-ID: <20091218144533.GA19392@osiris.boeblingen.de.ibm.com>
+References: <20091218115843.GB7728@osiris.boeblingen.de.ibm.com>
+ <1261141094.5014.11.camel@penberg-laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0912171349220.4640@router.home>
+In-Reply-To: <1261141094.5014.11.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, a.p.zijlstra@chello.nl, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 17, 2009 at 01:50:10PM -0600, Christoph Lameter wrote:
+On Fri, Dec 18, 2009 at 02:58:13PM +0200, Pekka Enberg wrote:
+> Hi Heiko,
 > 
-> Additional cachelines are dirtied in performance critical VM primitives
-> now. Increases cache footprint etc.
+> On Fri, 2009-12-18 at 12:58 +0100, Heiko Carstens wrote:
+> > Just got this with CONFIG_SLAB:
+> > 
+> > =============================================
+> > [ INFO: possible recursive locking detected ]
+> > 2.6.33-rc1-dirty #23
+> > ---------------------------------------------
+> > events/5/20 is trying to acquire lock:
+> >  (&(&parent->list_lock)->rlock){..-...}, at: [<00000000000ee898>] cache_flusharray+0x3c/0x12c
+> > 
+> > but task is already holding lock:
+> >  (&(&parent->list_lock)->rlock){..-...}, at: [<00000000000eee52>] drain_array+0x52/0x100
+[...]
+>
+> Thanks for the report! Does reverting the following commit make the
+> warning go away?
+> 
+> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=ce79ddc8e2376a9a93c7d42daf89bfcbb9187e62
 
-Only slowdown added is to put_page called on compound _tail_
-pages. Everything runs as fast as always on regular pages, hugetlbfs
-head pages, and transparent head hugepages too the same way. The only
-thing that ever calls a put_page on a compound tail page is O_DIRECT
-I/O completion handler which is all but performance critical given it
-is I/O dominated.
-
-The ones that aren't I/O dominated and that don't deal with I/O DMA
-(like KVM minor fault and GRU tlb miss handler), must start using mmu
-notifier and stop calling gup with FOLL_GET and not ever need to call
-put_page at all, so they will run faster with or without 2/28 (and
-they won't screw with KSM merging [ksm can't merge if there are pins
-on the pages to avoids screwing in-flight dma], and they will be
-pageable).
+Yes, with that one reverted the warning is away.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
