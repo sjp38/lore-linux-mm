@@ -1,50 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5F74D6B0044
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 13:34:41 -0500 (EST)
-Date: Fri, 18 Dec 2009 12:33:36 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id F3A116B0044
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 13:41:46 -0500 (EST)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id nBIIaAto009802
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 13:36:10 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBIIfMxi1802338
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 13:41:22 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nBIIfLFW022105
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 16:41:22 -0200
 Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
-In-Reply-To: <20091218140530.GE29790@random.random>
-Message-ID: <alpine.DEB.2.00.0912181229580.26947@router.home>
-References: <patchbomb.1261076403@v2.random> <alpine.DEB.2.00.0912171352330.4640@router.home> <4B2A8D83.30305@redhat.com> <alpine.DEB.2.00.0912171402550.4640@router.home> <20091218140530.GE29790@random.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <alpine.DEB.2.00.0912181227290.26947@router.home>
+References: <patchbomb.1261076403@v2.random>
+	 <alpine.DEB.2.00.0912171352330.4640@router.home>
+	 <4B2A8D83.30305@redhat.com>
+	 <alpine.DEB.2.00.0912171402550.4640@router.home>
+	 <20091218051210.GA417@elte.hu>
+	 <alpine.DEB.2.00.0912181227290.26947@router.home>
+Content-Type: text/plain
+Date: Fri, 18 Dec 2009 10:41:17 -0800
+Message-Id: <1261161677.27372.1629.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Dec 2009, Andrea Arcangeli wrote:
+On Fri, 2009-12-18 at 12:28 -0600, Christoph Lameter wrote:
+> On Fri, 18 Dec 2009, Ingo Molnar wrote:
+> > Note that it became more relevant in the past few years due to the arrival of
+> > low-latency, lots-of-iops and cheap SSDs. Even on a low end server you can buy
+> > a good 160 GB SSD for emergency swap with fantastic latency and for a lot less
+> > money than 160 GB of real RAM. (which RAM wont even fit physically on typical
+> > mainboards, is much more expensive and uses up more power and is less
+> > servicable)
+> 
+> Swap occurs in page size chunks. SSDs may help but its still a desaster
+> area. You can only realistically use swap in a batch environment. It kills
+> desktop performance etc etc.
 
-> On Thu, Dec 17, 2009 at 02:09:47PM -0600, Christoph Lameter wrote:
-> > Can we do this step by step? This splitting thing and its
-> > associated overhead causes me concerns.
->
-> The split_huge_page* functionality whole point is exactly to do things
-> step by step. Removing it would mean doing it all at once.
+True...  Let's say it takes you down to 20% of native performance.
+There are plenty of cases where people are selling Xen or KVM slices
+where 20% of native performance is more than *fine*.  It may also let
+you have VMs that are 3x more dense than they would be able to be
+otherwise.  Yes, it kills performance, but performance isn't everything.
 
-The split huge page thing involved introducing new refcounting and locking
-features into the VM. Not a first step thing. And certainly difficult to
-verify if it is correct.
+For many people price/performance is much more important, and swapping
+really helps the price side of that equation.
 
-> This is like the big kernel lock when SMP initially was
-> introduced. Surely kernel would have been a little faster if the big
-> kernel lock was never introduced but over time the split_huge_page can
-> be removed just like the big kernel lock has been removed. Then the
-> PG_compound_lock can go away too.
+We *do* need to work on making swap more useful in a wide range of
+workloads, especially since SSDs have changed some of our assumptions
+about swap.  I just got a laptop SSD this week, and tuned swappiness so
+that I'd get some more swap activity.  Things really bogged down, so I
+*know* there's work to do there.
 
-That is a pretty strange comparison. Split huge page is like introducing
-the split pte lock after removing the bkl. You first want to solve the
-simpler issues (anon huge) and then see if there is a way to avoid
-introducing new locking methods.
-
-> scalable. In the future mmu notifier users that calls gup will stop
-> using FOLL_GET and in turn they will stop calling put_page, so
-> eliminating any need to take the PG_compound_lock in all KVM fast paths.
-
-Maybe do that first then and never introduce the lock in the first place?
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
