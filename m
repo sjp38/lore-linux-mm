@@ -1,65 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C0A836B0044
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 01:18:08 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBI6I5xa018034
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 18 Dec 2009 15:18:06 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CB6B45DE4F
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 15:18:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DB1445DE4C
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 15:18:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 60CF51DB803F
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 15:18:05 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 150501DB803A
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 15:18:05 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
-In-Reply-To: <20091218051210.GA417@elte.hu>
-References: <alpine.DEB.2.00.0912171402550.4640@router.home> <20091218051210.GA417@elte.hu>
-Message-Id: <20091218151342.653E.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 456FF6B0044
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 01:40:20 -0500 (EST)
+Received: by ywh3 with SMTP id 3so2979090ywh.22
+        for <linux-mm@kvack.org>; Thu, 17 Dec 2009 22:40:18 -0800 (PST)
+Date: Fri, 18 Dec 2009 15:33:30 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [RFC 4/4] speculative pag fault
+Message-Id: <20091218153330.7f26a1bc.minchan.kim@barrios-desktop>
+In-Reply-To: <20091218150648.09276f83.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091216101107.GA15031@basil.fritz.box>
+	<20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091216102806.GC15031@basil.fritz.box>
+	<28c262360912160231r18db8478sf41349362360cab8@mail.gmail.com>
+	<20091216193315.14a508d5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091218093849.8ba69ad9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091218094602.3dcd5a02.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091218145449.d3fb94cd.minchan.kim@barrios-desktop>
+	<20091218150648.09276f83.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Fri, 18 Dec 2009 15:18:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, "Stephen C. Tweedie" <sct@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andi Kleen <andi@firstfloor.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-> 
-> * Christoph Lameter <cl@linux-foundation.org> wrote:
-> 
-> > On Thu, 17 Dec 2009, Rik van Riel wrote:
-> > 
-> > > I believe it will be more useful if we figure out a way forward together.  
-> > > Do you have any ideas on how to solve the hugepage swapping problem?
-> > 
-> > Frankly I am not sure that there is a problem. The word swap is mostly 
-> > synonymous with "problem". Huge pages are good. I dont think one needs to 
-> > necessarily associate something good (huge page) with a known problem (swap) 
-> > otherwise the whole may not improve.
-> 
-> Swapping in the VM is 'reality', not some fringe feature. Almost every big 
-> enterprise shop cares about it.
-> 
-> Note that it became more relevant in the past few years due to the arrival of 
-> low-latency, lots-of-iops and cheap SSDs. Even on a low end server you can buy 
-> a good 160 GB SSD for emergency swap with fantastic latency and for a lot less 
-> money than 160 GB of real RAM. (which RAM wont even fit physically on typical 
-> mainboards, is much more expensive and uses up more power and is less 
-> servicable)
+On Fri, 18 Dec 2009 15:06:48 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Agreed. This isn't artificial example. Recently I've heared some
-major web service campany use case in japan. they use lots cheap
-server (about $700 per server). then they said few memory and ssd
-are good choice to them.
+> On Fri, 18 Dec 2009 14:54:49 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+> 
+> > Hi, Kame. 
+> > 
+> Hi,
+> 
+> > On Fri, 18 Dec 2009 09:46:02 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > >  	if (flags & FAULT_FLAG_WRITE) {
+> > >  		if (!pte_write(entry))
+> > > 
+> > 
+> > I looked over the patch series and come up to one scenario.
+> > 
+> > CPU A				CPU 2
+> > 
+> > "Thread A reads page"
+> > 		
+> > do_page_fault
+> > lookup_vma_cache
+> > vma->cache_access++
+> > 				"Thread B unmap the vma"
+> > 
+> > 				mm_write_lock
+> > 				down_write(mm->mmap_sem)
+> > 				mm->version++
+> > 				do_munmap
+> > 				wait_vmas_cache_access
+> > 				wait_event_interruptible
+> > mm_version_check fail
+> > vma_release
+> > wake_up(vma->cache_wait)
+> > 				unmap_region
+> > 				mm_write_unlock
+> > mm_read_trylock
+> > find_vma
+> > !vma
+> > bad_area
+> > 				
+> > As above scenario, Apparently, Thread A reads proper page in the vma at that time.
+> > but it would meet the segment fault by speculative page fault. 
+> > 
+> Yes, It's intentional.
+> 
+> > Sorry that i don't have time to review more detail. 
+> ya, take it easy. I'm not in hurry.
+> 
+> > If I miss something, Pz correct me. 
+> > 
+> 
+> In multi-threaded application, mutual-exclusion of  memory-access v.s. munmap
+> is the application's job. In above case, the application shouldn't unmap memory
+> while it's access memory. (The application can be preempted at any point.)
+> So, the kernel only have to take care of sanity of memory map status.
+> In this case, no error in kernel's object. This is correct.
 
+Ahhh. It's my fault. I need sleeping. :)
+After take a enough rest, I will review continuosly. 
+
+Thanks. Kame. 
+
+> Thank you for your interests.
+> 
+> Regards,
+> -Kame
+> 
+> 
+> 
+> 
+> 
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
