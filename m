@@ -1,220 +1,604 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 753F06B0047
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 19:49:10 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBI0n7Zj001281
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 18 Dec 2009 09:49:07 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BED9545DE70
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 09:49:06 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BA2D45DE6E
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 09:49:06 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 329EE1DB8045
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 09:49:06 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D102D1DB8040
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 09:49:05 +0900 (JST)
-Date: Fri, 18 Dec 2009 09:46:02 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC 4/4] speculative pag fault
-Message-Id: <20091218094602.3dcd5a02.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091218093849.8ba69ad9.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091216101107.GA15031@basil.fritz.box>
-	<20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091216102806.GC15031@basil.fritz.box>
-	<28c262360912160231r18db8478sf41349362360cab8@mail.gmail.com>
-	<20091216193315.14a508d5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091218093849.8ba69ad9.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 33DFC6B0044
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 20:07:13 -0500 (EST)
+Message-ID: <4B2AD5BB.8060100@goop.org>
+Date: Thu, 17 Dec 2009 17:07:07 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
+MIME-Version: 1.0
+Subject: Re: Tmem [PATCH 2/5] (Take 3): Implement cleancache on top of tmem
+ layer
+References: <dee07055-5763-4e91-b6a2-964bbc8217aa@default>
+In-Reply-To: <dee07055-5763-4e91-b6a2-964bbc8217aa@default>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andi Kleen <andi@firstfloor.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, kurt.hackel@oracle.com, Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, dave.mccracken@oracle.com, linux-mm@kvack.org, Rusty@rcsinet15.oracle.com, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, alan@lxorguk.ukuu.org.uk, chris.mason@oracle.com, Pavel Machek <pavel@ucw.cz>
 List-ID: <linux-mm.kvack.org>
 
+On 12/17/2009 04:37 PM, Dan Magenheimer wrote:
+> Tmem [PATCH 2/5] (Take 3): Implement cleancache on top of tmem layer.
+>
+> Hooks added to existing page cache, VFS, and FS (ext3, ocfs2, btrfs,
+> and ext4 supported as of now) routines to:
+> 1) create a tmem pool when filesystem is mounted and record its id
+> 2) "put" clean pages that are being evicted
+> 3) attempt to "get" pages prior to reading from a mounted FS and
+>     fallback to reading from the FS if "get" fails
+> 4) "flush" as necessary to ensure coherency btwn page cache&  cleancache
+> 5) destroy the tmem pool when the FS is unmounted
+>
+> Hooks for page cache and VFS placed by Chris Mason
+>    
 
-Lookup vma in lockless style, do page fault, and check mm's version
-after takine page table lock. If racy, mm's version is invalid .
-Then, retry page fault.
+No particular comments on the content of the patch for now, but on form:
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- arch/x86/mm/fault.c |   28 +++++++++++++++++++++++++---
- mm/memory.c         |   21 ++++++++++++++-------
- 2 files changed, 39 insertions(+), 10 deletions(-)
+I'd suggest splitting this up into several patches: one for the core VFS 
+changes, and one for each filesystem, so that each filesystem maintainer 
+can Ack the changes independently of the rest.  Also so you can set the 
+patch author/signoffs appropriately for whoever did the work.
 
-Index: mmotm-mm-accessor/arch/x86/mm/fault.c
-===================================================================
---- mmotm-mm-accessor.orig/arch/x86/mm/fault.c
-+++ mmotm-mm-accessor/arch/x86/mm/fault.c
-@@ -11,6 +11,7 @@
- #include <linux/kprobes.h>		/* __kprobes, ...		*/
- #include <linux/mmiotrace.h>		/* kmmio_handler, ...		*/
- #include <linux/perf_event.h>		/* perf_sw_event		*/
-+#include <linux/hugetlb.h>		/* is_vm_hugetlb...*/
- 
- #include <asm/traps.h>			/* dotraplinkage, ...		*/
- #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
-@@ -952,6 +953,7 @@ do_page_fault(struct pt_regs *regs, unsi
- 	struct mm_struct *mm;
- 	int write;
- 	int fault;
-+	int speculative;
- 
- 	tsk = current;
- 	mm = tsk->mm;
-@@ -1040,6 +1042,17 @@ do_page_fault(struct pt_regs *regs, unsi
- 		return;
- 	}
- 
-+	if ((error_code & PF_USER) && mm_version_check(mm)) {
-+		vma = lookup_vma_cache(mm, address);
-+		if (vma && mm_version_check(mm) &&
-+		   (vma->vm_start <= address) && (address < vma->vm_end)) {
-+			speculative = 1;
-+			goto found_vma;
-+		}
-+		if (vma)
-+			vma_release(vma);
-+	}
-+
- 	/*
- 	 * When running in the kernel we expect faults to occur only to
- 	 * addresses in user space.  All other faults represent errors in
-@@ -1056,6 +1069,8 @@ do_page_fault(struct pt_regs *regs, unsi
- 	 * validate the source. If this is invalid we can skip the address
- 	 * space check, thus avoiding the deadlock:
- 	 */
-+retry_with_lock:
-+	speculative = 0;
- 	if (unlikely(!mm_read_trylock(mm))) {
- 		if ((error_code & PF_USER) == 0 &&
- 		    !search_exception_tables(regs->ip)) {
-@@ -1073,6 +1088,7 @@ do_page_fault(struct pt_regs *regs, unsi
- 	}
- 
- 	vma = find_vma(mm, address);
-+found_vma:
- 	if (unlikely(!vma)) {
- 		bad_area(regs, error_code, address);
- 		return;
-@@ -1119,6 +1135,7 @@ good_area:
- 	 */
- 	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
- 
-+
- 	if (unlikely(fault & VM_FAULT_ERROR)) {
- 		mm_fault_error(regs, error_code, address, fault);
- 		return;
-@@ -1128,13 +1145,18 @@ good_area:
- 		tsk->maj_flt++;
- 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
- 				     regs, address);
--	} else {
-+	} else if (!speculative || mm_version_check(mm)) {
- 		tsk->min_flt++;
- 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
- 				     regs, address);
-+	} else {
-+		vma_release(vma);
-+		goto retry_with_lock;
- 	}
- 
- 	check_v8086_mode(regs, address, tsk);
--
--	mm_read_unlock(mm);
-+	if (!speculative)
-+		mm_read_unlock(mm);
-+	else
-+		vma_release(vma);
- }
-Index: mmotm-mm-accessor/mm/memory.c
-===================================================================
---- mmotm-mm-accessor.orig/mm/memory.c
-+++ mmotm-mm-accessor/mm/memory.c
-@@ -121,6 +121,13 @@ static int __init init_zero_pfn(void)
- }
- core_initcall(init_zero_pfn);
- 
-+static bool test_valid_pte(struct mm_struct *mm, pte_t pte, pte_t orig)
-+{
-+	if (likely(mm_version_check(mm) && pte_same(pte, orig)))
-+		return true;
-+	return false;
-+}
-+
- /*
-  * If a p?d_bad entry is found while walking page tables, report
-  * the error, before resetting entry to p?d_none.  Usually (but
-@@ -2044,7 +2051,7 @@ static int do_wp_page(struct mm_struct *
- 			lock_page(old_page);
- 			page_table = pte_offset_map_lock(mm, pmd, address,
- 							 &ptl);
--			if (!pte_same(*page_table, orig_pte)) {
-+			if (!test_valid_pte(mm, *page_table, orig_pte)) {
- 				unlock_page(old_page);
- 				page_cache_release(old_page);
- 				goto unlock;
-@@ -2105,7 +2112,7 @@ static int do_wp_page(struct mm_struct *
- 			 */
- 			page_table = pte_offset_map_lock(mm, pmd, address,
- 							 &ptl);
--			if (!pte_same(*page_table, orig_pte)) {
-+			if (!test_valid_pte(mm, *page_table, orig_pte)) {
- 				unlock_page(old_page);
- 				page_cache_release(old_page);
- 				goto unlock;
-@@ -2169,7 +2176,7 @@ gotten:
- 	 * Re-check the pte - we dropped the lock
- 	 */
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
--	if (likely(pte_same(*page_table, orig_pte))) {
-+	if (test_valid_pte(mm, *page_table, orig_pte)) {
- 		if (old_page) {
- 			if (!PageAnon(old_page)) {
- 				dec_mm_counter(mm, file_rss);
-@@ -2555,7 +2562,7 @@ static int do_swap_page(struct mm_struct
- 			 * while we released the pte lock.
- 			 */
- 			page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
--			if (likely(pte_same(*page_table, orig_pte)))
-+			if (pte_same(*page_table, orig_pte))
- 				ret = VM_FAULT_OOM;
- 			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 			goto unlock;
-@@ -2588,7 +2595,7 @@ static int do_swap_page(struct mm_struct
- 	 * Back out if somebody else already faulted in this pte.
- 	 */
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
--	if (unlikely(!pte_same(*page_table, orig_pte)))
-+	if (unlikely(!test_valid_pte(mm, *page_table, orig_pte)))
- 		goto out_nomap;
- 
- 	if (unlikely(!PageUptodate(page))) {
-@@ -2844,7 +2851,7 @@ static int __do_fault(struct mm_struct *
- 	 * handle that later.
- 	 */
- 	/* Only go through if we didn't race with anybody else... */
--	if (likely(pte_same(*page_table, orig_pte))) {
-+	if (likely(test_valid_pte(mm, *page_table, orig_pte))) {
- 		flush_icache_page(vma, page);
- 		entry = mk_pte(page, vma->vm_page_prot);
- 		if (flags & FAULT_FLAG_WRITE)
-@@ -2991,7 +2998,7 @@ static inline int handle_pte_fault(struc
- 
- 	ptl = pte_lockptr(mm, pmd);
- 	spin_lock(ptl);
--	if (unlikely(!pte_same(*pte, entry)))
-+	if (unlikely(!test_valid_pte(mm, *pte, entry)))
- 		goto unlock;
- 	if (flags & FAULT_FLAG_WRITE) {
- 		if (!pte_write(entry))
+     J
+
+> The term "cleancache" is used because only clean data
+> can be cached using this interface.  The previous term
+> ("precache") was deemed too generic and overloaded.
+>
+> Signed-off-by: Dan Magenheimer<dan.magenheimer@oracle.com>
+>
+>
+>   fs/btrfs/extent_io.c                     |    9 +
+>   fs/btrfs/super.c                         |    2
+>   fs/buffer.c                              |    5
+>   fs/ext3/super.c                          |    2
+>   fs/ext4/super.c                          |    2
+>   fs/mpage.c                               |    8
+>   fs/ocfs2/super.c                         |    2
+>   fs/super.c                               |    6
+>   include/linux/cleancache.h               |   55 ++++++
+>   include/linux/fs.h                       |    7
+>   mm/cleancache.c                          |  184 +++++++++++++++++++++
+>   mm/filemap.c                             |   11 +
+>   mm/truncate.c                            |   10 +
+>   13 files changed, 303 insertions(+)
+>
+> --- linux-2.6.32/fs/super.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/fs/super.c	2009-12-17 13:51:04.000000000 -0700
+> @@ -37,6 +37,7 @@
+>   #include<linux/kobject.h>
+>   #include<linux/mutex.h>
+>   #include<linux/file.h>
+> +#include<linux/cleancache.h>
+>   #include<asm/uaccess.h>
+>   #include "internal.h"
+>
+> @@ -104,6 +105,9 @@ static struct super_block *alloc_super(s
+>   		s->s_qcop = sb_quotactl_ops;
+>   		s->s_op =&default_op;
+>   		s->s_time_gran = 1000000000;
+> +#ifdef CONFIG_CLEANCACHE
+> +		s->cleancache_poolid = -1;
+> +#endif
+>   	}
+>   out:
+>   	return s;
+> @@ -194,6 +198,7 @@ void deactivate_super(struct super_block
+>   		vfs_dq_off(s, 0);
+>   		down_write(&s->s_umount);
+>   		fs->kill_sb(s);
+> +		cleancache_flush_filesystem(s);
+>   		put_filesystem(fs);
+>   		put_super(s);
+>   	}
+> @@ -220,6 +225,7 @@ void deactivate_locked_super(struct supe
+>   		spin_unlock(&sb_lock);
+>   		vfs_dq_off(s, 0);
+>   		fs->kill_sb(s);
+> +		cleancache_flush_filesystem(s);
+>   		put_filesystem(fs);
+>   		put_super(s);
+>   	} else {
+> --- linux-2.6.32/fs/ext3/super.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/fs/ext3/super.c	2009-12-17 13:51:24.000000000 -0700
+> @@ -37,6 +37,7 @@
+>   #include<linux/quotaops.h>
+>   #include<linux/seq_file.h>
+>   #include<linux/log2.h>
+> +#include<linux/cleancache.h>
+>
+>   #include<asm/uaccess.h>
+>
+> @@ -1307,6 +1308,7 @@ static int ext3_setup_super(struct super
+>   	} else {
+>   		printk("internal journal\n");
+>   	}
+> +	cleancache_init(sb);
+>   	return res;
+>   }
+>
+> --- linux-2.6.32/include/linux/fs.h	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/include/linux/fs.h	2009-12-17 15:29:35.000000000 -0700
+> @@ -1380,6 +1380,13 @@ struct super_block {
+>   	 * generic_show_options()
+>   	 */
+>   	char *s_options;
+> +
+> +#ifdef CONFIG_CLEANCACHE
+> +	/*
+> +	 * Saved pool identifier for cleancache (-1 means none)
+> +	 */
+> +	u32 cleancache_poolid;
+> +#endif
+>   };
+>
+>   extern struct timespec current_fs_time(struct super_block *sb);
+> --- linux-2.6.32/fs/buffer.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/fs/buffer.c	2009-12-17 13:50:32.000000000 -0700
+> @@ -41,6 +41,7 @@
+>   #include<linux/bitops.h>
+>   #include<linux/mpage.h>
+>   #include<linux/bit_spinlock.h>
+> +#include<linux/cleancache.h>
+>
+>   static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
+>
+> @@ -276,6 +277,10 @@ void invalidate_bdev(struct block_device
+>
+>   	invalidate_bh_lrus();
+>   	invalidate_mapping_pages(mapping, 0, -1);
+> +	/* 99% of the time, we don't need to flush the cleancache on the bdev.
+> +	 * But, for the strange corners, lets be cautious
+> +	 */
+> +	cleancache_flush_inode(mapping);
+>   }
+>   EXPORT_SYMBOL(invalidate_bdev);
+>
+> --- linux-2.6.32/fs/mpage.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/fs/mpage.c	2009-12-17 13:50:37.000000000 -0700
+> @@ -26,6 +26,7 @@
+>   #include<linux/writeback.h>
+>   #include<linux/backing-dev.h>
+>   #include<linux/pagevec.h>
+> +#include<linux/cleancache.h>
+>
+>   /*
+>    * I/O completion handler for multipage BIOs.
+> @@ -285,6 +286,13 @@ do_mpage_readpage(struct bio *bio, struc
+>   		SetPageMappedToDisk(page);
+>   	}
+>
+> +	if (fully_mapped&&
+> +	    blocks_per_page == 1&&  !PageUptodate(page)&&
+> +	    cleancache_get(page->mapping, page->index, page) == 1) {
+> +		SetPageUptodate(page);
+> +		goto confused;
+> +	}
+> +
+>   	/*
+>   	 * This page will go to BIO.  Do we need to send this BIO off first?
+>   	 */
+> --- linux-2.6.32/fs/btrfs/super.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/fs/btrfs/super.c	2009-12-17 13:50:16.000000000 -0700
+> @@ -38,6 +38,7 @@
+>   #include<linux/namei.h>
+>   #include<linux/miscdevice.h>
+>   #include<linux/magic.h>
+> +#include<linux/cleancache.h>
+>   #include "compat.h"
+>   #include "ctree.h"
+>   #include "disk-io.h"
+> @@ -387,6 +388,7 @@ static int btrfs_fill_super(struct super
+>   	sb->s_root = root_dentry;
+>
+>   	save_mount_options(sb, data);
+> +	cleancache_init(sb);
+>   	return 0;
+>
+>   fail_close:
+> --- linux-2.6.32/fs/btrfs/extent_io.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/fs/btrfs/extent_io.c	2009-12-17 15:28:33.000000000 -0700
+> @@ -11,6 +11,7 @@
+>   #include<linux/swap.h>
+>   #include<linux/writeback.h>
+>   #include<linux/pagevec.h>
+> +#include<linux/cleancache.h>
+>   #include "extent_io.h"
+>   #include "extent_map.h"
+>   #include "compat.h"
+> @@ -2015,6 +2016,13 @@ static int __extent_read_full_page(struc
+>
+>   	set_page_extent_mapped(page);
+>
+> +	if (!PageUptodate(page)) {
+> +		if (cleancache_get(page->mapping, page->index, page) == 1) {
+> +			BUG_ON(blocksize != PAGE_SIZE);
+> +			goto out;
+> +		}
+> +	}
+> +
+>   	end = page_end;
+>   	lock_extent(tree, start, end, GFP_NOFS);
+>
+> @@ -2131,6 +2139,7 @@ static int __extent_read_full_page(struc
+>   		cur = cur + iosize;
+>   		page_offset += iosize;
+>   	}
+> +out:
+>   	if (!nr) {
+>   		if (!PageError(page))
+>   			SetPageUptodate(page);
+> --- linux-2.6.32/fs/ocfs2/super.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/fs/ocfs2/super.c	2009-12-17 13:51:11.000000000 -0700
+> @@ -42,6 +42,7 @@
+>   #include<linux/seq_file.h>
+>   #include<linux/quotaops.h>
+>   #include<linux/smp_lock.h>
+> +#include<linux/cleancache.h>
+>
+>   #define MLOG_MASK_PREFIX ML_SUPER
+>   #include<cluster/masklog.h>
+> @@ -2228,6 +2229,7 @@ static int ocfs2_initialize_super(struct
+>   		mlog_errno(status);
+>   		goto bail;
+>   	}
+> +	shared_cleancache_init(sb,&di->id2.i_super.s_uuid[0]);
+>
+>   bail:
+>   	mlog_exit(status);
+> --- linux-2.6.32/fs/ext4/super.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/fs/ext4/super.c	2009-12-17 13:51:17.000000000 -0700
+> @@ -39,6 +39,7 @@
+>   #include<linux/ctype.h>
+>   #include<linux/log2.h>
+>   #include<linux/crc16.h>
+> +#include<linux/cleancache.h>
+>   #include<asm/uaccess.h>
+>
+>   #include "ext4.h"
+> @@ -1660,6 +1661,7 @@ static int ext4_setup_super(struct super
+>   			EXT4_INODES_PER_GROUP(sb),
+>   			sbi->s_mount_opt);
+>
+> +	cleancache_init(sb);
+>   	return res;
+>   }
+>
+> --- linux-2.6.32/mm/truncate.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/mm/truncate.c	2009-12-17 13:56:31.000000000 -0700
+> @@ -18,6 +18,7 @@
+>   #include<linux/task_io_accounting_ops.h>
+>   #include<linux/buffer_head.h>	/* grr. try_to_release_page,
+>   				   do_invalidatepage */
+> +#include<linux/cleancache.h>
+>   #include "internal.h"
+>
+>
+> @@ -50,6 +51,7 @@ void do_invalidatepage(struct page *page
+>   static inline void truncate_partial_page(struct page *page, unsigned partial)
+>   {
+>   	zero_user_segment(page, partial, PAGE_CACHE_SIZE);
+> +	cleancache_flush(page->mapping, page->index);
+>   	if (page_has_private(page))
+>   		do_invalidatepage(page, partial);
+>   }
+> @@ -107,6 +109,10 @@ truncate_complete_page(struct address_sp
+>   	clear_page_mlock(page);
+>   	remove_from_page_cache(page);
+>   	ClearPageMappedToDisk(page);
+> +	/* this must be after the remove_from_page_cache which
+> +	 * calls cleancache_put
+> +	 */
+> +	cleancache_flush(mapping, page->index);
+>   	page_cache_release(page);	/* pagecache ref */
+>   	return 0;
+>   }
+> @@ -214,6 +220,7 @@ void truncate_inode_pages_range(struct a
+>   	pgoff_t next;
+>   	int i;
+>
+> +	cleancache_flush_inode(mapping);
+>   	if (mapping->nrpages == 0)
+>   		return;
+>
+> @@ -287,6 +294,7 @@ void truncate_inode_pages_range(struct a
+>   		}
+>   		pagevec_release(&pvec);
+>   	}
+> +	cleancache_flush_inode(mapping);
+>   }
+>   EXPORT_SYMBOL(truncate_inode_pages_range);
+>
+> @@ -423,6 +431,7 @@ int invalidate_inode_pages2_range(struct
+>   	int did_range_unmap = 0;
+>   	int wrapped = 0;
+>
+> +	cleancache_flush_inode(mapping);
+>   	pagevec_init(&pvec, 0);
+>   	next = start;
+>   	while (next<= end&&  !wrapped&&
+> @@ -479,6 +488,7 @@ int invalidate_inode_pages2_range(struct
+>   		pagevec_release(&pvec);
+>   		cond_resched();
+>   	}
+> +	cleancache_flush_inode(mapping);
+>   	return ret;
+>   }
+>   EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);
+> --- linux-2.6.32/mm/filemap.c	2009-12-02 20:51:21.000000000 -0700
+> +++ linux-2.6.32-tmem/mm/filemap.c	2009-12-17 13:56:55.000000000 -0700
+> @@ -34,6 +34,7 @@
+>   #include<linux/hardirq.h>  /* for BUG_ON(!in_atomic()) only */
+>   #include<linux/memcontrol.h>
+>   #include<linux/mm_inline.h>  /* for page_is_file_cache() */
+> +#include<linux/cleancache.h>
+>   #include "internal.h"
+>
+>   /*
+> @@ -119,6 +120,16 @@ void __remove_from_page_cache(struct pag
+>   {
+>   	struct address_space *mapping = page->mapping;
+>
+> +	/*
+> +	 * if we're uptodate, flush out into the cleancache, otherwise
+> +	 * invalidate any existing cleancache entries.  We can't leave
+> +	 * stale data around in the cleancache once our page is gone
+> +	 */
+> +	if (PageUptodate(page))
+> +		cleancache_put(page->mapping, page->index, page);
+> +	else
+> +		cleancache_flush(page->mapping, page->index);
+> +
+>   	radix_tree_delete(&mapping->page_tree, page->index);
+>   	page->mapping = NULL;
+>   	mapping->nrpages--;
+> --- linux-2.6.32/include/linux/cleancache.h	1969-12-31 17:00:00.000000000 -0700
+> +++ linux-2.6.32-tmem/include/linux/cleancache.h	2009-12-17 13:41:04.000000000 -0700
+> @@ -0,0 +1,55 @@
+> +#ifndef _LINUX_CLEANCACHE_H
+> +
+> +#include<linux/fs.h>
+> +#include<linux/mm.h>
+> +
+> +#ifdef CONFIG_CLEANCACHE
+> +extern void cleancache_init(struct super_block *sb);
+> +extern void shared_cleancache_init(struct super_block *sb, char *uuid);
+> +extern int cleancache_get(struct address_space *mapping, unsigned long index,
+> +	       struct page *empty_page);
+> +extern int cleancache_put(struct address_space *mapping, unsigned long index,
+> +		struct page *page);
+> +extern int cleancache_flush(struct address_space *mapping, unsigned long index);
+> +extern int cleancache_flush_inode(struct address_space *mapping);
+> +extern int cleancache_flush_filesystem(struct super_block *s);
+> +#else
+> +static inline void cleancache_init(struct super_block *sb)
+> +{
+> +}
+> +
+> +static inline void shared_cleancache_init(struct super_block *sb, char *uuid)
+> +{
+> +}
+> +
+> +static inline int cleancache_get(struct address_space *mapping,
+> +		unsigned long index, struct page *empty_page)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline int cleancache_put(struct address_space *mapping,
+> +		unsigned long index, struct page *page)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline int cleancache_flush(struct address_space *mapping,
+> +		unsigned long index)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline int cleancache_flush_inode(struct address_space *mapping)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline int cleancache_flush_filesystem(struct super_block *s)
+> +{
+> +	return 0;
+> +}
+> +#endif
+> +
+> +#define _LINUX_CLEANCACHE_H
+> +#endif /* _LINUX_CLEANCACHE_H */
+> --- linux-2.6.32/mm/cleancache.c	1969-12-31 17:00:00.000000000 -0700
+> +++ linux-2.6.32-tmem/mm/cleancache.c	2009-12-17 15:30:59.000000000 -0700
+> @@ -0,0 +1,184 @@
+> +/*
+> + * linux/mm/cleancache.c
+> + *
+> + * Implements a page-granularity clean cache for filesystems/pagecache on the
+> + * transcendent * memory ("tmem") API.  A filesystem creates an "ephemeral
+> + * tmem pool" and retains the returned pool_id in its superblock.  Clean pages
+> + * evicted from pagecache may be "put" into the pool and associated with a
+> + * "handle" consisting of the pool_id, an object (inode) id, and an index (page
+> + * offset).  Note that the page is copied to tmem; no kernel mappings are
+> + * changed. If the page is later needed, the filesystem (or VFS) issues a "get",
+> + * passing the same handle and an empty pageframe.  If successful, the page is
+> + * copied into the pageframe and a disk read is avoided.  But since the tmem
+> + * pool is of indeterminate size, a "put" page has indeterminate longevity
+> + * ("ephemeral"), and the "get" may fail, in which case the filesystem must
+> + * read the page from disk as before.  Note that the filesystem/pagecache are
+> + * responsible for maintaining coherency between the pagecache, tmem's clean
+> + * cache and the disk, for which "flush page" and "flush object" actions
+> + * are provided.  And when a filesystem is unmounted, it must "destroy"
+> + * the pool.
+> + *
+> + * Tmem supports two different modes for a cleancache: "private" or "shared".
+> + * Shared pools are still under development. For a private pool, a successful
+> + * "get" always flushes, implementing "exclusive cache" semantics.  Note
+> + * that a failed "duplicate" put (overwrite) always guarantees the old data
+> + * is flushed.
+> + *
+> + * Note also that multiple accesses to a tmem pool may be concurrent and any
+> + * ordering must be guaranteed by the caller.
+> + *
+> + * Copyright (C) 2008,2009 Dan Magenheimer, Oracle Corp.
+> + */
+> +
+> +#include<linux/cleancache.h>
+> +#include<linux/module.h>
+> +#include<linux/tmem.h>
+> +
+> +static int cleancache_auto_allocate; /* set to 1 to auto_allocate */
+> +static unsigned long cleancache_puts;
+> +static unsigned long cleancache_succ_gets;
+> +static unsigned long cleancache_failed_gets;
+> +
+> +int cleancache_put(struct address_space *mapping, unsigned long index,
+> + struct page *page)
+> +{
+> +	u32 tmem_pool = mapping->host->i_sb->cleancache_poolid;
+> +	u64 obj = (unsigned long) mapping->host->i_ino;
+> +	u32 ind = (u32) index;
+> +	unsigned long pfn = page_to_pfn(page);
+> +	struct tmem_pool_uuid uuid_private = TMEM_POOL_PRIVATE_UUID;
+> +	int ret;
+> +
+> +	if ((s32)tmem_pool<  0) {
+> +		if (!cleancache_auto_allocate)
+> +			return 0;
+> +		/* a put on a non-existent cleancache may auto-allocate one */
+> +		ret = tmem_new_pool(uuid_private, 0);
+> +		if (ret<  0)
+> +			return 0;
+> +		printk(KERN_INFO
+> +			"Mapping superblock for s_id=%s to cleancache_id=%d\n",
+> +			mapping->host->i_sb->s_id, tmem_pool);
+> +		mapping->host->i_sb->cleancache_poolid = tmem_pool;
+> +	}
+> +	if (ind != index)
+> +		return 0;
+> +	mb(); /* ensure page is quiescent; tmem may address it with an alias */
+> +	cleancache_puts++;
+> +	return tmem_put_page(tmem_pool, obj, ind, pfn);
+> +}
+> +
+> +int cleancache_get(struct address_space *mapping, unsigned long index,
+> + struct page *empty_page)
+> +{
+> +	u32 tmem_pool = mapping->host->i_sb->cleancache_poolid;
+> +	u64 obj = (unsigned long) mapping->host->i_ino;
+> +	u32 ind = (u32) index;
+> +	unsigned long pfn = page_to_pfn(empty_page);
+> +	int ret;
+> +
+> +	if ((s32)tmem_pool<  0)
+> +		return 0;
+> +	if (ind != index)
+> +		return 0;
+> +
+> +	ret = tmem_get_page(tmem_pool, obj, ind, pfn);
+> +	if (ret == 1)
+> +		cleancache_succ_gets++;
+> +	else
+> +		cleancache_failed_gets++;
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(cleancache_get);
+> +
+> +int cleancache_flush(struct address_space *mapping, unsigned long index)
+> +{
+> +	u32 tmem_pool = mapping->host->i_sb->cleancache_poolid;
+> +	u64 obj = (unsigned long) mapping->host->i_ino;
+> +	u32 ind = (u32) index;
+> +
+> +	if ((s32)tmem_pool<  0)
+> +		return 0;
+> +	if (ind != index)
+> +		return 0;
+> +
+> +	return tmem_flush_page(tmem_pool, obj, ind);
+> +}
+> +EXPORT_SYMBOL(cleancache_flush);
+> +
+> +int cleancache_flush_inode(struct address_space *mapping)
+> +{
+> +	u32 tmem_pool = mapping->host->i_sb->cleancache_poolid;
+> +	u64 obj = (unsigned long) mapping->host->i_ino;
+> +
+> +	if ((s32)tmem_pool<  0)
+> +		return 0;
+> +
+> +	return tmem_flush_object(tmem_pool, obj);
+> +}
+> +EXPORT_SYMBOL(cleancache_flush_inode);
+> +
+> +int cleancache_flush_filesystem(struct super_block *sb)
+> +{
+> +	u32 tmem_pool = sb->cleancache_poolid;
+> +	int ret;
+> +
+> +	if ((s32)tmem_pool<  0)
+> +		return 0;
+> +	ret = tmem_destroy_pool(tmem_pool);
+> +	if (!ret)
+> +		return 0;
+> +	printk(KERN_INFO
+> +		"Unmapping superblock for s_id=%s from cleancache_id=%d\n",
+> +		sb->s_id, ret);
+> +	sb->cleancache_poolid = 0;
+> +	return 1;
+> +}
+> +EXPORT_SYMBOL(cleancache_flush_filesystem);
+> +
+> +void cleancache_init(struct super_block *sb)
+> +{
+> +	struct tmem_pool_uuid uuid_private = TMEM_POOL_PRIVATE_UUID;
+> +
+> +	sb->cleancache_poolid = tmem_new_pool(uuid_private, 0);
+> +}
+> +EXPORT_SYMBOL(cleancache_init);
+> +
+> +void shared_cleancache_init(struct super_block *sb, char *uuid)
+> +{
+> +	struct tmem_pool_uuid shared_uuid;
+> +
+> +	shared_uuid.uuid_lo = *(u64 *)uuid;
+> +	shared_uuid.uuid_hi = *(u64 *)(&uuid[8]);
+> +	sb->cleancache_poolid = tmem_new_pool(shared_uuid, TMEM_POOL_SHARED);
+> +}
+> +EXPORT_SYMBOL(shared_cleancache_init);
+> +
+> +#ifdef CONFIG_SYSCTL
+> +#include<linux/sysctl.h>
+> +
+> +ctl_table cleancache_table[] = {
+> +	{
+> +		.procname	= "puts",
+> +		.data		=&cleancache_puts,
+> +		.maxlen		= sizeof(unsigned long),
+> +		.mode		= 0444,
+> +		.proc_handler	=&proc_doulongvec_minmax,
+> +	},
+> +	{
+> +		.procname	= "succ_gets",
+> +		.data		=&cleancache_succ_gets,
+> +		.maxlen		= sizeof(unsigned long),
+> +		.mode		= 0444,
+> +		.proc_handler	=&proc_doulongvec_minmax,
+> +	},
+> +	{
+> +		.procname	= "failed_gets",
+> +		.data		=&cleancache_failed_gets,
+> +		.maxlen		= sizeof(unsigned long),
+> +		.mode		= 0444,
+> +		.proc_handler	=&proc_doulongvec_minmax,
+> +	},
+> +	{ .ctl_name = 0 }
+> +};
+> +#endif /* CONFIG_SYSCTL */
+>
+>    
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
