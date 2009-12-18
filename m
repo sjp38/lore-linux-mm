@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 094CB6B0044
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 13:45:27 -0500 (EST)
-Date: Fri, 18 Dec 2009 19:45:04 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-Message-ID: <20091218184504.GA675@elte.hu>
-References: <20091217175338.GL9804@basil.fritz.box>
- <20091217190804.GB6788@linux.vnet.ibm.com>
- <20091217195530.GM9804@basil.fritz.box>
- <alpine.DEB.2.00.0912171356020.4640@router.home>
- <1261080855.27920.807.camel@laptop>
- <alpine.DEB.2.00.0912171439380.4640@router.home>
- <20091218051754.GC417@elte.hu>
- <4B2BB52A.7050103@redhat.com>
- <20091218171240.GB1354@elte.hu>
- <alpine.DEB.2.00.0912181207010.26947@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0912181207010.26947@router.home>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 354726B0044
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 13:48:07 -0500 (EST)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e39.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id nBIIf76p028883
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 11:41:07 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBIIlZWD121876
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 11:47:37 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nBIIlVeP011420
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 11:47:32 -0700
+Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <patchbomb.1261076403@v2.random>
+References: <patchbomb.1261076403@v2.random>
+Content-Type: text/plain
+Date: Fri, 18 Dec 2009 10:47:29 -0800
+Message-Id: <1261162049.27372.1649.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Avi Kivity <avi@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andi Kleen <andi@firstfloor.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 2009-12-17 at 19:00 +0000, Andrea Arcangeli wrote:
+> This is an update of my status on the transparent hugepage patchset. Quite
+> some changes happened in the last two weeks as I handled all feedback
+> provided so far (notably from Avi, Andi, Nick and others), and continuted on
+> the original todo list.
 
-* Christoph Lameter <cl@linux-foundation.org> wrote:
+For what it's worth, I went trying to do some of this a few months ago
+to see how feasible it was.  I ended up doing a bunch of the same stuff
+like having the preallocated pte_page() hanging off the mm.  I think I
+tied directly into the pte_offset_*() functions instead of introducing
+new ones, but the concept was the same: as much as possible *don't*
+teach the VM about huge pages, split them.
 
-> > We've been through this many times in the past within the kernel: many 
-> > times when we hid some locking primitive within some clever wrapping 
-> > scheme the quality of locking started to deteriorate. In most of the 
-> > important cases we got rid of the indirection and went with an existing 
-> > core kernel locking primitive which are all well known and have clear 
-> > semantics and lead to more maintainable code.
-> 
-> The existing locking APIs are all hiding lock details at various levels. We 
-> have various specific APIs for specialized locks already Page locking etc.
+I ended up getting hung up on some of the PMD locking, and I think using
+the PMD bit like that is a fine solution.  The way these are split up
+also looks good to me.
 
-You need to loo at the patches. This is simply a step backwards:
+Except for some of the stuff in put_compound_page(), these look pretty
+sane to me in general.  I'll go through them in more detail after the
+holidays.
 
--               up_read(&mm->mmap_sem);
-+               mm_read_unlock(mm);
-
-because it hides the lock instance.
-
-( You brought up -rt but that example does not apply: it doesnt 'hide' the 
-  lock instance in any way, it simply changes the preemption model. It goes to 
-  great lengths to keep existing locking patterns and does not obfuscate 
-  locking. )
-
-	Ingo
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
