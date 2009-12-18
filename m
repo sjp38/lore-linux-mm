@@ -1,147 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 714816B0047
-	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 20:36:38 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBI1aVPf031846
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 18 Dec 2009 10:36:31 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 961DB45DE52
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 10:36:31 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A4CA45DE4E
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 10:36:31 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AD891DB8038
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 10:36:31 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 84A751DB805B
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 10:36:30 +0900 (JST)
-Date: Fri, 18 Dec 2009 10:33:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 28 of 28] memcg huge memory
-Message-Id: <20091218103312.2f61bbfc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <d9c8d2160feb7d82736b.1261076431@v2.random>
-References: <patchbomb.1261076403@v2.random>
-	<d9c8d2160feb7d82736b.1261076431@v2.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id F3D306B0044
+	for <linux-mm@kvack.org>; Thu, 17 Dec 2009 21:11:52 -0500 (EST)
+Date: Fri, 18 Dec 2009 10:11:45 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH v3] mm: introduce dump_page() and print symbolic flag names
+Message-ID: <20091218021145.GA12553@localhost>
+References: <20091216153513.GC2804@hack> <20091218012324.GA7953@localhost> <20091218102711.6532.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20091218102711.6532.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Americo Wang <xiyou.wangcong@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Alex Chiang <achiang@hp.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Li, Haicheng" <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Dec 2009 19:00:31 -0000
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> From: Andrea Arcangeli <aarcange@redhat.com>
+On Fri, Dec 18, 2009 at 09:35:59AM +0800, KOSAKI Motohiro wrote:
+> > On Wed, Dec 16, 2009 at 11:35:13PM +0800, AmA(C)rico Wang wrote:
+> > > On Wed, Dec 16, 2009 at 08:33:10PM +0800, Wu Fengguang wrote:
+> > > >On Wed, Dec 16, 2009 at 08:26:40PM +0800, Wu Fengguang wrote:
+> > > >> - introduce dump_page() to print the page info for debugging some error condition.
+> > > >> - convert three mm users: bad_page(), print_bad_pte() and memory offline failure. 
+> > > >> - print an extra field: the symbolic names of page->flags
+> > > >> 
+> > > >> Example dump_page() output:
+> > > >> 
+> > > >> [  157.521694] page:ffffea0000a7cba8 count:2 mapcount:1
+> > > >> mapping:ffff88001c901791 index:147
+> > > >                                 ~~~ this is in fact 0x147
+> > > >
+> > > >The index value may sometimes be misread as decimal number, shall this
+> > > >be fixed by adding a "0x" prefix?
+> > > 
+> > > 
+> > > Using '%#x' will do.
+> > 
+> > +	printk(KERN_ALERT "page flags: %lx(", flags);
 > 
-> Add memcg charge/uncharge to hugepage faults in huge_memory.c.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> nit.
+> Now, you append 0x prefix to index. why don't you appent 0x prefix to this?
+> I mean we have to keep consist prefix printing rule in the same printk.
 
-Seems nice.
+Good suggestion, thanks!
+---
 
-Then, maybe we (I?) should cut this part (and some from 27/28) out and
-merge into memcg. It will be helpful to all your work.
+mm: introduce dump_page()
 
-But I don't like a situation which memcg's charge are filled with _locked_ memory.
-(Especially, bad-configured softlimit+hugepage will adds much regression.)
-New counter as "usage of huge page" will be required for memcg, at least.
+- introduce dump_page() to print the page info for debugging some error condition.
+- convert three mm users: bad_page(), print_bad_pte() and memory offline failure. 
+- print an extra field: the symbolic names of page->flags
 
-Thanks,
--Kame
+Example dump_page() output:
 
-> ---
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -207,6 +207,7 @@ static int __do_huge_anonymous_page(stru
->  	VM_BUG_ON(!PageCompound(page));
->  	pgtable = pte_alloc_one(mm, address);
->  	if (unlikely(!pgtable)) {
-> +		mem_cgroup_uncharge_page(page);
->  		put_page(page);
->  		return VM_FAULT_OOM;
->  	}
-> @@ -218,6 +219,7 @@ static int __do_huge_anonymous_page(stru
->  
->  	spin_lock(&mm->page_table_lock);
->  	if (unlikely(!pmd_none(*pmd))) {
-> +		mem_cgroup_uncharge_page(page);
->  		put_page(page);
->  		pte_free(mm, pgtable);
->  	} else {
-> @@ -251,6 +253,10 @@ int do_huge_anonymous_page(struct mm_str
->  				   HPAGE_ORDER);
->  		if (unlikely(!page))
->  			goto out;
-> +		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-> +			put_page(page);
-> +			goto out;
-> +		}
->  
->  		return __do_huge_anonymous_page(mm, vma,
->  						address, pmd,
-> @@ -379,9 +385,16 @@ int do_huge_wp_page(struct mm_struct *mm
->  		for (i = 0; i < HPAGE_NR; i++) {
->  			pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
->  						  vma, address);
-> -			if (unlikely(!pages[i])) {
-> -				while (--i >= 0)
-> +			if (unlikely(!pages[i] ||
-> +				     mem_cgroup_newpage_charge(pages[i],
-> +							       mm,
-> +							       GFP_KERNEL))) {
-> +				if (pages[i])
->  					put_page(pages[i]);
-> +				while (--i >= 0) {
-> +					mem_cgroup_uncharge_page(pages[i]);
-> +					put_page(pages[i]);
-> +				}
->  				kfree(pages);
->  				ret |= VM_FAULT_OOM;
->  				goto out;
-> @@ -439,15 +452,21 @@ int do_huge_wp_page(struct mm_struct *mm
->  		goto out;
->  	}
->  
-> +	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-> +		put_page(new_page);
-> +		ret |= VM_FAULT_OOM;
-> +		goto out;
-> +	}
->  	copy_huge_page(new_page, page, haddr, vma, HPAGE_NR);
->  	__SetPageUptodate(new_page);
->  
->  	smp_wmb();
->  
->  	spin_lock(&mm->page_table_lock);
-> -	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-> +	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-> +		mem_cgroup_uncharge_page(new_page);
->  		put_page(new_page);
-> -	else {
-> +	} else {
->  		pmd_t entry;
->  		entry = mk_pmd(new_page, vma->vm_page_prot);
->  		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> @@ -466,8 +485,10 @@ out:
->  	return ret;
->  
->  out_free_pages:
-> -	for (i = 0; i < HPAGE_NR; i++)
-> +	for (i = 0; i < HPAGE_NR; i++) {
-> +		mem_cgroup_uncharge_page(pages[i]);
->  		put_page(pages[i]);
-> +	}
->  	kfree(pages);
->  	goto out_unlock;
->  }
-> 
+[  157.521694] page:ffffea0000a7cba8 count:2 mapcount:1 mapping:ffff88001c901791 index:0x147
+[  157.525570] page flags: 0x100000000100068(uptodate|lru|active|swapbacked)
+
+CC: Ingo Molnar <mingo@elte.hu> 
+CC: Alex Chiang <achiang@hp.com>
+CC: Rik van Riel <riel@redhat.com>
+CC: Andi Kleen <andi@firstfloor.org> 
+CC: Mel Gorman <mel@linux.vnet.ibm.com> 
+CC: Christoph Lameter <cl@linux-foundation.org> 
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/mm.h  |    2 +
+ mm/memory.c         |    8 +---
+ mm/memory_hotplug.c |    6 +--
+ mm/page_alloc.c     |   83 +++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 86 insertions(+), 13 deletions(-)
+
+--- linux-mm.orig/mm/page_alloc.c	2009-12-11 10:01:25.000000000 +0800
++++ linux-mm/mm/page_alloc.c	2009-12-18 10:08:24.000000000 +0800
+@@ -49,6 +49,7 @@
+ #include <linux/debugobjects.h>
+ #include <linux/kmemleak.h>
+ #include <trace/events/kmem.h>
++#include <linux/ftrace_event.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -262,10 +263,7 @@ static void bad_page(struct page *page)
+ 
+ 	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
+ 		current->comm, page_to_pfn(page));
+-	printk(KERN_ALERT
+-		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
+-		page, (void *)page->flags, page_count(page),
+-		page_mapcount(page), page->mapping, page->index);
++	dump_page(page);
+ 
+ 	dump_stack();
+ out:
+@@ -5106,3 +5104,80 @@ bool is_free_buddy_page(struct page *pag
+ 	return order < MAX_ORDER;
+ }
+ #endif
++
++static struct trace_print_flags pageflag_names[] = {
++	{1UL << PG_locked,		"locked"	},
++	{1UL << PG_error,		"error"		},
++	{1UL << PG_referenced,		"referenced"	},
++	{1UL << PG_uptodate,		"uptodate"	},
++	{1UL << PG_dirty,		"dirty"		},
++	{1UL << PG_lru,			"lru"		},
++	{1UL << PG_active,		"active"	},
++	{1UL << PG_slab,		"slab"		},
++	{1UL << PG_owner_priv_1,	"owner_priv_1"	},
++	{1UL << PG_arch_1,		"arch_1"	},
++	{1UL << PG_reserved,		"reserved"	},
++	{1UL << PG_private,		"private"	},
++	{1UL << PG_private_2,		"private_2"	},
++	{1UL << PG_writeback,		"writeback"	},
++#ifdef CONFIG_PAGEFLAGS_EXTENDED
++	{1UL << PG_head,		"head"		},
++	{1UL << PG_tail,		"tail"		},
++#else
++	{1UL << PG_compound,		"compound"	},
++#endif
++	{1UL << PG_swapcache,		"swapcache"	},
++	{1UL << PG_mappedtodisk,	"mappedtodisk"	},
++	{1UL << PG_reclaim,		"reclaim"	},
++	{1UL << PG_buddy,		"buddy"		},
++	{1UL << PG_swapbacked,		"swapbacked"	},
++	{1UL << PG_unevictable,		"unevictable"	},
++#ifdef CONFIG_MMU
++	{1UL << PG_mlocked,		"mlocked"	},
++#endif
++#ifdef CONFIG_ARCH_USES_PG_UNCACHED
++	{1UL << PG_uncached,		"uncached"	},
++#endif
++#ifdef CONFIG_MEMORY_FAILURE
++	{1UL << PG_hwpoison,		"hwpoison"	},
++#endif
++	{-1UL,				NULL		},
++};
++
++static void dump_page_flags(unsigned long flags)
++{
++	const char *delim = "";
++	unsigned long mask;
++	int i;
++
++	printk(KERN_ALERT "page flags: %#lx(", flags);
++
++	/* remove zone id */
++	flags &= (1UL << NR_PAGEFLAGS) - 1;
++
++	for (i = 0; pageflag_names[i].name && flags; i++) {
++
++		mask = pageflag_names[i].mask;
++		if ((flags & mask) != mask)
++			continue;
++
++		flags &= ~mask;
++		printk("%s%s", delim, pageflag_names[i].name);
++		delim = "|";
++	}
++
++	/* check for left over flags */
++	if (flags)
++		printk("%s%#lx", delim, flags);
++
++	printk(")\n");
++}
++
++void dump_page(struct page *page)
++{
++	printk(KERN_ALERT
++	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
++		page, page_count(page), page_mapcount(page),
++		page->mapping, page->index);
++	dump_page_flags(page->flags);
++}
+--- linux-mm.orig/mm/memory.c	2009-12-11 10:01:25.000000000 +0800
++++ linux-mm/mm/memory.c	2009-12-14 19:21:22.000000000 +0800
+@@ -430,12 +430,8 @@ static void print_bad_pte(struct vm_area
+ 		"BUG: Bad page map in process %s  pte:%08llx pmd:%08llx\n",
+ 		current->comm,
+ 		(long long)pte_val(pte), (long long)pmd_val(*pmd));
+-	if (page) {
+-		printk(KERN_ALERT
+-		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
+-		page, (void *)page->flags, page_count(page),
+-		page_mapcount(page), page->mapping, page->index);
+-	}
++	if (page)
++		dump_page(page);
+ 	printk(KERN_ALERT
+ 		"addr:%p vm_flags:%08lx anon_vma:%p mapping:%p index:%lx\n",
+ 		(void *)addr, vma->vm_flags, vma->anon_vma, mapping, index);
+--- linux-mm.orig/mm/memory_hotplug.c	2009-12-11 10:01:25.000000000 +0800
++++ linux-mm/mm/memory_hotplug.c	2009-12-14 19:21:22.000000000 +0800
+@@ -678,9 +678,9 @@ do_migrate_range(unsigned long start_pfn
+ 			if (page_count(page))
+ 				not_managed++;
+ #ifdef CONFIG_DEBUG_VM
+-			printk(KERN_INFO "removing from LRU failed"
+-					 " %lx/%d/%lx\n",
+-				pfn, page_count(page), page->flags);
++			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
++			       pfn);
++			dump_page(page);
+ #endif
+ 		}
+ 	}
+--- linux-mm.orig/include/linux/mm.h	2009-12-11 10:01:25.000000000 +0800
++++ linux-mm/include/linux/mm.h	2009-12-14 19:21:22.000000000 +0800
+@@ -1328,5 +1328,7 @@ extern void shake_page(struct page *p, i
+ extern atomic_long_t mce_bad_pages;
+ extern int soft_offline_page(struct page *page, int flags);
+ 
++extern void dump_page(struct page *page);
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
