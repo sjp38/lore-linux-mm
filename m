@@ -1,46 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BA3F66B0047
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 00:12:45 -0500 (EST)
-Date: Fri, 18 Dec 2009 06:12:10 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 785DC6B0044
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 00:18:07 -0500 (EST)
+Date: Fri, 18 Dec 2009 06:17:54 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
-Message-ID: <20091218051210.GA417@elte.hu>
-References: <patchbomb.1261076403@v2.random>
- <alpine.DEB.2.00.0912171352330.4640@router.home>
- <4B2A8D83.30305@redhat.com>
- <alpine.DEB.2.00.0912171402550.4640@router.home>
+Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
+Message-ID: <20091218051754.GC417@elte.hu>
+References: <20091217084046.GA9804@basil.fritz.box>
+ <1261039534.27920.67.camel@laptop>
+ <20091217085430.GG9804@basil.fritz.box>
+ <20091217144551.GA6819@linux.vnet.ibm.com>
+ <20091217175338.GL9804@basil.fritz.box>
+ <20091217190804.GB6788@linux.vnet.ibm.com>
+ <20091217195530.GM9804@basil.fritz.box>
+ <alpine.DEB.2.00.0912171356020.4640@router.home>
+ <1261080855.27920.807.camel@laptop>
+ <alpine.DEB.2.00.0912171439380.4640@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0912171402550.4640@router.home>
+In-Reply-To: <alpine.DEB.2.00.0912171439380.4640@router.home>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andi Kleen <andi@firstfloor.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
 
 * Christoph Lameter <cl@linux-foundation.org> wrote:
 
-> On Thu, 17 Dec 2009, Rik van Riel wrote:
+> On Thu, 17 Dec 2009, Peter Zijlstra wrote:
 > 
-> > I believe it will be more useful if we figure out a way forward together.  
-> > Do you have any ideas on how to solve the hugepage swapping problem?
+> > > That is why I think that the accessors are a good first step.
+> >
+> > They're not, they're daft, they operate on a global resource mm_struct, 
+> > that's the whole problem, giving it a different name isn't going to solve 
+> > anything.
 > 
-> Frankly I am not sure that there is a problem. The word swap is mostly 
-> synonymous with "problem". Huge pages are good. I dont think one needs to 
-> necessarily associate something good (huge page) with a known problem (swap) 
-> otherwise the whole may not improve.
+> It is not about naming. The accessors hide the locking mechanism for 
+> mmap_sem. Then you can change the locking in a central place.
+> 
+> The locking may even become configurable later. Maybe an embedded solution 
+> will want the existing scheme but dual quad socket may want a distributed 
+> reference counter to avoid bouncing cachelines on faults.
 
-Swapping in the VM is 'reality', not some fringe feature. Almost every big 
-enterprise shop cares about it.
-
-Note that it became more relevant in the past few years due to the arrival of 
-low-latency, lots-of-iops and cheap SSDs. Even on a low end server you can buy 
-a good 160 GB SSD for emergency swap with fantastic latency and for a lot less 
-money than 160 GB of real RAM. (which RAM wont even fit physically on typical 
-mainboards, is much more expensive and uses up more power and is less 
-servicable)
+Hiding the locking is pretty much the worst design decision one can make.
 
 	Ingo
 
