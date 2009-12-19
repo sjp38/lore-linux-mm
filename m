@@ -1,62 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 476186B0044
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 10:21:14 -0500 (EST)
-Date: Sat, 19 Dec 2009 16:20:30 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 646676B0044
+	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 10:28:23 -0500 (EST)
+Date: Sat, 19 Dec 2009 16:27:48 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
-Message-ID: <20091219152030.GX29790@random.random>
+Subject: Re: [PATCH 10 of 28] add pmd mangling functions to x86
+Message-ID: <20091219152748.GY29790@random.random>
 References: <patchbomb.1261076403@v2.random>
- <1261162049.27372.1649.camel@nimitz>
+ <a77787d44f25abf69338.1261076413@v2.random>
+ <20091218185602.GD21194@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1261162049.27372.1649.camel@nimitz>
+In-Reply-To: <20091218185602.GD21194@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 18, 2009 at 10:47:29AM -0800, Dave Hansen wrote:
-> For what it's worth, I went trying to do some of this a few months ago
-> to see how feasible it was.  I ended up doing a bunch of the same stuff
-> like having the preallocated pte_page() hanging off the mm.  I think I
-> tied directly into the pte_offset_*() functions instead of introducing
-> new ones, but the concept was the same: as much as possible *don't*
-> teach the VM about huge pages, split them.
+On Fri, Dec 18, 2009 at 06:56:02PM +0000, Mel Gorman wrote:
+> (As a side-note, I am going off-line until after the new years fairly soon.
+> I'm not doing a proper review at the moment, just taking a first read to
+> see what's here. Sorry I didn't get a chance to read V1)
 
-Obviously I agree ;). At the same time I also agree with Christoph
-about the long term: in the future we want more and more code paths to
-be hugepage aware, and even swap in 2M chunks but I think those things
-should happen incrementally over time, just like the kernel didn't
-become multithreaded overnight. And if one uses "echo madvise
->enabled" one can already make sure 99% to never run into
-split_huge_page (actually 100% sure after swapoff -a), so this greatly
-simplified approach already provides 100% of the benefit for example
-to KVM hypervisor, where NTP/EPT definitely require hugepages. On host
-hugepages are a significant but not so mandatory improvement and in
-turn only very few apps get through the pain of using hugetlbfs API or
-libhugetlbfs, but NPT/EPT explodes the benefit and makes it a
-requirement to use _always_ and to make sure all guest physical pages
-are mapped with NPT/EPT pmds.
+Not reading v1 means less wasted time for you, as I did lot of
+polishing as result of the previous reviews, so no problem ;).
 
-> I ended up getting hung up on some of the PMD locking, and I think using
-> the PMD bit like that is a fine solution.  The way these are split up
-> also looks good to me.
+> On Thu, Dec 17, 2009 at 07:00:13PM -0000, Andrea Arcangeli wrote:
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > Add needed pmd mangling functions with simmetry with their pte counterparts.
+> 
+> Silly question, this assumes the bits used in the PTE are not being used in
+> the PMD for something else, right? Is that guaranteed to be safe? According
+> to the AMD manual, it's fine but is it typically true on other architectures?
 
-Yep, please review if it's ok the page remains mapped in userland
-during the split (see __split_huge_page_splitting). In previous
-patchset I cleared the present bit in the pmd (which provided the same
-information as no pmd could ever be not present and not null
-before). But that stopped userland accesses as well during the split,
-which Avi said is not required and I agreed.
+I welcome people to double check with intel/amd manuals, but it's not
+like I added those functions blindly hoping they would work ;),
+luckily there's no intel/amd difference here because this stuff even
+works on 32bit dinosaurs since PSE was added.
 
-> Except for some of the stuff in put_compound_page(), these look pretty
-> sane to me in general.  I'll go through them in more detail after the
-> holidays.
+> > diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+> > --- a/arch/x86/mm/pgtable.c
+> > +++ b/arch/x86/mm/pgtable.c
+> > @@ -288,6 +288,23 @@ int ptep_set_access_flags(struct vm_area
+> >  	return changed;
+> >  }
+> >  
+> > +int pmdp_set_access_flags(struct vm_area_struct *vma,
+> > +			  unsigned long address, pmd_t *pmdp,
+> > +			  pmd_t entry, int dirty)
+> > +{
+> > +	int changed = !pmd_same(*pmdp, entry);
+> > +
+> > +	VM_BUG_ON(address & ~HPAGE_MASK);
+> > +
+> 
+> On the use of HPAGE_MASK, did you intend to use the PMD mask? Granted,
+> it works out as being the same thing in this context but if there is
+> ever support for 1GB pages at the next page table level, it could get
+> confusing.
 
-Thanks a lot!!
-Andrea
+That's a very good question but it's not about the above only. I've
+always been undecided if to use HPAGE_MASK or the pmd mask. I've no
+clue what is better. I think as long as I use HPAGE_MASK all over
+huge_memory.c this also should be an HPAGE_MASK. If we were to support
+more levels (something not feasible with 1G as the whole point of this
+feature is to be transparent and transparently 1G pages will never
+come, even 2M is hard) I would expect all those HPAGE_MASK to be
+replaced by something else.
+
+If people thinks I should drop HPAGE_MASK as a whole and replace it
+with PMD based masks let me know.. doing it only above and leave
+HPAGE_MASK elsewhere is no-way IMHO. Personally I find more intuitive
+HPAGE_MASK but it clearly matches the pmd mask as it gets mapped by a
+pmd entry ;).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
