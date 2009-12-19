@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E91B06B0044
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 22:43:38 -0500 (EST)
-Received: by yxe10 with SMTP id 10so3551553yxe.12
-        for <linux-mm@kvack.org>; Fri, 18 Dec 2009 19:43:37 -0800 (PST)
-Message-ID: <4B2C4BE3.3030104@gmail.com>
-Date: Sat, 19 Dec 2009 12:43:31 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4D55D6B0044
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 22:56:03 -0500 (EST)
+Received: by yxe10 with SMTP id 10so3555964yxe.12
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2009 19:56:01 -0800 (PST)
+Message-ID: <4B2C4EC9.9040101@gmail.com>
+Date: Sat, 19 Dec 2009 12:55:53 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 3/4] lockless vma caching
-References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>	<20091216101107.GA15031@basil.fritz.box>	<20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>	<20091216102806.GC15031@basil.fritz.box>	<28c262360912160231r18db8478sf41349362360cab8@mail.gmail.com>	<20091216193315.14a508d5.kamezawa.hiroyu@jp.fujitsu.com>	<20091218093849.8ba69ad9.kamezawa.hiroyu@jp.fujitsu.com> <20091218094513.490f27b4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091218094513.490f27b4.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC 4/4] speculative pag fault
+References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>	<20091216101107.GA15031@basil.fritz.box>	<20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>	<20091216102806.GC15031@basil.fritz.box>	<28c262360912160231r18db8478sf41349362360cab8@mail.gmail.com>	<20091216193315.14a508d5.kamezawa.hiroyu@jp.fujitsu.com>	<20091218093849.8ba69ad9.kamezawa.hiroyu@jp.fujitsu.com> <20091218094602.3dcd5a02.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091218094602.3dcd5a02.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -21,161 +21,107 @@ List-ID: <linux-mm.kvack.org>
 
 
 KAMEZAWA Hiroyuki wrote:
-> For accessing vma in lockless style, some modification for vma lookup is
-> required. Now, rb-tree is used and it doesn't allow read while modification.
-> 
-> This is a trial to caching vma rather than diving into rb-tree. The last
-> fault vma is cached to pgd's page->cached_vma field. And, add reference count
-> and waitqueue to vma.
-> 
-> The accessor will have to do
-> 
-> 	vma = lookup_vma_cache(mm, address);
-> 	if (vma) {
-> 		if (mm_check_version(mm) && /* no write lock at this point ? */
-> 		    (vma->vm_start <= address) && (vma->vm_end > address))
-> 			goto found_vma; /* start speculative job */
-> 		else
-> 			vma_release_cache(vma);
-> 		vma = NULL;
-> 	}
-> 	vma = find_vma();
-> found_vma:
-> 	....do some jobs....
-> 	vma_release_cache(vma);
-> 
-> Maybe some more consideration for invalidation point is necessary.
+> Lookup vma in lockless style, do page fault, and check mm's version
+> after takine page table lock. If racy, mm's version is invalid .
+> Then, retry page fault.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > ---
->  include/linux/mm.h       |   20 +++++++++
->  include/linux/mm_types.h |    5 ++
->  mm/memory.c              |   14 ++++++
->  mm/mmap.c                |  102 +++++++++++++++++++++++++++++++++++++++++++++--
->  mm/page_alloc.c          |    1 
->  5 files changed, 138 insertions(+), 4 deletions(-)
+>  arch/x86/mm/fault.c |   28 +++++++++++++++++++++++++---
+>  mm/memory.c         |   21 ++++++++++++++-------
+>  2 files changed, 39 insertions(+), 10 deletions(-)
 > 
-> Index: mmotm-mm-accessor/include/linux/mm.h
+> Index: mmotm-mm-accessor/arch/x86/mm/fault.c
 > ===================================================================
-> --- mmotm-mm-accessor.orig/include/linux/mm.h
-> +++ mmotm-mm-accessor/include/linux/mm.h
-> @@ -763,6 +763,26 @@ unsigned long unmap_vmas(struct mmu_gath
->  		unsigned long end_addr, unsigned long *nr_accounted,
->  		struct zap_details *);
+> --- mmotm-mm-accessor.orig/arch/x86/mm/fault.c
+> +++ mmotm-mm-accessor/arch/x86/mm/fault.c
+> @@ -11,6 +11,7 @@
+>  #include <linux/kprobes.h>		/* __kprobes, ...		*/
+>  #include <linux/mmiotrace.h>		/* kmmio_handler, ...		*/
+>  #include <linux/perf_event.h>		/* perf_sw_event		*/
+> +#include <linux/hugetlb.h>		/* is_vm_hugetlb...*/
+
+De we need this header file?
+
 >  
-> +struct vm_area_struct *lookup_vma_cache(struct mm_struct *mm,
-> +		unsigned long address);
-> +void invalidate_vma_cache(struct mm_struct *mm,
-> +		struct vm_area_struct *vma);
-> +void wait_vmas_cache_range(struct vm_area_struct *vma, unsigned long end);
-> +
-> +static inline void vma_hold(struct vm_area_struct *vma)
-Nitpick:
-How about static inline void vma_cache_[get/put] naming?
-
-> +{
-> +	atomic_inc(&vma->cache_access);
-> +}
-> +
-> +void __vma_release(struct vm_area_struct *vma);
-> +static inline void vma_release(struct vm_area_struct *vma)
-> +{
-> +	if (atomic_dec_and_test(&vma->cache_access)) {
-> +		if (waitqueue_active(&vma->cache_wait))
-> +			__vma_release(vma);
-> +	}
-> +}
-> +
->  /**
->   * mm_walk - callbacks for walk_page_range
->   * @pgd_entry: if set, called for each non-empty PGD (top-level) entry
-> Index: mmotm-mm-accessor/include/linux/mm_types.h
-> ===================================================================
-> --- mmotm-mm-accessor.orig/include/linux/mm_types.h
-> +++ mmotm-mm-accessor/include/linux/mm_types.h
-> @@ -12,6 +12,7 @@
->  #include <linux/completion.h>
->  #include <linux/cpumask.h>
->  #include <linux/page-debug-flags.h>
-> +#include <linux/wait.h>
->  #include <asm/page.h>
->  #include <asm/mmu.h>
+>  #include <asm/traps.h>			/* dotraplinkage, ...		*/
+>  #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
+> @@ -952,6 +953,7 @@ do_page_fault(struct pt_regs *regs, unsi
+>  	struct mm_struct *mm;
+>  	int write;
+>  	int fault;
+> +	int speculative;
 >  
-> @@ -77,6 +78,7 @@ struct page {
->  	union {
->  		pgoff_t index;		/* Our offset within mapping. */
->  		void *freelist;		/* SLUB: freelist req. slab lock */
-> +		void *cache;
-
-Let's add annotation "/* vm_area_struct cache when the page is used as page table */".
-
-
->  	};
->  	struct list_head lru;		/* Pageout list, eg. active_list
->  					 * protected by zone->lru_lock !
-> @@ -180,6 +182,9 @@ struct vm_area_struct {
->  	void * vm_private_data;		/* was vm_pte (shared mem) */
->  	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
->  
-> +	atomic_t cache_access;
-> +	wait_queue_head_t cache_wait;
-> +
->  #ifndef CONFIG_MMU
->  	struct vm_region *vm_region;	/* NOMMU mapping region */
->  #endif
-> Index: mmotm-mm-accessor/mm/memory.c
-> ===================================================================
-> --- mmotm-mm-accessor.orig/mm/memory.c
-> +++ mmotm-mm-accessor/mm/memory.c
-> @@ -145,6 +145,14 @@ void pmd_clear_bad(pmd_t *pmd)
->  	pmd_clear(pmd);
->  }
->  
-
-Let's put the note here. "The caller needs to hold the pte lock"
-
-> +static void update_vma_cache(pmd_t *pmd, struct vm_area_struct *vma)
-> +{
-> +	struct page *page;
-> +	/* ptelock is held */
-> +	page = pmd_page(*pmd);
-> +	page->cache = vma;
-> +}
-> +
->  /*
->   * Note: this doesn't free the actual pages themselves. That
->   * has been handled earlier when unmapping all the memory regions.
-> @@ -2118,6 +2126,7 @@ reuse:
->  		if (ptep_set_access_flags(vma, address, page_table, entry,1))
->  			update_mmu_cache(vma, address, entry);
->  		ret |= VM_FAULT_WRITE;
-> +		update_vma_cache(pmd, vma);
->  		goto unlock;
+>  	tsk = current;
+>  	mm = tsk->mm;
+> @@ -1040,6 +1042,17 @@ do_page_fault(struct pt_regs *regs, unsi
+>  		return;
 >  	}
 >  
-..
-<snip>
-..
-
-> Index: mmotm-mm-accessor/mm/page_alloc.c
-> ===================================================================
-> --- mmotm-mm-accessor.orig/mm/page_alloc.c
-> +++ mmotm-mm-accessor/mm/page_alloc.c
-> @@ -698,6 +698,7 @@ static int prep_new_page(struct page *pa
+> +	if ((error_code & PF_USER) && mm_version_check(mm)) {
+> +		vma = lookup_vma_cache(mm, address);
+> +		if (vma && mm_version_check(mm) &&
+> +		   (vma->vm_start <= address) && (address < vma->vm_end)) {
+> +			speculative = 1;
+> +			goto found_vma;
+> +		}
+> +		if (vma)
+> +			vma_release(vma);
+> +	}
+> +
+>  	/*
+>  	 * When running in the kernel we expect faults to occur only to
+>  	 * addresses in user space.  All other faults represent errors in
+> @@ -1056,6 +1069,8 @@ do_page_fault(struct pt_regs *regs, unsi
+>  	 * validate the source. If this is invalid we can skip the address
+>  	 * space check, thus avoiding the deadlock:
+>  	 */
+> +retry_with_lock:
+> +	speculative = 0;
+>  	if (unlikely(!mm_read_trylock(mm))) {
+>  		if ((error_code & PF_USER) == 0 &&
+>  		    !search_exception_tables(regs->ip)) {
+> @@ -1073,6 +1088,7 @@ do_page_fault(struct pt_regs *regs, unsi
+>  	}
 >  
->  	set_page_private(page, 0);
->  	set_page_refcounted(page);
-> +	page->cache = NULL;
-
-Is here is proper place to initialize page->cache?
-It cause unnecessary overhead about not pmd page.
-
-How about pmd_alloc?
-
+>  	vma = find_vma(mm, address);
+> +found_vma:
+>  	if (unlikely(!vma)) {
+>  		bad_area(regs, error_code, address);
+>  		return;
+> @@ -1119,6 +1135,7 @@ good_area:
+>  	 */
+>  	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
 >  
->  	arch_alloc_page(page, order);
->  	kernel_map_pages(page, 1 << order, 1);
-> 
+> +
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+>  		mm_fault_error(regs, error_code, address, fault);
+>  		return;
+> @@ -1128,13 +1145,18 @@ good_area:
+>  		tsk->maj_flt++;
+>  		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+>  				     regs, address);
+> -	} else {
+> +	} else if (!speculative || mm_version_check(mm)) {
+
+How about define VM_FAULT_FAIL_SPECULATIVE_VMACACHE 
+although mm guys don't like new VM_FAULT_XXX?
+
+It would remove double check of mm_version_check. :)
+
+It's another topic. 
+How about counting failure of speculative easily and expose it in perf or statm.
+During we can step into mainline, it helps our test case is good, I think.
+
+>  		tsk->min_flt++;
+>  		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+>  				     regs, address);
+> +	} else {
+> +		vma_release(vma);
+> +		goto retry_with_lock;
+>  	}
+>  
+>  	check_v8086_mode(regs, address, tsk);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
