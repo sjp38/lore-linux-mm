@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 934796B0044
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 01:37:46 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBJ6bhIF026453
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0335F6B0047
+	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 01:44:18 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBJ6iFYF014410
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 19 Dec 2009 15:37:43 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2058145DE50
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 15:37:43 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0303045DE4E
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 15:37:43 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DD0B91DB803F
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 15:37:42 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D4811DB8037
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 15:37:42 +0900 (JST)
-Message-ID: <d68104c17771d2a52c59efc6ef8d5bc9.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <4B2C4727.1010302@gmail.com>
+	Sat, 19 Dec 2009 15:44:16 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A9E1C45DE4F
+	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 15:44:15 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8935045DE4E
+	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 15:44:15 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E3101DB803B
+	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 15:44:15 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 181151DB803C
+	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 15:44:12 +0900 (JST)
+Message-ID: <b4bc03c186ec13918aed7421ced4aea7.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <4B2C4BE3.3030104@gmail.com>
 References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
     <20091216101107.GA15031@basil.fritz.box>
     <20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>
@@ -27,10 +27,10 @@ References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>
     <28c262360912160231r18db8478sf41349362360cab8@mail.gmail.com>
     <20091216193315.14a508d5.kamezawa.hiroyu@jp.fujitsu.com>
     <20091218093849.8ba69ad9.kamezawa.hiroyu@jp.fujitsu.com>
-    <20091218094336.cb479a36.kamezawa.hiroyu@jp.fujitsu.com>
-    <4B2C4727.1010302@gmail.com>
-Date: Sat, 19 Dec 2009 15:37:41 +0900 (JST)
-Subject: Re: [RFC 2/4] add mm event counter
+    <20091218094513.490f27b4.kamezawa.hiroyu@jp.fujitsu.com>
+    <4B2C4BE3.3030104@gmail.com>
+Date: Sat, 19 Dec 2009 15:44:11 +0900 (JST)
+Subject: Re: [RFC 3/4] lockless vma caching
 From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain;charset=iso-2022-jp
@@ -40,180 +40,181 @@ To: Minchan Kim <minchan.kim@gmail.com>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim
-> Hi, Kame.
+Minchan Kim wrote:
 >
-Hi,
-
+>
 > KAMEZAWA Hiroyuki wrote:
->> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> For accessing vma in lockless style, some modification for vma lookup is
+>> required. Now, rb-tree is used and it doesn't allow read while
+>> modification.
 >>
->> Add version counter to mm_struct. It's updated when
->> write_lock is held and released. And this patch also adds
->> task->mm_version. By this, mm_semaphore can provides some
->> operation like seqlock.
+>> This is a trial to caching vma rather than diving into rb-tree. The last
+>> fault vma is cached to pgd's page->cached_vma field. And, add reference
+>> count
+>> and waitqueue to vma.
+>>
+>> The accessor will have to do
+>>
+>> 	vma = lookup_vma_cache(mm, address);
+>> 	if (vma) {
+>> 		if (mm_check_version(mm) && /* no write lock at this point ? */
+>> 		    (vma->vm_start <= address) && (vma->vm_end > address))
+>> 			goto found_vma; /* start speculative job */
+>> 		else
+>> 			vma_release_cache(vma);
+>> 		vma = NULL;
+>> 	}
+>> 	vma = find_vma();
+>> found_vma:
+>> 	....do some jobs....
+>> 	vma_release_cache(vma);
+>>
+>> Maybe some more consideration for invalidation point is necessary.
 >>
 >> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 >> ---
->>  include/linux/mm_types.h |    1 +
->>  include/linux/sched.h    |    2 +-
->>  mm/mm_accessor.c         |   29 ++++++++++++++++++++++++++---
->>  3 files changed, 28 insertions(+), 4 deletions(-)
+>>  include/linux/mm.h       |   20 +++++++++
+>>  include/linux/mm_types.h |    5 ++
+>>  mm/memory.c              |   14 ++++++
+>>  mm/mmap.c                |  102
+>> +++++++++++++++++++++++++++++++++++++++++++++--
+>>  mm/page_alloc.c          |    1
+>>  5 files changed, 138 insertions(+), 4 deletions(-)
 >>
+>> Index: mmotm-mm-accessor/include/linux/mm.h
+>> ===================================================================
+>> --- mmotm-mm-accessor.orig/include/linux/mm.h
+>> +++ mmotm-mm-accessor/include/linux/mm.h
+>> @@ -763,6 +763,26 @@ unsigned long unmap_vmas(struct mmu_gath
+>>  		unsigned long end_addr, unsigned long *nr_accounted,
+>>  		struct zap_details *);
+>>
+>> +struct vm_area_struct *lookup_vma_cache(struct mm_struct *mm,
+>> +		unsigned long address);
+>> +void invalidate_vma_cache(struct mm_struct *mm,
+>> +		struct vm_area_struct *vma);
+>> +void wait_vmas_cache_range(struct vm_area_struct *vma, unsigned long
+>> end);
+>> +
+>> +static inline void vma_hold(struct vm_area_struct *vma)
+> Nitpick:
+> How about static inline void vma_cache_[get/put] naming?
+>
+Hmm. yes, put/get is popular name for this kind of counters.
+Why I don't use put/get name is that this counter's purpose is
+for helping cache. So, I avoided popular name.
+I may change my mind in the next version ;)
+
+>> +{
+>> +	atomic_inc(&vma->cache_access);
+>> +}
+>> +
+>> +void __vma_release(struct vm_area_struct *vma);
+>> +static inline void vma_release(struct vm_area_struct *vma)
+>> +{
+>> +	if (atomic_dec_and_test(&vma->cache_access)) {
+>> +		if (waitqueue_active(&vma->cache_wait))
+>> +			__vma_release(vma);
+>> +	}
+>> +}
+>> +
+>>  /**
+>>   * mm_walk - callbacks for walk_page_range
+>>   * @pgd_entry: if set, called for each non-empty PGD (top-level) entry
 >> Index: mmotm-mm-accessor/include/linux/mm_types.h
 >> ===================================================================
 >> --- mmotm-mm-accessor.orig/include/linux/mm_types.h
 >> +++ mmotm-mm-accessor/include/linux/mm_types.h
->> @@ -216,6 +216,7 @@ struct mm_struct {
->>  	atomic_t mm_count;			/* How many references to "struct mm_struct"
->> (users count as 1) */
->>  	int map_count;				/* number of VMAs */
->>  	struct rw_semaphore mmap_sem;
+>> @@ -12,6 +12,7 @@
+>>  #include <linux/completion.h>
+>>  #include <linux/cpumask.h>
+>>  #include <linux/page-debug-flags.h>
+>> +#include <linux/wait.h>
+>>  #include <asm/page.h>
+>>  #include <asm/mmu.h>
+>>
+>> @@ -77,6 +78,7 @@ struct page {
+>>  	union {
+>>  		pgoff_t index;		/* Our offset within mapping. */
+>>  		void *freelist;		/* SLUB: freelist req. slab lock */
+>> +		void *cache;
 >
-> How about ?
+> Let's add annotation "/* vm_area_struct cache when the page is used as
+> page table */".
 >
-> struct map_sem {
-> 	struct rw_semaphore;
-> #ifdef CONFIG_PER_THREAD_VMACACHE
-> 	int version;
-> #endif
-> };
->
-> struct mm_struct {
-> 	...
-> 	struct map_sem mmap_sem
-> 	...
-> };
->
-> void mm_read_lock(struct mem_sem *mmap_sem)
-> {
-> 	down_read(mmap_sem);
-> #ifdef CONFIG_PER_THREAD_VMACACHE
-> 	if (current->mm_version != mmap_sem->version)
-> 		current->mm_version = mmap_sem->version;
-> #endif
-> }
->
-> We know many place(ex, page fault patch) are matched (current->mm == mm).
-> Let's compare it just case of get_user_pages and few cases before calling
-> mm_xxx_lock.
->
-Yes, your idea is reasonable.
+ok.
 
-> Why I suggest above is that i don't want regression about single thread
-> app.
-> (Of course. you use the cache hit well but we can't ignore compare and
-> one cache line invalidation by store).
 >
-> If we can configure CONFIG_PER_THREAD_VMACACHE, we can prevent it.
+>>  	};
+>>  	struct list_head lru;		/* Pageout list, eg. active_list
+>>  					 * protected by zone->lru_lock !
+>> @@ -180,6 +182,9 @@ struct vm_area_struct {
+>>  	void * vm_private_data;		/* was vm_pte (shared mem) */
+>>  	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
+>>
+>> +	atomic_t cache_access;
+>> +	wait_queue_head_t cache_wait;
+>> +
+>>  #ifndef CONFIG_MMU
+>>  	struct vm_region *vm_region;	/* NOMMU mapping region */
+>>  #endif
+>> Index: mmotm-mm-accessor/mm/memory.c
+>> ===================================================================
+>> --- mmotm-mm-accessor.orig/mm/memory.c
+>> +++ mmotm-mm-accessor/mm/memory.c
+>> @@ -145,6 +145,14 @@ void pmd_clear_bad(pmd_t *pmd)
+>>  	pmd_clear(pmd);
+>>  }
+>>
+>
+> Let's put the note here. "The caller needs to hold the pte lock"
 >
 Sure.
 
-> As a matter of fact, I want to control speculative page fault and older in
-> runtime.
-> For example, if any process starts to have many threads, VM turns on
-> speculative about
-> the process. But It's not easy to determine the threshold
-> (ex, the number of thread >> NR_CPU  .
->
-> I think mm_accessor patch is valuable as above.
->
-> 1. It doesn't hide lock instance.
-> 2. It can be configurable.
-> 3. code is more simple.
->
-> If you can do it well without mm_accessor, I don't mind it.
->
-> I think this is a good start point.
->
-ok. As an additional information, I tried some benchmarks as
-kernel make, sysbench, java grande, .... etc. But no difference
-before after patches. So, this patch's effect is very limited to
-some special application's special case.
-Then, I'd like to start from CONFIG_SPECULATIVE_PAGE_FAULT.
-And I should add CONFIG_SPLIT_PTLOCK rather than #define USE_SPLIT_PTLOCK
-for making configurable.
-
-
->> +	int version;
->>  	spinlock_t page_table_lock;		/* Protects page tables and some counters
->> */
->>
->>  	struct list_head mmlist;		/* List of maybe swapped mm's.	These are
->> globally strung
-
->>  void mm_write_unlock(struct mm_struct *mm)
->>  {
->> +	mm->version++;
->>  	up_write(&mm->mmap_sem);
->
-> Don't we need to increase version in unlock case?
->
-This is for quick check. As seq_lock, the reader can know mm is
-write-locked by checking
-   mm->versio & 0x1.
-In this patch, current->mm_version is always even number.
-(But this attribute is not used in later patch ;)
-
-
-
->>  }
->>  EXPORT_SYMBOL(mm_write_unlock);
->>
->>  int mm_write_trylock(struct mm_struct *mm)
->>  {
->> -	return down_write_trylock(&mm->mmap_sem);
->> +	int ret = down_write_trylock(&mm->mmap_sem);
->> +
->> +	if (ret)
->> +		mm->version++;
->> +	return ret;
->>  }
->>  EXPORT_SYMBOL(mm_write_trylock);
->>
->> @@ -45,6 +56,7 @@ EXPORT_SYMBOL(mm_is_locked);
->>
->>  void mm_write_to_read_lock(struct mm_struct *mm)
->>  {
->> +	mm->version++;
->>  	downgrade_write(&mm->mmap_sem);
->>  }
->>  EXPORT_SYMBOL(mm_write_to_read_lock);
->> @@ -78,3 +90,14 @@ void mm_read_might_lock(struct mm_struct
->>  	might_lock_read(&mm->mmap_sem);
->>  }
->>  EXPORT_SYMBOL(mm_read_might_lock);
->> +
->> +/*
->> + * Called when mm is accessed without read-lock or for chekcing
-> 							  ^^^^^^^^
-> 							  checking :)
-yes.
-
->> + * per-thread cached value is stale or not.
->> + */
->> +int mm_version_check(struct mm_struct *mm)
-> Nitpick:
->
-> How about "int vma_cache_stale(struct mm_struct *mm)"?
->
+>> +static void update_vma_cache(pmd_t *pmd, struct vm_area_struct *vma)
 >> +{
->> +	if ((current->mm == mm) && (current->mm_version != mm->version))
->> +		return 0;
->> +	return 1;
+>> +	struct page *page;
+>> +	/* ptelock is held */
+>> +	page = pmd_page(*pmd);
+>> +	page->cache = vma;
 >> +}
+>> +
+>>  /*
+>>   * Note: this doesn't free the actual pages themselves. That
+>>   * has been handled earlier when unmapping all the memory regions.
+>> @@ -2118,6 +2126,7 @@ reuse:
+>>  		if (ptep_set_access_flags(vma, address, page_table, entry,1))
+>>  			update_mmu_cache(vma, address, entry);
+>>  		ret |= VM_FAULT_WRITE;
+>> +		update_vma_cache(pmd, vma);
+>>  		goto unlock;
+>>  	}
 >>
+> ..
+> <snip>
+> ..
 >
-yes, if the usage is limited to vma_cache.
+>> Index: mmotm-mm-accessor/mm/page_alloc.c
+>> ===================================================================
+>> --- mmotm-mm-accessor.orig/mm/page_alloc.c
+>> +++ mmotm-mm-accessor/mm/page_alloc.c
+>> @@ -698,6 +698,7 @@ static int prep_new_page(struct page *pa
+>>
+>>  	set_page_private(page, 0);
+>>  	set_page_refcounted(page);
+>> +	page->cache = NULL;
+>
+> Is here is proper place to initialize page->cache?
+> It cause unnecessary overhead about not pmd page.
+>
+> How about pmd_alloc?
+>
+The macro pmd_xxx was complicated and scattered over headers,
+so I clear it here.
+But yes, you're right. I'll do so when I write a patch, not-for-trial.
 
-I'd like to add vma->vma_version instead of mm->version for avoiding
-mm_accessor. Maybe I can do it...Anyway, thank you for good inputs.
-
-Regards,
+Thanks,
 -Kame
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
