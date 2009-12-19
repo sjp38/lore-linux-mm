@@ -1,82 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 66CC36B0044
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 10:10:25 -0500 (EST)
-Date: Sat, 19 Dec 2009 16:09:16 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 476186B0044
+	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 10:21:14 -0500 (EST)
+Date: Sat, 19 Dec 2009 16:20:30 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH 00 of 28] Transparent Hugepage support #2
-Message-ID: <20091219150916.GW29790@random.random>
+Message-ID: <20091219152030.GX29790@random.random>
 References: <patchbomb.1261076403@v2.random>
- <alpine.DEB.2.00.0912171352330.4640@router.home>
- <4B2A8D83.30305@redhat.com>
- <alpine.DEB.2.00.0912171402550.4640@router.home>
- <20091218140530.GE29790@random.random>
- <alpine.DEB.2.00.0912181229580.26947@router.home>
+ <1261162049.27372.1649.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0912181229580.26947@router.home>
+In-Reply-To: <1261162049.27372.1649.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 18, 2009 at 12:33:36PM -0600, Christoph Lameter wrote:
-> On Fri, 18 Dec 2009, Andrea Arcangeli wrote:
-> 
-> > On Thu, Dec 17, 2009 at 02:09:47PM -0600, Christoph Lameter wrote:
-> > > Can we do this step by step? This splitting thing and its
-> > > associated overhead causes me concerns.
-> >
-> > The split_huge_page* functionality whole point is exactly to do things
-> > step by step. Removing it would mean doing it all at once.
-> 
-> The split huge page thing involved introducing new refcounting and locking
-> features into the VM. Not a first step thing. And certainly difficult to
-> verify if it is correct.
+On Fri, Dec 18, 2009 at 10:47:29AM -0800, Dave Hansen wrote:
+> For what it's worth, I went trying to do some of this a few months ago
+> to see how feasible it was.  I ended up doing a bunch of the same stuff
+> like having the preallocated pte_page() hanging off the mm.  I think I
+> tied directly into the pte_offset_*() functions instead of introducing
+> new ones, but the concept was the same: as much as possible *don't*
+> teach the VM about huge pages, split them.
 
-I can explain how it works no problem. I already did with Marcelo who
-also audited my change to put_page.
+Obviously I agree ;). At the same time I also agree with Christoph
+about the long term: in the future we want more and more code paths to
+be hugepage aware, and even swap in 2M chunks but I think those things
+should happen incrementally over time, just like the kernel didn't
+become multithreaded overnight. And if one uses "echo madvise
+>enabled" one can already make sure 99% to never run into
+split_huge_page (actually 100% sure after swapoff -a), so this greatly
+simplified approach already provides 100% of the benefit for example
+to KVM hypervisor, where NTP/EPT definitely require hugepages. On host
+hugepages are a significant but not so mandatory improvement and in
+turn only very few apps get through the pain of using hugetlbfs API or
+libhugetlbfs, but NPT/EPT explodes the benefit and makes it a
+requirement to use _always_ and to make sure all guest physical pages
+are mapped with NPT/EPT pmds.
 
-> > This is like the big kernel lock when SMP initially was
-> > introduced. Surely kernel would have been a little faster if the big
-> > kernel lock was never introduced but over time the split_huge_page can
-> > be removed just like the big kernel lock has been removed. Then the
-> > PG_compound_lock can go away too.
-> 
-> That is a pretty strange comparison. Split huge page is like introducing
-> the split pte lock after removing the bkl. You first want to solve the
-> simpler issues (anon huge) and then see if there is a way to avoid
-> introducing new locking methods.
+> I ended up getting hung up on some of the PMD locking, and I think using
+> the PMD bit like that is a fine solution.  The way these are split up
+> also looks good to me.
 
-I can't get your comparison... The reasoning behind my comparison is
-very simple: we can't put spinlocks everywhere and pretend the kernel
-to become threaded as a whole overnight. But we can put a BKL
-(split_huge_page) that takes care of all not-yet-threaded (hugepage
-aware) code paths that can't be converted overnight (swap, and all the
-rest of mm/*.c) while we start threading file-by-file. First the
-scheduler (malloc/free) and then the rest... Removing split_huge_page
-if needed is simple.
+Yep, please review if it's ok the page remains mapped in userland
+during the split (see __split_huge_page_splitting). In previous
+patchset I cleared the present bit in the pmd (which provided the same
+information as no pmd could ever be not present and not null
+before). But that stopped userland accesses as well during the split,
+which Avi said is not required and I agreed.
 
-> > scalable. In the future mmu notifier users that calls gup will stop
-> > using FOLL_GET and in turn they will stop calling put_page, so
-> > eliminating any need to take the PG_compound_lock in all KVM fast paths.
-> 
-> Maybe do that first then and never introduce the lock in the first place?
+> Except for some of the stuff in put_compound_page(), these look pretty
+> sane to me in general.  I'll go through them in more detail after the
+> holidays.
 
-It's not feasible as I documented in previous emails. Removing
-FOLL_GET surely would remove the need of all refcounting changes in
-put_page for tail pages, and it would remove the need of
-PG_compound_lock, but this only works for gup users that are
-registered into mmu notifier! O_DIRECT will never be able to use mmu
-notifier because it does DMA and we can't interrupt DMA in the middle
-from the mmu notifier invalidate handler.
-
-To say it in another way the only way to remove the PG_compound_lock
-used by put_page _only_ when called on PageTail pages, is to force
-anybody calling gup to be registered into mmu notifier and supporting
-interrupting any access to the physical page returned by gup before
-returning from mmu_notifier_invalidate*.
+Thanks a lot!!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
