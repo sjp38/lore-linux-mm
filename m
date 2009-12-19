@@ -1,86 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4767B6B0044
-	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 18:18:43 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBINIbu7026219
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 19 Dec 2009 08:18:38 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C363345DE4F
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 08:18:37 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A29AB45DE4E
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 08:18:37 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EC791DB803A
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 08:18:37 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 409E81DB8041
-	for <linux-mm@kvack.org>; Sat, 19 Dec 2009 08:18:34 +0900 (JST)
-Message-ID: <339143df87bf5d7afe89b9b2fe8af031.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20091218184504.GA675@elte.hu>
-References: <20091217175338.GL9804@basil.fritz.box>
-    <20091217190804.GB6788@linux.vnet.ibm.com>
-    <20091217195530.GM9804@basil.fritz.box>
-    <alpine.DEB.2.00.0912171356020.4640@router.home>
-    <1261080855.27920.807.camel@laptop>
-    <alpine.DEB.2.00.0912171439380.4640@router.home>
-    <20091218051754.GC417@elte.hu> <4B2BB52A.7050103@redhat.com>
-    <20091218171240.GB1354@elte.hu>
-    <alpine.DEB.2.00.0912181207010.26947@router.home>
-    <20091218184504.GA675@elte.hu>
-Date: Sat, 19 Dec 2009 08:18:33 +0900 (JST)
-Subject: Re: [mm][RFC][PATCH 0/11] mm accessor updates.
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E2F4D6B0044
+	for <linux-mm@kvack.org>; Fri, 18 Dec 2009 22:23:27 -0500 (EST)
+Received: by ywh3 with SMTP id 3so3893887ywh.22
+        for <linux-mm@kvack.org>; Fri, 18 Dec 2009 19:23:26 -0800 (PST)
+Message-ID: <4B2C4727.1010302@gmail.com>
+Date: Sat, 19 Dec 2009 12:23:19 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Subject: Re: [RFC 2/4] add mm event counter
+References: <20091216120011.3eecfe79.kamezawa.hiroyu@jp.fujitsu.com>	<20091216101107.GA15031@basil.fritz.box>	<20091216191312.f4655dac.kamezawa.hiroyu@jp.fujitsu.com>	<20091216102806.GC15031@basil.fritz.box>	<28c262360912160231r18db8478sf41349362360cab8@mail.gmail.com>	<20091216193315.14a508d5.kamezawa.hiroyu@jp.fujitsu.com>	<20091218093849.8ba69ad9.kamezawa.hiroyu@jp.fujitsu.com> <20091218094336.cb479a36.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091218094336.cb479a36.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Avi Kivity <avi@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andi Kleen <andi@firstfloor.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
->
-> * Christoph Lameter <cl@linux-foundation.org> wrote:
->
->> > We've been through this many times in the past within the kernel: many
->> > times when we hid some locking primitive within some clever wrapping
->> > scheme the quality of locking started to deteriorate. In most of the
->> > important cases we got rid of the indirection and went with an
->> existing
->> > core kernel locking primitive which are all well known and have clear
->> > semantics and lead to more maintainable code.
->>
->> The existing locking APIs are all hiding lock details at various levels.
->> We
->> have various specific APIs for specialized locks already Page locking
->> etc.
->
-> You need to loo at the patches. This is simply a step backwards:
->
-> -               up_read(&mm->mmap_sem);
-> +               mm_read_unlock(mm);
->
-> because it hides the lock instance.
->
-After rewriting speculative-page-fault patches, I feel I can do it
-without mm_accessor, by just skipping mmap_sem in fault.c. Then, original
-problem I tried to fix, false sharing at multithread page fault, can be
-fixed without this.
+Hi, Kame. 
 
-Then, I myself stop this.
+KAMEZAWA Hiroyuki wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Add version counter to mm_struct. It's updated when
+> write_lock is held and released. And this patch also adds
+> task->mm_version. By this, mm_semaphore can provides some
+> operation like seqlock.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/mm_types.h |    1 +
+>  include/linux/sched.h    |    2 +-
+>  mm/mm_accessor.c         |   29 ++++++++++++++++++++++++++---
+>  3 files changed, 28 insertions(+), 4 deletions(-)
+> 
+> Index: mmotm-mm-accessor/include/linux/mm_types.h
+> ===================================================================
+> --- mmotm-mm-accessor.orig/include/linux/mm_types.h
+> +++ mmotm-mm-accessor/include/linux/mm_types.h
+> @@ -216,6 +216,7 @@ struct mm_struct {
+>  	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
+>  	int map_count;				/* number of VMAs */
+>  	struct rw_semaphore mmap_sem;
 
-About range-locking of mm_struct, I don't find any good approach.
+How about ?
 
-Sorry for annoying and thank you all.
--Kame
+struct map_sem {
+	struct rw_semaphore;
+#ifdef CONFIG_PER_THREAD_VMACACHE
+	int version;
+#endif
+};
 
+struct mm_struct {
+	...
+	struct map_sem mmap_sem
+	...
+};
 
+void mm_read_lock(struct mem_sem *mmap_sem)
+{
+	down_read(mmap_sem);
+#ifdef CONFIG_PER_THREAD_VMACACHE
+	if (current->mm_version != mmap_sem->version)
+		current->mm_version = mmap_sem->version;
+#endif
+}
 
+We know many place(ex, page fault patch) are matched (current->mm == mm).
+Let's compare it just case of get_user_pages and few cases before calling mm_xxx_lock.
 
+Why I suggest above is that i don't want regression about single thread app.
+(Of course. you use the cache hit well but we can't ignore compare and 
+one cache line invalidation by store).
 
+If we can configure CONFIG_PER_THREAD_VMACACHE, we can prevent it.
+
+As a matter of fact, I want to control speculative page fault and older in runtime.
+For example, if any process starts to have many threads, VM turns on speculative about
+the process. But It's not easy to determine the threshold
+(ex, the number of thread >> NR_CPU  .
+
+I think mm_accessor patch is valuable as above.
+
+1. It doesn't hide lock instance.  
+2. It can be configurable.
+3. code is more simple. 
+
+If you can do it well without mm_accessor, I don't mind it. 
+
+I think this is a good start point.
+
+> +	int version;
+>  	spinlock_t page_table_lock;		/* Protects page tables and some counters */
+>  
+>  	struct list_head mmlist;		/* List of maybe swapped mm's.	These are globally strung
+> Index: mmotm-mm-accessor/include/linux/sched.h
+> ===================================================================
+> --- mmotm-mm-accessor.orig/include/linux/sched.h
+> +++ mmotm-mm-accessor/include/linux/sched.h
+> @@ -1276,7 +1276,7 @@ struct task_struct {
+>  	struct plist_node pushable_tasks;
+>  
+>  	struct mm_struct *mm, *active_mm;
+> -
+> +	int mm_version;
+>  /* task state */
+>  	int exit_state;
+>  	int exit_code, exit_signal;
+> Index: mmotm-mm-accessor/mm/mm_accessor.c
+> ===================================================================
+> --- mmotm-mm-accessor.orig/mm/mm_accessor.c
+> +++ mmotm-mm-accessor/mm/mm_accessor.c
+> @@ -1,15 +1,20 @@
+> -#include <linux/mm_types.h>
+> +#include <linux/sched.h>
+>  #include <linux/module.h>
+>  
+>  void mm_read_lock(struct mm_struct *mm)
+>  {
+>  	down_read(&mm->mmap_sem);
+> +	if (current->mm == mm && current->mm_version != mm->version)
+> +		current->mm_version = mm->version;
+>  }
+>  EXPORT_SYMBOL(mm_read_lock);
+>  
+..
+<snip>
+..
+
+>  void mm_write_unlock(struct mm_struct *mm)
+>  {
+> +	mm->version++;
+>  	up_write(&mm->mmap_sem);
+
+Don't we need to increase version in unlock case?
+
+>  }
+>  EXPORT_SYMBOL(mm_write_unlock);
+>  
+>  int mm_write_trylock(struct mm_struct *mm)
+>  {
+> -	return down_write_trylock(&mm->mmap_sem);
+> +	int ret = down_write_trylock(&mm->mmap_sem);
+> +
+> +	if (ret)
+> +		mm->version++;
+> +	return ret;
+>  }
+>  EXPORT_SYMBOL(mm_write_trylock);
+>  
+> @@ -45,6 +56,7 @@ EXPORT_SYMBOL(mm_is_locked);
+>  
+>  void mm_write_to_read_lock(struct mm_struct *mm)
+>  {
+> +	mm->version++;
+>  	downgrade_write(&mm->mmap_sem);
+>  }
+>  EXPORT_SYMBOL(mm_write_to_read_lock);
+> @@ -78,3 +90,14 @@ void mm_read_might_lock(struct mm_struct
+>  	might_lock_read(&mm->mmap_sem);
+>  }
+>  EXPORT_SYMBOL(mm_read_might_lock);
+> +
+> +/*
+> + * Called when mm is accessed without read-lock or for chekcing
+							  ^^^^^^^^
+							  checking :)
+> + * per-thread cached value is stale or not.
+> + */
+> +int mm_version_check(struct mm_struct *mm)
+Nitpick:
+
+How about "int vma_cache_stale(struct mm_struct *mm)"?
+
+> +{
+> +	if ((current->mm == mm) && (current->mm_version != mm->version))
+> +		return 0;
+> +	return 1;
+> +}
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
