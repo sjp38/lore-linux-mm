@@ -1,122 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 089B36B0044
-	for <linux-mm@kvack.org>; Sun, 20 Dec 2009 06:47:33 -0500 (EST)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.opencsw.org (Postfix) with ESMTP id 0B31A3A6
-	for <linux-mm@kvack.org>; Sun, 20 Dec 2009 12:47:30 +0100 (CET)
-Received: from mail.opencsw.org ([127.0.0.1])
-	by localhost (mail.opencsw.org [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id aFuDEOTWGbui for <linux-mm@kvack.org>;
-	Sun, 20 Dec 2009 12:47:22 +0100 (CET)
-Received: from jashugan.kinali.ch (jashugan.kinali.ch [82.197.186.51])
-	by mail.opencsw.org (Postfix) with SMTP id 2A3663A5
-	for <linux-mm@kvack.org>; Sun, 20 Dec 2009 12:47:22 +0100 (CET)
-Date: Sun, 20 Dec 2009 12:47:21 +0100
-From: Attila Kinali <attila@kinali.ch>
-Subject: page allocation failure - still unfixed in 2.6.32.1
-Message-Id: <20091220124721.006da86a.attila@kinali.ch>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 723816B0044
+	for <linux-mm@kvack.org>; Sun, 20 Dec 2009 06:52:28 -0500 (EST)
+Date: Sun, 20 Dec 2009 12:52:23 +0100 (CET)
+From: Mikael Abrahamsson <swmike@swm.pp.se>
+Subject: Re: page allocation failure - still unfixed in 2.6.32.1
+In-Reply-To: <20091220124721.006da86a.attila@kinali.ch>
+Message-ID: <alpine.DEB.1.10.0912201250310.23464@uplift.swm.pp.se>
+References: <20091220124721.006da86a.attila@kinali.ch>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Attila Kinali <attila@kinali.ch>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Moin,
+On Sun, 20 Dec 2009, Attila Kinali wrote:
 
-The page allocation failure that was introduced in 2.6.31 and
-which has been discussed here a few times, is still present in
-2.6.32.1. I can still (more or less) reproduce it on my home-fileserver:
+> Moin,
+>
+> The page allocation failure that was introduced in 2.6.31 and
+> which has been discussed here a few times, is still present in
+> 2.6.32.1. I can still (more or less) reproduce it on my home-fileserver:
+>
+> Dec 20 11:43:14 koyomi kernel: swapper: page allocation failure. order:3, mode:0x20
+> Dec 20 11:43:14 koyomi kernel: Pid: 0, comm: swapper Not tainted 2.6.32.1 #1
+> Dec 20 11:43:14 koyomi kernel: Call Trace:
 
-Dec 20 11:43:14 koyomi kernel: swapper: page allocation failure. order:3, mode:0x20
-Dec 20 11:43:14 koyomi kernel: Pid: 0, comm: swapper Not tainted 2.6.32.1 #1
-Dec 20 11:43:14 koyomi kernel: Call Trace:
-Dec 20 11:43:14 koyomi kernel:  [<c106581c>] ? __alloc_pages_nodemask+0x49c/0x580
-Dec 20 11:43:14 koyomi kernel:  [<c1288dc8>] ? ipt_do_table+0x238/0x3d0
-Dec 20 11:43:14 koyomi kernel:  [<c1082f7c>] ? cache_alloc_refill+0x2bc/0x510
-Dec 20 11:43:14 koyomi kernel:  [<c10832a9>] ? __kmalloc+0xd9/0xe0
-Dec 20 11:43:14 koyomi kernel:  [<c1213c83>] ? pskb_expand_head+0x53/0x180
-Dec 20 11:43:14 koyomi kernel:  [<c12141cf>] ? __pskb_pull_tail+0x4f/0x300
-Dec 20 11:43:14 koyomi kernel:  [<c122f2d6>] ? nf_iterate+0x76/0x90
-Dec 20 11:43:14 koyomi kernel:  [<c121c061>] ? dev_queue_xmit+0x181/0x500
-Dec 20 11:43:14 koyomi kernel:  [<c122f47f>] ? nf_hook_slow+0x9f/0xe0
-Dec 20 11:43:14 koyomi kernel:  [<c124f930>] ? ip_finish_output+0x0/0x2b0
-Dec 20 11:43:14 koyomi kernel:  [<c124fb27>] ? ip_finish_output+0x1f7/0x2b0
-Dec 20 11:43:14 koyomi kernel:  [<c124eb55>] ? ip_local_out+0x15/0x20
-Dec 20 11:43:14 koyomi kernel:  [<c124f33b>] ? ip_queue_xmit+0x1ab/0x3d0
-Dec 20 11:43:14 koyomi kernel:  [<c128a556>] ? nf_nat_out+0x66/0xf0
-Dec 20 11:43:14 koyomi kernel:  [<c10150d3>] ? smp_reschedule_interrupt+0x13/0x20
-Dec 20 11:43:14 koyomi kernel:  [<c123324c>] ? __nf_ct_refresh_acct+0x5c/0xf0
-Dec 20 11:43:14 koyomi kernel:  [<c12382f9>] ? tcp_packet+0x8c9/0xf00
-Dec 20 11:43:14 koyomi kernel:  [<c1261fa6>] ? tcp_transmit_skb+0x476/0x6d0
-Dec 20 11:43:14 koyomi kernel:  [<c12148b2>] ? __alloc_skb+0x52/0x130
-Dec 20 11:43:14 koyomi kernel:  [<c12640a4>] ? tcp_write_xmit+0x1f4/0x9e0
-Dec 20 11:43:14 koyomi kernel:  [<c12615c3>] ? tcp_current_mss+0x33/0x60
-Dec 20 11:43:14 koyomi kernel:  [<c126490f>] ? __tcp_push_pending_frames+0x2f/0x90
-Dec 20 11:43:14 koyomi kernel:  [<c125fbed>] ? tcp_rcv_established+0x13d/0x8b0
-Dec 20 11:43:14 koyomi kernel:  [<c1267293>] ? tcp_v4_do_rcv+0xc3/0x200
-Dec 20 11:43:14 koyomi kernel:  [<c124a9b0>] ? ip_local_deliver_finish+0x0/0x1c0
-Dec 20 11:43:14 koyomi kernel:  [<c1267a79>] ? tcp_v4_rcv+0x6a9/0x770
-Dec 20 11:43:14 koyomi kernel:  [<c124aa33>] ? ip_local_deliver_finish+0x83/0x1c0
-Dec 20 11:43:14 koyomi kernel:  [<c124a9b0>] ? ip_local_deliver_finish+0x0/0x1c0
-Dec 20 11:43:14 koyomi kernel:  [<c124a4bb>] ? ip_rcv_finish+0x15b/0x360
-Dec 20 11:43:14 koyomi kernel:  [<c124a360>] ? ip_rcv_finish+0x0/0x360
-Dec 20 11:43:14 koyomi kernel:  [<c121af25>] ? netif_receive_skb+0x235/0x2c0
-Dec 20 11:43:14 koyomi kernel:  [<f805cd04>] ? e1000_clean_rx_irq+0x2f4/0x480 [e1000]
-Dec 20 11:43:14 koyomi kernel:  [<f8061a7a>] ? e1000_clean+0x1ea/0x540 [e1000]
-Dec 20 11:43:14 koyomi kernel:  [<c121b61f>] ? net_rx_action+0x8f/0x120
-Dec 20 11:43:14 koyomi kernel:  [<c10304fc>] ? __do_softirq+0x8c/0x110
-Dec 20 11:43:14 koyomi kernel:  [<c10305ad>] ? do_softirq+0x2d/0x40
-Dec 20 11:43:14 koyomi kernel:  [<c1004e70>] ? do_IRQ+0x50/0xc0
-Dec 20 11:43:14 koyomi kernel:  [<c1016166>] ? smp_apic_timer_interrupt+0x56/0x90
-Dec 20 11:43:14 koyomi kernel:  [<c10034f0>] ? common_interrupt+0x30/0x38
-Dec 20 11:43:14 koyomi kernel:  [<c12e007b>] ? cache_open+0x5b/0xd0
-Dec 20 11:43:14 koyomi kernel:  [<c100936a>] ? default_idle+0x4a/0x60
-Dec 20 11:43:14 koyomi kernel:  [<c1001e24>] ? cpu_idle+0x94/0xb0
-Dec 20 11:43:14 koyomi kernel: Mem-Info:
-Dec 20 11:43:14 koyomi kernel: DMA per-cpu:
-Dec 20 11:43:14 koyomi kernel: CPU    0: hi:    0, btch:   1 usd:   0
-Dec 20 11:43:14 koyomi kernel: CPU    1: hi:    0, btch:   1 usd:   0
-Dec 20 11:43:14 koyomi kernel: Normal per-cpu:
-Dec 20 11:43:14 koyomi kernel: CPU    0: hi:  186, btch:  31 usd: 115
-Dec 20 11:43:14 koyomi kernel: CPU    1: hi:  186, btch:  31 usd: 143
-Dec 20 11:43:14 koyomi kernel: HighMem per-cpu:
-Dec 20 11:43:14 koyomi kernel: CPU    0: hi:  186, btch:  31 usd:   9
-Dec 20 11:43:14 koyomi kernel: CPU    1: hi:  186, btch:  31 usd:  27
-Dec 20 11:43:14 koyomi kernel: active_anon:806 inactive_anon:9497 isolated_anon:0
-Dec 20 11:43:14 koyomi kernel:  active_file:74007 inactive_file:83541 isolated_file:0
-Dec 20 11:43:14 koyomi kernel:  unevictable:0 dirty:10 writeback:0 unstable:0
-Dec 20 11:43:14 koyomi kernel:  free:215643 slab_reclaimable:65501 slab_unreclaimable:1680
-Dec 20 11:43:14 koyomi kernel:  mapped:1791 shmem:186 pagetables:308 bounce:0
-Dec 20 11:43:14 koyomi kernel: DMA free:3504kB min:64kB low:80kB high:96kB active_anon:0kB inactive_anon:0kB active_file:596kB inactive_file:11416kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15864kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:380kB slab_unreclaimable:80kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-Dec 20 11:43:14 koyomi kernel: lowmem_reserve[]: 0 865 1762 1762
-Dec 20 11:43:14 koyomi kernel: Normal free:62312kB min:3728kB low:4660kB high:5592kB active_anon:0kB inactive_anon:0kB active_file:266576kB inactive_file:266684kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:885944kB mlocked:0kB dirty:36kB writeback:0kB mapped:84kB shmem:0kB slab_reclaimable:261624kB slab_unreclaimable:6640kB kernel_stack:1056kB pagetables:1232kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-Dec 20 11:43:14 koyomi kernel: lowmem_reserve[]: 0 0 7175 7175
-Dec 20 11:43:14 koyomi kernel: HighMem free:796756kB min:512kB low:1476kB high:2444kB active_anon:3224kB inactive_anon:37988kB active_file:28856kB inactive_file:56064kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:918456kB mlocked:0kB dirty:4kB writeback:0kB mapped:7080kB shmem:744kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-Dec 20 11:43:14 koyomi kernel: lowmem_reserve[]: 0 0 0 0
-Dec 20 11:43:14 koyomi kernel: DMA: 6*4kB 5*8kB 1*16kB 1*32kB 1*64kB 0*128kB 1*256kB 0*512kB 1*1024kB 1*2048kB 0*4096kB = 3504kB
-Dec 20 11:43:14 koyomi kernel: Normal: 13380*4kB 920*8kB 89*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 62304kB
-Dec 20 11:43:14 koyomi kernel: HighMem: 1647*4kB 279*8kB 358*16kB 790*32kB 311*64kB 126*128kB 136*256kB 138*512kB 85*1024kB 58*2048kB 100*4096kB = 796756kB
-Dec 20 11:43:14 koyomi kernel: 157743 total pagecache pages
-Dec 20 11:43:14 koyomi kernel: 0 pages in swap cache
-Dec 20 11:43:14 koyomi kernel: Swap cache stats: add 0, delete 0, find 0/0
-Dec 20 11:43:14 koyomi kernel: Free swap  = 4883752kB
-Dec 20 11:43:14 koyomi kernel: Total swap = 4883752kB
-Dec 20 11:43:14 koyomi kernel: 458748 pages RAM
-Dec 20 11:43:14 koyomi kernel: 231422 pages HighMem
-Dec 20 11:43:14 koyomi kernel: 5001 pages reserved
-Dec 20 11:43:14 koyomi kernel: 157266 pages shared
-Dec 20 11:43:14 koyomi kernel: 88907 pages non-shared
+Are you sure these are new? I've been seeing them sporadically for years, 
+this latest one is on 2.6.28. They seem to happen whenever there are lots 
+of TCP sessions going, and I have raised the default TCP parameters for 
+long latency performance.
+
+[1136500.281189] swapper: page allocation failure. order:0, mode:0x4020
+[1136500.281193] Pid: 0, comm: swapper Not tainted 2.6.28-16-generic 
+#57-Ubuntu
+[1136500.281195] Call Trace:
+[1136500.281197]  <IRQ>  [<ffffffff802b6e2e>] 
+__alloc_pages_internal+0x3ee/0x500
+[1136500.281207]  [<ffffffff802dfe68>] alloc_slab_page+0x28/0x30
+[1136500.281211]  [<ffffffff802e0f2a>] new_slab+0x5a/0x210
+[1136500.281215]  [<ffffffff80213668>] ? apic_timer_interrupt+0x88/0x90
+[1136500.281219]  [<ffffffff802e2548>] __slab_alloc+0x188/0x290
+[1136500.281224]  [<ffffffff805aa21f>] ? __netdev_alloc_skb+0x1f/0x40
+[1136500.281228]  [<ffffffff802e3457>] __kmalloc_track_caller+0xd7/0x110
+[1136500.281232]  [<ffffffff805aa21f>] ? __netdev_alloc_skb+0x1f/0x40
+[1136500.281236]  [<ffffffff805a9ebe>] __alloc_skb+0x6e/0x150
+[1136500.281240]  [<ffffffff805aa21f>] __netdev_alloc_skb+0x1f/0x40
+[1136500.281252]  [<ffffffffa00ad780>] sky2_rx_alloc+0x80/0x140 [sky2]
+[1136500.281259]  [<ffffffffa00b09a9>] receive_new+0x29/0x160 [sky2]
+[1136500.281265]  [<ffffffffa00b0c23>] sky2_receive+0x143/0x280 [sky2]
+[1136500.281272]  [<ffffffffa00b220d>] sky2_status_intr+0x17d/0x5a0 [sky2]
+[1136500.281279]  [<ffffffffa00b2697>] sky2_poll+0x67/0x160 [sky2]
+[1136500.281283]  [<ffffffff805b40c4>] net_rx_action+0x104/0x240
+[1136500.281287]  [<ffffffff80256c4c>] __do_softirq+0x9c/0x170
+[1136500.281291]  [<ffffffff80213d8c>] call_softirq+0x1c/0x30
+[1136500.281295]  [<ffffffff80214ffd>] do_softirq+0x5d/0xa0
+[1136500.281298]  [<ffffffff802569cd>] irq_exit+0x8d/0xa0
+[1136500.281301]  [<ffffffff802152c5>] do_IRQ+0xc5/0x110
+[1136500.281305]  [<ffffffff80212bf3>] ret_from_intr+0x0/0x29
+[1136500.281307]  <EOI>  [<ffffffff8021a95a>] ? mwait_idle+0x4a/0x50
+[1136500.281315]  [<ffffffff80210dd2>] ? enter_idle+0x22/0x30
+[1136500.281319]  [<ffffffff80210e85>] ? cpu_idle+0x65/0xc0
+[1136500.281324]  [<ffffffff806963d3>] ? start_secondary+0x9e/0xcb
+[1136500.281326] Mem-Info:
+[1136500.281328] DMA per-cpu:
+[1136500.281330] CPU    0: hi:    0, btch:   1 usd:   0
+[1136500.281332] CPU    1: hi:    0, btch:   1 usd:   0
+[1136500.281334] DMA32 per-cpu:
+[1136500.281336] CPU    0: hi:  186, btch:  31 usd:  46
+[1136500.281339] CPU    1: hi:  186, btch:  31 usd:  35
+[1136500.281340] Normal per-cpu:
+[1136500.281342] CPU    0: hi:  186, btch:  31 usd:  35
+[1136500.281344] CPU    1: hi:  186, btch:  31 usd:  25
+[1136500.281348] Active_anon:146370 active_file:616793 inactive_anon:74536
+[1136500.281350]  inactive_file:1107274 unevictable:7 dirty:95693 
+writeback:692 unstable:0
+[1136500.281351]  free:7738 slab:51933 mapped:76435 pagetables:5975 
+bounce:0
+[1136500.281355] DMA free:6700kB min:4kB low:4kB high:4kB active_anon:0kB 
+inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB 
+present:5560kB pages_scanned:0 all_unreclaimable? no
+[1136500.281359] lowmem_reserve[]: 0 2999 8049 8049
+[1136500.281365] DMA32 free:21728kB min:4276kB low:5344kB high:6412kB 
+active_anon:117556kB inactive_anon:73404kB active_file:895956kB 
+inactive_file:1639760kB unevictable:0kB present:3071712kB pages_scanned:0 
+all_unreclaimable? no
+[1136500.281369] lowmem_reserve[]: 0 0 5050 5050
+[1136500.281376] Normal free:2524kB min:7200kB low:9000kB high:10800kB 
+active_anon:467924kB inactive_anon:224740kB active_file:1571216kB 
+inactive_file:2789336kB unevictable:28kB present:5171200kB pages_scanned:0 
+all_unreclaimable? no
+[1136500.281379] lowmem_reserve[]: 0 0 0 0
+[1136500.281384] DMA: 5*4kB 5*8kB 5*16kB 5*32kB 4*64kB 4*128kB 2*256kB 
+2*512kB 0*1024kB 0*2048kB 1*4096kB = 6700kB
+[1136500.281395] DMA32: 5191*4kB 1*8kB 51*16kB 1*32kB 0*64kB 0*128kB 
+0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 21620kB
+[1136500.281406] Normal: 450*4kB 2*8kB 36*16kB 0*32kB 0*64kB 1*128kB 
+0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 2520kB
+[1136500.281417] 1727600 total pagecache pages
+[1136500.281420] 0 pages in swap cache
+[1136500.281422] Swap cache stats: add 0, delete 0, find 0/0
+[1136500.281424] Free swap  = 0kB
+[1136500.281425] Total swap = 0kB
+[1136500.285180] 2359280 pages RAM
+[1136500.285180] 339669 pages reserved
+[1136500.285180] 602075 pages shared
+[1136500.285180] 1500164 pages non-shared
 
 
-The machine itself is a dual-P3 with an MV88SX6081 based SATA card,
-an E1000 NIC and running a self compiled, vanilla 2.6.32.1.
-
-Is there anything i could help to narrow down the cause of this problem?
-
-
-				Attila Kinali
+-- 
+Mikael Abrahamsson    email: swmike@swm.pp.se
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
