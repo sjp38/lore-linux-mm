@@ -1,59 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C3CDE6B0044
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 05:51:16 -0500 (EST)
-Date: Mon, 21 Dec 2009 10:50:17 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: CPU consumption is going as high as 95% on ARM Cortex A8
-Message-ID: <20091221105017.GB11669@n2100.arm.linux.org.uk>
-References: <19F8576C6E063C45BE387C64729E73940449F43857@dbde02.ent.ti.com> <20091217095641.GA399@n2100.arm.linux.org.uk> <19F8576C6E063C45BE387C64729E73940449F43E29@dbde02.ent.ti.com> <20091221090750.GA11669@n2100.arm.linux.org.uk> <19F8576C6E063C45BE387C64729E73940449F43EEE@dbde02.ent.ti.com>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0416B0047
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 06:00:12 -0500 (EST)
+Received: from list by lo.gmane.org with local (Exim 4.50)
+	id 1NMfzg-0000ZN-H9
+	for linux-mm@kvack.org; Mon, 21 Dec 2009 12:00:05 +0100
+Received: from 121.241.138.250.static-bangalore.vsnl.net.in ([121.241.138.250.static-bangalore.vsnl.net.in])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2009 12:00:04 +0100
+Received: from ngupta by 121.241.138.250.static-bangalore.vsnl.net.in with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 21 Dec 2009 12:00:04 +0100
+From: Nitin Gupta <ngupta@vflare.org>
+Subject: Re: Tmem [PATCH 0/5] (Take 3): Transcendent memory
+Date: Mon, 21 Dec 2009 10:54:40 +0000 (UTC)
+Message-ID: <loom.20091221T113322-610@post.gmane.org>
+References: <23e2d3ad-2611-4422-9349-50e4d3d8377f@default>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <19F8576C6E063C45BE387C64729E73940449F43EEE@dbde02.ent.ti.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Hiremath, Vaibhav" <hvaibhav@ti.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 21, 2009 at 02:51:13PM +0530, Hiremath, Vaibhav wrote:
-> > On Mon, Dec 21, 2009 at 11:56:23AM +0530, Hiremath, Vaibhav wrote:
-> > > >         vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-> > > >
-> > > > will result in the memory being mapped as 'Strongly Ordered',
-> > > > resulting
-> > > > in there being multiple mappings with differing types.  In later
-> > > > kernels, we have pgprot_dmacoherent() and I'd suggest changing
-> > the
-> > > > above
-> > > > macro for that.
-> > > >
-> > >
-> > > I tried with your suggestion above but unfortunately it didn't
-> > work for
-> > > me. I am seeing the same behavior with the pgprot_dmacoherent(). I
-> > > pulled your patch (which got applied cleanly on 2.6.32-rc5) -
-> > 
-> > What happens if you comment out the pgprot_dmacoherent() /
-> > pgprot_noncached()
-> > line completely?
->
-> If I comment the line completely then I am seeing
-> CPU consumption similar to when I was setting PAGE_READONLY/PAGE_SHARED
-> flag, which is 25-32%.
+Hi Dan,
+
+Dan Magenheimer <dan.magenheimer <at> oracle.com> writes:
+
 > 
-> > I suspect that will "solve" the problem - but you'll then no longer
-> > have
-> > DMA coherency with userspace, so its not really a solution.
+> Tmem [PATCH 0/5] (Take 3): Transcendent memory
+> Transcendent memory
+<snip>
+> 
+> Normal memory is directly addressable by the kernel, of a known
+> normally-fixed size, synchronously accessible, and persistent (though
+> not across a reboot).
+> 
+> What if there was a class of memory that is of unknown and dynamically
+> variable size, is addressable only indirectly by the kernel, can be
+> configured either as persistent or as "ephemeral" (meaning it will be
+> around for awhile, but might disappear without warning), and is still
+> fast enough to be synchronously accessible?
+> 
 
-So it _is_ down to purely the amount of time it takes to read from a
-non-cacheable buffer.  I think you need to investigate the userspace
-program and see whether it's doing anything silly - I don't think the
-lack of performance is a kernel problem as such.
+I really like the idea of allocating cache memory from hypervisor directly. This
+is much more flexible than assigning fixed size memory to guests.
 
-How large is this buffer?  What userspace program is reading from it?
-Could the userspace program be unnecessarily re-reading from the
-multiple times for the same frame?
+> 
+> "Frontswap" is so named because it can be thought of as the opposite of
+> a "backing store". Frontswap IS persistent, but for various reasons may not
+> always be available for use, again due to factors that may not be visible to
+> the kernel. (But, briefly, if the kernel is being "good" and has shared its
+> resources nicely, then it will be able to use frontswap, else it will not.)
+> Once a page is put, a get on the page will always succeed.  So when the
+> kernel finds itself in a situation where it needs to swap out a page, it
+> first attempts to use frontswap.  If the put works, a disk write and
+> (usually) a disk read are avoided.  If it doesn't, the page is written
+> to swap as usual.  Unlike cleancache, whether a page is stored in frontswap
+> vs swap is recorded in kernel data structures, so when a page needs to
+> be fetched, the kernel does a get if it is in frontswap and reads from
+> swap if it is not in frontswap.
+> 
+
+I think 'frontswap' part seriously overlaps the functionality provided by
+'ramzswap' which is a virtual block device driver recently added to
+drivers/staging/ramzswap/. This device acts as a swap disk which compresses and
+stores pages in memory itself.
+
+To provide frontswap functionality, ramzswap needs few changes only:
+instead of:
+  compress --> alloc and store within guest.
+do:
+  compress --> send out to hypervisor (tmem_put_page).
+
+Also, ramzswap driver supports multiple /dev/ramzswap{0,1,2...} devices. Each of
+these devices can have separate backing partition/file which is used to flush
+out incompressible pages or when (per-device) memory limit is exceeded.
+When used on native systems, it uses custom xvmalloc allocator which is
+specially designed to handle these compressed pages.
+
+We can use all this by just a minor change in ramzswap as mentioned above.
+
+
+> "Cleancache" can be thought of as a page-granularity victim cache for clean
+> pages that the kernel's pageframe replacement algorithm (PFRA) would like
+> to keep around, but can't since there isn't enough memory.   So when the
+> PFRA "evicts" a page, it first puts it into the cleancache via a call to
+> tmem.  And any time a filesystem reads a page from disk, it first attempts
+> to get the page from cleancache.  If it's there, a disk access is eliminated.
+> If not, the filesystem just goes to the disk like normal.  Cleancache is
+> "ephemeral" so whether a page is kept in cleancache (between the "put" and
+> the "get") is dependent on a number of factors that are invisible to
+> the kernel.
+
+
+Just an idea: as an alternate approach, we can create an 'in-memory compressed
+storage' backend for FS-Cache. This way, all filesystems modified to use
+fs-cache can benefit from this backend. To make it virtualization friendly like
+tmem, we can again provide (per-cache?) option to allocate from hypervisor  i.e.
+tmem_{put,get}_page() or use [compress]+alloc natively.
+
+For guest<-->hypervisor interface, maybe we can use virtio so that all
+hypervisors can benefit? Not quite sure about this one.
+
+Thanks,
+Nitin
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
