@@ -1,91 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2439F620001
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 17:23:51 -0500 (EST)
-Date: Mon, 21 Dec 2009 22:23:47 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: fix 2.6.32 slowdown in heavy swapping
-Message-ID: <Pine.LNX.4.64.0912212214420.10033@sister.anvils>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 44C3F620001
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 18:47:23 -0500 (EST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <022609e4-9f30-4e8b-b26b-023cf58adf21@default>
+Date: Mon, 21 Dec 2009 15:46:28 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Tmem [PATCH 0/5] (Take 3): Transcendent memory
+In-Reply-To: <4B2F7C41.9020106@vflare.org>
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: ngupta@vflare.org
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, dave.mccracken@oracle.com, Rusty@rcsinet15.oracle.com, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, chris.mason@oracle.com, Pavel Machek <pavel@ucw.cz>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+> From: Nitin Gupta [mailto:ngupta@vflare.org]
 
-Sorry to spring this upon you, when you've already mentioned that
-you'll be offline shortly - maybe I'm too late, please don't let it
-spoil your break, feel free not to respond for a couple of weeks.
+> Hi Dan,
 
-I've sat quite a while on this, bisecting and trying to narrow
-it down and experimenting with different fixes; but I've failed
-to reproduce it with anything simpler than my kernel builds on
-tmpfs loop swapping tests, and it's only obvious on the PowerPC G5.
+Hi Nitin --
 
-The problem is that those swapping builds run about 20% slower in
-2.6.32 than 2.6.31 (and look as if they run increasingly slowly,
-though I'm not certain of that); and surprisingly it bisected
-down to your commit 5f8dcc21211a3d4e3a7a5ca366b469fb88117f61
-page-allocator: split per-cpu list into one-list-per-migrate-type
+Thanks for your review!
 
-It then took me a long while to insert the vital printk which
-revealed the now obvious problem: MIGRATE_RESERVE pages are being
-put on the MIGRATE_MOVABLE list, then freed as MIGRATE_MOVABLE.
-Which I assume gradually depletes the intended reserve?
+> (I'm not sure if gmane.org interface sends mail to everyone=20
+> in CC list, so
+> sending again. Sorry if you are getting duplicate mail).
 
-The simplest, straight bugfix, patch is the one below: rely on
-page_private instead of migratetype when freeing.  But three plausible
-alternatives have occurred to me, and each has its own advantages.
-All four bring the timing back to around what it used to be.
+FWIW, I only got this one copy (at least so far)!
+=20
+> I really like the idea of allocating cache memory from=20
+> hypervisor directly. This
+> is much more flexible than assigning fixed size memory to guests.
 
-Whereas this patch below uses the migratetype in page_private(page),
-the other three remove that as now redundant.  In the second version
-free_hot_cold_page() does immediate free_one_page() of MIGRATE_RESERVEs
-just like MIGRATE_ISOLATEs, so they never get on the MIGRATE_MOVABLE list.
+Thanks!
 
-In the third and fourth versions I've raised MIGRATE_PCPTYPES to 4,
-so there's a list of MIGRATE_RESERVEs: in the third, buffered_rmqueue()
-supplies pages from there if rmqueue_bulk() left list empty (that seems
-closest to 2.6.31 behaviour); the same in the fourth, except only when
-trying for MIGRATE_MOVABLE pages (that seems closer to your intention).
+> I think 'frontswap' part seriously overlaps the functionality=20
+> provided by 'ramzswap'
 
-In my peculiar testing (on two machines: though the slowdown was much
-less noticeable on Dell P4 x86_64, these fixes do show improvements),
-fix 2 appears slightly the fastest, and fix 3 the one with least
-variance.  But take that with a handful of salt, the likelihood
-is that further tests on other machines would show differently.
+Could be, but I suspect there's a subtle difference.
+A key part of the tmem frontswap api is that any
+"put" at any time can be rejected.  There's no way
+for the kernel to know a priori whether the put
+will be rejected or not, and the kernel must be able
+to react by writing the page to a "true" swap device
+and must keep track of which pages were put
+to tmem frontswap and which were written to disk.
+As a result, tmem frontswap cannot be configured or
+used as a true swap "device".
 
-Mel, do you have a feeling for which fix is the _right_ fix?
+This is critical to acheive the flexibility you
+commented above that you like.  Only the hypervisor
+knows if a free page is available "now" because
+it is flexibly managing tmem requests from multiple
+guest kernels.
 
-I don't, and I'd rather hold back from signing off a patch, until
-we have your judgement.  But here is the first version of the fix,
-in case anyone else has noticed a slowdown in heavy swapping and
-wants to try it.
+If my understanding of ramzswap is incorrect or you
+have some clever solution that I misunderstood,
+please let me know.
 
-Thanks,
-Hugh
+>> Cleancache is
+> > "ephemeral" so whether a page is kept in cleancache=20
+> (between the "put" and
+> > the "get") is dependent on a number of factors that are invisible to
+> > the kernel.
+>=20
+> Just an idea: as an alternate approach, we can create an=20
+> 'in-memory compressed
+> storage' backend for FS-Cache. This way, all filesystems=20
+> modified to use
+> fs-cache can benefit from this backend. To make it=20
+> virtualization friendly like
+> tmem, we can again provide (per-cache?) option to allocate=20
+> from hypervisor  i.e.
+> tmem_{put,get}_page() or use [compress]+alloc natively.
 
----
+I looked at FS-Cache and cachefiles and thought I understood
+that it is not restricted to clean pages only, thus
+not a good match for tmem cleancache.
 
- mm/page_alloc.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+Again, if I'm wrong (or if it is easy to tell FS-Cache that
+pages may "disappear" underneath it), let me know.
 
---- 2.6.33-rc1/mm/page_alloc.c	2009-12-18 11:42:54.000000000 +0000
-+++ linux/mm/page_alloc.c	2009-12-20 19:10:50.000000000 +0000
-@@ -555,8 +555,9 @@ static void free_pcppages_bulk(struct zo
- 			page = list_entry(list->prev, struct page, lru);
- 			/* must delete as __free_one_page list manipulates */
- 			list_del(&page->lru);
--			__free_one_page(page, zone, 0, migratetype);
--			trace_mm_page_pcpu_drain(page, 0, migratetype);
-+			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-+			__free_one_page(page, zone, 0, page_private(page));
-+			trace_mm_page_pcpu_drain(page, 0, page_private(page));
- 		} while (--count && --batch_free && !list_empty(list));
- 	}
- 	spin_unlock(&zone->lock);
+BTW, pages put to tmem (both frontswap and cleancache) can
+be optionally compressed.
+
+> For guest<-->hypervisor interface, maybe we can use virtio so that all
+> hypervisors can benefit? Not quite sure about this one.
+
+I'm not very familiar with virtio, but the existence of "I/O"
+in the name concerns me because tmem is entirely synchronous.
+
+Also, tmem is well-layered so very little work needs to be
+done on the Linux side for other hypervisors to benefit.
+Of course these other hypervisors would need to implement
+the hypervisor-side of tmem as well, but there is a well-defined
+API to guide other hypervisor-side implementations... and the
+opensource tmem code in Xen has a clear split between the
+hypervisor-dependent and hypervisor-independent code, which
+should simplify implementation for other opensource hypervisors.
+
+I realize in "Take 3" I didn't provide the URL for more information:
+http://oss.oracle.com/projects/tmem
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
