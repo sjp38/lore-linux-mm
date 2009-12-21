@@ -1,117 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D92A16B0044
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 01:26:39 -0500 (EST)
-From: "Hiremath, Vaibhav" <hvaibhav@ti.com>
-Date: Mon, 21 Dec 2009 11:56:23 +0530
-Subject: RE: CPU consumption is going as high as 95% on ARM Cortex A8
-Message-ID: <19F8576C6E063C45BE387C64729E73940449F43E29@dbde02.ent.ti.com>
-References: <19F8576C6E063C45BE387C64729E73940449F43857@dbde02.ent.ti.com>
- <20091217095641.GA399@n2100.arm.linux.org.uk>
-In-Reply-To: <20091217095641.GA399@n2100.arm.linux.org.uk>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 86F0A6B0044
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 02:03:51 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBL73m9V023350
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 21 Dec 2009 16:03:48 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4677E45DE53
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 16:03:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 169E945DE50
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 16:03:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D528C1DB8037
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 16:03:47 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A6861DB803E
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 16:03:47 +0900 (JST)
+Date: Mon, 21 Dec 2009 16:00:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH -mmotm 3/8] memcg: add interface to move charge at task
+ migration
+Message-Id: <20091221160021.a593fa8c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091221143346.7cbe44fa.nishimura@mxp.nes.nec.co.jp>
+References: <20091221143106.6ff3ca15.nishimura@mxp.nes.nec.co.jp>
+	<20091221143346.7cbe44fa.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 21 Dec 2009 14:33:46 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> -----Original Message-----
-> From: Russell King - ARM Linux [mailto:linux@arm.linux.org.uk]
-> Sent: Thursday, December 17, 2009 3:27 PM
-> To: Hiremath, Vaibhav
-> Cc: linux-arm-kernel@lists.infradead.org; linux-mm@kvack.org; linux-
-> omap@vger.kernel.org
-> Subject: Re: CPU consumption is going as high as 95% on ARM Cortex
-> A8
->=20
-> On Thu, Dec 17, 2009 at 11:08:31AM +0530, Hiremath, Vaibhav wrote:
-> > Issue/Usage :-
-> > -------------
-> > The V4l2-Capture driver captures the data from video decoder into
-> buffer
-> > and the application does some processing on this buffer. The mmap
-> > implementation can be found at drivers/media/video/videobuf-dma-
-> contig.c,
-> > function__videobuf_mmap_mapper().
->=20
->         vma->vm_page_prot =3D pgprot_noncached(vma->vm_page_prot);
->=20
-> will result in the memory being mapped as 'Strongly Ordered',
-> resulting
-> in there being multiple mappings with differing types.  In later
-> kernels, we have pgprot_dmacoherent() and I'd suggest changing the
-> above
-> macro for that.
->=20
-[Hiremath, Vaibhav] Russell,
-
-I tried with your suggestion above but unfortunately it didn't work for me.=
- I am seeing the same behavior with the pgprot_dmacoherent(). I pulled your=
- patch (which got applied cleanly on 2.6.32-rc5) -
-
------------------------------------------
-commit 26a26d329688ab018e068b412b03d43d7c299f0a
-Author: Russell King <rmk+kernel@arm.linux.org.uk>
-Date:   Fri Nov 20 21:06:43 2009 +0000
-
-Subject: ARM: dma-mapping: switch ARMv7 DMA mappings to retain 'memory' att=
-ribute
------------------------------------------
-
-Any other pointers/suggestions?
-
-Thanks,
-Vaibhav
-
-> > Without PAGE_READONLY/PAGE_SHARED
-> >
-> > Important bits are [0-9] - 0x383
-> >
-> > With PAGE_READONLY/PAGE_SHARED set
-> >
-> > Important bits are [0-9] - 0x38F
->=20
-> So the difference is the C and B bits, which is more or less
-> expected
-> with the change you've made.
->=20
-> >
-> > The lines inside function "cpu_v7_set_pte_ext", is using the flag
-> as shown below -
-> >
-> >    tst     r1, #L_PTE_USER
-> >    orrne   r3, r3, #PTE_EXT_AP1
-> >    tstne   r3, #PTE_EXT_APX
-> >    bicne   r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
-> >
-> > Without PAGE_READONLY/PAGE_SHARED		With flags set
-> >
-> > Access perm =3D reserved				Access Perm =3D Read
-> Only
->=20
-> The bits you quote above are L_PTE_* bits, so you need to be careful
-> decoding them.  0x383 gives
->=20
-> 	L_PTE_EXEC|L_PTE_USER|L_PTE_WRITE|L_PTE_YOUNG|L_PTE_PRESENT
->=20
-> which is as expected, and will be translated into: APX=3D0 AP1=3D1 AP0=3D=
-0
-> which is user r/o, system r/w.  The same will be true of 0x38f.
->=20
-> > - I tried the same thing with another platform (ARM9) and it works
-> fine there.
-> >
-> > Can somebody help me to understand the flag
-> PAGE_SHARED/PAGE_READONLY
-> > and access permissions? Am I debugging this into right path? Does
-> > anybody have seen/observed similar issue before?
->=20
-> I think you're just seeing the effects of 'strongly ordered' memory
-> rather than anything actually wrong.
+> In current memcg, charges associated with a task aren't moved to the new cgroup
+> at task migration. Some users feel this behavior to be strange.
+> These patches are for this feature, that is, for charging to the new cgroup
+> and, of course, uncharging from the old cgroup at task migration.
+> 
+> This patch adds "memory.move_charge_at_immigrate" file, which is a flag file to
+> determine whether charges should be moved to the new cgroup at task migration or
+> not and what type of charges should be moved. This patch also adds read and
+> write handlers of the file.
+> 
+> This patch also adds no-op handlers for this feature. These handlers will be
+> implemented in later patches. And you cannot write any values other than 0
+> to move_charge_at_immigrate yet.
+> 
+> Changelog: 2009/12/14
+> - Add TODO section to meory.txt.
+> Changelog: 2009/12/04
+> - change the term "recharge" to "move_charge".
+> - update document.
+> Changelog: 2009/11/19
+> - consolidate changes in Documentation/cgroup/memory.txt, which were made in
+>   other patches separately.
+> - handle recharge_at_immigrate as bitmask(as I did in first version).
+> - use mm->owner instead of thread_group_leader().
+> Changelog: 2009/09/24
+> - change the term "migration" to "recharge".
+> - handle the flag as bool not bitmask to make codes simple.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
