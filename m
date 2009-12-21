@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EB5C06B0044
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 00:44:53 -0500 (EST)
-Date: Mon, 21 Dec 2009 14:32:54 +0900
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 62A5F6B0044
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 00:45:23 -0500 (EST)
+Date: Mon, 21 Dec 2009 14:33:46 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mmotm 2/8] cgroup: introduce coalesce css_get() and
- css_put()
-Message-Id: <20091221143254.ae23d470.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 3/8] memcg: add interface to move charge at task
+ migration
+Message-Id: <20091221143346.7cbe44fa.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20091221143106.6ff3ca15.nishimura@mxp.nes.nec.co.jp>
 References: <20091221143106.6ff3ca15.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -17,90 +17,271 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Current css_get() and css_put() increment/decrement css->refcnt one by one.
+In current memcg, charges associated with a task aren't moved to the new cgroup
+at task migration. Some users feel this behavior to be strange.
+These patches are for this feature, that is, for charging to the new cgroup
+and, of course, uncharging from the old cgroup at task migration.
 
-This patch add a new function __css_get(), which takes "count" as a arg and
-increment the css->refcnt by "count". And this patch also add a new arg("count")
-to __css_put() and change the function to decrement the css->refcnt by "count".
+This patch adds "memory.move_charge_at_immigrate" file, which is a flag file to
+determine whether charges should be moved to the new cgroup at task migration or
+not and what type of charges should be moved. This patch also adds read and
+write handlers of the file.
 
-These coalesce version of __css_get()/__css_put() will be used to improve
-performance of memcg's moving charge feature later, where instead of calling
-css_get()/css_put() repeatedly, these new functions will be used.
-
-No change is needed for current users of css_get()/css_put().
+This patch also adds no-op handlers for this feature. These handlers will be
+implemented in later patches. And you cannot write any values other than 0
+to move_charge_at_immigrate yet.
 
 Changelog: 2009/12/14
-- new patch(I split "[4/7] memcg: improbe performance in moving charge" of
-  04/Dec version into 2 part: cgroup part and memcg part. This is the cgroup
-  part.)
+- Add TODO section to meory.txt.
+Changelog: 2009/12/04
+- change the term "recharge" to "move_charge".
+- update document.
+Changelog: 2009/11/19
+- consolidate changes in Documentation/cgroup/memory.txt, which were made in
+  other patches separately.
+- handle recharge_at_immigrate as bitmask(as I did in first version).
+- use mm->owner instead of thread_group_leader().
+Changelog: 2009/09/24
+- change the term "migration" to "recharge".
+- handle the flag as bool not bitmask to make codes simple.
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Acked-by: Paul Menage <menage@google.com>
 ---
- include/linux/cgroup.h |   12 +++++++++---
- kernel/cgroup.c        |    5 +++--
- 2 files changed, 12 insertions(+), 5 deletions(-)
+ Documentation/cgroups/memory.txt |   56 +++++++++++++++++++++-
+ mm/memcontrol.c                  |   97 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 147 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index d4cc200..61f75ae 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -75,6 +75,12 @@ enum {
- 	CSS_REMOVED, /* This CSS is dead */
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index b871f25..e726fb0 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -262,10 +262,12 @@ some of the pages cached in the cgroup (page cache pages).
+ 4.2 Task migration
+ 
+ When a task migrates from one cgroup to another, it's charge is not
+-carried forward. The pages allocated from the original cgroup still
++carried forward by default. The pages allocated from the original cgroup still
+ remain charged to it, the charge is dropped when the page is freed or
+ reclaimed.
+ 
++Note: You can move charges of a task along with task migration. See 8.
++
+ 4.3 Removing a cgroup
+ 
+ A cgroup can be removed by rmdir, but as discussed in sections 4.1 and 4.2, a
+@@ -414,7 +416,57 @@ NOTE1: Soft limits take effect over a long period of time, since they involve
+ NOTE2: It is recommended to set the soft limit always below the hard limit,
+        otherwise the hard limit will take precedence.
+ 
+-8. TODO
++8. Move charges at task migration
++
++Users can move charges associated with a task along with task migration, that
++is, uncharge task's pages from the old cgroup and charge them to the new cgroup.
++
++8.1 Interface
++
++This feature is disabled by default. It can be enabled(and disabled again) by
++writing to memory.move_charge_at_immigrate of the destination cgroup.
++
++If you want to enable it:
++
++# echo (some positive value) > memory.move_charge_at_immigrate
++
++Note: Each bits of move_charge_at_immigrate has its own meaning about what type
++      of charges should be moved. See 8.2 for details.
++Note: Charges are moved only when you move mm->owner, IOW, a leader of a thread
++      group.
++Note: If we cannot find enough space for the task in the destination cgroup, we
++      try to make space by reclaiming memory. Task migration may fail if we
++      cannot make enough space.
++Note: It can take several seconds if you move charges in giga bytes order.
++
++And if you want disable it again:
++
++# echo 0 > memory.move_charge_at_immigrate
++
++8.2 Type of charges which can be move
++
++Each bits of move_charge_at_immigrate has its own meaning about what type of
++charges should be moved.
++
++  bit | what type of charges would be moved ?
++ -----+------------------------------------------------------------------------
++   0  | A charge of an anonymous page(or swap of it) used by the target task.
++      | Those pages and swaps must be used only by the target task. You must
++      | enable Swap Extension(see 2.4) to enable move of swap charges.
++
++Note: Those pages and swaps must be charged to the old cgroup.
++Note: More type of pages(e.g. file cache, shmem,) will be supported by other
++      bits in future.
++
++8.3 TODO
++
++- Add support for other types of pages(e.g. file cache, shmem, etc.).
++- Implement madvise(2) to let users decide the vma to be moved or not to be
++  moved.
++- All of moving charge operations are done under cgroup_mutex. It's not good
++  behavior to hold the mutex too long, so we may need some trick.
++
++9. TODO
+ 
+ 1. Add support for accounting huge pages (as a separate controller)
+ 2. Make per-cgroup scanner reclaim not-shared pages first
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 488b644..2ec0201 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -226,11 +226,26 @@ struct mem_cgroup {
+ 	bool		memsw_is_minimum;
+ 
+ 	/*
++	 * Should we move charges of a task when a task is moved into this
++	 * mem_cgroup ? And what type of charges should we move ?
++	 */
++	unsigned long 	move_charge_at_immigrate;
++
++	/*
+ 	 * statistics. This must be placed at the end of memcg.
+ 	 */
+ 	struct mem_cgroup_stat stat;
  };
  
-+/* Caller must verify that the css is not for root cgroup */
-+static inline void __css_get(struct cgroup_subsys_state *css, int count)
-+{
-+	atomic_add(count, &css->refcnt);
-+}
++/* Stuffs for move charges at task migration. */
++/*
++ * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
++ * left-shifted bitmap of these types.
++ */
++enum move_type {
++	NR_MOVE_TYPE,
++};
 +
  /*
-  * Call css_get() to hold a reference on the css; it can be used
-  * for a reference obtained via:
-@@ -86,7 +92,7 @@ static inline void css_get(struct cgroup_subsys_state *css)
- {
- 	/* We don't need to reference count the root state */
- 	if (!test_bit(CSS_ROOT, &css->flags))
--		atomic_inc(&css->refcnt);
-+		__css_get(css, 1);
+  * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
+  * limit reclaim to prevent infinite loops, if they ever occur.
+@@ -2868,6 +2883,31 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+ 	return 0;
  }
  
- static inline bool css_is_removed(struct cgroup_subsys_state *css)
-@@ -117,11 +123,11 @@ static inline bool css_tryget(struct cgroup_subsys_state *css)
-  * css_get() or css_tryget()
-  */
++static u64 mem_cgroup_move_charge_read(struct cgroup *cgrp,
++					struct cftype *cft)
++{
++	return mem_cgroup_from_cont(cgrp)->move_charge_at_immigrate;
++}
++
++static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
++					struct cftype *cft, u64 val)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++
++	if (val >= (1 << NR_MOVE_TYPE))
++		return -EINVAL;
++	/*
++	 * We check this value several times in both in can_attach() and
++	 * attach(), so we need cgroup lock to prevent this value from being
++	 * inconsistent.
++	 */
++	cgroup_lock();
++	mem->move_charge_at_immigrate = val;
++	cgroup_unlock();
++
++	return 0;
++}
++
  
--extern void __css_put(struct cgroup_subsys_state *css);
-+extern void __css_put(struct cgroup_subsys_state *css, int count);
- static inline void css_put(struct cgroup_subsys_state *css)
- {
- 	if (!test_bit(CSS_ROOT, &css->flags))
--		__css_put(css);
-+		__css_put(css, 1);
+ /* For read statistics */
+ enum {
+@@ -3101,6 +3141,11 @@ static struct cftype mem_cgroup_files[] = {
+ 		.read_u64 = mem_cgroup_swappiness_read,
+ 		.write_u64 = mem_cgroup_swappiness_write,
+ 	},
++	{
++		.name = "move_charge_at_immigrate",
++		.read_u64 = mem_cgroup_move_charge_read,
++		.write_u64 = mem_cgroup_move_charge_write,
++	},
+ };
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+@@ -3348,6 +3393,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	if (parent)
+ 		mem->swappiness = get_swappiness(parent);
+ 	atomic_set(&mem->refcnt, 1);
++	mem->move_charge_at_immigrate = 0;
+ 	return &mem->css;
+ free_out:
+ 	__mem_cgroup_free(mem);
+@@ -3384,16 +3430,57 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
+ 	return ret;
  }
  
- /* bits in struct cgroup flags field */
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index d67d471..8f89c9d 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -3729,12 +3729,13 @@ static void check_for_release(struct cgroup *cgrp)
- 	}
++/* Handlers for move charge at task migration. */
++static int mem_cgroup_can_move_charge(void)
++{
++	return 0;
++}
++
++static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
++				struct cgroup *cgroup,
++				struct task_struct *p,
++				bool threadgroup)
++{
++	int ret = 0;
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgroup);
++
++	if (mem->move_charge_at_immigrate) {
++		struct mm_struct *mm;
++		struct mem_cgroup *from = mem_cgroup_from_task(p);
++
++		VM_BUG_ON(from == mem);
++
++		mm = get_task_mm(p);
++		if (!mm)
++			return 0;
++
++		/* We move charges only when we move a owner of the mm */
++		if (mm->owner == p)
++			ret = mem_cgroup_can_move_charge();
++
++		mmput(mm);
++	}
++	return ret;
++}
++
++static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
++				struct cgroup *cgroup,
++				struct task_struct *p,
++				bool threadgroup)
++{
++}
++
++static void mem_cgroup_move_charge(void)
++{
++}
++
+ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
+ 				struct cgroup *cont,
+ 				struct cgroup *old_cont,
+ 				struct task_struct *p,
+ 				bool threadgroup)
+ {
+-	/*
+-	 * FIXME: It's better to move charges of this process from old
+-	 * memcg to new memcg. But it's just on TODO-List now.
+-	 */
++	mem_cgroup_move_charge();
  }
  
--void __css_put(struct cgroup_subsys_state *css)
-+/* Caller must verify that the css is not for root cgroup */
-+void __css_put(struct cgroup_subsys_state *css, int count)
- {
- 	struct cgroup *cgrp = css->cgroup;
- 	int val;
- 	rcu_read_lock();
--	val = atomic_dec_return(&css->refcnt);
-+	val = atomic_sub_return(count, &css->refcnt);
- 	if (val == 1) {
- 		if (notify_on_release(cgrp)) {
- 			set_bit(CGRP_RELEASABLE, &cgrp->flags);
+ struct cgroup_subsys mem_cgroup_subsys = {
+@@ -3403,6 +3490,8 @@ struct cgroup_subsys mem_cgroup_subsys = {
+ 	.pre_destroy = mem_cgroup_pre_destroy,
+ 	.destroy = mem_cgroup_destroy,
+ 	.populate = mem_cgroup_populate,
++	.can_attach = mem_cgroup_can_attach,
++	.cancel_attach = mem_cgroup_cancel_attach,
+ 	.attach = mem_cgroup_move_task,
+ 	.early_init = 0,
+ 	.use_id = 1,
 -- 
 1.5.6.1
 
