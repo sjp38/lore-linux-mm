@@ -1,43 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E331D60044A
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 14:43:47 -0500 (EST)
-Date: Mon, 21 Dec 2009 19:43:37 +0000
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 75EAF620001
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 14:57:53 -0500 (EST)
+Date: Mon, 21 Dec 2009 19:57:40 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm : kill combined_idx
-Message-ID: <20091221194337.GA23345@csn.ul.ie>
-References: <1261366347-19232-1-git-send-email-shijie8@gmail.com> <20091221143139.7088a8d3.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 14 of 28] pte alloc trans splitting
+Message-ID: <20091221195740.GC23345@csn.ul.ie>
+References: <patchbomb.1261076403@v2.random> <fb0a9a34367c5c9bf2e4.1261076417@v2.random> <20091218190334.GF21194@csn.ul.ie> <20091219155948.GA29790@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20091221143139.7088a8d3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091219155948.GA29790@random.random>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 21, 2009 at 02:31:39PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 21 Dec 2009 11:32:27 +0800
-> Huang Shijie <shijie8@gmail.com> wrote:
-> 
-> > In more then half of all the cases, `page' is head of the buddy pair
-> > {page, buddy} in __free_one_page. That is because the allocation logic
-> > always picks the head of a chunk, and puts the rest back to the buddy system.
+On Sat, Dec 19, 2009 at 04:59:48PM +0100, Andrea Arcangeli wrote:
+> On Fri, Dec 18, 2009 at 07:03:34PM +0000, Mel Gorman wrote:
+> > On Thu, Dec 17, 2009 at 07:00:17PM -0000, Andrea Arcangeli wrote:
+> > > From: Andrea Arcangeli <aarcange@redhat.com>
+> > > 
+> > > pte alloc routines must wait for split_huge_page if the pmd is not
+> > > present and not null (i.e. pmd_trans_splitting).
 > > 
-> > So calculating the combined page is not needed but waste some cycles in
-> > more then half of all the cases.Just do the calculation when `page' is
-> > bigger then the `buddy'.
-> > 
-> > Signed-off-by: Huang Shijie <shijie8@gmail.com>
+> > More stupid questions. When a large page is about to be split, you clear the
+> > present bit to cause faults and hold those accesses until the split completes?
 > 
-> Hmm...As far as I remember, this code design was for avoiding "if".
-> Is this compare+jump is better than add+xor ?
+> That was previous version. New version doesn't clear the present bit
+> but sets its own reserved bit in the pmd. All we have to protect is
+> kernel code, not userland. We have to protect against anything that
+> will change the mapcount. The mapcount is the key here, as it is only
+> accounted in the head page and it has to be transferred to all tail
+> pages during the split. So during the split the mapcount can't
+> change. But that doesn't mean userland can't keep changing and reading
+> the page contents while we transfer the mapcount.
 > 
 
-Agreed. It's not clear that a compare+jump is cheaper than the add+xor.
-How often it's the case that the page is the higher or lower half of the
-buddy would depend heavily on the allocation/free pattern making it
-hard, if not possible, to predict which is the more common case.
+Ok, that makes sense. By having pte_alloc wait on splt_huge_page, it
+should be safe even if userspace calls fork(). No other gotcha springs
+to mind.
+
+> > Again, no doubt this is obvious later but a description in the leader of
+> > the basic approach to splitting huge pages wouldn't kill.
+> 
+> Yes sure good idea, I added a comment in the most crucial point... not
+> in the header.
+> 
+
+Thanks.
+
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -628,11 +628,28 @@ static void __split_huge_page_refcount(s
+>  		 */
+>  		smp_wmb();
+>  
+> +		/*
+> +		 * __split_huge_page_splitting() already set the
+> +		 * splitting bit in all pmd that could map this
+> +		 * hugepage, that will ensure no CPU can alter the
+> +		 * mapcount on the head page. The mapcount is only
+> +		 * accounted in the head page and it has to be
+> +		 * transferred to all tail pages in the below code. So
+> +		 * for this code to be safe, the split the mapcount
+> +		 * can't change. But that doesn't mean userland can't
+> +		 * keep changing and reading the page contents while
+> +		 * we transfer the mapcount, so the pmd splitting
+> +		 * status is achieved setting a reserved bit in the
+> +		 * pmd, not by clearing the present bit.
+> +		*/
+>  		BUG_ON(page_mapcount(page_tail));
+>  		page_tail->_mapcount = page->_mapcount;
+> +
+>  		BUG_ON(page_tail->mapping);
+>  		page_tail->mapping = page->mapping;
+> +
+>  		page_tail->index = ++head_index;
+> +
+>  		BUG_ON(!PageAnon(page_tail));
+>  		BUG_ON(!PageUptodate(page_tail));
+>  		BUG_ON(!PageDirty(page_tail));
+> 
 
 -- 
 Mel Gorman
