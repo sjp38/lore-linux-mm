@@ -1,55 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9512F6B0044
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 00:34:49 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBL5YloD013943
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 21 Dec 2009 14:34:47 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B8FE245DE70
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 14:34:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 66AB745DE7C
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 14:34:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1851A1DB804C
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 14:34:46 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C59DB1DB8043
-	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 14:34:45 +0900 (JST)
-Date: Mon, 21 Dec 2009 14:31:39 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm : kill combined_idx
-Message-Id: <20091221143139.7088a8d3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1261366347-19232-1-git-send-email-shijie8@gmail.com>
-References: <1261366347-19232-1-git-send-email-shijie8@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BA506B0044
+	for <linux-mm@kvack.org>; Mon, 21 Dec 2009 00:42:57 -0500 (EST)
+Date: Mon, 21 Dec 2009 14:31:06 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 0/8] memcg: move charge at task migration (21/Dec)
+Message-Id: <20091221143106.6ff3ca15.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>
-Cc: akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 Dec 2009 11:32:27 +0800
-Huang Shijie <shijie8@gmail.com> wrote:
+Hi.
 
-> In more then half of all the cases, `page' is head of the buddy pair
-> {page, buddy} in __free_one_page. That is because the allocation logic
-> always picks the head of a chunk, and puts the rest back to the buddy system.
-> 
-> So calculating the combined page is not needed but waste some cycles in
-> more then half of all the cases.Just do the calculation when `page' is
-> bigger then the `buddy'.
-> 
-> Signed-off-by: Huang Shijie <shijie8@gmail.com>
+These are the latest version of my move-charge-at-task-migration patch.
 
-Hmm...As far as I remember, this code design was for avoiding "if".
-Is this compare+jump is better than add+xor ?
+As I said in http://marc.info/?l=linux-mm&m=126135930226969&w=2, I've fixed
+the BUG I found in 14/Dec version, and I think they are ready to be merged
+into mmotm. These patches are based on mmotm-2009-12-10-17-19, but can be
+applied onto 2.6.33-rc1-git1 too.
 
-Thanks,
--Kame
+
+  [1/8] cgroup: introduce cancel_attach()
+  [2/8] cgroup: introduce coalesce css_get() and css_put()
+  [3/8] memcg: add interface to move charge at task migration
+  [4/8] memcg: move charges of anonymous page
+  [5/8] memcg: improve performance in moving charge
+  [6/8] memcg: avoid oom during moving charge
+  [7/8] memcg: move charges of anonymous swap
+  [8/8] memcg: improbe performance in moving swap charge
+
+ Documentation/cgroups/cgroups.txt |   13 +-
+ Documentation/cgroups/memory.txt  |   56 +++-
+ include/linux/cgroup.h            |   14 +-
+ include/linux/page_cgroup.h       |    2 +
+ include/linux/swap.h              |    1 +
+ kernel/cgroup.c                   |   45 ++-
+ mm/memcontrol.c                   |  649 +++++++++++++++++++++++++++++++++++--
+ mm/page_cgroup.c                  |   35 ++-
+ mm/swapfile.c                     |   31 ++
+ 9 files changed, 796 insertions(+), 50 deletions(-)
+
+
+Overall history of this patch set:
+2009/12/21
+- Fix NULL pointer dereference BUG.
+2009/12/14
+- rebase on mmotm-2009-12-10-17-19.
+- split performance improvement patch into cgroup part and memcg part.
+- make use of waitq in avoid-oom patch.
+- add TODO section in memory.txt.
+2009/12/04
+- rebase on mmotm-2009-11-24-16-47.
+- change the term "recharge" to "move charge".
+- improve performance in moving charge.
+- parse the page table in can_attach() phase again(go back to the old behavior),
+  because it doesn't add so big overheads, so it would be better to calculate
+    the precharge count more accurately.
+2009/11/19
+- rebase on mmotm-2009-11-17-14-03 + KAMEZAWA-san's show per-process swap usage
+  via procfs patch(v3).
+- in can_attach(), instead of parsing the page table, make use of per process
+  mm_counter(anon_rss, swap_usage).
+- handle recharge_at_immigrate as bitmask(as I did in first version)
+2009/11/06
+- remove "[RFC]".
+- rebase on mmotm-2009-11-01-10-01.
+- drop support for file cache and shmem/tmpfs(revisit in future).
+- update Documentation/cgroup/memory.txt.
+2009/10/13
+- rebase on mmotm-2009-10-09-01-07 + KAMEZAWA-san's batched charge/uncharge(Oct09) + part
+of KAMEZAWA-san's cleanup/fix patches(4,5,7 of Sep25 with some fixes).
+- change the term "migrate" to "recharge".
+2009/09/24
+- change "migrate_charge" flag from "int" to "bool".
+- in can_attach(), parse the page table of the task and count only the number
+  of target ptes and call try_charge() repeatedly. No isolation at this phase.
+- in attach(), parse the page table of the task again, and isolate the target
+  page and call move_account() one by one.
+- do no swap-in in moving swap account any more.
+- add support for shmem/tmpfs's swap.
+- update Documentation/cgroup/cgroup.txt.
+2009/09/17
+- first version
+
+
+Regards,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
