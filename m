@@ -1,70 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F23EE620002
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2009 18:35:40 -0500 (EST)
-Date: Tue, 22 Dec 2009 15:35:04 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 8E3D9620002
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2009 18:50:26 -0500 (EST)
+Date: Wed, 23 Dec 2009 00:50:20 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [aarcange@redhat.com: [PATCH 00 of 28] Transparent Hugepage
  support #2]
-Message-Id: <20091222153504.5ad9a16d.akpm@linux-foundation.org>
-In-Reply-To: <20091219160300.GB29790@random.random>
+Message-ID: <20091222235020.GH6429@random.random>
 References: <20091218163058.GT29790@random.random>
-	<20091218114236.e883671a.akpm@linux-foundation.org>
-	<20091219160300.GB29790@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20091218114236.e883671a.akpm@linux-foundation.org>
+ <20091219160300.GB29790@random.random>
+ <20091222153504.5ad9a16d.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091222153504.5ad9a16d.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, David Gibson <david@gibson.dropbear.id.au>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 19 Dec 2009 17:03:00 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
+Hi Andrew,
 
-> Subject: clear_huge_page fix
-> From: Andrea Arcangeli <aarcange@redhat.com>
+On Tue, Dec 22, 2009 at 03:35:04PM -0800, Andrew Morton wrote:
+> : static void clear_huge_page(struct page *page,
+> : 			unsigned long addr, unsigned long sz)
+> : {
+> : 	int i;
+> : 
+> : 	if (unlikely(sz > MAX_ORDER_NR_PAGES)) {
+> : 		clear_gigantic_page(page, addr, sz);
+> : 		return;
+> : 	}
+> : 
+> : 	might_sleep();
+> : 	for (i = 0; i < sz/PAGE_SIZE; i++) {
+> : 		cond_resched();
+> : 		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+> : 	}
+> : }
 > 
-> sz is in bytes, MAX_ORDER_NR_PAGES is in pages.
+> umph.  So we've basically never executed the clear_user_highpage() loop.
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -401,7 +401,7 @@ static void clear_huge_page(struct page 
->  {
->  	int i;
->  
-> -	if (unlikely(sz > MAX_ORDER_NR_PAGES)) {
-> +	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
->  		clear_gigantic_page(page, addr, sz);
->  		return;
->  	}
+> Is there any point in retaining it?  Why not just call
+> clear_gigantic_page() all the time, as we've been doing?  All it does
+> it to avoid a call to mem_map_next() per clear_page().
 
-: static void clear_huge_page(struct page *page,
-: 			unsigned long addr, unsigned long sz)
-: {
-: 	int i;
-: 
-: 	if (unlikely(sz > MAX_ORDER_NR_PAGES)) {
-: 		clear_gigantic_page(page, addr, sz);
-: 		return;
-: 	}
-: 
-: 	might_sleep();
-: 	for (i = 0; i < sz/PAGE_SIZE; i++) {
-: 		cond_resched();
-: 		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-: 	}
-: }
-
-umph.  So we've basically never executed the clear_user_highpage() loop.
-
-Is there any point in retaining it?  Why not just call
-clear_gigantic_page() all the time, as we've been doing?  All it does
-it to avoid a call to mem_map_next() per clear_page().
+My understanding is that not calling gigantic_page is faster by not
+having to lookup zone changes, because compound pages created by the
+buddy allocator are guaranteed to stay in the same zone or the buddy
+couldn't return them. So we can just do page + i, if the compound
+order is <= MAX_ORDER_NR_PAGES. It's probably lost in the noise by the
+CPU waste of a 2M copy. I guess it's worth to retain given somebody
+already bothered to optimize for it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
