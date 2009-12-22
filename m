@@ -1,52 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2D784620003
-	for <linux-mm@kvack.org>; Tue, 22 Dec 2009 10:47:50 -0500 (EST)
-Date: Tue, 22 Dec 2009 09:47:39 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8E539620002
+	for <linux-mm@kvack.org>; Tue, 22 Dec 2009 17:38:19 -0500 (EST)
 Subject: Re: [PATCH] slab: initialize unused alien cache entry as NULL at
  alloc_alien_cache().
+From: Matt Mackall <mpm@selenic.com>
 In-Reply-To: <4B30BDA8.1070904@linux.intel.com>
-Message-ID: <alpine.DEB.2.00.0912220945250.12048@router.home>
 References: <4B30BDA8.1070904@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 22 Dec 2009 16:38:05 -0600
+Message-ID: <1261521485.3000.1692.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Haicheng Li <haicheng.li@linux.intel.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, andi@firstfloor.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, andi@firstfloor.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Dec 2009, Haicheng Li wrote:
+On Tue, 2009-12-22 at 20:38 +0800, Haicheng Li wrote:
 
->  	struct array_cache **ac_ptr;
-> -	int memsize = sizeof(void *) * nr_node_ids;
-> +	int memsize = sizeof(void *) * MAX_NUMNODES;
->  	int i;
-
-Why does the alien cache pointer array size have to be increased? node ids
-beyond nr_node_ids cannot be used.
-
-
->
->  	if (limit > 1)
->  		limit = 12;
->  	ac_ptr = kmalloc_node(memsize, gfp, node);
-
-Use kzalloc to ensure zeroed memory.
-
->  	if (ac_ptr) {
+>   	ac_ptr = kmalloc_node(memsize, gfp, node);
+>   	if (ac_ptr) {
 > +		memset(ac_ptr, 0, memsize);
->  		for_each_node(i) {
-> -			if (i == node || !node_online(i)) {
-> -				ac_ptr[i] = NULL;
-> +			if (i == node || !node_online(i))
->  				continue;
-> -			}
->  			ac_ptr[i] = alloc_arraycache(node, limit, 0xbaadf00d,
-> gfp);
->  			if (!ac_ptr[i]) {
->  				for (i--; i >= 0; i--)
->
+
+Please use kzalloc_node here.
+
+I'm not sure what's going on with nr_node_id vs MAX_NUMNODES, so I think
+we need to see an answer to Christoph's question before going forward
+with this.
+
+-- 
+http://selenic.com : development and support for Mercurial and Linux
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
