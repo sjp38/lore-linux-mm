@@ -1,74 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C7E9A620002
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2009 01:10:07 -0500 (EST)
-Date: Wed, 23 Dec 2009 15:09:48 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [PATCH 25 of 28] transparent hugepage core
-Message-ID: <20091223060948.GA30983@linux-sh.org>
-References: <patchbomb.1261076403@v2.random> <4d96699c8fb89a4a22eb.1261076428@v2.random> <20091218200345.GH21194@csn.ul.ie> <20091219164143.GC29790@random.random> <20091221203149.GD23345@csn.ul.ie> <20091223000640.GI6429@random.random>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id EAF3B620002
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2009 01:28:23 -0500 (EST)
+Received: by ywh3 with SMTP id 3so7165984ywh.22
+        for <linux-mm@kvack.org>; Tue, 22 Dec 2009 22:28:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091223000640.GI6429@random.random>
+In-Reply-To: <022609e4-9f30-4e8b-b26b-023cf58adf21@default>
+References: <4B2F7C41.9020106@vflare.org>
+	 <022609e4-9f30-4e8b-b26b-023cf58adf21@default>
+Date: Wed, 23 Dec 2009 11:58:21 +0530
+Message-ID: <d760cf2d0912222228y3284e455r16cdb2bfd2ecaa0e@mail.gmail.com>
+Subject: Re: Tmem [PATCH 0/5] (Take 3): Transcendent memory
+From: Nitin Gupta <ngupta@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, linux-sh@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, dave.mccracken@oracle.com, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, chris.mason@oracle.com, Pavel Machek <pavel@ucw.cz>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 23, 2009 at 01:06:40AM +0100, Andrea Arcangeli wrote:
-> On Mon, Dec 21, 2009 at 08:31:50PM +0000, Mel Gorman wrote:
-> > IA-64 can't in its currently implementation. Due to the page table format
-> > they use, huge pages can only be mapped at specific ranges in the virtual
-> > address space. If the long-format version of the page table was used, they
-> 
-> Hmm ok, so it sounds like hugetlbfs limitations are a software feature
-> for ia64 too.
-> 
-> > would be able to but I bet it's not happening any time soon. The best bet
-> > for other architectures supporting this would be sparc and maybe sh.
-> > It might be worth poking Paul Mundt in particular because he expressed
-> > an interest in transparent support of some sort in the past for sh.
-> 
-> I added him to CC.
-> 
-Thanks. It's probably worth going over a bit of background of the SH TLB
-and the hugetlb support. For starters, it's a software loaded TLB, and
-while we have 2-levels in hardware, extra levels do get abused in
-software for certain configurations.
+Hi Dan,
 
-Varying page sizes are just PTE attributes and these are supported at
-4kB, 8kB, 64kB, 256kB, 1MB, 4MB, and 64MB on general parts. SH-5 also has
-a 512MB page size, but this tends to mainly be used for fixed-purpose
-section mappings. Where the system page sizes stop and the hugetlb sizes
-start are pretty arbitrary, generally these were from 64kB and up, but
-there are systems using a 64kB PAGE_SIZE as well in which case the
-huge pages start at the next available size (you can see the dependencies
-for these in arch/sh/mm/Kconfig).
+(mail to Rusty [at] rcsinet15.oracle.com was failing, so I removed
+this address from CC list).
 
-Beyond that, there is also a section mapping buffer (PMB) that supports
-sizes of 16MB, 64MB, 128MB, and 512MB. This has no miss exception
-associated with it, or permission bits, so only tends to get used for
-large kernel mappings (it has a wide range of differing cache attributes
-at least, and all entries are pre-faulted). ioremap() backs through this
-transparently at the moment, but there is no hugetlb support for it yet.
-If hugetlb is going to become more transparent on the other hand, then
-it's certainly worth looking at doing support for something like this at
-the PMD level with special attributes and piggybacking the TLB miss. The
-closest example to this on any other platform would probably be the PPC
-SLB, which also seems to be a bit more capable.
+On Tue, Dec 22, 2009 at 5:16 AM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+>> From: Nitin Gupta [mailto:ngupta@vflare.org]
 
-As we have a software managed TLB, most of what I've toyed with in
-regards to transparency has been using larger TLBs for contiguous page
-ranges from the TLB miss while retaining a smaller PAGE_SIZE. We tend not
-to have very many > 1 order contiguous allocations though, so 64kB and up
-TLBs rarely get loaded. Some folks (it might have been Christoph) were
-doing similar things on IA-64 by using special encodings for size and
-section placement hinting, but I don't recall what became of this. There
-were also some ARM folks who had attempted to do similar things by
-scanning at set_pte() time at least for the XScale parts (due to having
-to contend with hardware table walking), but that seems to have been
-abandoned.
+>
+>> I think 'frontswap' part seriously overlaps the functionality
+>> provided by 'ramzswap'
+>
+> Could be, but I suspect there's a subtle difference.
+> A key part of the tmem frontswap api is that any
+> "put" at any time can be rejected.  There's no way
+> for the kernel to know a priori whether the put
+> will be rejected or not, and the kernel must be able
+> to react by writing the page to a "true" swap device
+> and must keep track of which pages were put
+> to tmem frontswap and which were written to disk.
+> As a result, tmem frontswap cannot be configured or
+> used as a true swap "device".
+>
+> This is critical to acheive the flexibility you
+> commented above that you like.  Only the hypervisor
+> knows if a free page is available "now" because
+> it is flexibly managing tmem requests from multiple
+> guest kernels.
+>
+
+ramzswap devices can easily track which pages it sent
+to hypervisor, which pages are in backing swap (physical) disk
+and which are in (compressed) memory. Its simply a matter
+of adding some more flags. Latter two are already done in this
+driver.
+
+So, to gain flexibility of frontswap, we can have hypervisor
+send the driver a callback whenever it wants to discard swap
+pages under its domain. If you want to avoid even this callback,
+then kernel will have to keep a copy within guest, which I think
+defeats the whole purpose of swapping to hypervisor. Such
+"ephemeral" pools should be used only for clean fs cache and
+not for swap.
+
+Swapping to hypervisor is mainly useful to overcome
+'static partitioning' problem you mentioned in article:
+http://oss.oracle.com/projects/tmem/
+...such 'para-swap' can shrink/expand outside of VM constraints.
+
+
+>
+>>> Cleancache is
+>> > "ephemeral" so whether a page is kept in cleancache
+>> (between the "put" and
+>> > the "get") is dependent on a number of factors that are invisible to
+>> > the kernel.
+>>
+>> Just an idea: as an alternate approach, we can create an
+>> 'in-memory compressed
+>> storage' backend for FS-Cache. This way, all filesystems
+>> modified to use
+>> fs-cache can benefit from this backend. To make it
+>> virtualization friendly like
+>> tmem, we can again provide (per-cache?) option to allocate
+>> from hypervisor  i.e.
+>> tmem_{put,get}_page() or use [compress]+alloc natively.
+>
+> I looked at FS-Cache and cachefiles and thought I understood
+> that it is not restricted to clean pages only, thus
+> not a good match for tmem cleancache.
+>
+> Again, if I'm wrong (or if it is easy to tell FS-Cache that
+> pages may "disappear" underneath it), let me know.
+>
+
+fs-cache backend can keep 'dirty' pages within guest and forward
+clean pages to hypervisor. These clean pages can be added to
+ephemeral pools which can be reclaimed at any time by hypervisor.
+BTW, I have not yet started work on any such fs-cache backend, so
+we might later encounter some hidder/dangerous problems :)
+
+
+> BTW, pages put to tmem (both frontswap and cleancache) can
+> be optionally compressed.
+>
+
+If ramzswap is extended for this virtualization case, then enforcing
+compression might not be good. We can then throw out pages to hvisor
+even before compression stage.   All such changes to ramzswap are IMHO
+pretty straight forward to do.
+
+
+>> For guest<-->hypervisor interface, maybe we can use virtio so that all
+>> hypervisors can benefit? Not quite sure about this one.
+>
+> I'm not very familiar with virtio, but the existence of "I/O"
+> in the name concerns me because tmem is entirely synchronous.
+>
+
+Is synchronous working a *requirement* for tmem to work correctly?
+
+
+> Also, tmem is well-layered so very little work needs to be
+> done on the Linux side for other hypervisors to benefit.
+> Of course these other hypervisors would need to implement
+> the hypervisor-side of tmem as well, but there is a well-defined
+> API to guide other hypervisor-side implementations... and the
+> opensource tmem code in Xen has a clear split between the
+> hypervisor-dependent and hypervisor-independent code, which
+> should simplify implementation for other opensource hypervisors.
+>
+
+As I mentioned, I really like the idea behind tmem. All I am proposing
+is that we should probably explore some alternatives to achive this using
+some existing infrastructure in kernel. I also don't have experience working
+on virtio[1] or virtual-bus[2] but I have the feeling that once guest
+to hvisor channels are created, both ramzswap extension and fs-cache backend
+can share the same code.
+
+[1] virtio: http://portal.acm.org/citation.cfm?id=1400097.1400108
+[2] virtual-bus: http://developer.novell.com/wiki/index.php/Virtual-bus
+
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
