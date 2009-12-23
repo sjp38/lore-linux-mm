@@ -1,117 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A7C6D620002
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2009 06:24:03 -0500 (EST)
-Message-ID: <4B31FDCF.9050208@linux.intel.com>
-Date: Wed, 23 Dec 2009 19:23:59 +0800
-From: Haicheng Li <haicheng.li@linux.intel.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 207BA620002
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2009 12:26:17 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] slab: initialize unused alien cache entry as NULL at
- alloc_alien_cache().
-References: <4B30BDA8.1070904@linux.intel.com> <alpine.DEB.2.00.0912220945250.12048@router.home> <4B31BE44.1070308@linux.intel.com> <4B31EC7C.7000302@gmail.com> <20091223102343.GD20539@basil.fritz.box>
-In-Reply-To: <20091223102343.GD20539@basil.fritz.box>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <ff435130-98a2-417c-8109-9dd029022a91@default>
+Date: Wed, 23 Dec 2009 09:15:27 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Tmem [PATCH 0/5] (Take 3): Transcendent memory
+In-Reply-To: <d760cf2d0912222228y3284e455r16cdb2bfd2ecaa0e@mail.gmail.com>
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, dave.mccracken@oracle.com, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, chris.mason@oracle.com, Pavel Machek <pavel@ucw.cz>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
->> Then, this is a violation of the first statement :
->>
->> nr_node_ids = 1 + nid of highest POSSIBLE node.
->>
->> If your system allows hotplugging of new nodes, then POSSIBLE nodes should include them
->> at boot time.
-> 
-> Agreed, nr_node_ids must be possible nodes.
-> 
-> It should have been set up by the SRAT parser (modulo regressions)
-> 
-> Haicheng, did you verify with printk it's really incorrect at this point?
+> As I mentioned, I really like the idea behind tmem. All I am proposing
+> is that we should probably explore some alternatives to achive this using
+> some existing infrastructure in kernel.
 
-Yup. See below debug patch & Oops info.
+Hi Nitin --
 
-If we can make sure that SRAT parser must be able to detect out all possible node (even 
-the node, cpu+mem, is not populated on the motherboard), it would be ACPI Parser issue or 
-BIOS issue rather than a slab issue. In such case, I think this patch might become a 
-workaround for buggy system board; and we might need to look into ACPI SRAT parser code as 
-well:).
+Sorry if I sounded overly negative... too busy around the holidays.
+
+I'm definitely OK with exploring alternatives.  I just think that
+existing kernel mechanisms are very firmly rooted in the notion
+that either the kernel owns the memory/cache or an asynchronous
+device owns it.  Tmem falls somewhere in between and is very
+carefully designed to maximize memory flexibility *outside* of
+the kernel -- across all guests in a virtualized environment --
+with minimal impact to the kernel, while still providing the
+kernel with the ability to use -- but not own, directly address,
+or control -- additional memory when conditions allow.  And
+these conditions are not only completely invisible to the kernel,
+but change frequently and asynchronously from the kernel,
+unlike most external devices for which the kernel can "reserve"
+space and use it asynchronously later.
+
+Maybe ramzswap and FS-cache could be augmented to have similar
+advantages in a virtualized environment, but I suspect they'd
+end up with something very similar to tmem.  Since the objective
+of both is to optimize memory that IS owned (used, directly
+addressable, and controlled) by the kernel, they are entirely
+complementary with tmem.
+
+> Is synchronous working a *requirement* for tmem to work correctly?
+
+Yes.  Asynchronous behavior would introduce lots of race
+conditions between the hypervisor and kernel which would
+greatly increase complexity and reduce performance.  And
+tmem then essentially becomes an I/O device, which defeats
+its purpose, especially compared to a fast SSD.
+
+> Swapping to hypervisor is mainly useful to overcome
+> 'static partitioning' problem you mentioned in article:
+> http://oss.oracle.com/projects/tmem/
+> ...such 'para-swap' can shrink/expand outside of VM constraints.
+
+Frontswap is very different than "hypervisor swapping" as what's
+done by VMware as a side-effect of transparent page-sharing.  With
+frontswap, the kernel still decides which pages are swapped out.
+If frontswap says there is space, the swap goes "fast" to tmem;
+if not, the kernel writes it to its own swapdisk.  So there's
+no "double paging" or random page selection/swapping.  On
+the downside, kernels must have real swap configured and,
+to avoid DoS issues, frontswap is limited by the same constraint
+as ballooning (ie. can NOT expand outside of VM constraints).
+
+Thanks,
+Dan
+
+P.S.  If you want to look at implementing FS-cache or ramzswap
+on top of tmem, I'd be happy to help, but I'll bet your concern:
+
+> we might later encounter some hidder/dangerous problems :)
+
+will prove to be correct.
+
+> -----Original Message-----
+> From: Nitin Gupta [mailto:ngupta@vflare.org]
+> Sent: Tuesday, December 22, 2009 11:28 PM
+> To: Dan Magenheimer
+> Cc: Nick Piggin; Andrew Morton; jeremy@goop.org;
+> xen-devel@lists.xensource.com; tmem-devel@oss.oracle.com;=20
+> Rusty Russell;
+> Rik van Riel; Dave Mccracken; Sunil Mushran; Avi Kivity; Schwidefsky;
+> Balbir Singh; Marcelo Tosatti; Alan Cox; Chris Mason; Pavel Machek;
+> linux-mm; linux-kernel
+> Subject: Re: Tmem [PATCH 0/5] (Take 3): Transcendent memory
+>=20
+>=20
+> Hi Dan,
+>=20
+> (mail to Rusty [at] rcsinet15.oracle.com was failing, so I removed
+> this address from CC list).
+>=20
+> On Tue, Dec 22, 2009 at 5:16 AM, Dan Magenheimer
+> <dan.magenheimer@oracle.com> wrote:
+> >> From: Nitin Gupta [mailto:ngupta@vflare.org]
+>=20
+> >
+> >> I think 'frontswap' part seriously overlaps the functionality
+> >> provided by 'ramzswap'
+> >
+> > Could be, but I suspect there's a subtle difference.
+> > A key part of the tmem frontswap api is that any
+> > "put" at any time can be rejected.  There's no way
+> > for the kernel to know a priori whether the put
+> > will be rejected or not, and the kernel must be able
+> > to react by writing the page to a "true" swap device
+> > and must keep track of which pages were put
+> > to tmem frontswap and which were written to disk.
+> > As a result, tmem frontswap cannot be configured or
+> > used as a true swap "device".
+> >
+> > This is critical to acheive the flexibility you
+> > commented above that you like.  Only the hypervisor
+> > knows if a free page is available "now" because
+> > it is flexibly managing tmem requests from multiple
+> > guest kernels.
+> >
+>=20
+> ramzswap devices can easily track which pages it sent
+> to hypervisor, which pages are in backing swap (physical) disk
+> and which are in (compressed) memory. Its simply a matter
+> of adding some more flags. Latter two are already done in this
+> driver.
+>=20
+> So, to gain flexibility of frontswap, we can have hypervisor
+> send the driver a callback whenever it wants to discard swap
+> pages under its domain. If you want to avoid even this callback,
+> then kernel will have to keep a copy within guest, which I think
+> defeats the whole purpose of swapping to hypervisor. Such
+> "ephemeral" pools should be used only for clean fs cache and
+> not for swap.
+>=20
+> Swapping to hypervisor is mainly useful to overcome
+> 'static partitioning' problem you mentioned in article:
+> http://oss.oracle.com/projects/tmem/
+> ...such 'para-swap' can shrink/expand outside of VM constraints.
+>=20
+>=20
+> >
+> >>> Cleancache is
+> >> > "ephemeral" so whether a page is kept in cleancache
+> >> (between the "put" and
+> >> > the "get") is dependent on a number of factors that are=20
+> invisible to
+> >> > the kernel.
+> >>
+> >> Just an idea: as an alternate approach, we can create an
+> >> 'in-memory compressed
+> >> storage' backend for FS-Cache. This way, all filesystems
+> >> modified to use
+> >> fs-cache can benefit from this backend. To make it
+> >> virtualization friendly like
+> >> tmem, we can again provide (per-cache?) option to allocate
+> >> from hypervisor  i.e.
+> >> tmem_{put,get}_page() or use [compress]+alloc natively.
+> >
+> > I looked at FS-Cache and cachefiles and thought I understood
+> > that it is not restricted to clean pages only, thus
+> > not a good match for tmem cleancache.
+> >
+> > Again, if I'm wrong (or if it is easy to tell FS-Cache that
+> > pages may "disappear" underneath it), let me know.
+> >
+>=20
+> fs-cache backend can keep 'dirty' pages within guest and forward
+> clean pages to hypervisor. These clean pages can be added to
+> ephemeral pools which can be reclaimed at any time by hypervisor.
+> BTW, I have not yet started work on any such fs-cache backend, so
+> we might later encounter some hidder/dangerous problems :)
+>=20
+>=20
+> > BTW, pages put to tmem (both frontswap and cleancache) can
+> > be optionally compressed.
+> >
+>=20
+> If ramzswap is extended for this virtualization case, then enforcing
+> compression might not be good. We can then throw out pages to hvisor
+> even before compression stage.   All such changes to ramzswap are IMHO
+> pretty straight forward to do.
+>=20
+>=20
+> >> For guest<-->hypervisor interface, maybe we can use virtio=20
+> so that all
+> >> hypervisors can benefit? Not quite sure about this one.
+> >
+> > I'm not very familiar with virtio, but the existence of "I/O"
+> > in the name concerns me because tmem is entirely synchronous.
+> >
+>=20
+> Is synchronous working a *requirement* for tmem to work correctly?
+>=20
+>=20
+> > Also, tmem is well-layered so very little work needs to be
+> > done on the Linux side for other hypervisors to benefit.
+> > Of course these other hypervisors would need to implement
+> > the hypervisor-side of tmem as well, but there is a well-defined
+> > API to guide other hypervisor-side implementations... and the
+> > opensource tmem code in Xen has a clear split between the
+> > hypervisor-dependent and hypervisor-independent code, which
+> > should simplify implementation for other opensource hypervisors.
+> >
+>=20
+> As I mentioned, I really like the idea behind tmem. All I am proposing
+> is that we should probably explore some alternatives to=20
+> achive this using
+> some existing infrastructure in kernel. I also don't have=20
+> experience working
+> on virtio[1] or virtual-bus[2] but I have the feeling that once guest
+> to hvisor channels are created, both ramzswap extension and=20
+> fs-cache backend
+> can share the same code.
+>=20
+> [1] virtio: http://portal.acm.org/citation.cfm?id=3D1400097.1400108
+> [2] virtual-bus:=20
+http://developer.novell.com/wiki/index.php/Virtual-bus
 
 
----
-diff --git a/mm/slab.c b/mm/slab.c
-index 7dfa481..3a4e1f4 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1032,6 +1032,9 @@ static void reap_alien(struct kmem_cache *cachep, struct kmem_list3 *l3)
-  	if (l3->alien) {
-  		struct array_cache *ac = l3->alien[node];
-
-+		if (node >= nr_node_ids)
-+			printk("node=%d, nr_node_ids=%d, ac=%p\n",
-+				node, nr_node_ids, ac);
-  		if (ac && ac->avail && spin_trylock_irq(&ac->lock)) {
-  			__drain_alien_cache(cachep, ac, node);
-  			spin_unlock_irq(&ac->lock);
-
-
----
-[  151.732864] node=3, nr_node_ids=2, ac=(null)
-[  151.732873] node=3, nr_node_ids=2, ac=(null)
-[  151.732882] node=3, nr_node_ids=2, ac=(null)
-[  151.732889] node=3, nr_node_ids=2, ac=(null)
-[  151.732897] node=3, nr_node_ids=2, ac=000000004b31f78f
-[  151.732941] BUG: unable to handle kernel paging request at 000000004b31f78f
-[  151.741026] IP: [<ffffffff810bd460>] cache_reap+0x8d/0x252
-[  151.747363] PGD 0
-[  151.749793] Oops: 0000 [#1] SMP
-[  151.753658] last sysfs file: /sys/kernel/kexec_crash_loaded
-[  151.759990] CPU
-[  151.762509] Modules linked in: ipv6 autofs4 rfcomm l2cap crc16 bluetooth rfkill 
-binfmt_misc dm_mirror dm_region_hash dm_log dm_multipath dm_mod video output sbs sbshc fan 
-battery ac parport_pc lp parport joydev usbhid sr_mod cdrom processor thermal thermal_sys 
-container button rtc_cmos rtc_core rtc_lib i2c_i801 i2c_core pcspkr uhci_hcd ohci_hcd 
-ehci_hcd usbcore
-[  151.802035] Pid: 120, comm: events/21 Not tainted 2.6.32-haicheng-cpuhp #34 Server
-[  151.810911] RIP: 0010:[<ffffffff810bd460>]  [<ffffffff810bd460>] cache_reap+0x8d/0x252
-[  151.815485] RSP: 0018:ffff88027e81ddf0  EFLAGS: 00010202
-[  151.815491] RAX: 000000000000003d RBX: 000000004b31f78f RCX: 0000000000000000
-[  151.815496] RDX: ffff88027f3f5040 RSI: 0000000000000001 RDI: 0000000000000286
-[  151.815503] RBP: ffff88027e81de30 R08: 0000000000000002 R09: ffffffff8105ee06
-[  151.815507] R10: ffff88027e81dbe0 R11: ffffffff81066722 R12: ffff88047f223080
-[  151.815513] R13: ffff88047dd201c0 R14: 0000000000000003 R15: fffffffff00000c6
-[  151.815518] FS:  0000000000000000(0000) GS:ffff88028b540000(0000) knlGS:0000000000000000
-[  151.815524] CS:  0010 DS: 0018 ES: 0018 CR0: 000000008005003b
-[  151.815528] CR2: 000000004b31f78f CR3: 0000000001001000 CR4: 00000000000006e0
-[  151.815533] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[  151.815538] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[  151.815547] Process events/21 (pid: 120, threadinfo ffff88027e81c000, task 
-ffff88027f3f5040)
-[  151.815550] Stack:
-[  151.817896]  ffff88027e81de30 ffff88028b5517c0 0000000100000000 ffff88027e81de80
-[  151.817908] <0> ffff88028b556d80 ffff88028b5517c0 ffffffff810bd3d3 fffffffff00000c6
-[  151.817918] <0> ffff88027e81dec0 ffffffff81058d0c ffffffff81058cb6 ffffffff81376fea
-[  151.817928] Call Trace:
-[  151.820772]  [<ffffffff810bd3d3>] ? cache_reap+0x0/0x252
-[  151.820786]  [<ffffffff81058d0c>] worker_thread+0x17a/0x27b
-[  151.820793]  [<ffffffff81058cb6>] ? worker_thread+0x124/0x27b
-[  151.820806]  [<ffffffff81376fea>] ? thread_return+0x3e/0xee
-[  151.820816]  [<ffffffff8105bbbc>] ? autoremove_wake_function+0x0/0x38
-[  151.820827]  [<ffffffff81058b92>] ? worker_thread+0x0/0x27b
-[  151.820833]  [<ffffffff8105babe>] kthread+0x7d/0x87
-[  151.820848]  [<ffffffff81012daa>] child_rip+0xa/0x20
-[  151.820857]  [<ffffffff81012710>] ? restore_args+0x0/0x30
-[  151.820863]  [<ffffffff8105ba41>] ? kthread+0x0/0x87
-[  151.820874]  [<ffffffff81012da0>] ? child_rip+0x0/0x20
-[  151.820879] Code: 77 48 63 c6 41 89 f6 48 8b 1c c2 8b 15 be 28 6e 00 39 d6 7c 11 48 89 
-d9 48 c7 c7 97 98 4c 81 31 c0 e8 23 bf f8 ff 48 85 db 74 4d <83> 3b 00 74 48 48 83 3d 83 
-ab 66 00 00 75 04 0f 0b eb fe fa 66
-[  151.845235] RIP  [<ffffffff810bd460>] cache_reap+0x8d/0x252
-[  151.845255]  RSP <ffff88027e81ddf0>
-[  151.845260] CR2: 000000004b31f78f
-[  151.845415] ---[ end trace be6e21fde5d02b06 ]---
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
