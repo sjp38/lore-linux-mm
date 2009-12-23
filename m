@@ -1,50 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E0EC8620002
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2009 05:10:14 -0500 (EST)
-Message-ID: <4B31EC7C.7000302@gmail.com>
-Date: Wed, 23 Dec 2009 11:10:04 +0100
-From: Eric Dumazet <eric.dumazet@gmail.com>
-MIME-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F2A7620002
+	for <linux-mm@kvack.org>; Wed, 23 Dec 2009 05:23:47 -0500 (EST)
+Date: Wed, 23 Dec 2009 11:23:43 +0100
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [PATCH] slab: initialize unused alien cache entry as NULL at
- alloc_alien_cache().
-References: <4B30BDA8.1070904@linux.intel.com> <alpine.DEB.2.00.0912220945250.12048@router.home> <4B31BE44.1070308@linux.intel.com>
-In-Reply-To: <4B31BE44.1070308@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+	alloc_alien_cache().
+Message-ID: <20091223102343.GD20539@basil.fritz.box>
+References: <4B30BDA8.1070904@linux.intel.com> <alpine.DEB.2.00.0912220945250.12048@router.home> <4B31BE44.1070308@linux.intel.com> <4B31EC7C.7000302@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B31EC7C.7000302@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Haicheng Li <haicheng.li@linux.intel.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, andi@firstfloor.org, linux-kernel@vger.kernel.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, andi@firstfloor.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Le 23/12/2009 07:52, Haicheng Li a ecrit :
-> Christoph & Matt,
+> Then, this is a violation of the first statement :
 > 
-> Thanks for the review. Node ids beyond nr_node_ids could be used in the
-> case of
-> memory hotadding.
+> nr_node_ids = 1 + nid of highest POSSIBLE node.
 > 
-> Let me explain here:
-> Firstly, original nr_node_ids = 1 + nid of highest POSSIBLE node.
-> 
-> Secondly, consider hotplug-adding the memories that are on a new_added
-> node:
-> 1. when acpi event is triggered:
-> acpi_memory_device_add() -> acpi_memory_enable_device() -> add_memory()
-> -> node_set_online()
-> 
-> The node_state[N_ONLINE] is updated with this new node added.
-> And the id of this new node is beyond nr_node_ids.
-> 
+> If your system allows hotplugging of new nodes, then POSSIBLE nodes should include them
+> at boot time.
 
-Then, this is a violation of the first statement :
+Agreed, nr_node_ids must be possible nodes.
 
-nr_node_ids = 1 + nid of highest POSSIBLE node.
+It should have been set up by the SRAT parser (modulo regressions)
 
-If your system allows hotplugging of new nodes, then POSSIBLE nodes should include them
-at boot time.
+Haicheng, did you verify with printk it's really incorrect at this point?
+-Andi
 
-Same thing for cpus and nr_cpus_ids. If a cpu is added, then its id MUST be < nr_cpus_ids
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
