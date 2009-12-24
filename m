@@ -1,112 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 04F8E620002
-	for <linux-mm@kvack.org>; Wed, 23 Dec 2009 22:29:09 -0500 (EST)
-Received: by ywh3 with SMTP id 3so8066088ywh.22
-        for <linux-mm@kvack.org>; Wed, 23 Dec 2009 19:29:08 -0800 (PST)
-Message-ID: <4B32DF97.5060400@vflare.org>
-Date: Thu, 24 Dec 2009 08:57:19 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F5AC620002
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2009 05:00:44 -0500 (EST)
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp09.in.ibm.com (8.14.3/8.13.1) with ESMTP id nBO9Ypv0019863
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2009 15:04:51 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBOA0YQY3711164
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2009 15:30:34 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nBOA0XF7022332
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2009 21:00:34 +1100
+Date: Thu, 24 Dec 2009 15:30:30 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 28 of 28] memcg huge memory
+Message-ID: <20091224100030.GD13983@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <patchbomb.1261076403@v2.random>
+ <d9c8d2160feb7d82736b.1261076431@v2.random>
 MIME-Version: 1.0
-Subject: Re: Tmem [PATCH 0/5] (Take 3): Transcendent memory
-References: <ff435130-98a2-417c-8109-9dd029022a91@default>
-In-Reply-To: <ff435130-98a2-417c-8109-9dd029022a91@default>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <d9c8d2160feb7d82736b.1261076431@v2.random>
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, dave.mccracken@oracle.com, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, chris.mason@oracle.com, Pavel Machek <pavel@ucw.cz>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Dan,
+* Andrea Arcangeli <aarcange@redhat.com> [2009-12-17 19:00:31]:
 
-On 12/23/2009 10:45 PM, Dan Magenheimer wrote:
-
- 
-> I'm definitely OK with exploring alternatives.  I just think that
-> existing kernel mechanisms are very firmly rooted in the notion
-> that either the kernel owns the memory/cache or an asynchronous
-> device owns it.  Tmem falls somewhere in between and is very
-> carefully designed to maximize memory flexibility *outside* of
-> the kernel -- across all guests in a virtualized environment --
-> with minimal impact to the kernel, while still providing the
-> kernel with the ability to use -- but not own, directly address,
-> or control -- additional memory when conditions allow.  And
-> these conditions are not only completely invisible to the kernel,
-> but change frequently and asynchronously from the kernel,
-> unlike most external devices for which the kernel can "reserve"
-> space and use it asynchronously later.
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> Maybe ramzswap and FS-cache could be augmented to have similar
-> advantages in a virtualized environment, but I suspect they'd
-> end up with something very similar to tmem.  Since the objective
-> of both is to optimize memory that IS owned (used, directly
-> addressable, and controlled) by the kernel, they are entirely
-> complementary with tmem.
+> Add memcg charge/uncharge to hugepage faults in huge_memory.c.
 > 
-
-What we want is surely tmem but attempt is to better integrate with
-existing infrastructure. Please give me few days as I try to develop
-a prototype.
-
->> Swapping to hypervisor is mainly useful to overcome
->> 'static partitioning' problem you mentioned in article:
->> http://oss.oracle.com/projects/tmem/
->> ...such 'para-swap' can shrink/expand outside of VM constraints.
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
 > 
-> Frontswap is very different than "hypervisor swapping" as what's
-> done by VMware as a side-effect of transparent page-sharing.  With
-> frontswap, the kernel still decides which pages are swapped out.
-> If frontswap says there is space, the swap goes "fast" to tmem;
-> if not, the kernel writes it to its own swapdisk.  So there's
-> no "double paging" or random page selection/swapping.  On
-> the downside, kernels must have real swap configured and,
-> to avoid DoS issues, frontswap is limited by the same constraint
-> as ballooning (ie. can NOT expand outside of VM constraints).
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -207,6 +207,7 @@ static int __do_huge_anonymous_page(stru
+>  	VM_BUG_ON(!PageCompound(page));
+>  	pgtable = pte_alloc_one(mm, address);
+>  	if (unlikely(!pgtable)) {
+> +		mem_cgroup_uncharge_page(page);
+>  		put_page(page);
+>  		return VM_FAULT_OOM;
+>  	}
+> @@ -218,6 +219,7 @@ static int __do_huge_anonymous_page(stru
 > 
-
-I think I did not explain my point regarding "para-swap" correctly.
-What I meant was a virtual swap device which appears as swap disk
-to kernel. Kernel swaps to this disk as usual (hence the kernel decides
-what pages to swap out). This device tries to send these pages to hvisor
-but if that fails, it will fall back to swapping inside guest only. There
-is no double swapping. I think this correctly explains purpose of Frontswap.
-
->> ...such 'para-swap' can shrink/expand outside of VM constraints.
-<snip>
-> frontswap is limited by the same constraint
-> as ballooning (ie. can NOT expand outside of VM constraints).
+>  	spin_lock(&mm->page_table_lock);
+>  	if (unlikely(!pmd_none(*pmd))) {
+> +		mem_cgroup_uncharge_page(page);
+>  		put_page(page);
+>  		pte_free(mm, pgtable);
+>  	} else {
+> @@ -251,6 +253,10 @@ int do_huge_anonymous_page(struct mm_str
+>  				   HPAGE_ORDER);
+>  		if (unlikely(!page))
+>  			goto out;
+> +		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
+> +			put_page(page);
+> +			goto out;
+> +		}
 > 
-
-What I meant was: A VM can have 512M of memory while this "para swap" disk
-can have any size, say 1G. Now kernel can swapout 1G worth of data to this
-swap which can (potentially) send all these pages to hvisor. In future, if
-we want even more RAM for this VM, we can add another such swap device to guest.
-Thus, in a way, we are able to overcome rigid static partitioning of VMs w.r.t.
-memory resource.
-
-
+>  		return __do_huge_anonymous_page(mm, vma,
+>  						address, pmd,
+> @@ -379,9 +385,16 @@ int do_huge_wp_page(struct mm_struct *mm
+>  		for (i = 0; i < HPAGE_NR; i++) {
+>  			pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+>  						  vma, address);
+> -			if (unlikely(!pages[i])) {
+> -				while (--i >= 0)
+> +			if (unlikely(!pages[i] ||
+> +				     mem_cgroup_newpage_charge(pages[i],
+> +							       mm,
+> +							       GFP_KERNEL))) {
+> +				if (pages[i])
+>  					put_page(pages[i]);
+> +				while (--i >= 0) {
+> +					mem_cgroup_uncharge_page(pages[i]);
+> +					put_page(pages[i]);
+> +				}
+>  				kfree(pages);
+>  				ret |= VM_FAULT_OOM;
+>  				goto out;
+> @@ -439,15 +452,21 @@ int do_huge_wp_page(struct mm_struct *mm
+>  		goto out;
+>  	}
 > 
-> P.S.  If you want to look at implementing FS-cache or ramzswap
-> on top of tmem, I'd be happy to help, but I'll bet your concern:
+> +	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+> +		put_page(new_page);
+> +		ret |= VM_FAULT_OOM;
+> +		goto out;
+> +	}
+>  	copy_huge_page(new_page, page, haddr, vma, HPAGE_NR);
+>  	__SetPageUptodate(new_page);
 > 
->> we might later encounter some hidder/dangerous problems :)
+>  	smp_wmb();
 > 
-> will prove to be correct.
+>  	spin_lock(&mm->page_table_lock);
+> -	if (unlikely(!pmd_same(*pmd, orig_pmd)))
+> +	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
+> +		mem_cgroup_uncharge_page(new_page);
+>  		put_page(new_page);
+> -	else {
+> +	} else {
+>  		pmd_t entry;
+>  		entry = mk_pmd(new_page, vma->vm_page_prot);
+>  		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+> @@ -466,8 +485,10 @@ out:
+>  	return ret;
 > 
+>  out_free_pages:
+> -	for (i = 0; i < HPAGE_NR; i++)
+> +	for (i = 0; i < HPAGE_NR; i++) {
+> +		mem_cgroup_uncharge_page(pages[i]);
+>  		put_page(pages[i]);
+> +	}
+>  	kfree(pages);
+>  	goto out_unlock;
+>  }
+>
 
-Please allow me few days to experiment with 'virtswap' which will
-be virtualization aware ramzswap driver. This will help us understand
-problems we might face with such an approach. I am new to this virtio thing,
-so it might take some time.
+Charging huge pages might be OK, but I wonder if we should create a
+separate counter since hugepages are not reclaimable.  I am yet to
+look at the complete series, does this series make hugepages
+reclaimable? Could you please update Documentation/cgroups/memcg* as
+well.
 
-If we find virtswap to be feasible with virtio, we can go for fs-cache
-backend we talked about.
-
-
-Thanks,
-Nitin
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
