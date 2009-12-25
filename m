@@ -1,91 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8F88A620002
-	for <linux-mm@kvack.org>; Thu, 24 Dec 2009 23:41:03 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBP4f0bQ023093
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 25 Dec 2009 13:41:01 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A01EA45DE7A
-	for <linux-mm@kvack.org>; Fri, 25 Dec 2009 13:41:00 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 69FF245DE60
-	for <linux-mm@kvack.org>; Fri, 25 Dec 2009 13:41:00 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DE6B1DB8044
-	for <linux-mm@kvack.org>; Fri, 25 Dec 2009 13:41:00 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DF8061DB8037
-	for <linux-mm@kvack.org>; Fri, 25 Dec 2009 13:40:59 +0900 (JST)
-Date: Fri, 25 Dec 2009 13:37:20 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 28 of 28] memcg huge memory
-Message-Id: <20091225133720.13444bb9.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091225131700.3db3fb4f.nishimura@mxp.nes.nec.co.jp>
-References: <patchbomb.1261076403@v2.random>
-	<d9c8d2160feb7d82736b.1261076431@v2.random>
-	<20091218103312.2f61bbfc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091218160437.GP29790@random.random>
-	<ed35473ab7bac5ea2c509e82220565a4.squirrel@webmail-b.css.fujitsu.com>
-	<20091220183943.GA6429@random.random>
-	<20091221092625.4aef2c3a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091221102427.8b22467f.nishimura@mxp.nes.nec.co.jp>
-	<20091221125223.4ae56520.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091221133315.7d21ccae.nishimura@mxp.nes.nec.co.jp>
-	<20091225131700.3db3fb4f.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E3A43620002
+	for <linux-mm@kvack.org>; Thu, 24 Dec 2009 23:56:37 -0500 (EST)
+Received: by qyk14 with SMTP id 14so3684985qyk.11
+        for <linux-mm@kvack.org>; Thu, 24 Dec 2009 20:56:36 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <f19d625d0912240309g5c066de7pc4dc9d95c084d4df@mail.gmail.com>
+References: <f19d625d0912240309g5c066de7pc4dc9d95c084d4df@mail.gmail.com>
+Date: Fri, 25 Dec 2009 12:56:36 +0800
+Message-ID: <2375c9f90912242056h29f20dc5rb3f891c732e0d362@mail.gmail.com>
+Subject: Re: 2.6.28.10 - kernel BUG at mm/rmap.c:725
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: CoolCold <coolthecold@gmail.com>
+Cc: Linux kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Dec 2009 13:17:00 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Thu, Dec 24, 2009 at 7:09 PM, CoolCold <coolthecold@gmail.com> wrote:
+> 3 days ago LA on server become very high and it was working very
+> strange, so was rebooted. There are such entryies in log about kernel
+> bug - kernel BUG at mm/rmap.c:725! . Googling didn't provide me with
+> exact answer is it bug or hardware problems, something similar was
+> here https://bugs.launchpad.net/ubuntu/+source/linux/+bug/252977/comments=
+/56
+> In general this server had number of unexpected stalls during several
+> months, but there is no ipkvm, so i can't say where something on
+> console or not. Hope you will help.
+>
+> Kernel version is 2.6.28.10 , self-builded. System - Debian stable/testin=
+g.
+>
+> Please reply to me directly, cuz i'm not subsribed to list.
+>
+> Dec 21 22:05:01 gamma kernel: Eeek! page_mapcount(page) went negative! (-=
+1)
+> Dec 21 22:05:01 gamma kernel: =C2=A0 page pfn =3D 1f2c81
+> Dec 21 22:05:01 gamma kernel: =C2=A0 page->flags =3D 20000000008007c
+> Dec 21 22:05:01 gamma kernel: =C2=A0 page->count =3D 2
+> Dec 21 22:05:01 gamma kernel: =C2=A0 page->mapping =3D ffff8801fd870b58
+> Dec 21 22:05:01 gamma kernel: =C2=A0 vma->vm_ops =3D 0xffffffff80535020
+> Dec 21 22:05:01 gamma kernel: =C2=A0 vma->vm_ops->fault =3D shmem_fault+0=
+x0/0x69
+> Dec 21 22:05:01 gamma kernel: =C2=A0 vma->vm_file->f_op->mmap =3D shmem_m=
+map+0x0/0x2e
+> Dec 21 22:05:01 gamma kernel: ------------[ cut here ]------------
+> Dec 21 22:05:01 gamma kernel: kernel BUG at mm/rmap.c:725!
 
-> On Mon, 21 Dec 2009 13:33:15 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > On Mon, 21 Dec 2009 12:52:23 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > On Mon, 21 Dec 2009 10:24:27 +0900
-> > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > 
-> > > > On Mon, 21 Dec 2009 09:26:25 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > > Added CC: to Nishimura.
-> > > > > 
-> > > > > Andrea, Please go ahead as you like. My only concern is a confliction with
-> > > > > Nishimura's work.
-> > > > I agree. I've already noticed Andrea's patches but not read through all the
-> > > > patches yet, sorry.
-> > > > 
-> > > > One concern: isn't there any inconsistency to handle css->refcnt in charging/uncharging
-> > > > compound pages the same way as a normal page ?
-> > > > 
-> > > AKAIK, no inconsistency.
-> > O.K. thanks.
-> > (It might be better for us to remove per page css refcnt till 2.6.34...)
-> > 
-> Hmm, if I understand these patches correctly, some inconsistency about css->refcnt
-> and page_cgroup of tail pages happen when a huge page is splitted.
-> At least, I think pc->flags and pc->mem_cgroup of them should be handled.
-> 
-> So, I think we need some hooks in __split_huge_page_map() or some tricks.
-> 
-Ah, yes.
+Hey,
 
-> > > My biggest concern is that page-table-walker has to handle hugepages. 
-> > > 
-> > Ah, you're right.
-> > It would be a big change..
-> > 
-> In [19/28] of this version, split_huge_page_mm() is called in walk_pmd_range().
-> So, I think it will work w/o changing current code.
-> (It might be better to change my code, which does all the works in walk->pmd_entry(),
-> to prevent unnecessary splitting.)
-> 
+commit 3dc147414cc already removed this BUG(), not sure
+how serious this is...
 
-Ok, thank you.
--Kame
+Adding mm people into Cc.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
