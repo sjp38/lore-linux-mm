@@ -1,61 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D5E560044A
-	for <linux-mm@kvack.org>; Sat, 26 Dec 2009 08:30:23 -0500 (EST)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp02.in.ibm.com (8.14.3/8.13.1) with ESMTP id nBQDUGvc016557
-	for <linux-mm@kvack.org>; Sat, 26 Dec 2009 19:00:16 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBQDUFFl2666512
-	for <linux-mm@kvack.org>; Sat, 26 Dec 2009 19:00:16 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nBQDUFJ7002532
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 00:30:15 +1100
-Date: Sat, 26 Dec 2009 19:00:11 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 0/4] cgroup notifications API and memory thresholds
-Message-ID: <20091226133011.GA10944@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <cover.1261786326.git.kirill@shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <cover.1261786326.git.kirill@shutemov.name>
+	by kanga.kvack.org (Postfix) with SMTP id 8776960021B
+	for <linux-mm@kvack.org>; Sat, 26 Dec 2009 14:31:12 -0500 (EST)
+Received: by fxm28 with SMTP id 28so779801fxm.6
+        for <linux-mm@kvack.org>; Sat, 26 Dec 2009 11:31:10 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH] [TRIVIAL] memcg: typo in comment to mem_cgroup_print_oom_info()
+Date: Sat, 26 Dec 2009 21:31:01 +0200
+Message-Id: <1261855861-3204-1-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Alexander Shishkin <virtuoso@slind.org>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-* Kirill A. Shutemov <kirill@shutemov.name> [2009-12-26 02:30:56]:
+s/mem_cgroup_print_mem_info/mem_cgroup_print_oom_info/
 
-> This patchset introduces eventfd-based API for notifications in cgroups and
-> implements memory notifications on top of it.
-> 
-> It uses statistics in memory controler to track memory usage.
-> 
-> Output of time(1) on building kernel on tmpfs:
-> 
-> Root cgroup before changes:
-> 	make -j2  506.37 user 60.93s system 193% cpu 4:52.77 total
-> Non-root cgroup before changes:
-> 	make -j2  507.14 user 62.66s system 193% cpu 4:54.74 total
-> Root cgroup after changes (0 thresholds):
-> 	make -j2  507.13 user 62.20s system 193% cpu 4:53.55 total
-> Non-root cgroup after changes (0 thresholds):
-> 	make -j2  507.70 user 64.20s system 193% cpu 4:55.70 total
-> Root cgroup after changes (1 thresholds, never crossed):
-> 	make -j2  506.97 user 62.20s system 193% cpu 4:53.90 total
-> Non-root cgroup after changes (1 thresholds, never crossed):
-> 	make -j2  507.55 user 64.08s system 193% cpu 4:55.63 total
-> 
-> Any comments?
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+---
+ mm/memcontrol.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Could you please add some documentation for end users. I've just
-compiled a kernel with your changes for test. Also, is there a reason
-not to use cgroupstats?
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 488b644..cebe6b9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1000,7 +1000,7 @@ static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
+ }
+ 
+ /**
+- * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in read mode.
++ * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
+  * @memcg: The memory cgroup that went over limit
+  * @p: Task that is going to be killed
+  *
 -- 
-	Balbir
+1.6.5.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
