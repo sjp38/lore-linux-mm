@@ -1,45 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BC85D620002
-	for <linux-mm@kvack.org>; Fri, 25 Dec 2009 14:18:57 -0500 (EST)
-Date: Fri, 25 Dec 2009 20:18:49 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: Tmem [PATCH 0/5] (Take 3): Transcendent memory
-Message-ID: <20091225191848.GB8438@elf.ucw.cz>
-References: <d760cf2d0912222228y3284e455r16cdb2bfd2ecaa0e@mail.gmail.com>
- <ff435130-98a2-417c-8109-9dd029022a91@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ff435130-98a2-417c-8109-9dd029022a91@default>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 718DB620002
+	for <linux-mm@kvack.org>; Fri, 25 Dec 2009 19:31:22 -0500 (EST)
+Received: by fxm28 with SMTP id 28so417439fxm.6
+        for <linux-mm@kvack.org>; Fri, 25 Dec 2009 16:31:20 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH v3 0/4] cgroup notifications API and memory thresholds
+Date: Sat, 26 Dec 2009 02:30:56 +0200
+Message-Id: <cover.1261786326.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, dave.mccracken@oracle.com, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, chris.mason@oracle.com, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: containers@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Alexander Shishkin <virtuoso@slind.org>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-On Wed 2009-12-23 09:15:27, Dan Magenheimer wrote:
-> > As I mentioned, I really like the idea behind tmem. All I am proposing
-> > is that we should probably explore some alternatives to achive this using
-> > some existing infrastructure in kernel.
-> 
-> Hi Nitin --
-> 
-> Sorry if I sounded overly negative... too busy around the holidays.
-> 
-> I'm definitely OK with exploring alternatives.  I just think that
-> existing kernel mechanisms are very firmly rooted in the notion
-> that either the kernel owns the memory/cache or an asynchronous
-> device owns it.  Tmem falls somewhere in between and is very
+This patchset introduces eventfd-based API for notifications in cgroups and
+implements memory notifications on top of it.
 
-Well... compcache seems to be very similar to preswap: in preswap case
-you don't know if hypervisor will have space, in ramzswap you don't
-know if data are compressible.
+It uses statistics in memory controler to track memory usage.
 
-									Pavel
+Output of time(1) on building kernel on tmpfs:
 
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Root cgroup before changes:
+	make -j2  506.37 user 60.93s system 193% cpu 4:52.77 total
+Non-root cgroup before changes:
+	make -j2  507.14 user 62.66s system 193% cpu 4:54.74 total
+Root cgroup after changes (0 thresholds):
+	make -j2  507.13 user 62.20s system 193% cpu 4:53.55 total
+Non-root cgroup after changes (0 thresholds):
+	make -j2  507.70 user 64.20s system 193% cpu 4:55.70 total
+Root cgroup after changes (1 thresholds, never crossed):
+	make -j2  506.97 user 62.20s system 193% cpu 4:53.90 total
+Non-root cgroup after changes (1 thresholds, never crossed):
+	make -j2  507.55 user 64.08s system 193% cpu 4:55.63 total
+
+Any comments?
+
+v2 -> v3:
+ - remove [RFC];
+ - rebased to 2.6.33-rc2;
+ - fixes based on comments;
+ - fixed potential race on event removing;
+ - use RCU-protected arrays to track trasholds.
+
+v1 -> v2:
+ - use statistics instead of res_counter to track resource usage;
+ - fix bugs with locking.
+
+v0 -> v1:
+ - memsw support implemented.
+
+Kirill A. Shutemov (4):
+  cgroup: implement eventfd-based generic API for notifications
+  memcg: extract mem_group_usage() from mem_cgroup_read()
+  memcg: rework usage of stats by soft limit
+  memcg: implement memory thresholds
+
+ include/linux/cgroup.h |   24 ++++
+ kernel/cgroup.c        |  208 ++++++++++++++++++++++++++++-
+ mm/memcontrol.c        |  348 ++++++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 552 insertions(+), 28 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
