@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 99C8160021B
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 06:20:25 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABB860021B
+	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 07:03:39 -0500 (EST)
 Subject: Re: [RFC PATCH] asynchronous page fault.
 From: Peter Zijlstra <peterz@infradead.org>
 In-Reply-To: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 27 Dec 2009 12:19:56 +0100
-Message-ID: <1261912796.15854.25.camel@laptop>
+Date: Sun, 27 Dec 2009 13:03:11 +0100
+Message-ID: <1261915391.15854.31.camel@laptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,88 +17,55 @@ Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kva
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 2009-12-25 at 10:51 +0900, KAMEZAWA Hiroyuki wrote:
-> Index: linux-2.6.33-rc2/lib/rbtree.c
-> ===================================================================
-> --- linux-2.6.33-rc2.orig/lib/rbtree.c
-> +++ linux-2.6.33-rc2/lib/rbtree.c
-> @@ -30,19 +30,19 @@ static void __rb_rotate_left(struct rb_n
->  
->         if ((node->rb_right = right->rb_left))
->                 rb_set_parent(right->rb_left, node);
-> -       right->rb_left = node;
-> +       rcu_assign_pointer(right->rb_left, node);
->  
->         rb_set_parent(right, parent);
->  
->         if (parent)
->         {
->                 if (node == parent->rb_left)
-> -                       parent->rb_left = right;
-> +                       rcu_assign_pointer(parent->rb_left, right);
->                 else
-> -                       parent->rb_right = right;
-> +                       rcu_assign_pointer(parent->rb_right, right);
->         }
->         else
-> -               root->rb_node = right;
-> +               rcu_assign_pointer(root->rb_node, right);
->         rb_set_parent(node, right);
->  }
->  
-> @@ -53,19 +53,19 @@ static void __rb_rotate_right(struct rb_
->  
->         if ((node->rb_left = left->rb_right))
->                 rb_set_parent(left->rb_right, node);
-> -       left->rb_right = node;
-> +       rcu_assign_pointer(left->rb_right, node);
->  
->         rb_set_parent(left, parent);
->  
->         if (parent)
->         {
->                 if (node == parent->rb_right)
-> -                       parent->rb_right = left;
-> +                       rcu_assign_pointer(parent->rb_right, left);
->                 else
-> -                       parent->rb_left = left;
-> +                       rcu_assign_pointer(parent->rb_left, left);
->         }
->         else
-> -               root->rb_node = left;
-> +               rcu_assign_pointer(root->rb_node, left);
->         rb_set_parent(node, left);
->  }
+>  /*
+> + * Returns vma which contains given address. This scans rb-tree in speculative
+> + * way and increment a reference count if found. Even if vma exists in rb-tree,
+> + * this function may return NULL in racy case. So, this function cannot be used
+> + * for checking whether given address is valid or not.
+> + */
+> +struct vm_area_struct *
+> +find_vma_speculative(struct mm_struct *mm, unsigned long addr)
+> +{
+> +       struct vm_area_struct *vma = NULL;
+> +       struct vm_area_struct *vma_tmp;
+> +       struct rb_node *rb_node;
+> +
+> +       if (unlikely(!mm))
+> +               return NULL;;
+> +
+> +       rcu_read_lock();
+> +       rb_node = rcu_dereference(mm->mm_rb.rb_node);
+> +       vma = NULL;
+> +       while (rb_node) {
+> +               vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+> +
+> +               if (vma_tmp->vm_end > addr) {
+> +                       vma = vma_tmp;
+> +                       if (vma_tmp->vm_start <= addr)
+> +                               break;
+> +                       rb_node = rcu_dereference(rb_node->rb_left);
+> +               } else
+> +                       rb_node = rcu_dereference(rb_node->rb_right);
+> +       }
+> +       if (vma) {
+> +               if ((vma->vm_start <= addr) && (addr < vma->vm_end)) {
+> +                       if (!atomic_inc_not_zero(&vma->refcnt))
 
+And here you destroy pretty much all advantage of having done the
+lockless lookup ;-)
 
-Consider the tree rotation:
+The idea is to let the RCU lock span whatever length you need the vma
+for, the easy way is to simply use PREEMPT_RCU=y for now, the hard way
+is to also incorporate the drop-mmap_sem on blocking patches from a
+while ago.
 
-
-           Q                        P
-         /   \                    /   \
-       P       C                A       Q
-     /   \                            /   \
-   A       B                        B       C
-
-
-Since this comprises of 3 assignments (assuming right rotation):
-
-  Q.left = B
-  P.right = Q
-  parent = P
-
-it is non-atomic. This in turn means that any lock-less decent into the
-tree will be able to miss a whole subtree or worse (imagine us being at
-Q, needing to go to A, then the rotation happens, and all we can choose
-from is B or C).
-
-Your changelog states as much.
-
-"Even if RB-tree rotation occurs while we walk tree for look-up, we just
-miss vma without oops."
-
-However, since this is the case, do we still need the
-rcu_assign_pointer() conversion your patch does? All I can see it do is
-slow down all RB-tree users, without any gain.
+> +                               vma = NULL;
+> +               } else
+> +                       vma = NULL;
+> +       }
+> +       rcu_read_unlock();
+> +       return vma;
+> +} 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
