@@ -1,131 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8FD2860021B
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 13:37:59 -0500 (EST)
-Received: by ywh5 with SMTP id 5so13497745ywh.11
-        for <linux-mm@kvack.org>; Sun, 27 Dec 2009 10:37:57 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20091227124732.GA3601@balbir.in.ibm.com>
-References: <cover.1261858972.git.kirill@shutemov.name>
-	 <20091227124732.GA3601@balbir.in.ibm.com>
-Date: Sun, 27 Dec 2009 20:37:57 +0200
-Message-ID: <cc557aab0912271037scb29fe1xcebe9adfaea97b24@mail.gmail.com>
-Subject: Re: [PATCH v4 0/4] cgroup notifications API and memory thresholds
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Content-Type: multipart/mixed; boundary=0050450170486e6345047bba16b3
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2E6D160021B
+	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 19:02:55 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS02qrj001469
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 28 Dec 2009 09:02:52 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D7E8A45DE6E
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 09:02:51 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B0A3D45DE7C
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 09:02:51 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F243E18002
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 09:02:51 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E4DEDE18005
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 09:02:50 +0900 (JST)
+Date: Mon, 28 Dec 2009 08:59:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC PATCH] asynchronous page fault.
+Message-Id: <20091228085938.aa2cc3a5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4B372D2D.60908@gmail.com>
+References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
+	<4B372D2D.60908@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Alexander Shishkin <virtuoso@slind.org>, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
---0050450170486e6345047bba16b3
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On Sun, 27 Dec 2009 18:47:25 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
+> > 
+> > =
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > Asynchronous page fault.
+> > 
+> > This patch is for avoidng mmap_sem in usual page fault. At running highly
+> > multi-threaded programs, mm->mmap_sem can use much CPU because of false
+> > sharing when it causes page fault in parallel. (Run after fork() is a typical
+> > case, I think.)
+> > This patch uses a speculative vma lookup to reduce that cost.
+> > 
+> > Considering vma lookup, rb-tree lookup, the only operation we do is checking
+> > node->rb_left,rb_right. And there are no complicated operation.
+> > At page fault, there are no demands for accessing sorted-vma-list or access
+> > prev or next in many case. Except for stack-expansion, we always need a vma
+> > which contains page-fault address. Then, we can access vma's RB-tree in
+> > speculative way.
+> > Even if RB-tree rotation occurs while we walk tree for look-up, we just
+> > miss vma without oops. In other words, we can _try_ to find vma in lockless
+> > manner. If failed, retry is ok.... we take lock and access vma.
+> > 
+> > For lockess walking, this uses RCU and adds find_vma_speculative(). And
+> > per-vma wait-queue and reference count. This refcnt+wait_queue guarantees that
+> > there are no thread which access the vma when we call subsystem's unmap
+> > functions.
+> > 
+> > Test result on my tiny test program on 8core/2socket machine is here.
+> > This measures how many page fault can occur in 60sec in parallel.
+> > 
+> > [root@bluextal memory]# /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-all-split 8
+> > 
+> >  Performance counter stats for './multi-fault-all-split 8' (5 runs):
+> > 
+> >        17481387  page-faults                ( +-   0.409% )
+> >       509914595  cache-misses               ( +-   0.239% )
+> > 
+> >    60.002277793  seconds time elapsed   ( +-   0.000% )
+> > 
+> > 
+> > [root@bluextal memory]# /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-all-split 8
+> > 
+> > 
+> >  Performance counter stats for './multi-fault-all-split 8' (5 runs):
+> > 
+> >        35949073  page-faults                ( +-   0.364% )
+> >       473091100  cache-misses               ( +-   0.304% )
+> > 
+> >    60.005444117  seconds time elapsed   ( +-   0.004% )
+> > 
+> > 
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> <snip>
+> 
+> 
+> > +/* called when vma is unlinked and wait for all racy access.*/
+> > +static void invalidate_vma_before_free(struct vm_area_struct *vma)
+> > +{
+> > +	atomic_dec(&vma->refcnt);
+> > +	wait_event(vma->wait_queue, !atomic_read(&vma->refcnt));
+> > +}
+> 
+> I think we have to make sure atomicity of both (atomic_dec and wait_event).
+> 
+I still consider how to do this.
 
-On Sun, Dec 27, 2009 at 2:47 PM, Balbir Singh <balbir@linux.vnet.ibm.com> w=
-rote:
-> * Kirill A. Shutemov <kirill@shutemov.name> [2009-12-27 04:08:58]:
->
->> This patchset introduces eventfd-based API for notifications in cgroups =
-and
->> implements memory notifications on top of it.
->>
->> It uses statistics in memory controler to track memory usage.
->>
->> Output of time(1) on building kernel on tmpfs:
->>
->> Root cgroup before changes:
->> =C2=A0 =C2=A0 =C2=A0 make -j2 =C2=A0506.37 user 60.93s system 193% cpu 4=
-:52.77 total
->> Non-root cgroup before changes:
->> =C2=A0 =C2=A0 =C2=A0 make -j2 =C2=A0507.14 user 62.66s system 193% cpu 4=
-:54.74 total
->> Root cgroup after changes (0 thresholds):
->> =C2=A0 =C2=A0 =C2=A0 make -j2 =C2=A0507.13 user 62.20s system 193% cpu 4=
-:53.55 total
->> Non-root cgroup after changes (0 thresholds):
->> =C2=A0 =C2=A0 =C2=A0 make -j2 =C2=A0507.70 user 64.20s system 193% cpu 4=
-:55.70 total
->> Root cgroup after changes (1 thresholds, never crossed):
->> =C2=A0 =C2=A0 =C2=A0 make -j2 =C2=A0506.97 user 62.20s system 193% cpu 4=
-:53.90 total
->> Non-root cgroup after changes (1 thresholds, never crossed):
->> =C2=A0 =C2=A0 =C2=A0 make -j2 =C2=A0507.55 user 64.08s system 193% cpu 4=
-:55.63 total
->>
->> Any comments?
->
-> Thanks for adding the documentation, now on to more critical questions
->
-> 1. Any reasons for not using cgroupstats?
+	atomic_sub(&vma->refcnt, 65536)
+	wait_event(..., atomic_read(&vma->refcnt) != 65536)
 
-Could you explain the idea? I don't see how cgroupstats applicable for
-the task.
+etc.
 
-> 2. Is there a user space test application to test this code.
 
-Attached. It's not very clean, but good enough for testing propose.
-Example of usage:
 
-$ echo '/cgroups/memory.usage_in_bytes 1G' | ./cgroup_event_monitor
+> > +
+> >  /*
+> >   * Requires inode->i_mapping->i_mmap_lock
+> >   */
+> > @@ -238,7 +256,7 @@ static struct vm_area_struct *remove_vma
+> >  			removed_exe_file_vma(vma->vm_mm);
+> >  	}
+> >  	mpol_put(vma_policy(vma));
+> > -	kmem_cache_free(vm_area_cachep, vma);
+> > +	free_vma_rcu(vma);
+> >  	return next;
+> >  }
+> >  
+> > @@ -404,6 +422,8 @@ __vma_link_list(struct mm_struct *mm, st
+> >  void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  		struct rb_node **rb_link, struct rb_node *rb_parent)
+> >  {
+> > +	atomic_set(&vma->refcnt, 1);
+> > +	init_waitqueue_head(&vma->wait_queue);
+> >  	rb_link_node(&vma->vm_rb, rb_parent, rb_link);
+> >  	rb_insert_color(&vma->vm_rb, &mm->mm_rb);
+> >  }
+> > @@ -614,6 +634,7 @@ again:			remove_next = 1 + (end > next->
+> >  		 * us to remove next before dropping the locks.
+> >  		 */
+> >  		__vma_unlink(mm, next, vma);
+> > +		invalidate_vma_before_free(next);
+> >  		if (file)
+> >  			__remove_shared_vm_struct(next, file, mapping);
+> >  		if (next->anon_vma)
+> > @@ -640,7 +661,7 @@ again:			remove_next = 1 + (end > next->
+> >  		}
+> >  		mm->map_count--;
+> >  		mpol_put(vma_policy(next));
+> > -		kmem_cache_free(vm_area_cachep, next);
+> > +		free_vma_rcu(next);
+> >  		/*
+> >  		 * In mprotect's case 6 (see comments on vma_merge),
+> >  		 * we must remove another next too. It would clutter
+> > @@ -1544,6 +1565,55 @@ out:
+> >  }
+> >  
+> >  /*
+> > + * Returns vma which contains given address. This scans rb-tree in speculative
+> > + * way and increment a reference count if found. Even if vma exists in rb-tree,
+> > + * this function may return NULL in racy case. So, this function cannot be used
+> > + * for checking whether given address is valid or not.
+> > + */
+> > +struct vm_area_struct *
+> > +find_vma_speculative(struct mm_struct *mm, unsigned long addr)
+> > +{
+> > +	struct vm_area_struct *vma = NULL;
+> > +	struct vm_area_struct *vma_tmp;
+> > +	struct rb_node *rb_node;
+> > +
+> > +	if (unlikely(!mm))
+> > +		return NULL;;
+> > +
+> > +	rcu_read_lock();
+> > +	rb_node = rcu_dereference(mm->mm_rb.rb_node);
+> > +	vma = NULL;
+> > +	while (rb_node) {
+> > +		vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+> > +
+> > +		if (vma_tmp->vm_end > addr) {
+> > +			vma = vma_tmp;
+> > +			if (vma_tmp->vm_start <= addr)
+> > +				break;
+> > +			rb_node = rcu_dereference(rb_node->rb_left);
+> > +		} else
+> > +			rb_node = rcu_dereference(rb_node->rb_right);
+> > +	}
+> > +	if (vma) {
+> > +		if ((vma->vm_start <= addr) && (addr < vma->vm_end)) {
+> > +			if (!atomic_inc_not_zero(&vma->refcnt))
+> > +				vma = NULL;
+> > +		} else
+> > +			vma = NULL;
+> > +	}
+> > +	rcu_read_unlock();
+> > +	return vma;
+> > +}
+> > +
+> > +void vma_put(struct vm_area_struct *vma)
+> > +{
+> > +	if ((atomic_dec_return(&vma->refcnt) == 1) &&
+> > +	    waitqueue_active(&vma->wait_queue))
+> > +		wake_up(&vma->wait_queue);
+> > +	return;
+> > +}
+> > +
+> 
+> Let's consider following case. 
+> 
+> CPU 0					CPU 1
+> 
+> find_vma_speculative(refcnt = 2)
+> 					do_unmap 
+> 					invaliate_vma_before_free(refcount = 1)
+> 					wait_event
+> vma_put
+> refcnt = 0
+> skip wakeup 
+> 
+> Hmm.. 
 
-> =C2=A0IIUC,
-> I need to write a program that uses eventfd(2) and then passes
-> the eventfd descriptor and thresold to cgroup.*event* file and
-> then the program will get notified when the threshold is reached?
+Nice catch. I'll change this logic. Maybe some easy trick can fix this.
 
-You need to pass eventfd descriptor, descriptor of control file to be
-monitored (memory.usage_in_bytes or memory.memsw.usage_in_bytes) and
-threshold.
-
-Do you want to rename cgroup.event_control to cgroup.event?
-
---0050450170486e6345047bba16b3
-Content-Type: application/octet-stream; name="cgroup_event_monitor.c"
-Content-Disposition: attachment; filename="cgroup_event_monitor.c"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_g3q5oq4k0
-
-I2RlZmluZSBfR05VX1NPVVJDRQoKI2luY2x1ZGUgPGFzc2VydC5oPgojaW5jbHVkZSA8ZXJybm8u
-aD4KI2luY2x1ZGUgPGZjbnRsLmg+CiNpbmNsdWRlIDxsaWJnZW4uaD4KI2luY2x1ZGUgPGxpbWl0
-cy5oPgojaW5jbHVkZSA8cG9sbC5oPgojaW5jbHVkZSA8c3RkaW8uaD4KI2luY2x1ZGUgPHN0ZGxp
-Yi5oPgojaW5jbHVkZSA8c3RyaW5nLmg+CiNpbmNsdWRlIDx1bmlzdGQuaD4KI2luY2x1ZGUgPHN5
-cy9ldmVudGZkLmg+CgojZGVmaW5lIE1BWF9FRkQgMTAwCgpzdHJ1Y3QgZXZlbnQgewoJY2hhciAq
-cGF0aDsKCWNoYXIgKmFyZ3M7Cn07CgppbnQgbWFpbihpbnQgYXJnYywgY2hhciAqKmFyZ3YpCnsK
-CXN0cnVjdCBldmVudCBldmVudHNbTUFYX0VGRF07CglzdHJ1Y3QgcG9sbGZkIHBvbGxmZHNbTUFY
-X0VGRF07CglpbnQgbiA9IDA7CgljaGFyIGxpbmVbUEFUSF9NQVhdOwoJaW50IHJldDsKCgl3aGls
-ZSAoZmdldHMobGluZSwgUEFUSF9NQVgsIHN0ZGluKSkgewoJCWludCBldmVudF9jb250cm9sLCBj
-ZmQ7CgkJY2hhciAqYXJncyA9IHN0cmNocm51bChsaW5lLCAnICcpOwoKCQlpZiAobiA+PSBNQVhf
-RUZEKSB7CgkJCWZwcmludGYoc3RkZXJyLCAiVG9vIG1hbnkgZXZlbnRzIHJlZ2lzdGVyZWRcbiIp
-OwoJCX0KCgkJaWYgKCphcmdzKQoJCQkqYXJncysrID0gJ1wwJzsKCgkJZXZlbnRzW25dLnBhdGgg
-PSBtYWxsb2Moc3RybGVuKGxpbmUpICsgMSk7CgkJYXNzZXJ0KGV2ZW50c1tuXS5wYXRoKTsKCQlz
-dHJjcHkoZXZlbnRzW25dLnBhdGgsIGxpbmUpOwoKCQlhcmdzW3N0cmxlbihhcmdzKSAtIDFdID0g
-J1wwJzsKCQlldmVudHNbbl0uYXJncyA9IG1hbGxvYyhzdHJsZW4oYXJncykgKyAxKTsKCQlhc3Nl
-cnQoZXZlbnRzW25dLmFyZ3MpOwoJCXN0cmNweShldmVudHNbbl0uYXJncywgYXJncyk7CgoJCWNm
-ZCA9IG9wZW4oZXZlbnRzW25dLnBhdGgsIE9fUkRPTkxZKTsKCQlpZiAoY2ZkIDwgMCkgewoJCQlm
-cHJpbnRmKHN0ZGVyciwgIkNhbm5vdCBvcGVuICVzOiAlc1xuIiwgZXZlbnRzW25dLnBhdGgsCgkJ
-CQkJc3RyZXJyb3IoZXJybm8pKTsKCQkJcmV0dXJuIDE7CgkJfQoKCQlwb2xsZmRzW25dLmV2ZW50
-cyA9IFBPTExJTjsKCQlwb2xsZmRzW25dLmZkID0gZXZlbnRmZCgwLCAwKTsKCgkJZGlybmFtZShs
-aW5lKTsKCQlzdHJjYXQobGluZSwgIi9jZ3JvdXAuZXZlbnRfY29udHJvbCIpOwoKCQlldmVudF9j
-b250cm9sID0gb3BlbihsaW5lLCBPX1dST05MWSk7CgkJaWYgKGV2ZW50X2NvbnRyb2wgPCAwKSB7
-CgkJCWZwcmludGYoc3RkZXJyLCAiQ2Fubm90IG9wZW4gJXM6ICVzXG4iLCBsaW5lLAoJCQkJCXN0
-cmVycm9yKGVycm5vKSk7CgkJCXJldHVybiAxOwoJCX0KCgkJc25wcmludGYobGluZSwgUEFUSF9N
-QVgsICIlZCAlZCAlc1xuIiwgcG9sbGZkc1tuXS5mZCwgY2ZkLAoJCQkJZXZlbnRzW25dLmFyZ3Mp
-OwoKCQlpZiAod3JpdGUoZXZlbnRfY29udHJvbCwgbGluZSwgc3RybGVuKGxpbmUpKSA8IDApIHsK
-CQkJZnByaW50ZihzdGRlcnIsICJDYW5ub3Qgd3JpdGUgdG8gY2dyb3VwLmV2ZW50X2NvbnRyb2w6
-ICVzXG4iLAoJCQkJCXN0cmVycm9yKGVycm5vKSk7CgkJCXJldHVybiAxOwoJCX0KCgkJY2xvc2Uo
-ZXZlbnRfY29udHJvbCk7CgkJY2xvc2UoY2ZkKTsKCgkJbisrOwoJfQoKCXdoaWxlKChyZXQgPSBw
-b2xsKHBvbGxmZHMsIG4sIC0xKSkgIT0gMCkgewoJCWludCBpOwoKCQlpZiAocmV0IDwgMCkgewoJ
-CQlwZXJyb3IoInBvbGwoKSIpOwoJCQlyZXR1cm4gMTsKCQl9CgoJCWZvcihpPTA7IChpIDwgbikg
-JiYgcmV0OyBpKyspIHsKCQkJaWYgKHBvbGxmZHNbaV0ucmV2ZW50cyAmIFBPTExJTikgewoJCQkJ
-cHJpbnRmKCIlcyAlc1xuIiwgZXZlbnRzW2ldLnBhdGgsCgkJCQkJCWV2ZW50c1tpXS5hcmdzKTsK
-CQkJCWlmIChyZWFkKHBvbGxmZHNbaV0uZmQsIGxpbmUsIDgpIDwgMCkgewoJCQkJCXBlcnJvcigi
-cmVhZCgpIik7CgkJCQkJcmV0dXJuIDE7CgkJCQl9CgkJCQlyZXQtLTsKCQkJfQoKCQkJaWYgKHBv
-bGxmZHNbaV0ucmV2ZW50cyAmIH4oUE9MTElOKSkgewoJCQkJcHJpbnRmKCIlcyglcyk6IHVuZXhw
-ZWN0ZWQgZXZlbnQ6ICUwOHhcbiIsCgkJCQkJCWV2ZW50c1tpXS5wYXRoLAoJCQkJCQlldmVudHNb
-aV0uYXJncywKCQkJCQkJcG9sbGZkc1tpXS5yZXZlbnRzKTsKCQkJCXJldHVybiAxOwoJCQl9CgkJ
-fQoJfQoKCXJldHVybiAwOwp9Cg==
---0050450170486e6345047bba16b3--
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
