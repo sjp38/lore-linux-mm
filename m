@@ -1,93 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C7C1160021B
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 02:48:11 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS7m7ae023045
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 07DC960021B
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 02:48:55 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS7mru9005678
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 28 Dec 2009 16:48:07 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DD8645DE4C
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:48:07 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53E8345DD6F
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:48:07 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B1881DB8038
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:48:07 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EACFE1DB8037
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:48:06 +0900 (JST)
+	Mon, 28 Dec 2009 16:48:53 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E07FD45DE6E
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:48:52 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A48BC45DE4D
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:48:52 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 80F091DB803B
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:48:52 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E5B71DB803A
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:48:52 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 2/4] vmscan: get_scan_ratio cleanup
+Subject: [PATCH 3/4] vmstat: add anon_scan_ratio field to zoneinfo
 In-Reply-To: <20091228164451.A687.A69D9226@jp.fujitsu.com>
 References: <20091228164451.A687.A69D9226@jp.fujitsu.com>
-Message-Id: <20091228164733.A68A.A69D9226@jp.fujitsu.com>
+Message-Id: <20091228164816.A68D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon, 28 Dec 2009 16:48:06 +0900 (JST)
+Date: Mon, 28 Dec 2009 16:48:51 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-The get_scan_ratio() should have all scan-ratio related calculations.
-Thus, this patch move some calculation into get_scan_ratio.
+Vmscan folks was asked "why does my system makes so much swap-out?"
+in lkml at several times.
+At that time, I made the debug patch to show recent_anon_{scanned/rorated}
+parameter at least three times.
+
+Thus, its parameter should be showed on /proc/zoneinfo. It help
+vmscan folks debugging.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/vmscan.c |   23 ++++++++++++++---------
- 1 files changed, 14 insertions(+), 9 deletions(-)
+ include/linux/swap.h |    2 ++
+ mm/vmscan.c          |   15 +++++++++++++++
+ mm/vmstat.c          |    7 +++++--
+ 3 files changed, 22 insertions(+), 2 deletions(-)
 
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index a2602a8..e95d7ed 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -280,6 +280,8 @@ extern void scan_unevictable_unregister_node(struct node *node);
+ extern int kswapd_run(int nid);
+ extern void kswapd_stop(int nid);
+ 
++unsigned long get_anon_scan_ratio(struct zone *zone, struct mem_cgroup *memcg, int swappiness);
++
+ #ifdef CONFIG_MMU
+ /* linux/mm/shmem.c */
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2bbee91..640486b 100644
+index 640486b..1c39a74 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1501,6 +1501,13 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
- 	unsigned long ap, fp;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+@@ -1572,6 +1572,21 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+ 	percent[1] = 100 - percent[0];
+ }
  
-+	/* If we have no swap space, do not bother scanning anon pages. */
-+	if (!sc->may_swap || (nr_swap_pages <= 0)) {
-+		percent[0] = 0;
-+		percent[1] = 100;
-+		return;
-+	}
++unsigned long get_anon_scan_ratio(struct zone *zone, struct mem_cgroup *memcg, int swappiness)
++{
++	unsigned long percent[2];
++	struct scan_control sc = {
++		.may_swap = 1,
++		.swappiness = swappiness,
++		.mem_cgroup = memcg,
++	};
 +
- 	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
- 		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
- 	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
-@@ -1598,22 +1605,20 @@ static void shrink_zone(int priority, struct zone *zone,
- 	unsigned long nr_reclaimed = sc->nr_reclaimed;
- 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
--	int noswap = 0;
- 
--	/* If we have no swap space, do not bother scanning anon pages. */
--	if (!sc->may_swap || (nr_swap_pages <= 0)) {
--		noswap = 1;
--		percent[0] = 0;
--		percent[1] = 100;
--	} else
--		get_scan_ratio(zone, sc, percent);
-+	get_scan_ratio(zone, sc, percent);
- 
- 	for_each_evictable_lru(l) {
- 		int file = is_file_lru(l);
- 		unsigned long scan;
- 
-+		if (percent[file] == 0) {
-+			nr[l] = 0;
-+			continue;
-+		}
++	get_scan_ratio(zone, &sc, percent);
 +
- 		scan = zone_nr_lru_pages(zone, sc, l);
--		if (priority || noswap) {
-+		if (priority) {
- 			scan >>= priority;
- 			scan = (scan * percent[file]) / 100;
- 		}
++	return percent[0];
++}
++
++
+ /*
+  * Smallish @nr_to_scan's are deposited in @nr_saved_scan,
+  * until we collected @swap_cluster_max pages to scan.
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index a5d45bc..24383b4 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -15,6 +15,7 @@
+ #include <linux/cpu.h>
+ #include <linux/vmstat.h>
+ #include <linux/sched.h>
++#include <linux/swap.h>
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+@@ -762,11 +763,13 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 		   "\n  all_unreclaimable: %u"
+ 		   "\n  prev_priority:     %i"
+ 		   "\n  start_pfn:         %lu"
+-		   "\n  inactive_ratio:    %u",
++		   "\n  inactive_ratio:    %u"
++		   "\n  anon_scan_ratio:   %lu",
+ 			   zone_is_all_unreclaimable(zone),
+ 		   zone->prev_priority,
+ 		   zone->zone_start_pfn,
+-		   zone->inactive_ratio);
++		   zone->inactive_ratio,
++		   get_anon_scan_ratio(zone, NULL, vm_swappiness));
+ 	seq_putc(m, '\n');
+ }
+ 
 -- 
 1.6.5.2
 
