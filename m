@@ -1,80 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 859BB60021B
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 21:46:02 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS2jxUO007789
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 41A5760021B
+	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 21:46:44 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS2kei8016120
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 28 Dec 2009 11:46:00 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8704345DE5D
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 11:45:59 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F4DC45DE4E
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 11:45:59 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 47DF31DB803A
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 11:45:59 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 048321DB803C
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 11:45:59 +0900 (JST)
+	Mon, 28 Dec 2009 11:46:41 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BB9C45DE70
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 11:46:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DC8BE45DE60
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 11:46:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF79E1DB803E
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 11:46:39 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 766AEE18002
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 11:46:39 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [cleanup][PATCH 1/2] mlock_vma_pages_range() never return negative value
-Message-Id: <20091228114519.A678.A69D9226@jp.fujitsu.com>
+Subject: [cleanup][PATCH 2/2] mlock_vma_pages_range() only return success or failure
+In-Reply-To: <20091228114519.A678.A69D9226@jp.fujitsu.com>
+References: <20091228114519.A678.A69D9226@jp.fujitsu.com>
+Message-Id: <20091228114611.A67B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon, 28 Dec 2009 11:45:58 +0900 (JST)
+Date: Mon, 28 Dec 2009 11:46:38 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Currently, mlock_vma_pages_range() never return negative value. Then, we can
-remove some worthless error check.
+Currently, mlock_vma_pages_range() only return len or 0. then
+current error handling of mmap_region() is meaningless complex.
+
+this patch makes simplify and makes consist with brk() code.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/mmap.c |   11 ++---------
- 1 files changed, 2 insertions(+), 9 deletions(-)
+ mm/mmap.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mm/mmap.c b/mm/mmap.c
-index 64e0b04..826b0ec 100644
+index 826b0ec..0f10176 100644
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -1247,12 +1247,7 @@ out:
+@@ -1247,8 +1247,8 @@ out:
  	mm->total_vm += len >> PAGE_SHIFT;
  	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
  	if (vm_flags & VM_LOCKED) {
--		/*
--		 * makes pages present; downgrades, drops, reacquires mmap_sem
--		 */
- 		long nr_pages = mlock_vma_pages_range(vma, addr, addr + len);
--		if (nr_pages < 0)
--			return nr_pages;	/* vma gone! */
- 		mm->locked_vm += (len >> PAGE_SHIFT) - nr_pages;
+-		long nr_pages = mlock_vma_pages_range(vma, addr, addr + len);
+-		mm->locked_vm += (len >> PAGE_SHIFT) - nr_pages;
++		if (!mlock_vma_pages_range(vma, addr, addr + len))
++			mm->locked_vm += (len >> PAGE_SHIFT);
  	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
  		make_pages_present(addr, addr + len);
-@@ -1730,8 +1725,7 @@ find_extend_vma(struct mm_struct *mm, unsigned long addr)
- 	if (!prev || expand_stack(prev, addr))
- 		return NULL;
- 	if (prev->vm_flags & VM_LOCKED) {
--		if (mlock_vma_pages_range(prev, addr, prev->vm_end) < 0)
--			return NULL;	/* vma gone! */
-+		mlock_vma_pages_range(prev, addr, prev->vm_end);
- 	}
- 	return prev;
- }
-@@ -1759,8 +1753,7 @@ find_extend_vma(struct mm_struct * mm, unsigned long addr)
- 	if (expand_stack(vma, addr))
- 		return NULL;
- 	if (vma->vm_flags & VM_LOCKED) {
--		if (mlock_vma_pages_range(vma, addr, start) < 0)
--			return NULL;	/* vma gone! */
-+		mlock_vma_pages_range(vma, addr, start);
- 	}
- 	return vma;
- }
+ 	return addr;
 -- 
 1.6.5.2
 
