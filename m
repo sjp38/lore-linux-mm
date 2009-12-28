@@ -1,78 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 66B7660021B
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 00:46:20 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS5kGTf006531
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 28 Dec 2009 14:46:17 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9154745DE69
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 14:46:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6357745DE66
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 14:46:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B6951DB803C
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 14:46:16 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 54B1A60021B
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 02:47:27 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS7lOXI007299
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 28 Dec 2009 16:47:24 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C500245DE53
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:47:23 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C1CD45DE51
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:47:23 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DFD91DB8043
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:47:23 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62A521DB8041
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 14:46:15 +0900 (JST)
-Date: Mon, 28 Dec 2009 14:43:02 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm-2009-12-10-17-19] Fix wrong rss count of smaps
-Message-Id: <20091228144302.864f2e97.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091228143154.ec0431b5.minchan.kim@barrios-desktop>
-References: <20091228134619.92ba28f6.minchan.kim@barrios-desktop>
-	<20091228134752.44d13c34.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091228143154.ec0431b5.minchan.kim@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 396111DB803F
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 16:47:23 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 1/4] vmstat: remove zone->lock from walk_zones_in_node
+Message-Id: <20091228164451.A687.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Mon, 28 Dec 2009 16:47:22 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Dec 2009 14:31:54 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
-> 
-> > BTW, how about counting ZERO page in smaps? Ignoring them completely sounds
-> > not very good.
-> 
-> I am not use it is useful. 
-> 
-> zero page snapshot of ongoing process is useful?
-> Doesn't Admin need to know about zero page?
-> Let's admins use it well. If we remove zero page again?
-> How many are applications use smaps? 
-> Did we have a problem without it?
-> 
-My concern is that hiding indormation which was exported before.
-No more than that and no strong demand.
+The zone->lock is one of performance critical locks. Then, it shouldn't
+be hold for long time. Currently, we have four walk_zones_in_node()
+usage and almost use-case don't need to hold zone->lock.
+
+Thus, this patch move locking responsibility from walk_zones_in_node
+to its sub function. Also this patch kill unnecessary zone->lock taking.
+
+Cc: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmstat.c |    8 +++++---
+ 1 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 6051fba..a5d45bc 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -418,15 +418,12 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+ {
+ 	struct zone *zone;
+ 	struct zone *node_zones = pgdat->node_zones;
+-	unsigned long flags;
+ 
+ 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+ 		if (!populated_zone(zone))
+ 			continue;
+ 
+-		spin_lock_irqsave(&zone->lock, flags);
+ 		print(m, pgdat, zone);
+-		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
+ }
+ 
+@@ -455,6 +452,7 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
+ 					pg_data_t *pgdat, struct zone *zone)
+ {
+ 	int order, mtype;
++	unsigned long flags;
+ 
+ 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
+ 		seq_printf(m, "Node %4d, zone %8s, type %12s ",
+@@ -468,8 +466,11 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
+ 
+ 			area = &(zone->free_area[order]);
+ 
++			spin_lock_irqsave(&zone->lock, flags);
+ 			list_for_each(curr, &area->free_list[mtype])
+ 				freecount++;
++			spin_unlock_irqrestore(&zone->lock, flags);
++
+ 			seq_printf(m, "%6lu ", freecount);
+ 		}
+ 		seq_putc(m, '\n');
+@@ -709,6 +710,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 							struct zone *zone)
+ {
+ 	int i;
++
+ 	seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
+ 	seq_printf(m,
+ 		   "\n  pages free     %lu"
+-- 
+1.6.5.2
 
 
-> When I think of it, there are too many qeustions. 
-> Most important thing to add new statistics is just need of customer. 
-> 
-> Frankly speaking, I don't have good scenario of using zero page.
-> Do you have any scenario it is valueable?
-> 
-read before write ? maybe sometimes happens.
 
-For example. current glibc's calloc() avoids memset() if the pages are
-dropped by MADVISE (without unmap). 
-
-Before starting zero-page works, I checked "questions" in lkml and
-found some reports that some applications start to go OOM after zero-page
-removal.
-
-For me, I know one of my customer's application depends on behavior of
-zero page (on RHEL5). So, I tried to add again it before RHEL6 because
-I think removal of zero-page corrupts compatibility.
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
