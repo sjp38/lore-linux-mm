@@ -1,57 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D55C760021B
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 05:25:42 -0500 (EST)
-Received: by yxe10 with SMTP id 10so5544269yxe.12
-        for <linux-mm@kvack.org>; Mon, 28 Dec 2009 02:25:40 -0800 (PST)
-Message-ID: <4B38879E.3060205@gmail.com>
-Date: Mon, 28 Dec 2009 19:25:34 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3 -mmotm-2009-12-10-17-19] Fix wrong rss counting of
- smap
-References: <ceeec51bdc2be64416e05ca16da52a126b598e17.1258773030.git.minchan.kim@gmail.com> <ae2928fe7bb3d94a7ca18d3b3274fdfeb009803a.1258773030.git.minchan.kim@gmail.com> <ff0a209159ef985681ae071d770edd9b9cd0ecf0.1258773030.git.minchan.kim@gmail.com>
-In-Reply-To: <ff0a209159ef985681ae071d770edd9b9cd0ecf0.1258773030.git.minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A74260021B
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 05:31:40 -0500 (EST)
+Subject: Re: [RFC PATCH] asynchronous page fault.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <27db4d47e5a95e7a85942c0278892467.squirrel@webmail-b.css.fujitsu.com>
+References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1261915391.15854.31.camel@laptop>
+	 <20091228093606.9f2e666c.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1261989047.7135.3.camel@laptop>
+	 <27db4d47e5a95e7a85942c0278892467.squirrel@webmail-b.css.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 28 Dec 2009 11:30:58 +0100
+Message-ID: <1261996258.7135.67.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Matt Mackall <mpm@selenic.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-I missed Hugn and Matt. 
+On Mon, 2009-12-28 at 18:58 +0900, KAMEZAWA Hiroyuki wrote:
+> Peter Zijlstra a??a??a??ae?,a??a? 3/4 a??a??i 1/4 ?
+> > On Mon, 2009-12-28 at 09:36 +0900, KAMEZAWA Hiroyuki wrote:
+> >>
+> >> > The idea is to let the RCU lock span whatever length you need the vma
+> >> > for, the easy way is to simply use PREEMPT_RCU=y for now,
+> >>
+> >> I tried to remove his kind of reference count trick but I can't do that
+> >> without synchronize_rcu() somewhere in unmap code. I don't like that and
+> >> use this refcnt.
+> >
+> > Why, because otherwise we can access page tables for an already unmapped
+> > vma? Yeah that is the interesting bit ;-)
+> >
+> Without that
+>   vma->a_ops->fault()
+> and
+>   vma->a_ops->unmap()
+> can be called at the same time. and vma->vm_file can be dropped while
+> vma->a_ops->fault() is called. etc...
 
-Minchan Kim wrote:
-> After return zero_page, vm_normal_page can return
-> NULL if the page is zero page.
-> 
-> In such case, RSS and PSS can be mismatched.
-> This patch fixes it.
-> 
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> ---
->  fs/proc/task_mmu.c |    5 ++---
->  1 files changed, 2 insertions(+), 3 deletions(-)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 47c03f4..1a47be9 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -361,12 +361,11 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  		if (!pte_present(ptent))
->  			continue;
->  
-> -		mss->resident += PAGE_SIZE;
-> -
->  		page = vm_normal_page(vma, addr, ptent);
-> -		if (!page)
-> +		if (!page && !is_zero_pfn(pte_pfn(ptent)))
->  			continue;
->  
-> +		mss->resident += PAGE_SIZE;
->  		/* Accumulate the size in pages that have been accessed. */
->  		if (pte_young(ptent) || PageReferenced(page))
->  			mss->referenced += PAGE_SIZE;
+Right, so acquiring the PTE lock will either instantiate page tables for
+a non-existing vma, leaving you with an interesting mess to clean up, or
+you can also RCU free the page tables (in the same RCU domain as the
+vma) which will mostly[*] avoid that issue.
+
+[ To make live really really interesting you could even re-use the
+  page-tables and abort the RCU free when the region gets re-mapped
+  before the RCU callbacks happen, this will avoid a free/alloc cycle
+  for fast remapping workloads. ]
+
+Once you hold the PTE lock, you can validate the vma you looked up,
+since ->unmap() syncs against it. If at that time you find the
+speculative vma is dead, you fail and re-try the fault.
+
+[*] there still is the case of faulting on an address that didn't
+previously have page-tables hence the unmap page table scan will have
+skipped it -- my hacks simply leaked page tables here, but the idea was
+to acquire the mmap_sem for reading and cleanup properly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
