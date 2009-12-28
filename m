@@ -1,103 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8307560021B
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 22:00:42 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS30efh021644
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5A9B060021B
+	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 22:16:34 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBS3GVpo027852
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 28 Dec 2009 12:00:40 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F1EA845DE4F
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 12:00:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D3C6645DE4D
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 12:00:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B7E6E1DB8040
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 12:00:39 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E50E1DB8044
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 12:00:39 +0900 (JST)
-Date: Mon, 28 Dec 2009 11:57:27 +0900
+	Mon, 28 Dec 2009 12:16:32 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C2CB045DE50
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 12:16:31 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 99DD545DE4E
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 12:16:31 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FCD41DB8038
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 12:16:31 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FBB11DB8037
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 12:16:31 +0900 (JST)
+Date: Mon, 28 Dec 2009 12:13:18 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm-2009-12-10-17-19] Prevent churning of zero page
- in LRU list.
-Message-Id: <20091228115727.a1730cdf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091228115315.76b1ecd0.minchan.kim@barrios-desktop>
-References: <20091228115315.76b1ecd0.minchan.kim@barrios-desktop>
+Subject: Re: [RFC PATCH] asynchronous page fault.
+Message-Id: <20091228121318.780fd104.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091228025839.GF3601@balbir.in.ibm.com>
+References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
+	<1261912796.15854.25.camel@laptop>
+	<20091228005746.GE3601@balbir.in.ibm.com>
+	<20091228100514.ec6f9949.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091228025839.GF3601@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Dec 2009 11:53:15 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Mon, 28 Dec 2009 08:28:39 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> 
-> VM doesn't add zero page to LRU list. 
-> It means zero page's churning in LRU list is pointless. 
-> 
-> As a matter of fact, zero page can't be promoted by mark_page_accessed
-> since it doesn't have PG_lru. 
-> 
-> This patch prevent unecessary mark_page_accessed call of zero page 
-> alghouth caller want FOLL_TOUCH. 
-> 
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-12-28 10:05:14]:
 
-> ---
->  mm/memory.c |    7 ++++---
->  1 files changed, 4 insertions(+), 3 deletions(-)
+> >   - rb-tree's rb_left and rb_right don't points to memory other than
+> >     rb-tree. (or NULL)  And vmas are not freed/reused while rcu_read_lock().
+> >     Then, we don't dive into unknown memory.
+> >   - Then, we can skip rcu_assign_pointer().
+> >
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 09e4b1b..485f727 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1152,6 +1152,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
->  	spinlock_t *ptl;
->  	struct page *page;
->  	struct mm_struct *mm = vma->vm_mm;
-> +	int zero_pfn = 0;
->  
->  	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
->  	if (!IS_ERR(page)) {
-> @@ -1196,15 +1197,15 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
->  
->  	page = vm_normal_page(vma, address, pte);
->  	if (unlikely(!page)) {
-> -		if ((flags & FOLL_DUMP) ||
-> -		    !is_zero_pfn(pte_pfn(pte)))
-> +		zero_pfn = is_zero_pfn(pte_pfn(pte));
-> +		if ((flags & FOLL_DUMP) || !zero_pfn )
->  			goto bad_page;
->  		page = pte_page(pte);
->  	}
->  
->  	if (flags & FOLL_GET)
->  		get_page(page);
-> -	if (flags & FOLL_TOUCH) {
-> +	if (flags & FOLL_TOUCH && !zero_pfn) {
->  		if ((flags & FOLL_WRITE) &&
->  		    !pte_dirty(pte) && !PageDirty(page))
->  			set_page_dirty(page);
-> -- 
-> 1.5.6.3
+> We can, but the data being on read-side is going to be out-of-date
+> more than without the use of rcu_assign_pointer(). Do we need variants
+> like to rcu_rb_next() to avoid overheads for everyone?
 > 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I myself can't know how often out-of-date data can be seen (because I use x86).
+
+But, I feel that we don't see broken tree so often. Because...
+  - Single-threaded apps never see broken tree.
+  - Even if rb-tree modification frequently happens, tree rotation is not
+    very often and sub-trees tend to be stable as a chunk.
+
+Hmm, adding barrier like this ?
+
+static inline void
+__vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
+                struct vm_area_struct *prev)
+{
+        prev->vm_next = vma->vm_next;
+        rb_erase(&vma->vm_rb, &mm->mm_rb);
+        if (mm->mmap_cache == vma)
+                mm->mmap_cache = prev;
+	smp_wb(); <==============================================(new)
+}
+
+
+
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
