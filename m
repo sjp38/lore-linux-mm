@@ -1,75 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 61EE160021B
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 05:09:02 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id nBSA90Nj027215
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 28 Dec 2009 19:09:00 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 97B1945DE56
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 19:08:59 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B3D945DE4F
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 19:08:59 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2578E1DB8046
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 19:08:59 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CF7CB1DB803F
-	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 19:08:58 +0900 (JST)
-Message-ID: <7bf10ff685a06b28084a61dad0740015.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <1261990533.7135.34.camel@laptop>
-References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
-    <1261915391.15854.31.camel@laptop>
-    <20091228093606.9f2e666c.kamezawa.hiroyu@jp.fujitsu.com>
-    <1261990533.7135.34.camel@laptop>
-Date: Mon, 28 Dec 2009 19:08:58 +0900 (JST)
-Subject: Re: [RFC PATCH] asynchronous page fault.
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0DCBD60021B
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 05:24:03 -0500 (EST)
+Received: by ywh5 with SMTP id 5so14531696ywh.11
+        for <linux-mm@kvack.org>; Mon, 28 Dec 2009 02:24:01 -0800 (PST)
+Message-ID: <4B38873B.8090704@gmail.com>
+Date: Mon, 28 Dec 2009 19:23:55 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 1/3 -mmotm-2009-12-10-17-19] Move functions related to
+ zero page
+References: <ceeec51bdc2be64416e05ca16da52a126b598e17.1258773030.git.minchan.kim@gmail.com>
+In-Reply-To: <ceeec51bdc2be64416e05ca16da52a126b598e17.1258773030.git.minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> On Mon, 2009-12-28 at 09:36 +0900, KAMEZAWA Hiroyuki wrote:
->> Hmm ? for single-thread apps ? This patch's purpose is not for lockless
->> lookup, it's just a part of work. My purpose is avoiding false-sharing.
->
-> False sharing in the sense of the mmap_sem cacheline containing other
-> variables?  How could that ever be a problem for a single threaded
-> application?
->
-No problem at all. I just couldn't catch what you mean.
+I missed Hugh.
 
-
-> For multi-threaded apps the contention on that cacheline is the largest
-> issue, and moving it to a vma cacheline doesn't seem like a big
-> improvement.
->
-I feel mmap_sem's cacheline ping-pong is more terrible than
-simple atomic_inc().
-__down_read() does
-  write (spinlock)
-  write (->sem_activity)
-  write (unlock)
-
-
-> You want something much finer grained than vmas, there's lots of apps
-> working on a single (or very few) vma(s). Leaving you with pretty much
-> the same cacheline contention. Only now its a different cacheline.
->
-Ya, maybe. I hope I can find some magical one.
-Using per-cpu counter here as Christoph did may be an idea...
-
-Thanks,
--Kame
-
-
+Minchan Kim wrote:
+> This patch moves is_zero_pfn and my_zero_pfn to mm.h
+> for other use case.
+> 
+> This patch has no side effect and helps following patches.
+> 
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  include/linux/mm.h |   15 +++++++++++++++
+>  mm/memory.c        |   14 --------------
+>  2 files changed, 15 insertions(+), 14 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index be7f851..71bacd1 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -751,6 +751,21 @@ struct zap_details {
+>  	unsigned long truncate_count;		/* Compare vm_truncate_count */
+>  };
+>  
+> +#ifndef is_zero_pfn
+> +extern unsigned long zero_pfn;
+> +static inline int is_zero_pfn(unsigned long pfn)
+> +{
+> +	return pfn == zero_pfn;
+> +}
+> +#endif
+> +
+> +#ifndef my_zero_pfn
+> +static inline unsigned long my_zero_pfn(unsigned long addr)
+> +{
+> +	return zero_pfn;
+> +}
+> +#endif
+> +
+>  struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+>  		pte_t pte);
+>  
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 09e4b1b..3743fb5 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -457,20 +457,6 @@ static inline int is_cow_mapping(unsigned int flags)
+>  	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+>  }
+>  
+> -#ifndef is_zero_pfn
+> -static inline int is_zero_pfn(unsigned long pfn)
+> -{
+> -	return pfn == zero_pfn;
+> -}
+> -#endif
+> -
+> -#ifndef my_zero_pfn
+> -static inline unsigned long my_zero_pfn(unsigned long addr)
+> -{
+> -	return zero_pfn;
+> -}
+> -#endif
+> -
+>  /*
+>   * vm_normal_page -- This function gets the "struct page" associated with a pte.
+>   *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
