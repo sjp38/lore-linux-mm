@@ -1,75 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1677960021B
-	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 21:55:14 -0500 (EST)
-Received: by gxk24 with SMTP id 24so9144043gxk.6
-        for <linux-mm@kvack.org>; Sun, 27 Dec 2009 18:55:13 -0800 (PST)
-Date: Mon, 28 Dec 2009 11:53:15 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH -mmotm-2009-12-10-17-19] Prevent churning of zero page in
- LRU list.
-Message-Id: <20091228115315.76b1ecd0.minchan.kim@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FA7460021B
+	for <linux-mm@kvack.org>; Sun, 27 Dec 2009 21:58:56 -0500 (EST)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp06.au.ibm.com (8.14.3/8.13.1) with ESMTP id nBS2wggJ030040
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 13:58:42 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBS2saI91163354
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 13:54:36 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nBS2wibI001777
+	for <linux-mm@kvack.org>; Mon, 28 Dec 2009 13:58:44 +1100
+Date: Mon, 28 Dec 2009 08:28:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH] asynchronous page fault.
+Message-ID: <20091228025839.GF3601@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
+ <1261912796.15854.25.camel@laptop>
+ <20091228005746.GE3601@balbir.in.ibm.com>
+ <20091228100514.ec6f9949.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20091228100514.ec6f9949.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-12-28 10:05:14]:
 
-VM doesn't add zero page to LRU list. 
-It means zero page's churning in LRU list is pointless. 
+> On Mon, 28 Dec 2009 06:27:46 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * Peter Zijlstra <peterz@infradead.org> [2009-12-27 12:19:56]:
+> > 
+> > > Your changelog states as much.
+> > > 
+> > > "Even if RB-tree rotation occurs while we walk tree for look-up, we just
+> > > miss vma without oops."
+> > > 
+> > > However, since this is the case, do we still need the
+> > > rcu_assign_pointer() conversion your patch does? All I can see it do is
+> > > slow down all RB-tree users, without any gain.
+> > 
+> > Don't we need the rcu_assign_pointer() on the read side primarily to
+> > make sure the pointer is still valid and assignments (writes) are not
+> > re-ordered? Are you suggesting that the pointer assignment paths be
+> > completely atomic?
+> > 
+> >From following reasons.
+>   - What we have to avoid is not to touch unkonwn memory via broken pointer.
+>     This is speculative look up and can miss vmas. So, even if tree is broken,
+>     there is no problem. Broken pointer which points to places other than rb-tree
+>     is problem.
 
-As a matter of fact, zero page can't be promoted by mark_page_accessed
-since it doesn't have PG_lru. 
+Exactly!
 
-This patch prevent unecessary mark_page_accessed call of zero page 
-alghouth caller want FOLL_TOUCH. 
+>   - rb-tree's rb_left and rb_right don't points to memory other than
+>     rb-tree. (or NULL)  And vmas are not freed/reused while rcu_read_lock().
+>     Then, we don't dive into unknown memory.
+>   - Then, we can skip rcu_assign_pointer().
+>
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/memory.c |    7 ++++---
- 1 files changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 09e4b1b..485f727 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1152,6 +1152,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 	spinlock_t *ptl;
- 	struct page *page;
- 	struct mm_struct *mm = vma->vm_mm;
-+	int zero_pfn = 0;
- 
- 	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
- 	if (!IS_ERR(page)) {
-@@ -1196,15 +1197,15 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 
- 	page = vm_normal_page(vma, address, pte);
- 	if (unlikely(!page)) {
--		if ((flags & FOLL_DUMP) ||
--		    !is_zero_pfn(pte_pfn(pte)))
-+		zero_pfn = is_zero_pfn(pte_pfn(pte));
-+		if ((flags & FOLL_DUMP) || !zero_pfn )
- 			goto bad_page;
- 		page = pte_page(pte);
- 	}
- 
- 	if (flags & FOLL_GET)
- 		get_page(page);
--	if (flags & FOLL_TOUCH) {
-+	if (flags & FOLL_TOUCH && !zero_pfn) {
- 		if ((flags & FOLL_WRITE) &&
- 		    !pte_dirty(pte) && !PageDirty(page))
- 			set_page_dirty(page);
--- 
-1.5.6.3
-
+We can, but the data being on read-side is going to be out-of-date
+more than without the use of rcu_assign_pointer(). Do we need variants
+like to rcu_rb_next() to avoid overheads for everyone?
 
 -- 
-Kind regards,
-Minchan Kim
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
