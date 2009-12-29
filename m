@@ -1,68 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F96760021B
-	for <linux-mm@kvack.org>; Tue, 29 Dec 2009 04:54:54 -0500 (EST)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id nBT9sl70017171
-	for <linux-mm@kvack.org>; Tue, 29 Dec 2009 20:54:47 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBT9oa1H1761338
-	for <linux-mm@kvack.org>; Tue, 29 Dec 2009 20:50:37 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nBT9skk3032241
-	for <linux-mm@kvack.org>; Tue, 29 Dec 2009 20:54:47 +1100
-Date: Tue, 29 Dec 2009 15:24:41 +0530
+	by kanga.kvack.org (Postfix) with ESMTP id 1607F60021B
+	for <linux-mm@kvack.org>; Tue, 29 Dec 2009 09:09:24 -0500 (EST)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp01.au.ibm.com (8.14.3/8.13.1) with ESMTP id nBTE7YFY022916
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 01:07:34 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id nBTE54nb860326
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 01:05:05 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id nBTE9JIi020343
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 01:09:19 +1100
+Date: Tue, 29 Dec 2009 19:38:25 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH] asynchronous page fault.
-Message-ID: <20091229095441.GP3601@balbir.in.ibm.com>
+Subject: Re: [PATCH 3/4] vmstat: add anon_scan_ratio field to zoneinfo
+Message-ID: <20091229140825.GQ3601@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
- <1261912796.15854.25.camel@laptop>
- <20091228005746.GE3601@balbir.in.ibm.com>
- <1261989173.7135.5.camel@laptop>
+References: <20091228164451.A687.A69D9226@jp.fujitsu.com>
+ <20091228164816.A68D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1261989173.7135.5.camel@laptop>
+In-Reply-To: <20091228164816.A68D.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2009-12-28 09:32:53]:
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-12-28 16:48:51]:
 
-> On Mon, 2009-12-28 at 06:27 +0530, Balbir Singh wrote:
-> > * Peter Zijlstra <peterz@infradead.org> [2009-12-27 12:19:56]:
-> > 
-> > > Your changelog states as much.
-> > > 
-> > > "Even if RB-tree rotation occurs while we walk tree for look-up, we just
-> > > miss vma without oops."
-> > > 
-> > > However, since this is the case, do we still need the
-> > > rcu_assign_pointer() conversion your patch does? All I can see it do is
-> > > slow down all RB-tree users, without any gain.
-> > 
-> > Don't we need the rcu_assign_pointer() on the read side primarily to
-> > make sure the pointer is still valid and assignments (writes) are not
-> > re-ordered? Are you suggesting that the pointer assignment paths be
-> > completely atomic?
+> Vmscan folks was asked "why does my system makes so much swap-out?"
+> in lkml at several times.
+> At that time, I made the debug patch to show recent_anon_{scanned/rorated}
+> parameter at least three times.
 > 
-> rcu_assign_pointer() is the write side, but if you need a barrier, you
-> can make do with a single smp_wmb() after doing the rb-tree op. There is
-> no need to add multiple in the tree-ops themselves.
+> Thus, its parameter should be showed on /proc/zoneinfo. It help
+> vmscan folks debugging.
 >
 
-Yes, that makes sense.
+Hmmm.. I think this should come under DEBUG_VM, a lot of tools use
+/proc/zoneinfo, the additional overhead may be high.. no? Also,
+I would recommend adding the additional details to the end, so
+as to not break existing tools (specifically dump line # based
+tools).
  
-> You cannot make the assignment paths atomic (without locks) that's the
-> whole problem.
->
-
-True, but pre-emption can be nasty in some cases. But I am no expert
-in the atomicity of operations like assignments across architectures.
-I assume all word, long assignments are.
-
 -- 
 	Balbir
 
