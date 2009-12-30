@@ -1,82 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4E9F660021B
-	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 12:03:42 -0500 (EST)
-Date: Wed, 30 Dec 2009 17:03:31 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH -mmotm-2009-12-10-17-19] Prevent churning of zero page
- in LRU list.
-In-Reply-To: <20091228130926.6874d7b2.minchan.kim@barrios-desktop>
-Message-ID: <alpine.LSU.2.00.0912301653200.4532@sister.anvils>
-References: <20091228115315.76b1ecd0.minchan.kim@barrios-desktop> <4B38246C.3020209@redhat.com> <20091228130926.6874d7b2.minchan.kim@barrios-desktop>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 050EF60021B
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 13:05:51 -0500 (EST)
+Date: Wed, 30 Dec 2009 10:05:19 -0800
+From: Stephen Hemminger <shemminger@vyatta.com>
+Subject: Re: ACPI warning from alloc_pages_nodemask on boot (2.6.33
+ regression)
+Message-ID: <20091230100519.5a72d82c@nehalam>
+In-Reply-To: <1262187344.7135.230.camel@laptop>
+References: <20091229094202.25818e9b@nehalam>
+	<alpine.LFD.2.00.0912291435070.14938@localhost.localdomain>
+	<2f11576a0912292221r7ba59e9dw431c7b43b578a04@mail.gmail.com>
+	<1262187344.7135.230.camel@laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Len Brown <lenb@kernel.org>, linux-acpi@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Dec 2009, Minchan Kim wrote:
-> On Sun, 27 Dec 2009 22:22:20 -0500
-> Rik van Riel <riel@redhat.com> wrote:
-> > On 12/27/2009 09:53 PM, Minchan Kim wrote:
+On Wed, 30 Dec 2009 16:35:44 +0100
+Peter Zijlstra <peterz@infradead.org> wrote:
+
+> On Wed, 2009-12-30 at 15:21 +0900, KOSAKI Motohiro wrote:
+> > >> [    1.630020] ------------[ cut here ]------------
+> > >> [    1.630026] WARNING: at mm/page_alloc.c:1812 __alloc_pages_nodemask+0x617/0x730()
 > > >
-> > > VM doesn't add zero page to LRU list.
-> > > It means zero page's churning in LRU list is pointless.
+> > >        if (order >= MAX_ORDER) {
+> > >                WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+> > >                return NULL;
+> > >        }
 > > >
-> > > As a matter of fact, zero page can't be promoted by mark_page_accessed
-> > > since it doesn't have PG_lru.
-> > >
-> > > This patch prevent unecessary mark_page_accessed call of zero page
-> > > alghouth caller want FOLL_TOUCH.
-> > >
-> > > Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
-> > 
-> > The code looks correct, but I wonder how frequently we run into
-> > the zero page in this code, vs. how much the added cost is of
-> > having this extra code in follow_page.
-> > 
-> > What kind of problem were you running into that motivated you
-> > to write this patch?
+> > > I don't know what the mm alloc code is complaining about here.
 > 
-> I didn't have experienced any problem in this case. 
-> In fact, I found that while trying to make patch smap_pte_change. 
+> > >> [    1.630028] Hardware name: System Product Name
+> > >> [    1.630029] Modules linked in:
+> > >> [    1.630032] Pid: 1, comm: swapper Not tainted 2.6.33-rc2 #4
+> > >> [    1.630034] Call Trace:
 > 
-> Long time ago when we have a zero page, we regards it to file_rss. 
-> So while we see the smaps, vm_normal_page returns zero page and we can
-> calculate it properly with PSS. 
+> > >> [    1.630064]  [<ffffffff812cae3e>] acpi_os_allocate+0x25/0x27 
 > 
-> But now we don't acccout zero page to file_rss. 
-> I am not sure we have to account it with file_rss. 
-> So I think now smaps_pte_range's resident count routine also is changed. 
+> Right, so ACPI is trying to allocate something larger than 2^MAX_ORDER
+> pages, which on x86 computes to 4K * 2^11 = 8M.
 > 
-> Anyway, I think my patch doesn't have much cost since many customers of 
-> follow_page are already not a fast path.
+> That's not going to work.
 > 
-> I tend to agree with your opinion "How frequently we runt into the zero page?"
-> But my thought GUP is export function which can be used for anything by anyone.
+> Did this machine properly boot before? I seem to remember people working
+> on moving away from bootmem and getting th page/slab stuff up and
+> running sooner, it might be fallout from that...
 > 
-> Thanks for the review, Rik. 
 
-I'm guessing that you've now dropped the idea of this patch,
-since it wasn't included along with your 1/3, 2/3, 3/3.
+Yes, and it still boots now.
 
-You thought the ZERO_PAGE was moving around the LRUs, but now
-realize that it isn't, so accept there's no need for this patch?
-
-There's lots of places where we could shave a little time off dealing
-with the ZERO_PAGE by adding tests for it; but at the expense of
-adding code to normal paths of the system, slowing them down.
-
-If there's a proven reason for doing so somewhere, yes, we should
-add such tests to avoid significant cacheline bouncing; but without
-good reason, we just let ZERO_PAGEs fall through the code as they do.
-
-I believe that get_user_pages() on ZERO_PAGEs is exceptional, beyond
-the cases of coredumping and mlock and make_pages_present; but if
-you've evidence for adding a test somewhere, please provide it.
-
-Hugh
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
