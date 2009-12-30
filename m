@@ -1,50 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 96C8860021B
-	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 10:36:11 -0500 (EST)
-Subject: Re: ACPI warning from alloc_pages_nodemask on boot (2.6.33
- regression)
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <2f11576a0912292221r7ba59e9dw431c7b43b578a04@mail.gmail.com>
-References: <20091229094202.25818e9b@nehalam>
-	 <alpine.LFD.2.00.0912291435070.14938@localhost.localdomain>
-	 <2f11576a0912292221r7ba59e9dw431c7b43b578a04@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 30 Dec 2009 16:35:44 +0100
-Message-ID: <1262187344.7135.230.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 07AAA60021B
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 10:58:11 -0500 (EST)
+Received: by fxm28 with SMTP id 28so3274160fxm.6
+        for <linux-mm@kvack.org>; Wed, 30 Dec 2009 07:58:10 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH v5 0/4] cgroup notifications API and memory thresholds
+Date: Wed, 30 Dec 2009 17:57:55 +0200
+Message-Id: <cover.1262186097.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Len Brown <lenb@kernel.org>, Stephen Hemminger <shemminger@vyatta.com>, linux-acpi@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: containers@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Alexander Shishkin <virtuoso@slind.org>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-12-30 at 15:21 +0900, KOSAKI Motohiro wrote:
-> >> [    1.630020] ------------[ cut here ]------------
-> >> [    1.630026] WARNING: at mm/page_alloc.c:1812 __alloc_pages_nodemask+0x617/0x730()
-> >
-> >        if (order >= MAX_ORDER) {
-> >                WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
-> >                return NULL;
-> >        }
-> >
-> > I don't know what the mm alloc code is complaining about here.
+This patchset introduces eventfd-based API for notifications in cgroups and
+implements memory notifications on top of it.
 
-> >> [    1.630028] Hardware name: System Product Name
-> >> [    1.630029] Modules linked in:
-> >> [    1.630032] Pid: 1, comm: swapper Not tainted 2.6.33-rc2 #4
-> >> [    1.630034] Call Trace:
+It uses statistics in memory controler to track memory usage.
 
-> >> [    1.630064]  [<ffffffff812cae3e>] acpi_os_allocate+0x25/0x27 
+Output of time(1) on building kernel on tmpfs:
 
-Right, so ACPI is trying to allocate something larger than 2^MAX_ORDER
-pages, which on x86 computes to 4K * 2^11 = 8M.
+Root cgroup before changes:
+	make -j2  506.37 user 60.93s system 193% cpu 4:52.77 total
+Non-root cgroup before changes:
+	make -j2  507.14 user 62.66s system 193% cpu 4:54.74 total
+Root cgroup after changes (0 thresholds):
+	make -j2  507.13 user 62.20s system 193% cpu 4:53.55 total
+Non-root cgroup after changes (0 thresholds):
+	make -j2  507.70 user 64.20s system 193% cpu 4:55.70 total
+Root cgroup after changes (1 thresholds, never crossed):
+	make -j2  506.97 user 62.20s system 193% cpu 4:53.90 total
+Non-root cgroup after changes (1 thresholds, never crossed):
+	make -j2  507.55 user 64.08s system 193% cpu 4:55.63 total
 
-That's not going to work.
+Any comments?
 
-Did this machine properly boot before? I seem to remember people working
-on moving away from bootmem and getting th page/slab stuff up and
-running sooner, it might be fallout from that...
+v4 -> v5:
+ - rework  __mem_cgroup_threshold() a bit;
+ - drop __mem_cgroup_stat_reset_safe();
+ - fixes based on comments.
+
+v3 -> v4:
+ - documentation.
+
+v2 -> v3:
+ - remove [RFC];
+ - rebased to 2.6.33-rc2;
+ - fixes based on comments;
+ - fixed potential race on event removing;
+ - use RCU-protected arrays to track trasholds.
+
+v1 -> v2:
+ - use statistics instead of res_counter to track resource usage;
+ - fix bugs with locking.
+
+v0 -> v1:
+ - memsw support implemented.
+
+Kirill A. Shutemov (4):
+  cgroup: implement eventfd-based generic API for notifications
+  memcg: extract mem_group_usage() from mem_cgroup_read()
+  memcg: rework usage of stats by soft limit
+  memcg: implement memory thresholds
+
+ Documentation/cgroups/cgroups.txt |   20 ++
+ Documentation/cgroups/memory.txt  |   19 ++-
+ include/linux/cgroup.h            |   24 +++
+ kernel/cgroup.c                   |  208 ++++++++++++++++++++-
+ mm/memcontrol.c                   |  384 ++++++++++++++++++++++++++++++++++---
+ 5 files changed, 623 insertions(+), 32 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
