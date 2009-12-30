@@ -1,59 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 050EF60021B
-	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 13:05:51 -0500 (EST)
-Date: Wed, 30 Dec 2009 10:05:19 -0800
-From: Stephen Hemminger <shemminger@vyatta.com>
-Subject: Re: ACPI warning from alloc_pages_nodemask on boot (2.6.33
- regression)
-Message-ID: <20091230100519.5a72d82c@nehalam>
-In-Reply-To: <1262187344.7135.230.camel@laptop>
-References: <20091229094202.25818e9b@nehalam>
-	<alpine.LFD.2.00.0912291435070.14938@localhost.localdomain>
-	<2f11576a0912292221r7ba59e9dw431c7b43b578a04@mail.gmail.com>
-	<1262187344.7135.230.camel@laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4C07660021B
+	for <linux-mm@kvack.org>; Wed, 30 Dec 2009 15:17:38 -0500 (EST)
+Date: Wed, 30 Dec 2009 20:17:34 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: [PATCH] mm: move sys_mmap_pgoff from util.c
+Message-ID: <alpine.LSU.2.00.0912302009040.30390@sister.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Len Brown <lenb@kernel.org>, linux-acpi@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, David Howells <dhowells@redhat.com>, Eric B Munson <ebmunson@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 Dec 2009 16:35:44 +0100
-Peter Zijlstra <peterz@infradead.org> wrote:
+Move sys_mmap_pgoff() from mm/util.c to mm/mmap.c and mm/nommu.c,
+where we'd expect to find such code: especially now that it contains
+the MAP_HUGETLB handling.  Revert mm/util.c to how it was in 2.6.32.
 
-> On Wed, 2009-12-30 at 15:21 +0900, KOSAKI Motohiro wrote:
-> > >> [    1.630020] ------------[ cut here ]------------
-> > >> [    1.630026] WARNING: at mm/page_alloc.c:1812 __alloc_pages_nodemask+0x617/0x730()
-> > >
-> > >        if (order >= MAX_ORDER) {
-> > >                WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
-> > >                return NULL;
-> > >        }
-> > >
-> > > I don't know what the mm alloc code is complaining about here.
-> 
-> > >> [    1.630028] Hardware name: System Product Name
-> > >> [    1.630029] Modules linked in:
-> > >> [    1.630032] Pid: 1, comm: swapper Not tainted 2.6.33-rc2 #4
-> > >> [    1.630034] Call Trace:
-> 
-> > >> [    1.630064]  [<ffffffff812cae3e>] acpi_os_allocate+0x25/0x27 
-> 
-> Right, so ACPI is trying to allocate something larger than 2^MAX_ORDER
-> pages, which on x86 computes to 4K * 2^11 = 8M.
-> 
-> That's not going to work.
-> 
-> Did this machine properly boot before? I seem to remember people working
-> on moving away from bootmem and getting th page/slab stuff up and
-> running sooner, it might be fallout from that...
-> 
+This patch just ignores MAP_HUGETLB in the nommu case, as in 2.6.32,
+whereas 2.6.33-rc2 reported -ENOSYS.  Perhaps validate_mmap_request()
+should reject it with -EINVAL?  Add that later if necessary.
 
-Yes, and it still boots now.
+Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+---
 
--- 
+ mm/mmap.c  |   40 ++++++++++++++++++++++++++++++++++++++++
+ mm/nommu.c |   25 +++++++++++++++++++++++++
+ mm/util.c  |   44 --------------------------------------------
+ 3 files changed, 65 insertions(+), 44 deletions(-)
+
+--- 2.6.33-rc2/mm/mmap.c	2009-12-18 11:42:54.000000000 +0000
++++ linux/mm/mmap.c	2009-12-26 18:28:30.000000000 +0000
+@@ -1043,6 +1043,46 @@ unsigned long do_mmap_pgoff(struct file
+ }
+ EXPORT_SYMBOL(do_mmap_pgoff);
+ 
++SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
++		unsigned long, prot, unsigned long, flags,
++		unsigned long, fd, unsigned long, pgoff)
++{
++	struct file *file = NULL;
++	unsigned long retval = -EBADF;
++
++	if (!(flags & MAP_ANONYMOUS)) {
++		if (unlikely(flags & MAP_HUGETLB))
++			return -EINVAL;
++		file = fget(fd);
++		if (!file)
++			goto out;
++	} else if (flags & MAP_HUGETLB) {
++		struct user_struct *user = NULL;
++		/*
++		 * VM_NORESERVE is used because the reservations will be
++		 * taken when vm_ops->mmap() is called
++		 * A dummy user value is used because we are not locking
++		 * memory so no accounting is necessary
++		 */
++		len = ALIGN(len, huge_page_size(&default_hstate));
++		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len, VM_NORESERVE,
++						&user, HUGETLB_ANONHUGE_INODE);
++		if (IS_ERR(file))
++			return PTR_ERR(file);
++	}
++
++	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
++
++	down_write(&current->mm->mmap_sem);
++	retval = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
++	up_write(&current->mm->mmap_sem);
++
++	if (file)
++		fput(file);
++out:
++	return retval;
++}
++
+ /*
+  * Some shared mappigns will want the pages marked read-only
+  * to track write events. If so, we'll downgrade vm_page_prot
+--- 2.6.33-rc2/mm/nommu.c	2009-12-18 11:42:54.000000000 +0000
++++ linux/mm/nommu.c	2009-12-26 18:28:30.000000000 +0000
+@@ -1398,6 +1398,31 @@ error_getting_region:
+ }
+ EXPORT_SYMBOL(do_mmap_pgoff);
+ 
++SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
++		unsigned long, prot, unsigned long, flags,
++		unsigned long, fd, unsigned long, pgoff)
++{
++	struct file *file = NULL;
++	unsigned long retval = -EBADF;
++
++	if (!(flags & MAP_ANONYMOUS)) {
++		file = fget(fd);
++		if (!file)
++			goto out;
++	}
++
++	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
++
++	down_write(&current->mm->mmap_sem);
++	retval = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
++	up_write(&current->mm->mmap_sem);
++
++	if (file)
++		fput(file);
++out:
++	return retval;
++}
++
+ /*
+  * split a vma into two pieces at address 'addr', a new vma is allocated either
+  * for the first part or the tail.
+--- 2.6.33-rc2/mm/util.c	2009-12-18 11:42:55.000000000 +0000
++++ linux/mm/util.c	2009-12-26 18:28:30.000000000 +0000
+@@ -4,10 +4,6 @@
+ #include <linux/module.h>
+ #include <linux/err.h>
+ #include <linux/sched.h>
+-#include <linux/hugetlb.h>
+-#include <linux/syscalls.h>
+-#include <linux/mman.h>
+-#include <linux/file.h>
+ #include <asm/uaccess.h>
+ 
+ #define CREATE_TRACE_POINTS
+@@ -272,46 +268,6 @@ int __attribute__((weak)) get_user_pages
+ }
+ EXPORT_SYMBOL_GPL(get_user_pages_fast);
+ 
+-SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+-		unsigned long, prot, unsigned long, flags,
+-		unsigned long, fd, unsigned long, pgoff)
+-{
+-	struct file * file = NULL;
+-	unsigned long retval = -EBADF;
+-
+-	if (!(flags & MAP_ANONYMOUS)) {
+-		if (unlikely(flags & MAP_HUGETLB))
+-			return -EINVAL;
+-		file = fget(fd);
+-		if (!file)
+-			goto out;
+-	} else if (flags & MAP_HUGETLB) {
+-		struct user_struct *user = NULL;
+-		/*
+-		 * VM_NORESERVE is used because the reservations will be
+-		 * taken when vm_ops->mmap() is called
+-		 * A dummy user value is used because we are not locking
+-		 * memory so no accounting is necessary
+-		 */
+-		len = ALIGN(len, huge_page_size(&default_hstate));
+-		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len, VM_NORESERVE,
+-						&user, HUGETLB_ANONHUGE_INODE);
+-		if (IS_ERR(file))
+-			return PTR_ERR(file);
+-	}
+-
+-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+-
+-	down_write(&current->mm->mmap_sem);
+-	retval = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
+-	up_write(&current->mm->mmap_sem);
+-
+-	if (file)
+-		fput(file);
+-out:
+-	return retval;
+-}
+-
+ /* Tracepoints definitions. */
+ EXPORT_TRACEPOINT_SYMBOL(kmalloc);
+ EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
