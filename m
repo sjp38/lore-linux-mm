@@ -1,48 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 34BDB60021B
-	for <linux-mm@kvack.org>; Fri,  1 Jan 2010 04:54:08 -0500 (EST)
-Received: by iwn41 with SMTP id 41so9199428iwn.12
-        for <linux-mm@kvack.org>; Fri, 01 Jan 2010 01:54:06 -0800 (PST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mm, lockdep: annotate reclaim context to zone reclaim too
-Date: Fri,  1 Jan 2010 18:45:41 +0900
-Message-Id: <1262339141-4682-1-git-send-email-kosaki.motohiro@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 5EED760044A
+	for <linux-mm@kvack.org>; Fri,  1 Jan 2010 09:56:29 -0500 (EST)
+Message-ID: <4B3E0CFA.9050508@redhat.com>
+Date: Fri, 01 Jan 2010 09:55:54 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/4] vmscan: get_scan_ratio cleanup
+References: <20091228164451.A687.A69D9226@jp.fujitsu.com> <20091228164733.A68A.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20091228164733.A68A.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Commit cf40bd16fd (lockdep: annotate reclaim context) introduced reclaim
-context annotation. But it didn't annotate zone reclaim. This patch do it.
+On 12/28/2009 02:48 AM, KOSAKI Motohiro wrote:
+> The get_scan_ratio() should have all scan-ratio related calculations.
+> Thus, this patch move some calculation into get_scan_ratio.
+>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2bbee91..a039e78 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2547,6 +2547,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	 * and RECLAIM_SWAP.
- 	 */
- 	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
-+	lockdep_set_current_reclaim_state(gfp_mask);
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
-@@ -2590,6 +2591,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 
- 	p->reclaim_state = NULL;
- 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
-+	lockdep_clear_current_reclaim_state();
- 	return sc.nr_reclaimed >= nr_pages;
- }
- 
 -- 
-1.6.6
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
