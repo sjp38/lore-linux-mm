@@ -1,154 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0955660044A
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2010 13:38:15 -0500 (EST)
-Date: Sun, 3 Jan 2010 18:38:03 +0000
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4079E60044A
+	for <linux-mm@kvack.org>; Sun,  3 Jan 2010 14:00:11 -0500 (EST)
+Date: Sun, 3 Jan 2010 18:59:57 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 25 of 28] transparent hugepage core
-Message-ID: <20100103183802.GA11420@csn.ul.ie>
-References: <patchbomb.1261076403@v2.random> <4d96699c8fb89a4a22eb.1261076428@v2.random> <20091218200345.GH21194@csn.ul.ie> <20091219164143.GC29790@random.random> <20091221203149.GD23345@csn.ul.ie> <20091223000640.GI6429@random.random>
+Subject: Re: [PATCH 1/4] vmstat: remove zone->lock from walk_zones_in_node
+Message-ID: <20100103185957.GB11420@csn.ul.ie>
+References: <20091228164451.A687.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20091223000640.GI6429@random.random>
+In-Reply-To: <20091228164451.A687.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, Paul Mundt <lethal@linux-sh.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 23, 2009 at 01:06:40AM +0100, Andrea Arcangeli wrote:
-> On Mon, Dec 21, 2009 at 08:31:50PM +0000, Mel Gorman wrote:
-> > My vague worry is that multiple huge page sizes are currently supported in
-> > hugetlbfs but transparent support is obviously tied to the page-table level
-> > it's implemented for. In the future, the term "huge" could be ambiguous . How
-> > about instead of things like HUGE_MASK, it would be HUGE_PMD_MASK? It's not
-> > something I feel very strongly about as eventually I'll remember what sort of
-> > "huge" is meant in each context.
+On Mon, Dec 28, 2009 at 04:47:22PM +0900, KOSAKI Motohiro wrote:
+> The zone->lock is one of performance critical locks. Then, it shouldn't
+> be hold for long time. Currently, we have four walk_zones_in_node()
+> usage and almost use-case don't need to hold zone->lock.
 > 
-> Ok this naming seems to be a little troublesome. HUGE_PMD_MASK would
-> then require HUGE_PMD_SIZE. That is confusing a little to me, that is
-> the size of the page not of the pmd... Maybe HPAGE_PMD_SIZE is better?
-
-HPAGE_PMD_SIZE is better
-
-> Overall this is just one #define and search and replace, I can do that
-> if people likes it more than HPAGE_SIZE.
+> Thus, this patch move locking responsibility from walk_zones_in_node
+> to its sub function. Also this patch kill unnecessary zone->lock taking.
 > 
-> > /*
-> >  * Currently uses  __GFP_REPEAT during allocation. Should be implemented
-> >  * using page migration in the future
-> >  */
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/vmstat.c |    8 +++++---
+>  1 files changed, 5 insertions(+), 3 deletions(-)
 > 
-> Done! thanks.
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -75,6 +75,11 @@ static ssize_t enabled_store(struct kobj
->  static struct kobj_attribute enabled_attr =
->  	__ATTR(enabled, 0644, enabled_show, enabled_store);
->  
-> +/*
-> + * Currently uses __GFP_REPEAT during allocation. Should be
-> + * implemented using page migration and real defrag algorithms in
-> + * future VM.
-> + */
->  static ssize_t defrag_show(struct kobject *kobj,
->  			   struct kobj_attribute *attr, char *buf)
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 6051fba..a5d45bc 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -418,15 +418,12 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
 >  {
-> 
-> > do_huge_pmd_anonymous_page makes sense.
-> 
-> Agreed, I already changed all methods called from memory.c to
-> huge_memory.c with a "huge_pmd" prefix instead of just "huge".
-> 
-> > IA-64 can't in its currently implementation. Due to the page table format
-> > they use, huge pages can only be mapped at specific ranges in the virtual
-> > address space. If the long-format version of the page table was used, they
-> 
-> Hmm ok, so it sounds like hugetlbfs limitations are a software feature
-> for ia64 too.
-> 
+>  	struct zone *zone;
+>  	struct zone *node_zones = pgdat->node_zones;
+> -	unsigned long flags;
+>  
+>  	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+>  		if (!populated_zone(zone))
+>  			continue;
+>  
+> -		spin_lock_irqsave(&zone->lock, flags);
+>  		print(m, pgdat, zone);
+> -		spin_unlock_irqrestore(&zone->lock, flags);
+>  	}
+>  }
+>  
+> @@ -455,6 +452,7 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
+>  					pg_data_t *pgdat, struct zone *zone)
+>  {
+>  	int order, mtype;
+> +	unsigned long flags;
+>  
+>  	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
+>  		seq_printf(m, "Node %4d, zone %8s, type %12s ",
+> @@ -468,8 +466,11 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
+>  
+>  			area = &(zone->free_area[order]);
+>  
+> +			spin_lock_irqsave(&zone->lock, flags);
+>  			list_for_each(curr, &area->free_list[mtype])
+>  				freecount++;
+> +			spin_unlock_irqrestore(&zone->lock, flags);
+> +
 
-It's not hugetlbfs that is the problem, it's the page table format
-itself. There is a more flexible flexible long-form pagetable format
-available on the hardware but Linux doesn't use it.
+It's not clear why you feel this information requires the lock and the
+others do not.
 
-In theory, you could implement transparent support on IA-64 without
-disabling the short-form pagetable format by disabling the hardware
-pagetable walker altogether and handling TLB misses in software but it
-would likely be an overall loss.
+For the most part, I agree that the accuracy of the information is
+not critical. Assuming partial writes of the data are not a problem,
+the information is not going to go so badly out of sync that it would be
+noticable, even if the information is out of date within the zone.
 
-> > would be able to but I bet it's not happening any time soon. The best bet
-> > for other architectures supporting this would be sparc and maybe sh.
-> > It might be worth poking Paul Mundt in particular because he expressed
-> > an interest in transparent support of some sort in the past for sh.
+However, inconsistent reads in zoneinfo really could be a problem. I am
+concerned that under heavy allocation load that that "pages free" would
+not match "nr_pages_free" for example. Other examples that adding all the
+counters together may or may not equal the total number of pages in the zone.
+
+Lets say for example there was a subtle bug related to __inc_zone_page_state()
+that meant that counters were getting slightly out of sync but it was very
+marginal and/or difficult to reproduce. With this patch applied, we could
+not be absolutly sure the counters were correct because it could always have
+raced with someone holding the zone->lock.
+
+Minimally, I think zoneinfo should be taking the zone lock.
+
+Secondly, has increased zone->lock contention due to reading /proc
+really been shown to be a problem? The only situation that I can think
+of is a badly-written monitor program that is copying all of /proc
+instead of the files of interest. If a monitor program is doing
+something like that, it's likely to be incurring performance problems in
+a large number of different areas. If that is not the trigger case, what
+is?
+
+Thanks
+
+>  			seq_printf(m, "%6lu ", freecount);
+>  		}
+>  		seq_putc(m, '\n');
+> @@ -709,6 +710,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+>  							struct zone *zone)
+>  {
+>  	int i;
+> +
+
+Unnecessary whitespace change.
+
+>  	seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
+>  	seq_printf(m,
+>  		   "\n  pages free     %lu"
+> -- 
+> 1.6.5.2
 > 
-> I added him to CC.
 > 
-> > Because huge pages cannot move. If the MOVABLE zone has been set up to
-> > guarantee memory hot-plug removal, they don't want huge pages to be
-> > getting in the way. To allow unconditional use of GFP_HIGHUSER_MOVABLE,
-> > memory hotplug would have to know it can demote all the transparent huge
-> > pages and migrate them that way.
 > 
-> It should already do. migrate.c calls try_to_unmap that will split
-> them and migrate them just fine. If they can't be migrated I will
-> remove GFP_HIGHUSER_MOVABLE but I think they can already. migrate.c
-> can't notice the difference.
 > 
-
-Ok, if it is a case that the huge pages get demoted and migrated, then
-the use of GFP_HIGHUSER_MOVABLE is not a problem.
-
-> > My preference would be to move the alloc_mask into common code or at
-> > least make it available via mm/internal.h because otherwise this will
-> > collide with memory hot-remove in the future.
-> 
-> We can do that. But what I don't understand is why do_anonymous_page
-> ses an unconditional GFP_HIGHUSER_MOVABLE.
-
-Because it can be migrated.
-
-> If there's no benefit to
-> do_anonymous_page to turn off the gfp movable flag, I don't see why it
-> could be beneficial to turn it off on hugepages.
-
-There is no benefit in turning of the gfp movable flag. The presense of
-the flag allows the use of ZONE_MOVABLE i.e. there is more physical
-memory that can be potentially used.
-
-> If there's good
-> reason for that we surely can make it conditional into common code. I
-> didn't look too hard for it, but what is the reason there is this flag
-> in hugetlbfs?
-> 
-
-hugetlbfs does not use the flag by default because its pages cannot be migrated
-(it could be implemented of course, but it hasn't been to date). The flag is
-conditionally used because ZONE_MOVABLE can be used to almost guarantee that
-X number of hugepages can always be allocated regardless of the fragmentation
-state of the system. It's an "almost" guarantee because we do not have memory
-defragmentation to move mlocked pages.
-
-> > I would prefer pmd to be added to the huge names. However, this was
-> > mostly to aid comprehension of the patchset when I was taking a quick
-> 
-> That is neutral to me... it's just that HPAGE_SIZE already existed so
-> I tried to avoid adding unnecessary things but I'm not against
-> HPAGE_PMD_SIZE, that will make it more clearer this is the size of a
-> hugepage mapped by a pmd (and not a gigapage mapped by pud).
-> 
-
-Agreed.
-
-> Thanks for the help! (we'll need more of your help in the defrag area
-> too according to comment added above ;)
-> 
-
-I prototyped memory deframentation ages ago. It worked for the most case
-but has bit-rotted significantly. I really should dig it out from
-whatever hole I left it in.
 
 -- 
 Mel Gorman
