@@ -1,52 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E892660021B
-	for <linux-mm@kvack.org>; Sat,  2 Jan 2010 16:45:55 -0500 (EST)
-Subject: Re: [RFC PATCH] asynchronous page fault.
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 03 Jan 2010 08:45:33 +1100
-Message-ID: <1262468733.2173.251.camel@pasglop>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with SMTP id BA27560021B
+	for <linux-mm@kvack.org>; Sat,  2 Jan 2010 19:31:35 -0500 (EST)
+Received: by ywh5 with SMTP id 5so26151450ywh.11
+        for <linux-mm@kvack.org>; Sat, 02 Jan 2010 16:31:34 -0800 (PST)
+Message-ID: <4B3FE3A4.6030401@vflare.org>
+Date: Sun, 03 Jan 2010 05:54:04 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+MIME-Version: 1.0
+Subject: [RFC] vswap: virtio based swap device
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: tmem-devel@oss.oracle.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-12-25 at 10:51 +0900, KAMEZAWA Hiroyuki wrote:
-> Speculative page fault v3.
-> 
-> This version is much simpler than old versions and doesn't use mm_accessor
-> but use RCU. This is based on linux-2.6.33-rc2.
-> 
-> This patch is just my toy but shows...
->  - Once RB-tree is RCU-aware and no-lock in readside, we can avoid mmap_sem
->    in page fault. 
-> So, what we need is not mm_accessor, but RCU-aware RB-tree, I think.
-> 
-> But yes, I may miss something critical ;)
-> 
-> After patch, statistics perf show is following. Test progam is attached.
+virtio_vswap driver[1] creates /dev/vswap device which can
+be used (only) as a swap disk. Pages swapped to this device
+are send directly to host/hypervisor. The host, depending on
+various policies, can fail this request in which case the driver
+writes the page to guest controlled swap partition (backing_swap
+module parameter provides this partition). The size of this
+device is set equal to that of backing_swap.
 
-One concern I have with this, not that it can't be addressed but we'll
-have to be extra careful, is that the mmap_sem in the page fault path
-tend to protect more than just the VMA tree.
+This driver provides an alternate approach for "preswap"
+introduced as part of "tmem" patches posted earlier:
+http://lwn.net/Articles/338098/
+These patches used Xen specific interfaces and made some
+intrusive changes to swap code. However, I found the concept
+interesting, so developed this virtio based driver which does
+not require any kernel changes.
 
-One example on powerpc is the slice map used to keep track of page
-sizes. I would also need some time to convince myself that I don't have
-some bits of the MMU hash code that doesn't assume that holding the
-mmap_sem for writing prevents a PTE from being changed from !present to
-present.
+It uses virtio to create a virtual PCI device and also creates
+a virtual block device (/dev/vswap) whose only job is to send
+pages to host and if that fails, forward request to backing_swap.
+It also requires changes to qemu-kvm[2] to expose this virtual
+PCI device to guest and is enabled with '-vswap virtio' option.
 
-I wouldn't be surprised if there were more around fancy users of
-->fault(), things like spufs, the DRM, etc...
+In current state, it does everything except actually storing
+incoming guest pages in host memory :)  Also, it uses a single
+virtqueue which sends each page to host synchronously.  Its just
+a proof of concept code to show how virtio framework can be used
+to drive such a device. Perhaps a more interesting application would
+be an FS-cache backend that sends pages to host as clean pagecache
+usually occupies a vast majority of memory and ballooning is too slow
+to deal quickly with such large caches when the host is running into
+memory pressure.
 
-Cheers,
-Ben.
- 
+[1] vswap kernel driver:
+http://code.google.com/p/compcache/source/browse/sub-projects/vswap/
+
+[2] qemu-kvm patch to expose vswap PCI device:
+http://code.google.com/p/compcache/source/browse/sub-projects/vswap/qemu_kvm_vswap_support.patch
+
+[3] Transcendent Memory (tmem) project page:
+http://oss.oracle.com/projects/tmem/
+
+(I intend to merge vswap with ramzswap driver which is already
+in mainline, so I did not integrate it with kernel build system.
+So, provided just the link to code instead of diff against /dev/null)
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
