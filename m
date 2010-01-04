@@ -1,28 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 926926005A4
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 17:01:58 -0500 (EST)
-Date: Mon, 4 Jan 2010 15:59:45 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC][PATCH 0/8] Speculative pagefault -v3
-In-Reply-To: <4B42606F.3000906@redhat.com>
-Message-ID: <alpine.DEB.2.00.1001041558350.17041@router.home>
-References: <20100104182429.833180340@chello.nl> <4B42606F.3000906@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 551AE6005A4
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 17:30:26 -0500 (EST)
+Date: Mon, 4 Jan 2010 14:28:19 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [stable] [BUGFIX][PATCH v2 -stable] memcg: avoid oom-killing
+ innocent task in case of use_hierarchy
+Message-ID: <20100104222818.GA20708@kroah.com>
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+ <20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
+ <20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
+ <20091217094724.15ec3b27.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091217094724.15ec3b27.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Jan 2010, Rik van Riel wrote:
+On Thu, Dec 17, 2009 at 09:47:24AM +0900, Daisuke Nishimura wrote:
+> Stable team.
+> 
+> Cay you pick this up for 2.6.32.y(and 2.6.31.y if it will be released) ?
+> 
+> This is a for-stable version of a bugfix patch that corresponds to the
+> upstream commmit d31f56dbf8bafaacb0c617f9a6f137498d5c7aed.
 
-> Fun, but why do we need this?
->
-> What improvements did you measure?
+I've applied it to the .32-stable tree, but it does not apply to .31.
+Care to provide a version of the patch for that kernel if you want it
+applied there?
 
-If it measures up to Kame-sans approach then the possible pagefault rate
-will at least double ...
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
