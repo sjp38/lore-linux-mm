@@ -1,99 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A57CD600068
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2010 19:38:42 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o040ceXg029596
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 4 Jan 2010 09:38:40 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0136F45DE4F
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 09:38:40 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5DE845DE4E
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 09:38:39 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B7C671DB803B
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 09:38:39 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E2E51DB8038
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 09:38:39 +0900 (JST)
-Date: Mon, 4 Jan 2010 09:35:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] Shared page accounting for memory cgroup
-Message-Id: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100104000752.GC16187@balbir.in.ibm.com>
-References: <20091229182743.GB12533@balbir.in.ibm.com>
-	<20100104085108.eaa9c867.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100104000752.GC16187@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 51BF3600068
+	for <linux-mm@kvack.org>; Sun,  3 Jan 2010 19:47:13 -0500 (EST)
+Received: by pzk27 with SMTP id 27so8333253pzk.12
+        for <linux-mm@kvack.org>; Sun, 03 Jan 2010 16:47:11 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20100104084347.c36d9855.kamezawa.hiroyu@jp.fujitsu.com>
+References: <ceeec51bdc2be64416e05ca16da52a126b598e17.1258773030.git.minchan.kim@gmail.com>
+	 <ae2928fe7bb3d94a7ca18d3b3274fdfeb009803a.1258773030.git.minchan.kim@gmail.com>
+	 <4B38876F.6010204@gmail.com>
+	 <alpine.LSU.2.00.0912301619500.3369@sister.anvils>
+	 <20100104084347.c36d9855.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 4 Jan 2010 09:47:11 +0900
+Message-ID: <28c262361001031647r602fcdbeve56dbf4da4e31254@mail.gmail.com>
+Subject: Re: [PATCH 2/3 -mmotm-2009-12-10-17-19] Count zero page as file_rss
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Jan 2010 05:37:52 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-04 08:51:08]:
-> 
-> > On Tue, 29 Dec 2009 23:57:43 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > Hi, Everyone,
-> > > 
-> > > I've been working on heuristics for shared page accounting for the
-> > > memory cgroup. I've tested the patches by creating multiple cgroups
-> > > and running programs that share memory and observed the output.
-> > > 
-> > > Comments?
-> > 
-> > Hmm? Why we have to do this in the kernel ?
-> >
-> 
-> For several reasons that I can think of
-> 
-> 1. With task migration changes coming in, getting consistent data free of races
-> is going to be hard.
-
-Hmm, Let's see real-worlds's "ps" or "top" command. Even when there are no guarantee
-of error range of data, it's still useful.
-
-> 2. The cost of doing it in the kernel is not high, it does not impact
-> the memcg runtime, it is a request-response sort of cost.
+On Mon, Jan 4, 2010 at 8:43 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed, 30 Dec 2009 16:49:52 +0000 (GMT)
+> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 >
-> 3. The cost in user space is going to be high and the implementation
-> cumbersome to get right.
->  
-I don't like moving a cost in the userland to the kernel. Considering 
-real-time kernel or full-preemptive kernel, this very long read_lock() in the
-kernel is not good, IMHO. (I think css_set_lock should be mutex/rw-sem...)
-cgroup_iter_xxx can block cgroup_post_fork() and this may cause critical
-system delay of milli-seconds.
+>> > >
+>> > > Kame reported following as
+>> > > "Before starting zero-page works, I checked "questions" in lkml and
+>> > > found some reports that some applications start to go OOM after zero=
+-page
+>> > > removal.
+>> > >
+>> > > For me, I know one of my customer's application depends on behavior =
+of
+>> > > zero page (on RHEL5). So, I tried to add again it before RHEL6 becau=
+se
+>> > > I think removal of zero-page corrupts compatibility."
+>> > >
+>> > > So how about adding zero page as file_rss again for compatibility?
+>>
+>> I think not.
+>>
+>> KAMEZAWA-san can correct me (when he returns in the New Year) if I'm
+>> wrong, but I don't think his customer's OOMs had anything to do with
+>> whether the ZERO_PAGE was counted in file_rss or not: the OOMs came
+>> from the fact that many pages were being used up where just the one
+>> ZERO_PAGE had been good before. =C2=A0Wouldn't he have complained if the
+>> zero_pfn patches hadn't solved that problem?
+>>
+>> You are right that I completely overlooked the issue of whether to
+>> include the ZERO_PAGE in rss counts (now being a !vm_normal_page,
+>> it was just natural to leave it out); and I overlooked the fact that
+>> it used to be counted into file_rss in the old days (being !PageAnon).
+>>
+>> So I'm certainly at fault for that, and thank you for bringing the
+>> issue to attention; but once considered, I can't actually see a good
+>> reason why we should add code to count ZERO_PAGEs into file_rss now.
+>> And if this patch falls, then 1/3 and 3/3 would fall also.
+>>
+>> And the patch below would be incomplete anyway, wouldn't it?
+>> There would need to be a matching change to zap_pte_range(),
+>> but I don't see that.
+>>
+>> We really don't want to be adding more and more ZERO_PAGE/zero_pfn
+>> tests around the place if we can avoid them: KOSAKI-san has a strong
+>> argument for adding such a test in kernel/futex.c, but I don't the
+>> argument here.
+>>
+>
+> I agree that ZERO_PAGE shouldn't be counted as rss. Now, I feel that old
+> counting method(in old zero-page implementation) was bad.
+>
+> Minchan-san, I'm sorry for noise.
 
-BTW, if you really want to calculate somthing in atomic, I think following
-interface may be welcomed for freezing.
+That's all right.
+It was my mistake.
 
-  cgroup.lock
-  # echo 1 > /...../cgroup.lock 
-    All task move, mkdir, rmdir to this cgroup will be blocked by mutex.
-    (But fork/exit will not be blocked.)
+I will drop this and repost Matt and Hugh's ACK version.
+Thanks for all. :)
 
-  # echo 0 > /...../cgroup.lock
-    Unlock.
-
-  # cat /...../cgroup.lock
-    show lock status and lock history (for debug).
-
-Maybe good for some kinds of middleware.
-But this may be difficult if we have to consider hierarchy.
-
-Thanks,
--Kame
+>
+> Thanks,
+> -Kame
+>
+>
+>
+>
 
 
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
