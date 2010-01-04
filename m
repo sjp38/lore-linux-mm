@@ -1,72 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E40600068
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2010 19:37:11 -0500 (EST)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp03.au.ibm.com (8.14.3/8.13.1) with ESMTP id o040YFhm006919
-	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 11:34:15 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o040WjcY1269958
-	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 11:32:45 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o040b6Cb012259
-	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 11:37:06 +1100
-Date: Mon, 4 Jan 2010 06:06:12 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 0/4] cgroup notifications API and memory thresholds
-Message-ID: <20100104003612.GF16187@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <cover.1262186097.git.kirill@shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <cover.1262186097.git.kirill@shutemov.name>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A57CD600068
+	for <linux-mm@kvack.org>; Sun,  3 Jan 2010 19:38:42 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o040ceXg029596
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 4 Jan 2010 09:38:40 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0136F45DE4F
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 09:38:40 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5DE845DE4E
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 09:38:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B7C671DB803B
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 09:38:39 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E2E51DB8038
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 09:38:39 +0900 (JST)
+Date: Mon, 4 Jan 2010 09:35:28 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] Shared page accounting for memory cgroup
+Message-Id: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100104000752.GC16187@balbir.in.ibm.com>
+References: <20091229182743.GB12533@balbir.in.ibm.com>
+	<20100104085108.eaa9c867.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100104000752.GC16187@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Alexander Shishkin <virtuoso@slind.org>, linux-kernel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-* Kirill A. Shutemov <kirill@shutemov.name> [2009-12-30 17:57:55]:
+On Mon, 4 Jan 2010 05:37:52 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> This patchset introduces eventfd-based API for notifications in cgroups and
-> implements memory notifications on top of it.
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-04 08:51:08]:
 > 
-> It uses statistics in memory controler to track memory usage.
+> > On Tue, 29 Dec 2009 23:57:43 +0530
+> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > 
+> > > Hi, Everyone,
+> > > 
+> > > I've been working on heuristics for shared page accounting for the
+> > > memory cgroup. I've tested the patches by creating multiple cgroups
+> > > and running programs that share memory and observed the output.
+> > > 
+> > > Comments?
+> > 
+> > Hmm? Why we have to do this in the kernel ?
+> >
 > 
-> Output of time(1) on building kernel on tmpfs:
+> For several reasons that I can think of
 > 
-> Root cgroup before changes:
-> 	make -j2  506.37 user 60.93s system 193% cpu 4:52.77 total
-> Non-root cgroup before changes:
-> 	make -j2  507.14 user 62.66s system 193% cpu 4:54.74 total
-> Root cgroup after changes (0 thresholds):
-> 	make -j2  507.13 user 62.20s system 193% cpu 4:53.55 total
-> Non-root cgroup after changes (0 thresholds):
-> 	make -j2  507.70 user 64.20s system 193% cpu 4:55.70 total
-> Root cgroup after changes (1 thresholds, never crossed):
-> 	make -j2  506.97 user 62.20s system 193% cpu 4:53.90 total
-> Non-root cgroup after changes (1 thresholds, never crossed):
-> 	make -j2  507.55 user 64.08s system 193% cpu 4:55.63 total
-> 
-> Any comments?
+> 1. With task migration changes coming in, getting consistent data free of races
+> is going to be hard.
 
-Hi,
+Hmm, Let's see real-worlds's "ps" or "top" command. Even when there are no guarantee
+of error range of data, it's still useful.
 
-I just saw that the notification work for me using the tool you
-supplied. One strange thing was that I got notified even though
-the amount of data I was using was reducing, so I hit the notification
-two ways
+> 2. The cost of doing it in the kernel is not high, it does not impact
+> the memcg runtime, it is a request-response sort of cost.
+>
+> 3. The cost in user space is going to be high and the implementation
+> cumbersome to get right.
+>  
+I don't like moving a cost in the userland to the kernel. Considering 
+real-time kernel or full-preemptive kernel, this very long read_lock() in the
+kernel is not good, IMHO. (I think css_set_lock should be mutex/rw-sem...)
+cgroup_iter_xxx can block cgroup_post_fork() and this may cause critical
+system delay of milli-seconds.
 
-        +------------+-----------
-                    1G
-                ----> (got notified on increase)
-                <---- (got notified on decrease)
+BTW, if you really want to calculate somthing in atomic, I think following
+interface may be welcomed for freezing.
 
-I am not against the behaviour, but it can be confusing unless
-clarified with the event.
+  cgroup.lock
+  # echo 1 > /...../cgroup.lock 
+    All task move, mkdir, rmdir to this cgroup will be blocked by mutex.
+    (But fork/exit will not be blocked.)
 
--- 
-	Balbir
+  # echo 0 > /...../cgroup.lock
+    Unlock.
+
+  # cat /...../cgroup.lock
+    show lock status and lock history (for debug).
+
+Maybe good for some kinds of middleware.
+But this may be difficult if we have to consider hierarchy.
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
