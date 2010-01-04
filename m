@@ -1,110 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6850C600068
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 01:04:05 -0500 (EST)
-Received: by ywh5 with SMTP id 5so28186646ywh.11
-        for <linux-mm@kvack.org>; Sun, 03 Jan 2010 22:04:03 -0800 (PST)
-Date: Mon, 4 Jan 2010 15:03:50 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] page allocator: fix update NR_FREE_PAGES only as
- necessary
-Message-Id: <20100104150350.483e5624.minchan.kim@barrios-desktop>
-In-Reply-To: <20100104144332.96A2.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 88031600068
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 01:06:56 -0500 (EST)
+Received: by pzk27 with SMTP id 27so8460182pzk.12
+        for <linux-mm@kvack.org>; Sun, 03 Jan 2010 22:06:55 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <4B417A37.7060001@gmail.com>
 References: <1262571730-2778-1-git-send-email-shijie8@gmail.com>
-	<20100104122138.f54b7659.minchan.kim@barrios-desktop>
-	<20100104144332.96A2.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	 <20100104122138.f54b7659.minchan.kim@barrios-desktop>
+	 <4B416A28.70806@gmail.com>
+	 <20100104134827.ce642c11.minchan.kim@barrios-desktop>
+	 <4B417A37.7060001@gmail.com>
+Date: Mon, 4 Jan 2010 15:06:54 +0900
+Message-ID: <28c262361001032206m6b102f85wed64ae31fd5b06d5@mail.gmail.com>
+Subject: Re: [PATCH] mm : add check for the return value
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org
+To: Huang Shijie <shijie8@gmail.com>
+Cc: akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon,  4 Jan 2010 14:52:36 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Mon, Jan 4, 2010 at 2:18 PM, Huang Shijie <shijie8@gmail.com> wrote:
+>
+>> I think the branch itself could not a big deal but 'likely'.
+>>
+>> Why I suggest is that now 'if (!page)' don't have 'likely'.
+>> As you know, 'likely' make the code relocate for reducing code footprint.
+>>
+>> Why? It was just mistake or doesn't need it?
+>>
+>>
+>
+> I think the CPU will CACHE the `likely' code, and make it runs fast.
 
-> > Hi, Huang. 
-> > 
-> > On Mon,  4 Jan 2010 10:22:10 +0800
-> > Huang Shijie <shijie8@gmail.com> wrote:
-> > 
-> > > When the `page' returned by __rmqueue() is NULL, the origin code
-> > > still adds -(1 << order) to zone's NR_FREE_PAGES item.
-> > > 
-> > > The patch fixes it.
-> > > 
-> > > Signed-off-by: Huang Shijie <shijie8@gmail.com>
-> > > ---
-> > >  mm/page_alloc.c |   10 +++++++---
-> > >  1 files changed, 7 insertions(+), 3 deletions(-)
-> > > 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 4e9f5cc..620921d 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -1222,10 +1222,14 @@ again:
-> > >  		}
-> > >  		spin_lock_irqsave(&zone->lock, flags);
-> > >  		page = __rmqueue(zone, order, migratetype);
-> > > -		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
-> > > -		spin_unlock(&zone->lock);
-> > > -		if (!page)
-> > > +		if (likely(page)) {
-> > > +			__mod_zone_page_state(zone, NR_FREE_PAGES,
-> > > +						-(1 << order));
-> > > +			spin_unlock(&zone->lock);
-> > > +		} else {
-> > > +			spin_unlock(&zone->lock);
-> > >  			goto failed;
-> > > +		}
-> > >  	}
-> > >  
-> > >  	__count_zone_vm_events(PGALLOC, zone, 1 << order);
-> > 
-> > I think it's not desirable to add new branch in hot-path even though
-> > we could avoid that. 
-> > 
-> > How about this?
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 4e4b5b3..87976ad 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1244,6 +1244,9 @@ again:
-> >         return page;
-> >  
-> >  failed:
-> > +       spin_lock(&zone->lock);
-> > +       __mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
-> > +       spin_unlock(&zone->lock);
-> >         local_irq_restore(flags);
-> >         put_cpu();
-> >         return NULL;
-> 
-> Why can't we write following? __mod_zone_page_state() only require irq
-> disabling, it doesn't need spin lock. I think.
+I think so.
 
-That's true. I missed that :)
+>
+> IMHO, "if (unlikely(page == NULL)) " is better then "if (!page)" ,just like
+> the
+> code in rmqueue_bulk().
+>> I think Mel does know it.
+>>
+>>
+>
+> wait for Mel's response.
 
-> 
-> 
-> 
-> From 72011ff2b0bba6544ae35c6ee52715c8c824a34b Mon Sep 17 00:00:00 2001
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: Mon, 4 Jan 2010 14:38:20 +0900
-> Subject: [PATCH] page allocator: fix update NR_FREE_PAGES only as necessary
-> 
-> commit f2260e6b (page allocator: update NR_FREE_PAGES only as necessary)
-> made one minor regression.
-> if __rmqueue() was failed, NR_FREE_PAGES stat go wrong. this patch fixes
-> it.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Huang Shijie <shijie8@gmail.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by : Minchan Kim <minchan.kim@gmail.com>
+Yes.
+Regardless of Kosaki's patch, there is a issue about likely/unlinkely usage.
+
+>
+
+
 
 -- 
 Kind regards,
