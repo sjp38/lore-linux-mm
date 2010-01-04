@@ -1,28 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9485F600068
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 12:00:09 -0500 (EST)
-Date: Mon, 4 Jan 2010 10:58:41 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 25 of 28] transparent hugepage core
-In-Reply-To: <20100103183802.GA11420@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1001041058120.7191@router.home>
-References: <patchbomb.1261076403@v2.random> <4d96699c8fb89a4a22eb.1261076428@v2.random> <20091218200345.GH21194@csn.ul.ie> <20091219164143.GC29790@random.random> <20091221203149.GD23345@csn.ul.ie> <20091223000640.GI6429@random.random>
- <20100103183802.GA11420@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with SMTP id E9CAE600068
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 12:21:26 -0500 (EST)
+Date: Mon, 4 Jan 2010 17:21:26 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] mm: move sys_mmap_pgoff from util.c
+In-Reply-To: <20100104123858.GA5045@us.ibm.com>
+Message-ID: <alpine.LSU.2.00.1001041716370.9825@sister.anvils>
+References: <alpine.LSU.2.00.0912302009040.30390@sister.anvils> <20100104123858.GA5045@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, Paul Mundt <lethal@linux-sh.org>
+To: Eric B Munson <ebmunson@us.ibm.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, David Howells <dhowells@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 3 Jan 2010, Mel Gorman wrote:
+On Mon, 4 Jan 2010, Eric B Munson wrote:
+> On Wed, 30 Dec 2009, Hugh Dickins wrote:
+> 
+> > Move sys_mmap_pgoff() from mm/util.c to mm/mmap.c and mm/nommu.c,
+> > where we'd expect to find such code: especially now that it contains
+> > the MAP_HUGETLB handling.  Revert mm/util.c to how it was in 2.6.32.
+> > 
+> > This patch just ignores MAP_HUGETLB in the nommu case, as in 2.6.32,
+> > whereas 2.6.33-rc2 reported -ENOSYS.  Perhaps validate_mmap_request()
+> > should reject it with -EINVAL?  Add that later if necessary.
+> > 
+> > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> 
+> I think that -ENOSYS is the correcet response in the nommu case, but
+> I that can be added in a later patch.
+> 
+> Acked-by: Eric B Munson <ebmunson@us.ibm.com>
 
-> I prototyped memory deframentation ages ago. It worked for the most case
-> but has bit-rotted significantly. I really should dig it out from
-> whatever hole I left it in.
+Thanks.  I had believed -ENOSYS was solely for unsupported system calls,
+so thought it inappropriate here; but we seem to have quite a few places
+which are using it indeed for "Function not implemented", and -EINVAL is
+always so very overloaded that an alternative can be a lot more helpful.
+Okay, I'll send a patch to give -ENOSYS for MAP_HUGETLB on nommu, which
+will be consistent with mmu.
 
-Yes please.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
