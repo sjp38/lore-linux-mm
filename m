@@ -1,122 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D0E13600068
-	for <linux-mm@kvack.org>; Sun,  3 Jan 2010 19:50:41 -0500 (EST)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp02.in.ibm.com (8.14.3/8.13.1) with ESMTP id o040oZoU021838
-	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 06:20:35 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o040oZle2850952
-	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 06:20:35 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o040oZVh017605
-	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 11:50:35 +1100
-Date: Mon, 4 Jan 2010 06:20:31 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC] Shared page accounting for memory cgroup
-Message-ID: <20100104005030.GG16187@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20091229182743.GB12533@balbir.in.ibm.com>
- <20100104085108.eaa9c867.kamezawa.hiroyu@jp.fujitsu.com>
- <20100104000752.GC16187@balbir.in.ibm.com>
- <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id DE458600068
+	for <linux-mm@kvack.org>; Sun,  3 Jan 2010 20:06:12 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0416ANw011823
+	for <linux-mm@kvack.org> (envelope-from d.hatayama@jp.fujitsu.com);
+	Mon, 4 Jan 2010 10:06:10 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BC8FE45DE55
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 10:06:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 91B7F45DE51
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 10:06:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D79B1DB803B
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 10:06:09 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 131DC1DB8038
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 10:06:09 +0900 (JST)
+Date: Mon, 04 Jan 2010 10:06:07 +0900 (JST)
+Message-Id: <20100104.100607.189714443.d.hatayama@jp.fujitsu.com>
+Subject: [RESEND][mmotm][PATCH v2, 0/5] elf coredump: Add extended
+ numbering support
+From: Daisuke HATAYAMA <d.hatayama@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mhiramat@redhat.com, xiyou.wangcong@gmail.com, andi@firstfloor.org, jdike@addtoit.com, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-04 09:35:28]:
+I resend this serise of patches because in the previous post I didn't
+get any reply.
 
-> On Mon, 4 Jan 2010 05:37:52 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-04 08:51:08]:
-> > 
-> > > On Tue, 29 Dec 2009 23:57:43 +0530
-> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > Hi, Everyone,
-> > > > 
-> > > > I've been working on heuristics for shared page accounting for the
-> > > > memory cgroup. I've tested the patches by creating multiple cgroups
-> > > > and running programs that share memory and observed the output.
-> > > > 
-> > > > Comments?
-> > > 
-> > > Hmm? Why we have to do this in the kernel ?
-> > >
-> > 
-> > For several reasons that I can think of
-> > 
-> > 1. With task migration changes coming in, getting consistent data free of races
-> > is going to be hard.
-> 
-> Hmm, Let's see real-worlds's "ps" or "top" command. Even when there are no guarantee
-> of error range of data, it's still useful.
+The changes from v1 to v2:
+ * fix binfmt_elf_fdpic.c and binfmt_aout.c, too
+ * move dump_write() and dump_seek() into a header file
+ * fix some style issues
+ * correct confusing part of the patch descriptions
+===
+Summary
+=======
 
-Yes, my concern is this
+The current ELF dumper can produce broken corefiles if program headers
+exceed 65535. In particular, the program in 64-bit environment often
+demands more than 65535 mmaps. If you google max_map_count, then you
+can find many users facing this problem.
 
-1. I iterate through tasks and calculate RSS
-2. I look at memory.usage_in_bytes
+Solaris has already dealt with this issue, and other OSes have also
+adopted the same method as in Solaris. Currently, Sun's document and
+AMD 64 ABI include the description for the extension, where they call
+the extension Extended Numbering. See Reference for further information.
 
-If the time in user space between 1 and 2 is large I get very wrong
-results, specifically if the workload is changing its memory usage
-drastically.. no?
+I believe that linux kernel should adopt the same way as they did, so
+I've written this patch.
 
-> 
-> > 2. The cost of doing it in the kernel is not high, it does not impact
-> > the memcg runtime, it is a request-response sort of cost.
-> >
-> > 3. The cost in user space is going to be high and the implementation
-> > cumbersome to get right.
-> >  
-> I don't like moving a cost in the userland to the kernel.
+I am also preparing for patches of GDB and binutils.
 
-Me neither, but I don't think it is a fixed overhead.
+How to fix
+==========
 
- Considering 
-> real-time kernel or full-preemptive kernel, this very long read_lock() in the
-> kernel is not good, IMHO. (I think css_set_lock should be mutex/rw-sem...)
+In new dumping process, there are two cases according to weather or
+not the number of program headers is equal to or more than 65535.
 
-I agree, we should discuss converting the lock to a mutex or a
-semaphore, but there might be a good reason for keeping it as a
-spin_lock.
+ - if less than 65535, the produced corefile format is exactly the
+   same as the ordinary one.
 
-> cgroup_iter_xxx can block cgroup_post_fork() and this may cause critical
-> system delay of milli-seconds.
-> 
+ - if equal to or more than 65535, then e_phnum field is set to newly
+   introduced constant PN_XNUM(0xffff) and the actual number of
+   program headers is set to sh_info field of the section header at
+   index 0.
 
-Agreed, but then that can happen, even while attaching a task, seeing
-cgroup tasks file (list of tasks).
+Compatibility Concern
+=====================
 
-> BTW, if you really want to calculate somthing in atomic, I think following
-> interface may be welcomed for freezing.
-> 
->   cgroup.lock
->   # echo 1 > /...../cgroup.lock 
->     All task move, mkdir, rmdir to this cgroup will be blocked by mutex.
->     (But fork/exit will not be blocked.)
-> 
->   # echo 0 > /...../cgroup.lock
->     Unlock.
-> 
->   # cat /...../cgroup.lock
->     show lock status and lock history (for debug).
-> 
-> Maybe good for some kinds of middleware.
-> But this may be difficult if we have to consider hierarchy.
->
+ * As already mentioned in Summary, Sun and AMD64 has already adopted
+   this. See Reference.
 
-I don't like the idea of providing an interface that can control
-kernel locks from user space, user space can tangle up and get it
-wrong. 
+ * There are four combinations according to whether kernel and
+   userland tools are respectively modified or not. The next table
+   summarizes shortly for each combination.
 
--- 
-	Balbir
+                  ---------------------------------------------
+                     Original Kernel    |   Modified Kernel   
+                  ---------------------------------------------
+    	            < 65535  | >= 65535 | < 65535  | >= 65535 
+  -------------------------------------------------------------
+   Original Tools |    OK    |  broken  |   OK     | broken (#)
+  -------------------------------------------------------------
+   Modified Tools |    OK    |  broken  |   OK     |    OK
+  -------------------------------------------------------------
+
+  Note that there is no case that `OK' changes to `broken'.
+
+  (#) Although this case remains broken, O-M behaves better than
+  O-O. That is, while in O-O case e_phnum field would be extremely
+  small due to integer overflow, in O-M case it is guaranteed to be at
+  least 65535 by being set to PN_XNUM(0xFFFF), much closer to the
+  actual correct value than the O-O case.
+
+Test Program
+============
+
+Here is a test program mkmmaps.c that is useful to produce the
+corefile with many mmaps. To use this, please take the following
+steps:
+
+$ ulimit -c unlimited
+$ sysctl vm.max_map_count=70000 # default 65530 is too small
+$ sysctl fs.file-max=70000
+$ mkmmaps 65535
+
+Then, the program will abort and a corefile will be generated.
+
+If failed, there are two cases according to the error message
+displayed.
+
+ * ``out of memory'' means vm.max_map_count is still smaller
+
+ * ``too many open files'' means fs.file-max is still smaller
+
+So, please change it to a larger value, and then retry it.
+
+mkmmaps.c
+==
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+int main(int argc, char **argv)
+{ 
+	int maps_num;
+	if (argc < 2) {
+		fprintf(stderr, "mkmmaps [number of maps to be created]\n");
+		exit(1);
+	}
+	if (sscanf(argv[1], "%d", &maps_num) == EOF) {
+		perror("sscanf");
+		exit(2);
+	}
+	if (maps_num < 0) {
+		fprintf(stderr, "%d is invalid\n", maps_num);
+		exit(3);
+	}
+	for (; maps_num > 0; --maps_num) {
+		if (MAP_FAILED == mmap((void *)NULL, (size_t) 1, PROT_READ,
+					MAP_SHARED | MAP_ANONYMOUS, (int) -1,
+					(off_t) NULL)) {
+			perror("mmap");
+			exit(4);
+		}    
+	}
+	abort();
+	{
+		char buffer[128];
+		sprintf(buffer, "wc -l /proc/%u/maps", getpid());
+		system(buffer);
+	}
+	return 0;
+}
+
+Patches
+=======
+
+Tested on i386, ia64 and um/sys-i386.
+Built on sh4 (which covers fs/binfmt_elf_fdpic.c)
+
+diffstat output:
+
+ arch/ia64/ia32/binfmt_elf32.c |    1 +
+ arch/ia64/ia32/elfcore32.h    |   18 +++++
+ arch/ia64/include/asm/elf.h   |   48 ------------
+ arch/ia64/kernel/Makefile     |    2 +
+ arch/ia64/kernel/elfcore.c    |   80 +++++++++++++++++++
+ arch/um/sys-i386/Makefile     |    2 +
+ arch/um/sys-i386/asm/elf.h    |   43 ----------
+ arch/um/sys-i386/elfcore.c    |   83 ++++++++++++++++++++
+ fs/binfmt_aout.c              |   36 +++------
+ fs/binfmt_elf.c               |  141 +++++++++++++++++++++-------------
+ fs/binfmt_elf_fdpic.c         |  171 ++++++++++++++++++++++++++--------------
+ include/linux/coredump.h      |   41 ++++++++++
+ include/linux/elf.h           |   28 +++++++-
+ include/linux/elfcore.h       |   17 ++++
+ kernel/Makefile               |    2 +
+ kernel/elfcore.c              |   28 +++++++
+ 16 files changed, 512 insertions(+), 229 deletions(-)
+
+Reference
+=========
+
+ - Sun microsystems: Linker and Libraries.
+   Part No: 817-1984-17, September 2008.
+   URL: http://docs.sun.com/app/docs/doc/817-1984
+
+ - System V ABI AMD64 Architecture Processor Supplement
+   Draft Version 0.99., May 11, 2009.
+   URL: http://www.x86-64.org/
+
+Signed-off-by: Daisuke HATAYAMA <d.hatayama@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
