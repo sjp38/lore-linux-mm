@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BCDA2600068
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 01:25:19 -0500 (EST)
-Date: Mon, 4 Jan 2010 15:16:49 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 25 of 28] transparent hugepage core
-Message-Id: <20100104151649.34f6c469.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <4d96699c8fb89a4a22eb.1261076428@v2.random>
-References: <patchbomb.1261076403@v2.random>
-	<4d96699c8fb89a4a22eb.1261076428@v2.random>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C07600068
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 02:54:01 -0500 (EST)
+Subject: Re: [RFC PATCH] asynchronous page fault.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20100104030234.GF32568@linux.vnet.ibm.com>
+References: <20091225105140.263180e8.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1261915391.15854.31.camel@laptop>
+	 <20091228093606.9f2e666c.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1261989047.7135.3.camel@laptop>
+	 <27db4d47e5a95e7a85942c0278892467.squirrel@webmail-b.css.fujitsu.com>
+	 <1261996258.7135.67.camel@laptop> <1261996841.7135.69.camel@laptop>
+	 <1262448844.6408.93.camel@laptop>
+	 <20100104030234.GF32568@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 04 Jan 2010 08:53:23 +0100
+Message-ID: <1262591604.4375.4075.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: paulmck@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+On Sun, 2010-01-03 at 19:02 -0800, Paul E. McKenney wrote:
+> It would not be all that hard for me to make a call_srcu(), but...
+>=20
+> 1.      How are you avoiding OOM by SRCU callback?  (I am sure you
+>         have this worked out, but I do have to ask!)
 
-> +static int __do_huge_anonymous_page(struct mm_struct *mm,
-> +				    struct vm_area_struct *vma,
-> +				    unsigned long address, pmd_t *pmd,
-> +				    struct page *page,
-> +				    unsigned long haddr)
-> +{
-> +	int ret = 0;
-> +	pgtable_t pgtable;
-> +
-> +	VM_BUG_ON(!PageCompound(page));
-> +	pgtable = pte_alloc_one(mm, address);
-> +	if (unlikely(!pgtable)) {
-> +		put_page(page);
-> +		return VM_FAULT_OOM;
-> +	}
-> +
-> +	clear_huge_page(page, haddr, HPAGE_NR);
-> +
-> +	__SetPageUptodate(page);
-> +	smp_wmb();
-> +
-> +	spin_lock(&mm->page_table_lock);
-> +	if (unlikely(!pmd_none(*pmd))) {
-> +		put_page(page);
-> +		pte_free(mm, pgtable);
-> +	} else {
-> +		pmd_t entry;
-> +		entry = mk_pmd(page, vma->vm_page_prot);
-> +		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> +		entry = pmd_mkhuge(entry);
-> +		page_add_new_anon_rmap(page, vma, haddr);
-> +		set_pmd_at(mm, haddr, pmd, entry);
-> +		prepare_pmd_huge_pte(pgtable, mm);
-> +	}
-> +	spin_unlock(&mm->page_table_lock);
-> +	
-> +	return ret;
-> +}
-> +
-IIUC, page_add_new_anon_rmap()(and add_page_to_lru_list(), which will be called
-by the call path) will update zone state of NR_ANON_PAGES and NR_ACTIVE_ANON.
-Shouldn't we also modify zone state codes to support transparent hugepage support ?
+Well, I was thinking srcu to have this force quiescent state in
+call_srcu() much like you did for the preemptible rcu.
 
+Alternatively we could actively throttle the call_srcu() call when we've
+got too much pending work.
 
-Thanks,
-Daisuke Nishimura.
+> 2.      How many srcu_struct data structures are you envisioning?
+>         One globally?  One per process?  One per struct vma?
+>         (Not necessary to know this for call_srcu(), but will be needed
+>         as I work out how to make SRCU scale with large numbers of CPUs.)
+
+For this patch in particular, one global one, covering all vmas.
+
+One reason to keep the vma RCU domain separate from other RCU objects is
+that these VMA thingies can have rather long quiescent periods due to
+this sleep stuff. So mixing that in with other RCU users which have much
+better defined periods will just degrade everything bringing that OOM
+scenario much closer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
