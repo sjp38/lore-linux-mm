@@ -1,156 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 03AC4600068
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 11:05:21 -0500 (EST)
-Date: Mon, 4 Jan 2010 17:04:37 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 25 of 28] transparent hugepage core
-Message-ID: <20100104160437.GE17401@random.random>
-References: <patchbomb.1261076403@v2.random>
- <4d96699c8fb89a4a22eb.1261076428@v2.random>
- <20100104151649.34f6c469.nishimura@mxp.nes.nec.co.jp>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 84299600068
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 11:57:07 -0500 (EST)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e4.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o04GlSHe016295
+	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 11:47:28 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o04Gutqj1880066
+	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 11:56:55 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o04GurHm015921
+	for <linux-mm@kvack.org>; Mon, 4 Jan 2010 11:56:55 -0500
+Date: Mon, 4 Jan 2010 08:56:52 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH] asynchronous page fault.
+Message-ID: <20100104165652.GC6748@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20091228093606.9f2e666c.kamezawa.hiroyu@jp.fujitsu.com> <1261989047.7135.3.camel@laptop> <27db4d47e5a95e7a85942c0278892467.squirrel@webmail-b.css.fujitsu.com> <1261996258.7135.67.camel@laptop> <1261996841.7135.69.camel@laptop> <1262448844.6408.93.camel@laptop> <20100104030234.GF32568@linux.vnet.ibm.com> <1262591604.4375.4075.camel@twins> <20100104155559.GA6748@linux.vnet.ibm.com> <1262620974.6408.169.camel@laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100104151649.34f6c469.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <1262620974.6408.169.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, Jan 04, 2010 at 05:02:54PM +0100, Peter Zijlstra wrote:
+> On Mon, 2010-01-04 at 07:55 -0800, Paul E. McKenney wrote:
+> > > Well, I was thinking srcu to have this force quiescent state in
+> > > call_srcu() much like you did for the preemptible rcu.
+> > 
+> > Ah, so the idea would be that you register a function with the srcu_struct
+> > that is invoked when some readers are stuck for too long in their SRCU
+> > read-side critical sections?  Presumably you also supply a time value for
+> > "too long" as well.  Hmmm...  What do you do, cancel the corresponding
+> > I/O or something? 
+> 
+> Hmm, I was more thinking along the lines of:
+> 
+> say IDX is the current counter idx.
+> 
+> if (pending > thresh) {
+>   flush(!IDX)
 
-On Mon, Jan 04, 2010 at 03:16:49PM +0900, Daisuke Nishimura wrote:
-> IIUC, page_add_new_anon_rmap()(and add_page_to_lru_list(), which will be called
-> by the call path) will update zone state of NR_ANON_PAGES and NR_ACTIVE_ANON.
-> Shouldn't we also modify zone state codes to support transparent hugepage support ?
+This flushes pending I/Os?
 
-Correct. I did more changes in the last weeks besides the work on
-khugepaged. This is the relevant one that you couldn't see and that
-already takes care of the above. Maybe I should send a new update for
-this and other bits even if the last bit of khugepaged isn't working
-yet. Otherwise wait a little more and get the whole thing working. Let
-me know. This is combined with other changes to the split logic that
-now transfers the single hugeanonpage to 512 anonpages.
+>   force_flip_counter();
 
-----
-Subject: transparent hugepage vmstat
+If this is internal to SRCU, what it would do is check for CPUs being
+offline or in dyntick-idle state.  Or was your thought that this is
+where I invoke callbacks into your code to do whatever can be done to
+wake up the sleeping readers?
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+> }
+> 
+> Since we explicitly hold a reference on IDX, we can actually wait for !
+> IDX to reach 0 and flush those callbacks.
 
-Add hugepage stat information to /proc/vmstat and /proc/meminfo.
+One other thing -- if I merge SRCU into the tree-based infrastructure,
+I should be able to eliminate the need for srcu_read_lock() to return
+the index (and thus for srcu_read_unlock() to take it as an argument).
+So the index would be strictly internal, as it currently is with the
+other flavors of RCU.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
+> We then force-flip the counter, so that even if all callbacks (or the
+> majority) were not for !IDX but part of IDX, we'd be able to flush them
+> on the next call_srcu() because that will then hold a ref on the new
+> counter index.
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -101,6 +101,9 @@ static int meminfo_proc_show(struct seq_
- #ifdef CONFIG_MEMORY_FAILURE
- 		"HardwareCorrupted: %5lu kB\n"
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		"AnonHugePages:  %8lu kB\n"
-+#endif
- 		,
- 		K(i.totalram),
- 		K(i.freeram),
-@@ -151,6 +154,10 @@ static int meminfo_proc_show(struct seq_
- #ifdef CONFIG_MEMORY_FAILURE
- 		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
-+		   HPAGE_PMD_NR)
-+#endif
- 		);
- 
- 	hugetlb_report_meminfo(m);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -112,6 +112,9 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	NR_ANON_TRANSPARENT_HUGEPAGES,
-+#endif
- 	NR_VM_ZONE_STAT_ITEMS };
- 
- /*
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -725,6 +725,10 @@ static void __split_huge_page_refcount(s
- 		put_page(page_tail);
- 	}
- 
-+	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
-+			      HPAGE_PMD_NR);
-+
- 	ClearPageCompound(page);
- 	compound_unlock(page);
- }
-diff --git a/mm/rmap.c b/mm/rmap.c
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -692,8 +692,13 @@ void page_add_anon_rmap(struct page *pag
- {
- 	int first = atomic_inc_and_test(&page->_mapcount);
- 	VM_BUG_ON(PageTail(page));
--	if (first)
--		__inc_zone_page_state(page, NR_ANON_PAGES);
-+	if (first) {
-+		if (!PageCompound(page))
-+			__inc_zone_page_state(page, NR_ANON_PAGES);
-+		else
-+			__inc_zone_page_state(page,
-+					      NR_ANON_TRANSPARENT_HUGEPAGES);
-+	}
- 	if (unlikely(PageKsm(page)))
- 		return;
- 
-@@ -722,7 +727,10 @@ void page_add_new_anon_rmap(struct page 
- 	VM_BUG_ON(PageTail(page));
- 	SetPageSwapBacked(page);
- 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
--	__inc_zone_page_state(page, NR_ANON_PAGES);
-+	if (!PageCompound(page))
-+	    __inc_zone_page_state(page, NR_ANON_PAGES);
-+	else
-+	    __inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
- 	__page_set_anon_rmap(page, vma, address);
- 	if (page_evictable(page, vma))
- 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
-@@ -770,7 +778,11 @@ void page_remove_rmap(struct page *page)
- 	}
- 	if (PageAnon(page)) {
- 		mem_cgroup_uncharge_page(page);
--		__dec_zone_page_state(page, NR_ANON_PAGES);
-+		if (!PageCompound(page))
-+			__dec_zone_page_state(page, NR_ANON_PAGES);
-+		else
-+			__dec_zone_page_state(page,
-+					      NR_ANON_TRANSPARENT_HUGEPAGES);
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
- 		mem_cgroup_update_file_mapped(page, -1);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -655,6 +655,9 @@ static const char * const vmstat_text[] 
- 	"numa_local",
- 	"numa_other",
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	"nr_anon_transparent_hugepages",
-+#endif
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
- 	"pgpgin",
+We can certainly defer callbacks to a later grace period.  What we cannot
+do is advance the counter until all readers for the current grace period
+have exited their SRCU read-side critical sections.
+
+> Or am I missing something obvious?
+
+Or maybe I am.
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
