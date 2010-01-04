@@ -1,46 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E9CAE600068
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 12:21:26 -0500 (EST)
-Date: Mon, 4 Jan 2010 17:21:26 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] mm: move sys_mmap_pgoff from util.c
-In-Reply-To: <20100104123858.GA5045@us.ibm.com>
-Message-ID: <alpine.LSU.2.00.1001041716370.9825@sister.anvils>
-References: <alpine.LSU.2.00.0912302009040.30390@sister.anvils> <20100104123858.GA5045@us.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id 7E166600068
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 12:26:35 -0500 (EST)
+Date: Mon, 4 Jan 2010 11:26:23 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] slab: initialize unused alien cache entry as NULL at
+ alloc_alien_cache().
+In-Reply-To: <4B31FDCF.9050208@linux.intel.com>
+Message-ID: <alpine.DEB.2.00.1001041125090.7191@router.home>
+References: <4B30BDA8.1070904@linux.intel.com> <alpine.DEB.2.00.0912220945250.12048@router.home> <4B31BE44.1070308@linux.intel.com> <4B31EC7C.7000302@gmail.com> <20091223102343.GD20539@basil.fritz.box> <4B31FDCF.9050208@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <ebmunson@us.ibm.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, David Howells <dhowells@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Haicheng Li <haicheng.li@linux.intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Jan 2010, Eric B Munson wrote:
-> On Wed, 30 Dec 2009, Hugh Dickins wrote:
-> 
-> > Move sys_mmap_pgoff() from mm/util.c to mm/mmap.c and mm/nommu.c,
-> > where we'd expect to find such code: especially now that it contains
-> > the MAP_HUGETLB handling.  Revert mm/util.c to how it was in 2.6.32.
-> > 
-> > This patch just ignores MAP_HUGETLB in the nommu case, as in 2.6.32,
-> > whereas 2.6.33-rc2 reported -ENOSYS.  Perhaps validate_mmap_request()
-> > should reject it with -EINVAL?  Add that later if necessary.
-> > 
-> > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> 
-> I think that -ENOSYS is the correcet response in the nommu case, but
-> I that can be added in a later patch.
-> 
-> Acked-by: Eric B Munson <ebmunson@us.ibm.com>
+On Wed, 23 Dec 2009, Haicheng Li wrote:
 
-Thanks.  I had believed -ENOSYS was solely for unsupported system calls,
-so thought it inappropriate here; but we seem to have quite a few places
-which are using it indeed for "Function not implemented", and -EINVAL is
-always so very overloaded that an alternative can be a lot more helpful.
-Okay, I'll send a patch to give -ENOSYS for MAP_HUGETLB on nommu, which
-will be consistent with mmu.
+> > It should have been set up by the SRAT parser (modulo regressions)
+> >
+> > Haicheng, did you verify with printk it's really incorrect at this point?
+>
+> Yup. See below debug patch & Oops info.
+>
+> If we can make sure that SRAT parser must be able to detect out all possible
+> node (even the node, cpu+mem, is not populated on the motherboard), it would
+> be ACPI Parser issue or BIOS issue rather than a slab issue. In such case, I
+> think this patch might become a workaround for buggy system board; and we
+> might need to look into ACPI SRAT parser code as well:).
 
-Hugh
+Right. Lets fix the SRAT / ACPI issue. Code elsewhere also dimensions
+arrays to nr_node_ids.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
