@@ -1,65 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C23F6005A4
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 22:14:13 -0500 (EST)
-Date: Mon, 4 Jan 2010 19:13:35 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LFD.2.00.1001041904250.3630@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0B0606005A4
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 22:27:11 -0500 (EST)
+Date: Tue, 5 Jan 2010 12:26:33 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: [stable][BUGFIX][PATCH v3] memcg: avoid oom-killing innocent task
+ in case of use_hierarchy
+Message-Id: <20100105122633.28738255.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20100104222818.GA20708@kroah.com>
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+	<20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
+	<20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
+	<20091217094724.15ec3b27.nishimura@mxp.nes.nec.co.jp>
+	<20100104222818.GA20708@kroah.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: Greg KH <greg@kroah.com>
+Cc: stable <stable@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 4 Jan 2010 14:28:19 -0800
+Greg KH <greg@kroah.com> wrote:
 
-
-On Tue, 5 Jan 2010, KAMEZAWA Hiroyuki wrote:
+> On Thu, Dec 17, 2009 at 09:47:24AM +0900, Daisuke Nishimura wrote:
+> > Stable team.
+> > 
+> > Cay you pick this up for 2.6.32.y(and 2.6.31.y if it will be released) ?
+> > 
+> > This is a for-stable version of a bugfix patch that corresponds to the
+> > upstream commmit d31f56dbf8bafaacb0c617f9a6f137498d5c7aed.
 > 
-> I'm sorry if I miss something...how does this patch series avoid
-> that vma is removed while __do_fault()->vma->vm_ops->fault() is called ?
-> ("vma is removed" means all other things as freeing file struct etc..)
+> I've applied it to the .32-stable tree, but it does not apply to .31.
+> Care to provide a version of the patch for that kernel if you want it
+> applied there?
+> 
+hmm, strange. I can apply it onto 2.6.31.9. It might conflict with other patches
+in 2.6.31.y queue ?
+Anyway, I've attached the patch that is rebased on 2.6.31.9. Please tell me if you
+have any problem with it.
 
-I don't think you're missing anything. 
-
-Protecting the vma isn't enough. You need to protect the whole FS stack 
-with rcu. Probably by moving _all_ of "free_vma()" into the RCU path 
-(which means that the whole file/inode gets de-allocated at that later RCU 
-point, rather than synchronously). Not just the actual kfree.
-
-However, it's worth noting that that actually has some very subtle and 
-major consequences. If you have a temporary file that was removed, where 
-the mmap() was the last user that kind of delayed freeing would also delay 
-the final fput of that file that actually deletes it. 
-
-Or put another way: if the vma was a writable mapping, a user may do
-
-	munmap(mapping, size);
-
-and the backing file is still active and writable AFTER THE MUNMAP! This 
-can be a huge problem for something that wants to unmount the volume, for 
-example, or depends on the whole writability-vs-executability thing. The 
-user may have unmapped it, and expects the file to be immediately 
-non-busy, but with the delayed free that isn't the case any more.
-
-In other words, now you may well need to make munmap() wait for the RCU 
-grace period, so that the user who did the unmap really is synchronous wrt 
-the file accesses. We've had things like that before, and they have been 
-_huge_ performance problems (ie it may take just a timer tick or two, but 
-then people do tens of thousands of munmaps, and now that takes many 
-seconds just due to RCU grace period waiting.
-
-I would say that this whole series is _very_ far from being mergeable. 
-Peter seems to have been thinking about the details, while missing all the 
-subtle big picture effects that seem to actually change semantics.
-
-		Linus
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+v3: rebased on 2.6.31.9
+===
