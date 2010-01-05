@@ -1,66 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id ECF346007BA
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 04:37:45 -0500 (EST)
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.LFD.2.00.1001041904250.3630@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl>
-	 <20100104182813.753545361@chello.nl>
-	 <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
-	 <alpine.LFD.2.00.1001041904250.3630@localhost.localdomain>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 05 Jan 2010 10:37:09 +0100
-Message-ID: <1262684229.2400.37.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BF2316007BA
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 05:18:34 -0500 (EST)
+Date: Tue, 5 Jan 2010 10:18:21 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/4] vmstat: remove zone->lock from walk_zones_in_node
+Message-ID: <20100105101821.GA28975@csn.ul.ie>
+References: <20091228164451.A687.A69D9226@jp.fujitsu.com> <20100103185957.GB11420@csn.ul.ie> <20100105105328.96CE.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100105105328.96CE.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-01-04 at 19:13 -0800, Linus Torvalds wrote:
+On Tue, Jan 05, 2010 at 11:04:58AM +0900, KOSAKI Motohiro wrote:
+> Hi
 > 
-> Protecting the vma isn't enough. You need to protect the whole FS stack 
-> with rcu. Probably by moving _all_ of "free_vma()" into the RCU path 
-> (which means that the whole file/inode gets de-allocated at that later RCU 
-> point, rather than synchronously). Not just the actual kfree. 
+> > On Mon, Dec 28, 2009 at 04:47:22PM +0900, KOSAKI Motohiro wrote:
+> > > The zone->lock is one of performance critical locks. Then, it shouldn't
+> > > be hold for long time. Currently, we have four walk_zones_in_node()
+> > > usage and almost use-case don't need to hold zone->lock.
+> > > 
+> > > Thus, this patch move locking responsibility from walk_zones_in_node
+> > > to its sub function. Also this patch kill unnecessary zone->lock taking.
+> > > 
+> > > Cc: Mel Gorman <mel@csn.ul.ie>
+> > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > ---
+> > >  mm/vmstat.c |    8 +++++---
+> > >  1 files changed, 5 insertions(+), 3 deletions(-)
+> > > 
+> > > diff --git a/mm/vmstat.c b/mm/vmstat.c
+> > > index 6051fba..a5d45bc 100644
+> > > --- a/mm/vmstat.c
+> > > +++ b/mm/vmstat.c
+> > > @@ -418,15 +418,12 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+> > >  {
+> > >  	struct zone *zone;
+> > >  	struct zone *node_zones = pgdat->node_zones;
+> > > -	unsigned long flags;
+> > >  
+> > >  	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+> > >  		if (!populated_zone(zone))
+> > >  			continue;
+> > >  
+> > > -		spin_lock_irqsave(&zone->lock, flags);
+> > >  		print(m, pgdat, zone);
+> > > -		spin_unlock_irqrestore(&zone->lock, flags);
+> > >  	}
+> > >  }
+> > >  
+> > > @@ -455,6 +452,7 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
+> > >  					pg_data_t *pgdat, struct zone *zone)
+> > >  {
+> > >  	int order, mtype;
+> > > +	unsigned long flags;
+> > >  
+> > >  	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
+> > >  		seq_printf(m, "Node %4d, zone %8s, type %12s ",
+> > > @@ -468,8 +466,11 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
+> > >  
+> > >  			area = &(zone->free_area[order]);
+> > >  
+> > > +			spin_lock_irqsave(&zone->lock, flags);
+> > >  			list_for_each(curr, &area->free_list[mtype])
+> > >  				freecount++;
+> > > +			spin_unlock_irqrestore(&zone->lock, flags);
+> > > +
+> > 
+> > It's not clear why you feel this information requires the lock and the
+> > others do not.
+> 
+> I think above list operation require lock to prevent NULL pointer access. but other parts
+> doesn't protect anything, because memory-hotplug change them without zone lock.
+> 
 
-Right, looking at that I found another interesting challenge, fput() can
-sleep and I suspect that even with call_srcu() its callbacks have to be
-atomic.
+True. Add a comment explaining that. I considered list_for_each_safe()
+but it wouldn't work in all cases.
 
-While looking at that code, I found the placement of might_sleep() a tad
-confusing, I'd expect that to be in fput() since that is the regular
-entry point (all except AIO, which does crazy things).
+> 
+> > For the most part, I agree that the accuracy of the information is
+> > not critical. Assuming partial writes of the data are not a problem,
+> > the information is not going to go so badly out of sync that it would be
+> > noticable, even if the information is out of date within the zone.
+> > 
+> > However, inconsistent reads in zoneinfo really could be a problem. I am
+> > concerned that under heavy allocation load that that "pages free" would
+> > not match "nr_pages_free" for example. Other examples that adding all the
+> > counters together may or may not equal the total number of pages in the zone.
+> > 
+> > Lets say for example there was a subtle bug related to __inc_zone_page_state()
+> > that meant that counters were getting slightly out of sync but it was very
+> > marginal and/or difficult to reproduce. With this patch applied, we could
+> > not be absolutly sure the counters were correct because it could always have
+> > raced with someone holding the zone->lock.
+> > 
+> > Minimally, I think zoneinfo should be taking the zone lock.
+> 
+> Thanks lots comments. 
+> hmm.. I'd like to clarily your point. My point is memory-hotplug don't take zone lock,
+> then zone lock doesn't protect anything. so we have two option
+> 
+> 1) Add zone lock to memroy-hotplug
+> 2) Remove zone lock from zoneinfo
+> 
+> I thought (2) is sufficient. Do you mean you prefer to (1)? Or you prefer to ignore rarely event
+> (of cource, memory hotplug is rarely)?
+> 
 
----
- fs/file_table.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+I think (2) will make zoneinfo harder to use for examining all the counters
+properly as I explained above. I haven't looked at memory-hotplug in a
+while but IIRC, fields like present_pages should be protected by a lock on
+the pgdat and a seq lock on the zone. If this is not true at the moment,
+it is a problem.
 
-diff --git a/fs/file_table.c b/fs/file_table.c
-index 69652c5..6070c32 100644
---- a/fs/file_table.c
-+++ b/fs/file_table.c
-@@ -196,6 +196,8 @@ EXPORT_SYMBOL(alloc_file);
- 
- void fput(struct file *file)
- {
-+	might_sleep();
-+
- 	if (atomic_long_dec_and_test(&file->f_count))
- 		__fput(file);
- }
-@@ -236,8 +238,6 @@ void __fput(struct file *file)
- 	struct vfsmount *mnt = file->f_path.mnt;
- 	struct inode *inode = dentry->d_inode;
- 
--	might_sleep();
--
- 	fsnotify_close(file);
- 	/*
- 	 * The function eventpoll_release() should be the first called
+For the free lists, memory hotplug should be taking the zone->lock properly as
+the final stage of onlining memory is to walk the sections being hot-added,
+init the memmap and then __free_page() each page individually - i.e. the
+normal free path.
 
+So, if memory hotplug is not protected by proper locking, it's not intentional.
+
+> 
+> > Secondly, has increased zone->lock contention due to reading /proc
+> > really been shown to be a problem? The only situation that I can think
+> > of is a badly-written monitor program that is copying all of /proc
+> > instead of the files of interest. If a monitor program is doing
+> > something like that, it's likely to be incurring performance problems in
+> > a large number of different areas. If that is not the trigger case, what
+> > is?
+> 
+> Ah no. I haven't observe such issue. my point is removing meaningless lock.
+> 
+
+Then I believe the zonelock should be preserved so that all entries in
+/proc/zoneinfo are consistent.
+
+> 
+> > >  			seq_printf(m, "%6lu ", freecount);
+> > >  		}
+> > >  		seq_putc(m, '\n');
+> > > @@ -709,6 +710,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+> > >  							struct zone *zone)
+> > >  {
+> > >  	int i;
+> > > +
+> > 
+> > Unnecessary whitespace change.
+> 
+> Ug. thanks, it's my fault.
+> 
+> 
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
