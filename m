@@ -1,31 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E1C156007E1
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:17:55 -0500 (EST)
-Date: Tue, 5 Jan 2010 09:17:11 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <20100105054536.44bf8002@infradead.org>
-Message-ID: <alpine.DEB.2.00.1001050916300.1074@router.home>
-References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105054536.44bf8002@infradead.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 623BC6007E1
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:23:42 -0500 (EST)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <alpine.LSU.2.00.1001051232530.1055@sister.anvils>
+References: <alpine.LSU.2.00.1001051232530.1055@sister.anvils> <alpine.LSU.2.00.0912302009040.30390@sister.anvils> <20100104123858.GA5045@us.ibm.com>
+Subject: Re: [PATCH] nommu: reject MAP_HUGETLB
+Date: Tue, 05 Jan 2010 15:23:33 +0000
+Message-ID: <17220.1262705013@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: dhowells@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>, Eric B Munson <ebmunson@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Jan 2010, Arjan van de Ven wrote:
+Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-> while I appreciate the goal of reducing contention on this lock...
-> wouldn't step one be to remove the page zeroing from under this lock?
-> that's by far (easily by 10x I would guess) the most expensive thing
-> that's done under the lock, and I would expect a first order of
-> contention reduction just by having the zeroing of a page not done
-> under the lock...
+> We've agreed to restore the rejection of MAP_HUGETLB to nommu.
+> Mimic what happens with mmu when hugetlb is not configured in:
+> say -ENOSYS, but -EINVAL if MAP_ANONYMOUS was not given too.
 
-The main issue is cacheline bouncing. mmap sem is a rw semaphore and only
-held for read during a fault.
+On the other hand, why not just ignore the MAP_HUGETLB flag on NOMMU?
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
