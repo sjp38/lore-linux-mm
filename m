@@ -1,50 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 53C166007E1
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:05:57 -0500 (EST)
-Received: by pxi5 with SMTP id 5so11537607pxi.12
-        for <linux-mm@kvack.org>; Tue, 05 Jan 2010 07:05:52 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 236A26007E1
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:15:59 -0500 (EST)
+Date: Tue, 5 Jan 2010 09:14:21 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+In-Reply-To: <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1001050907100.1074@router.home>
+References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com> <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain> <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1262700774-1808-1-git-send-email-gleb@redhat.com>
-References: <1262700774-1808-1-git-send-email-gleb@redhat.com>
-From: Jun Koi <junkoi2004@gmail.com>
-Date: Wed, 6 Jan 2010 00:05:32 +0900
-Message-ID: <fdaac4d51001050705s3f46dd0fi948a3b3ea803fa51@mail.gmail.com>
-Subject: Re: [PATCH v3 00/12] KVM: Add host swap event notifications for PV
-	guest
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 5, 2010 at 11:12 PM, Gleb Natapov <gleb@redhat.com> wrote:
-> KVM virtualizes guest memory by means of shadow pages or HW assistance
-> like NPT/EPT. Not all memory used by a guest is mapped into the guest
-> address space or even present in a host memory at any given time.
-> When vcpu tries to access memory page that is not mapped into the guest
-> address space KVM is notified about it. KVM maps the page into the guest
-> address space and resumes vcpu execution. If the page is swapped out
-> from host memory vcpu execution is suspended till the page is not swapped
-> into the memory again. This is inefficient since vcpu can do other work
-> (run other task or serve interrupts) while page gets swapped in.
->
-> To overcome this inefficiency this patch series implements "asynchronous
-> page fault" for paravirtualized KVM guests. If a page that vcpu is
-> trying to access is swapped out KVM sends an async PF to the vcpu
-> and continues vcpu execution. Requested page is swapped in by another
-> thread in parallel. =A0When vcpu gets async PF it puts faulted task to
-> sleep until "wake up" interrupt is delivered. When the page is brought
-> to the host memory KVM sends "wake up" interrupt and the guest's task
-> resumes execution.
->
+On Tue, 5 Jan 2010, KAMEZAWA Hiroyuki wrote:
 
-Is it true that to make this work, we will need a (PV) kernel driver
-for each guest OS (Windows, Linux, ...)?
+> I'd like to hear use cases of really heavy users, too. Christoph ?
 
-Thanks,
-Jun
+A typical use case is a highly parallel memory intensive process
+(simulations f.e.). Those are configured with the number of hardware
+threads supported in mind to max out the performance of the underlying
+hardware. On startup they start N threads and then each thread begins
+initializing its memory (to get proper locality it has to be done this
+way, you also want concurrency during this expensive operation).
+
+The larger the number of threads the more contention on the
+cachelines containing mmap_sem and the other cacheline containing the rss
+counters. In extreme cases we had to wait 30mins to an hour in order for
+the cacheline bouncing to complete (startup of a big HPC app on
+IA64 with 1k threads).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
