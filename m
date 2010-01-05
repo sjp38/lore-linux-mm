@@ -1,39 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id BFD456007BA
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 03:18:57 -0500 (EST)
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BCC556007BA
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 03:29:18 -0500 (EST)
+Subject: Re: [RFC][PATCH 4/8] mm: RCU free vmas
 From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>
+In-Reply-To: <20100105024336.GQ6748@linux.vnet.ibm.com>
 References: <20100104182429.833180340@chello.nl>
-	 <20100104182813.753545361@chello.nl>
-	 <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
-	 <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
-	 <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
-	 <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>
+	 <20100104182813.479668508@chello.nl>
+	 <20100105024336.GQ6748@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 05 Jan 2010 09:18:16 +0100
-Message-ID: <1262679496.2400.14.camel@laptop>
+Date: Tue, 05 Jan 2010 09:28:36 +0100
+Message-ID: <1262680116.2400.19.camel@laptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: paulmck@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-01-04 at 21:10 -0800, Linus Torvalds wrote:
-> Sounds doable. But it also sounds way more expensive than the current VM 
-> fault handling, which is pretty close to optimal for single-threaded 
-> cases.. That RCU lookup might be cheap, but just the refcount is generally 
-> going to be as expensive as a lock. 
+On Mon, 2010-01-04 at 18:43 -0800, Paul E. McKenney wrote:
+> On Mon, Jan 04, 2010 at 07:24:33PM +0100, Peter Zijlstra wrote:
+> > TODO:
+> >  - should be SRCU, lack of call_srcu()
+> > 
+> > In order to allow speculative vma lookups, RCU free the struct
+> > vm_area_struct.
+> > 
+> > We use two means of detecting a vma is still valid:
+> >  - firstly, we set RB_CLEAR_NODE once we remove a vma from the tree.
+> >  - secondly, we check the vma sequence number.
+> > 
+> > These two things combined will guarantee that 1) the vma is still
+> > present and two, it still covers the same range from when we looked it
+> > up.
+> 
+> OK, I think I see what you are up to here.  I could get you a very crude
+> throw-away call_srcu() fairly quickly.  I don't yet have a good estimate
+> of how long it will take me to merge SRCU into the treercu infrastructure,
+> but am getting there.
+> 
+> So, which release are you thinking in terms of?
 
-Right, that refcount adds two atomic ops, the only grace it has is that
-its in the vma as opposed to the mm, but there are plenty workloads that
-concentrate on a single vma, in which case you get an equally contended
-cacheline as with the mmap_sem.
+I'm not thinking any release yet, its very early and as Linus has
+pointed out, I seem to have forgotten a rather big piece of the
+picture :/
 
-I was trying to avoid having to have that refcount, but then sorta
-forgot about the actual fault handlers also poking at the vma :/
+So I need to try and fix this glaring hole before we can continue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
