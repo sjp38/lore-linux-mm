@@ -1,37 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 236A26007E1
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:15:59 -0500 (EST)
-Date: Tue, 5 Jan 2010 09:14:21 -0600 (CST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E1C156007E1
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:17:55 -0500 (EST)
+Date: Tue, 5 Jan 2010 09:17:11 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
 Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1001050907100.1074@router.home>
-References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com> <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain> <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100105054536.44bf8002@infradead.org>
+Message-ID: <alpine.DEB.2.00.1001050916300.1074@router.home>
+References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105054536.44bf8002@infradead.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Jan 2010, KAMEZAWA Hiroyuki wrote:
+On Tue, 5 Jan 2010, Arjan van de Ven wrote:
 
-> I'd like to hear use cases of really heavy users, too. Christoph ?
+> while I appreciate the goal of reducing contention on this lock...
+> wouldn't step one be to remove the page zeroing from under this lock?
+> that's by far (easily by 10x I would guess) the most expensive thing
+> that's done under the lock, and I would expect a first order of
+> contention reduction just by having the zeroing of a page not done
+> under the lock...
 
-A typical use case is a highly parallel memory intensive process
-(simulations f.e.). Those are configured with the number of hardware
-threads supported in mind to max out the performance of the underlying
-hardware. On startup they start N threads and then each thread begins
-initializing its memory (to get proper locality it has to be done this
-way, you also want concurrency during this expensive operation).
-
-The larger the number of threads the more contention on the
-cachelines containing mmap_sem and the other cacheline containing the rss
-counters. In extreme cases we had to wait 30mins to an hour in order for
-the cacheline bouncing to complete (startup of a big HPC app on
-IA64 with 1k threads).
+The main issue is cacheline bouncing. mmap sem is a rw semaphore and only
+held for read during a fault.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
