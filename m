@@ -1,61 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A9D906007E1
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:27:14 -0500 (EST)
-Date: Tue, 5 Jan 2010 07:26:31 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EE516007E1
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:34:30 -0500 (EST)
+Date: Tue, 5 Jan 2010 07:34:02 -0800 (PST)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com> <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain> <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com> <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1262681834.2400.31.camel@laptop>
+Message-ID: <alpine.LFD.2.00.1001050727400.3630@localhost.localdomain>
+References: <20100104182429.833180340@chello.nl>  <20100104182813.753545361@chello.nl>  <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001041904250.3630@localhost.localdomain> <1262681834.2400.31.camel@laptop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
 
 
-On Tue, 5 Jan 2010, KAMEZAWA Hiroyuki wrote:
-> #
-> # Overhead          Command             Shared Object  Symbol
-> # ........  ...............  ........................  ......
-> #
->     43.23%  multi-fault-all  [kernel]                  [k] smp_invalidate_interrupt
->     16.27%  multi-fault-all  [kernel]                  [k] flush_tlb_others_ipi
->     11.55%  multi-fault-all  [kernel]                  [k] _raw_spin_lock_irqsave    <========(*)
->      6.23%  multi-fault-all  [kernel]                  [k] intel_pmu_enable_all
->      2.17%  multi-fault-all  [kernel]                  [k] _raw_spin_unlock_irqrestore
+On Tue, 5 Jan 2010, Peter Zijlstra wrote:
+> 
+> If it were only unmount it would be rather easy to fix by putting that
+> RCU synchronization in unmount, unmount does a lot of sync things
+> anyway. But I suspect there's more cases where that non-busy matters
+> (but I'd need to educate myself on filesystems/vfs to come up with any).
 
-Hmm.. The default rwsem implementation shouldn't have any spin-locks in 
-the fast-path. And your profile doesn't seem to have any scheduler 
-footprint, so I wonder what is going on.
+unmount may well be the only really huge piece.
 
-Oh.
+The only other effects of delaying closing a file I can see are
 
-Lookie here:
+ - the ETXTBUSY thing, but we don't need to delay _that_ part, so this may 
+   be a non-issue.
 
- - arch/x86/Kconfig.cpu:
+ - the actual freeing of the data on disk (ie people may expect that the 
+   last close really frees up the space on the filesystem). However, this 
+   is _such_ a subtle semantic thing that maybe nobody cares.
 
-	config X86_XADD
-		def_bool y
-		depends on X86_32 && !M386
+It's perhaps worth noting that I think Nick's VFS scalability patches did 
+at least _some_ of the "struct filp" freeing in RCU context too, so this 
+whole "vfs delays things in RCU" is not a new thing.
 
- - arch/x86/Kconfig:
-
-	config RWSEM_GENERIC_SPINLOCK
-	        def_bool !X86_XADD
-
-	config RWSEM_XCHGADD_ALGORITHM
-	        def_bool X86_XADD   
-
-it looks like X86_XADD only gets enabled on 32-bit builds. Which means 
-that x86-64 in turn seems to end up always using the slower "generic 
-spinlock" version.
-
-Are you sure this isn't the reason why your profiles are horrible?
+But I think that in Nick's case it was stricly just the freeing of the 
+inode/dentry data structure (because he needed to traverse the dentry list 
+locklessly - he didn't then _use_ the results locklessly). So the actual 
+filesystem operations didn't get deferred, and as a result it didn't have 
+this particular semantic nightmare.
 
 			Linus
 
