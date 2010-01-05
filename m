@@ -1,175 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B12516005A4
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 23:29:42 -0500 (EST)
-Received: by pxi5 with SMTP id 5so11097502pxi.12
-        for <linux-mm@kvack.org>; Mon, 04 Jan 2010 20:29:41 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100104182429.833180340@chello.nl>
-	 <20100104182813.753545361@chello.nl>
-	 <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 5 Jan 2010 13:29:40 +0900
-Message-ID: <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 47EBD6005A4
+	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 23:47:20 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o054lHNJ025912
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 5 Jan 2010 13:47:17 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3896845DE80
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 13:47:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F046945DE60
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 13:47:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B9615E18009
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 13:47:16 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5497AE18002
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 13:47:16 +0900 (JST)
+Date: Tue, 5 Jan 2010 13:43:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Message-Id: <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
+References: <20100104182429.833180340@chello.nl>
+	<20100104182813.753545361@chello.nl>
+	<20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
+	<28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Minchan Kim <minchan.kim@gmail.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Kame.
+On Tue, 5 Jan 2010 13:29:40 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-On Tue, Jan 5, 2010 at 9:25 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 04 Jan 2010 19:24:35 +0100
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->
->> Generic speculative fault handler, tries to service a pagefault
->> without holding mmap_sem.
->>
->> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
->
->
-> I'm sorry if I miss something...how does this patch series avoid
-> that vma is removed while __do_fault()->vma->vm_ops->fault() is called ?
-> ("vma is removed" means all other things as freeing file struct etc..)
+> Hi, Kame.
+> 
+> On Tue, Jan 5, 2010 at 9:25 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Mon, 04 Jan 2010 19:24:35 +0100
+> > Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> >
+> >> Generic speculative fault handler, tries to service a pagefault
+> >> without holding mmap_sem.
+> >>
+> >> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> >
+> >
+> > I'm sorry if I miss something...how does this patch series avoid
+> > that vma is removed while __do_fault()->vma->vm_ops->fault() is called ?
+> > ("vma is removed" means all other things as freeing file struct etc..)
+> 
+> Isn't it protected by get_file and iget?
+> Am I miss something?
+> 
+Only kmem_cache_free() part of following code is modified by the patch.
 
-Isn't it protected by get_file and iget?
-Am I miss something?
+==
+ 229 static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
+ 230 {
+ 231         struct vm_area_struct *next = vma->vm_next;
+ 232 
+ 233         might_sleep();
+ 234         if (vma->vm_ops && vma->vm_ops->close)
+ 235                 vma->vm_ops->close(vma);
+ 236         if (vma->vm_file) {
+ 237                 fput(vma->vm_file);
+ 238                 if (vma->vm_flags & VM_EXECUTABLE)
+ 239                         removed_exe_file_vma(vma->vm_mm);
+ 240         }
+ 241         mpol_put(vma_policy(vma));
+ 242         kmem_cache_free(vm_area_cachep, vma);
+ 243         return next;
+ 244 }
+==
 
->
-> Thanks,
-> -Kame
->
->
->
->
->> ---
->> =C2=A0include/linux/mm.h | =C2=A0 =C2=A02 +
->> =C2=A0mm/memory.c =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 59 +++++++++++++++=
-+++++++++++++++++++++++++++++++++++++-
->> =C2=A02 files changed, 60 insertions(+), 1 deletion(-)
->>
->> Index: linux-2.6/mm/memory.c
->> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->> --- linux-2.6.orig/mm/memory.c
->> +++ linux-2.6/mm/memory.c
->> @@ -1998,7 +1998,7 @@ again:
->> =C2=A0 =C2=A0 =C2=A0 if (!*ptep)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out;
->>
->> - =C2=A0 =C2=A0 if (vma_is_dead(vma, seq))
->> + =C2=A0 =C2=A0 if (vma && vma_is_dead(vma, seq))
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto unlock;
->>
->> =C2=A0 =C2=A0 =C2=A0 unpin_page_tables();
->> @@ -3112,6 +3112,63 @@ int handle_mm_fault(struct mm_struct *mm
->> =C2=A0 =C2=A0 =C2=A0 return handle_pte_fault(mm, vma, address, entry, pm=
-d, flags, 0);
->> =C2=A0}
->>
->> +int handle_speculative_fault(struct mm_struct *mm, unsigned long addres=
-s,
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned int flags)
->> +{
->> + =C2=A0 =C2=A0 pmd_t *pmd =3D NULL;
->> + =C2=A0 =C2=A0 pte_t *pte, entry;
->> + =C2=A0 =C2=A0 spinlock_t *ptl;
->> + =C2=A0 =C2=A0 struct vm_area_struct *vma;
->> + =C2=A0 =C2=A0 unsigned int seq;
->> + =C2=A0 =C2=A0 int ret =3D VM_FAULT_RETRY;
->> + =C2=A0 =C2=A0 int dead;
->> +
->> + =C2=A0 =C2=A0 __set_current_state(TASK_RUNNING);
->> + =C2=A0 =C2=A0 flags |=3D FAULT_FLAG_SPECULATIVE;
->> +
->> + =C2=A0 =C2=A0 count_vm_event(PGFAULT);
->> +
->> + =C2=A0 =C2=A0 rcu_read_lock();
->> + =C2=A0 =C2=A0 if (!pte_map_lock(mm, NULL, address, pmd, flags, 0, &pte=
-, &ptl))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out_unlock;
->> +
->> + =C2=A0 =C2=A0 vma =3D find_vma(mm, address);
->> +
->> + =C2=A0 =C2=A0 if (!vma)
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out_unmap;
->> +
->> + =C2=A0 =C2=A0 dead =3D RB_EMPTY_NODE(&vma->vm_rb);
->> + =C2=A0 =C2=A0 seq =3D vma->vm_sequence.sequence;
->> + =C2=A0 =C2=A0 /*
->> + =C2=A0 =C2=A0 =C2=A0* Matches both the wmb in write_seqcount_begin/end=
-() and
->> + =C2=A0 =C2=A0 =C2=A0* the wmb in detach_vmas_to_be_unmapped()/__unlink=
-_vma().
->> + =C2=A0 =C2=A0 =C2=A0*/
->> + =C2=A0 =C2=A0 smp_rmb();
->> + =C2=A0 =C2=A0 if (dead || seq & 1)
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out_unmap;
->> +
->> + =C2=A0 =C2=A0 if (!(vma->vm_end > address && vma->vm_start <=3D addres=
-s))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out_unmap;
->> +
->> + =C2=A0 =C2=A0 if (read_seqcount_retry(&vma->vm_sequence, seq))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out_unmap;
->> +
->> + =C2=A0 =C2=A0 entry =3D *pte;
->> +
->> + =C2=A0 =C2=A0 pte_unmap_unlock(pte, ptl);
->> +
->> + =C2=A0 =C2=A0 ret =3D handle_pte_fault(mm, vma, address, entry, pmd, f=
-lags, seq);
->> +
->> +out_unlock:
->> + =C2=A0 =C2=A0 rcu_read_unlock();
->> + =C2=A0 =C2=A0 return ret;
->> +
->> +out_unmap:
->> + =C2=A0 =C2=A0 pte_unmap_unlock(pte, ptl);
->> + =C2=A0 =C2=A0 goto out_unlock;
->> +}
->> +
->> +
->> =C2=A0#ifndef __PAGETABLE_PUD_FOLDED
->> =C2=A0/*
->> =C2=A0 * Allocate page upper directory.
->> Index: linux-2.6/include/linux/mm.h
->> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->> --- linux-2.6.orig/include/linux/mm.h
->> +++ linux-2.6/include/linux/mm.h
->> @@ -829,6 +829,8 @@ int invalidate_inode_page(struct page *p
->> =C2=A0#ifdef CONFIG_MMU
->> =C2=A0extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_st=
-ruct *vma,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 unsigned long address, unsigned int flags);
->> +extern int handle_speculative_fault(struct mm_struct *mm,
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-unsigned long address, unsigned int flags);
->> =C2=A0#else
->> =C2=A0static inline int handle_mm_fault(struct mm_struct *mm,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 struct vm_area_struct *vma, unsigned long address,
->>
->> --
->>
->>
->
->
+Then, fput() can be called. The whole above code should be delayd until RCU
+glace period if we use RCU here.
+
+Then, my patch dropped speculative trial of page fault and did synchronous
+job here. I'm still considering how to insert some barrier to delay calling
+remove_vma() until all page fault goes. One idea was reference count but
+it was said not-enough crazy.
 
 
-
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
