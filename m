@@ -1,65 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C0A56005A4
-	for <linux-mm@kvack.org>; Mon,  4 Jan 2010 23:48:55 -0500 (EST)
-Date: Mon, 4 Jan 2010 20:48:23 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CEB36005A4
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 00:11:08 -0500 (EST)
+Date: Mon, 4 Jan 2010 21:10:29 -0800 (PST)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
-Message-ID: <alpine.LFD.2.00.1001042038110.3630@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl>  <20100104182813.753545361@chello.nl>  <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
+In-Reply-To: <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>
+References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
+ <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
 
 
-On Tue, 5 Jan 2010, Minchan Kim wrote:
+On Tue, 5 Jan 2010, KAMEZAWA Hiroyuki wrote:
 > 
-> Isn't it protected by get_file and iget?
+> Then, my patch dropped speculative trial of page fault and did synchronous
+> job here. I'm still considering how to insert some barrier to delay calling
+> remove_vma() until all page fault goes. One idea was reference count but
+> it was said not-enough crazy.
 
-When the vma is mapped, yes.
+What lock would you use to protect the vma lookup (in order to then 
+increase the refcount)? A sequence lock with RCU lookup of the vma?
 
-> Am I miss something?
+Sounds doable. But it also sounds way more expensive than the current VM 
+fault handling, which is pretty close to optimal for single-threaded 
+cases.. That RCU lookup might be cheap, but just the refcount is generally 
+going to be as expensive as a lock.
 
-remove_vma() will have done a
+Are there some particular mappings that people care about more than 
+others? If we limit the speculative lookup purely to anonymous memory, 
+that might simplify the problem space?
 
-	fput(vma->vm_file);
+[ From past experiences, I suspect DB people would be upset and really 
+  want it for the general file mapping case.. But maybe the main usage 
+  scenario is something else this time? ]
 
-and other house-keeping (removing the executable info, doing 
-vm_ops->close() etc). 
-
-And that is _not_ done delayed by RCU, and as outlined in my previous 
-email I think that if the code really _does_ delay it, then munmap() (and 
-exit) need to wait for the RCU callbacks to have been done, because 
-otherwise the file may end up being busy "asynchronously" in ways that 
-break existing semantics.
-
-Just as an example: imagine a script that does "fork()+execve()" on a 
-temporary file, and then after waiting for it all to finish with wait4() 
-does some re-write of the file. It currently works. But what if the 
-open-for-writing gets ETXTBUSY because the file is still marked as being 
-VM_DENYWRITE, and RCU hasn't done all the callbacks?
-
-Or if you do the i_writecount handling synchronously (which is likely fine 
-- it really is just for ETXTBUSY handling, and I don't think speculative 
-page faults matter), what about a shutdown sequence (or whatever) that 
-wants to unmount the filesystem, but the file is still open - as it has to 
-be - because the actual close is delayed by RCU.
-
-So the patch-series as-is is fundamentally buggy - and trying to fix it 
-seems painful.
-
-I'm also not entirely clear on how the race with page table tear-down vs 
-page-fault got handled, but I didn't read the whole patch-series very 
-carefully. I skimmed through it and got rather nervous about it all. It 
-doesn't seem too large, but it _does_ seem rather cavalier about all the 
-object lifetimes.
-
-		Linus
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
