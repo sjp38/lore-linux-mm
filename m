@@ -1,59 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C33A66007E1
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 11:15:24 -0500 (EST)
-Date: Tue, 5 Jan 2010 08:14:51 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
-Message-ID: <alpine.LFD.2.00.1001050810380.3630@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com> <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain> <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com> <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 61F016007E1
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 11:16:17 -0500 (EST)
+Date: Tue, 5 Jan 2010 16:16:11 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] nommu: reject MAP_HUGETLB
+In-Reply-To: <17220.1262705013@redhat.com>
+Message-ID: <alpine.LSU.2.00.1001051536420.13371@sister.anvils>
+References: <alpine.LSU.2.00.1001051232530.1055@sister.anvils> <alpine.LSU.2.00.0912302009040.30390@sister.anvils> <20100104123858.GA5045@us.ibm.com> <17220.1262705013@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: David Howells <dhowells@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Eric B Munson <ebmunson@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Tue, 5 Jan 2010, Linus Torvalds wrote:
+On Tue, 5 Jan 2010, David Howells wrote:
+> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 > 
-> Lookie here:
+> > We've agreed to restore the rejection of MAP_HUGETLB to nommu.
+> > Mimic what happens with mmu when hugetlb is not configured in:
+> > say -ENOSYS, but -EINVAL if MAP_ANONYMOUS was not given too.
 > 
->  - arch/x86/Kconfig.cpu:
-> 
-> 	config X86_XADD
-> 		def_bool y
-> 		depends on X86_32 && !M386
-> 
->  - arch/x86/Kconfig:
-> 
-> 	config RWSEM_GENERIC_SPINLOCK
-> 	        def_bool !X86_XADD
-> 
-> 	config RWSEM_XCHGADD_ALGORITHM
-> 	        def_bool X86_XADD   
-> 
-> it looks like X86_XADD only gets enabled on 32-bit builds. Which means 
-> that x86-64 in turn seems to end up always using the slower "generic 
-> spinlock" version.
+> On the other hand, why not just ignore the MAP_HUGETLB flag on NOMMU?
 
-Sadly, it's not as easy as just changing the X86_XADD "depends on" to say 
-"X86_64 || !M386" instead. That just results in
+I don't care very much either way: originally it was ignored,
+then it became an -ENOSYS when Al moved the MAP_HUGETLB handling
+into util.c, then it was ignored again when I moved that back into
+mmap.c and nommu.c, now this patch makes it -ENOSYS on nommu again
+- which Eric preferred.
 
-	kernel/built-in.o: In function `up_read':
-	(.text+0x2d8e5): undefined reference to `call_rwsem_wake'
+I'd say this patch is _correct_; but I'm perfectly happy to have
+you NAK it, or Linus ignore it, with the observation that nommu is
+more likely to want to cut bloat than to be pedantically correct -
+pedantic because I'd expect the nommu mmap() to work fine with the
+MAP_HUGETLB flag there, just wouldn't be using any huge pages.
 
-etc, because the x86-64 code has obviously never seen the optimized 
-call-paths, and they need the asm wrappers for full semantics.
+Okay with me whichever way it goes.
 
-Oh well. Somebody who is bored might look at trying to make the wrapper 
-code in arch/x86/lib/semaphore_32.S work on x86-64 too. It should make the 
-successful rwsem cases much faster.
-
-		Linus
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
