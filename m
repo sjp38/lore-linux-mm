@@ -1,41 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AF356007BA
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 08:43:17 -0500 (EST)
-Date: Tue, 5 Jan 2010 05:45:36 -0800
-From: Arjan van de Ven <arjan@infradead.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-Message-ID: <20100105054536.44bf8002@infradead.org>
-In-Reply-To: <20100104182813.753545361@chello.nl>
-References: <20100104182429.833180340@chello.nl>
-	<20100104182813.753545361@chello.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 072276007BA
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 09:13:09 -0500 (EST)
+From: Gleb Natapov <gleb@redhat.com>
+Subject: [PATCH v3 12/12] Send async PF when guest is not in userspace too.
+Date: Tue,  5 Jan 2010 16:12:54 +0200
+Message-Id: <1262700774-1808-13-git-send-email-gleb@redhat.com>
+In-Reply-To: <1262700774-1808-1-git-send-email-gleb@redhat.com>
+References: <1262700774-1808-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 04 Jan 2010 19:24:35 +0100
-Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> Generic speculative fault handler, tries to service a pagefault
-> without holding mmap_sem.
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+---
+ arch/x86/kvm/mmu.c |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
 
-
-while I appreciate the goal of reducing contention on this lock...
-wouldn't step one be to remove the page zeroing from under this lock?
-that's by far (easily by 10x I would guess) the most expensive thing
-that's done under the lock, and I would expect a first order of
-contention reduction just by having the zeroing of a page not done
-under the lock...
-
-
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 9fd29cb..7945abf 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2204,7 +2204,13 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+ 	if (!vcpu->arch.apf_data || kvm_event_needs_reinjection(vcpu))
+ 		return false;
+ 
+-	return !!kvm_x86_ops->get_cpl(vcpu);
++	if (vcpu->arch.apf_send_user_only)
++		return !!kvm_x86_ops->get_cpl(vcpu);
++
++	if (!kvm_x86_ops->interrupt_allowed(vcpu))
++		return false;
++
++	return true;
+ }
+ 
+ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 -- 
-Arjan van de Ven 	Intel Open Source Technology Centre
-For development, discussion and tips for power savings, 
-visit http://www.lesswatts.org
+1.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
