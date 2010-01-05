@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5988B6007E1
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 09:15:22 -0500 (EST)
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-From: Andi Kleen <andi@firstfloor.org>
-References: <20100104182429.833180340@chello.nl>
-	<20100104182813.753545361@chello.nl>
-	<20100105054536.44bf8002@infradead.org>
-Date: Tue, 05 Jan 2010 15:15:15 +0100
-In-Reply-To: <20100105054536.44bf8002@infradead.org> (Arjan van de Ven's message of "Tue, 5 Jan 2010 05:45:36 -0800")
-Message-ID: <87637gd4ek.fsf@basil.nowhere.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 53C166007E1
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 10:05:57 -0500 (EST)
+Received: by pxi5 with SMTP id 5so11537607pxi.12
+        for <linux-mm@kvack.org>; Tue, 05 Jan 2010 07:05:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <1262700774-1808-1-git-send-email-gleb@redhat.com>
+References: <1262700774-1808-1-git-send-email-gleb@redhat.com>
+From: Jun Koi <junkoi2004@gmail.com>
+Date: Wed, 6 Jan 2010 00:05:32 +0900
+Message-ID: <fdaac4d51001050705s3f46dd0fi948a3b3ea803fa51@mail.gmail.com>
+Subject: Re: [PATCH v3 00/12] KVM: Add host swap event notifications for PV
+	guest
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Arjan van de Ven <arjan@infradead.org> writes:
-
-> On Mon, 04 Jan 2010 19:24:35 +0100
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Tue, Jan 5, 2010 at 11:12 PM, Gleb Natapov <gleb@redhat.com> wrote:
+> KVM virtualizes guest memory by means of shadow pages or HW assistance
+> like NPT/EPT. Not all memory used by a guest is mapped into the guest
+> address space or even present in a host memory at any given time.
+> When vcpu tries to access memory page that is not mapped into the guest
+> address space KVM is notified about it. KVM maps the page into the guest
+> address space and resumes vcpu execution. If the page is swapped out
+> from host memory vcpu execution is suspended till the page is not swapped
+> into the memory again. This is inefficient since vcpu can do other work
+> (run other task or serve interrupts) while page gets swapped in.
 >
->> Generic speculative fault handler, tries to service a pagefault
->> without holding mmap_sem.
+> To overcome this inefficiency this patch series implements "asynchronous
+> page fault" for paravirtualized KVM guests. If a page that vcpu is
+> trying to access is swapped out KVM sends an async PF to the vcpu
+> and continues vcpu execution. Requested page is swapped in by another
+> thread in parallel. =A0When vcpu gets async PF it puts faulted task to
+> sleep until "wake up" interrupt is delivered. When the page is brought
+> to the host memory KVM sends "wake up" interrupt and the guest's task
+> resumes execution.
 >
->
-> while I appreciate the goal of reducing contention on this lock...
-> wouldn't step one be to remove the page zeroing from under this lock?
-> that's by far (easily by 10x I would guess) the most expensive thing
-> that's done under the lock, and I would expect a first order of
-> contention reduction just by having the zeroing of a page not done
-> under the lock...
 
-The cache line bouncing of the shared cache lines hurts too.
+Is it true that to make this work, we will need a (PV) kernel driver
+for each guest OS (Windows, Linux, ...)?
 
-I suspect fixing this all properly will need some deeper changes.
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Thanks,
+Jun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
