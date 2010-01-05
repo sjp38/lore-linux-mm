@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 897036007BA
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 09:13:12 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9D3926007D6
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 09:13:14 -0500 (EST)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v3 09/12] Retry fault before vmentry
-Date: Tue,  5 Jan 2010 16:12:51 +0200
-Message-Id: <1262700774-1808-10-git-send-email-gleb@redhat.com>
+Subject: [PATCH v3 03/12] Add async PF initialization to PV guest.
+Date: Tue,  5 Jan 2010 16:12:45 +0200
+Message-Id: <1262700774-1808-4-git-send-email-gleb@redhat.com>
 In-Reply-To: <1262700774-1808-1-git-send-email-gleb@redhat.com>
 References: <1262700774-1808-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,265 +13,154 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-When page is swapped in it is mapped into guest memory only after guest
-tries to access it again and generate another fault. To save this fault
-we can map it immediately since we know that guest is going to access
-the page.
 
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- arch/x86/include/asm/kvm_host.h |    7 ++++++-
- arch/x86/kvm/mmu.c              |   27 ++++++++++++++++++++-------
- arch/x86/kvm/paging_tmpl.h      |   37 +++++++++++++++++++++++++++++++++----
- arch/x86/kvm/x86.c              |    9 +++++++++
- virt/kvm/kvm_main.c             |    2 ++
- 5 files changed, 70 insertions(+), 12 deletions(-)
+ arch/x86/include/asm/kvm_para.h |    5 ++++
+ arch/x86/kernel/kvm.c           |   49 +++++++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/smpboot.c       |    3 ++
+ include/linux/kvm_para.h        |    2 +
+ 4 files changed, 59 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 641943e..43c1aca 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -241,7 +241,8 @@ struct kvm_pio_request {
-  */
- struct kvm_mmu {
- 	void (*new_cr3)(struct kvm_vcpu *vcpu);
--	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err);
-+	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err, bool sync);
-+	int (*page_fault_other_cr3)(struct kvm_vcpu *vcpu, gpa_t cr3, gva_t gva, u32 err);
- 	void (*free)(struct kvm_vcpu *vcpu);
- 	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva);
- 	void (*prefetch_page)(struct kvm_vcpu *vcpu,
-@@ -541,6 +542,8 @@ struct kvm_x86_ops {
- 
- struct kvm_arch_async_pf {
- 	u32 token;
-+	gpa_t cr3;
-+	u32 error_code;
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index f77eed3..56ca41b 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -51,6 +51,11 @@ struct kvm_mmu_op_release_pt {
+ 	__u64 pt_phys;
  };
  
- extern struct kvm_x86_ops *kvm_x86_ops;
-@@ -827,6 +830,8 @@ void kvm_arch_inject_async_page_not_present(struct kvm_vcpu *vcpu,
- 					    struct kvm_async_pf *work);
- void kvm_arch_inject_async_page_present(struct kvm_vcpu *vcpu,
- 					struct kvm_async_pf *work);
-+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
-+			       struct kvm_async_pf *work);
- bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
- #endif /* _ASM_X86_KVM_HOST_H */
++struct kvm_vcpu_pv_apf_data {
++	__u32 reason;
++	__u32 enabled;
++};
++
+ #ifdef __KERNEL__
+ #include <asm/processor.h>
  
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 7214f28..9fd29cb 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -2170,7 +2170,7 @@ static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr)
- }
+diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+index e6db179..001222c 100644
+--- a/arch/x86/kernel/kvm.c
++++ b/arch/x86/kernel/kvm.c
+@@ -27,7 +27,10 @@
+ #include <linux/mm.h>
+ #include <linux/highmem.h>
+ #include <linux/hardirq.h>
++#include <linux/notifier.h>
++#include <linux/reboot.h>
+ #include <asm/timer.h>
++#include <asm/cpu.h>
  
- static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
--				u32 error_code)
-+				u32 error_code, bool sync)
+ #define MMU_QUEUE_SIZE 1024
+ 
+@@ -37,6 +40,7 @@ struct kvm_para_state {
+ };
+ 
+ static DEFINE_PER_CPU(struct kvm_para_state, para_state);
++static DEFINE_PER_CPU_ALIGNED(struct kvm_vcpu_pv_apf_data, apf_reason);
+ 
+ static struct kvm_para_state *kvm_para_state(void)
  {
- 	gfn_t gfn;
- 	int r;
-@@ -2189,10 +2189,13 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
- 			     error_code & PFERR_WRITE_MASK, gfn);
+@@ -231,10 +235,35 @@ static void __init paravirt_ops_setup(void)
+ #endif
  }
  
--int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
-+int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr3, gva_t gva,
-+			    gfn_t gfn, u32 error_code)
- {
- 	struct kvm_arch_async_pf arch;
- 	arch.token = (vcpu->arch.async_pf_id++ << 12) | vcpu->vcpu_id;
-+	arch.cr3 = cr3;
-+	arch.error_code = error_code;
- 	return kvm_setup_async_pf(vcpu, gva, gfn, &arch);
- }
- 
-@@ -2204,8 +2207,8 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
- 	return !!kvm_x86_ops->get_cpl(vcpu);
- }
- 
--static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
--				u32 error_code)
-+static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
-+			  bool sync)
- {
- 	pfn_t pfn;
- 	int r;
-@@ -2227,7 +2230,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
- 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
- 	smp_rmb();
- 
--	if (can_do_async_pf(vcpu)) {
-+	if (!sync && can_do_async_pf(vcpu)) {
- 		r = gfn_to_pfn_async(vcpu->kvm, gfn, &pfn);
- 		trace_kvm_try_async_get_page(r, pfn);
- 	} else {
-@@ -2237,7 +2240,8 @@ do_sync:
- 	}
- 
- 	if (!r) {
--		if (!kvm_arch_setup_async_pf(vcpu, gpa, gfn))
-+		if (!kvm_arch_setup_async_pf(vcpu, vcpu->arch.cr3, gpa, gfn,
-+					     error_code))
- 			goto do_sync;
- 		return 0;
- 	}
-@@ -2263,6 +2267,12 @@ out_unlock:
- 	return 0;
- }
- 
-+static int tdp_page_fault_sync(struct kvm_vcpu *vcpu, gpa_t cr3, gva_t gpa,
-+			       u32 error_code)
++static void kvm_pv_disable_apf(void *unused)
 +{
-+	return tdp_page_fault(vcpu, gpa, error_code, true);
-+}
-+
- static void nonpaging_free(struct kvm_vcpu *vcpu)
- {
- 	mmu_free_roots(vcpu);
-@@ -2387,6 +2397,7 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu, int level)
- 	ASSERT(is_pae(vcpu));
- 	context->new_cr3 = paging_new_cr3;
- 	context->page_fault = paging64_page_fault;
-+	context->page_fault_other_cr3 = paging64_page_fault_other_cr3;
- 	context->gva_to_gpa = paging64_gva_to_gpa;
- 	context->prefetch_page = paging64_prefetch_page;
- 	context->sync_page = paging64_sync_page;
-@@ -2411,6 +2422,7 @@ static int paging32_init_context(struct kvm_vcpu *vcpu)
- 	reset_rsvds_bits_mask(vcpu, PT32_ROOT_LEVEL);
- 	context->new_cr3 = paging_new_cr3;
- 	context->page_fault = paging32_page_fault;
-+	context->page_fault_other_cr3 = paging32_page_fault_other_cr3;
- 	context->gva_to_gpa = paging32_gva_to_gpa;
- 	context->free = paging_free;
- 	context->prefetch_page = paging32_prefetch_page;
-@@ -2434,6 +2446,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
- 
- 	context->new_cr3 = nonpaging_new_cr3;
- 	context->page_fault = tdp_page_fault;
-+	context->page_fault_other_cr3 = tdp_page_fault_sync;
- 	context->free = nonpaging_free;
- 	context->prefetch_page = nonpaging_prefetch_page;
- 	context->sync_page = nonpaging_sync_page;
-@@ -2807,7 +2820,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
- 	int r;
- 	enum emulation_result er;
- 
--	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code);
-+	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code, false);
- 	if (r < 0)
- 		goto out;
- 
-diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
-index 1b2c605..c2c2f34 100644
---- a/arch/x86/kvm/paging_tmpl.h
-+++ b/arch/x86/kvm/paging_tmpl.h
-@@ -375,8 +375,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
-  *  Returns: 1 if we need to emulate the instruction, 0 otherwise, or
-  *           a negative value on error.
-  */
--static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
--			       u32 error_code)
-+static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
-+			     bool sync)
- {
- 	int write_fault = error_code & PFERR_WRITE_MASK;
- 	int user_fault = error_code & PFERR_USER_MASK;
-@@ -420,7 +420,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
- 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
- 	smp_rmb();
- 
--	if (can_do_async_pf(vcpu)) {
-+	if (!sync && can_do_async_pf(vcpu)) {
- 		r = gfn_to_pfn_async(vcpu->kvm, walker.gfn, &pfn);
- 		trace_kvm_try_async_get_page(r, pfn);
- 	} else {
-@@ -430,7 +430,8 @@ do_sync:
- 	}
- 
- 	if (!r) {
--		if (!kvm_arch_setup_async_pf(vcpu, addr, walker.gfn))
-+		if (!kvm_arch_setup_async_pf(vcpu, vcpu->arch.cr3, addr,
-+					     walker.gfn, error_code))
- 			goto do_sync;
- 		return 0;
- 	}
-@@ -466,6 +467,34 @@ out_unlock:
- 	return 0;
- }
- 
-+static int FNAME(page_fault_other_cr3)(struct kvm_vcpu *vcpu, gpa_t cr3,
-+				       gva_t addr, u32 error_code)
-+{
-+	int r = 0;
-+	gpa_t curr_cr3 = vcpu->arch.cr3;
-+
-+	if (curr_cr3 != cr3) {
-+		/*
-+		 * We do page fault on behalf of a process that is sleeping
-+		 * because of async PF. PV guest takes reference to mm that cr3
-+		 * belongs too, so it has to be valid here.
-+		 */
-+		kvm_set_cr3(vcpu, cr3);
-+		if (kvm_mmu_reload(vcpu))
-+			goto switch_cr3;
-+	}
-+
-+	r = FNAME(page_fault)(vcpu, addr, error_code, true);
-+
-+switch_cr3:
-+	if (curr_cr3 != vcpu->arch.cr3) {
-+		kvm_set_cr3(vcpu, curr_cr3);
-+		kvm_mmu_reload(vcpu);
-+	}
-+
-+	return r;
-+}
-+
- static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
- {
- 	struct kvm_shadow_walk_iterator iterator;
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index cfef357..e2e33ac 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -5483,6 +5483,15 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
- }
- EXPORT_SYMBOL_GPL(kvm_set_rflags);
- 
-+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
-+			       struct kvm_async_pf *work)
-+{
-+	if (!vcpu->arch.mmu.page_fault_other_cr3 || is_error_page(work->page))
++	if (!__get_cpu_var(apf_reason).enabled)
 +		return;
-+	vcpu->arch.mmu.page_fault_other_cr3(vcpu, work->arch.cr3, work->gva,
-+					    work->arch.error_code);
++
++	wrmsrl(MSR_KVM_ASYNC_PF_EN, 0);
++	__get_cpu_var(apf_reason).enabled = 0;
++
++	printk(KERN_INFO"Unregister pv shared memory for cpu %d\n",
++	       smp_processor_id());
 +}
 +
- static int apf_put_user(struct kvm_vcpu *vcpu, u32 val)
++static int kvm_pv_reboot_notify(struct notifier_block *nb,
++				unsigned long code, void *unused)
++{
++	if (code == SYS_RESTART)
++		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
++	return NOTIFY_DONE;
++}
++
++static struct notifier_block kvm_pv_reboot_nb = {
++	.notifier_call = kvm_pv_reboot_notify,
++};
++
+ #ifdef CONFIG_SMP
+ static void __init kvm_smp_prepare_boot_cpu(void)
  {
- 	if (unlikely(vcpu->arch.apf_memslot_ver !=
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 3552be0..ca5cd7e 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -1322,6 +1322,7 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
- 			spin_lock(&vcpu->async_pf_lock);
- 			list_del(&work->link);
- 			spin_unlock(&vcpu->async_pf_lock);
-+			kvm_arch_async_page_ready(vcpu, work);
- 			put_page(work->page);
- 			async_pf_work_free(work);
- 		}
-@@ -1336,6 +1337,7 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
- 	list_del(&work->link);
- 	spin_unlock(&vcpu->async_pf_lock);
+ 	WARN_ON(kvm_register_clock("primary cpu clock"));
++	kvm_guest_cpu_init();
+ 	native_smp_prepare_boot_cpu();
+ }
+ #endif
+@@ -245,7 +274,27 @@ void __init kvm_guest_init(void)
+ 		return;
  
-+	kvm_arch_async_page_ready(vcpu, work);
- 	kvm_arch_inject_async_page_present(vcpu, work);
+ 	paravirt_ops_setup();
++	register_reboot_notifier(&kvm_pv_reboot_nb);
+ #ifdef CONFIG_SMP
+ 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
++#else
++	kvm_guest_cpu_init();
+ #endif
+ }
++
++void __cpuinit kvm_guest_cpu_init(void)
++{
++	if (!kvm_para_available())
++		return;
++
++	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF)) {
++		u64 pa = __pa(&__get_cpu_var(apf_reason));
++
++		if (native_write_msr_safe(MSR_KVM_ASYNC_PF_EN,
++					  pa | KVM_ASYNC_PF_ENABLED, pa >> 32))
++			return;
++		__get_cpu_var(apf_reason).enabled = 1;
++		printk(KERN_INFO"Setup pv shared memory for cpu %d\n",
++		       smp_processor_id());
++	}
++}
+diff --git a/arch/x86/kernel/smpboot.c b/arch/x86/kernel/smpboot.c
+index 678d0b8..0a9eef4 100644
+--- a/arch/x86/kernel/smpboot.c
++++ b/arch/x86/kernel/smpboot.c
+@@ -65,6 +65,7 @@
+ #include <asm/setup.h>
+ #include <asm/uv/uv.h>
+ #include <linux/mc146818rtc.h>
++#include <linux/kvm_para.h>
  
- 	put_page(work->page);
+ #include <asm/smpboot_hooks.h>
+ 
+@@ -321,6 +322,8 @@ notrace static void __cpuinit start_secondary(void *unused)
+ 	ipi_call_unlock();
+ 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+ 
++	kvm_guest_cpu_init();
++
+ 	/* enable local interrupts */
+ 	local_irq_enable();
+ 
+diff --git a/include/linux/kvm_para.h b/include/linux/kvm_para.h
+index d731092..4c8a2e6 100644
+--- a/include/linux/kvm_para.h
++++ b/include/linux/kvm_para.h
+@@ -26,8 +26,10 @@
+ #ifdef __KERNEL__
+ #ifdef CONFIG_KVM_GUEST
+ void __init kvm_guest_init(void);
++void __cpuinit kvm_guest_cpu_init(void);
+ #else
+ #define kvm_guest_init() do { } while (0)
++#define kvm_guest_cpu_init() do { } while (0)
+ #endif
+ 
+ static inline int kvm_para_has_feature(unsigned int feature)
 -- 
 1.6.5
 
