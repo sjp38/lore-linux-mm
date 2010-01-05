@@ -1,47 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id AEE6C6B00E7
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 13:46:43 -0500 (EST)
-Date: Tue, 5 Jan 2010 12:46:17 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <alpine.LFD.2.00.1001051019280.3630@localhost.localdomain>
-Message-ID: <alpine.DEB.2.00.1001051235200.2246@router.home>
-References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com> <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain> <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com> <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
- <alpine.LFD.2.00.1001050810380.3630@localhost.localdomain> <87wrzwbh0z.fsf@basil.nowhere.org> <alpine.LFD.2.00.1001050950500.3630@localhost.localdomain> <alpine.DEB.2.00.1001051211000.2246@router.home>
- <alpine.LFD.2.00.1001051019280.3630@localhost.localdomain>
+	by kanga.kvack.org (Postfix) with ESMTP id 7B05C6B00EA
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 13:52:40 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp09.in.ibm.com (8.14.3/8.13.1) with ESMTP id o05IO8Vc009590
+	for <linux-mm@kvack.org>; Tue, 5 Jan 2010 23:54:08 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o05IqUEe3723372
+	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 00:22:30 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o05IqTMO010099
+	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 00:22:29 +0530
+Date: Wed, 6 Jan 2010 00:22:26 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: [PATCH -mm] Shared Page accounting for memory cgroup (v2)
+Message-ID: <20100105185226.GG3059@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Jan 2010, Linus Torvalds wrote:
+Hi, All,
 
-> I hope somebody can time it. Because I think the idle reads on all the
-> (unsuccessful) spinlocks will kill it.
->
-> Think of it this way: under heavy contention, you'll see a lot of people
-> waiting for the spinlocks and one of them succeeds at writing it, reading
-> the line. So you get an O(n^2) bus traffic access pattern. In contrast,
-> with an xadd, you get O(n) behavior - everybody does _one_ acquire-for-
-> write bus access.
+No major changes from v1, except for the use of get_mm_rss().
+Kamezawa-San felt that this can be done in user space and I responded
+to him with my concerns of doing it in user space. The thread
+can be found at http://thread.gmane.org/gmane.linux.kernel.mm/42367.
 
-There will not be much spinning. The cacheline will be held exclusively by
-one processor. A request by other processors for shared access to the
-cacheline will effectively stop the execution on those processors until
-the cacheline is available.
+If there are no major objections, can I ask for a merge into -mm.
+Andrew, the patches are against mmotm 10 December 2009, if there
+are some merge conflicts, please let me know, I can rebase after
+you release the next mmotm.
 
-Access to main memory is mediated by the cache controller anyways. As
-long as the cacheline has not been invalidated it will be reused. Maybe
-Andi can give us more details on the exact behavior on recent Intel
-processors?
 
-One thing that could change with the removal of the spinlock is that the
-initial request for the cacheline will not be for read anymore but for
-write. This saves us the upgrade from read / shared state to exclusive access.
+Add shared accounting to memcg
+
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+Currently there is no accurate way of estimating how many pages are
+shared in a memory cgroup. The accurate way of accounting shared memory
+is to
+
+1. Either follow every page rmap and track number of users
+2. Iterate through the pages and use _mapcount
+
+We take an intermediate approach (suggested by Kamezawa), we sum up
+the file and anon rss of the mm's belonging to the cgroup and then
+subtract the values of anon rss and file mapped. This should give
+us a good estimate of the pages being shared.
+
+The shared statistic is called memory.shared_usage_in_bytes and
+does not support hierarchical information, just the information
+for the current cgroup.
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ Documentation/cgroups/memory.txt |    6 +++++
+ mm/memcontrol.c                  |   42 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 0 deletions(-)
+
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index b871f25..c2c70c9 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -341,6 +341,12 @@ Note:
+   - a cgroup which uses hierarchy and it has child cgroup.
+   - a cgroup which uses hierarchy and not the root of hierarchy.
+ 
++5.4 shared_usage_in_bytes
++  This data lists the number of shared bytes. The data provided
++  provides an approximation based on the anon and file rss counts
++  of all the mm's belonging to the cgroup. The sum above is subtracted
++  from the count of rss and file mapped count maintained within the
++  memory cgroup statistics (see section 5.2).
+ 
+ 6. Hierarchy support
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 488b644..e49b47a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3052,6 +3052,44 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+ 	return 0;
+ }
+ 
++static u64 mem_cgroup_shared_read(struct cgroup *cgrp, struct cftype *cft)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	struct cgroup_iter it;
++	struct task_struct *tsk;
++	u64 total_rss = 0, shared;
++	struct mm_struct *mm;
++	s64 val;
++
++	cgroup_iter_start(cgrp, &it);
++	val = mem_cgroup_read_stat(&memcg->stat, MEM_CGROUP_STAT_RSS);
++	val += mem_cgroup_read_stat(&memcg->stat, MEM_CGROUP_STAT_FILE_MAPPED);
++	while ((tsk = cgroup_iter_next(cgrp, &it))) {
++		if (!thread_group_leader(tsk))
++			continue;
++		mm = tsk->mm;
++		/*
++		 * We can't use get_task_mm(), since mmput() its counterpart
++		 * can sleep. We know that mm can't become invalid since
++		 * we hold the css_set_lock (see cgroup_iter_start()).
++		 */
++		if (tsk->flags & PF_KTHREAD || !mm)
++			continue;
++		total_rss += get_mm_rss(mm);
++	}
++	cgroup_iter_end(cgrp, &it);
++
++	/*
++	 * We need to tolerate negative values due to the difference in
++	 * time of calculating total_rss and val, but the shared value
++	 * converges to the correct value quite soon depending on the changing
++	 * memory usage of the workload running in the memory cgroup.
++	 */
++	shared = total_rss - val;
++	shared = max_t(s64, 0, shared);
++	shared <<= PAGE_SHIFT;
++	return shared;
++}
+ 
+ static struct cftype mem_cgroup_files[] = {
+ 	{
+@@ -3101,6 +3139,10 @@ static struct cftype mem_cgroup_files[] = {
+ 		.read_u64 = mem_cgroup_swappiness_read,
+ 		.write_u64 = mem_cgroup_swappiness_write,
+ 	},
++	{
++		.name = "shared_usage_in_bytes",
++		.read_u64 = mem_cgroup_shared_read,
++	},
+ };
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
