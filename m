@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5DDB56007D6
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DBA336007DF
 	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 09:13:22 -0500 (EST)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v3 02/12] Add PV MSR to enable asynchronous page faults delivery.
-Date: Tue,  5 Jan 2010 16:12:44 +0200
-Message-Id: <1262700774-1808-3-git-send-email-gleb@redhat.com>
+Subject: [PATCH v3 06/12] Add get_user_pages() variant that fails if major fault is required.
+Date: Tue,  5 Jan 2010 16:12:48 +0200
+Message-Id: <1262700774-1808-7-git-send-email-gleb@redhat.com>
 In-Reply-To: <1262700774-1808-1-git-send-email-gleb@redhat.com>
 References: <1262700774-1808-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,165 +13,173 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+This patch add get_user_pages() variant that only succeeds if getting
+a reference to a page doesn't require major fault.
 
+Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- arch/x86/include/asm/kvm_host.h |    3 ++
- arch/x86/include/asm/kvm_para.h |    4 +++
- arch/x86/kvm/x86.c              |   49 +++++++++++++++++++++++++++++++++++++-
- include/linux/kvm.h             |    1 +
- 4 files changed, 55 insertions(+), 2 deletions(-)
+ fs/ncpfs/mmap.c    |    2 ++
+ include/linux/mm.h |    5 +++++
+ mm/filemap.c       |    3 +++
+ mm/memory.c        |   31 ++++++++++++++++++++++++++++---
+ mm/shmem.c         |    8 +++++++-
+ 5 files changed, 45 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 741b897..01d3ec4 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -362,6 +362,9 @@ struct kvm_vcpu_arch {
- 	/* used for guest single stepping over the given code position */
- 	u16 singlestep_cs;
- 	unsigned long singlestep_rip;
+diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
+index 15458de..338527e 100644
+--- a/fs/ncpfs/mmap.c
++++ b/fs/ncpfs/mmap.c
+@@ -39,6 +39,8 @@ static int ncp_file_mmap_fault(struct vm_area_struct *area,
+ 	int bufsize;
+ 	int pos; /* XXX: loff_t ? */
+ 
++	if (vmf->flags & FAULT_FLAG_MINOR)
++		return VM_FAULT_MAJOR | VM_FAULT_ERROR;
+ 	/*
+ 	 * ncpfs has nothing against high pages as long
+ 	 * as recvmsg and memset works on it
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 2265f28..32e9c6e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -136,6 +136,7 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+ #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
+ #define FAULT_FLAG_MKWRITE	0x04	/* Fault was mkwrite of existing pte */
++#define FAULT_FLAG_MINOR	0x08	/* Do only minor fault */
+ 
+ /*
+  * This interface is used by x86 PAT code to identify a pfn mapping that is
+@@ -836,6 +837,9 @@ extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *
+ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			unsigned long start, int nr_pages, int write, int force,
+ 			struct page **pages, struct vm_area_struct **vmas);
++int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
++			unsigned long start, int nr_pages, int write, int force,
++			struct page **pages, struct vm_area_struct **vmas);
+ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 			struct page **pages);
+ struct page *get_dump_page(unsigned long addr);
+@@ -1257,6 +1261,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
+ #define FOLL_GET	0x04	/* do get_page on page */
+ #define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
+ #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
++#define FOLL_MINOR	0x20	/* do only minor page faults */
+ 
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 96ac6b0..25768ad 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1509,6 +1509,9 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 			goto no_cached_page;
+ 		}
+ 	} else {
++		if (vmf->flags & FAULT_FLAG_MINOR)
++			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
 +
-+	u32 __user *apf_data;
-+	u64 apf_msr_val;
- };
+ 		/* No page in the page cache at all */
+ 		do_sync_mmap_readahead(vma, ra, file, offset);
+ 		count_vm_event(PGMAJFAULT);
+diff --git a/mm/memory.c b/mm/memory.c
+index 09e4b1b..89e0074 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1336,10 +1336,13 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			cond_resched();
+ 			while (!(page = follow_page(vma, start, foll_flags))) {
+ 				int ret;
++				unsigned int fault_fl =
++					((foll_flags & FOLL_WRITE) ?
++					FAULT_FLAG_WRITE : 0) |
++					((foll_flags & FOLL_MINOR) ?
++					FAULT_FLAG_MINOR : 0);
  
- struct kvm_mem_alias {
-diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index 5f580f2..f77eed3 100644
---- a/arch/x86/include/asm/kvm_para.h
-+++ b/arch/x86/include/asm/kvm_para.h
-@@ -15,12 +15,16 @@
- #define KVM_FEATURE_CLOCKSOURCE		0
- #define KVM_FEATURE_NOP_IO_DELAY	1
- #define KVM_FEATURE_MMU_OP		2
-+#define KVM_FEATURE_ASYNC_PF		3
+-				ret = handle_mm_fault(mm, vma, start,
+-					(foll_flags & FOLL_WRITE) ?
+-					FAULT_FLAG_WRITE : 0);
++				ret = handle_mm_fault(mm, vma, start, fault_fl);
  
- #define MSR_KVM_WALL_CLOCK  0x11
- #define MSR_KVM_SYSTEM_TIME 0x12
-+#define MSR_KVM_ASYNC_PF_EN 0x4b564d00
- 
- #define KVM_MAX_MMU_OP_BATCH           32
- 
-+#define KVM_ASYNC_PF_ENABLED			(1 << 0)
-+
- /* Operations for KVM_HC_MMU_OP */
- #define KVM_MMU_OP_WRITE_PTE            1
- #define KVM_MMU_OP_FLUSH_TLB	        2
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index adc8597..f6821b9 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -620,9 +620,9 @@ static inline u32 bit(int bitno)
-  * kvm-specific. Those are put in the beginning of the list.
-  */
- 
--#define KVM_SAVE_MSRS_BEGIN	2
-+#define KVM_SAVE_MSRS_BEGIN	3
- static u32 msrs_to_save[] = {
--	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
-+	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK, MSR_KVM_ASYNC_PF_EN,
- 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
- 	MSR_K6_STAR,
- #ifdef CONFIG_X86_64
-@@ -1003,6 +1003,37 @@ out:
- 	return r;
+ 				if (ret & VM_FAULT_ERROR) {
+ 					if (ret & VM_FAULT_OOM)
+@@ -1347,6 +1350,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 					if (ret &
+ 					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+ 						return i ? i : -EFAULT;
++					else if (ret & VM_FAULT_MAJOR)
++						return i ? i : -EFAULT;
+ 					BUG();
+ 				}
+ 				if (ret & VM_FAULT_MAJOR)
+@@ -1457,6 +1462,23 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
  }
+ EXPORT_SYMBOL(get_user_pages);
  
-+static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
++int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
++		unsigned long start, int nr_pages, int write, int force,
++		struct page **pages, struct vm_area_struct **vmas)
 +{
-+	u64 gpa = data & ~0x3f;
-+	int offset = offset_in_page(gpa);
-+	unsigned long addr;
++	int flags = FOLL_TOUCH | FOLL_MINOR;
 +
-+	/* Bits 1:5 are resrved, Should be zero */
-+	if (data & 0x3e)
-+		return 1;
++	if (pages)
++		flags |= FOLL_GET;
++	if (write)
++		flags |= FOLL_WRITE;
++	if (force)
++		flags |= FOLL_FORCE;
 +
-+	vcpu->arch.apf_msr_val = data;
-+
-+	if (!(data & KVM_ASYNC_PF_ENABLED)) {
-+		vcpu->arch.apf_data = NULL;
-+		return 0;
-+	}
-+
-+	addr = gfn_to_hva(vcpu->kvm, gpa >> PAGE_SHIFT);
-+	if (kvm_is_error_hva(addr))
-+		return 1;
-+
-+	vcpu->arch.apf_data = (u32 __user*)(addr + offset);
-+
-+	/* check if address is mapped */
-+	if (get_user(offset, vcpu->arch.apf_data)) {
-+		vcpu->arch.apf_data = NULL;
-+		return 1;
-+	}
-+	return 0;
++	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
 +}
++EXPORT_SYMBOL(get_user_pages_noio);
 +
- int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+ /**
+  * get_dump_page() - pin user page in memory while writing it to core dump
+  * @addr: user address
+@@ -2536,6 +2558,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
++		if (flags & FAULT_FLAG_MINOR)
++			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
++
+ 		grab_swap_token(mm); /* Contend for token _before_ read-in */
+ 		page = swapin_readahead(entry,
+ 					GFP_HIGHUSER_MOVABLE, vma, address);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index eef4ebe..ab3a255 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1225,6 +1225,7 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
+ 	swp_entry_t swap;
+ 	gfp_t gfp;
+ 	int error;
++	int flags = type ? *type : 0;
+ 
+ 	if (idx >= SHMEM_MAX_INDEX)
+ 		return -EFBIG;
+@@ -1273,6 +1274,11 @@ repeat:
+ 		swappage = lookup_swap_cache(swap);
+ 		if (!swappage) {
+ 			shmem_swp_unmap(entry);
++			if (flags & FAULT_FLAG_MINOR) {
++				spin_unlock(&info->lock);
++				*type = VM_FAULT_MAJOR | VM_FAULT_ERROR;
++				goto failed;
++			}
+ 			/* here we actually do the io */
+ 			if (type && !(*type & VM_FAULT_MAJOR)) {
+ 				__count_vm_event(PGMAJFAULT);
+@@ -1481,7 +1487,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  {
- 	switch (msr) {
-@@ -1083,6 +1114,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
- 		kvm_request_guest_time_update(vcpu);
- 		break;
- 	}
-+	case MSR_KVM_ASYNC_PF_EN:
-+		if (kvm_pv_enable_async_pf(vcpu, data))
-+			return 1;
-+		break;
- 	case MSR_IA32_MCG_CTL:
- 	case MSR_IA32_MCG_STATUS:
- 	case MSR_IA32_MC0_CTL ... MSR_IA32_MC0_CTL + 4 * KVM_MAX_MCE_BANKS - 1:
-@@ -1275,6 +1310,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
- 	case MSR_KVM_SYSTEM_TIME:
- 		data = vcpu->arch.time;
- 		break;
-+	case MSR_KVM_ASYNC_PF_EN:
-+		data = vcpu->arch.apf_msr_val;
-+		break;
- 	case MSR_IA32_P5_MC_ADDR:
- 	case MSR_IA32_P5_MC_TYPE:
- 	case MSR_IA32_MCG_CAP:
-@@ -1397,6 +1435,7 @@ int kvm_dev_ioctl_check_extension(long ext)
- 	case KVM_CAP_XEN_HVM:
- 	case KVM_CAP_ADJUST_CLOCK:
- 	case KVM_CAP_VCPU_EVENTS:
-+	case KVM_CAP_ASYNC_PF:
- 		r = 1;
- 		break;
- 	case KVM_CAP_COALESCED_MMIO:
-@@ -5117,6 +5156,9 @@ free_vcpu:
+ 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	int error;
+-	int ret;
++	int ret = (int)vmf->flags;
  
- void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
- {
-+	vcpu->arch.apf_data = NULL;
-+	vcpu->arch.apf_msr_val = 0;
-+
- 	vcpu_load(vcpu);
- 	kvm_mmu_unload(vcpu);
- 	vcpu_put(vcpu);
-@@ -5134,6 +5176,9 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
- 	vcpu->arch.dr6 = DR6_FIXED_1;
- 	vcpu->arch.dr7 = DR7_FIXED_1;
- 
-+	vcpu->arch.apf_data = NULL;
-+	vcpu->arch.apf_msr_val = 0;
-+
- 	return kvm_x86_ops->vcpu_reset(vcpu);
- }
- 
-diff --git a/include/linux/kvm.h b/include/linux/kvm.h
-index f2feef6..85a7161 100644
---- a/include/linux/kvm.h
-+++ b/include/linux/kvm.h
-@@ -497,6 +497,7 @@ struct kvm_ioeventfd {
- #endif
- #define KVM_CAP_S390_PSW 42
- #define KVM_CAP_PPC_SEGSTATE 43
-+#define KVM_CAP_ASYNC_PF 44
- 
- #ifdef KVM_CAP_IRQ_ROUTING
- 
+ 	if (((loff_t)vmf->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
+ 		return VM_FAULT_SIGBUS;
 -- 
 1.6.5
 
