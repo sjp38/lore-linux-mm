@@ -1,90 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 640186B00F6
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 14:30:39 -0500 (EST)
-Date: Tue, 5 Jan 2010 11:28:57 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <alpine.DEB.2.00.1001051301060.5119@router.home>
-Message-ID: <alpine.LFD.2.00.1001051120430.3630@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com> <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain> <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com> <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
- <alpine.LFD.2.00.1001050810380.3630@localhost.localdomain> <87wrzwbh0z.fsf@basil.nowhere.org> <alpine.LFD.2.00.1001050950500.3630@localhost.localdomain> <alpine.DEB.2.00.1001051211000.2246@router.home> <alpine.LFD.2.00.1001051019280.3630@localhost.localdomain>
- <alpine.DEB.2.00.1001051235200.2246@router.home> <alpine.LFD.2.00.1001051052150.3630@localhost.localdomain> <alpine.DEB.2.00.1001051301060.5119@router.home>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E9E16B00F8
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 14:33:44 -0500 (EST)
+Date: Tue, 5 Jan 2010 11:26:17 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [stable] [BUGFIX][PATCH v3] memcg: avoid oom-killing innocent
+ task in case of use_hierarchy
+Message-ID: <20100105192617.GA9681@kroah.com>
+References: <20091124145759.194cfc9f.nishimura@mxp.nes.nec.co.jp>
+ <20091124162854.fb31e81e.nishimura@mxp.nes.nec.co.jp>
+ <20091125090050.e366dca5.kamezawa.hiroyu@jp.fujitsu.com>
+ <20091125143218.96156a5f.nishimura@mxp.nes.nec.co.jp>
+ <20091217094724.15ec3b27.nishimura@mxp.nes.nec.co.jp>
+ <20100104222818.GA20708@kroah.com>
+ <20100105122633.28738255.d-nishimura@mtf.biglobe.ne.jp>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100105122633.28738255.d-nishimura@mtf.biglobe.ne.jp>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: nishimura@mxp.nes.nec.co.jp
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, stable <stable@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Tue, 5 Jan 2010, Christoph Lameter wrote:
+On Tue, Jan 05, 2010 at 12:26:33PM +0900, Daisuke Nishimura wrote:
+> On Mon, 4 Jan 2010 14:28:19 -0800
+> Greg KH <greg@kroah.com> wrote:
 > 
-> The wait state is the processor being stopped due to not being able to
-> access the cacheline. Not the processor spinning in the xadd loop. That
-> only occurs if the critical section is longer than the timeout.
+> > On Thu, Dec 17, 2009 at 09:47:24AM +0900, Daisuke Nishimura wrote:
+> > > Stable team.
+> > > 
+> > > Cay you pick this up for 2.6.32.y(and 2.6.31.y if it will be released) ?
+> > > 
+> > > This is a for-stable version of a bugfix patch that corresponds to the
+> > > upstream commmit d31f56dbf8bafaacb0c617f9a6f137498d5c7aed.
+> > 
+> > I've applied it to the .32-stable tree, but it does not apply to .31.
+> > Care to provide a version of the patch for that kernel if you want it
+> > applied there?
+> > 
+> hmm, strange. I can apply it onto 2.6.31.9. It might conflict with other patches
+> in 2.6.31.y queue ?
+> Anyway, I've attached the patch that is rebased on 2.6.31.9. Please tell me if you
+> have any problem with it.
+> 
+> v3: rebased on 2.6.31.9
 
-You don't know what you're talking about, do you?
+This version worked, thanks for regenerating it.
 
-Just go and read the source code.
-
-The process is spinning currently in the spin_lock loop. Here, I'll quote 
-it to you:
-
-                LOCK_PREFIX "xaddw %w0, %1\n"
-                "1:\t"
-                "cmpb %h0, %b0\n\t"
-                "je 2f\n\t"
-                "rep ; nop\n\t"
-                "movb %1, %b0\n\t"
-                /* don't need lfence here, because loads are in-order */
-                "jmp 1b\n"
-
-note the loop that spins - reading the thing over and over - waiting for 
-_that_ CPU to be the owner of the xadd ticket?
-
-That's the one you have now, only because x86-64 uses the STUPID FALLBACK 
-CODE for the rwsemaphores!
-
-In contrast, look at what the non-stupid rwsemaphore code does (which 
-triggers on x86-32):
-
-                     LOCK_PREFIX "  incl      (%%eax)\n\t"
-                     /* adds 0x00000001, returns the old value */
-                     "  jns        1f\n"
-                     "  call call_rwsem_down_read_failed\n"
-
-(that's a "down_read()", which happens to be the op we care most about. 
-See? That's a single locked "inc" (it avoids the xadd on the read side 
-because of how we've biased things). In particular, notice how this means 
-that we do NOT have fifty million CPU's all trying to read the same 
-location while one writes to it successfully.
-
-Spot the difference?
-
-Here's putting it another way. Which of these schenarios do you think 
-should result in less cross-node traffic:
-
- - multiple CPU's that - one by one - get the cacheline for exclusive 
-   access.
-
- - multiple CPU's that - one by one - get the cacheline for exclusive 
-   access, while other CPU's are all trying to read the same cacheline at 
-   the same time, over and over again, in a loop.
-
-See the shared part? See the difference? If you look at just a single lock 
-acquire, it boils down to these two scenarios
-
- - one CPU gets the cacheline exclusively
-
- - one CPU gets the cacheline exclusively while <n> other CPU's are all 
-   trying to read the old and the new value.
-
-It really is that simple.
-
-		Linus
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
