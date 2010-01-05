@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7C0406007D8
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 09:13:10 -0500 (EST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 102646007D7
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 09:13:11 -0500 (EST)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v3 07/12] Maintain memslot version number
-Date: Tue,  5 Jan 2010 16:12:49 +0200
-Message-Id: <1262700774-1808-8-git-send-email-gleb@redhat.com>
+Subject: [PATCH v3 01/12] Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
+Date: Tue,  5 Jan 2010 16:12:43 +0200
+Message-Id: <1262700774-1808-2-git-send-email-gleb@redhat.com>
 In-Reply-To: <1262700774-1808-1-git-send-email-gleb@redhat.com>
 References: <1262700774-1808-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,39 +13,92 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Code that depends on particular memslot layout can track changes and
-adjust to new layout.
+Async PF also needs to hook into smp_prepare_boot_cpu so move the hook
+into generic code.
 
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- include/linux/kvm_host.h |    1 +
- virt/kvm/kvm_main.c      |    1 +
- 2 files changed, 2 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/kvm_para.h |    1 +
+ arch/x86/kernel/kvm.c           |   11 +++++++++++
+ arch/x86/kernel/kvmclock.c      |   13 +------------
+ 3 files changed, 13 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index 600baf0..3f5ebc2 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -163,6 +163,7 @@ struct kvm {
- 	spinlock_t requests_lock;
- 	struct mutex slots_lock;
- 	struct mm_struct *mm; /* userspace tied to this vm */
-+	u32 memslot_version;
- 	struct kvm_memslots *memslots;
- 	struct srcu_struct srcu;
- #ifdef CONFIG_KVM_APIC_ARCHITECTURE
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index a5077df..df3325c 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -737,6 +737,7 @@ skip_lpage:
- 	slots->memslots[mem->slot] = new;
- 	old_memslots = kvm->memslots;
- 	rcu_assign_pointer(kvm->memslots, slots);
-+	kvm->memslot_version++;
- 	synchronize_srcu_expedited(&kvm->srcu);
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index c584076..5f580f2 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -51,6 +51,7 @@ struct kvm_mmu_op_release_pt {
+ #include <asm/processor.h>
  
- 	kvm_arch_commit_memory_region(kvm, mem, old, user_alloc);
+ extern void kvmclock_init(void);
++extern int kvm_register_clock(char *txt);
+ 
+ 
+ /* This instruction is vmcall.  On non-VT architectures, it will generate a
+diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+index 63b0ec8..e6db179 100644
+--- a/arch/x86/kernel/kvm.c
++++ b/arch/x86/kernel/kvm.c
+@@ -231,10 +231,21 @@ static void __init paravirt_ops_setup(void)
+ #endif
+ }
+ 
++#ifdef CONFIG_SMP
++static void __init kvm_smp_prepare_boot_cpu(void)
++{
++	WARN_ON(kvm_register_clock("primary cpu clock"));
++	native_smp_prepare_boot_cpu();
++}
++#endif
++
+ void __init kvm_guest_init(void)
+ {
+ 	if (!kvm_para_available())
+ 		return;
+ 
+ 	paravirt_ops_setup();
++#ifdef CONFIG_SMP
++	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
++#endif
+ }
+diff --git a/arch/x86/kernel/kvmclock.c b/arch/x86/kernel/kvmclock.c
+index feaeb0d..6ab9622 100644
+--- a/arch/x86/kernel/kvmclock.c
++++ b/arch/x86/kernel/kvmclock.c
+@@ -122,7 +122,7 @@ static struct clocksource kvm_clock = {
+ 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
+ };
+ 
+-static int kvm_register_clock(char *txt)
++int kvm_register_clock(char *txt)
+ {
+ 	int cpu = smp_processor_id();
+ 	int low, high;
+@@ -146,14 +146,6 @@ static void __cpuinit kvm_setup_secondary_clock(void)
+ }
+ #endif
+ 
+-#ifdef CONFIG_SMP
+-static void __init kvm_smp_prepare_boot_cpu(void)
+-{
+-	WARN_ON(kvm_register_clock("primary cpu clock"));
+-	native_smp_prepare_boot_cpu();
+-}
+-#endif
+-
+ /*
+  * After the clock is registered, the host will keep writing to the
+  * registered memory location. If the guest happens to shutdown, this memory
+@@ -192,9 +184,6 @@ void __init kvmclock_init(void)
+ 		x86_cpuinit.setup_percpu_clockev =
+ 			kvm_setup_secondary_clock;
+ #endif
+-#ifdef CONFIG_SMP
+-		smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
+-#endif
+ 		machine_ops.shutdown  = kvm_shutdown;
+ #ifdef CONFIG_KEXEC
+ 		machine_ops.crash_shutdown  = kvm_crash_shutdown;
 -- 
 1.6.5
 
