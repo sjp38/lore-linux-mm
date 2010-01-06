@@ -1,84 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 69C2D6B006A
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 22:27:46 -0500 (EST)
-Date: Tue, 5 Jan 2010 19:27:07 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LFD.2.00.1001051917000.3630@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com> <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com> <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain> <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com> <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
- <20100106092212.c8766aa8.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001051718100.3630@localhost.localdomain> <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DC1966B003D
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 22:49:43 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp06.in.ibm.com (8.14.3/8.13.1) with ESMTP id o063ncdO002900
+	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 09:19:38 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o063ncOB3731628
+	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 09:19:38 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o063nb0F010798
+	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 14:49:38 +1100
+Date: Wed, 6 Jan 2010 09:19:34 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mm] Shared Page accounting for memory cgroup (v2)
+Message-ID: <20100106034934.GK3059@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100105185226.GG3059@balbir.in.ibm.com>
+ <20100106090708.f3ec9fd8.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100106030752.GI3059@balbir.in.ibm.com>
+ <20100106121836.40f3b3c0.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100106121836.40f3b3c0.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-06 12:18:36]:
 
+> On Wed, 6 Jan 2010 08:37:52 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-06 09:07:08]:
+> > 
+> > > On Wed, 6 Jan 2010 00:22:26 +0530
+> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > 
+> > > > Hi, All,
+> > > > 
+> > > > No major changes from v1, except for the use of get_mm_rss().
+> > > > Kamezawa-San felt that this can be done in user space and I responded
+> > > > to him with my concerns of doing it in user space. The thread
+> > > > can be found at http://thread.gmane.org/gmane.linux.kernel.mm/42367.
+> > > > 
+> > > > If there are no major objections, can I ask for a merge into -mm.
+> > > > Andrew, the patches are against mmotm 10 December 2009, if there
+> > > > are some merge conflicts, please let me know, I can rebase after
+> > > > you release the next mmotm.
+> > > > 
+> > > 
+> > > The problem is that this isn't "shared" uasge but "considered to be shared"
+> > > usage. Okay ?
+> > >
+> > 
+> > Could you give me your definition of "shared". From the mem cgroup
+> > perspective, total_rss (which is accumulated) subtracted from the
+> > count of pages in the LRU which are RSS and FILE_MAPPED is shared, no?
+> 
+> You consider only "mapped" pages are shared page. That's wrong.
+> And let's think about your "total_rss - RSS+MAPPED"
+> 
+> In this typical case,
+> 	fork()  ---- process(A)
+> 	-> fork() --- process(B)
+> 	  -> process(C)
+> 
+> total_rss = rss(A) + rss(B) + rss(C) = 3 * rss(A)
+> Then, 
+> 
+> total_rss - RSS_MAPPED = 2 * rss(A).
+> 
+> How we call this number ? Is this "shared usage" ? I think no.
 
-On Wed, 6 Jan 2010, KAMEZAWA Hiroyuki wrote:
+Why not? The pages in LRU is rss(A) and the total usage is 3*rss(A),
+shared does not imply shared outside the cgroup. Why do you say it is
+not shared?
+
+> If you want to do this, scan LRU and count the number of really shared pages.
+
+A page walk for large number of cases is expensive for a large memory
+cgroup.
+
+> It's much better than detecting "shared pages" via process and will have no
+> big issue if implemented in proper way.
+> 
+
+A walk is not cheap, specifically since the list is protected by zone
+lru lock and there are now 5 lists.
+
+> > I understand that some of the pages that might be shared, show up
+> > in our LRU and accounting. These are not treated as shared by
+> > our cgroup, but by other cgroups.
+> >  
+> > > Then I don't want to provide this misleading value as "official report" from
+> > > the kernel. And this can be done in userland.
+> > >
+> > 
+> > I explained some of the issues of doing this from user space, would
+> > you be OK if I called them "non-private" pages?
+> > 
+> 
+> I think I explained there is no issue to do this in user-land.
 >
-> My host boots successfully. Here is the result.
 
-Hey, looks good. It does have that 3% trylock overhead:
+You did not respond back to the last message of (I thought I convinced
+you) http://thread.gmane.org/gmane.linux.kernel.mm/42367 
 
-      3.17%  multi-fault-all  [kernel]                  [k] down_read_trylock
-
-but that doesn't seem excessive.
-
-Of course, your other load with MADV_DONTNEED seems to be horrible, and 
-has some nasty spinlock issues, but that looks like a separate deal (I 
-assume that load is just very hard on the pgtable lock).
-
-That said, profiles are hard to compare performance with - the main thing 
-that matters for performance is not how the profile looks, but how it 
-actually performs. So:
-
-> Then, the result is much improved by XADD rwsem.
-> 
-> In above profile, rwsem is still there.
-> But page-fault/sec is good. I hope some "big" machine users join to the test.
-
-That "page-fault/sec" number is ultimately the only thing that matters. 
-
-> Here is peformance counter result of DONTNEED test. Counting the number of page
-> faults in 60 sec. So, bigger number of page fault is better.
-> 
-> [XADD rwsem]
-> [root@bluextal memory]#  /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-all 8
-> 
->  Performance counter stats for './multi-fault-all 8' (5 runs):
-> 
->        41950863  page-faults                ( +-   1.355% )
->       502983592  cache-misses               ( +-   0.628% )
-> 
->    60.002682206  seconds time elapsed   ( +-   0.000% )
-> 
-> [my patch]
-> [root@bluextal memory]#  /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-all 8
-> 
->  Performance counter stats for './multi-fault-all 8' (5 runs):
-> 
->        35835485  page-faults                ( +-   0.257% )
->       511445661  cache-misses               ( +-   0.770% )
-> 
->    60.004243198  seconds time elapsed   ( +-   0.002% )
-> 
-> Ah....xadd-rwsem seems to be faster than my patch ;)
-
-Hey, that sounds great. NOTE! My patch really could be improved. In 
-particular, I suspect that on x86-64, we should take advantage of the 
-64-bit counter, and use a different RW_BIAS. That way we're not limited to 
-32k readers, which _could_ otherwise be a problem.
-
-So consider my rwsem patch to be purely preliminary. Now that you've 
-tested it, I feel a lot better about it being basically correct, but it 
-has room for improvement.
-
-				Linus
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
