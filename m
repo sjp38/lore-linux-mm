@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4BF5C6B0047
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 02:15:25 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o067FMJR021826
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 6 Jan 2010 16:15:22 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 302EA45DE51
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 16:15:22 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DA6D45DE4F
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 16:15:22 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E15901DB8040
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 16:15:21 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 95FBA1DB8037
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 16:15:21 +0900 (JST)
-Date: Wed, 6 Jan 2010 16:12:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] Shared page accounting for memory cgroup
-Message-Id: <20100106161211.5a7b600f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100106070150.GL3059@balbir.in.ibm.com>
-References: <20091229182743.GB12533@balbir.in.ibm.com>
-	<20100104085108.eaa9c867.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100104000752.GC16187@balbir.in.ibm.com>
-	<20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100104005030.GG16187@balbir.in.ibm.com>
-	<20100106130258.a918e047.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100106070150.GL3059@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 90A966B0047
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 02:25:26 -0500 (EST)
+Message-ID: <4B443AE3.2080800@linux.intel.com>
+Date: Wed, 06 Jan 2010 15:25:23 +0800
+From: Haicheng Li <haicheng.li@linux.intel.com>
+MIME-Version: 1.0
+Subject: [PATCH v3] slab: initialize unused alien cache entry as NULL at alloc_alien_cache().
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org
+Cc: Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Jan 2010 12:31:50 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > No. If it takes long time, locking fork()/exit() for such long time is the bigger
-> > issue.
-> > I recommend you to add memacct subsystem to sum up RSS of all processes's RSS counting
-> > under a cgroup.  Althoght it may add huge costs in page fault path but implementation
-> > will be very simple and will not hurt realtime ops.
-> > There will be no terrible race, I guess.
-> >
-> 
-> But others hold that lock as well, simple thing like listing tasks and
-> moving tasks, etc. I expect the usage of shared to be in the same
-> range.
-> 
+Comparing with existing code, it's a simpler way to use kzalloc_node()
+to ensure that each unused alien cache entry is NULL.
 
-And piles up costs ? I think cgroup guys should pay attention to fork/exit
-costs more. Now, it gets slower and slower.
-In that point, I never like migrate-at-task-move work in cpuset and memcg.
+CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: Eric Dumazet <eric.dumazet@gmail.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
+Acked-by: Christoph Lameter <cl@linux-foundation.org>
+Reviewed-by: Matt Mackall <mpm@selenic.com>
+Signed-off-by: Haicheng Li <haicheng.li@linux.intel.com>
+---
+  mm/slab.c |    6 ++----
+  1 files changed, 2 insertions(+), 4 deletions(-)
 
-My 1st objection to this patch is this "shared" doesn't mean "shared between
-cgroup" but means "shared between processes".
-I think it's of no use and no help to users.
+diff --git a/mm/slab.c b/mm/slab.c
+index 7dfa481..5d1a782 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -971,13 +971,11 @@ static struct array_cache **alloc_alien_cache(int node, int limit, gfp_t gfp)
 
-And implementation is 2nd thing.
+  	if (limit > 1)
+  		limit = 12;
+-	ac_ptr = kmalloc_node(memsize, gfp, node);
++	ac_ptr = kzalloc_node(memsize, gfp, node);
+  	if (ac_ptr) {
+  		for_each_node(i) {
+-			if (i == node || !node_online(i)) {
+-				ac_ptr[i] = NULL;
++			if (i == node || !node_online(i))
+  				continue;
+-			}
+  			ac_ptr[i] = alloc_arraycache(node, limit, 0xbaadf00d, gfp);
+  			if (!ac_ptr[i]) {
+  				for (i--; i >= 0; i--)
+-- 
+1.5.3.8
 
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
