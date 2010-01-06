@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A97A76B0078
+	by kanga.kvack.org (Postfix) with ESMTP id EE2606B007D
 	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 11:26:17 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 7/7] Do not compact within a preferred zone after a compaction failure
-Date: Wed,  6 Jan 2010 16:26:09 +0000
-Message-Id: <1262795169-9095-8-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 5/7] Add /proc trigger for memory compaction
+Date: Wed,  6 Jan 2010 16:26:07 +0000
+Message-Id: <1262795169-9095-6-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1262795169-9095-1-git-send-email-mel@csn.ul.ie>
 References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,76 +13,140 @@ To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The fragmentation index may indicate that a failure it due to external
-fragmentation, a compaction run complete and an allocation failure still
-fail. There are two obvious reasons as to why
+This patch adds a proc file /proc/sys/vm/compact_node. When a NID is written
+to the file, each zone in that node is compacted. This should be done with
+debugfs but this was what was available to rebase quickly and I suspect
+debugfs either did not exist or was in development during the first
+implementation.
 
-  o Page migration cannot move all pages so fragmentation remains
-  o A suitable page may exist but watermarks are not met
-
-In the event of compaction and allocation failure, this patch prevents
-compaction happening for a short interval. It's only recorded on the
-preferred zone but that should be enough coverage. This could have been
-implemented similar to the zonelist_cache but the increased size of the
-zonelist did not appear to be justified.
+If this interface is to exist in the long term, it needs to be thought
+about carefully. For the moment, it's handy to have to test compaction
+under a controlled setting.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- include/linux/mmzone.h |    7 +++++++
- mm/page_alloc.c        |   15 ++++++++++++++-
- 2 files changed, 21 insertions(+), 1 deletions(-)
+ include/linux/compaction.h |    5 ++++
+ kernel/sysctl.c            |   11 +++++++++
+ mm/compaction.c            |   52 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 30fe668..1d6ccbe 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -328,6 +328,13 @@ struct zone {
- 	unsigned long		*pageblock_flags;
- #endif /* CONFIG_SPARSEMEM */
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 6201371..5965ef2 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -5,4 +5,9 @@
+ #define COMPACT_INCOMPLETE	0
+ #define COMPACT_COMPLETE	1
  
 +#ifdef CONFIG_MIGRATION
-+	/*
-+	 * If a compaction fails, do not try compaction again until
-+	 * jiffies is after the value of compact_resume
-+	 */
-+	unsigned long		compact_resume;
-+#endif
- 
- 	ZONE_PADDING(_pad1_)
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7275afb..9c86606 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1729,7 +1729,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	cond_resched();
- 
- 	/* Try memory compaction for high-order allocations before reclaim */
--	if (order) {
-+	if (order && time_after(jiffies, preferred_zone->compact_resume)) {
- 		*did_some_progress = try_to_compact_pages(zonelist,
- 						order, gfp_mask, nodemask);
- 		if (*did_some_progress != COMPACT_INCOMPLETE) {
-@@ -1748,6 +1748,19 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 			 * but not enough to satisfy watermarks.
- 			 */
- 			count_vm_event(COMPACTFAIL);
++extern int sysctl_compaction_handler(struct ctl_table *table, int write,
++			void __user *buffer, size_t *length, loff_t *ppos);
++#endif /* CONFIG_MIGRATION */
 +
-+			/*
-+			 * On failure, avoid compaction for a short time.
-+			 * XXX: This is very unsatisfactory. The failure
-+			 * 	to compact has nothing to do with time
-+			 * 	and everything to do with the requested
-+			 * 	order, the number of free pages and
-+			 * 	watermarks. How to wait on that is more
-+			 * 	unclear, but the answer would apply to
-+			 * 	other areas where the VM waits based on
-+			 * 	time.
-+			 */
-+			preferred_zone->compact_resume = jiffies + HZ/50;
- 		}
- 	}
+ #endif /* _LINUX_COMPACTION_H */
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 8a68b24..6202e95 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -50,6 +50,7 @@
+ #include <linux/ftrace.h>
+ #include <linux/slow-work.h>
+ #include <linux/perf_event.h>
++#include <linux/compaction.h>
  
+ #include <asm/uaccess.h>
+ #include <asm/processor.h>
+@@ -80,6 +81,7 @@ extern int pid_max;
+ extern int min_free_kbytes;
+ extern int pid_max_min, pid_max_max;
+ extern int sysctl_drop_caches;
++extern int sysctl_compact_node;
+ extern int percpu_pagelist_fraction;
+ extern int compat_log;
+ extern int latencytop_enabled;
+@@ -1109,6 +1111,15 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= drop_caches_sysctl_handler,
+ 	},
++#ifdef CONFIG_MIGRATION
++	{
++		.procname	= "compact_node",
++		.data		= &sysctl_compact_node,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= sysctl_compaction_handler,
++	},
++#endif /* CONFIG_MIGRATION */
+ 	{
+ 		.procname	= "min_free_kbytes",
+ 		.data		= &min_free_kbytes,
+diff --git a/mm/compaction.c b/mm/compaction.c
+index d36760a..a8bcae2 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -11,6 +11,7 @@
+ #include <linux/migrate.h>
+ #include <linux/compaction.h>
+ #include <linux/mm_inline.h>
++#include <linux/sysctl.h>
+ #include "internal.h"
+ 
+ /*
+@@ -338,3 +339,54 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 	return ret;
+ }
+ 
++/* Compact all zones within a node */
++int compact_node(int nid)
++{
++	int zoneid;
++	pg_data_t *pgdat;
++	struct zone *zone;
++
++	if (nid < 0 || nid > nr_node_ids || !node_online(nid))
++		return -EINVAL;
++	pgdat = NODE_DATA(nid);
++
++	/* Flush pending updates to the LRU lists */
++	lru_add_drain_all();
++
++	printk(KERN_INFO "Compacting memory in node %d\n", nid);
++	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
++		struct compact_control cc;
++
++		zone = &pgdat->node_zones[zoneid];
++		if (!populated_zone(zone))
++			continue;
++
++		cc.nr_freepages = 0;
++		cc.nr_migratepages = 0;
++		cc.zone = zone;
++		INIT_LIST_HEAD(&cc.freepages);
++		INIT_LIST_HEAD(&cc.migratepages);
++
++		compact_zone(zone, &cc);
++
++		VM_BUG_ON(!list_empty(&cc.freepages));
++		VM_BUG_ON(!list_empty(&cc.migratepages));
++	}
++	printk(KERN_INFO "Compaction of node %d complete\n", nid);
++
++	return 0;
++}
++
++/* This is global and fierce ugly but it's straight-forward */
++int sysctl_compact_node;
++
++/* This is the entry point for compacting nodes via /proc/sys/vm */
++int sysctl_compaction_handler(struct ctl_table *table, int write,
++			void __user *buffer, size_t *length, loff_t *ppos)
++{
++	proc_dointvec(table, write, buffer, length, ppos);
++	if (write)
++		return compact_node(sysctl_compact_node);
++
++	return 0;
++}
 -- 
 1.6.5
 
