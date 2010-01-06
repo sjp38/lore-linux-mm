@@ -1,70 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AF0696B003D
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 22:08:00 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp08.in.ibm.com (8.14.3/8.13.1) with ESMTP id o062b2nb008221
-	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 08:07:02 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o0637tNq3821622
-	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 08:37:55 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o0637twb026775
-	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 14:07:55 +1100
-Date: Wed, 6 Jan 2010 08:37:52 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH -mm] Shared Page accounting for memory cgroup (v2)
-Message-ID: <20100106030752.GI3059@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100105185226.GG3059@balbir.in.ibm.com>
- <20100106090708.f3ec9fd8.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100106090708.f3ec9fd8.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B1296B0047
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 22:20:26 -0500 (EST)
+Date: Tue, 5 Jan 2010 19:22:43 -0800
+From: Arjan van de Ven <arjan@infradead.org>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+Message-ID: <20100105192243.1d6b2213@infradead.org>
+In-Reply-To: <alpine.DEB.2.00.1001050916300.1074@router.home>
+References: <20100104182429.833180340@chello.nl>
+	<20100104182813.753545361@chello.nl>
+	<20100105054536.44bf8002@infradead.org>
+	<alpine.DEB.2.00.1001050916300.1074@router.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-06 09:07:08]:
+On Tue, 5 Jan 2010 09:17:11 -0600 (CST)
+Christoph Lameter <cl@linux-foundation.org> wrote:
 
-> On Wed, 6 Jan 2010 00:22:26 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> On Tue, 5 Jan 2010, Arjan van de Ven wrote:
 > 
-> > Hi, All,
-> > 
-> > No major changes from v1, except for the use of get_mm_rss().
-> > Kamezawa-San felt that this can be done in user space and I responded
-> > to him with my concerns of doing it in user space. The thread
-> > can be found at http://thread.gmane.org/gmane.linux.kernel.mm/42367.
-> > 
-> > If there are no major objections, can I ask for a merge into -mm.
-> > Andrew, the patches are against mmotm 10 December 2009, if there
-> > are some merge conflicts, please let me know, I can rebase after
-> > you release the next mmotm.
-> > 
+> > while I appreciate the goal of reducing contention on this lock...
+> > wouldn't step one be to remove the page zeroing from under this
+> > lock? that's by far (easily by 10x I would guess) the most
+> > expensive thing that's done under the lock, and I would expect a
+> > first order of contention reduction just by having the zeroing of a
+> > page not done under the lock...
 > 
-> The problem is that this isn't "shared" uasge but "considered to be shared"
-> usage. Okay ?
->
+> The main issue is cacheline bouncing. mmap sem is a rw semaphore and
+> only held for read during a fault.
 
-Could you give me your definition of "shared". From the mem cgroup
-perspective, total_rss (which is accumulated) subtracted from the
-count of pages in the LRU which are RSS and FILE_MAPPED is shared, no?
-I understand that some of the pages that might be shared, show up
-in our LRU and accounting. These are not treated as shared by
-our cgroup, but by other cgroups.
- 
-> Then I don't want to provide this misleading value as "official report" from
-> the kernel. And this can be done in userland.
->
+depends on the workload; on a many-threads-java workload, you also get
+it for write quite a bit (lots of malloc/frees in userspace in addition
+to pagefaults).. at which point you do end up serializing on the
+zeroing.
 
-I explained some of the issues of doing this from user space, would
-you be OK if I called them "non-private" pages?
+There's some real life real big workloads that show this pretty badly;
+so far the workaround is to have glibc batch up a lot of the free()s..
+but that's just pushing it a little further out.
+
+> 
+
 
 -- 
-	Balbir
+Arjan van de Ven 	Intel Open Source Technology Centre
+For development, discussion and tips for power savings, 
+visit http://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
