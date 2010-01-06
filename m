@@ -1,178 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 645D16B003D
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 10:25:00 -0500 (EST)
-From: Jiri Slaby <jslaby@suse.cz>
-Subject: [PATCH] MM: use helpers for rlimits
-Date: Wed,  6 Jan 2010 16:24:36 +0100
-Message-Id: <1262791479-26594-8-git-send-email-jslaby@suse.cz>
-In-Reply-To: <1262791479-26594-1-git-send-email-jslaby@suse.cz>
-References: <1262791479-26594-1-git-send-email-jslaby@suse.cz>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 843AE6B003D
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 10:42:19 -0500 (EST)
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <alpine.LFD.2.00.1001050802401.3630@localhost.localdomain>
+References: <20100104182429.833180340@chello.nl>
+	 <20100104182813.753545361@chello.nl>
+	 <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
+	 <alpine.LFD.2.00.1001041904250.3630@localhost.localdomain>
+	 <1262681834.2400.31.camel@laptop>
+	 <alpine.LFD.2.00.1001050727400.3630@localhost.localdomain>
+	 <20100105154047.GA18217@ZenIV.linux.org.uk>
+	 <alpine.LFD.2.00.1001050802401.3630@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 06 Jan 2010 16:41:26 +0100
+Message-ID: <1262792486.4049.31.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: jirislaby@gmail.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Make sure compiler won't do weird things with limits. E.g. fetching
-them twice may return 2 different values after writable limits are
-implemented.
+On Tue, 2010-01-05 at 08:10 -0800, Linus Torvalds wrote:
 
-I.e. either use rlimit helpers added in
-3e10e716abf3c71bdb5d86b8f507f9e72236c9cd
-or ACCESS_ONCE if not applicable.
+> You _can_ handle it (make the RCU callback just schedule the work instead 
+> of doing it directly), but it does sound really nasty. I suspect we should 
+> explore just about any other approach over this one. 
 
-Signed-off-by: Jiri Slaby <jslaby@suse.cz>
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Agreed, scheduling work also has the bonus that sync rcu doesn't quite
+do what you expect it to etc..
+
+Anyway, the best I could come up with is something like the below, I
+tried to come up with something that would iterate mm->cpu_vm_mask, but
+since faults can schedule that doesn't work out.
+
+Iterating the full thread group seems like a mighty expensive thing to
+do in light of these massive thread freaks like Java and Google.
+
+Will ponder things more...
+
 ---
- mm/filemap.c |    2 +-
- mm/mlock.c   |   12 ++++++------
- mm/mmap.c    |   13 +++++++------
- mm/mremap.c  |    2 +-
- 4 files changed, 15 insertions(+), 14 deletions(-)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 96ac6b0..4450b75 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1950,7 +1950,7 @@ EXPORT_SYMBOL(iov_iter_single_seg_count);
- inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, int isblk)
- {
- 	struct inode *inode = file->f_mapping->host;
--	unsigned long limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
-+	unsigned long limit = rlimit(RLIMIT_FSIZE);
+Index: linux-2.6/include/linux/sched.h
+===================================================================
+--- linux-2.6.orig/include/linux/sched.h
++++ linux-2.6/include/linux/sched.h
+@@ -1277,6 +1277,7 @@ struct task_struct {
+ 	struct plist_node pushable_tasks;
  
-         if (unlikely(*pos < 0))
-                 return -EINVAL;
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 2b8335a..8f4e2df 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -25,7 +25,7 @@ int can_do_mlock(void)
- {
- 	if (capable(CAP_IPC_LOCK))
- 		return 1;
--	if (current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur != 0)
-+	if (rlimit(RLIMIT_MEMLOCK) != 0)
- 		return 1;
- 	return 0;
+ 	struct mm_struct *mm, *active_mm;
++	struct vm_area_struct *fault_vma;
+ 
+ /* task state */
+ 	int exit_state;
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -3157,6 +3157,7 @@ int handle_speculative_fault(struct mm_s
+ 		goto out_unmap;
+ 
+ 	entry = *pte;
++	rcu_assign_pointer(current->fault_vma, vma);
+ 
+ 	if (read_seqcount_retry(&vma->vm_sequence, seq))
+ 		goto out_unmap;
+@@ -3167,6 +3168,7 @@ int handle_speculative_fault(struct mm_s
+ 	ret = handle_pte_fault(mm, vma, address, entry, pmd, flags, seq);
+ 
+ out_unlock:
++	rcu_assign_pointer(current->fault_vma, NULL);
+ 	rcu_read_unlock();
+ 	return ret;
+ 
+Index: linux-2.6/mm/mmap.c
+===================================================================
+--- linux-2.6.orig/mm/mmap.c
++++ linux-2.6/mm/mmap.c
+@@ -235,6 +235,27 @@ static void free_vma(struct vm_area_stru
+ 	call_rcu(&vma->vm_rcu_head, free_vma_rcu);
  }
-@@ -487,7 +487,7 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
- 	locked = len >> PAGE_SHIFT;
- 	locked += current->mm->locked_vm;
  
--	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+	lock_limit = rlimit(RLIMIT_MEMLOCK);
- 	lock_limit >>= PAGE_SHIFT;
++static void sync_vma(struct vm_area_struct *vma)
++{
++	struct task_struct *t;
++	int block = 0;
++
++	if (!vma->vm_file)
++		return;
++
++	rcu_read_lock();
++	for (t = current; (t = next_thread(t)) != current; ) {
++		if (rcu_dereference(t->fault_vma) == vma) {
++			block = 1;
++			break;
++		}
++	}
++	rcu_read_unlock();
++
++	if (block)
++		synchronize_rcu();
++}
++
+ /*
+  * Close a vm structure and free it, returning the next.
+  */
+@@ -243,6 +264,7 @@ static struct vm_area_struct *remove_vma
+ 	struct vm_area_struct *next = vma->vm_next;
  
- 	/* check against resource limits */
-@@ -550,7 +550,7 @@ SYSCALL_DEFINE1(mlockall, int, flags)
- 
- 	down_write(&current->mm->mmap_sem);
- 
--	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+	lock_limit = rlimit(RLIMIT_MEMLOCK);
- 	lock_limit >>= PAGE_SHIFT;
- 
- 	ret = -ENOMEM;
-@@ -584,7 +584,7 @@ int user_shm_lock(size_t size, struct user_struct *user)
- 	int allowed = 0;
- 
- 	locked = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
--	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+	lock_limit = rlimit(RLIMIT_MEMLOCK);
- 	if (lock_limit == RLIM_INFINITY)
- 		allowed = 1;
- 	lock_limit >>= PAGE_SHIFT;
-@@ -618,12 +618,12 @@ int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
- 
- 	down_write(&mm->mmap_sem);
- 
--	lim = rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-+	lim = ACCESS_ONCE(rlim[RLIMIT_AS].rlim_cur) >> PAGE_SHIFT;
- 	vm   = mm->total_vm + pgsz;
- 	if (lim < vm)
- 		goto out;
- 
--	lim = rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-+	lim = ACCESS_ONCE(rlim[RLIMIT_MEMLOCK].rlim_cur) >> PAGE_SHIFT;
- 	vm   = mm->locked_vm + pgsz;
- 	if (lim < vm)
- 		goto out;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index ee22989..7805ac5 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -265,7 +265,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
- 	 * segment grow beyond its set limit the in case where the limit is
- 	 * not page aligned -Ram Gupta
- 	 */
--	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
-+	rlim = rlimit(RLIMIT_DATA);
- 	if (rlim < RLIM_INFINITY && (brk - mm->start_brk) +
- 			(mm->end_data - mm->start_data) > rlim)
- 		goto out;
-@@ -967,7 +967,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 		unsigned long locked, lock_limit;
- 		locked = len >> PAGE_SHIFT;
- 		locked += mm->locked_vm;
--		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+		lock_limit = rlimit(RLIMIT_MEMLOCK);
- 		lock_limit >>= PAGE_SHIFT;
- 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
- 			return -EAGAIN;
-@@ -1599,7 +1599,7 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
- 		return -ENOMEM;
- 
- 	/* Stack limit test */
--	if (size > rlim[RLIMIT_STACK].rlim_cur)
-+	if (size > ACCESS_ONCE(rlim[RLIMIT_STACK].rlim_cur))
- 		return -ENOMEM;
- 
- 	/* mlock limit tests */
-@@ -1607,7 +1607,8 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
- 		unsigned long locked;
- 		unsigned long limit;
- 		locked = mm->locked_vm + grow;
--		limit = rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-+		limit = ACCESS_ONCE(rlim[RLIMIT_MEMLOCK].rlim_cur);
-+		limit >>= PAGE_SHIFT;
- 		if (locked > limit && !capable(CAP_IPC_LOCK))
- 			return -ENOMEM;
- 	}
-@@ -2074,7 +2075,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
- 		unsigned long locked, lock_limit;
- 		locked = len >> PAGE_SHIFT;
- 		locked += mm->locked_vm;
--		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+		lock_limit = rlimit(RLIMIT_MEMLOCK);
- 		lock_limit >>= PAGE_SHIFT;
- 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
- 			return -EAGAIN;
-@@ -2288,7 +2289,7 @@ int may_expand_vm(struct mm_struct *mm, unsigned long npages)
- 	unsigned long cur = mm->total_vm;	/* pages */
- 	unsigned long lim;
- 
--	lim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-+	lim = rlimit(RLIMIT_AS) >> PAGE_SHIFT;
- 
- 	if (cur + npages > lim)
- 		return 0;
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 8451908..4c4c803 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -285,7 +285,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
- 	if (vma->vm_flags & VM_LOCKED) {
- 		unsigned long locked, lock_limit;
- 		locked = mm->locked_vm << PAGE_SHIFT;
--		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-+		lock_limit = rlimit(RLIMIT_MEMLOCK);
- 		locked += new_len - old_len;
- 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
- 			goto Eagain;
--- 
-1.6.5.7
+ 	might_sleep();
++	sync_vma(vma);
+ 	if (vma->vm_ops && vma->vm_ops->close)
+ 		vma->vm_ops->close(vma);
+ 	if (vma->vm_file) {
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
