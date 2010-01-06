@@ -1,180 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6D1046B0108
-	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 19:10:24 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o060ALMb008676
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 121486B010A
+	for <linux-mm@kvack.org>; Tue,  5 Jan 2010 19:25:32 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o060PUR6030873
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 6 Jan 2010 09:10:21 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 14EC945DE55
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 09:10:21 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D512045DE4F
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 09:10:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8519C1DB8040
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 09:10:20 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C1BCE18001
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 09:10:20 +0900 (JST)
-Date: Wed, 6 Jan 2010 09:07:08 +0900
+	Wed, 6 Jan 2010 09:25:30 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0128445DE52
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 09:25:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C814E45DE50
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 09:25:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AA1AA1DB803F
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 09:25:29 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C4A21DB8038
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 09:25:29 +0900 (JST)
+Date: Wed, 6 Jan 2010 09:22:12 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mm] Shared Page accounting for memory cgroup (v2)
-Message-Id: <20100106090708.f3ec9fd8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100105185226.GG3059@balbir.in.ibm.com>
-References: <20100105185226.GG3059@balbir.in.ibm.com>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+Message-Id: <20100106092212.c8766aa8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
+References: <20100104182429.833180340@chello.nl>
+	<20100104182813.753545361@chello.nl>
+	<20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
+	<28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
+	<20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>
+	<20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Jan 2010 00:22:26 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tue, 5 Jan 2010 07:26:31 -0800 (PST)
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-> Hi, All,
 > 
-> No major changes from v1, except for the use of get_mm_rss().
-> Kamezawa-San felt that this can be done in user space and I responded
-> to him with my concerns of doing it in user space. The thread
-> can be found at http://thread.gmane.org/gmane.linux.kernel.mm/42367.
 > 
-> If there are no major objections, can I ask for a merge into -mm.
-> Andrew, the patches are against mmotm 10 December 2009, if there
-> are some merge conflicts, please let me know, I can rebase after
-> you release the next mmotm.
+> On Tue, 5 Jan 2010, KAMEZAWA Hiroyuki wrote:
+> > #
+> > # Overhead          Command             Shared Object  Symbol
+> > # ........  ...............  ........................  ......
+> > #
+> >     43.23%  multi-fault-all  [kernel]                  [k] smp_invalidate_interrupt
+> >     16.27%  multi-fault-all  [kernel]                  [k] flush_tlb_others_ipi
+> >     11.55%  multi-fault-all  [kernel]                  [k] _raw_spin_lock_irqsave    <========(*)
+> >      6.23%  multi-fault-all  [kernel]                  [k] intel_pmu_enable_all
+> >      2.17%  multi-fault-all  [kernel]                  [k] _raw_spin_unlock_irqrestore
 > 
+> Hmm.. The default rwsem implementation shouldn't have any spin-locks in 
+> the fast-path. And your profile doesn't seem to have any scheduler 
+> footprint, so I wonder what is going on.
+> 
+> Oh.
+> 
+> Lookie here:
+> 
+>  - arch/x86/Kconfig.cpu:
+> 
+> 	config X86_XADD
+> 		def_bool y
+> 		depends on X86_32 && !M386
+> 
+>  - arch/x86/Kconfig:
+> 
+> 	config RWSEM_GENERIC_SPINLOCK
+> 	        def_bool !X86_XADD
+> 
+> 	config RWSEM_XCHGADD_ALGORITHM
+> 	        def_bool X86_XADD   
+> 
+> it looks like X86_XADD only gets enabled on 32-bit builds. Which means 
+> that x86-64 in turn seems to end up always using the slower "generic 
+> spinlock" version.
+> 
+> Are you sure this isn't the reason why your profiles are horrible?
+> 
+I think this is the 1st reason but haven't rewrote rwsem itself and tested,
+sorry.
 
-The problem is that this isn't "shared" uasge but "considered to be shared"
-usage. Okay ?
+This is a profile in other test.
+==
+2.6.33-rc2's score of the same test program is here.
 
-Then I don't want to provide this misleading value as "official report" from
-the kernel. And this can be done in userland.
+    75.42%  multi-fault-all  [kernel]                  [k] _raw_spin_lock_irqsav
+            |
+            --- _raw_spin_lock_irqsave
+               |
+               |--49.13%-- __down_read_trylock
+               |          down_read_trylock
+               |          do_page_fault
+               |          page_fault
+               |          0x400950
+               |          |
+               |           --100.00%-- (nil)
+               |
+               |--46.92%-- __up_read
+               |          up_read
+               |          |
+               |          |--99.99%-- do_page_fault
+               |          |          page_fault
+               |          |          0x400950
+               |          |          (nil)
+               |           --0.01%-- [...]
+==
+yes, spinlock is from rwsem.
 
-Then, NACK.
+Why I tried "skipping rwsem" is because I like avoid locking rather than rewrite
+lock itself when I think of the influence of the patch....
+
 
 Thanks,
 -Kame
 
-> 
-> Add shared accounting to memcg
-> 
-> From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> 
-> Currently there is no accurate way of estimating how many pages are
-> shared in a memory cgroup. The accurate way of accounting shared memory
-> is to
-> 
-> 1. Either follow every page rmap and track number of users
-> 2. Iterate through the pages and use _mapcount
-> 
-> We take an intermediate approach (suggested by Kamezawa), we sum up
-> the file and anon rss of the mm's belonging to the cgroup and then
-> subtract the values of anon rss and file mapped. This should give
-> us a good estimate of the pages being shared.
-> 
-> The shared statistic is called memory.shared_usage_in_bytes and
-> does not support hierarchical information, just the information
-> for the current cgroup.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  Documentation/cgroups/memory.txt |    6 +++++
->  mm/memcontrol.c                  |   42 ++++++++++++++++++++++++++++++++++++++
->  2 files changed, 48 insertions(+), 0 deletions(-)
-> 
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index b871f25..c2c70c9 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -341,6 +341,12 @@ Note:
->    - a cgroup which uses hierarchy and it has child cgroup.
->    - a cgroup which uses hierarchy and not the root of hierarchy.
->  
-> +5.4 shared_usage_in_bytes
-> +  This data lists the number of shared bytes. The data provided
-> +  provides an approximation based on the anon and file rss counts
-> +  of all the mm's belonging to the cgroup. The sum above is subtracted
-> +  from the count of rss and file mapped count maintained within the
-> +  memory cgroup statistics (see section 5.2).
->  
->  6. Hierarchy support
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 488b644..e49b47a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3052,6 +3052,44 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
->  	return 0;
->  }
->  
-> +static u64 mem_cgroup_shared_read(struct cgroup *cgrp, struct cftype *cft)
-> +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> +	struct cgroup_iter it;
-> +	struct task_struct *tsk;
-> +	u64 total_rss = 0, shared;
-> +	struct mm_struct *mm;
-> +	s64 val;
-> +
-> +	cgroup_iter_start(cgrp, &it);
-> +	val = mem_cgroup_read_stat(&memcg->stat, MEM_CGROUP_STAT_RSS);
-> +	val += mem_cgroup_read_stat(&memcg->stat, MEM_CGROUP_STAT_FILE_MAPPED);
-> +	while ((tsk = cgroup_iter_next(cgrp, &it))) {
-> +		if (!thread_group_leader(tsk))
-> +			continue;
-> +		mm = tsk->mm;
-> +		/*
-> +		 * We can't use get_task_mm(), since mmput() its counterpart
-> +		 * can sleep. We know that mm can't become invalid since
-> +		 * we hold the css_set_lock (see cgroup_iter_start()).
-> +		 */
-> +		if (tsk->flags & PF_KTHREAD || !mm)
-> +			continue;
-> +		total_rss += get_mm_rss(mm);
-> +	}
-> +	cgroup_iter_end(cgrp, &it);
-> +
-> +	/*
-> +	 * We need to tolerate negative values due to the difference in
-> +	 * time of calculating total_rss and val, but the shared value
-> +	 * converges to the correct value quite soon depending on the changing
-> +	 * memory usage of the workload running in the memory cgroup.
-> +	 */
-> +	shared = total_rss - val;
-> +	shared = max_t(s64, 0, shared);
-> +	shared <<= PAGE_SHIFT;
-> +	return shared;
-> +}
->  
->  static struct cftype mem_cgroup_files[] = {
->  	{
-> @@ -3101,6 +3139,10 @@ static struct cftype mem_cgroup_files[] = {
->  		.read_u64 = mem_cgroup_swappiness_read,
->  		.write_u64 = mem_cgroup_swappiness_write,
->  	},
-> +	{
-> +		.name = "shared_usage_in_bytes",
-> +		.read_u64 = mem_cgroup_shared_read,
-> +	},
->  };
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-> 
-> -- 
-> 	Balbir
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
