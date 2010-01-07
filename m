@@ -1,105 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BEAEC6B006A
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 17:37:12 -0500 (EST)
-Date: Thu, 7 Jan 2010 14:36:51 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: + hugetlb-fix-section-mismatch-warning-in-hugetlbc.patch added
- to -mm tree
-Message-Id: <20100107143651.2fa73662.randy.dunlap@oracle.com>
-In-Reply-To: <201001072218.o07MIPNm020870@imap1.linux-foundation.org>
-References: <201001072218.o07MIPNm020870@imap1.linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 61B686B003D
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 18:50:45 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o07NogJw018183
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 8 Jan 2010 08:50:43 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B7A1245DE52
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 08:50:42 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 88B6B45DE4E
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 08:50:42 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B3ED1DB803C
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 08:50:42 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FF501DB8043
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 08:50:42 +0900 (JST)
+Date: Fri, 8 Jan 2010 08:47:27 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] Shared page accounting for memory cgroup
+Message-Id: <20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100107092736.GW3059@balbir.in.ibm.com>
+References: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100104005030.GG16187@balbir.in.ibm.com>
+	<20100106130258.a918e047.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100106070150.GL3059@balbir.in.ibm.com>
+	<20100106161211.5a7b600f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100107071554.GO3059@balbir.in.ibm.com>
+	<20100107163610.aaf831e6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100107083440.GS3059@balbir.in.ibm.com>
+	<20100107174814.ad6820db.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100107180800.7b85ed10.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100107092736.GW3059@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, rakib.mullick@gmail.com
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 07 Jan 2010 14:18:25 -0800 akpm@linux-foundation.org wrote:
+On Thu, 7 Jan 2010 14:57:36 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-07 18:08:00]:
 > 
-> The patch titled
->      hugetlb: fix section mismatch warning in hugetlb.c
-> has been added to the -mm tree.  Its filename is
->      hugetlb-fix-section-mismatch-warning-in-hugetlbc.patch
+> > On Thu, 7 Jan 2010 17:48:14 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > > > "How pages are shared" doesn't show good hints. I don't hear such parameter
+> > > > > is used in production's resource monitoring software.
+> > > > > 
+> > > > 
+> > > > You mean "How many pages are shared" are not good hints, please see my
+> > > > justification above. With Virtualization (look at KSM for example),
+> > > > shared pages are going to be increasingly important part of the
+> > > > accounting.
+> > > > 
+> > > 
+> > > Considering KSM, your cuounting style is tooo bad.
+> > > 
+> > > You should add 
+> > > 
+> > >  - MEM_CGROUP_STAT_SHARED_BY_KSM
+> > >  - MEM_CGROUP_STAT_FOR_TMPFS/SYSV_IPC_SHMEM
+> > > 
 > 
+> No.. I am just talking about shared memory being important and shared
+> accounting being useful, no counters for KSM in particular (in the
+> memcg context).
 > 
-> ------------------------------------------------------
-> Subject: hugetlb: fix section mismatch warning in hugetlb.c
-> From: Rakib Mullick <rakib.mullick@gmail.com>
-> 
-> Since hugetlb_sysfs_add_hstate()'s caller is __init and it isn't
-> referencing from any other function, we can do this.
+Think so ? The number of memcg-private pages is in interest in my point of view.
 
-Hi,
+Anyway, I don't change my opinion as "sum of rss" is not necessary to be calculated
+in the kernel.
+If you want to provide that in memcg, please add it to global VM as /proc/meminfo.
 
-I looked at this section mismatch warning too.
-Maybe I'm reading too much into it (so I have cc-ed linux-mm),
-but it looks like hugetlbfs supports callbacks for node
-hotplug & unplug:
+IIUC, KSM/SHMEM has some official method in global VM.
 
-in hugetlb_register_all_nodes():
-
-	/*
-	 * Let the node sysdev driver know we're here so it can
-	 * [un]register hstate attributes on node hotplug.
-	 */
-	register_hugetlbfs_with_node(hugetlb_register_node,
-				     hugetlb_unregister_node);
-
-If so, then hugetlb_register_node() could be called at any time
-(like after system init), and it would then call
-hugetlb_sysfs_add_hstate(), which would be bad.
-
-Am I misunderstanding the hotplug callbacks?
-or can you explain just a bit better, please?
-Thanks.
-
-
-> Signed-off-by: Rakib Mullick <rakib.mullick@gmail.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/hugetlb.c |    6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff -puN mm/hugetlb.c~hugetlb-fix-section-mismatch-warning-in-hugetlbc mm/hugetlb.c
-> --- a/mm/hugetlb.c~hugetlb-fix-section-mismatch-warning-in-hugetlbc
-> +++ a/mm/hugetlb.c
-> @@ -1650,7 +1650,7 @@ static void hugetlb_unregister_all_nodes
->   * Register hstate attributes for a single node sysdev.
->   * No-op if attributes already registered.
->   */
-> -void hugetlb_register_node(struct node *node)
-> +void __init hugetlb_register_node(struct node *node)
->  {
->  	struct hstate *h;
->  	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
-> @@ -1683,7 +1683,7 @@ void hugetlb_register_node(struct node *
->   * sysdevs of nodes that have memory.  All on-line nodes should have
->   * registered their associated sysdev by this time.
->   */
-> -static void hugetlb_register_all_nodes(void)
-> +static void __init hugetlb_register_all_nodes(void)
->  {
->  	int nid;
->  
-> @@ -1712,7 +1712,7 @@ static struct hstate *kobj_to_node_hstat
->  
->  static void hugetlb_unregister_all_nodes(void) { }
->  
-> -static void hugetlb_register_all_nodes(void) { }
-> +static void __init hugetlb_register_all_nodes(void) { }
->  
->  #endif
->  
-> _
-
-
----
-~Randy
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
