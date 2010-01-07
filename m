@@ -1,88 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2C0196B00A3
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 22:05:48 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0735jt4018403
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 7 Jan 2010 12:05:46 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A1F1445DD70
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 12:05:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7ADAD45DE4E
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 12:05:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C45B1DB803C
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 12:05:45 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 016051DB8043
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 12:05:45 +0900 (JST)
-Date: Thu, 7 Jan 2010 12:02:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: mmotm 2010-01-06-14-34 uploaded (mm/memcontrol)
-Message-Id: <20100107120233.f244d4b7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100107115901.594330d0.nishimura@mxp.nes.nec.co.jp>
-References: <201001062259.o06MxQrp023236@imap1.linux-foundation.org>
-	<20100106171058.f1d6f393.randy.dunlap@oracle.com>
-	<20100107111319.7d95fe86.nishimura@mxp.nes.nec.co.jp>
-	<20100107112150.2e585f1c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107115901.594330d0.nishimura@mxp.nes.nec.co.jp>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 21F156B00A5
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 22:15:45 -0500 (EST)
+Subject: Re: [RFC][PATCH] vmalloc: simplify vread()/vwrite()
+From: Huang Ying <ying.huang@intel.com>
+In-Reply-To: <20100107025054.GA11252@localhost>
+References: <20100107012458.GA9073@localhost>
+	 <20100107103825.239ffcf9.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100107025054.GA11252@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 07 Jan 2010 11:15:41 +0800
+Message-ID: <1262834141.17852.23.camel@yhuang-dev.sh.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Wu, Fengguang" <fengguang.wu@intel.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Jan 2010 11:59:01 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> Thank you for your fix.
-> 
-> On Thu, 7 Jan 2010 11:21:50 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Thu, 7 Jan 2010 11:13:19 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Thu, 2010-01-07 at 10:50 +0800, Wu, Fengguang wrote:
+> On Thu, Jan 07, 2010 at 09:38:25AM +0800, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 7 Jan 2010 09:24:59 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
 > > 
-> > > Thank you for your report.
-> >  
-> > > > config attached.
-> > > > 
-> > > I'm sorry I missed the !CONFIG_SWAP or !CONFIG_CGROUP_MEM_RES_CTLR_SWAP case.
+> > > vread()/vwrite() is only called from kcore/kmem to access one page at
+> > > a time.  So the logic can be vastly simplified.
 > > > 
-> > > I'll prepare fixes.
+> > I recommend you to rename the function because safety of function is
+> > changed and you can show what callers are influenced.
+> 
+> OK.
+>  
+> > > The changes are:
+> > > - remove the vmlist walk and rely solely on vmalloc_to_page()
+> > > - replace the VM_IOREMAP check with (page && page_is_ram(pfn))
 > > > 
-> > Nishimura-san, could you double check this ?
+> > > The VM_IOREMAP check is introduced in commit d0107eb07320b for per-cpu
+> > > alloc. Kame, would you double check if this change is OK for that
+> > > purpose?
+> > > 
+> > I think VM_IOREMAP is for avoiding access to device configuration area and
+> > unexpected breakage in device. Then, VM_IOREMAP are should be skipped by
+> > the caller. (My patch _just_ moves the avoidance of callers to vread()/vwrite())
+> 
+> "device configuration area" is not RAM, so testing of RAM would be
+> able to skip them?
+> 
 > > 
-> It seems that this cannot fix the !CONFIG_SWAP case in my environment.
+> > > The page_is_ram() check is necessary because kmap_atomic() is not
+> > > designed to work with non-RAM pages.
+> > > 
+> > I think page_is_ram() is not a complete method...on x86, it just check
+> > e820's memory range. checking VM_IOREMAP is better, I think.
 > 
-> > Andrew, this is a fix onto Nishimura-san's memcg move account patch series.
-> > Maybe this -> patches/memcg-move-charges-of-anonymous-swap.patch
-> > 
-> I think both memcg-move-charges-of-anonymous-swap.patch and
-> memcg-improve-performance-in-moving-swap-charge.patch need to be fixed.
+> (double check) Not complete or not safe?
 > 
-> > mm/memcontrol.c: In function 'is_target_pte_for_mc':
-> > mm/memcontrol.c:3985: error: implicit declaration of function 'mem_cgroup_count_swap_user'
-> This derives from a bug of memcg-move-charges-of-anonymous-swap.patch,
-> 
-> and
-> 
-> > mm/memcontrol.c: In function 'mem_cgroup_move_charge_pte_range':
-> > mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
-> > mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
-> > mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
-> this derives from that of memcg-improve-performance-in-moving-swap-charge.patch.
-> 
-> 
-> I'm now testing my patch in some configs, and will post later.
-> 
-Okay, plz.
+> EFI seems to not update e820 table by default.  Ying, do you know why?
 
-Thanks,
--Kame
+In EFI system, E820 table is constructed from EFI memory map in boot
+loader, so I think you can rely on E820 table.
 
+Best Regards,
+Huang Ying
 
 
 --
