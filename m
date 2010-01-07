@@ -1,44 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C3B0600580
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 13:00:35 -0500 (EST)
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.LFD.2.00.1001070937180.7821@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl>
-	 <20100104182813.753545361@chello.nl>
-	 <20100105054536.44bf8002@infradead.org>
-	 <alpine.DEB.2.00.1001050916300.1074@router.home>
-	 <20100105192243.1d6b2213@infradead.org>
-	 <alpine.DEB.2.00.1001071007210.901@router.home>
-	 <alpine.LFD.2.00.1001070814080.7821@localhost.localdomain>
-	 <1262884960.4049.106.camel@laptop>
-	 <alpine.LFD.2.00.1001070934060.7821@localhost.localdomain>
-	 <alpine.LFD.2.00.1001070937180.7821@localhost.localdomain>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 795CA600580
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 13:10:16 -0500 (EST)
+Subject: Re: [PATCH v3] slab: initialize unused alien cache entry as NULL
+ at alloc_alien_cache().
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <4B45CF8E.7000707@cs.helsinki.fi>
+References: <4B443AE3.2080800@linux.intel.com>
+	 <4B45CF8E.7000707@cs.helsinki.fi>
 Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 07 Jan 2010 19:00:07 +0100
-Message-ID: <1262887207.4049.127.camel@laptop>
+Date: Thu, 07 Jan 2010 12:10:11 -0600
+Message-ID: <1262887811.29868.241.camel@calx>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-01-07 at 09:49 -0800, Linus Torvalds wrote:
+On Thu, 2010-01-07 at 14:11 +0200, Pekka Enberg wrote:
+> Haicheng Li kirjoitti:
+> > Comparing with existing code, it's a simpler way to use kzalloc_node()
+> > to ensure that each unused alien cache entry is NULL.
+> > 
+> > CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> > CC: Eric Dumazet <eric.dumazet@gmail.com>
+> > ---
+> >  mm/slab.c |    6 ++----
+> >  1 files changed, 2 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index 7dfa481..5d1a782 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -971,13 +971,11 @@ static struct array_cache **alloc_alien_cache(int 
+> > node, int limit, gfp_t gfp)
+> > 
+> >      if (limit > 1)
+> >          limit = 12;
+> > -    ac_ptr = kmalloc_node(memsize, gfp, node);
+> > +    ac_ptr = kzalloc_node(memsize, gfp, node);
+> >      if (ac_ptr) {
+> >          for_each_node(i) {
+> > -            if (i == node || !node_online(i)) {
+> > -                ac_ptr[i] = NULL;
+> > +            if (i == node || !node_online(i))
+> >                  continue;
+> > -            }
+> >              ac_ptr[i] = alloc_arraycache(node, limit, 0xbaadf00d, gfp);
+> >              if (!ac_ptr[i]) {
+> >                  for (i--; i >= 0; i--)
 > 
-> The thing is, I can pretty much _guarantee_ that the speculative page 
-> fault is going to end up doing a lot of nasty stuff that still needs 
-> almost-global locking, and it's likely to be more complicated and slower 
-> for the single-threaded case (you end up needing refcounts, a new "local" 
-> lock or something).
+> Christoph? Matt?
 
-Well, with that sync_vma() thing I posted the other day all the
-speculative page fault needs is a write to current->fault_vma, the ptl
-and an O(nr_threads) loop on unmap() for file vmas -- aside from writing
-the pte itself of course.
+Looks like a fine cleanup.
 
+Acked-by: Matt Mackall <mpm@selenic.com>
 
+-- 
+http://selenic.com : development and support for Mercurial and Linux
 
 
 --
