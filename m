@@ -1,53 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B5D826B0082
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 18:21:02 -0500 (EST)
-Received: by qyk14 with SMTP id 14so7575433qyk.11
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2010 15:21:01 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DDFAA6B0085
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 20:01:32 -0500 (EST)
+Received: from spaceape24.eur.corp.google.com (spaceape24.eur.corp.google.com [172.28.16.76])
+	by smtp-out.google.com with ESMTP id o0711SE4014525
+	for <linux-mm@kvack.org>; Thu, 7 Jan 2010 01:01:28 GMT
+Received: from pwj10 (pwj10.prod.google.com [10.241.219.74])
+	by spaceape24.eur.corp.google.com with ESMTP id o0710ArS026016
+	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 17:01:27 -0800
+Received: by pwj10 with SMTP id 10so5173163pwj.26
+        for <linux-mm@kvack.org>; Wed, 06 Jan 2010 17:01:21 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1262795169-9095-3-git-send-email-mel@csn.ul.ie>
-References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie>
-	 <1262795169-9095-3-git-send-email-mel@csn.ul.ie>
-Date: Wed, 6 Jan 2010 15:21:01 -0800
-Message-ID: <eada2a071001061521t53dff44bkaf54dab058b1d01b@mail.gmail.com>
-Subject: Re: [PATCH 2/7] Export unusable free space index via
-	/proc/pagetypeinfo
-From: Tim Pepper <lnxninja@linux.vnet.ibm.com>
+In-Reply-To: <9411cbdd545e1232c916bfef03a60cf95510016d.1262186098.git.kirill@shutemov.name>
+References: <cover.1262186097.git.kirill@shutemov.name>
+	 <9411cbdd545e1232c916bfef03a60cf95510016d.1262186098.git.kirill@shutemov.name>
+Date: Wed, 6 Jan 2010 17:01:21 -0800
+Message-ID: <6599ad831001061701x72098dacn7a5d916418396e33@mail.gmail.com>
+Subject: Re: [PATCH v5 1/4] cgroup: implement eventfd-based generic API for
+	notifications
+From: Paul Menage <menage@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Alexander Shishkin <virtuoso@slind.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 6, 2010 at 8:26 AM, Mel Gorman <mel@csn.ul.ie> wrote:
->
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 6051fba..e1ea2d5 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -451,6 +451,104 @@ static int frag_show(struct seq_file *m, void *arg)
-> =A0 =A0 =A0 =A0return 0;
-> =A0}
->
+On Wed, Dec 30, 2009 at 7:57 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> This patch introduces write-only file "cgroup.event_control" in every
+> cgroup.
+
+This looks like a nice generic API for doing event notifications - thanks!
+
+Sorry I hadn't had a chance to review it before now, due to travelling
+and day-job pressures.
+
+
+> +}
 > +
-> +struct config_page_info {
-> + =A0 =A0 =A0 unsigned long free_pages;
-> + =A0 =A0 =A0 unsigned long free_blocks_total;
-> + =A0 =A0 =A0 unsigned long free_blocks_suitable;
-> +};
+> +static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int sync, void *key)
+
+Maybe some comments here indicating how/when it gets called? (And more
+comments for each function generally?)
+
+> + =A0 =A0 =A0 if (flags & POLLHUP) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&cgrp->event_list_lock);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&event->list);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&cgrp->event_list_lock);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 schedule_work(&event->remove);
+
+Comment saying why we can't do the remove immediately in this context?
+
 > +
-> +/*
-> + * Calculate the number of free pages in a zone, how many contiguous
-> + * pages are free and how many are large enough to satisfy an allocation=
- of
-> + * the target size. Note that this function makes to attempt to estimate
+> +fail:
+> + =A0 =A0 =A0 if (!IS_ERR(cfile))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 fput(cfile);
 
-s/makes to/makes no/    ?
+cfile is either valid or NULL - it never contains an error value.
 
+> +
+> + =A0 =A0 =A0 if (!IS_ERR(efile))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 fput(efile);
 
+While this is OK currently, it's a bit fragile. efile starts as NULL,
+and IS_ERR(NULL) is false. So if we jump to fail: before trying to do
+the eventfd_fget() then we'll try to fput(NULL), which will oops. This
+works because we don't currently jump to fail: until after
+eventfd_fget(), but someone could add an extra setup step between the
+kzalloc() and the eventfd_fget() which could fail.
 
-Tim
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
