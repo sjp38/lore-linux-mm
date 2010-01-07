@@ -1,98 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 059896B009E
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 22:00:57 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0730rEU016247
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 7 Jan 2010 12:00:53 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C2B045DE54
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 12:00:53 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F3B1645DE4F
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 12:00:52 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D3DA21DB8044
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 12:00:52 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DCB11DB8040
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 12:00:52 +0900 (JST)
-Date: Thu, 7 Jan 2010 11:57:36 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] vmalloc: simplify vread()/vwrite()
-Message-Id: <20100107115736.ee815579.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100107025054.GA11252@localhost>
-References: <20100107012458.GA9073@localhost>
-	<20100107103825.239ffcf9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107025054.GA11252@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F28226B00A1
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 22:03:18 -0500 (EST)
+Date: Thu, 7 Jan 2010 11:59:01 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: mmotm 2010-01-06-14-34 uploaded (mm/memcontrol)
+Message-Id: <20100107115901.594330d0.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100107112150.2e585f1c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <201001062259.o06MxQrp023236@imap1.linux-foundation.org>
+	<20100106171058.f1d6f393.randy.dunlap@oracle.com>
+	<20100107111319.7d95fe86.nishimura@mxp.nes.nec.co.jp>
+	<20100107112150.2e585f1c.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Huang, Ying" <ying.huang@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, Randy Dunlap <randy.dunlap@oracle.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Jan 2010 10:50:54 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
- 
-> > > The changes are:
-> > > - remove the vmlist walk and rely solely on vmalloc_to_page()
-> > > - replace the VM_IOREMAP check with (page && page_is_ram(pfn))
-> > > 
-> > > The VM_IOREMAP check is introduced in commit d0107eb07320b for per-cpu
-> > > alloc. Kame, would you double check if this change is OK for that
-> > > purpose?
-> > > 
-> > I think VM_IOREMAP is for avoiding access to device configuration area and
-> > unexpected breakage in device. Then, VM_IOREMAP are should be skipped by
-> > the caller. (My patch _just_ moves the avoidance of callers to vread()/vwrite())
-> 
-> "device configuration area" is not RAM, so testing of RAM would be
-> able to skip them?
->
-Sorry, that's an area what I'm not sure. 
-But, page_is_ram() implementation other than x86 seems not very safe...
-(And it seems that it's not defiend in some archs.)
+Thank you for your fix.
 
+On Thu, 7 Jan 2010 11:21:50 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 7 Jan 2010 11:13:19 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > Thank you for your report.
+>  
+> > > config attached.
+> > > 
+> > I'm sorry I missed the !CONFIG_SWAP or !CONFIG_CGROUP_MEM_RES_CTLR_SWAP case.
 > > 
-> > > The page_is_ram() check is necessary because kmap_atomic() is not
-> > > designed to work with non-RAM pages.
-> > > 
-> > I think page_is_ram() is not a complete method...on x86, it just check
-> > e820's memory range. checking VM_IOREMAP is better, I think.
-> 
-> (double check) Not complete or not safe?
-> 
-I think not-safe because e820 doesn't seem to be updated.
-
-> EFI seems to not update e820 table by default.  Ying, do you know why?
-> 
-
-I hope all this kinds can be fixed by kernel/resource.c in generic way....
-Now, each archs have its own.
-
-> > > Even for a RAM page, we don't own the page, and cannot assume it's a
-> > > _PAGE_CACHE_WB page. So I wonder whether it's necessary to do another
-> > > patch to call reserve_memtype() before kmap_atomic() to ensure cache
-> > > consistency?
-> > > 
-> > > TODO: update comments accordingly
-> > > 
+> > I'll prepare fixes.
 > > 
-> > BTW, f->f_pos problem on 64bit machine still exists and this patch is still
-> > hard to test. I stopped that because anyone doesn't show any interests.
+> Nishimura-san, could you double check this ?
 > 
-> I'm using your patch :)
+It seems that this cannot fix the !CONFIG_SWAP case in my environment.
+
+> Andrew, this is a fix onto Nishimura-san's memcg move account patch series.
+> Maybe this -> patches/memcg-move-charges-of-anonymous-swap.patch
 > 
-> I feel most inconfident on this patch, so submitted it for RFC first.
-> I'll then submit a full patch series including your f_pos fix.
-> 
-Thank you, it's helpful.
+I think both memcg-move-charges-of-anonymous-swap.patch and
+memcg-improve-performance-in-moving-swap-charge.patch need to be fixed.
+
+> mm/memcontrol.c: In function 'is_target_pte_for_mc':
+> mm/memcontrol.c:3985: error: implicit declaration of function 'mem_cgroup_count_swap_user'
+This derives from a bug of memcg-move-charges-of-anonymous-swap.patch,
+
+and
+
+> mm/memcontrol.c: In function 'mem_cgroup_move_charge_pte_range':
+> mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
+> mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
+> mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
+this derives from that of memcg-improve-performance-in-moving-swap-charge.patch.
+
+
+I'm now testing my patch in some configs, and will post later.
+
 
 Thanks,
--Kame
+Daisuke Nishimura.
+
+> Thanks,
+> -Kame
+> ==
+> 
+> Build fix to following build error when CONFIG_CGROUP_MEM_RES_CTLR_SWAP is off.
+> 
+> mm/memcontrol.c: In function 'is_target_pte_for_mc':
+> mm/memcontrol.c:3985: error: implicit declaration of function 'mem_cgroup_count_swap_user'
+> mm/memcontrol.c: In function 'mem_cgroup_move_charge_pte_range':
+> mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
+> mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
+> mm/memcontrol.c:4220: error: too many arguments to function 'mem_cgroup_move_swap_account'
+> 
+> CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> Index: ref-mmotm/mm/memcontrol.c
+> ===================================================================
+> --- ref-mmotm.orig/mm/memcontrol.c
+> +++ ref-mmotm/mm/memcontrol.c
+> @@ -2369,7 +2369,7 @@ static int mem_cgroup_move_swap_account(
+>  }
+>  #else
+>  static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+> -				struct mem_cgroup *from, struct mem_cgroup *to)
+> +		struct mem_cgroup *from, struct mem_cgroup *to, bool need_fixup)
+>  {
+>  	return -EINVAL;
+>  }
+> @@ -3976,7 +3976,7 @@ static int is_target_pte_for_mc(struct v
+>  
+>  	if (!pte_present(ptent)) {
+>  		/* TODO: handle swap of shmes/tmpfs */
+> -		if (pte_none(ptent) || pte_file(ptent))
+> +		if (pte_none(ptent) || pte_file(ptent) || !do_swap_account)
+>  			return 0;
+>  		else if (is_swap_pte(ptent)) {
+>  			ent = pte_to_swp_entry(ptent);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
