@@ -1,55 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 32C056B003D
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 07:12:02 -0500 (EST)
-Message-ID: <4B45CF8E.7000707@cs.helsinki.fi>
-Date: Thu, 07 Jan 2010 14:11:58 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6E1A26B003D
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 07:34:56 -0500 (EST)
+Received: by ewy24 with SMTP id 24so24341983ewy.6
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2010 04:34:54 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] slab: initialize unused alien cache entry as NULL
- at alloc_alien_cache().
-References: <4B443AE3.2080800@linux.intel.com>
-In-Reply-To: <4B443AE3.2080800@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 7 Jan 2010 12:34:54 +0000
+Message-ID: <87a5b0801001070434m7f6b0fd6vfcdf49ab73a06cbb@mail.gmail.com>
+Subject: Commit f50de2d38 seems to be breaking my oom killer
+From: Will Newton <will.newton@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Haicheng Li <haicheng.li@linux.intel.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Andi Kleen <andi@firstfloor.org>, Eric Dumazet <eric.dumazet@gmail.com>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Haicheng Li kirjoitti:
-> Comparing with existing code, it's a simpler way to use kzalloc_node()
-> to ensure that each unused alien cache entry is NULL.
-> 
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Eric Dumazet <eric.dumazet@gmail.com>
-> ---
->  mm/slab.c |    6 ++----
->  1 files changed, 2 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 7dfa481..5d1a782 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -971,13 +971,11 @@ static struct array_cache **alloc_alien_cache(int 
-> node, int limit, gfp_t gfp)
-> 
->      if (limit > 1)
->          limit = 12;
-> -    ac_ptr = kmalloc_node(memsize, gfp, node);
-> +    ac_ptr = kzalloc_node(memsize, gfp, node);
->      if (ac_ptr) {
->          for_each_node(i) {
-> -            if (i == node || !node_online(i)) {
-> -                ac_ptr[i] = NULL;
-> +            if (i == node || !node_online(i))
->                  continue;
-> -            }
->              ac_ptr[i] = alloc_arraycache(node, limit, 0xbaadf00d, gfp);
->              if (!ac_ptr[i]) {
->                  for (i--; i >= 0; i--)
+Hi,
 
-Christoph? Matt?
+I'm having some problems on a small embedded box with 24Mb of RAM and
+no swap. If a process tries to use large amounts of memory and gets
+OOM killed, with 2.6.32 it's fine, but with 2.6.33-rc2 kswapd gets
+stuck and the system locks up. The problem appears to have been
+introduced with f50de2d38. If I change sleeping_prematurely to skip
+the for_each_populated_zone test then OOM killing operates as
+expected. I'm guessing it's caused by the new code not allowing kswapd
+to schedule when it is required to let the killed task exit. Does that
+sound plausible?
+
+I'll try and investigate further into what's going on.
+
+Thanks,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
