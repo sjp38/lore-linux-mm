@@ -1,91 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 65BA66B00B3
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 00:11:14 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o075BCw1029619
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 7 Jan 2010 14:11:12 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CED7B45DE52
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 14:11:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AA58045DE58
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 14:11:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DEE9E38006
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 14:11:11 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 695EDE08001
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 14:11:10 +0900 (JST)
-Date: Thu, 7 Jan 2010 14:07:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm] build fix for
- memcg-move-charges-of-anonymous-swap.patch
-Message-Id: <20100107140758.c2f14802.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100107133026.6350bd9d.kamezawa.hiroyu@jp.fujitsu.com>
-References: <201001062259.o06MxQrp023236@imap1.linux-foundation.org>
-	<20100106171058.f1d6f393.randy.dunlap@oracle.com>
-	<20100107111319.7d95fe86.nishimura@mxp.nes.nec.co.jp>
-	<20100107112150.2e585f1c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107115901.594330d0.nishimura@mxp.nes.nec.co.jp>
-	<20100107120233.f244d4b7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107130609.31fe83dc.nishimura@mxp.nes.nec.co.jp>
-	<20100107133026.6350bd9d.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 40F3C6B00B4
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 00:24:10 -0500 (EST)
+Date: Thu, 7 Jan 2010 13:24:03 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC][PATCH] vmalloc: simplify vread()/vwrite()
+Message-ID: <20100107052403.GA25203@localhost>
+References: <20100107012458.GA9073@localhost> <20100107103825.239ffcf9.kamezawa.hiroyu@jp.fujitsu.com> <20100107025054.GA11252@localhost> <1262834141.17852.23.camel@yhuang-dev.sh.intel.com> <20100107122304.b5c1d777.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100107122304.b5c1d777.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Jan 2010 13:30:26 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Thu, 7 Jan 2010 13:06:09 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Thu, Jan 07, 2010 at 11:23:04AM +0800, KAMEZAWA Hiroyuki wrote:
+> On Thu, 07 Jan 2010 11:15:41 +0800
+> Huang Ying <ying.huang@intel.com> wrote:
 > 
-> > build fix in !CONFIG_SWAP case.
+> > > > 
+> > > > > The page_is_ram() check is necessary because kmap_atomic() is not
+> > > > > designed to work with non-RAM pages.
+> > > > > 
+> > > > I think page_is_ram() is not a complete method...on x86, it just check
+> > > > e820's memory range. checking VM_IOREMAP is better, I think.
+> > > 
+> > > (double check) Not complete or not safe?
+> > > 
+> > > EFI seems to not update e820 table by default.  Ying, do you know why?
 > > 
-> >   CC      mm/memcontrol.o
-> > mm/memcontrol.c: In function 'is_target_pte_for_mc':
-> > mm/memcontrol.c:3648: error: implicit declaration of function 'mem_cgroup_count_swap_user'
-> > make[1]: *** [mm/memcontrol.o] Error 1
-> > make: *** [mm] Error 2
+> > In EFI system, E820 table is constructed from EFI memory map in boot
+> > loader, so I think you can rely on E820 table.
 > > 
-> > Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
-> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Yes, we can rely on. But concerns here is that we cannot get any
+> information of ioremap via e820 map. 
 > 
-> Hmm, this doesn't seem include fix for CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n
+> But yes,
+> == ioremap()
+>  140         for (pfn = phys_addr >> PAGE_SHIFT;
+>  141                                 (pfn << PAGE_SHIFT) < (last_addr & PAGE_MASK);
+>  142                                 pfn++) {
+>  143 
+>  144                 int is_ram = page_is_ram(pfn);
+>  145 
+>  146                 if (is_ram && pfn_valid(pfn) && !PageReserved(pfn_to_page(pfn)))
+>  147                         return NULL;
+>  148                 WARN_ON_ONCE(is_ram);
+>  149         }
 > ==
-> static int is_target_pte_for_mc(struct vm_area_struct *vma,
->                 unsigned long addr, pte_t ptent, union mc_target *target)
-> {
-> ....
->                 else if (is_swap_pte(ptent)) {
->                         ent = pte_to_swp_entry(ptent);
->                         if (!move_anon || non_swap_entry(ent))
->                                 return 0;
->                         usage_count = mem_cgroup_count_swap_user(ent, &page);
->                 }
-> ==
-> At least, !do_swap_account check is necessary, I think.
-> I'm sorry if I miss something...
-> 
+> you'll get warned before access if "ram" area is remapped...
 
-Get follwoing after this patch with !CONFIG_SWAP case.
-==
-mm/built-in.o: In function `is_target_pte_for_mc':
-/home/kamezawa/Kernel/ref-mmotm/mm/memcontrol.c:3985: undefined reference to `mem_cgroup_count_swap_user'
+Right.
 
+> But, about this patch, it seems that page_is_ram() is not free from architecture
+> dependecy.
 
-I think !do_swap_count check in is_target_pte_for_mc() should be added.
+Yes this is a problem. We can provide a generic page_is_ram() as below.
+And could further convert the existing x86 (and others) page_is_ram()
+to be resource-based -- since at least for now the e820 table won't be
+updated on memory hotplug.
 
 Thanks,
--Kame
+Fengguang
+---
+ include/linux/ioport.h |    2 ++
+ kernel/resource.c      |   18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+)
 
+--- linux-mm.orig/kernel/resource.c	2010-01-07 12:40:55.000000000 +0800
++++ linux-mm/kernel/resource.c	2010-01-07 13:13:46.000000000 +0800
+@@ -297,6 +297,24 @@ int walk_system_ram_range(unsigned long 
+ 
+ #endif
+ 
++static int __page_is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
++{
++	int *is_ram = arg;
++
++	*is_ram = 1;
++
++	return 1;
++}
++
++int __attribute__((weak)) page_is_ram(unsigned long pagenr)
++{
++	int is_ram = 0;
++
++	walk_system_ram_range(pagenr, 1, &is_ram, __page_is_ram);
++
++	return is_ram;
++}
++
+ /*
+  * Find empty slot in the resource tree given range and alignment.
+  */
+--- linux-mm.orig/include/linux/ioport.h	2010-01-07 13:11:43.000000000 +0800
++++ linux-mm/include/linux/ioport.h	2010-01-07 13:12:37.000000000 +0800
+@@ -188,5 +188,7 @@ extern int
+ walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
+ 		void *arg, int (*func)(unsigned long, unsigned long, void *));
+ 
++extern int page_is_ram(unsigned long pagenr);
++
+ #endif /* __ASSEMBLY__ */
+ #endif	/* _LINUX_IOPORT_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
