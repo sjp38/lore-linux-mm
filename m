@@ -1,77 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DDFAA6B0085
-	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 20:01:32 -0500 (EST)
-Received: from spaceape24.eur.corp.google.com (spaceape24.eur.corp.google.com [172.28.16.76])
-	by smtp-out.google.com with ESMTP id o0711SE4014525
-	for <linux-mm@kvack.org>; Thu, 7 Jan 2010 01:01:28 GMT
-Received: from pwj10 (pwj10.prod.google.com [10.241.219.74])
-	by spaceape24.eur.corp.google.com with ESMTP id o0710ArS026016
-	for <linux-mm@kvack.org>; Wed, 6 Jan 2010 17:01:27 -0800
-Received: by pwj10 with SMTP id 10so5173163pwj.26
-        for <linux-mm@kvack.org>; Wed, 06 Jan 2010 17:01:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <9411cbdd545e1232c916bfef03a60cf95510016d.1262186098.git.kirill@shutemov.name>
-References: <cover.1262186097.git.kirill@shutemov.name>
-	 <9411cbdd545e1232c916bfef03a60cf95510016d.1262186098.git.kirill@shutemov.name>
-Date: Wed, 6 Jan 2010 17:01:21 -0800
-Message-ID: <6599ad831001061701x72098dacn7a5d916418396e33@mail.gmail.com>
-Subject: Re: [PATCH v5 1/4] cgroup: implement eventfd-based generic API for
-	notifications
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8E7BB6B0089
+	for <linux-mm@kvack.org>; Wed,  6 Jan 2010 20:04:21 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0714Iv0013279
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 7 Jan 2010 10:04:18 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0320E45DE52
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 10:04:18 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D527045DE50
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 10:04:17 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ADEF31DB8048
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 10:04:17 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 41F801DB8042
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 10:04:17 +0900 (JST)
+Date: Thu, 7 Jan 2010 10:00:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+Message-Id: <20100107100054.e56b709a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LFD.2.00.1001060119010.3630@localhost.localdomain>
+References: <20100104182429.833180340@chello.nl>
+	<20100104182813.753545361@chello.nl>
+	<20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>
+	<28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>
+	<20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>
+	<20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
+	<20100106092212.c8766aa8.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.1001051718100.3630@localhost.localdomain>
+	<20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.1001051917000.3630@localhost.localdomain>
+	<20100106125625.b02c1b3a.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.1001052007090.3630@localhost.localdomain>
+	<20100106160614.ff756f82.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.1001060119010.3630@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Alexander Shishkin <virtuoso@slind.org>, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 30, 2009 at 7:57 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> This patch introduces write-only file "cgroup.event_control" in every
-> cgroup.
+On Wed, 6 Jan 2010 01:39:17 -0800 (PST)
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-This looks like a nice generic API for doing event notifications - thanks!
+> 
+> 
+> On Wed, 6 Jan 2010, KAMEZAWA Hiroyuki wrote:
+> >
+> >      9.08%  multi-fault-all  [kernel]                  [k] down_read_trylock
+<snip>
+> That way, it will do the cmpxchg first, and if it wasn't unlocked and had 
+> other readers active, it will end up doing an extra cmpxchg, but still 
+> hopefully avoid the extra bus cycles.
+> 
+> So it might be worth testing this trivial patch on top of my other one.
+> 
+Test: on 8-core/2-socket x86-64
+  while () {
+	touch memory
+	barrier
+	madvice DONTNEED all range by cpu 0
+	barrier
+  }
 
-Sorry I hadn't had a chance to review it before now, due to travelling
-and day-job pressures.
+<Before> (cut from my post)
+> [root@bluextal memory]#  /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-all 8
+> 
+>  Performance counter stats for './multi-fault-all 8' (5 runs):
+> 
+>        33029186  page-faults                ( +-   0.146% )
+>       348698659  cache-misses               ( +-   0.149% )
+> 
+>    60.002876268  seconds time elapsed   ( +-   0.001% )
+>     41.51%  multi-fault-all  [kernel]                  [k] clear_page_c
+>      9.08%  multi-fault-all  [kernel]                  [k] down_read_trylock
+>      6.23%  multi-fault-all  [kernel]                  [k] up_read
+>      6.17%  multi-fault-all  [kernel]                  [k] __mem_cgroup_try_charg
 
 
-> +}
-> +
-> +static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int sync, void *key)
+<After>
+[root@bluextal memory]#  /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-all 8
 
-Maybe some comments here indicating how/when it gets called? (And more
-comments for each function generally?)
+ Performance counter stats for './multi-fault-all 8' (5 runs):
 
-> + =A0 =A0 =A0 if (flags & POLLHUP) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&cgrp->event_list_lock);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&event->list);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&cgrp->event_list_lock);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 schedule_work(&event->remove);
+       33782787  page-faults                ( +-   2.650% )
+      332753197  cache-misses               ( +-   0.477% )
 
-Comment saying why we can't do the remove immediately in this context?
+   60.003984337  seconds time elapsed   ( +-   0.004% )
 
-> +
-> +fail:
-> + =A0 =A0 =A0 if (!IS_ERR(cfile))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 fput(cfile);
+# Samples: 1014408915089
+#
+# Overhead          Command             Shared Object  Symbol
+# ........  ...............  ........................  ......
+#
+    44.42%  multi-fault-all  [kernel]                  [k] clear_page_c
+     7.73%  multi-fault-all  [kernel]                  [k] down_read_trylock
+     6.65%  multi-fault-all  [kernel]                  [k] __mem_cgroup_try_char
+     6.15%  multi-fault-all  [kernel]                  [k] up_read
+     4.87%  multi-fault-all  [kernel]                  [k] handle_mm_fault
+     3.70%  multi-fault-all  [kernel]                  [k] __rmqueue
+     3.69%  multi-fault-all  [kernel]                  [k] __mem_cgroup_commit_c
+     2.35%  multi-fault-all  [kernel]                  [k] bad_range
 
-cfile is either valid or NULL - it never contains an error value.
 
-> +
-> + =A0 =A0 =A0 if (!IS_ERR(efile))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 fput(efile);
+yes, it seems slightly improved, at least on this test.
+but page-fault-throughput test score is within error range.
 
-While this is OK currently, it's a bit fragile. efile starts as NULL,
-and IS_ERR(NULL) is false. So if we jump to fail: before trying to do
-the eventfd_fget() then we'll try to fput(NULL), which will oops. This
-works because we don't currently jump to fail: until after
-eventfd_fget(), but someone could add an extra setup step between the
-kzalloc() and the eventfd_fget() which could fail.
 
-Paul
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
