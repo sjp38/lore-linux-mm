@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B340600580
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 15:09:11 -0500 (EST)
-Date: Thu, 7 Jan 2010 12:08:25 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 75B13600580
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 15:14:12 -0500 (EST)
+Date: Thu, 7 Jan 2010 12:13:28 -0800 (PST)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <alpine.DEB.2.00.1001071308320.2981@router.home>
-Message-ID: <alpine.LFD.2.00.1001071207040.7821@localhost.localdomain>
+In-Reply-To: <alpine.LFD.2.00.1001071207040.7821@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.1001071208550.7821@localhost.localdomain>
 References: <20100104182429.833180340@chello.nl>  <20100104182813.753545361@chello.nl>  <20100105054536.44bf8002@infradead.org>  <alpine.DEB.2.00.1001050916300.1074@router.home>  <20100105192243.1d6b2213@infradead.org>  <alpine.DEB.2.00.1001071007210.901@router.home>
   <alpine.LFD.2.00.1001070814080.7821@localhost.localdomain> <1262884960.4049.106.camel@laptop> <alpine.LFD.2.00.1001070934060.7821@localhost.localdomain> <alpine.LFD.2.00.1001070937180.7821@localhost.localdomain> <alpine.LFD.2.00.1001071031440.7821@localhost.localdomain>
- <alpine.DEB.2.00.1001071308320.2981@router.home>
+ <alpine.DEB.2.00.1001071308320.2981@router.home> <alpine.LFD.2.00.1001071207040.7821@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,22 +19,26 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On Thu, 7 Jan 2010, Christoph Lameter wrote:
+On Thu, 7 Jan 2010, Linus Torvalds wrote:
 > 
-> page_table_lock used to serialize multiple fast brks?
-> 
-> CONFIG_SPLIT_PTLOCK implies that code will not use this lock in fault
-> handling. So no serialization with faults.
+> Again, it doesn't matter. Old or new - if some other thread looks up the 
+> vma, either is fine.
 
-Correct. The faults we do not need to serialize with. It doesn't matter 
-whether they see the old or the new end. 
+Btw, don't get me wrong. That patch may compile (I checked it), but I am 
+not in any way claiming that it is anything else than a total throw-away 
+"this is something we could look at doing" suggestion.
 
-> Also the current code assumes vm_end and so on to be stable if mmap_sem is
-> held. F.e. find_vma() from do_fault is now running while vm_end may be changing
-> under it.
+For example, I'm not at all wedded to using 'mm->page_table_lock': I in 
+fact wanted to use a per-vma lock, but I picked a lock we already had. The 
+fact that picking a lock we already had also means that it serializes page 
+table updates (sometimes) is actually a downside, not a good thing. 
 
-Again, it doesn't matter. Old or new - if some other thread looks up the 
-vma, either is fine.
+So the patch was meant to get people thinking about alternatives, rather 
+than anything else.
+
+The point being that there are things we can play with on mmap_sem, that 
+don't involve getting rid of it - just being a bit more aggressive in how 
+we use it.
 
 			Linus
 
