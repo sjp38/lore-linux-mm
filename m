@@ -1,55 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B91D760021B
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 16:45:02 -0500 (EST)
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.LFD.2.00.1001071031440.7821@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl>
-	 <20100104182813.753545361@chello.nl>
-	 <20100105054536.44bf8002@infradead.org>
-	 <alpine.DEB.2.00.1001050916300.1074@router.home>
-	 <20100105192243.1d6b2213@infradead.org>
-	 <alpine.DEB.2.00.1001071007210.901@router.home>
-	 <alpine.LFD.2.00.1001070814080.7821@localhost.localdomain>
-	 <1262884960.4049.106.camel@laptop>
-	 <alpine.LFD.2.00.1001070934060.7821@localhost.localdomain>
-	 <alpine.LFD.2.00.1001070937180.7821@localhost.localdomain>
-	 <alpine.LFD.2.00.1001071031440.7821@localhost.localdomain>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 07 Jan 2010 22:44:43 +0100
-Message-ID: <1262900683.4049.139.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 49FDE60021B
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 16:46:16 -0500 (EST)
+Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
+	by smtp-out.google.com with ESMTP id o07Lk8Vb029056
+	for <linux-mm@kvack.org>; Thu, 7 Jan 2010 21:46:09 GMT
+Received: from pzk1 (pzk1.prod.google.com [10.243.19.129])
+	by spaceape10.eur.corp.google.com with ESMTP id o07LjPrA003124
+	for <linux-mm@kvack.org>; Thu, 7 Jan 2010 13:46:07 -0800
+Received: by pzk1 with SMTP id 1so3250597pzk.33
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2010 13:46:07 -0800 (PST)
+Date: Thu, 7 Jan 2010 13:46:03 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/7] Allow CONFIG_MIGRATION to be set without
+ CONFIG_NUMA
+In-Reply-To: <1262795169-9095-2-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1001071331520.23894@chino.kir.corp.google.com>
+References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-2-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Arjan van de Ven <arjan@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-01-07 at 10:44 -0800, Linus Torvalds wrote:
-> 
-> On Thu, 7 Jan 2010, Linus Torvalds wrote:
-> > 
-> > For example: there's no real reason why we take mmap_sem for writing when 
-> > extending an existing vma. And while 'brk()' is a very oldfashioned way of 
-> > doing memory management, it's still quite common. So rather than looking 
-> > at subtle lockless algorithms, why not look at doing the common cases of 
-> > an extending brk? Make that one take the mmap_sem for _reading_, and then 
-> > do the extending of the brk area with a simple cmpxchg or something?
-> 
-> I didn't use cmpxchg, because we actually want to update both 
-> 'current->brk' _and_ the vma->vm_end atomically, so here's a totally 
-> untested patch that uses the page_table_lock spinlock for it instead (it 
-> could be a new spinlock, not worth it).
-> 
-> It's also totally untested and might be horribly broken. But you get the 
-> idea.
-> 
-> We could probably do things like this in regular mmap() too for the 
-> "extend a mmap" case. brk() is just especially simple.
+On Wed, 6 Jan 2010, Mel Gorman wrote:
 
-I haven't yet looked at the patch, but isn't expand_stack() kinda like
-what you want? That serializes using anon_vma_lock().
+> CONFIG_MIGRATION currently depends on CONFIG_NUMA. The current users of
+> page migration such as sys_move_pages(), sys_migrate_pages() and cpuset
+> process migration are ordinarily only beneficial on NUMA.
+> 
+> As memory compaction will operate within a zone and is useful on both NUMA
+> and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
+> user selects CONFIG_COMPACTION as an option.
+> 
+> TODO
+>   o After this patch is applied, the migration core is available but it
+>     also makes NUMA-specific features available. This is too much
+>     exposure so revisit this.
+> 
+
+CONFIG_MIGRATION is no longer strictly dependent on CONFIG_NUMA since 
+ARCH_ENABLE_MEMORY_HOTREMOVE has allowed it to be configured for UMA 
+machines.  All strictly NUMA features in the migration core should be 
+isolated under its #ifdef CONFIG_NUMA (sys_move_pages()) in mm/migrate.c 
+or by simply not compiling mm/mempolicy.c (sys_migrate_pages()), so this 
+patch looks fine as is (although the "help" text for CONFIG_MIGRATION 
+could be updated to reflect that it's useful for both memory hot-remove 
+and now compaction).
+
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/Kconfig |   12 +++++++++++-
+>  1 files changed, 11 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 17b8947..1d8e2b2 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -168,12 +168,22 @@ config SPLIT_PTLOCK_CPUS
+>  	default "4"
+>  
+>  #
+> +# support for memory compaction
+> +config COMPACTION
+> +	bool "Allow for memory compaction"
+> +	def_bool y
+> +	select MIGRATION
+> +	depends on EXPERIMENTAL && HUGETLBFS
+> +	help
+> +	  Allows the compaction of memory for the allocation of huge pages.
+> +
+> +#
+>  # support for page migration
+>  #
+>  config MIGRATION
+>  	bool "Page migration"
+>  	def_bool y
+> -	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
+> +	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
+>  	help
+>  	  Allows the migration of the physical location of pages of processes
+>  	  while the virtual addresses are not changed. This is useful for
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
