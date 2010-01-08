@@ -1,31 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 412996B0044
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:25:26 -0500 (EST)
-Message-ID: <4B478689.5020907@redhat.com>
-Date: Fri, 08 Jan 2010 14:24:57 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 916216B0044
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:28:26 -0500 (EST)
+Date: Fri, 8 Jan 2010 20:28:15 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+Message-ID: <20100108192815.GB14141@basil.fritz.box>
+References: <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001051917000.3630@localhost.localdomain> <20100106125625.b02c1b3a.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain> <1262969610.4244.36.camel@laptop> <alpine.LFD.2.00.1001080911340.7821@localhost.localdomain> <alpine.DEB.2.00.1001081138260.23727@router.home> <87my0omo3n.fsf@basil.nowhere.org> <alpine.DEB.2.00.1001081255100.26886@router.home> <alpine.LFD.2.00.1001081102120.7821@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 00/12] KVM: Add host swap event notifications for PV
- guest
-References: <1262700774-1808-1-git-send-email-gleb@redhat.com> <20100108161828.GA30404@amt.cnet>
-In-Reply-To: <20100108161828.GA30404@amt.cnet>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1001081102120.7821@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, cl@linux-foundation.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On 01/08/2010 11:18 AM, Marcelo Tosatti wrote:
+On Fri, Jan 08, 2010 at 11:11:32AM -0800, Linus Torvalds wrote:
+> 
+> 
+> On Fri, 8 Jan 2010, Christoph Lameter wrote:
+> 
+> > On Fri, 8 Jan 2010, Andi Kleen wrote:
+> > 
+> > > This year's standard server will be more like 24-64 "cpus"
+> > 
+> > What will it be? 2 or 4 sockets?
+> 
+> I think we can be pretty safe in saying that two sockets is going to be 
+> overwhelmingly the more common case.
 
-> - Limit the number of queued async pf's per guest ?
+With 24 CPU threads cheating is very difficult too.
 
-This is automatically limited to the number of processes
-running in a guest :)
+Besides even the "uncommon" part of a large pie can be still a lot of systems.
 
--- 
-All rights reversed.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
