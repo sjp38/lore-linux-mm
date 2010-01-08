@@ -1,43 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AB3446B003D
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 10:13:45 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id e21so2876574fga.8
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2010 07:13:43 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH] memcg: typo in comment to mem_cgroup_print_oom_info()
-Date: Fri,  8 Jan 2010 17:13:23 +0200
-Message-Id: <1262963603-21908-1-git-send-email-kirill@shutemov.name>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E3D166B003D
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 10:52:17 -0500 (EST)
+Date: Fri, 8 Jan 2010 09:51:49 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+In-Reply-To: <20100107204940.253ed753@infradead.org>
+Message-ID: <alpine.DEB.2.00.1001080946390.23727@router.home>
+References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105054536.44bf8002@infradead.org> <alpine.DEB.2.00.1001050916300.1074@router.home> <20100105192243.1d6b2213@infradead.org> <alpine.DEB.2.00.1001071007210.901@router.home>
+ <alpine.LFD.2.00.1001070814080.7821@localhost.localdomain> <alpine.DEB.2.00.1001071025450.901@router.home> <20100107204940.253ed753@infradead.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew@kvack.org, "Morton <akpm"@linux-foundation.org
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-s/mem_cgroup_print_mem_info/mem_cgroup_print_oom_info/
+On Thu, 7 Jan 2010, Arjan van de Ven wrote:
 
-Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Pavel Emelyanov <xemul@openvz.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+> if an app has to change because our kernel sucks (for no good reason),
+> "change the app" really is the lame type of answer.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4572907..0d78570 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1070,7 +1070,7 @@ static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
- }
- 
- /**
-- * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in read mode.
-+ * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
-  * @memcg: The memory cgroup that went over limit
-  * @p: Task that is going to be killed
-  *
--- 
-1.6.5.7
+We are changing apps all of the time here to reduce the number of system
+calls. Any system call usually requires context switching, scheduling
+activities etc. Evil effects if you want the processor for computation
+and are sensitive to cpu caching effects. It is good to reduce the number
+of system calls as much as possible.
+
+System calls are at best placed to affect the largest memory
+possible in a given context and be avoided in loops.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
