@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 916216B0044
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:28:26 -0500 (EST)
-Date: Fri, 8 Jan 2010 20:28:15 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-Message-ID: <20100108192815.GB14141@basil.fritz.box>
-References: <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001051917000.3630@localhost.localdomain> <20100106125625.b02c1b3a.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain> <1262969610.4244.36.camel@laptop> <alpine.LFD.2.00.1001080911340.7821@localhost.localdomain> <alpine.DEB.2.00.1001081138260.23727@router.home> <87my0omo3n.fsf@basil.nowhere.org> <alpine.DEB.2.00.1001081255100.26886@router.home> <alpine.LFD.2.00.1001081102120.7821@localhost.localdomain>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 839366B0044
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:31:17 -0500 (EST)
+Received: by ewy24 with SMTP id 24so26200593ewy.6
+        for <linux-mm@kvack.org>; Fri, 08 Jan 2010 11:31:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1001081102120.7821@localhost.localdomain>
+In-Reply-To: <4B478689.5020907@redhat.com>
+References: <1262700774-1808-1-git-send-email-gleb@redhat.com>
+	<20100108161828.GA30404@amt.cnet> <4B478689.5020907@redhat.com>
+From: Bryan Donlan <bdonlan@gmail.com>
+Date: Fri, 8 Jan 2010 14:30:55 -0500
+Message-ID: <3e8340491001081130v2adb8e07k3b32f7f860daf603@mail.gmail.com>
+Subject: Re: [PATCH v3 00/12] KVM: Add host swap event notifications for PV
+	guest
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: Rik van Riel <riel@redhat.com>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 08, 2010 at 11:11:32AM -0800, Linus Torvalds wrote:
-> 
-> 
-> On Fri, 8 Jan 2010, Christoph Lameter wrote:
-> 
-> > On Fri, 8 Jan 2010, Andi Kleen wrote:
-> > 
-> > > This year's standard server will be more like 24-64 "cpus"
-> > 
-> > What will it be? 2 or 4 sockets?
-> 
-> I think we can be pretty safe in saying that two sockets is going to be 
-> overwhelmingly the more common case.
+On Fri, Jan 8, 2010 at 2:24 PM, Rik van Riel <riel@redhat.com> wrote:
+> On 01/08/2010 11:18 AM, Marcelo Tosatti wrote:
+>
+>> - Limit the number of queued async pf's per guest ?
+>
+> This is automatically limited to the number of processes
+> running in a guest :)
 
-With 24 CPU threads cheating is very difficult too.
-
-Besides even the "uncommon" part of a large pie can be still a lot of systems.
-
--Andi
+Only if the guest is nice and plays by the rules. What is to stop a
+malicious guest from just immediately switching back to userspace and
+kicking off another page-in every time it gets an async PF?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
