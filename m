@@ -1,45 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6601B60021B
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 17:48:06 -0500 (EST)
-Date: Fri, 8 Jan 2010 14:43:02 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <alpine.DEB.2.00.1001081544260.29503@router.home>
-Message-ID: <alpine.LFD.2.00.1001081439470.7821@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl>  <20100104182813.753545361@chello.nl>  <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>  <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>  <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
-  <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>  <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>  <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
- <20100106092212.c8766aa8.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001051718100.3630@localhost.localdomain>  <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001051917000.3630@localhost.localdomain>
- <20100106125625.b02c1b3a.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain> <alpine.LFD.2.00.1001081307330.7821@localhost.localdomain> <alpine.DEB.2.00.1001081544260.29503@router.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A42B660021B
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 18:00:15 -0500 (EST)
+Date: Fri, 8 Jan 2010 14:59:45 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm : add check for the return value
+Message-Id: <20100108145945.d3d5eed6.akpm@linux-foundation.org>
+In-Reply-To: <28c262361001032206m6b102f85wed64ae31fd5b06d5@mail.gmail.com>
+References: <1262571730-2778-1-git-send-email-shijie8@gmail.com>
+	<20100104122138.f54b7659.minchan.kim@barrios-desktop>
+	<4B416A28.70806@gmail.com>
+	<20100104134827.ce642c11.minchan.kim@barrios-desktop>
+	<4B417A37.7060001@gmail.com>
+	<28c262361001032206m6b102f85wed64ae31fd5b06d5@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Huang Shijie <shijie8@gmail.com>, mel@csn.ul.ie, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 4 Jan 2010 15:06:54 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-
-On Fri, 8 Jan 2010, Christoph Lameter wrote:
+> On Mon, Jan 4, 2010 at 2:18 PM, Huang Shijie <shijie8@gmail.com> wrote:
+> >
+> >> I think the branch itself could not a big deal but 'likely'.
+> >>
+> >> Why I suggest is that now 'if (!page)' don't have 'likely'.
+> >> As you know, 'likely' make the code relocate for reducing code footprint.
+> >>
+> >> Why? It was just mistake or doesn't need it?
+> >>
+> >>
+> >
+> > I think the CPU will CACHE the `likely' code, and make it runs fast.
 > 
-> And I made the point that starvation was a hardware issue due to immature
-> cacheline handling. Now the software patchup job for the hardware breakage
-> is causing regressions for everyone.
+> I think so.
+> 
+> >
+> > IMHO, "if (unlikely(page == NULL)) " is better then "if (!page)" ,just like
+> > the
+> > code in rmqueue_bulk().
+> >> I think Mel does know it.
+> >>
+> >>
+> >
+> > wait for Mel's response.
+> 
+> Yes.
+> Regardless of Kosaki's patch, there is a issue about likely/unlinkely usage.
+> 
 
-Well, in all fairness, (a) existing hardware doesn't do a good job, and 
-would have a really hard time doing so in general (ie the whole issue of 
-on-die vs directly-between-sockets vs between-complex-fabric), and (b) in 
-this case, the problem really was that the x86-64 rwsems were badly 
-implemented.
+All of this code is in the (order != 0) path, so it's relatively rarely
+executed.  We've added a small expense to a rarely-executed code
+path.  I think I'll apply the original patch as-is.
 
-The fact that somebody _thought_ that it might be ok to do them with 
-spinlocks and had done some limited testing without ever hitting the 
-problem spot (probably never having tested any amount of contention at 
-all) is immaterial. We should have had real native rwsemaphores for 
-x86-64, and complaining about the fallback sucking under load is kind of 
-pointless.
 
-			Linus
+From: Huang Shijie <shijie8@gmail.com>
+
+When the `page' returned by __rmqueue() is NULL, the origin code still
+adds -(1 << order) to zone's NR_FREE_PAGES item.
+
+The patch fixes it.
+
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/page_alloc.c |   10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff -puN mm/page_alloc.c~mm-add-check-for-the-return-value mm/page_alloc.c
+--- a/mm/page_alloc.c~mm-add-check-for-the-return-value
++++ a/mm/page_alloc.c
+@@ -1219,10 +1219,14 @@ again:
+ 		}
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 		page = __rmqueue(zone, order, migratetype);
+-		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+-		spin_unlock(&zone->lock);
+-		if (!page)
++		if (likely(page)) {
++			__mod_zone_page_state(zone, NR_FREE_PAGES,
++						-(1 << order));
++			spin_unlock(&zone->lock);
++		} else {
++			spin_unlock(&zone->lock);
+ 			goto failed;
++		}
+ 	}
+ 
+ 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
