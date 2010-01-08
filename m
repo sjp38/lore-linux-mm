@@ -1,81 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 12CBC6B003D
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 20:05:41 -0500 (EST)
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id o0815d7r032155
-	for <linux-mm@kvack.org>; Thu, 7 Jan 2010 17:05:39 -0800
-Received: from qw-out-2122.google.com (qwh8.prod.google.com [10.241.194.200])
-	by spaceape11.eur.corp.google.com with ESMTP id o0815bm2025180
-	for <linux-mm@kvack.org>; Thu, 7 Jan 2010 17:05:38 -0800
-Received: by qw-out-2122.google.com with SMTP id 8so1453915qwh.41
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2010 17:05:37 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4B46828C.5000703@cn.fujitsu.com>
-References: <cover.1262186097.git.kirill@shutemov.name>
-	 <9411cbdd545e1232c916bfef03a60cf95510016d.1262186098.git.kirill@shutemov.name>
-	 <6599ad831001061701x72098dacn7a5d916418396e33@mail.gmail.com>
-	 <cc557aab1001070436w446ef85n55dd2af5e733f55e@mail.gmail.com>
-	 <4B46828C.5000703@cn.fujitsu.com>
-Date: Thu, 7 Jan 2010 17:05:37 -0800
-Message-ID: <6599ad831001071705k3954642eo3e04cef7a31e3727@mail.gmail.com>
-Subject: Re: [PATCH v5 1/4] cgroup: implement eventfd-based generic API for
-	notifications
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D0C496B003D
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 20:59:44 -0500 (EST)
+Received: by yxe36 with SMTP id 36so26382925yxe.11
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2010 17:59:43 -0800 (PST)
+Date: Fri, 8 Jan 2010 10:58:41 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: Commit f50de2d38 seems to be breaking my oom killer
+Message-Id: <20100108105841.b9a030c4.minchan.kim@barrios-desktop>
+In-Reply-To: <20100107135831.GA29564@csn.ul.ie>
+References: <87a5b0801001070434m7f6b0fd6vfcdf49ab73a06cbb@mail.gmail.com>
+	<20100107135831.GA29564@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, containers@lists.linux-foundation.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Vladislav Buzov <vbuzov@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Alexander Shishkin <virtuoso@slind.org>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Will Newton <will.newton@gmail.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 7, 2010 at 4:55 PM, Li Zefan <lizf@cn.fujitsu.com> wrote:
->
-> Use multi labels is much better:
+Hi, Mel 
 
-I disagree with that - in the absence of a language that can do proper
-destructor-based cleanup (i.e. a strictly controlled subset of C++ :-)
-) I think it's clearer to have a single failure path where you can
-clean up anything that needs to be cleaned up, without excessive
-dependencies on exactly when the failure occurred. Changes then become
-less error-prone.
+On Thu, 7 Jan 2010 13:58:31 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-Paul
-
->
-> label4::
-> =A0 =A0 =A0 =A0fput(cfile);
-> label3:
-> =A0 =A0 =A0 =A0eventfd_ctx_put(event->eventfd);
-> label2:
-> =A0 =A0 =A0 =A0fput(efile);
-> label1:
-> =A0 =A0 =A0 =A0kfree(event);
->
-> compared to:
->
-> +fail:
-> + =A0 =A0 =A0 if (!IS_ERR(cfile))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 fput(cfile);
-> +
-> + =A0 =A0 =A0 if (event && event->eventfd && !IS_ERR(event->eventfd))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 eventfd_ctx_put(event->eventfd);
-> +
-> + =A0 =A0 =A0 if (!IS_ERR(efile))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 fput(efile);
-> +
-> + =A0 =A0 =A0 kfree(event);
->
+> vmscan: kswapd should notice that all zones are not ok if they are unreclaimble
+> 
+> In the event all zones are unreclaimble, it is possible for kswapd to
+> never go to sleep because "all zones are ok even though watermarks are
+> not reached". It gets into a situation where cond_reched() is not
+> called.
+> 
+> This patch notes that if all zones are unreclaimable then the zones are
+> not ok and cond_resched() should be called.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> --- 
+>  mm/vmscan.c |    4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2ad8603..d3c0848 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2022,8 +2022,10 @@ loop_again:
+>  				break;
+>  			}
+>  		}
+> -		if (i < 0)
+> +		if (i < 0) {
+> +			all_zones_ok = 0;
+>  			goto out;
+> +		}
+>  
+>  		for (i = 0; i <= end_zone; i++) {
+>  			struct zone *zone = pgdat->node_zones + i;
+> 
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =A0http://www.tux.org/lkml/
->
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Nice catch!
+Don't we care following as although it is rare case?
+
+---
+                for (i = 0; i <= end_zone; i++) {
+                        struct zone *zone = pgdat->node_zones + i; 
+                        int nr_slab;
+                        int nid, zid; 
+
+                        if (!populated_zone(zone))
+                                continue;
+
+                        if (zone_is_all_unreclaimable(zone) &&
+                                        priority != DEF_PRIORITY)
+                                continue;  <==== here
+
+---
+
+And while I review all_zones_ok'usage in balance_pgdat, 
+I feel it's not consistent and rather confused. 
+How about this?
+
+== CUT_HERE ==
