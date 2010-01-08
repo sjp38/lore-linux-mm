@@ -1,45 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 936786B0044
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:42:56 -0500 (EST)
-Date: Fri, 8 Jan 2010 11:42:38 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <alpine.LFD.2.00.1001081137210.7821@localhost.localdomain>
-Message-ID: <alpine.LFD.2.00.1001081139490.7821@localhost.localdomain>
-References: <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001051917000.3630@localhost.localdomain> <20100106125625.b02c1b3a.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain>
- <1262969610.4244.36.camel@laptop> <alpine.LFD.2.00.1001080911340.7821@localhost.localdomain> <alpine.DEB.2.00.1001081138260.23727@router.home> <87my0omo3n.fsf@basil.nowhere.org> <alpine.DEB.2.00.1001081255100.26886@router.home>
- <alpine.LFD.2.00.1001081102120.7821@localhost.localdomain> <20100108192815.GB14141@basil.fritz.box> <alpine.LFD.2.00.1001081137210.7821@localhost.localdomain>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2B00B6B0044
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:48:03 -0500 (EST)
+Message-ID: <4B478BEA.1010504@linux.intel.com>
+Date: Fri, 08 Jan 2010 20:47:54 +0100
+From: Andi Kleen <ak@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH - resend] Memory-Hotplug: Fix the bug on interface /dev/mem
+ for 64-bit kernel(v1)
+References: <DA586906BA1FFC4384FCFD6429ECE86031560BAC@shzsmsx502.ccr.corp.intel.com> <4B46BC6F.5060607@kernel.org>
+In-Reply-To: <4B46BC6F.5060607@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: "H. Peter Anvin" <hpa@kernel.org>
+Cc: "Zheng, Shaohui" <shaohui.zheng@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Fri, 8 Jan 2010, Linus Torvalds wrote:
+H. Peter Anvin wrote:
+> On 01/07/2010 07:32 PM, Zheng, Shaohui wrote:
+>> Resend the patch to the mailing-list, the original patch URL is 
+>> http://patchwork.kernel.org/patch/69075/, it is not accepted without comments,
+>> sent it again to review.
+>>
+>> Memory-Hotplug: Fix the bug on interface /dev/mem for 64-bit kernel
+>>
+>> The new added memory can not be access by interface /dev/mem, because we do not
+>>  update the variable high_memory. This patch add a new e820 entry in e820 table,
+>>  and update max_pfn, max_low_pfn and high_memory.
+>>
+>> We add a function update_pfn in file arch/x86/mm/init.c to udpate these
+>>  varibles. Memory hotplug does not make sense on 32-bit kernel, so we did not
+>>  concern it in this function.
+>>
 > 
-> Another fact is simply that you shouldn't write your app so that it needs 
-> to do millions of page faults per second.
+> Memory hotplug makes sense on 32-bit kernels, at least in virtual
+> environments.
 
-Side note: an app with lots of threads, and that needs to fault in lots of 
-pages at startup time, and has performance problems, can - and should - 
-likely use interfaces that are _designed_ for that.
+No VM currently supports it to my knowledge. They all use traditional
+balooning.
 
-There's things like madvise(WILLNEED) etc, which can batch up the filling 
-of a memory area.
+If someone adds that they can still fix it, but right now fixing it on 64bit
+is the important part.
 
-If you're doing a performance-sensitive application with hundreds of 
-threads, and hundreds of gigabytes of data, you had better know about 
-simple concepts like "batch fill", rather than whine about "oh my, my 
-totally special-case app takes a few seconds to start because I'M A 
-F*CKING MORON AND DID EVERYTHING WRONG".
-
-
-
-			Linus
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
