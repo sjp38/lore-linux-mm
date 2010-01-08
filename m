@@ -1,98 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 969906B003D
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 00:30:35 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o085UXjA008703
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 8 Jan 2010 14:30:33 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B423B45DE7A
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:30:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B6AA45DE6F
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:30:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 43E20E1800C
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:30:32 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B5BD8E18005
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 14:30:31 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm-2010-01-06-14-34] check high watermark after shrink zone
-In-Reply-To: <20100108141235.ef56b567.minchan.kim@barrios-desktop>
-References: <20100108141235.ef56b567.minchan.kim@barrios-desktop>
-Message-Id: <20100108141654.C13E.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B6ECA6B008C
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 01:34:17 -0500 (EST)
+Received: by pwj10 with SMTP id 10so6652354pwj.6
+        for <linux-mm@kvack.org>; Thu, 07 Jan 2010 22:34:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri,  8 Jan 2010 14:30:30 +0900 (JST)
+In-Reply-To: <20100107143651.2fa73662.randy.dunlap@oracle.com>
+References: <201001072218.o07MIPNm020870@imap1.linux-foundation.org>
+	 <20100107143651.2fa73662.randy.dunlap@oracle.com>
+Date: Fri, 8 Jan 2010 12:34:15 +0600
+Message-ID: <b9df5fa11001072234o2e5fb8bfv7b57a562d9a6e4d1@mail.gmail.com>
+Subject: Re: + hugetlb-fix-section-mismatch-warning-in-hugetlbc.patch added to
+	-mm tree
+From: Rakib Mullick <rakib.mullick@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> Kswapd check that zone have enough free by zone_water_mark.
-> If any zone doesn't have enough page, it set all_zones_ok to zero.
-> all_zone_ok makes kswapd retry not sleeping.
-> 
-> I think the watermark check before shrink zone is pointless.
-> Kswapd try to shrink zone then the check is meaningul.
+On 1/8/10, Randy Dunlap <randy.dunlap@oracle.com> wrote:
 
-probably s/meaningul/meaningful/ ?
+Hi,
+>
+> Hi,
+>
+>  If so, then hugetlb_register_node() could be called at any time
+>  (like after system init), and it would then call
+>  hugetlb_sysfs_add_hstate(), which would be bad.
+>
+But - hugetlb_register_node is only called from hugetlb_register_all_nodes.
+The call sequence is :
+                    hugetlb_init   --------------->  was __init
+                         \-> hugetlb_register_all_nodes  ----> we make it __init
+                                          \-> hugetlb_register_node
+---> we make it __init
+                                                 \->
+hugetlb_sysfs_add_hstate -> this was __init
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Above all happens in __init context. So - hugetlb_register_node is
+called only at
+system init. But I don't think __init is used for hotplug support, for
+proper hotplug
+support we might use __meminit.
 
+And register_hugetlbfs_with_node is called from hugetlb_un/register_node.
+But hugetlb_unregister_node doesn't use callback function. It's not referencing
+hugetlb_sysfs_add_hstate(). So - it's safe. Unless I'm not missing
+anything, too.
 
-> 
-> This patch move the check after shrink zone.
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Mel Gorman <mel@csn.ul.ie>
-> CC: Rik van Riel <riel@redhat.com>
+thanks,
+
+>  Thanks.
 > ---
->  mm/vmscan.c |   21 +++++++++++----------
->  1 files changed, 11 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 885207a..b81adf8 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2057,9 +2057,6 @@ loop_again:
->  					priority != DEF_PRIORITY)
->  				continue;
->  
-> -			if (!zone_watermark_ok(zone, order,
-> -					high_wmark_pages(zone), end_zone, 0))
-> -				all_zones_ok = 0;
->  			temp_priority[i] = priority;
->  			sc.nr_scanned = 0;
->  			note_zone_scanning_priority(zone, priority);
-> @@ -2099,13 +2096,17 @@ loop_again:
->  			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
->  				sc.may_writepage = 1;
->  
-> -			/*
-> -			 * We are still under min water mark. it mean we have
-> -			 * GFP_ATOMIC allocation failure risk. Hurry up!
-> -			 */
-> -			if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
-> -					      end_zone, 0))
-> -				has_under_min_watermark_zone = 1;
-> +			if (!zone_watermark_ok(zone, order,
-> +					high_wmark_pages(zone), end_zone, 0)) {
-> +				all_zones_ok = 0;
-> +				/*
-> +				 * We are still under min water mark. it mean we have
-> +				 * GFP_ATOMIC allocation failure risk. Hurry up!
-> +				 */
-> +				if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
-> +						      end_zone, 0))
-> +					has_under_min_watermark_zone = 1;
-> +			}
->  
-
-
+>
+> ~Randy
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
