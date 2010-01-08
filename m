@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BBED36B003D
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 19:39:49 -0500 (EST)
-Date: Thu, 7 Jan 2010 16:39:27 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 644706B003D
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 19:42:01 -0500 (EST)
+Date: Thu, 7 Jan 2010 16:41:43 -0800 (PST)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <20100108092333.1040c799.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LFD.2.00.1001071634500.7821@localhost.localdomain>
+In-Reply-To: <alpine.LFD.2.00.1001071634500.7821@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.1001071639560.7821@localhost.localdomain>
 References: <20100104182429.833180340@chello.nl> <20100104182813.753545361@chello.nl> <20100105054536.44bf8002@infradead.org> <alpine.DEB.2.00.1001050916300.1074@router.home> <20100105192243.1d6b2213@infradead.org> <alpine.DEB.2.00.1001071007210.901@router.home>
  <alpine.LFD.2.00.1001070814080.7821@localhost.localdomain> <1262884960.4049.106.camel@laptop> <alpine.LFD.2.00.1001070934060.7821@localhost.localdomain> <alpine.LFD.2.00.1001070937180.7821@localhost.localdomain> <alpine.LFD.2.00.1001071031440.7821@localhost.localdomain>
- <1262900683.4049.139.camel@laptop> <alpine.LFD.2.00.1001071426590.7821@localhost.localdomain> <20100108092333.1040c799.kamezawa.hiroyu@jp.fujitsu.com>
+ <1262900683.4049.139.camel@laptop> <alpine.LFD.2.00.1001071426590.7821@localhost.localdomain> <20100108092333.1040c799.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1001071634500.7821@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,23 +19,19 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On Fri, 8 Jan 2010, KAMEZAWA Hiroyuki wrote:
+On Thu, 7 Jan 2010, Linus Torvalds wrote:
 > 
-> Hmm, do_brk() sometimes unmap conflicting mapping. Isn't it be a problem ?
+>  - the patch I sent out just falls back to the old code if it finds 
+>    something fishy, so it will do whatever do_brk() does regardless.
 
-No. For two reasons:
+Btw, I'd like to state it again - the patch I sent out was not ready to be 
+applied. I'm pretty sure it should check things like certain vm_flags 
+too(VM_LOCKED etc), and fall back for those cases as well.
 
- - sys_brk() doesn't actually do that (see the "find_vma_intersection()" 
-   call). I'm not sure why do_brk() does, but it might have to do with 
-   execve().
+So the patch was more meant to illustrate the _concept_ than meant to 
+necessarily be taken seriously as-is.
 
- - the patch I sent out just falls back to the old code if it finds 
-   something fishy, so it will do whatever do_brk() does regardless.
-
-(Yes, brk() does unmap the old brk for the _shrinking_ case, of course. 
-Again, the patch I sent just falls back to the old behavior in that case)
-
-		Linus
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
