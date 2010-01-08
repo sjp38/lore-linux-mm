@@ -1,43 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 61F326B0044
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 16:37:12 -0500 (EST)
-Date: Fri, 8 Jan 2010 13:36:47 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-In-Reply-To: <alpine.DEB.2.00.1001081138260.23727@router.home>
-Message-ID: <alpine.LFD.2.00.1001081307330.7821@localhost.localdomain>
-References: <20100104182429.833180340@chello.nl>  <20100104182813.753545361@chello.nl>  <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>  <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>  <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
-  <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>  <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>  <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
- <20100106092212.c8766aa8.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001051718100.3630@localhost.localdomain>  <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001051917000.3630@localhost.localdomain>
- <20100106125625.b02c1b3a.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain> <1262969610.4244.36.camel@laptop> <alpine.LFD.2.00.1001080911340.7821@localhost.localdomain>
- <alpine.DEB.2.00.1001081138260.23727@router.home>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A01886B0044
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 17:05:25 -0500 (EST)
+From: David Howells <dhowells@redhat.com>
+Subject: [PATCH 1/6] NOMMU: Fix SYSV SHM for NOMMU
+Date: Fri, 08 Jan 2010 22:05:17 +0000
+Message-ID: <20100108220516.23489.11319.stgit@warthog.procyon.org.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+To: viro@ZenIV.linux.org.uk, vapier@gentoo.org, lethal@linux-sh.org
+Cc: dhowells@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Commit c4caa778157dbbf04116f0ac2111e389b5cd7a29 broke SYSV SHM for NOMMU by
+taking away the pointer to shm_get_unmapped_area() from shm_file_operations.
+
+Put it back conditionally on CONFIG_MMU=n.
+
+file->f_ops->get_unmapped_area() is used to find out the base address for a
+mapping of a mappable chardev device or mappable memory-based file (such as a
+ramfs file).  It needs to be called prior to file->f_ops->mmap() being called.
+
+Signed-off-by: David Howells <dhowells@redhat.com>
+---
+
+ ipc/shm.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
 
-On Fri, 8 Jan 2010, Christoph Lameter wrote:
-> 
-> I'd say that the ticket lock sucks for short critical sections vs. a
-> simple spinlock since it forces the cacheline into shared mode.
-
-Btw, I do agree that it's likely made worse by the fairness of the ticket 
-locks and the resulting extra traffic of people waiting for their turn. 
-Often for absolutely no good reason, since in this case the rwlock itself 
-will then be granted for reading in most cases - and there are no 
-ordering issues on readers.
-
-We worried about the effects of fair spinlocks when introducing the ticket 
-locks, but nobody ever actually had a load that seemed to indicate it made 
-much of a difference, and we did have a few cases where starvation was a 
-very noticeable problem.
-
-				Linus
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 92fe923..f2da7d2 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -298,6 +298,7 @@ static const struct file_operations shm_file_operations = {
+ 	.mmap		= shm_mmap,
+ 	.fsync		= shm_fsync,
+ 	.release	= shm_release,
++	.get_unmapped_area	= shm_get_unmapped_area,
+ };
+ 
+ static const struct file_operations shm_file_operations_huge = {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
