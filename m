@@ -1,83 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D0C496B003D
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 20:59:44 -0500 (EST)
-Received: by yxe36 with SMTP id 36so26382925yxe.11
-        for <linux-mm@kvack.org>; Thu, 07 Jan 2010 17:59:43 -0800 (PST)
-Date: Fri, 8 Jan 2010 10:58:41 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: Commit f50de2d38 seems to be breaking my oom killer
-Message-Id: <20100108105841.b9a030c4.minchan.kim@barrios-desktop>
-In-Reply-To: <20100107135831.GA29564@csn.ul.ie>
-References: <87a5b0801001070434m7f6b0fd6vfcdf49ab73a06cbb@mail.gmail.com>
-	<20100107135831.GA29564@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2EE806B003D
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 21:12:55 -0500 (EST)
+Message-ID: <4B469511.1030402@redhat.com>
+Date: Thu, 07 Jan 2010 21:14:41 -0500
+From: Masami Hiramatsu <mhiramat@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RESEND][mmotm][PATCH v2, 0/5] elf coredump: Add extended numbering
+ support
+References: <20100104.100607.189714443.d.hatayama@jp.fujitsu.com>	<20100107162928.1d6eba76.akpm@linux-foundation.org> <20100107163259.86165aee.akpm@linux-foundation.org>
+In-Reply-To: <20100107163259.86165aee.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Will Newton <will.newton@gmail.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daisuke HATAYAMA <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xiyou.wangcong@gmail.com, andi@firstfloor.org, jdike@addtoit.com, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, Mel 
+Andrew Morton wrote:
+> On Thu, 7 Jan 2010 16:29:28 -0800
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+>> On Mon, 04 Jan 2010 10:06:07 +0900 (JST)
+>> Daisuke HATAYAMA <d.hatayama@jp.fujitsu.com> wrote:
+>>
+>>> The current ELF dumper can produce broken corefiles if program headers
+>>> exceed 65535. In particular, the program in 64-bit environment often
+>>> demands more than 65535 mmaps. If you google max_map_count, then you
+>>> can find many users facing this problem.
+>>>
+>>> Solaris has already dealt with this issue, and other OSes have also
+>>> adopted the same method as in Solaris. Currently, Sun's document and
+>>> AMD 64 ABI include the description for the extension, where they call
+>>> the extension Extended Numbering. See Reference for further information.
+>>>
+>>> I believe that linux kernel should adopt the same way as they did, so
+>>> I've written this patch.
+>>>
+>>> I am also preparing for patches of GDB and binutils.
+>>
+>> That's a beautifully presented patchset.  Thanks for doing all that
+>> work - it helps.
+>>
+>> UML maintenance appears to have ceased in recent times, so if we wish
+>> to have these changes runtime tested (we should) then I think it would
+>> be best if you could find someone to do that please.
+>>
+>> And no akpm code-review would be complete without: dump_seek() is
+>> waaaay to large to be inlined.  Is there some common .c file to where
+>> we could move it?
+>>
+> 
+> Also, these patches made a bit of a mess of
+> mm-pass-mm-flags-as-a-coredump-parameter-for-consistency.patch.
+> 
+> I consider
+> mm-pass-mm-flags-as-a-coredump-parameter-for-consistency.patch to be
+> less important (although older) than this patch series so I've fixed up
+> mm-pass-mm-flags-as-a-coredump-parameter-for-consistency.patch and have
+> staged it after your patch series.  If this causes problems then I'll
+> drop mm-pass-mm-flags-as-a-coredump-parameter-for-consistency.patch,
+> sorry.
 
-On Thu, 7 Jan 2010 13:58:31 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
+Sure, that's fine to me too.
+It seems that those patches are not conflict each other directly.
 
-> vmscan: kswapd should notice that all zones are not ok if they are unreclaimble
+Thank you for modifying my patch.
+And I found just two misses.
+
+> From: Masami Hiramatsu <mhiramat@redhat.com>
 > 
-> In the event all zones are unreclaimble, it is possible for kswapd to
-> never go to sleep because "all zones are ok even though watermarks are
-> not reached". It gets into a situation where cond_reched() is not
-> called.
+> Pass mm->flags as a coredump parameter for consistency.
 > 
-> This patch notes that if all zones are unreclaimable then the zones are
-> not ok and cond_resched() should be called.
+>  ---
+> 1787         if (mm->core_state || !get_dumpable(mm)) {  <- (1)
+> 1788                 up_write(&mm->mmap_sem);
+> 1789                 put_cred(cred);
+> 1790                 goto fail;
+> 1791         }
+> 1792
+> [...]
+> 1798         if (get_dumpable(mm) == 2) {    /* Setuid core dump mode */ <-(2)
+> 1799                 flag = O_EXCL;          /* Stop rewrite attacks */
+> 1800                 cred->fsuid = 0;        /* Dump root private */
+> 1801         }
+>  ---
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> --- 
->  mm/vmscan.c |    4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
+> Since dumpable bits are not protected by lock, there is a chance to change
+> these bits between (1) and (2).
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 2ad8603..d3c0848 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2022,8 +2022,10 @@ loop_again:
->  				break;
->  			}
->  		}
-> -		if (i < 0)
-> +		if (i < 0) {
-> +			all_zones_ok = 0;
->  			goto out;
-> +		}
+> To solve this issue, this patch copies mm->flags to
+> coredump_params.mm_flags at the beginning of do_coredump() and uses it
+> instead of get_dumpable() while dumping core.
+> 
+> This copy is also passed to binfmt->core_dump, since elf*_core_dump() uses
+> dump_filter bits in mm->flags.
+> 
+> Signed-off-by: Masami Hiramatsu <mhiramat@redhat.com>
+> Acked-by: Roland McGrath <roland@redhat.com>
+> Cc: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
+> Cc: Oleg Nesterov <oleg@redhat.com>
+> Cc: Ingo Molnar <mingo@elte.hu>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  fs/binfmt_elf.c         |   12 ++----------
+>  fs/binfmt_elf_fdpic.c   |   12 ++----------
+>  fs/exec.c               |   20 ++++++++++++++++----
+>  include/linux/binfmts.h |    1 +
+>  4 files changed, 21 insertions(+), 24 deletions(-)
+> 
+> diff -puN fs/binfmt_elf.c~mm-pass-mm-flags-as-a-coredump-parameter-for-consistency fs/binfmt_elf.c
+> --- a/fs/binfmt_elf.c~mm-pass-mm-flags-as-a-coredump-parameter-for-consistency
+> +++ a/fs/binfmt_elf.c
+> @@ -1905,7 +1905,6 @@ static int elf_core_dump(struct coredump
+>  	struct vm_area_struct *vma, *gate_vma;
+>  	struct elfhdr *elf = NULL;
+>  	loff_t offset = 0, dataoff, foffset;
+> -	unsigned long mm_flags;
+>  	struct elf_note_info info;
+>  	struct elf_phdr *phdr4note = NULL;
+>  	struct elf_shdr *shdr4extnum = NULL;
+> @@ -1980,13 +1979,6 @@ static int elf_core_dump(struct coredump
 >  
->  		for (i = 0; i <= end_zone; i++) {
->  			struct zone *zone = pgdat->node_zones + i;
-> 
-> --
+>  	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
+>  
+> -	/*
+> -	 * We must use the same mm->flags while dumping core to avoid
+> -	 * inconsistency between the program headers and bodies, otherwise an
+> -	 * unusable core file can be generated.
+> -	 */
+> -	mm_flags = current->mm->flags;
+> -
+>  	offset += elf_core_vma_data_size(gate_vma, mm_flags);
+						   ^^^^^^^^ cprm->mm_flags
 
-Nice catch!
-Don't we care following as although it is rare case?
+>  	offset += elf_core_extra_data_size();
+>  	e_shoff = offset;
+> @@ -2018,7 +2010,7 @@ static int elf_core_dump(struct coredump
+>  		phdr.p_offset = offset;
+>  		phdr.p_vaddr = vma->vm_start;
+>  		phdr.p_paddr = 0;
+> -		phdr.p_filesz = vma_dump_size(vma, mm_flags);
+> +		phdr.p_filesz = vma_dump_size(vma, cprm->mm_flags);
+>  		phdr.p_memsz = vma->vm_end - vma->vm_start;
+>  		offset += phdr.p_filesz;
+>  		phdr.p_flags = vma->vm_flags & VM_READ ? PF_R : 0;
+> @@ -2053,7 +2045,7 @@ static int elf_core_dump(struct coredump
+>  		unsigned long addr;
+>  		unsigned long end;
+>  
+> -		end = vma->vm_start + vma_dump_size(vma, mm_flags);
+> +		end = vma->vm_start + vma_dump_size(vma, cprm->mm_flags);
+>  
+>  		for (addr = vma->vm_start; addr < end; addr += PAGE_SIZE) {
+>  			struct page *page;
+> diff -puN fs/binfmt_elf_fdpic.c~mm-pass-mm-flags-as-a-coredump-parameter-for-consistency fs/binfmt_elf_fdpic.c
+> --- a/fs/binfmt_elf_fdpic.c~mm-pass-mm-flags-as-a-coredump-parameter-for-consistency
+> +++ a/fs/binfmt_elf_fdpic.c
+> @@ -1623,7 +1623,6 @@ static int elf_fdpic_core_dump(struct co
+>  #endif
+>  	int thread_status_size = 0;
+>  	elf_addr_t *auxv;
+> -	unsigned long mm_flags;
+>  	struct elf_phdr *phdr4note = NULL;
+>  	struct elf_shdr *shdr4extnum = NULL;
+>  	Elf_Half e_phnum;
+> @@ -1766,13 +1765,6 @@ static int elf_fdpic_core_dump(struct co
+>  	/* Page-align dumped data */
+>  	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
+>  
+> -	/*
+> -	 * We must use the same mm->flags while dumping core to avoid
+> -	 * inconsistency between the program headers and bodies, otherwise an
+> -	 * unusable core file can be generated.
+> -	 */
+> -	mm_flags = current->mm->flags;
+> -
+>  	offset += elf_core_vma_data_size(mm_flags);
+                                         ^^^^^^^^ cprm->mm_flags
 
----
-                for (i = 0; i <= end_zone; i++) {
-                        struct zone *zone = pgdat->node_zones + i; 
-                        int nr_slab;
-                        int nid, zid; 
+Thanks!
 
-                        if (!populated_zone(zone))
-                                continue;
+-- 
+Masami Hiramatsu
 
-                        if (zone_is_all_unreclaimable(zone) &&
-                                        priority != DEF_PRIORITY)
-                                continue;  <==== here
+Software Engineer
+Hitachi Computer Products (America), Inc.
+Software Solutions Division
 
----
+e-mail: mhiramat@redhat.com
 
-And while I review all_zones_ok'usage in balance_pgdat, 
-I feel it's not consistent and rather confused. 
-How about this?
-
-== CUT_HERE ==
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
