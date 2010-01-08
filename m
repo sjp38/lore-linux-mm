@@ -1,219 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 748606B003D
-	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 22:17:03 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 000E16B0047
+	for <linux-mm@kvack.org>; Thu,  7 Jan 2010 22:32:08 -0500 (EST)
 From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
-Date: Fri, 8 Jan 2010 11:16:13 +0800
-Subject: [PATCH - resend ] memory-hotplug: create /sys/firmware/memmap entry
- for new memory(v3)
-Message-ID: <DA586906BA1FFC4384FCFD6429ECE86031560B8D@shzsmsx502.ccr.corp.intel.com>
+Date: Fri, 8 Jan 2010 11:32:07 +0800
+Subject: [PATCH - resend] Memory-Hotplug: Fix the bug on interface /dev/mem
+ for 64-bit kernel(v1)
+Message-ID: <DA586906BA1FFC4384FCFD6429ECE86031560BAC@shzsmsx502.ccr.corp.intel.com>
 Content-Language: en-US
 Content-Type: multipart/mixed;
-	boundary="_002_DA586906BA1FFC4384FCFD6429ECE86031560B8Dshzsmsx502ccrco_"
+	boundary="_002_DA586906BA1FFC4384FCFD6429ECE86031560BACshzsmsx502ccrco_"
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---_002_DA586906BA1FFC4384FCFD6429ECE86031560B8Dshzsmsx502ccrco_
+--_002_DA586906BA1FFC4384FCFD6429ECE86031560BACshzsmsx502ccrco_
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-Resend the patch to the mailing-list, the original patch URL is at=20
-http://patchwork.kernel.org/patch/69071/. It is already reviewed, but It is=
- still not=20
-accepted and no comments, I guess that it should be ignored since we have s=
-o many=20
-patches each day, send it again. =20
+Resend the patch to the mailing-list, the original patch URL is=20
+http://patchwork.kernel.org/patch/69075/, it is not accepted without commen=
+ts,
+sent it again to review.
 
-memory-hotplug: create /sys/firmware/memmap entry for hot-added memory
+Memory-Hotplug: Fix the bug on interface /dev/mem for 64-bit kernel
 
-Interface firmware_map_add was not called in explicit, Remove it and add fu=
-nction
-firmware_map_add_hotplug as hotplug interface of memmap.
+The new added memory can not be access by interface /dev/mem, because we do=
+ not
+ update the variable high_memory. This patch add a new e820 entry in e820 t=
+able,
+ and update max_pfn, max_low_pfn and high_memory.
 
-When we hot-add new memory, sysfs does not export memmap entry for it. we a=
-dd
- a call in function add_memory to function firmware_map_add_hotplug.
-
-Add a new function add_sysfs_fw_map_entry to create memmap entry, it can av=
-oid=20
-duplicated codes.
-
-Thanks for the careful review from Fengguang Wu and Dave Hansen.
+We add a function update_pfn in file arch/x86/mm/init.c to udpate these
+ varibles. Memory hotplug does not make sense on 32-bit kernel, so we did n=
+ot
+ concern it in this function.
 
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
-Acked-by: Dave Hansen <dave@linux.vnet.ibm.com>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+CC: Andi Kleen <ak@linux.intel.com>
+CC: Wu Fengguang <fengguang.wu@intel.com>
+CC: Li Haicheng <Haicheng.li@intel.com>
+
 ---
-diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
-index 56f9234..ec8c3d4 100644
---- a/drivers/firmware/memmap.c
-+++ b/drivers/firmware/memmap.c
-@@ -123,52 +123,75 @@ static int firmware_map_add_entry(u64 start, u64 end,
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index f50447d..b986246 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -110,8 +110,8 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned=
+ type)
+ /*
+  * Add a memory region to the kernel e820 map.
+  */
+-static void __init __e820_add_region(struct e820map *e820x, u64 start, u64=
+ size,
+-					 int type)
++static void __meminit __e820_add_region(struct e820map *e820x, u64 start,
++					 u64 size, int type)
+ {
+ 	int x =3D e820x->nr_map;
+=20
+@@ -126,7 +126,7 @@ static void __init __e820_add_region(struct e820map *e8=
+20x, u64 start, u64 size,
+ 	e820x->nr_map++;
  }
 =20
- /**
-- * firmware_map_add() - Adds a firmware mapping entry.
-+ * Add memmap entry on sysfs
-+ */
-+static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry) {
-+	static int map_entries_nr;
-+	static struct kset *mmap_kset;
-+
-+	if (!mmap_kset) {
-+		mmap_kset =3D kset_create_and_add("memmap", NULL, firmware_kobj);
-+		if (WARN_ON(!mmap_kset))
-+			return -ENOMEM;
-+	}
-+
-+	entry->kobj.kset =3D mmap_kset;
-+	if (kobject_add(&entry->kobj, NULL, "%d", map_entries_nr++))
-+		kobject_put(&entry->kobj);
-+
-+	return 0;
-+}
+-void __init e820_add_region(u64 start, u64 size, int type)
++void __meminit e820_add_region(u64 start, u64 size, int type)
+ {
+ 	__e820_add_region(&e820, start, size, type);
+ }
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index d406c52..0474459 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -1,6 +1,7 @@
+ #include <linux/initrd.h>
+ #include <linux/ioport.h>
+ #include <linux/swap.h>
++#include <linux/bootmem.h>
+=20
+ #include <asm/cacheflush.h>
+ #include <asm/e820.h>
+@@ -386,3 +387,30 @@ void free_initrd_mem(unsigned long start, unsigned lon=
+g end)
+ 	free_init_pages("initrd memory", start, end);
+ }
+ #endif
 +
 +/**
-+ * firmware_map_add_early() - Adds a firmware mapping entry.
-  * @start: Start of the memory range.
-  * @end:   End of the memory range (inclusive).
-  * @type:  Type of the memory range.
-  *
-- * This function uses kmalloc() for memory
-- * allocation. Use firmware_map_add_early() if you want to use the bootmem
-- * allocator.
-+ * Adds a firmware mapping entry. This function uses the bootmem allocator
-+ * for memory allocation.
-  *
-  * That function must be called before late_initcall.
-  *
-  * Returns 0 on success, or -ENOMEM if no memory could be allocated.
-  **/
--int firmware_map_add(u64 start, u64 end, const char *type)
-+int __init firmware_map_add_early(u64 start, u64 end, const char *type)
- {
- 	struct firmware_map_entry *entry;
-=20
--	entry =3D kmalloc(sizeof(struct firmware_map_entry), GFP_ATOMIC);
--	if (!entry)
-+	entry =3D alloc_bootmem(sizeof(struct firmware_map_entry));
-+	if (WARN_ON(!entry))
- 		return -ENOMEM;
-=20
- 	return firmware_map_add_entry(start, end, type, entry);
- }
-=20
- /**
-- * firmware_map_add_early() - Adds a firmware mapping entry.
-+ * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
-+ * memory hotplug.
-  * @start: Start of the memory range.
-  * @end:   End of the memory range (inclusive).
-  * @type:  Type of the memory range.
-  *
-- * Adds a firmware mapping entry. This function uses the bootmem allocator
-- * for memory allocation. Use firmware_map_add() if you want to use kmallo=
-c().
-- *
-- * That function must be called before late_initcall.
-+ * Adds a firmware mapping entry. This function is for memory hotplug, it =
-is
-+ * simiar with function firmware_map_add_early. the only difference is tha=
-t
-+ * it will create the syfs entry dynamically.
-  *
-  * Returns 0 on success, or -ENOMEM if no memory could be allocated.
-  **/
--int __init firmware_map_add_early(u64 start, u64 end, const char *type)
-+int __meminit firmware_map_add_hotplug(u64 start, u64 end, const char *typ=
-e)
- {
- 	struct firmware_map_entry *entry;
-=20
--	entry =3D alloc_bootmem(sizeof(struct firmware_map_entry));
-+	entry =3D kzalloc(sizeof(struct firmware_map_entry), GFP_ATOMIC);
- 	if (WARN_ON(!entry))
- 		return -ENOMEM;
-=20
--	return firmware_map_add_entry(start, end, type, entry);
-+	firmware_map_add_entry(start, end, type, entry);
-+	/* create the memmap entry */
-+	add_sysfs_fw_map_entry(entry);
++ * After memory hotplug, the variable max_pfn, max_low_pfn and high_memory=
+ will
++ * be affected, it will be updated in this function. Memory hotplug does n=
+ot
++ * make sense on 32-bit kernel, so we do did not concern it in this functi=
+on.
++ */
++void __meminit __attribute__((weak)) update_pfn(u64 start, u64 size)
++{
++#ifdef CONFIG_X86_64
++	unsigned long limit_low_pfn =3D 1UL<<(32 - PAGE_SHIFT);
++	unsigned long start_pfn =3D start >> PAGE_SHIFT;
++	unsigned long end_pfn =3D (start + size) >> PAGE_SHIFT;
 +
-+	return 0;
- }
++	if (end_pfn > max_pfn) {
++		max_pfn =3D end_pfn;
++		high_memory =3D (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
++	}
++
++	/* if add to low memory, update max_low_pfn */
++	if (unlikely(start_pfn < limit_low_pfn)) {
++		if (end_pfn <=3D limit_low_pfn)
++			max_low_pfn =3D end_pfn;
++		else
++			max_low_pfn =3D limit_low_pfn;
++	}
++#endif /* CONFIG_X86_64 */
++}
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index b10ec49..6693414 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -13,6 +13,7 @@
+=20
+ extern unsigned long max_low_pfn;
+ extern unsigned long min_low_pfn;
++extern void update_pfn(u64 start, u64 size);
 =20
  /*
-@@ -214,18 +237,10 @@ static ssize_t memmap_attr_show(struct kobject *kobj,
-  */
- static int __init memmap_init(void)
- {
--	int i =3D 0;
- 	struct firmware_map_entry *entry;
--	struct kset *memmap_kset;
--
--	memmap_kset =3D kset_create_and_add("memmap", NULL, firmware_kobj);
--	if (WARN_ON(!memmap_kset))
--		return -ENOMEM;
-=20
- 	list_for_each_entry(entry, &map_entries, list) {
--		entry->kobj.kset =3D memmap_kset;
--		if (kobject_add(&entry->kobj, NULL, "%d", i++))
--			kobject_put(&entry->kobj);
-+		add_sysfs_fw_map_entry(entry);
- 	}
-=20
- 	return 0;
-diff --git a/include/linux/firmware-map.h b/include/linux/firmware-map.h
-index 875451f..c6dcc1d 100644
---- a/include/linux/firmware-map.h
-+++ b/include/linux/firmware-map.h
-@@ -24,17 +24,17 @@
-  */
- #ifdef CONFIG_FIRMWARE_MEMMAP
-=20
--int firmware_map_add(u64 start, u64 end, const char *type);
- int firmware_map_add_early(u64 start, u64 end, const char *type);
-+int firmware_map_add_hotplug(u64 start, u64 end, const char *type);
-=20
- #else /* CONFIG_FIRMWARE_MEMMAP */
-=20
--static inline int firmware_map_add(u64 start, u64 end, const char *type)
-+static inline int firmware_map_add_early(u64 start, u64 end, const char *t=
-ype)
- {
- 	return 0;
- }
-=20
--static inline int firmware_map_add_early(u64 start, u64 end, const char *t=
-ype)
-+static inline int firmware_map_add_hotplug(u64 start, u64 end, const char =
-*type)
- {
- 	return 0;
- }
+  * highest page
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 030ce8a..78e34e6 100644
+index 030ce8a..ee7b2d6 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -28,6 +28,7 @@
- #include <linux/pfn.h>
- #include <linux/suspend.h>
- #include <linux/mm_inline.h>
-+#include <linux/firmware-map.h>
-=20
- #include <asm/tlbflush.h>
-=20
-@@ -523,6 +524,9 @@ int __ref add_memory(int nid, u64 start, u64 size)
+@@ -523,6 +523,14 @@ int __ref add_memory(int nid, u64 start, u64 size)
  		BUG_ON(ret);
  	}
 =20
-+	/* create new memmap entry */
-+	firmware_map_add_hotplug(start, start + size, "System RAM");
++	/* update e820 table */
++	printk(KERN_INFO "Adding memory region to e820 table (start:%016Lx, size:=
+%016Lx).\n",
++			 (unsigned long long)start, (unsigned long long)size);
++	e820_add_region(start, size, E820_RAM);
++
++	/* update max_pfn, max_low_pfn and high_memory */
++	update_pfn(start, size);
 +
  	goto out;
 =20
@@ -224,119 +156,81 @@ Shaohui
 
 
 
---_002_DA586906BA1FFC4384FCFD6429ECE86031560B8Dshzsmsx502ccrco_
-Content-Type: application/octet-stream; name=
-	"memory-hotplug-create-sys-firmware-memmap-entry-for-new-memory-v3.patch"
-Content-Description: memory-hotplug-create-sys-firmware-memmap-entry-for-new-memory-v3.patch
-Content-Disposition: attachment; filename=
-	"memory-hotplug-create-sys-firmware-memmap-entry-for-new-memory-v3.patch";
-	size=5746; creation-date="Fri, 18 Dec 2009 16:26:02 GMT";
-	modification-date="Mon, 21 Dec 2009 09:38:34 GMT"
+
+--_002_DA586906BA1FFC4384FCFD6429ECE86031560BACshzsmsx502ccrco_
+Content-Type: application/octet-stream;
+	name="memory-hotplug-Fix-the-bug-on-interface-dev-mem-v1.patch"
+Content-Description: memory-hotplug-Fix-the-bug-on-interface-dev-mem-v1.patch
+Content-Disposition: attachment;
+	filename="memory-hotplug-Fix-the-bug-on-interface-dev-mem-v1.patch";
+	size=3508; creation-date="Fri, 18 Dec 2009 17:36:26 GMT";
+	modification-date="Sat, 19 Dec 2009 01:25:10 GMT"
 Content-Transfer-Encoding: base64
 
-bWVtb3J5LWhvdHBsdWc6IGNyZWF0ZSAvc3lzL2Zpcm13YXJlL21lbW1hcCBlbnRyeSBmb3IgaG90
-LWFkZGVkIG1lbW9yeQoKSW50ZXJmYWNlIGZpcm13YXJlX21hcF9hZGQgd2FzIG5vdCBjYWxsZWQg
-aW4gZXhwbGljaXQsIFJlbW92ZSBpdCBhbmQgYWRkIGZ1bmN0aW9uCmZpcm13YXJlX21hcF9hZGRf
-aG90cGx1ZyBhcyBob3RwbHVnIGludGVyZmFjZSBvZiBtZW1tYXAuCgpXaGVuIHdlIGhvdC1hZGQg
-bmV3IG1lbW9yeSwgc3lzZnMgZG9lcyBub3QgZXhwb3J0IG1lbW1hcCBlbnRyeSBmb3IgaXQuIHdl
-IGFkZAogYSBjYWxsIGluIGZ1bmN0aW9uIGFkZF9tZW1vcnkgdG8gZnVuY3Rpb24gZmlybXdhcmVf
-bWFwX2FkZF9ob3RwbHVnLgoKQWRkIGEgbmV3IGZ1bmN0aW9uIGFkZF9zeXNmc19md19tYXBfZW50
-cnkgdG8gY3JlYXRlIG1lbW1hcCBlbnRyeSwgaXQgY2FuIGF2b2lkIApkdXBsaWNhdGVkIGNvZGVz
-LgoKVGhhbmtzIGZvciB0aGUgY2FyZWZ1bCByZXZpZXcgZnJvbSBGZW5nZ3VhbmcgV3UgYW5kIERh
-dmUgSGFuc2VuLgoKU2lnbmVkLW9mZi1ieTogU2hhb2h1aSBaaGVuZyA8c2hhb2h1aS56aGVuZ0Bp
-bnRlbC5jb20+CkFja2VkLWJ5OiBBbmRpIEtsZWVuIDxha0BsaW51eC5pbnRlbC5jb20+CkFja2Vk
-LWJ5OiBZYXN1bm9yaSBHb3RvIDx5LWdvdG9AanAuZnVqaXRzdS5jb20+CkFja2VkLWJ5OiBEYXZl
-IEhhbnNlbiA8ZGF2ZUBsaW51eC52bmV0LmlibS5jb20+ClJldmlld2VkLWJ5OiBXdSBGZW5nZ3Vh
-bmcgPGZlbmdndWFuZy53dUBpbnRlbC5jb20+Ci0tLQpkaWZmIC0tZ2l0IGEvZHJpdmVycy9maXJt
-d2FyZS9tZW1tYXAuYyBiL2RyaXZlcnMvZmlybXdhcmUvbWVtbWFwLmMKaW5kZXggNTZmOTIzNC4u
-ZWM4YzNkNCAxMDA2NDQKLS0tIGEvZHJpdmVycy9maXJtd2FyZS9tZW1tYXAuYworKysgYi9kcml2
-ZXJzL2Zpcm13YXJlL21lbW1hcC5jCkBAIC0xMjMsNTIgKzEyMyw3NSBAQCBzdGF0aWMgaW50IGZp
-cm13YXJlX21hcF9hZGRfZW50cnkodTY0IHN0YXJ0LCB1NjQgZW5kLAogfQogCiAvKioKLSAqIGZp
-cm13YXJlX21hcF9hZGQoKSAtIEFkZHMgYSBmaXJtd2FyZSBtYXBwaW5nIGVudHJ5LgorICogQWRk
-IG1lbW1hcCBlbnRyeSBvbiBzeXNmcworICovCitzdGF0aWMgaW50IGFkZF9zeXNmc19md19tYXBf
-ZW50cnkoc3RydWN0IGZpcm13YXJlX21hcF9lbnRyeSAqZW50cnkpIHsKKwlzdGF0aWMgaW50IG1h
-cF9lbnRyaWVzX25yOworCXN0YXRpYyBzdHJ1Y3Qga3NldCAqbW1hcF9rc2V0OworCisJaWYgKCFt
-bWFwX2tzZXQpIHsKKwkJbW1hcF9rc2V0ID0ga3NldF9jcmVhdGVfYW5kX2FkZCgibWVtbWFwIiwg
-TlVMTCwgZmlybXdhcmVfa29iaik7CisJCWlmIChXQVJOX09OKCFtbWFwX2tzZXQpKQorCQkJcmV0
-dXJuIC1FTk9NRU07CisJfQorCisJZW50cnktPmtvYmoua3NldCA9IG1tYXBfa3NldDsKKwlpZiAo
-a29iamVjdF9hZGQoJmVudHJ5LT5rb2JqLCBOVUxMLCAiJWQiLCBtYXBfZW50cmllc19ucisrKSkK
-KwkJa29iamVjdF9wdXQoJmVudHJ5LT5rb2JqKTsKKworCXJldHVybiAwOworfQorCisvKioKKyAq
-IGZpcm13YXJlX21hcF9hZGRfZWFybHkoKSAtIEFkZHMgYSBmaXJtd2FyZSBtYXBwaW5nIGVudHJ5
-LgogICogQHN0YXJ0OiBTdGFydCBvZiB0aGUgbWVtb3J5IHJhbmdlLgogICogQGVuZDogICBFbmQg
-b2YgdGhlIG1lbW9yeSByYW5nZSAoaW5jbHVzaXZlKS4KICAqIEB0eXBlOiAgVHlwZSBvZiB0aGUg
-bWVtb3J5IHJhbmdlLgogICoKLSAqIFRoaXMgZnVuY3Rpb24gdXNlcyBrbWFsbG9jKCkgZm9yIG1l
-bW9yeQotICogYWxsb2NhdGlvbi4gVXNlIGZpcm13YXJlX21hcF9hZGRfZWFybHkoKSBpZiB5b3Ug
-d2FudCB0byB1c2UgdGhlIGJvb3RtZW0KLSAqIGFsbG9jYXRvci4KKyAqIEFkZHMgYSBmaXJtd2Fy
-ZSBtYXBwaW5nIGVudHJ5LiBUaGlzIGZ1bmN0aW9uIHVzZXMgdGhlIGJvb3RtZW0gYWxsb2NhdG9y
-CisgKiBmb3IgbWVtb3J5IGFsbG9jYXRpb24uCiAgKgogICogVGhhdCBmdW5jdGlvbiBtdXN0IGJl
-IGNhbGxlZCBiZWZvcmUgbGF0ZV9pbml0Y2FsbC4KICAqCiAgKiBSZXR1cm5zIDAgb24gc3VjY2Vz
-cywgb3IgLUVOT01FTSBpZiBubyBtZW1vcnkgY291bGQgYmUgYWxsb2NhdGVkLgogICoqLwotaW50
-IGZpcm13YXJlX21hcF9hZGQodTY0IHN0YXJ0LCB1NjQgZW5kLCBjb25zdCBjaGFyICp0eXBlKQor
-aW50IF9faW5pdCBmaXJtd2FyZV9tYXBfYWRkX2Vhcmx5KHU2NCBzdGFydCwgdTY0IGVuZCwgY29u
-c3QgY2hhciAqdHlwZSkKIHsKIAlzdHJ1Y3QgZmlybXdhcmVfbWFwX2VudHJ5ICplbnRyeTsKIAot
-CWVudHJ5ID0ga21hbGxvYyhzaXplb2Yoc3RydWN0IGZpcm13YXJlX21hcF9lbnRyeSksIEdGUF9B
-VE9NSUMpOwotCWlmICghZW50cnkpCisJZW50cnkgPSBhbGxvY19ib290bWVtKHNpemVvZihzdHJ1
-Y3QgZmlybXdhcmVfbWFwX2VudHJ5KSk7CisJaWYgKFdBUk5fT04oIWVudHJ5KSkKIAkJcmV0dXJu
-IC1FTk9NRU07CiAKIAlyZXR1cm4gZmlybXdhcmVfbWFwX2FkZF9lbnRyeShzdGFydCwgZW5kLCB0
-eXBlLCBlbnRyeSk7CiB9CiAKIC8qKgotICogZmlybXdhcmVfbWFwX2FkZF9lYXJseSgpIC0gQWRk
-cyBhIGZpcm13YXJlIG1hcHBpbmcgZW50cnkuCisgKiBmaXJtd2FyZV9tYXBfYWRkX2hvdHBsdWco
-KSAtIEFkZHMgYSBmaXJtd2FyZSBtYXBwaW5nIGVudHJ5IHdoZW4gd2UgZG8KKyAqIG1lbW9yeSBo
-b3RwbHVnLgogICogQHN0YXJ0OiBTdGFydCBvZiB0aGUgbWVtb3J5IHJhbmdlLgogICogQGVuZDog
-ICBFbmQgb2YgdGhlIG1lbW9yeSByYW5nZSAoaW5jbHVzaXZlKS4KICAqIEB0eXBlOiAgVHlwZSBv
-ZiB0aGUgbWVtb3J5IHJhbmdlLgogICoKLSAqIEFkZHMgYSBmaXJtd2FyZSBtYXBwaW5nIGVudHJ5
-LiBUaGlzIGZ1bmN0aW9uIHVzZXMgdGhlIGJvb3RtZW0gYWxsb2NhdG9yCi0gKiBmb3IgbWVtb3J5
-IGFsbG9jYXRpb24uIFVzZSBmaXJtd2FyZV9tYXBfYWRkKCkgaWYgeW91IHdhbnQgdG8gdXNlIGtt
-YWxsb2MoKS4KLSAqCi0gKiBUaGF0IGZ1bmN0aW9uIG11c3QgYmUgY2FsbGVkIGJlZm9yZSBsYXRl
-X2luaXRjYWxsLgorICogQWRkcyBhIGZpcm13YXJlIG1hcHBpbmcgZW50cnkuIFRoaXMgZnVuY3Rp
-b24gaXMgZm9yIG1lbW9yeSBob3RwbHVnLCBpdCBpcworICogc2ltaWFyIHdpdGggZnVuY3Rpb24g
-ZmlybXdhcmVfbWFwX2FkZF9lYXJseS4gdGhlIG9ubHkgZGlmZmVyZW5jZSBpcyB0aGF0CisgKiBp
-dCB3aWxsIGNyZWF0ZSB0aGUgc3lmcyBlbnRyeSBkeW5hbWljYWxseS4KICAqCiAgKiBSZXR1cm5z
-IDAgb24gc3VjY2Vzcywgb3IgLUVOT01FTSBpZiBubyBtZW1vcnkgY291bGQgYmUgYWxsb2NhdGVk
-LgogICoqLwotaW50IF9faW5pdCBmaXJtd2FyZV9tYXBfYWRkX2Vhcmx5KHU2NCBzdGFydCwgdTY0
-IGVuZCwgY29uc3QgY2hhciAqdHlwZSkKK2ludCBfX21lbWluaXQgZmlybXdhcmVfbWFwX2FkZF9o
-b3RwbHVnKHU2NCBzdGFydCwgdTY0IGVuZCwgY29uc3QgY2hhciAqdHlwZSkKIHsKIAlzdHJ1Y3Qg
-ZmlybXdhcmVfbWFwX2VudHJ5ICplbnRyeTsKIAotCWVudHJ5ID0gYWxsb2NfYm9vdG1lbShzaXpl
-b2Yoc3RydWN0IGZpcm13YXJlX21hcF9lbnRyeSkpOworCWVudHJ5ID0ga3phbGxvYyhzaXplb2Yo
-c3RydWN0IGZpcm13YXJlX21hcF9lbnRyeSksIEdGUF9BVE9NSUMpOwogCWlmIChXQVJOX09OKCFl
-bnRyeSkpCiAJCXJldHVybiAtRU5PTUVNOwogCi0JcmV0dXJuIGZpcm13YXJlX21hcF9hZGRfZW50
-cnkoc3RhcnQsIGVuZCwgdHlwZSwgZW50cnkpOworCWZpcm13YXJlX21hcF9hZGRfZW50cnkoc3Rh
-cnQsIGVuZCwgdHlwZSwgZW50cnkpOworCS8qIGNyZWF0ZSB0aGUgbWVtbWFwIGVudHJ5ICovCisJ
-YWRkX3N5c2ZzX2Z3X21hcF9lbnRyeShlbnRyeSk7CisKKwlyZXR1cm4gMDsKIH0KIAogLyoKQEAg
-LTIxNCwxOCArMjM3LDEwIEBAIHN0YXRpYyBzc2l6ZV90IG1lbW1hcF9hdHRyX3Nob3coc3RydWN0
-IGtvYmplY3QgKmtvYmosCiAgKi8KIHN0YXRpYyBpbnQgX19pbml0IG1lbW1hcF9pbml0KHZvaWQp
-CiB7Ci0JaW50IGkgPSAwOwogCXN0cnVjdCBmaXJtd2FyZV9tYXBfZW50cnkgKmVudHJ5OwotCXN0
-cnVjdCBrc2V0ICptZW1tYXBfa3NldDsKLQotCW1lbW1hcF9rc2V0ID0ga3NldF9jcmVhdGVfYW5k
-X2FkZCgibWVtbWFwIiwgTlVMTCwgZmlybXdhcmVfa29iaik7Ci0JaWYgKFdBUk5fT04oIW1lbW1h
-cF9rc2V0KSkKLQkJcmV0dXJuIC1FTk9NRU07CiAKIAlsaXN0X2Zvcl9lYWNoX2VudHJ5KGVudHJ5
-LCAmbWFwX2VudHJpZXMsIGxpc3QpIHsKLQkJZW50cnktPmtvYmoua3NldCA9IG1lbW1hcF9rc2V0
-OwotCQlpZiAoa29iamVjdF9hZGQoJmVudHJ5LT5rb2JqLCBOVUxMLCAiJWQiLCBpKyspKQotCQkJ
-a29iamVjdF9wdXQoJmVudHJ5LT5rb2JqKTsKKwkJYWRkX3N5c2ZzX2Z3X21hcF9lbnRyeShlbnRy
-eSk7CiAJfQogCiAJcmV0dXJuIDA7CmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L2Zpcm13YXJl
-LW1hcC5oIGIvaW5jbHVkZS9saW51eC9maXJtd2FyZS1tYXAuaAppbmRleCA4NzU0NTFmLi5jNmRj
-YzFkIDEwMDY0NAotLS0gYS9pbmNsdWRlL2xpbnV4L2Zpcm13YXJlLW1hcC5oCisrKyBiL2luY2x1
-ZGUvbGludXgvZmlybXdhcmUtbWFwLmgKQEAgLTI0LDE3ICsyNCwxNyBAQAogICovCiAjaWZkZWYg
-Q09ORklHX0ZJUk1XQVJFX01FTU1BUAogCi1pbnQgZmlybXdhcmVfbWFwX2FkZCh1NjQgc3RhcnQs
-IHU2NCBlbmQsIGNvbnN0IGNoYXIgKnR5cGUpOwogaW50IGZpcm13YXJlX21hcF9hZGRfZWFybHko
-dTY0IHN0YXJ0LCB1NjQgZW5kLCBjb25zdCBjaGFyICp0eXBlKTsKK2ludCBmaXJtd2FyZV9tYXBf
-YWRkX2hvdHBsdWcodTY0IHN0YXJ0LCB1NjQgZW5kLCBjb25zdCBjaGFyICp0eXBlKTsKIAogI2Vs
-c2UgLyogQ09ORklHX0ZJUk1XQVJFX01FTU1BUCAqLwogCi1zdGF0aWMgaW5saW5lIGludCBmaXJt
-d2FyZV9tYXBfYWRkKHU2NCBzdGFydCwgdTY0IGVuZCwgY29uc3QgY2hhciAqdHlwZSkKK3N0YXRp
-YyBpbmxpbmUgaW50IGZpcm13YXJlX21hcF9hZGRfZWFybHkodTY0IHN0YXJ0LCB1NjQgZW5kLCBj
-b25zdCBjaGFyICp0eXBlKQogewogCXJldHVybiAwOwogfQogCi1zdGF0aWMgaW5saW5lIGludCBm
-aXJtd2FyZV9tYXBfYWRkX2Vhcmx5KHU2NCBzdGFydCwgdTY0IGVuZCwgY29uc3QgY2hhciAqdHlw
-ZSkKK3N0YXRpYyBpbmxpbmUgaW50IGZpcm13YXJlX21hcF9hZGRfaG90cGx1Zyh1NjQgc3RhcnQs
-IHU2NCBlbmQsIGNvbnN0IGNoYXIgKnR5cGUpCiB7CiAJcmV0dXJuIDA7CiB9CmRpZmYgLS1naXQg
-YS9tbS9tZW1vcnlfaG90cGx1Zy5jIGIvbW0vbWVtb3J5X2hvdHBsdWcuYwppbmRleCAwMzBjZThh
-Li43OGUzNGU2IDEwMDY0NAotLS0gYS9tbS9tZW1vcnlfaG90cGx1Zy5jCisrKyBiL21tL21lbW9y
-eV9ob3RwbHVnLmMKQEAgLTI4LDYgKzI4LDcgQEAKICNpbmNsdWRlIDxsaW51eC9wZm4uaD4KICNp
-bmNsdWRlIDxsaW51eC9zdXNwZW5kLmg+CiAjaW5jbHVkZSA8bGludXgvbW1faW5saW5lLmg+Cisj
-aW5jbHVkZSA8bGludXgvZmlybXdhcmUtbWFwLmg+CiAKICNpbmNsdWRlIDxhc20vdGxiZmx1c2gu
-aD4KIApAQCAtNTIzLDYgKzUyNCw5IEBAIGludCBfX3JlZiBhZGRfbWVtb3J5KGludCBuaWQsIHU2
-NCBzdGFydCwgdTY0IHNpemUpCiAJCUJVR19PTihyZXQpOwogCX0KIAorCS8qIGNyZWF0ZSBuZXcg
-bWVtbWFwIGVudHJ5ICovCisJZmlybXdhcmVfbWFwX2FkZF9ob3RwbHVnKHN0YXJ0LCBzdGFydCAr
-IHNpemUsICJTeXN0ZW0gUkFNIik7CisKIAlnb3RvIG91dDsKIAogZXJyb3I6Cg==
+TWVtb3J5LUhvdHBsdWc6IEZpeCB0aGUgYnVnIG9uIGludGVyZmFjZSAvZGV2L21lbSBmb3IgNjQt
+Yml0IGtlcm5lbAoKVGhlIG5ldyBhZGRlZCBtZW1vcnkgY2FuIG5vdCBiZSBhY2Nlc3MgYnkgaW50
+ZXJmYWNlIC9kZXYvbWVtLCBiZWNhdXNlIHdlIGRvIG5vdAogdXBkYXRlIHRoZSB2YXJpYWJsZSBo
+aWdoX21lbW9yeS4gVGhpcyBwYXRjaCBhZGQgYSBuZXcgZTgyMCBlbnRyeSBpbiBlODIwIHRhYmxl
+LAogYW5kIHVwZGF0ZSBtYXhfcGZuLCBtYXhfbG93X3BmbiBhbmQgaGlnaF9tZW1vcnkuCgpXZSBh
+ZGQgYSBmdW5jdGlvbiB1cGRhdGVfcGZuIGluIGZpbGUgYXJjaC94ODYvbW0vaW5pdC5jIHRvIHVk
+cGF0ZSB0aGVzZQogdmFyaWJsZXMuIE1lbW9yeSBob3RwbHVnIGRvZXMgbm90IG1ha2Ugc2Vuc2Ug
+b24gMzItYml0IGtlcm5lbCwgc28gd2UgZGlkIG5vdAogY29uY2VybiBpdCBpbiB0aGlzIGZ1bmN0
+aW9uLgoKU2lnbmVkLW9mZi1ieTogU2hhb2h1aSBaaGVuZyA8c2hhb2h1aS56aGVuZ0BpbnRlbC5j
+b20+Ci0tLQpkaWZmIC0tZ2l0IGEvYXJjaC94ODYva2VybmVsL2U4MjAuYyBiL2FyY2gveDg2L2tl
+cm5lbC9lODIwLmMKaW5kZXggZjUwNDQ3ZC4uYjk4NjI0NiAxMDA2NDQKLS0tIGEvYXJjaC94ODYv
+a2VybmVsL2U4MjAuYworKysgYi9hcmNoL3g4Ni9rZXJuZWwvZTgyMC5jCkBAIC0xMTAsOCArMTEw
+LDggQEAgaW50IF9faW5pdCBlODIwX2FsbF9tYXBwZWQodTY0IHN0YXJ0LCB1NjQgZW5kLCB1bnNp
+Z25lZCB0eXBlKQogLyoKICAqIEFkZCBhIG1lbW9yeSByZWdpb24gdG8gdGhlIGtlcm5lbCBlODIw
+IG1hcC4KICAqLwotc3RhdGljIHZvaWQgX19pbml0IF9fZTgyMF9hZGRfcmVnaW9uKHN0cnVjdCBl
+ODIwbWFwICplODIweCwgdTY0IHN0YXJ0LCB1NjQgc2l6ZSwKLQkJCQkJIGludCB0eXBlKQorc3Rh
+dGljIHZvaWQgX19tZW1pbml0IF9fZTgyMF9hZGRfcmVnaW9uKHN0cnVjdCBlODIwbWFwICplODIw
+eCwgdTY0IHN0YXJ0LAorCQkJCQkgdTY0IHNpemUsIGludCB0eXBlKQogewogCWludCB4ID0gZTgy
+MHgtPm5yX21hcDsKIApAQCAtMTI2LDcgKzEyNiw3IEBAIHN0YXRpYyB2b2lkIF9faW5pdCBfX2U4
+MjBfYWRkX3JlZ2lvbihzdHJ1Y3QgZTgyMG1hcCAqZTgyMHgsIHU2NCBzdGFydCwgdTY0IHNpemUs
+CiAJZTgyMHgtPm5yX21hcCsrOwogfQogCi12b2lkIF9faW5pdCBlODIwX2FkZF9yZWdpb24odTY0
+IHN0YXJ0LCB1NjQgc2l6ZSwgaW50IHR5cGUpCit2b2lkIF9fbWVtaW5pdCBlODIwX2FkZF9yZWdp
+b24odTY0IHN0YXJ0LCB1NjQgc2l6ZSwgaW50IHR5cGUpCiB7CiAJX19lODIwX2FkZF9yZWdpb24o
+JmU4MjAsIHN0YXJ0LCBzaXplLCB0eXBlKTsKIH0KZGlmZiAtLWdpdCBhL2FyY2gveDg2L21tL2lu
+aXQuYyBiL2FyY2gveDg2L21tL2luaXQuYwppbmRleCBkNDA2YzUyLi4wNDc0NDU5IDEwMDY0NAot
+LS0gYS9hcmNoL3g4Ni9tbS9pbml0LmMKKysrIGIvYXJjaC94ODYvbW0vaW5pdC5jCkBAIC0xLDYg
+KzEsNyBAQAogI2luY2x1ZGUgPGxpbnV4L2luaXRyZC5oPgogI2luY2x1ZGUgPGxpbnV4L2lvcG9y
+dC5oPgogI2luY2x1ZGUgPGxpbnV4L3N3YXAuaD4KKyNpbmNsdWRlIDxsaW51eC9ib290bWVtLmg+
+CiAKICNpbmNsdWRlIDxhc20vY2FjaGVmbHVzaC5oPgogI2luY2x1ZGUgPGFzbS9lODIwLmg+CkBA
+IC0zODYsMyArMzg3LDMwIEBAIHZvaWQgZnJlZV9pbml0cmRfbWVtKHVuc2lnbmVkIGxvbmcgc3Rh
+cnQsIHVuc2lnbmVkIGxvbmcgZW5kKQogCWZyZWVfaW5pdF9wYWdlcygiaW5pdHJkIG1lbW9yeSIs
+IHN0YXJ0LCBlbmQpOwogfQogI2VuZGlmCisKKy8qKgorICogQWZ0ZXIgbWVtb3J5IGhvdHBsdWcs
+IHRoZSB2YXJpYWJsZSBtYXhfcGZuLCBtYXhfbG93X3BmbiBhbmQgaGlnaF9tZW1vcnkgd2lsbAor
+ICogYmUgYWZmZWN0ZWQsIGl0IHdpbGwgYmUgdXBkYXRlZCBpbiB0aGlzIGZ1bmN0aW9uLiBNZW1v
+cnkgaG90cGx1ZyBkb2VzIG5vdAorICogbWFrZSBzZW5zZSBvbiAzMi1iaXQga2VybmVsLCBzbyB3
+ZSBkbyBkaWQgbm90IGNvbmNlcm4gaXQgaW4gdGhpcyBmdW5jdGlvbi4KKyAqLwordm9pZCBfX21l
+bWluaXQgX19hdHRyaWJ1dGVfXygod2VhaykpIHVwZGF0ZV9wZm4odTY0IHN0YXJ0LCB1NjQgc2l6
+ZSkKK3sKKyNpZmRlZiBDT05GSUdfWDg2XzY0CisJdW5zaWduZWQgbG9uZyBsaW1pdF9sb3dfcGZu
+ID0gMVVMPDwoMzIgLSBQQUdFX1NISUZUKTsKKwl1bnNpZ25lZCBsb25nIHN0YXJ0X3BmbiA9IHN0
+YXJ0ID4+IFBBR0VfU0hJRlQ7CisJdW5zaWduZWQgbG9uZyBlbmRfcGZuID0gKHN0YXJ0ICsgc2l6
+ZSkgPj4gUEFHRV9TSElGVDsKKworCWlmIChlbmRfcGZuID4gbWF4X3BmbikgeworCQltYXhfcGZu
+ID0gZW5kX3BmbjsKKwkJaGlnaF9tZW1vcnkgPSAodm9pZCAqKV9fdmEobWF4X3BmbiAqIFBBR0Vf
+U0laRSAtIDEpICsgMTsKKwl9CisKKwkvKiBpZiBhZGQgdG8gbG93IG1lbW9yeSwgdXBkYXRlIG1h
+eF9sb3dfcGZuICovCisJaWYgKHVubGlrZWx5KHN0YXJ0X3BmbiA8IGxpbWl0X2xvd19wZm4pKSB7
+CisJCWlmIChlbmRfcGZuIDw9IGxpbWl0X2xvd19wZm4pCisJCQltYXhfbG93X3BmbiA9IGVuZF9w
+Zm47CisJCWVsc2UKKwkJCW1heF9sb3dfcGZuID0gbGltaXRfbG93X3BmbjsKKwl9CisjZW5kaWYg
+LyogQ09ORklHX1g4Nl82NCAqLworfQpkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9ib290bWVt
+LmggYi9pbmNsdWRlL2xpbnV4L2Jvb3RtZW0uaAppbmRleCBiMTBlYzQ5Li42NjkzNDE0IDEwMDY0
+NAotLS0gYS9pbmNsdWRlL2xpbnV4L2Jvb3RtZW0uaAorKysgYi9pbmNsdWRlL2xpbnV4L2Jvb3Rt
+ZW0uaApAQCAtMTMsNiArMTMsNyBAQAogCiBleHRlcm4gdW5zaWduZWQgbG9uZyBtYXhfbG93X3Bm
+bjsKIGV4dGVybiB1bnNpZ25lZCBsb25nIG1pbl9sb3dfcGZuOworZXh0ZXJuIHZvaWQgdXBkYXRl
+X3Bmbih1NjQgc3RhcnQsIHU2NCBzaXplKTsKIAogLyoKICAqIGhpZ2hlc3QgcGFnZQpkaWZmIC0t
+Z2l0IGEvbW0vbWVtb3J5X2hvdHBsdWcuYyBiL21tL21lbW9yeV9ob3RwbHVnLmMKaW5kZXggMDMw
+Y2U4YS4uZWU3YjJkNiAxMDA2NDQKLS0tIGEvbW0vbWVtb3J5X2hvdHBsdWcuYworKysgYi9tbS9t
+ZW1vcnlfaG90cGx1Zy5jCkBAIC01MjMsNiArNTIzLDE0IEBAIGludCBfX3JlZiBhZGRfbWVtb3J5
+KGludCBuaWQsIHU2NCBzdGFydCwgdTY0IHNpemUpCiAJCUJVR19PTihyZXQpOwogCX0KIAorCS8q
+IHVwZGF0ZSBlODIwIHRhYmxlICovCisJcHJpbnRrKEtFUk5fSU5GTyAiQWRkaW5nIG1lbW9yeSBy
+ZWdpb24gdG8gZTgyMCB0YWJsZSAoc3RhcnQ6JTAxNkx4LCBzaXplOiUwMTZMeCkuXG4iLAorCQkJ
+ICh1bnNpZ25lZCBsb25nIGxvbmcpc3RhcnQsICh1bnNpZ25lZCBsb25nIGxvbmcpc2l6ZSk7CisJ
+ZTgyMF9hZGRfcmVnaW9uKHN0YXJ0LCBzaXplLCBFODIwX1JBTSk7CisKKwkvKiB1cGRhdGUgbWF4
+X3BmbiwgbWF4X2xvd19wZm4gYW5kIGhpZ2hfbWVtb3J5ICovCisJdXBkYXRlX3BmbihzdGFydCwg
+c2l6ZSk7CisKIAlnb3RvIG91dDsKIAogZXJyb3I6Cg==
 
---_002_DA586906BA1FFC4384FCFD6429ECE86031560B8Dshzsmsx502ccrco_--
+--_002_DA586906BA1FFC4384FCFD6429ECE86031560BACshzsmsx502ccrco_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
