@@ -1,58 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B0C8A60021B
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 17:10:20 -0500 (EST)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20100108220516.23489.11319.stgit@warthog.procyon.org.uk>
-References: <20100108220516.23489.11319.stgit@warthog.procyon.org.uk>
-Subject: Re: [PATCH 1/6] NOMMU: Fix SYSV SHM for NOMMU
-Date: Fri, 08 Jan 2010 22:10:13 +0000
-Message-ID: <23917.1262988613@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 80F9F60021B
+	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 17:26:32 -0500 (EST)
+Date: Fri, 8 Jan 2010 15:46:26 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+In-Reply-To: <alpine.LFD.2.00.1001081307330.7821@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1001081544260.29503@router.home>
+References: <20100104182429.833180340@chello.nl>  <20100104182813.753545361@chello.nl>  <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>  <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>  <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
+  <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>  <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>  <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
+ <20100106092212.c8766aa8.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001051718100.3630@localhost.localdomain>  <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001051917000.3630@localhost.localdomain>
+ <20100106125625.b02c1b3a.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain> <alpine.DEB.2.00.1001081138260.23727@router.home> <alpine.LFD.2.00.1001081307330.7821@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-Cc: dhowells@redhat.com, viro@ZenIV.linux.org.uk, vapier@gentoo.org, lethal@linux-sh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-David Howells <dhowells@redhat.com> wrote:
+On Fri, 8 Jan 2010, Linus Torvalds wrote:
 
-> Put it back conditionally on CONFIG_MMU=n.
+> We worried about the effects of fair spinlocks when introducing the ticket
+> locks, but nobody ever actually had a load that seemed to indicate it made
+> much of a difference, and we did have a few cases where starvation was a
+> very noticeable problem.
 
-Seems I forgot to put in the conditional bits.  Revised patch attached.
+And I made the point that starvation was a hardware issue due to immature
+cacheline handling. Now the software patchup job for the hardware breakage
+is causing regressions for everyone.
 
-David
----
-From: David Howells <dhowells@redhat.com>
-Subject: [PATCH] NOMMU: Fix SYSV SHM for NOMMU
-
-Commit c4caa778157dbbf04116f0ac2111e389b5cd7a29 broke SYSV SHM for NOMMU by
-taking away the pointer to shm_get_unmapped_area() from shm_file_operations.
-
-Put it back conditionally on CONFIG_MMU=n.
-
-file->f_ops->get_unmapped_area() is used to find out the base address for a
-mapping of a mappable chardev device or mappable memory-based file (such as a
-ramfs file).  It needs to be called prior to file->f_ops->mmap() being called.
-
-Signed-off-by: David Howells <dhowells@redhat.com>
----
-
- ipc/shm.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
-
-
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 92fe923..23256b8 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -298,6 +298,9 @@ static const struct file_operations shm_file_operations = {
- 	.mmap		= shm_mmap,
- 	.fsync		= shm_fsync,
- 	.release	= shm_release,
-+#ifndef CONFIG_MMU
-+	.get_unmapped_area	= shm_get_unmapped_area,
-+#endif
- };
- 
- static const struct file_operations shm_file_operations_huge = {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
