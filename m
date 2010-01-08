@@ -1,46 +1,39 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id AC7366B0085
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 23:42:41 -0500 (EST)
-Date: Mon, 1 Feb 2010 12:41:24 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [Patch - Resend v4] Memory-Hotplug: Fix the bug on interface
-	/dev/mem for 64-bit kernel
-Message-ID: <20100201044124.GA29097@localhost>
-References: <20100201041253.GA1028@shaohui>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100201041253.GA1028@shaohui>
-Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, haveblue@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, ak@linux.intel.com, hpa@kernel.org, haicheng.li@intel.com, shaohui.zheng@linux.intel.com
-List-ID: <linux-mm.kvack.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+Date: Fri, 8 Jan 2010 14:43:02 -0800 (PST)
+Message-ID: <alpine.LFD.2.00.1001081439470.7821__23413.7707543143$1262990922$gmane$org@localhost.localdomain>
+References: <20100104182429.833180340@chello.nl>  <20100104182813.753545361@chello.nl>  <20100105092559.1de8b613.kamezawa.hiroyu@jp.fujitsu.com>  <28c262361001042029w4b95f226lf54a3ed6a4291a3b@mail.gmail.com>  <20100105134357.4bfb4951.kamezawa.hiroyu@jp.fujitsu.com>
+  <alpine.LFD.2.00.1001042052210.3630@localhost.localdomain>  <20100105143046.73938ea2.kamezawa.hiroyu@jp.fujitsu.com>  <20100105163939.a3f146fb.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001050707520.3630@localhost.localdomain>
+ <20100106092212.c8766aa8.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001051718100.3630@localhost.localdomain>  <20100106115233.5621bd5e.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001051917000.3630@localhost.localdomain>
+ <20100106125625.b02c1b3a.kamezawa.hiroyu@jp.fujitsu.com>  <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain> <alpine.LFD.2.00.1001081307330.7821@localhost.localdomain> <alpine.DEB.2.00.1001081544260.29503@router.home>
+Mime-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1754329Ab0AHWsV@vger.kernel.org>
+In-Reply-To: <alpine.DEB.2.00.1001081544260.29503@router.home>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
+List-Id: linux-mm.kvack.org
 
-Shaohui,
 
-Some style nitpicks..
 
->  #ifdef CONFIG_MEMORY_HOTPLUG
-> +/**
+On Fri, 8 Jan 2010, Christoph Lameter wrote:
+> 
+> And I made the point that starvation was a hardware issue due to immature
+> cacheline handling. Now the software patchup job for the hardware breakage
+> is causing regressions for everyone.
 
-Should use /* here. 
+Well, in all fairness, (a) existing hardware doesn't do a good job, and 
+would have a really hard time doing so in general (ie the whole issue of 
+on-die vs directly-between-sockets vs between-complex-fabric), and (b) in 
+this case, the problem really was that the x86-64 rwsems were badly 
+implemented.
 
-> + * After memory hotplug, the variable max_pfn, max_low_pfn and high_memory will
-> + * be affected, it will be updated in this function.
-> + */
-> +static inline void __meminit update_end_of_memory_vars(u64 start,
+The fact that somebody _thought_ that it might be ok to do them with 
+spinlocks and had done some limited testing without ever hitting the 
+problem spot (probably never having tested any amount of contention at 
+all) is immaterial. We should have had real native rwsemaphores for 
+x86-64, and complaining about the fallback sucking under load is kind of 
+pointless.
 
-The "inline" and "__meminit" are both redundant here.
-
-> +		max_low_pfn = max_pfn = end_pfn;
-
-One assignment per line is preferred.
-
-Thanks,
-Fengguang
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+			Linus
