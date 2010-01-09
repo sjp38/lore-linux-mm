@@ -1,35 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A3F0C6B003D
-	for <linux-mm@kvack.org>; Fri,  8 Jan 2010 20:03:23 -0500 (EST)
-Received: by yxe36 with SMTP id 36so28933706yxe.11
-        for <linux-mm@kvack.org>; Fri, 08 Jan 2010 17:03:21 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 3397D6B003D
+	for <linux-mm@kvack.org>; Sat,  9 Jan 2010 09:48:03 -0500 (EST)
+From: Ed Tomlinson <edt@aei.ca>
+Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
+Date: Sat, 9 Jan 2010 09:47:57 -0500
+References: <20100104182429.833180340@chello.nl> <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain> <1262969610.4244.36.camel@laptop>
+In-Reply-To: <1262969610.4244.36.camel@laptop>
 MIME-Version: 1.0
-In-Reply-To: <20100108220533.23489.99121.stgit@warthog.procyon.org.uk>
-References: <20100108220516.23489.11319.stgit@warthog.procyon.org.uk>
-	<20100108220533.23489.99121.stgit@warthog.procyon.org.uk>
-From: Mike Frysinger <vapier.adi@gmail.com>
-Date: Fri, 8 Jan 2010 19:55:48 -0500
-Message-ID: <8bd0f97a1001081655s4ee3d4a7q3ef6a10d211ce6d1@mail.gmail.com>
-Subject: Re: [PATCH 4/6] NOMMU: Don't need get_unmapped_area() for NOMMU
-Content-Type: text/plain; charset=UTF-8
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001090947.57479.edt@aei.ca>
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: viro@zeniv.linux.org.uk, lethal@linux-sh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Nitin Gupta <ngupta@vflare.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 8, 2010 at 17:05, David Howells wrote:
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
->
-> +#ifdef CONFIG_MMU
-> +extern void arch_pick_mmap_layout(struct mm_struct *mm);
-> +#else
-> +extern void arch_pick_mmap_layout(struct mm_struct *mm) {}
-> +#endif
+On Friday 08 January 2010 11:53:30 Peter Zijlstra wrote:
+> On Tue, 2010-01-05 at 20:20 -0800, Linus Torvalds wrote:
+> > 
+> > On Wed, 6 Jan 2010, KAMEZAWA Hiroyuki wrote:
+> > > > 
+> > > > Of course, your other load with MADV_DONTNEED seems to be horrible, and 
+> > > > has some nasty spinlock issues, but that looks like a separate deal (I 
+> > > > assume that load is just very hard on the pgtable lock).
+> > > 
+> > > It's zone->lock, I guess. My test program avoids pgtable lock problem.
+> > 
+> > Yeah, I should have looked more at your callchain. That's nasty. Much 
+> > worse than the per-mm lock. I thought the page buffering would avoid the 
+> > zone lock becoming a huge problem, but clearly not in this case.
+> 
+> Right, so I ran some numbers on a multi-socket (2) machine as well:
+> 
+>                                pf/min
+> 
+> -tip                          56398626
+> -tip + xadd                  174753190
+> -tip + speculative           189274319
+> -tip + xadd + speculative    200174641
 
-static inline instead of extern when !MMU ?
--mike
+Has anyone tried these patches with ramzswap?  Nitin do they help with the locking
+issues you mentioned?
+
+Thanks,
+Ed
+
+ 
+> [ variance is around 0.5% for this workload, ran most of these numbers
+> with --repeat 5 ]
+> 
+> At both the xadd/speculative point the workload is dominated by the
+> zone->lock, the xadd+speculative removes some of the contention, and
+> removing the various RSS counters could yield another few percent
+> according to the profiles, but then we're pretty much there.
+> 
+> One way around those RSS counters is to track it per task, a quick grep
+> shows its only the oom-killer and proc that use them.
+> 
+> A quick hack removing them gets us: 203158058
+> 
+> So from a throughput pov. the whole speculative fault thing might not be
+> interesting until the rest of the vm gets a lift to go along with it.
+> 
+> >From a blocking on mmap_sem pov. I think Linus is right in that we
+> should first consider things like dropping mmap_sep around IO and page
+> zeroing, and generally looking at reducing hold times and such.
+> 
+> So while I think its quite feasible to do these speculative faults, it
+> appears we're not quite ready for them.
+> 
+> Maybe I can get -rt to carry it for a while, there we have to reduce
+> mmap_sem to a mutex, which hurts lots.
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
