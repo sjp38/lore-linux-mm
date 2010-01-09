@@ -1,87 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3397D6B003D
-	for <linux-mm@kvack.org>; Sat,  9 Jan 2010 09:48:03 -0500 (EST)
-From: Ed Tomlinson <edt@aei.ca>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FFA96B003D
+	for <linux-mm@kvack.org>; Sat,  9 Jan 2010 10:52:56 -0500 (EST)
+Date: Sat, 9 Jan 2010 07:55:17 -0800
+From: Arjan van de Ven <arjan@infradead.org>
 Subject: Re: [RFC][PATCH 6/8] mm: handle_speculative_fault()
-Date: Sat, 9 Jan 2010 09:47:57 -0500
-References: <20100104182429.833180340@chello.nl> <alpine.LFD.2.00.1001052007090.3630@localhost.localdomain> <1262969610.4244.36.camel@laptop>
-In-Reply-To: <1262969610.4244.36.camel@laptop>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
+Message-ID: <20100109075517.4ec65b7e@infradead.org>
+In-Reply-To: <alpine.DEB.2.00.1001080946390.23727@router.home>
+References: <20100104182429.833180340@chello.nl>
+	<20100104182813.753545361@chello.nl>
+	<20100105054536.44bf8002@infradead.org>
+	<alpine.DEB.2.00.1001050916300.1074@router.home>
+	<20100105192243.1d6b2213@infradead.org>
+	<alpine.DEB.2.00.1001071007210.901@router.home>
+	<alpine.LFD.2.00.1001070814080.7821@localhost.localdomain>
+	<alpine.DEB.2.00.1001071025450.901@router.home>
+	<20100107204940.253ed753@infradead.org>
+	<alpine.DEB.2.00.1001080946390.23727@router.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <201001090947.57479.edt@aei.ca>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, cl@linux-foundation.org, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Nitin Gupta <ngupta@vflare.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hugh.dickins" <hugh.dickins@tiscali.co.uk>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 08 January 2010 11:53:30 Peter Zijlstra wrote:
-> On Tue, 2010-01-05 at 20:20 -0800, Linus Torvalds wrote:
-> > 
-> > On Wed, 6 Jan 2010, KAMEZAWA Hiroyuki wrote:
-> > > > 
-> > > > Of course, your other load with MADV_DONTNEED seems to be horrible, and 
-> > > > has some nasty spinlock issues, but that looks like a separate deal (I 
-> > > > assume that load is just very hard on the pgtable lock).
-> > > 
-> > > It's zone->lock, I guess. My test program avoids pgtable lock problem.
-> > 
-> > Yeah, I should have looked more at your callchain. That's nasty. Much 
-> > worse than the per-mm lock. I thought the page buffering would avoid the 
-> > zone lock becoming a huge problem, but clearly not in this case.
-> 
-> Right, so I ran some numbers on a multi-socket (2) machine as well:
-> 
->                                pf/min
-> 
-> -tip                          56398626
-> -tip + xadd                  174753190
-> -tip + speculative           189274319
-> -tip + xadd + speculative    200174641
+On Fri, 8 Jan 2010 09:51:49 -0600 (CST)
+Christoph Lameter <cl@linux-foundation.org> wrote:
 
-Has anyone tried these patches with ramzswap?  Nitin do they help with the locking
-issues you mentioned?
+> On Thu, 7 Jan 2010, Arjan van de Ven wrote:
+> 
+> > if an app has to change because our kernel sucks (for no good
+> > reason), "change the app" really is the lame type of answer.
+> 
+> We are changing apps all of the time here to reduce the number of
+> system calls. 
 
-Thanks,
-Ed
+it's fine to fix an app for something fundamental.
+it sucks to need to fix an app because we decided to clear a page
+inside a lock rather than outside it.
 
- 
-> [ variance is around 0.5% for this workload, ran most of these numbers
-> with --repeat 5 ]
-> 
-> At both the xadd/speculative point the workload is dominated by the
-> zone->lock, the xadd+speculative removes some of the contention, and
-> removing the various RSS counters could yield another few percent
-> according to the profiles, but then we're pretty much there.
-> 
-> One way around those RSS counters is to track it per task, a quick grep
-> shows its only the oom-killer and proc that use them.
-> 
-> A quick hack removing them gets us: 203158058
-> 
-> So from a throughput pov. the whole speculative fault thing might not be
-> interesting until the rest of the vm gets a lift to go along with it.
-> 
-> >From a blocking on mmap_sem pov. I think Linus is right in that we
-> should first consider things like dropping mmap_sep around IO and page
-> zeroing, and generally looking at reducing hold times and such.
-> 
-> So while I think its quite feasible to do these speculative faults, it
-> appears we're not quite ready for them.
-> 
-> Maybe I can get -rt to carry it for a while, there we have to reduce
-> mmap_sem to a mutex, which hurts lots.
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
-> 
+
+-- 
+Arjan van de Ven 	Intel Open Source Technology Centre
+For development, discussion and tips for power savings, 
+visit http://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
