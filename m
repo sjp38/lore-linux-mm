@@ -1,33 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6E2A96B006A
-	for <linux-mm@kvack.org>; Sun, 10 Jan 2010 09:37:56 -0500 (EST)
-Date: Sun, 10 Jan 2010 22:37:45 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Commit f50de2d38 seems to be breaking my oom killer
-Message-ID: <20100110143745.GB14610@localhost>
-References: <20100108105841.b9a030c4.minchan.kim@barrios-desktop> <20100108115531.C132.A69D9226@jp.fujitsu.com> <20100108130742.C138.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100108130742.C138.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E8FCE6B006A
+	for <linux-mm@kvack.org>; Sun, 10 Jan 2010 18:50:30 -0500 (EST)
+Received: by pzk34 with SMTP id 34so13228385pzk.11
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2010 15:50:29 -0800 (PST)
+Date: Mon, 11 Jan 2010 08:48:16 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v2 -mmotm-2010-01-06-14-34] check high watermark after
+ shrink zone
+Message-Id: <20100111084816.81bc7ebd.minchan.kim@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Will Newton <will.newton@gmail.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-> Subject: [PATCH] vmscan: kswapd don't retry balance_pgdat() if all zones are unreclaimable
-> 
-> Commit f50de2d3 (vmscan: have kswapd sleep for a short interval and
-> double check it should be asleep) can cause kswapd to enter an infinite
-> loop if running on a single-CPU system. If all zones are unreclaimble,
-> sleeping_prematurely return 1 and kswapd will call balance_pgdat()
-> again. but it's totally meaningless, balance_pgdat() doesn't anything
-> against unreclaimable zone!
- 
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Thanks!
+
+ * V2
+  * Add reviewed-by singed-off (Thanks Kosaki, Wu)
+  * Fix typo of changelog
+
+== CUT HERE ==
+
+Kswapd check that zone have enough free by zone_water_mark.
+If any zone doesn't have enough page, it set all_zones_ok to zero.
+!all_zone_ok makes kswapd retry not sleeping.
+
+I think the watermark check before shrink zone is pointless.
+Kswapd try to shrink zone then the check is meaninful.
+
+This patch move the check after shrink zone.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+CC: Mel Gorman <mel@csn.ul.ie>
+CC: Rik van Riel <riel@redhat.com>
+---
+ mm/vmscan.c |   21 +++++++++++----------
+ 1 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 885207a..b81adf8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2057,9 +2057,6 @@ loop_again:
+ 					priority != DEF_PRIORITY)
+ 				continue;
+ 
+-			if (!zone_watermark_ok(zone, order,
+-					high_wmark_pages(zone), end_zone, 0))
+-				all_zones_ok = 0;
+ 			temp_priority[i] = priority;
+ 			sc.nr_scanned = 0;
+ 			note_zone_scanning_priority(zone, priority);
+@@ -2099,13 +2096,17 @@ loop_again:
+ 			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
+ 				sc.may_writepage = 1;
+ 
+-			/*
+-			 * We are still under min water mark. it mean we have
+-			 * GFP_ATOMIC allocation failure risk. Hurry up!
+-			 */
+-			if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
+-					      end_zone, 0))
+-				has_under_min_watermark_zone = 1;
++			if (!zone_watermark_ok(zone, order,
++					high_wmark_pages(zone), end_zone, 0)) {
++				all_zones_ok = 0;
++				/*
++				 * We are still under min water mark. it mean we have
++				 * GFP_ATOMIC allocation failure risk. Hurry up!
++				 */
++				if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
++						      end_zone, 0))
++					has_under_min_watermark_zone = 1;
++			}
+ 
+ 		}
+ 		if (all_zones_ok)
+-- 
+1.5.6.3
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
