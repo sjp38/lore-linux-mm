@@ -1,49 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D74346B006A
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 02:00:07 -0500 (EST)
-Received: by qyk14 with SMTP id 14so9485696qyk.11
-        for <linux-mm@kvack.org>; Sun, 10 Jan 2010 23:00:06 -0800 (PST)
-Message-ID: <4B4ACC6F.8060801@gmail.com>
-Date: Mon, 11 Jan 2010 14:59:59 +0800
-From: Huang Shijie <shijie8@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] mm/page_alloc : relieve zone->lock's pressure for
- memory free
-References: <1263184634-15447-4-git-send-email-shijie8@gmail.com>	<1263191277-30373-1-git-send-email-shijie8@gmail.com> <20100111153802.f3150117.minchan.kim@barrios-desktop>
-In-Reply-To: <20100111153802.f3150117.minchan.kim@barrios-desktop>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 477B46B0071
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 02:18:17 -0500 (EST)
+Received: by gxk24 with SMTP id 24so21214026gxk.6
+        for <linux-mm@kvack.org>; Sun, 10 Jan 2010 23:18:15 -0800 (PST)
+Date: Mon, 11 Jan 2010 16:15:53 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] Free memory when create_device is failed
+Message-Id: <20100111161553.3acebae9.minchan.kim@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: akpm@linux-foundation.org, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Greg Kroah-Hartman <greg@kroah.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+	
+Hi, Greg.
 
-> Frankly speaking, I am not sure this ir right way.
-> This patch is adding to fine-grained locking overhead
->
-> As you know, this functions are one of hot pathes.
->    
-Yes. But the PCP suffers  most of the  pressure  ,I think.
-free_one_page() handles (order != 0) most of the time which is 
-relatively rarely
-executed.
+I don't know where I send this patch.
+Do I send this patch to akpm or only you and LKML?
 
-> In addition, we didn't see the any problem, until now.
-> It means out of synchronization in ZONE_ALL_UNRECLAIMABLE
-> and pages_scanned are all right?
->
->    
-Maybe it has already caused  a problem,  while the problem is hard to 
-find out. :)
-> If it is, we can move them out of zone->lock, too.
-> If it isn't, we need one more lock, then.
->
-> Let's listen other mm guys's opinion.
->
->    
-Ok.
+== CUT HERE ==
+
+If create_device is failed, it can't free gendisk and request_queue 
+of preceding devices. It cause memory leak.
+
+This patch fixes it.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+CC: Nitin Gupta <ngupta@vflare.org>
+---
+ drivers/staging/ramzswap/ramzswap_drv.c |   21 +++++++++++++--------
+ 1 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/staging/ramzswap/ramzswap_drv.c b/drivers/staging/ramzswap/ramzswap_drv.c
+index 18196f3..faa412d 100644
+--- a/drivers/staging/ramzswap/ramzswap_drv.c
++++ b/drivers/staging/ramzswap/ramzswap_drv.c
+@@ -1292,7 +1292,7 @@ static struct block_device_operations ramzswap_devops = {
+ 	.owner = THIS_MODULE,
+ };
+ 
+-static void create_device(struct ramzswap *rzs, int device_id)
++static int create_device(struct ramzswap *rzs, int device_id)
+ {
+ 	mutex_init(&rzs->lock);
+ 	INIT_LIST_HEAD(&rzs->backing_swap_extent_list);
+@@ -1301,7 +1301,7 @@ static void create_device(struct ramzswap *rzs, int device_id)
+ 	if (!rzs->queue) {
+ 		pr_err("Error allocating disk queue for device %d\n",
+ 			device_id);
+-		return;
++		return 0;
+ 	}
+ 
+ 	blk_queue_make_request(rzs->queue, ramzswap_make_request);
+@@ -1313,7 +1313,7 @@ static void create_device(struct ramzswap *rzs, int device_id)
+ 		blk_cleanup_queue(rzs->queue);
+ 		pr_warning("Error allocating disk structure for device %d\n",
+ 			device_id);
+-		return;
++		return 0;
+ 	}
+ 
+ 	rzs->disk->major = ramzswap_major;
+@@ -1331,6 +1331,7 @@ static void create_device(struct ramzswap *rzs, int device_id)
+ 	add_disk(rzs->disk);
+ 
+ 	rzs->init_done = 0;
++	return 1;
+ }
+ 
+ static void destroy_device(struct ramzswap *rzs)
+@@ -1368,16 +1369,20 @@ static int __init ramzswap_init(void)
+ 	/* Allocate the device array and initialize each one */
+ 	pr_info("Creating %u devices ...\n", num_devices);
+ 	devices = kzalloc(num_devices * sizeof(struct ramzswap), GFP_KERNEL);
+-	if (!devices) {
+-		ret = -ENOMEM;
++	if (!devices)
+ 		goto out;
+-	}
+ 
+ 	for (i = 0; i < num_devices; i++)
+-		create_device(&devices[i], i);
+-
++		if (!create_device(&devices[i], i)) {
++			ret = i;
++			goto free_devices;
++		}
+ 	return 0;
++free_devices:
++	for (i = 0; i < ret; i++)
++		destroy_device(&devices[i]);
+ out:
++	ret = -ENOMEM;
+ 	unregister_blkdev(ramzswap_major, "ramzswap");
+ 	return ret;
+ }
+-- 
+1.5.6.3
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
