@@ -1,51 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 20A176B006A
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 07:43:47 -0500 (EST)
-Date: Mon, 11 Jan 2010 20:43:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH - resend] Memory-Hotplug: Fix the bug on interface
-	/dev/mem for 64-bit kernel(v1)
-Message-ID: <20100111124303.GA21408@localhost>
-References: <DA586906BA1FFC4384FCFD6429ECE86031560BAC@shzsmsx502.ccr.corp.intel.com> <20100108124851.GB6153@localhost> <DA586906BA1FFC4384FCFD6429ECE86031560FC1@shzsmsx502.ccr.corp.intel.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CFAA6B006A
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 10:24:42 -0500 (EST)
+Date: Mon, 11 Jan 2010 07:20:56 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH] Free memory when create_device is failed
+Message-ID: <20100111152056.GB26725@kroah.com>
+References: <20100111161553.3acebae9.minchan.kim@barrios-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <DA586906BA1FFC4384FCFD6429ECE86031560FC1@shzsmsx502.ccr.corp.intel.com>
+In-Reply-To: <20100111161553.3acebae9.minchan.kim@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: "Zheng, Shaohui" <shaohui.zheng@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > +	/* if add to low memory, update max_low_pfn */
-> > +	if (unlikely(start_pfn < limit_low_pfn)) {
-> > +		if (end_pfn <= limit_low_pfn)
-> > +			max_low_pfn = end_pfn;
-> > +		else
-> > +			max_low_pfn = limit_low_pfn;
+On Mon, Jan 11, 2010 at 04:15:53PM +0900, Minchan Kim wrote:
+> 	
+> Hi, Greg.
 > 
-> X86_64 actually always set max_low_pfn=max_pfn, in setup_arch():
-> [Zheng, Shaohui] there should be some misunderstanding, I read the
-> code carefully, if the total memory is under 4G, it always
-> max_low_pfn=max_pfn. If the total memory is larger than 4G,
-> max_low_pfn means the end of low ram. It set
+> I don't know where I send this patch.
+> Do I send this patch to akpm or only you and LKML?
 
-> max_low_pfn = e820_end_of_low_ram_pfn();.
+Look at the drivers/staging/ramzswap/TODO file, and also use the
+scripts/get_maintainer.pl script to determine the correct people and
+mailing lists to send patches to in the future.
 
-The above line is very misleading.. In setup_arch(), it will be
-overrode by the following block.
+I'll queue this up later this week.
 
->  899 #ifdef CONFIG_X86_64
->  900         if (max_pfn > max_low_pfn) {
->  901                 max_pfn_mapped = init_memory_mapping(1UL<<32,
->  902                                                      max_pfn<<PAGE_SHIFT);
->  903                 /* can we preseve max_low_pfn ?*/
->  904                 max_low_pfn = max_pfn;
->  905         }
->  906 #endif
- 
-Thanks,
-Fengguang
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
