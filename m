@@ -1,66 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A92236B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 01:48:16 -0500 (EST)
-Received: by yxe10 with SMTP id 10so17373130yxe.12
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2010 22:48:15 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1263275308.23507.18.camel@barrios-desktop>
-References: <1263271018.23507.8.camel@barrios-desktop>
-	 <d760cf2d1001112130p8489b93uccd6a4650ff4a4a8@mail.gmail.com>
-	 <1263275308.23507.18.camel@barrios-desktop>
-Date: Tue, 12 Jan 2010 12:18:14 +0530
-Message-ID: <d760cf2d1001112248r7a41d5c8n7fe7e2611cd14e87@mail.gmail.com>
-Subject: Re: [PATCH] Fix reset of ramzswap
-From: Nitin Gupta <ngupta@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 811886B007B
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 01:53:06 -0500 (EST)
+Date: Tue, 12 Jan 2010 15:50:42 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][BUGFIX][PATCH] memcg: ensure list is empty at rmdir
+Message-Id: <20100112155042.8a7a956d.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100112145603.06dc2de0.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100112140836.45e7fabb.nishimura@mxp.nes.nec.co.jp>
+	<20100112145603.06dc2de0.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Greg KH <greg@kroah.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 12, 2010 at 11:18 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Tue, 2010-01-12 at 11:00 +0530, Nitin Gupta wrote:
->> On Tue, Jan 12, 2010 at 10:06 AM, minchan.kim <minchan.kim@gmail.com> wrote:
+On Tue, 12 Jan 2010 14:56:03 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > This patch tries to fix this bug by ensuring not only the usage is zero but also
+> > all of the LRUs are empty. mem_cgroup_del_lru_list() checks the list is empty
+> > or not, so we can make use of it.
+> > 
+> Ah, ok. We call lru_add_drain() but doesn't check lru is really empty or not.
+> It seems this patch can fix the problem.
+> Thank you for great fix.
+> 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+Thank you for you ack.
 
->>
->> Are you sure you checked this patch?
->
->> This check makes sure that you cannot reset an active swap device.
->> When device in swapoff'ed the ioctl works as expected.
->>
-> It seems my test was wrong.
-> Maybe my test case don't swapoff swap device.
-> Sorry. Ignore this patch, pz.
-> Thanks for the reivew, Nitin.
->
-> I have one more patch. But I don't want to conflict your pending
-> patches. If it is right, pz, merge this patch with your pending series.
->
+> Following is nitpicks.
+> 
+> > -	}
+> > -	ret = 0;
+> > +	} while (mem->res.usage > 0 || ret);
+> 
+> This seems unclear. (Not your mistake, maybe mine.)
+> 
+I'll add a comment.
 
-I will merge your patches with my pending series and add appropriate
-signed-off-by lines.
+	/* "ret" should also be checked to ensure all lists are empty. */
+	} while (mem->res.usage > 0 || ret);
 
+> BTW, I think it's better to move drain_all_stock_sync(), too.
+> as..
+> ==
+>         do {
+>                 ret = -EBUSY;
+>                 if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
+>                         goto out;
+>                 ret = -EINTR;
+>                 if (signal_pending(current))
+>                         goto out;
+>                 /* This is for making all *used* pages to be on LRU. */
+>                 lru_add_drain_all();
+>                 ret = 0;
+>                 for_each_node_state(node, N_HIGH_MEMORY) {
+> ......
+> 	
+>                 cond_resched();
+>                 /* Need to drain all cached "usage" befor we check counter */
+>                 if (!ret)
+> 			drain_all_stock_sync();
+> 		if (ret == -EBUSY)
+> 			cond_resched();
+>         } while (mem->res.usage != 0);
+> ==
+> 
+I agree.
+We would be better not to drain stocks on failure path, but it's another topic :)
 
-> >From bf810ec09761b0f37eca7ba22d72fb2b1f2cba50 Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan.kim@gmail.com>
-> Date: Tue, 12 Jan 2010 14:46:46 +0900
-> Subject: [PATCH] Remove unnecessary check of ramzswap_write
->
-> Nitin already implement swap slot free callback.
-> So, we don't need this test any more.
->
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-
-
-Great catch! thanks.
-
-I think, we should avoid adding linux-mm to CC list (unless its about
-xvmalloc allocator).
-LKML alone should be sufficient.
 
 Thanks,
-Nitin
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
