@@ -1,69 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E38A06B007D
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 21:54:13 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C2sAZf008615
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 563106B007B
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 21:56:18 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C2uF4Y020328
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 12 Jan 2010 11:54:10 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C33645DE60
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:54:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D14A45DE4D
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:54:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EB30F1DB803B
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:54:09 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A6A291DB8037
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:54:09 +0900 (JST)
+	Tue, 12 Jan 2010 11:56:16 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B31DD45DE4F
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:15 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 95A5545DE4D
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:15 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F5211DB803A
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:15 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 35B6F1DB8040
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:12 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/4] mm/page_alloc : relieve the zone->lock's pressure for allocation
-In-Reply-To: <1263184634-15447-2-git-send-email-shijie8@gmail.com>
-References: <1263184634-15447-1-git-send-email-shijie8@gmail.com> <1263184634-15447-2-git-send-email-shijie8@gmail.com>
-Message-Id: <20100112115246.B395.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] mm/page_alloc : relieve zone->lock's pressure for memory free
+In-Reply-To: <20100112022708.GA21621@localhost>
+References: <20100112094708.d09b01ea.kamezawa.hiroyu@jp.fujitsu.com> <20100112022708.GA21621@localhost>
+Message-Id: <20100112115550.B398.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 12 Jan 2010 11:54:09 +0900 (JST)
+Date: Tue, 12 Jan 2010 11:56:11 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
->   The __mod_zone_page_state() only require irq disabling,
-> it does not require the zone's spinlock. So move it out of
-> the guard region of the spinlock to relieve the pressure for
-> allocation.
+> On Tue, Jan 12, 2010 at 09:47:08AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > Thanks, Huang. 
+> > > 
+> > > Frankly speaking, I am not sure this ir right way.
+> > > This patch is adding to fine-grained locking overhead
+> > > 
+> > > As you know, this functions are one of hot pathes.
+> > > In addition, we didn't see the any problem, until now.
+> > > It means out of synchronization in ZONE_ALL_UNRECLAIMABLE 
+> > > and pages_scanned are all right?
+> > > 
+> > > If it is, we can move them out of zone->lock, too.
+> > > If it isn't, we need one more lock, then. 
+> > > 
+> > I don't want to see additional spin_lock, here. 
+> > 
+> > About ZONE_ALL_UNRECLAIMABLE, it's not necessary to be handled in atomic way.
+> > If you have concerns with other flags, please modify this with single word,
+> > instead of a bit field.
 > 
-> Signed-off-by: Huang Shijie <shijie8@gmail.com>
-
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
-> ---
->  mm/page_alloc.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+> I'd second it. It's not a big problem to reset ZONE_ALL_UNRECLAIMABLE
+> and pages_scanned outside of zone->lru_lock.
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 23df1ed..00aa83a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -961,8 +961,8 @@ static int rmqueue_single(struct zone *zone, unsigned long count,
->  		set_page_private(page, migratetype);
->  		list = &page->lru;
->  	}
-> -	__mod_zone_page_state(zone, NR_FREE_PAGES, -i);
->  	spin_unlock(&zone->lock);
-> +	__mod_zone_page_state(zone, NR_FREE_PAGES, -i);
->  	return i;
->  }
->  
-> -- 
-> 1.6.5.2
-> 
+> Clear of ZONE_ALL_UNRECLAIMABLE is already atomic; if we lose one
+> pages_scanned=0 due to races, there are plenty of page free events
+> ahead to reset it, before pages_scanned hit the huge
+> zone_reclaimable_pages() * 6.
 
+Yes, this patch should be rejected.
 
 
 --
