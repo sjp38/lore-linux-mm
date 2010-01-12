@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0C0586B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 00:16:37 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C5GZlE015064
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 12 Jan 2010 14:16:36 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 588E945DE4E
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 14:16:35 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 271D245DE56
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 14:16:35 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C72791DB804A
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 14:16:34 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 775A61DB8038
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 14:16:34 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [resend][PATCH] mm, lockdep: annotate reclaim context to zone reclaim too
-Message-Id: <20100112141330.B3A6.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 32BAD6B007B
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 00:38:31 -0500 (EST)
+Received: by ywh5 with SMTP id 5so47420851ywh.11
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2010 21:38:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 12 Jan 2010 14:16:33 +0900 (JST)
+In-Reply-To: <1263271018.23507.8.camel@barrios-desktop>
+References: <1263271018.23507.8.camel@barrios-desktop>
+Date: Tue, 12 Jan 2010 11:00:18 +0530
+Message-ID: <d760cf2d1001112130p8489b93uccd6a4650ff4a4a8@mail.gmail.com>
+Subject: Re: [PATCH] Fix reset of ramzswap
+From: Nitin Gupta <ngupta@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>
+To: "minchan.kim" <minchan.kim@gmail.com>
+Cc: Greg KH <greg@kroah.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jan 12, 2010 at 10:06 AM, minchan.kim <minchan.kim@gmail.com> wrote=
+:
+> ioctl(cmd=3Dreset)
+> =A0 =A0 =A0 =A0-> bd_holder check (if whoever hold bdev, return -EBUSY)
+> =A0 =A0 =A0 =A0-> ramzswap_ioctl_reset_device
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0-> reset_device
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0-> bd_release
+>
+> bd_release is called by reset_device.
+> but ramzswap_ioctl always checks bd_holder before
+> reset_device. it means reset ioctl always fails.
 
-Commit cf40bd16fd (lockdep: annotate reclaim context) introduced reclaim
-context annotation. But it didn't annotate zone reclaim. This patch do it.
+Are you sure you checked this patch?
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Nick Piggin <npiggin@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Ingo Molnar <mingo@elte.hu>
----
- mm/vmscan.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+This check makes sure that you cannot reset an active swap device.
+When device in swapoff'ed the ioctl works as expected.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2bbee91..a039e78 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2547,6 +2547,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	 * and RECLAIM_SWAP.
- 	 */
- 	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
-+	lockdep_set_current_reclaim_state(gfp_mask);
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
-@@ -2590,6 +2591,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 
- 	p->reclaim_state = NULL;
- 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
-+	lockdep_clear_current_reclaim_state();
- 	return sc.nr_reclaimed >= nr_pages;
- }
- 
--- 
-1.6.6
+Greg: Can you please exclude earlier 'Free memory when create_device
+is failed' patch?
+That patch is correct however, my pending patch series conflicts with
+that. So, I will
+instead include that fix with this patch series (and add appropriate
+signed-off-by)
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
