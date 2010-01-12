@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2D8C76B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 08:19:15 -0500 (EST)
-From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
-Date: Tue, 12 Jan 2010 21:17:40 +0800
-Subject: RE: [ RESEND PATCH v3] Memory-Hotplug: Fix the bug on interface
- /dev/mem for 64-bit kernel
-Message-ID: <DA586906BA1FFC4384FCFD6429ECE860316C0269@shzsmsx502.ccr.corp.intel.com>
-References: <DA586906BA1FFC4384FCFD6429ECE860316C0133@shzsmsx502.ccr.corp.intel.com>
-	<20100112170433.394be31b.kamezawa.hiroyu@jp.fujitsu.com>
-	<DA586906BA1FFC4384FCFD6429ECE860316C01D6@shzsmsx502.ccr.corp.intel.com>
- <20100112175724.adfa04d6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100112175724.adfa04d6.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7CCD66B007B
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 08:36:16 -0500 (EST)
+Date: Tue, 12 Jan 2010 21:35:56 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH - resend] Memory-Hotplug: Fix the bug on interface
+	/dev/mem for 64-bit kernel(v1)
+Message-ID: <20100112133556.GB7647@localhost>
+References: <DA586906BA1FFC4384FCFD6429ECE86031560BAC@shzsmsx502.ccr.corp.intel.com> <20100108124851.GB6153@localhost> <DA586906BA1FFC4384FCFD6429ECE86031560FC1@shzsmsx502.ccr.corp.intel.com> <20100111124303.GA21408@localhost> <20100112093031.0fc6877f.kamezawa.hiroyu@jp.fujitsu.com> <20100112023307.GA16661@localhost> <20100112113903.89163c46.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100112113903.89163c46.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>
+Cc: "Zheng, Shaohui" <shaohui.zheng@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>, Yinghai Lu <yinghai@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jan 12, 2010 at 10:39:03AM +0800, KAMEZAWA Hiroyuki wrote:
+> On Tue, 12 Jan 2010 10:33:08 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > Sure, here it is :)
+> > ---
+> > x86: use the generic page_is_ram()
+> > 
+> > The generic resource based page_is_ram() works better with memory
+> > hotplug/hotremove. So switch the x86 e820map based code to it.
+> > 
+> > CC: Andi Kleen <andi@firstfloor.org> 
+> > CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> 
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> 
+> Ack.
 
->=20
-> 3 points...
-> 1. I think this patch cannot be compiled in archs other than x86. Right ?
->    IOW, please add static inline dummy...
-> [Zheng, Shaohui] Agree, I will add a static dummy function
->=20
-> 2. pgdat->[start,end], totalram_pages etc...are updated at memory hotplug=
-.
->    Please place the hook nearby them.
-> [Zheng, Shaohui] Agree.
->=20
-> 3. I recommend you yo use memory hotplug notifier.
->    If it's allowed, it will be cleaner.
->    It seems there are no strict ordering to update parameters this patch =
-touches.
->=20
-> [Zheng, Shaohui] Kame, do you means put the hook into function slab_mem_g=
-oing_online_callback, it seems a good idea. If we select this method, we wi=
-ll need not to update these variable in function add_memory explicitly.
->=20
-yes. I think callback is the best.
-[Zheng, Shaohui] Kame, I check the code carefully and write a simple patch,=
- I found the callback will never be executed. The only entrance of this cal=
-lback is in function online_pages/offline_pages, but I did not found explic=
-it call to these 2 functions. Do we need to add a memory_notify to trigger =
-this callback in function add_memory?=20
+Thank you.
 
+> 
+> > +#ifdef CONFIG_X86
+> > +	/*
+> > +	 * A special case is the first 4Kb of memory;
+> > +	 * This is a BIOS owned area, not kernel ram, but generally
+> > +	 * not listed as such in the E820 table.
+> > +	 */
+> > +	if (pfn == 0)
+> > +		return 0;
+> > +
+> > +	/*
+> > +	 * Second special case: Some BIOSen report the PC BIOS
+> > +	 * area (640->1Mb) as ram even though it is not.
+> > +	 */
+> > +	if (pfn >= (BIOS_BEGIN >> PAGE_SHIFT) &&
+> > +	    pfn <  (BIOS_END   >> PAGE_SHIFT))
+> > +		return 0;
+> > +#endif
+> 
+> I'm glad if this part is sorted out in clean way ;)
+
+Two possible solutions are:
+
+- to exclude the above two ranges directly in e820 map;
+- to not add the above two ranges into iomem_resource. 
+
+Yinghai, do you have any suggestions?
+We want to get rid of the two explicit tests from page_is_ram().
 
 Thanks,
--Kame
-
-Thanks & Regards,
-Shaohui
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
