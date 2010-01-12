@@ -1,142 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6F22D6B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 09:52:08 -0500 (EST)
-Date: Tue, 12 Jan 2010 16:51:45 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v4][RESENT] add MAP_UNLOCKED mmap flag
-Message-ID: <20100112145144.GQ7549@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 53ECE6B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 16:26:47 -0500 (EST)
+Date: Tue, 12 Jan 2010 15:25:23 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: PROBLEM: kernel BUG at mm/page_alloc.c:775
+In-Reply-To: <201001092232.21841.mb@emeraldcity.de>
+Message-ID: <alpine.DEB.2.00.1001121524140.25925@router.home>
+References: <201001092232.21841.mb@emeraldcity.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org
+To: Michail Bachmann <mb@emeraldcity.de>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-If application does mlockall(MCL_FUTURE) it is no longer possible to mmap
-file bigger than main memory or allocate big area of anonymous memory
-in a thread safe manner. Sometimes it is desirable to lock everything
-related to program execution into memory, but still be able to mmap
-big file or allocate huge amount of memory and allow OS to swap them on
-demand. MAP_UNLOCKED allows to do that.
+On Sat, 9 Jan 2010, Michail Bachmann wrote:
 
-Signed-off-by: Gleb Natapov <gleb@redhat.com>
----
+> [   48.505381] kernel BUG at mm/page_alloc.c:775!
 
-I get reports that people find this useful, so resending.
+Somehow nodes got mixed up or the lookup tables for pages / zones are not
+giving the right node numbers.
 
-v1->v2
-  - adding new flag to all archs
-  - fixing typo
- v2->v3
-  - one more typo fix 
- v3->v4
-  - return error if MAP_LOCKED | MAP_UNLOCKED is specified
-
-diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
-index 99c56d4..cfc51ac 100644
---- a/arch/alpha/include/asm/mman.h
-+++ b/arch/alpha/include/asm/mman.h
-@@ -30,6 +30,7 @@
- #define MAP_NONBLOCK	0x40000		/* do not block on IO */
- #define MAP_STACK	0x80000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x100000	/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x200000	/* force page unlocking */
- 
- #define MS_ASYNC	1		/* sync memory asynchronously */
- #define MS_SYNC		2		/* synchronous memory sync */
-diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
-index c892bfb..3e4d108 100644
---- a/arch/mips/include/asm/mman.h
-+++ b/arch/mips/include/asm/mman.h
-@@ -48,6 +48,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x100000	/* force page unlocking */
- 
- /*
-  * Flags for msync
-diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
-index 9749c8a..4e8b9bf 100644
---- a/arch/parisc/include/asm/mman.h
-+++ b/arch/parisc/include/asm/mman.h
-@@ -24,6 +24,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x100000	/* force page unlocking */
- 
- #define MS_SYNC		1		/* synchronous memory sync */
- #define MS_ASYNC	2		/* sync memory asynchronously */
-diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
-index d4a7f64..7d33f01 100644
---- a/arch/powerpc/include/asm/mman.h
-+++ b/arch/powerpc/include/asm/mman.h
-@@ -27,6 +27,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x80000		/* force page unlocking */
- 
- #ifdef __KERNEL__
- #ifdef CONFIG_PPC64
-diff --git a/arch/sparc/include/asm/mman.h b/arch/sparc/include/asm/mman.h
-index c3029ad..f80d203 100644
---- a/arch/sparc/include/asm/mman.h
-+++ b/arch/sparc/include/asm/mman.h
-@@ -22,6 +22,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x80000		/* force page unlocking */
- 
- #ifdef __KERNEL__
- #ifndef __ASSEMBLY__
-diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
-index fca4db4..c62bcd8 100644
---- a/arch/xtensa/include/asm/mman.h
-+++ b/arch/xtensa/include/asm/mman.h
-@@ -55,6 +55,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x100000	/* force page unlocking */
- 
- /*
-  * Flags for msync
-diff --git a/include/asm-generic/mman.h b/include/asm-generic/mman.h
-index 32c8bd6..59e0f29 100644
---- a/include/asm-generic/mman.h
-+++ b/include/asm-generic/mman.h
-@@ -12,6 +12,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x80000         /* force page unlocking */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/mm/mmap.c b/mm/mmap.c
-index ee22989..191dfc5 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -962,6 +962,12 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 		if (!can_do_mlock())
- 			return -EPERM;
- 
-+        if (flags & MAP_UNLOCKED)
-+                vm_flags &= ~VM_LOCKED;
-+
-+        if (flags & MAP_UNLOCKED)
-+                vm_flags &= ~VM_LOCKED;
-+
- 	/* mlock MCL_FUTURE? */
- 	if (vm_flags & VM_LOCKED) {
- 		unsigned long locked, lock_limit;
---
-			Gleb.
+> [   48.505467] invalid opcode: 0000 [#1]
+> [   48.505589] last sysfs file:
+> [   48.505672] Modules linked in:
+> [   48.505788]
+> [   48.505870] Pid: 343, comm: fsck.ext3 Not tainted (2.6.32.2-200912310108
+> #1) System Name
+> [   48.505994] EIP: 0060:[<c01641c6>] EFLAGS: 00010093 CPU: 0
+> [   48.506094] EIP is at move_freepages_block+0x86/0x130
+> [   48.506178] EAX: 000002fc EBX: 00000040 ECX: 00000000 EDX: 00000001
+> [   48.506264] ESI: 000041ed EDI: c1368000 EBP: e7267c70 ESP: e7267c50
+> [   48.506350]  DS: 007b ES: 007b FS: 0000 GS: 0033 SS: 0068
+> [   48.506438] Process fsck.ext3 (pid: 343, ti=e7266000 task=e7b78720
+> task.ti=e7266000)
+> [   48.506558] Stack:
+> [   48.506634]  00000000 00000000 c042595c c136ffe0 e7267c78 c1368018 00000002
+> 000001b8
+> [   48.506974] <0> e7267cc0 c0164751 00000000 c03fd58c 00000001
+> c0361780e7267ca8 00000206
+> [   48.507379] <0> 00000000 00000000 c042595c c1368000 00011210
+> c0425b50c0425b50 c0425998
+> [   48.507855] Call Trace:
+> [   48.507938]  [<c0164751>] ? __rmqueue+0x1a1/0x350
+> [   48.508027]  [<c016636b>] ? get_page_from_freelist+0x35b/0x420
+> [   48.508115]  [<c01664f8>] ? __alloc_pages_nodemask+0xc8/0x510
+> [   48.508215]  [<c011db73>] ? dequeue_task+0x63/0xb0
+> [   48.508304]  [<c0167ea8>] ? __do_page_cache_readahead+0xb8/0x1b0
+> [   48.508396]  [<c0167fc8>] ? ra_submit+0x28/0x30
+> [   48.508480]  [<c01681cd>] ? ondemand_readahead+0xfd/0x1e0
+> [   48.508567]  [<c0168320>] ? page_cache_async_readahead+0x70/0x90
+> [   48.508653]  [<c0162c8c>] ? generic_file_aio_read+0x2fc/0x620
+> [   48.508741]  [<c018b101>] ? do_sync_read+0xd1/0x110
+> [   48.508834]  [<c01369f0>] ? autoremove_wake_function+0x0/0x40
+> [   48.508928]  [<c0284c20>] ? n_tty_write+0x0/0x3d0
+> [   48.509018]  [<c02402ff>] ? security_file_permission+0xf/0x20
+> [   48.509103]  [<c018b194>] ? rw_verify_area+0x54/0xd0
+> [   48.509188]  [<c018bd39>] ? vfs_read+0x99/0x160
+> [   48.509269]  [<c018b030>] ? do_sync_read+0x0/0x110
+> [   48.509351]  [<c018bebd>] ? sys_read+0x3d/0x70
+> [   48.509434]  [<c0102c44>] ? sysenter_do_call+0x12/0x22
+> [   48.509517] Code: c1 e2 06 c1 e1 08 29 d1 8b 93 e0 7f 00 00 29 c1 c1 e1 02
+> c1 ea 1e 89 d3 89 d0 c1 e3 06 c1 e0 08 29 d8 29 d0 c1 e0 02 39 c1 74 1c <0f>
+> 0b eb fe 8d b6 00 00 00 00 c7 45 f0 00 00 00 00 8b 45 f0 83
+> [   48.511798] EIP: [<c01641c6>] move_freepages_block+0x86/0x130 SS:ESP
+> 0068:e7267c50
+> [   48.511990] ---[ end trace 45c7d49cba718751 ]---
+>
+> My memory layout on this box is (from dmesg):
+>
+> ----
+> Zone PFN ranges:
+>   DMA      0x00000000 -> 0x00001000
+>   Normal   0x00001000 -> 0x00027fec
+> Movable zone start PFN for each node
+> early_node_map[3] active PFN ranges
+>     0: 0x00000000 -> 0x00000001
+>     0: 0x00000010 -> 0x000000a0
+>     0: 0x00000100 -> 0x00027fec
+> On node 0 totalpages: 163709
+> free_area_init_node: node 0, pgdat c0425660, node_mem_map c1000000
+>   DMA zone: 32 pages used for memmap
+>   DMA zone: 0 pages reserved
+>   DMA zone: 3953 pages, LIFO batch:0
+>   Normal zone: 1248 pages used for memmap
+>   Normal zone: 158476 pages, LIFO batch:31
+> ----
+>
+> The last kernel version without this problem seems to be the 2.6.30.x (I am
+> running 2.6.30.10 right now without any problems).
+>
+> If you need any more information from my system don't hesitate to ask.
+>
+> CU Micha
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
