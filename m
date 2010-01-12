@@ -1,66 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 563106B007B
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 21:56:18 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C2uF4Y020328
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9FB286B007D
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 21:56:53 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C2uoUV020338
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 12 Jan 2010 11:56:16 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B31DD45DE4F
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 95A5545DE4D
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F5211DB803A
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:15 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 35B6F1DB8040
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:12 +0900 (JST)
+	Tue, 12 Jan 2010 11:56:51 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B8D6245DE55
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 76C9D45DE4E
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EC0E1DB803B
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:50 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CB998F8006
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 11:56:50 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] mm/page_alloc : relieve zone->lock's pressure for memory free
-In-Reply-To: <20100112022708.GA21621@localhost>
-References: <20100112094708.d09b01ea.kamezawa.hiroyu@jp.fujitsu.com> <20100112022708.GA21621@localhost>
-Message-Id: <20100112115550.B398.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 3/4] mm/page_alloc : modify the return type of __free_one_page
+In-Reply-To: <1263184634-15447-3-git-send-email-shijie8@gmail.com>
+References: <1263184634-15447-2-git-send-email-shijie8@gmail.com> <1263184634-15447-3-git-send-email-shijie8@gmail.com>
+Message-Id: <20100112115615.B39B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 12 Jan 2010 11:56:11 +0900 (JST)
+Date: Tue, 12 Jan 2010 11:56:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Huang Shijie <shijie8@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Jan 12, 2010 at 09:47:08AM +0900, KAMEZAWA Hiroyuki wrote:
-> > > Thanks, Huang. 
-> > > 
-> > > Frankly speaking, I am not sure this ir right way.
-> > > This patch is adding to fine-grained locking overhead
-> > > 
-> > > As you know, this functions are one of hot pathes.
-> > > In addition, we didn't see the any problem, until now.
-> > > It means out of synchronization in ZONE_ALL_UNRECLAIMABLE 
-> > > and pages_scanned are all right?
-> > > 
-> > > If it is, we can move them out of zone->lock, too.
-> > > If it isn't, we need one more lock, then. 
-> > > 
-> > I don't want to see additional spin_lock, here. 
-> > 
-> > About ZONE_ALL_UNRECLAIMABLE, it's not necessary to be handled in atomic way.
-> > If you have concerns with other flags, please modify this with single word,
-> > instead of a bit field.
-> 
-> I'd second it. It's not a big problem to reset ZONE_ALL_UNRECLAIMABLE
-> and pages_scanned outside of zone->lru_lock.
-> 
-> Clear of ZONE_ALL_UNRECLAIMABLE is already atomic; if we lose one
-> pages_scanned=0 due to races, there are plenty of page free events
-> ahead to reset it, before pages_scanned hit the huge
-> zone_reclaimable_pages() * 6.
+>   Modify the return type for __free_one_page.
+> It will return 1 on success, and return 0 when
+> the check of the compound page is failed.
 
-Yes, this patch should be rejected.
+This patch should be merged [4/4]. but I really dislike 4/4...
+
+
+
+> Signed-off-by: Huang Shijie <shijie8@gmail.com>
+> ---
+>  mm/page_alloc.c |   10 ++++++----
+>  1 files changed, 6 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 00aa83a..290dfc3 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -445,17 +445,18 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+>   * triggers coalescing into a block of larger size.            
+>   *
+>   * -- wli
+> + *
+> + *  Returns 1 on success, else return 0;
+>   */
+>  
+> -static inline void __free_one_page(struct page *page,
+> -		struct zone *zone, unsigned int order,
+> -		int migratetype)
+> +static inline int __free_one_page(struct page *page, struct zone *zone,
+> +		       unsigned int order, int migratetype)
+>  {
+>  	unsigned long page_idx;
+>  
+>  	if (unlikely(PageCompound(page)))
+>  		if (unlikely(destroy_compound_page(page, order)))
+> -			return;
+> +			return 0;
+>  
+>  	VM_BUG_ON(migratetype == -1);
+>  
+> @@ -485,6 +486,7 @@ static inline void __free_one_page(struct page *page,
+>  	list_add(&page->lru,
+>  		&zone->free_area[order].free_list[migratetype]);
+>  	zone->free_area[order].nr_free++;
+> +	return 1;
+>  }
+>  
+>  /*
+> -- 
+> 1.6.5.2
+> 
+
 
 
 --
