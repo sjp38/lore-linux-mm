@@ -1,112 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 671206B006A
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 19:01:08 -0500 (EST)
-Received: by pxi5 with SMTP id 5so16298863pxi.12
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2010 16:00:57 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id DFD7B6B006A
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 19:05:42 -0500 (EST)
+Received: by pzk34 with SMTP id 34so14017220pzk.11
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2010 16:05:41 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1001112334250.7893@sister.anvils>
-References: <20100111114607.1d8cd1e0.minchan.kim@barrios-desktop>
-	 <alpine.LSU.2.00.1001112334250.7893@sister.anvils>
-Date: Tue, 12 Jan 2010 09:00:57 +0900
-Message-ID: <28c262361001111600k7cc377dchcfa0814410103b21@mail.gmail.com>
-Subject: Re: [PATCH -mmotm-2010-01-06-14-34] Count minor fault in break_ksm
+In-Reply-To: <alpine.LSU.2.00.1001112320490.7893@sister.anvils>
+References: <20100111114224.bbf0fc62.minchan.kim@barrios-desktop>
+	 <alpine.LSU.2.00.1001112320490.7893@sister.anvils>
+Date: Tue, 12 Jan 2010 09:05:41 +0900
+Message-ID: <28c262361001111605y3f887558wf3b8bb2ebff59a92@mail.gmail.com>
+Subject: Re: [PATCH -mmotm-2010-01-06-14-34] Fix fault count of task in GUP
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Hugh.
-
-On Tue, Jan 12, 2010 at 8:40 AM, Hugh Dickins
+On Tue, Jan 12, 2010 at 8:29 AM, Hugh Dickins
 <hugh.dickins@tiscali.co.uk> wrote:
 > On Mon, 11 Jan 2010, Minchan Kim wrote:
->
->> We have counted task's maj/min fault after handle_mm_fault.
->> break_ksm misses that.
 >>
->> I wanted to check by VM_FAULT_ERROR.
->> But now break_ksm doesn't handle HWPOISON error.
->
-> Sorry, no, I just don't see a good reason to add this.
-> Imagine it this way: these aren't really faults, KSM simply
-> happens to be using "handle_mm_fault" to achieve what it needs.
-
-Why I suggest is handle_mm_fault counts PGFAULT in system.
-If we want to get minor fault count in system, we have to calculate
-(PGFAULT - PGMAJFAULT).
-
-But we don't count it as either major or minor in this case and GUP case
-I doubt it, then I see GUP already handled it tsk->[maj|min]flt.
-Although it isn't my point, I thought break_ksm also have to count it
-like GUP at least.
-
-Okay. It's not real problem. I found just while I review the code.
-I have no objection in your opinion.
-But I think it would be better to have a consistency PGFAULT and PGMAJFAULT=
-.
-
-
->
-> (And, of course, if we did add something like this, I'd be
-> disagreeing with you about which tsk's min_flt to increment.)
->
-> Hugh
->
+>> get_user_pages calls handle_mm_fault to pin the arguemented
+>> task's page. handle_mm_fault cause major or minor fault and
+>> get_user_pages counts it into task which is passed by argument.
 >>
->> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> CC: Hugh Dickins <hugh.dickins@tiscali.co.uk>
->> CC: Izik Eidus <ieidus@redhat.com>
->> ---
->> =C2=A0mm/ksm.c | =C2=A0 =C2=A06 +++++-
->> =C2=A01 files changed, 5 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/ksm.c b/mm/ksm.c
->> index 56a0da1..3a1fda4 100644
->> --- a/mm/ksm.c
->> +++ b/mm/ksm.c
->> @@ -367,9 +367,13 @@ static int break_ksm(struct vm_area_struct *vma, un=
-signed long addr)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page =3D follow_page(vm=
-a, addr, FOLL_GET);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!page)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 break;
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (PageKsm(page))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (PageKsm(page)) {
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 ret =3D handle_mm_fault(vma->vm_mm, vma, addr,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 FAULT_FLAG_WRITE);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-if (!(ret & (VM_FAULT_SIGBUS | VM_FAULT_OOM)
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 || current->flags &=
- PF_KTHREAD))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 current->min_flt++;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 ret =3D VM_FAULT_WRITE;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 put_page(page);
->> --
->> 1.5.6.3
->>
->>
->>
->> --
->> Kind regards,
->> Minchan Kim
+>> But the fault happens in current task's context.
+>> So we have to count it not argumented task's context but current
+>> task's one.
 >
+> Have to?
+>
+> current simulates a fault into tsk's address space.
+> It is not a fault into current's address space.
+>
+> I can see that this could be argued either way, or even
+> that such a "fault" should not be counted at all; but I do not
+> see a reason to change the way we have been counting it for years.
+>
+> Sorry, but NAK (to this and to the v2) -
+> unless you have a stronger argument.
+
+Okay. The I/O to get a page happen current's context.
+So I thought we have to count it with current.
+But now that I think about it, yes. It's not current's _fault_.
+I agree with your opinion.
+
+Thanks for correcting me. Hugh.
 
 
 
---=20
+-- 
 Kind regards,
 Minchan Kim
 
