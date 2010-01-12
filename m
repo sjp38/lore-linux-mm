@@ -1,79 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 811886B007B
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 01:53:06 -0500 (EST)
-Date: Tue, 12 Jan 2010 15:50:42 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][BUGFIX][PATCH] memcg: ensure list is empty at rmdir
-Message-Id: <20100112155042.8a7a956d.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100112145603.06dc2de0.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100112140836.45e7fabb.nishimura@mxp.nes.nec.co.jp>
-	<20100112145603.06dc2de0.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 889566B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 02:36:38 -0500 (EST)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id o0C7aYXg010369
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 23:36:34 -0800
+Received: from pwi20 (pwi20.prod.google.com [10.241.219.20])
+	by wpaz37.hot.corp.google.com with ESMTP id o0C7a60g027392
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 23:36:33 -0800
+Received: by pwi20 with SMTP id 20so2047886pwi.9
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2010 23:36:33 -0800 (PST)
+Date: Mon, 11 Jan 2010 23:36:25 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/4] mm/page_alloc : relieve zone->lock's pressure for
+ memory free
+In-Reply-To: <20100112140923.B3A4.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1001112335001.12808@chino.kir.corp.google.com>
+References: <20100112042116.GA26035@localhost> <20100112133223.005b81ed.kamezawa.hiroyu@jp.fujitsu.com> <20100112140923.B3A4.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Huang Shijie <shijie8@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Jan 2010 14:56:03 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > This patch tries to fix this bug by ensuring not only the usage is zero but also
-> > all of the LRUs are empty. mem_cgroup_del_lru_list() checks the list is empty
-> > or not, so we can make use of it.
-> > 
-> Ah, ok. We call lru_add_drain() but doesn't check lru is really empty or not.
-> It seems this patch can fix the problem.
-> Thank you for great fix.
-> 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-Thank you for you ack.
+On Tue, 12 Jan 2010, KOSAKI Motohiro wrote:
 
-> Following is nitpicks.
+> From 751f197ad256c7245151681d7aece591b1dab343 Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: Tue, 12 Jan 2010 13:53:47 +0900
+> Subject: [PATCH] mm: Restore zone->all_unreclaimable to independence word
 > 
-> > -	}
-> > -	ret = 0;
-> > +	} while (mem->res.usage > 0 || ret);
+> commit e815af95 (change all_unreclaimable zone member to flags) chage
+> all_unreclaimable member to bit flag. but It have undesireble side
+> effect.
+> free_one_page() is one of most hot path in linux kernel and increasing
+> atomic ops in it can reduce kernel performance a bit.
 > 
-> This seems unclear. (Not your mistake, maybe mine.)
-> 
-I'll add a comment.
 
-	/* "ret" should also be checked to ensure all lists are empty. */
-	} while (mem->res.usage > 0 || ret);
-
-> BTW, I think it's better to move drain_all_stock_sync(), too.
-> as..
-> ==
->         do {
->                 ret = -EBUSY;
->                 if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
->                         goto out;
->                 ret = -EINTR;
->                 if (signal_pending(current))
->                         goto out;
->                 /* This is for making all *used* pages to be on LRU. */
->                 lru_add_drain_all();
->                 ret = 0;
->                 for_each_node_state(node, N_HIGH_MEMORY) {
-> ......
-> 	
->                 cond_resched();
->                 /* Need to drain all cached "usage" befor we check counter */
->                 if (!ret)
-> 			drain_all_stock_sync();
-> 		if (ret == -EBUSY)
-> 			cond_resched();
->         } while (mem->res.usage != 0);
-> ==
-> 
-I agree.
-We would be better not to drain stocks on failure path, but it's another topic :)
-
-
-Thanks,
-Daisuke Nishimura.
+Could you please elaborate on "a bit" in the changelog with some data?  If 
+it's so egregious, it should be easily be quantifiable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
