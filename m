@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 824446B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 04:07:01 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 2D8C76B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 08:19:15 -0500 (EST)
 From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
-Date: Tue, 12 Jan 2010 17:05:19 +0800
+Date: Tue, 12 Jan 2010 21:17:40 +0800
 Subject: RE: [ RESEND PATCH v3] Memory-Hotplug: Fix the bug on interface
  /dev/mem for 64-bit kernel
-Message-ID: <DA586906BA1FFC4384FCFD6429ECE860316C01EA@shzsmsx502.ccr.corp.intel.com>
+Message-ID: <DA586906BA1FFC4384FCFD6429ECE860316C0269@shzsmsx502.ccr.corp.intel.com>
 References: <DA586906BA1FFC4384FCFD6429ECE860316C0133@shzsmsx502.ccr.corp.intel.com>
 	<20100112170433.394be31b.kamezawa.hiroyu@jp.fujitsu.com>
 	<DA586906BA1FFC4384FCFD6429ECE860316C01D6@shzsmsx502.ccr.corp.intel.com>
@@ -20,6 +20,7 @@ Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
+
 
 >=20
 > 3 points...
@@ -42,12 +43,15 @@ oing_online_callback, it seems a good idea. If we select this method, we wi=
 ll need not to update these variable in function add_memory explicitly.
 >=20
 yes. I think callback is the best.
-[Zheng, Shaohui] it is okay for me, I will rewrite my patch and test it in =
-local, thanks Kame :).
+[Zheng, Shaohui] Kame, I check the code carefully and write a simple patch,=
+ I found the callback will never be executed. The only entrance of this cal=
+lback is in function online_pages/offline_pages, but I did not found explic=
+it call to these 2 functions. Do we need to add a memory_notify to trigger =
+this callback in function add_memory?=20
+
 
 Thanks,
 -Kame
-
 
 Thanks & Regards,
 Shaohui
