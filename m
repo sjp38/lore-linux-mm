@@ -1,44 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4F1B56B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 00:46:53 -0500 (EST)
-From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
-Date: Tue, 12 Jan 2010 13:45:02 +0800
-Subject: RE: [PATCH - resend] Memory-Hotplug: Fix the bug on interface
- /dev/mem for 64-bit kernel(v1)
-Message-ID: <DA586906BA1FFC4384FCFD6429ECE860316C0011@shzsmsx502.ccr.corp.intel.com>
-References: <DA586906BA1FFC4384FCFD6429ECE86031560BAC@shzsmsx502.ccr.corp.intel.com>
-	<20100108124851.GB6153@localhost>
-	<DA586906BA1FFC4384FCFD6429ECE86031560FC1@shzsmsx502.ccr.corp.intel.com>
-	<20100111124303.GA21408@localhost>
- <20100112093031.0fc6877f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100112093031.0fc6877f.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B38026B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 00:51:11 -0500 (EST)
+Received: by gxk8 with SMTP id 8so18428870gxk.11
+        for <linux-mm@kvack.org>; Mon, 11 Jan 2010 21:51:10 -0800 (PST)
+Subject: Re: [PATCH] Fix reset of ramzswap
+From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <d760cf2d1001112130p8489b93uccd6a4650ff4a4a8@mail.gmail.com>
+References: <1263271018.23507.8.camel@barrios-desktop>
+	 <d760cf2d1001112130p8489b93uccd6a4650ff4a4a8@mail.gmail.com>
+Content-Type: text/plain
+Date: Tue, 12 Jan 2010 14:48:28 +0900
+Message-Id: <1263275308.23507.18.camel@barrios-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Wu, Fengguang" <fengguang.wu@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Greg KH <greg@kroah.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 2010-01-12 at 11:00 +0530, Nitin Gupta wrote:
+> On Tue, Jan 12, 2010 at 10:06 AM, minchan.kim <minchan.kim@gmail.com> wrote:
+> > ioctl(cmd=reset)
+> >        -> bd_holder check (if whoever hold bdev, return -EBUSY)
+> >        -> ramzswap_ioctl_reset_device
+> >                -> reset_device
+> >                        -> bd_release
+> >
+> > bd_release is called by reset_device.
+> > but ramzswap_ioctl always checks bd_holder before
+> > reset_device. it means reset ioctl always fails.
+> 
+> Are you sure you checked this patch?
 
-Hmmm....could you rewrite /dev/mem to use kernel/resource.c other than
-modifing e820 maps. ?
-Two reasons.
-  - e820map is considerted to be stable, read-only after boot.
-  - We don't need to add more x86 special codes.
-[Zheng, Shaohui] Kame, when I write this patch, I also feel confused whethe=
-r update e820map. Because of the dependency in function page_is_ram, so we =
-still update it in my patch.
-I see that Fengguang already draft patches to change function page_is_ram, =
-the new page_is_ram function use kernel/resource.c instead. That is great t=
-hat we can still keep a stable e820map. I will resend the patch which updat=
-e variable high_memory, max_low_pfn and max_pfn only.
+> This check makes sure that you cannot reset an active swap device.
+> When device in swapoff'ed the ioctl works as expected.
+> 
+It seems my test was wrong. 
+Maybe my test case don't swapoff swap device. 
+Sorry. Ignore this patch, pz.
+Thanks for the reivew, Nitin. 
+
+I have one more patch. But I don't want to conflict your pending
+patches. If it is right, pz, merge this patch with your pending series.
+
+>From bf810ec09761b0f37eca7ba22d72fb2b1f2cba50 Mon Sep 17 00:00:00 2001
+From: Minchan Kim <minchan.kim@gmail.com>
+Date: Tue, 12 Jan 2010 14:46:46 +0900
+Subject: [PATCH] Remove unnecessary check of ramzswap_write
+
+Nitin already implement swap slot free callback.
+So, we don't need this test any more.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ drivers/staging/ramzswap/ramzswap_drv.c |    8 --------
+ 1 files changed, 0 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/staging/ramzswap/ramzswap_drv.c
+b/drivers/staging/ramzswap/ramzswap_drv.c
+index 18196f3..575a147 100644
+--- a/drivers/staging/ramzswap/ramzswap_drv.c
++++ b/drivers/staging/ramzswap/ramzswap_drv.c
+@@ -784,14 +784,6 @@ static int ramzswap_write(struct ramzswap *rzs,
+struct bio *bio)
+ 	src = rzs->compress_buffer;
+ 
+ 	/*
+-	 * System swaps to same sector again when the stored page
+-	 * is no longer referenced by any process. So, its now safe
+-	 * to free the memory that was allocated for this page.
+-	 */
+-	if (rzs->table[index].page)
+-		ramzswap_free_page(rzs, index);
+-
+-	/*
+ 	 * No memory ia allocated for zero filled pages.
+ 	 * Simply clear zero page flag.
+ 	 */
+-- 
+1.5.6.3
 
 
-Thanks,
--Kame
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
