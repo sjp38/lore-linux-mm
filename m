@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id DFD7B6B006A
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 19:05:42 -0500 (EST)
-Received: by pzk34 with SMTP id 34so14017220pzk.11
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2010 16:05:41 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1001112320490.7893@sister.anvils>
-References: <20100111114224.bbf0fc62.minchan.kim@barrios-desktop>
-	 <alpine.LSU.2.00.1001112320490.7893@sister.anvils>
-Date: Tue, 12 Jan 2010 09:05:41 +0900
-Message-ID: <28c262361001111605y3f887558wf3b8bb2ebff59a92@mail.gmail.com>
-Subject: Re: [PATCH -mmotm-2010-01-06-14-34] Fix fault count of task in GUP
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 649A66B006A
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 19:33:55 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C0Xj7U013056
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 12 Jan 2010 09:33:45 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D67345DE66
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 09:33:45 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EC3DD45DE55
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 09:33:44 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CD0E1EF8005
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 09:33:44 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E3C41DB803C
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 09:33:44 +0900 (JST)
+Date: Tue, 12 Jan 2010 09:30:31 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH - resend] Memory-Hotplug: Fix the bug on interface
+ /dev/mem for 64-bit kernel(v1)
+Message-Id: <20100112093031.0fc6877f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100111124303.GA21408@localhost>
+References: <DA586906BA1FFC4384FCFD6429ECE86031560BAC@shzsmsx502.ccr.corp.intel.com>
+	<20100108124851.GB6153@localhost>
+	<DA586906BA1FFC4384FCFD6429ECE86031560FC1@shzsmsx502.ccr.corp.intel.com>
+	<20100111124303.GA21408@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "Zheng, Shaohui" <shaohui.zheng@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 12, 2010 at 8:29 AM, Hugh Dickins
-<hugh.dickins@tiscali.co.uk> wrote:
-> On Mon, 11 Jan 2010, Minchan Kim wrote:
->>
->> get_user_pages calls handle_mm_fault to pin the arguemented
->> task's page. handle_mm_fault cause major or minor fault and
->> get_user_pages counts it into task which is passed by argument.
->>
->> But the fault happens in current task's context.
->> So we have to count it not argumented task's context but current
->> task's one.
->
-> Have to?
->
-> current simulates a fault into tsk's address space.
-> It is not a fault into current's address space.
->
-> I can see that this could be argued either way, or even
-> that such a "fault" should not be counted at all; but I do not
-> see a reason to change the way we have been counting it for years.
->
-> Sorry, but NAK (to this and to the v2) -
-> unless you have a stronger argument.
+On Mon, 11 Jan 2010 20:43:03 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-Okay. The I/O to get a page happen current's context.
-So I thought we have to count it with current.
-But now that I think about it, yes. It's not current's _fault_.
-I agree with your opinion.
+> > > +	/* if add to low memory, update max_low_pfn */
+> > > +	if (unlikely(start_pfn < limit_low_pfn)) {
+> > > +		if (end_pfn <= limit_low_pfn)
+> > > +			max_low_pfn = end_pfn;
+> > > +		else
+> > > +			max_low_pfn = limit_low_pfn;
+> > 
+> > X86_64 actually always set max_low_pfn=max_pfn, in setup_arch():
+> > [Zheng, Shaohui] there should be some misunderstanding, I read the
+> > code carefully, if the total memory is under 4G, it always
+> > max_low_pfn=max_pfn. If the total memory is larger than 4G,
+> > max_low_pfn means the end of low ram. It set
+> 
+> > max_low_pfn = e820_end_of_low_ram_pfn();.
+> 
+> The above line is very misleading.. In setup_arch(), it will be
+> overrode by the following block.
+> 
 
-Thanks for correcting me. Hugh.
+Hmmm....could you rewrite /dev/mem to use kernel/resource.c other than
+modifing e820 maps. ?
+Two reasons.
+  - e820map is considerted to be stable, read-only after boot.
+  - We don't need to add more x86 special codes.
 
 
-
--- 
-Kind regards,
-Minchan Kim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
