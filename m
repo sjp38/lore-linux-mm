@@ -1,63 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 365F76B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 03:56:34 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C8uUPZ014983
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 12 Jan 2010 17:56:31 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C02D52AEAA2
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:56:29 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D7631EF082
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:56:29 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5163CEF8003
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:56:29 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 030DA1DB803E
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:56:29 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] mm/page_alloc : relieve zone->lock's pressure for memory free
-In-Reply-To: <alpine.DEB.2.00.1001112335001.12808@chino.kir.corp.google.com>
-References: <20100112140923.B3A4.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1001112335001.12808@chino.kir.corp.google.com>
-Message-Id: <20100112175027.B3BC.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 137C06B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 03:58:33 -0500 (EST)
+From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
+Date: Tue, 12 Jan 2010 16:57:40 +0800
+Subject: RE: [ RESEND PATCH v3] Memory-Hotplug: Fix the bug on interface
+ /dev/mem for 64-bit kernel
+Message-ID: <DA586906BA1FFC4384FCFD6429ECE860316C01D6@shzsmsx502.ccr.corp.intel.com>
+References: <DA586906BA1FFC4384FCFD6429ECE860316C0133@shzsmsx502.ccr.corp.intel.com>
+ <20100112170433.394be31b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100112170433.394be31b.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 12 Jan 2010 17:56:28 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Huang Shijie <shijie8@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 12 Jan 2010, KOSAKI Motohiro wrote:
-> 
-> > From 751f197ad256c7245151681d7aece591b1dab343 Mon Sep 17 00:00:00 2001
-> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Date: Tue, 12 Jan 2010 13:53:47 +0900
-> > Subject: [PATCH] mm: Restore zone->all_unreclaimable to independence word
-> > 
-> > commit e815af95 (change all_unreclaimable zone member to flags) chage
-> > all_unreclaimable member to bit flag. but It have undesireble side
-> > effect.
-> > free_one_page() is one of most hot path in linux kernel and increasing
-> > atomic ops in it can reduce kernel performance a bit.
-> > 
-> 
-> Could you please elaborate on "a bit" in the changelog with some data?  If 
-> it's so egregious, it should be easily be quantifiable.
 
-Unfortunately I can't. atomic ops is mainly the issue of large machine. but
-I can't access such machine now. but I'm sure we shouldn't take unnecessary
-atomic ops.
+3 points...
+1. I think this patch cannot be compiled in archs other than x86. Right ?
+   IOW, please add static inline dummy...
+[Zheng, Shaohui] Agree, I will add a static dummy function
 
-That's fundamental space vs performance tradeoff thing. if we talked about
-struct page or similar lots created struct, space efficient is very important.
-but struct zone isn't such one.
+2. pgdat->[start,end], totalram_pages etc...are updated at memory hotplug.
+   Please place the hook nearby them.
+[Zheng, Shaohui] Agree.
 
-Or, do you have strong argue to use bitops without space efficiency?
+3. I recommend you yo use memory hotplug notifier.
+   If it's allowed, it will be cleaner.
+   It seems there are no strict ordering to update parameters this patch to=
+uches.
+
+[Zheng, Shaohui] Kame, do you means put the hook into function slab_mem_goi=
+ng_online_callback, it seems a good idea. If we select this method, we will=
+ need not to update these variable in function add_memory explicitly.
+
+Thanks,
+-Kame
 
 
 
