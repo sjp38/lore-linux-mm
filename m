@@ -1,66 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4ED456B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 18:40:36 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0CNeXb3007153
+	by kanga.kvack.org (Postfix) with SMTP id B24F96B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 18:57:28 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0CNvQHP026138
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 13 Jan 2010 08:40:34 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BD36A45DE6E
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 08:40:33 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9928945DE60
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 08:40:33 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6848C1DB803E
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 08:40:33 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 198F71DB803B
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 08:40:33 +0900 (JST)
+	Wed, 13 Jan 2010 08:57:26 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 250D045DE51
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 08:57:26 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ED87945DE4F
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 08:57:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D93151DB803E
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 08:57:25 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 67D4E1DB8038
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 08:57:22 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm-2010-01-06-14-34] check high watermark after shrink zone
-In-Reply-To: <20100112150152.78604b78.akpm@linux-foundation.org>
-References: <20100108141235.ef56b567.minchan.kim@barrios-desktop> <20100112150152.78604b78.akpm@linux-foundation.org>
-Message-Id: <20100113083339.B3C5.A69D9226@jp.fujitsu.com>
+Subject: [PATCH v2] mm, lockdep: annotate reclaim context to zone  reclaim too
+In-Reply-To: <28c262361001120646y6f3603b8q236d0a7c02250ffa@mail.gmail.com>
+References: <20100112141330.B3A6.A69D9226@jp.fujitsu.com> <28c262361001120646y6f3603b8q236d0a7c02250ffa@mail.gmail.com>
+Message-Id: <20100113084525.B3CB.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 13 Jan 2010 08:40:32 +0900 (JST)
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Wed, 13 Jan 2010 08:57:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-> >  mm/vmscan.c |   21 +++++++++++----------
-> >  1 files changed, 11 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 885207a..b81adf8 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2057,9 +2057,6 @@ loop_again:
-> >  					priority != DEF_PRIORITY)
-> >  				continue;
-> >  
-> > -			if (!zone_watermark_ok(zone, order,
-> > -					high_wmark_pages(zone), end_zone, 0))
-> > -				all_zones_ok = 0;
+> On Tue, Jan 12, 2010 at 2:16 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >
+> > Commit cf40bd16fd (lockdep: annotate reclaim context) introduced reclaim
+> > context annotation. But it didn't annotate zone reclaim. This patch do it.
+> >
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Cc: Nick Piggin <npiggin@suse.de>
+> > Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > Cc: Ingo Molnar <mingo@elte.hu>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 > 
-> This will make kswapd stop doing reclaim if all zones have
-> zone_is_all_unreclaimable():
-> 
-> 			if (zone_is_all_unreclaimable(zone))
-> 				continue;
-> 
-> This seems bad.
+> I think your good explanation in previous thread is good for
+> changelog. so I readd in here.
+> If you mind this, feel free to discard.
+> I don't care about it. :)
 
-No. That's intentional, I think. All zones of small asymmetric numa
-node are always unreclaimable typically. stopping kswapd prevent to
-waste 100% cpu time such situation.
+Thanks, refrected.
 
-In the other hand, This logic doesn't cause disaster to symmetric numa.
-it merely cause direct reclaim and re-wakeup kswapd.
+====================================================
+Commit cf40bd16fd (lockdep: annotate reclaim context) introduced reclaim
+context annotation. But it didn't annotate zone reclaim. This patch do it.
+
+The point is,  commit cf40bd16fd annotate __alloc_pages_direct_reclaim
+but zone-reclaim doesn't use __alloc_pages_direct_reclaim.
+
+current call graph is
+
+__alloc_pages_nodemask
+   get_page_from_freelist
+       zone_reclaim()
+   __alloc_pages_slowpath
+       __alloc_pages_direct_reclaim
+           try_to_free_pages
+
+Actually, if zone_reclaim_mode=1, VM never call
+__alloc_pages_direct_reclaim in usual VM pressure.
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Ingo Molnar <mingo@elte.hu>
+---
+ mm/vmscan.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2bbee91..a039e78 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2547,6 +2547,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	 * and RECLAIM_SWAP.
+ 	 */
+ 	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
++	lockdep_set_current_reclaim_state(gfp_mask);
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+@@ -2590,6 +2591,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 
+ 	p->reclaim_state = NULL;
+ 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
++	lockdep_clear_current_reclaim_state();
+ 	return sc.nr_reclaimed >= nr_pages;
+ }
+ 
+-- 
+1.6.6
 
 
 
