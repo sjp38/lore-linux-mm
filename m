@@ -1,46 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D37556B007B
-	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 22:03:02 -0500 (EST)
-Received: by yxe10 with SMTP id 10so17257249yxe.12
-        for <linux-mm@kvack.org>; Mon, 11 Jan 2010 19:03:01 -0800 (PST)
-Message-ID: <4B4BE65F.8090204@gmail.com>
-Date: Tue, 12 Jan 2010 11:02:55 +0800
-From: Huang Shijie <shijie8@gmail.com>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 68DF86B007D
+	for <linux-mm@kvack.org>; Mon, 11 Jan 2010 22:03:35 -0500 (EST)
+Date: Tue, 12 Jan 2010 11:03:30 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH 4/4] mm/page_alloc : relieve zone->lock's pressure for
- memory free
-References: <20100112094708.d09b01ea.kamezawa.hiroyu@jp.fujitsu.com> <20100112022708.GA21621@localhost> <20100112115550.B398.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100112115550.B398.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+	memory free
+Message-ID: <20100112030330.GA20034@localhost>
+References: <1263184634-15447-4-git-send-email-shijie8@gmail.com> <1263264697-1598-1-git-send-email-shijie8@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1263264697-1598-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, mel@csn.ul.ie, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Huang Shijie <shijie8@gmail.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi Shijie,
 
->>> I don't want to see additional spin_lock, here.
->>>
->>> About ZONE_ALL_UNRECLAIMABLE, it's not necessary to be handled in atomic way.
->>> If you have concerns with other flags, please modify this with single word,
->>> instead of a bit field.
->>>        
->> I'd second it. It's not a big problem to reset ZONE_ALL_UNRECLAIMABLE
->> and pages_scanned outside of zone->lru_lock.
->>
->> Clear of ZONE_ALL_UNRECLAIMABLE is already atomic; if we lose one
->> pages_scanned=0 due to races, there are plenty of page free events
->> ahead to reset it, before pages_scanned hit the huge
->> zone_reclaimable_pages() * 6.
->>      
-> Yes, this patch should be rejected.
->
->
->
->    
-What about the new version?
-http://marc.info/?l=linux-mm&m=126326472530210&w=2
+> +	int free_ok;
+>  
+> -	__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
+> -	__free_one_page(page, zone, order, migratetype);
+> +	spin_lock(&zone->lock);
+> +	free_ok = __free_one_page(page, zone, order, migratetype);
+>  	spin_unlock(&zone->lock);
+> +
+> +	if (likely(free_ok)) {
+> +		zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
+> +		zone->pages_scanned = 0;
+> +		__mod_zone_page_state(zone, NR_FREE_PAGES, free_ok << order);
+> +	}
+
+If we do
+        __mod_zone_page_state(zone, -NR_FREE_PAGES, count);
+in __free_one_page() on error, we can remove the likely(free_ok) test.
+
+This sounds a bit hacky though.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
