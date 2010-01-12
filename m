@@ -1,120 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D0F6A6B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 03:05:02 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C850Bq008264
-	for <linux-mm@kvack.org> (envelope-from d.hatayama@jp.fujitsu.com);
-	Tue, 12 Jan 2010 17:05:00 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C0C945DE51
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:05:00 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D7F0E45DE55
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:04:59 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B6DF8EF8002
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:04:59 +0900 (JST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5C6EF6B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 03:07:55 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0C87pRV025678
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 12 Jan 2010 17:07:51 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 17E9745DE52
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:07:51 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E27E445DE4F
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:07:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C1EF31DB803F
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:07:50 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B80F1DB803C
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:04:56 +0900 (JST)
-Date: Tue, 12 Jan 2010 17:05:03 +0900 (JST)
-Message-Id: <20100112.170503.112616928.d.hatayama@jp.fujitsu.com>
-Subject: Re: [RESEND][mmotm][PATCH v2, 0/5] elf coredump: Add extended
- numbering support
-From: Daisuke HATAYAMA <d.hatayama@jp.fujitsu.com>
-In-Reply-To: <20100111192418.5cd8a554.akpm@linux-foundation.org>
-References: <20100107162928.1d6eba76.akpm@linux-foundation.org>
-	<20100112.121232.189721840.d.hatayama@jp.fujitsu.com>
-	<20100111192418.5cd8a554.akpm@linux-foundation.org>
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3AF951DB803C
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:07:50 +0900 (JST)
+Date: Tue, 12 Jan 2010 17:04:33 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [ RESEND PATCH v3] Memory-Hotplug: Fix the bug on interface
+ /dev/mem for 64-bit kernel
+Message-Id: <20100112170433.394be31b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <DA586906BA1FFC4384FCFD6429ECE860316C0133@shzsmsx502.ccr.corp.intel.com>
+References: <DA586906BA1FFC4384FCFD6429ECE860316C0133@shzsmsx502.ccr.corp.intel.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhiramat@redhat.com, xiyou.wangcong@gmail.com, andi@firstfloor.org, jdike@addtoit.com, tony.luck@intel.com
+To: "Zheng, Shaohui" <shaohui.zheng@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RESEND][mmotm][PATCH v2, 0/5] elf coredump: Add extended numbering support
-Date: Mon, 11 Jan 2010 19:24:18 -0800
+On Tue, 12 Jan 2010 15:45:54 +0800
+"Zheng, Shaohui" <shaohui.zheng@intel.com> wrote:
 
-> On Tue, 12 Jan 2010 12:12:32 +0900 (JST) Daisuke HATAYAMA <d.hatayama@jp.fujitsu.com> wrote:
+> Resend the v3 patch after reviewed by KAMEZAWA Hiroyuki. We still keep the 
+> Old e820map, update variable max_pfn, max_low_pfn and high_memory only. 
+> It is dependent on Fenguang's page_is_ram patch.
 > 
-> > From: Andrew Morton <akpm@linux-foundation.org>
-> > Subject: Re: [RESEND][mmotm][PATCH v2, 0/5] elf coredump: Add extended numbering support
-> > Date: Thu, 7 Jan 2010 16:29:28 -0800
-> > 
-> > > On Mon, 04 Jan 2010 10:06:07 +0900 (JST)
-> > > Daisuke HATAYAMA <d.hatayama@jp.fujitsu.com> wrote:
-> > > 
-> > > > The current ELF dumper can produce broken corefiles if program headers
-> > > > exceed 65535. In particular, the program in 64-bit environment often
-> > > > demands more than 65535 mmaps. If you google max_map_count, then you
-> > > > can find many users facing this problem.
-> > > > 
-> > > > Solaris has already dealt with this issue, and other OSes have also
-> > > > adopted the same method as in Solaris. Currently, Sun's document and
-> > > > AMD 64 ABI include the description for the extension, where they call
-> > > > the extension Extended Numbering. See Reference for further information.
-> > > > 
-> > > > I believe that linux kernel should adopt the same way as they did, so
-> > > > I've written this patch.
-> > > > 
-> > > > I am also preparing for patches of GDB and binutils.
-> > > 
-> > > That's a beautifully presented patchset.  Thanks for doing all that
-> > > work - it helps.
-> > > 
-> > > UML maintenance appears to have ceased in recent times, so if we wish
-> > > to have these changes runtime tested (we should) then I think it would
-> > > be best if you could find someone to do that please.
-> > > 
-> > > And no akpm code-review would be complete without: dump_seek() is
-> > > waaaay to large to be inlined.  Is there some common .c file to where
-> > > we could move it?
-> > > 
-> > 
-> > I am sorry for very late reply.
-> > 
-> > * Patch Test for UML-i386
-> > 
-> > I tested on UML-i386 for the stable release of that time, precisely
-> > 2.6.32, since even building process for UML-i386 failed for mainline
-> > and mmotm trees, as you've expected.
-> > 
-> > I don't know internal UML implementation at all, so I need to find
-> > someone if runtime test for mmotm tree is absolutely necessary.
+> Memory-Hotplug: Fix the bug on interface /dev/mem for 64-bit kernel
 > 
-> OK, thanks.
+> The new added memory can not be access by interface /dev/mem, because we do not
+>  update the variable high_memory, max_pfn and max_low_pfn.
 > 
-> > * modification for dump_seek()
-> > 
-> > I couldn't find any right .c file at which dump_seek() be placed. We
-> > need to create a new .c file into which we put auxiliary functions to
-> > generate/manipulate coredumps.
+> Memory hotplug still has critical issues for 32-bit kernel, and it is more 
+> important for 64-bit kernel, we fix it on 64-bit first. We add a function 
+> update_end_of_memory_vars in file arch/x86/mm/init.c to update these variables.
 > 
-> Sure, that sounds appropriate.
-> 
-> > There is another problem regarding name space. The name dump_seek() is
-> > too short.  If we move dump_seek() to some .c file, we need to rename
-> > it according to the corresponding object file format, such as
-> > elf_core_dump_seek() or aout_dump_seek(); or coredump_dump_seek(), as
-> > currently dump_seek() is shared among dumping processes in multiple
-> > object formats.
-> 
-> I don't understand.  Your current inlined dump_seek() looks like it
-> will work OK for all dump formats when uninlined?
-> 
+> CC: Andi Kleen <ak@linux.intel.com>
+> CC: Li Haicheng <haicheng.li@intel.com>
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
 
-My concern is possibility of dump_seek()'s very short and general
-naming wasting public name space and colliding other global names.  My
-idea is, for example, to rename it coredump_dump_seek().
+3 points...
+1. I think this patch cannot be compiled in archs other than x86. Right ?
+   IOW, please add static inline dummy...
 
-Please ignore remaining part of the previous explanation. As you
-mention, current dump_seek() implementation is no problem. When it
-will be needed is one of implementations of some object file format
-will fork.
+2. pgdat->[start,end], totalram_pages etc...are updated at memory hotplug.
+   Please place the hook nearby them.
+
+3. I recommend you yo use memory hotplug notifier.
+   If it's allowed, it will be cleaner.
+   It seems there are no strict ordering to update parameters this patch touches.
+
+Thanks,
+-Kame
+
+
+
+
+
+> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+> index d406c52..b6a85cc 100644
+> --- a/arch/x86/mm/init.c
+> +++ b/arch/x86/mm/init.c
+> @@ -1,6 +1,7 @@
+>  #include <linux/initrd.h>
+>  #include <linux/ioport.h>
+>  #include <linux/swap.h>
+> +#include <linux/bootmem.h>
+>  
+>  #include <asm/cacheflush.h>
+>  #include <asm/e820.h>
+> @@ -386,3 +387,24 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+>  	free_init_pages("initrd memory", start, end);
+>  }
+>  #endif
+> +
+> +/**
+> + * After memory hotplug, the variable max_pfn, max_low_pfn and high_memory will
+> + * be affected, it will be updated in this function. Memory hotplug still has
+> + * critical issues on 32-bit kennel, it was more important on 64-bit kernel,
+> + * so we update the variables for 64-bit kernel first, fix me in future for
+> + * 32-bit kenrel.
+> + */
+> +void __meminit __attribute__((weak)) update_end_of_memory_vars(u64 start,
+> +		u64 size)
+> +{
+> +#ifdef CONFIG_X86_64
+> +	unsigned long start_pfn = start >> PAGE_SHIFT;
+> +	unsigned long end_pfn = PFN_UP(start + size);
+> +
+> +	if (end_pfn > max_pfn) {
+> +		max_low_pfn = max_pfn = end_pfn;
+> +		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+> +	}
+> +#endif /* CONFIG_X86_64 */
+> +}
+> diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+> index b10ec49..84533a5 100644
+> --- a/include/linux/bootmem.h
+> +++ b/include/linux/bootmem.h
+> @@ -13,6 +13,7 @@
+>  
+>  extern unsigned long max_low_pfn;
+>  extern unsigned long min_low_pfn;
+> +extern void update_end_of_memory_vars(u64 start, u64 size);
+>  
+>  /*
+>   * highest page
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 030ce8a..3e94b23 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -523,6 +523,9 @@ int __ref add_memory(int nid, u64 start, u64 size)
+>  		BUG_ON(ret);
+>  	}
+>  
+> +	/* update max_pfn, max_low_pfn and high_memory */
+> +	update_end_of_memory_vars(start, size);
+> +
+>  	goto out;
+>  
+>  error:
+> 
+> Thanks & Regards,
+> Shaohui
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
