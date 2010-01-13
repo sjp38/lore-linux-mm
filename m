@@ -1,84 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 23F736B0071
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 09:22:12 -0500 (EST)
-Received: by pxi5 with SMTP id 5so17594416pxi.12
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2010 06:22:08 -0800 (PST)
-Date: Wed, 13 Jan 2010 22:23:57 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 250886B0071
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 09:27:35 -0500 (EST)
+Received: by pzk27 with SMTP id 27so2881255pzk.12
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2010 06:27:33 -0800 (PST)
+Date: Wed, 13 Jan 2010 22:29:23 +0800
 From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
-Subject: Re: [PATCH 8/8] hwpoison: prevent /dev/kcore from accessing
-	hwpoison pages
-Message-ID: <20100113142357.GA4038@hack>
-References: <20100113135305.013124116@intel.com> <20100113135958.291404947@intel.com>
+Subject: Re: [PATCH 4/8] resources: introduce generic page_is_ram()
+Message-ID: <20100113142923.GB4038@hack>
+References: <20100113135305.013124116@intel.com> <20100113135957.680223335@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100113135958.291404947@intel.com>
+In-Reply-To: <20100113135957.680223335@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Chen Liqin <liqin.chen@sunplusct.com>, Lennox Wu <lennox.wu@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-Your $subject, I think you mean /proc/kcore...
-
-On Wed, Jan 13, 2010 at 09:53:13PM +0800, Wu Fengguang wrote:
->Silently fill buffer with zeros when encounter hwpoison pages
->(accessing the hwpoison page content is deadly).
+On Wed, Jan 13, 2010 at 09:53:09PM +0800, Wu Fengguang wrote:
+>It's based on walk_system_ram_range(), for archs that don't have
+>their own page_is_ram().
 >
->This patch does not cover X86_32 - which has a dumb kern_addr_valid().
->It is unlikely anyone run a 32bit kernel will care about the hwpoison
->feature - its usable memory is limited.
+>The static verions in MIPS and SCORE are also made global.
 >
->CC: Ingo Molnar <mingo@elte.hu>
->CC: Andi Kleen <andi@firstfloor.org> 
->CC: Pekka Enberg <penberg@cs.helsinki.fi>
+>CC: Chen Liqin <liqin.chen@sunplusct.com>
+>CC: Lennox Wu <lennox.wu@gmail.com>
+>CC: Ralf Baechle <ralf@linux-mips.org>
+>CC: linux-mips@linux-mips.org
+>CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> 
 >Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-
-This patch looks fine for me.
-Reviewed-by: WANG Cong <xiyou.wangcong@gmail.com>
-
 >---
-> arch/x86/mm/init_64.c |   16 +++++++++++++---
-> 1 file changed, 13 insertions(+), 3 deletions(-)
+> arch/mips/mm/init.c    |    2 +-
+> arch/score/mm/init.c   |    2 +-
+> include/linux/ioport.h |    2 ++
+> kernel/resource.c      |   10 ++++++++++
+> 4 files changed, 14 insertions(+), 2 deletions(-)
 >
->--- linux-mm.orig/arch/x86/mm/init_64.c	2010-01-13 21:23:04.000000000 +0800
->+++ linux-mm/arch/x86/mm/init_64.c	2010-01-13 21:25:32.000000000 +0800
->@@ -825,6 +825,7 @@ int __init reserve_bootmem_generic(unsig
-> int kern_addr_valid(unsigned long addr)
-> {
-> 	unsigned long above = ((long)addr) >> __VIRTUAL_MASK_SHIFT;
->+	unsigned long pfn;
-> 	pgd_t *pgd;
-> 	pud_t *pud;
-> 	pmd_t *pmd;
->@@ -845,14 +846,23 @@ int kern_addr_valid(unsigned long addr)
-> 	if (pmd_none(*pmd))
-> 		return 0;
+>--- linux-mm.orig/kernel/resource.c	2010-01-10 10:11:53.000000000 +0800
+>+++ linux-mm/kernel/resource.c	2010-01-10 10:15:33.000000000 +0800
+>@@ -297,6 +297,16 @@ int walk_system_ram_range(unsigned long 
 > 
->-	if (pmd_large(*pmd))
->-		return pfn_valid(pmd_pfn(*pmd));
->+	if (pmd_large(*pmd)) {
->+		pfn = pmd_pfn(*pmd);
->+		pfn += pte_index(addr);
->+		goto check_pfn;
->+	}
+> #endif
 > 
-> 	pte = pte_offset_kernel(pmd, addr);
-> 	if (pte_none(*pte))
-> 		return 0;
+>+static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
+>+{
+>+	return 24;
+>+}
+>+
+>+int __attribute__((weak)) page_is_ram(unsigned long pfn)
+>+{
+>+	return 24 == walk_system_ram_range(pfn, 1, NULL, __is_ram);
+>+}
+
+
+Why do you choose 24 instead of using a macro expressing its meaning?
+
+
+>+
+> /*
+>  * Find empty slot in the resource tree given range and alignment.
+>  */
+>--- linux-mm.orig/include/linux/ioport.h	2010-01-10 10:11:53.000000000 +0800
+>+++ linux-mm/include/linux/ioport.h	2010-01-10 10:11:54.000000000 +0800
+>@@ -188,5 +188,7 @@ extern int
+> walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
+> 		void *arg, int (*func)(unsigned long, unsigned long, void *));
 > 
->-	return pfn_valid(pte_pfn(*pte));
->+	pfn = pte_pfn(*pte);
->+check_pfn:
->+	if (!pfn_valid(pfn))
->+		return 0;
->+	if (PageHWPoison(pfn_to_page(pfn)))
->+		return 0;
->+	return 1;
+>+extern int page_is_ram(unsigned long pfn);
+>+
+> #endif /* __ASSEMBLY__ */
+> #endif	/* _LINUX_IOPORT_H */
+>--- linux-mm.orig/arch/score/mm/init.c	2010-01-10 10:35:38.000000000 +0800
+>+++ linux-mm/arch/score/mm/init.c	2010-01-10 10:38:04.000000000 +0800
+>@@ -59,7 +59,7 @@ static unsigned long setup_zero_page(voi
 > }
 > 
-> /*
+> #ifndef CONFIG_NEED_MULTIPLE_NODES
+>-static int __init page_is_ram(unsigned long pagenr)
+>+int page_is_ram(unsigned long pagenr)
+> {
+> 	if (pagenr >= min_low_pfn && pagenr < max_low_pfn)
+> 		return 1;
+>--- linux-mm.orig/arch/mips/mm/init.c	2010-01-10 10:37:22.000000000 +0800
+>+++ linux-mm/arch/mips/mm/init.c	2010-01-10 10:37:26.000000000 +0800
+>@@ -298,7 +298,7 @@ void __init fixrange_init(unsigned long 
+> }
+> 
+> #ifndef CONFIG_NEED_MULTIPLE_NODES
+>-static int __init page_is_ram(unsigned long pagenr)
+>+int page_is_ram(unsigned long pagenr)
+> {
+> 	int i;
+> 
 >
 >
 >--
