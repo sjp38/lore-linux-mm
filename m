@@ -1,109 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AB6866B006A
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 18:28:26 -0500 (EST)
-Received: from spaceape24.eur.corp.google.com (spaceape24.eur.corp.google.com [172.28.16.76])
-	by smtp-out.google.com with ESMTP id o0DNSMVu008251
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 23:28:22 GMT
-Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
-	by spaceape24.eur.corp.google.com with ESMTP id o0DNRI3j010482
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 15:28:21 -0800
-Received: by pzk9 with SMTP id 9so5384874pzk.16
-        for <linux-mm@kvack.org>; Wed, 13 Jan 2010 15:28:21 -0800 (PST)
-Date: Wed, 13 Jan 2010 15:28:16 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 7/7] Do not compact within a preferred zone after a
- compaction failure
-In-Reply-To: <1262795169-9095-8-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1001131527050.18951@chino.kir.corp.google.com>
-References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-8-git-send-email-mel@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E01E86B006A
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 18:50:10 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0DNo84V003111
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 14 Jan 2010 08:50:08 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E041245DE57
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 08:50:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B06FB45DE51
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 08:50:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BE061DB803E
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 08:50:07 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 405831DB8040
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 08:50:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3][v2] vmstat: add anon_scan_ratio field to zoneinfo
+In-Reply-To: <28c262361001130231k29b933der4022f4d1da80b084@mail.gmail.com>
+References: <20100113171953.B3E5.A69D9226@jp.fujitsu.com> <28c262361001130231k29b933der4022f4d1da80b084@mail.gmail.com>
+Message-Id: <20100114084659.D713.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Thu, 14 Jan 2010 08:50:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Jan 2010, Mel Gorman wrote:
+Hi
 
-> The fragmentation index may indicate that a failure it due to external
-> fragmentation, a compaction run complete and an allocation failure still
-> fail. There are two obvious reasons as to why
+> Hi, Kosaki.
 > 
->   o Page migration cannot move all pages so fragmentation remains
->   o A suitable page may exist but watermarks are not met
+> On Wed, Jan 13, 2010 at 5:21 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > Changelog
+> > A from v1
+> > A - get_anon_scan_ratio don't tak zone->lru_lock anymore
+> > A  because zoneinfo_show_print takes zone->lock.
 > 
-> In the event of compaction and allocation failure, this patch prevents
-> compaction happening for a short interval. It's only recorded on the
-> preferred zone but that should be enough coverage. This could have been
-> implemented similar to the zonelist_cache but the increased size of the
-> zonelist did not appear to be justified.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  include/linux/mmzone.h |    7 +++++++
->  mm/page_alloc.c        |   15 ++++++++++++++-
->  2 files changed, 21 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 30fe668..1d6ccbe 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -328,6 +328,13 @@ struct zone {
->  	unsigned long		*pageblock_flags;
->  #endif /* CONFIG_SPARSEMEM */
->  
-> +#ifdef CONFIG_MIGRATION
-> +	/*
-> +	 * If a compaction fails, do not try compaction again until
-> +	 * jiffies is after the value of compact_resume
-> +	 */
-> +	unsigned long		compact_resume;
-> +#endif
+> When I saw this changelog first, I got confused.
+> That's because there is no relation between lru_lock and lock in zone.
+> You mean zoneinfo is allowed to have a stale data?
+> Tend to agree with it.
 
-CONFIG_COMPACTION?
+Well. zone->lock and zone->lru_lock should be not taked at the same time.
+[1/4] of my last version removed zone->lock, then get_anon_scan_ratioo()
+can take zone->lru_lock. but I dropped it. thus get_anon_scan_ration() can't
+take zone->lru_lock.
 
->  
->  	ZONE_PADDING(_pad1_)
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7275afb..9c86606 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1729,7 +1729,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
->  	cond_resched();
->  
->  	/* Try memory compaction for high-order allocations before reclaim */
-> -	if (order) {
-> +	if (order && time_after(jiffies, preferred_zone->compact_resume)) {
->  		*did_some_progress = try_to_compact_pages(zonelist,
->  						order, gfp_mask, nodemask);
->  		if (*did_some_progress != COMPACT_INCOMPLETE) {
-> @@ -1748,6 +1748,19 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
->  			 * but not enough to satisfy watermarks.
->  			 */
->  			count_vm_event(COMPACTFAIL);
-> +
-> +			/*
-> +			 * On failure, avoid compaction for a short time.
-> +			 * XXX: This is very unsatisfactory. The failure
-> +			 * 	to compact has nothing to do with time
-> +			 * 	and everything to do with the requested
-> +			 * 	order, the number of free pages and
-> +			 * 	watermarks. How to wait on that is more
-> +			 * 	unclear, but the answer would apply to
-> +			 * 	other areas where the VM waits based on
-> +			 * 	time.
-> +			 */
-> +			preferred_zone->compact_resume = jiffies + HZ/50;
->  		}
->  	}
->  
+Thus, I added need_update parameter.
 
-This will need to be moved to (another) inline function dependent on 
-CONFIG_COMPACTION since we don't have zone->compact_resume without it; 
-it's probably better to seperate the function out rather than add #ifdef's 
-within __alloc_pages_direct_reclaim().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
