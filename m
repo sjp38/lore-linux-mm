@@ -1,152 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F27E36B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 20:54:53 -0500 (EST)
-Received: by yxe10 with SMTP id 10so18204400yxe.12
-        for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:54:52 -0800 (PST)
-Subject: Re: [PATCH -mmotm-2010-01-06-14-34] check high watermark after
- shrink zone
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <20100112150152.78604b78.akpm@linux-foundation.org>
-References: <20100108141235.ef56b567.minchan.kim@barrios-desktop>
-	 <20100112150152.78604b78.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Wed, 13 Jan 2010 10:51:47 +0900
-Message-Id: <1263347507.23507.108.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 88BBE6B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 21:29:53 -0500 (EST)
+Date: Wed, 13 Jan 2010 10:29:48 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH - resend] Memory-Hotplug: Fix the bug on interface
+	/dev/mem for 64-bit kernel(v1)
+Message-ID: <20100113022948.GD10184@localhost>
+References: <DA586906BA1FFC4384FCFD6429ECE86031560BAC@shzsmsx502.ccr.corp.intel.com> <20100108124851.GB6153@localhost> <DA586906BA1FFC4384FCFD6429ECE86031560FC1@shzsmsx502.ccr.corp.intel.com> <20100111124303.GA21408@localhost> <20100112093031.0fc6877f.kamezawa.hiroyu@jp.fujitsu.com> <20100112023307.GA16661@localhost> <20100112113903.89163c46.kamezawa.hiroyu@jp.fujitsu.com> <20100112133556.GB7647@localhost> <86802c441001121501v57b61815lc4b4c6d86dc5818d@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <86802c441001121501v57b61815lc4b4c6d86dc5818d@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Zheng, Shaohui" <shaohui.zheng@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-01-12 at 15:01 -0800, Andrew Morton wrote:
-> On Fri, 8 Jan 2010 14:12:35 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
+On Wed, Jan 13, 2010 at 07:01:47AM +0800, Yinghai Lu wrote:
+> On Tue, Jan 12, 2010 at 5:35 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > On Tue, Jan 12, 2010 at 10:39:03AM +0800, KAMEZAWA Hiroyuki wrote:
+> >> On Tue, 12 Jan 2010 10:33:08 +0800
+> >> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> >>
+> >> > Sure, here it is :)
+> >> > ---
+> >> > x86: use the generic page_is_ram()
+> >> >
+> >> > The generic resource based page_is_ram() works better with memory
+> >> > hotplug/hotremove. So switch the x86 e820map based code to it.
+> >> >
+> >> > CC: Andi Kleen <andi@firstfloor.org>
+> >> > CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> >>
+> >> Ack.
+> >
+> > Thank you.
+> >
+> >>
+> >> > +#ifdef CONFIG_X86
+> >> > + A  /*
+> >> > + A  A * A special case is the first 4Kb of memory;
+> >> > + A  A * This is a BIOS owned area, not kernel ram, but generally
+> >> > + A  A * not listed as such in the E820 table.
+> >> > + A  A */
+> >> > + A  if (pfn == 0)
+> >> > + A  A  A  A  A  return 0;
+> >> > +
+> >> > + A  /*
+> >> > + A  A * Second special case: Some BIOSen report the PC BIOS
+> >> > + A  A * area (640->1Mb) as ram even though it is not.
+> >> > + A  A */
+> >> > + A  if (pfn >= (BIOS_BEGIN >> PAGE_SHIFT) &&
+> >> > + A  A  A  pfn < A (BIOS_END A  >> PAGE_SHIFT))
+> >> > + A  A  A  A  A  return 0;
+> >> > +#endif
+> >>
+> >> I'm glad if this part is sorted out in clean way ;)
+> >
+> > Two possible solutions are:
+> >
+> > - to exclude the above two ranges directly in e820 map;
+> > - to not add the above two ranges into iomem_resource.
+> >
+> > Yinghai, do you have any suggestions?
+> > We want to get rid of the two explicit tests from page_is_ram().
 > 
-> > Kswapd check that zone have enough free by zone_water_mark.
-> > If any zone doesn't have enough page, it set all_zones_ok to zero.
-> > all_zone_ok makes kswapd retry not sleeping.
-> > 
-> > I think the watermark check before shrink zone is pointless.
-> > Kswapd try to shrink zone then the check is meaningul.
-> > 
-> > This patch move the check after shrink zone.
+> please check attached patch.
 > 
-> The changelog is rather hard to understand.  I changed it to
+> YH
+
+Thank you, it works!
+
+Content-Description: remove_bios_begin_end.patch
+> [PATCH] x86: remove bios data range from e820
 > 
-> : Kswapd checks that zone has sufficient pages free via zone_watermark_ok().
-> : 
-> : If any zone doesn't have enough pages, we set all_zones_ok to zero. 
-> : !all_zone_ok makes kswapd retry rather than sleeping.
-> : 
-> : I think the watermark check before shrink_zone() is pointless.  Only after
-> : kswapd has tried to shrink the zone is the check meaningful.
-> : 
-> : Move the check to after the call to shrink_zone().
+> to prepare move page_is_ram as generic one
 > 
+> Signed-off-by: Yinghai Lu <yinghai@kernel.org.
 
-Thanks, Andrew. 
+Malformed email address..
 
-> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > CC: Mel Gorman <mel@csn.ul.ie>
-> > CC: Rik van Riel <riel@redhat.com>
-> > ---
-> >  mm/vmscan.c |   21 +++++++++++----------
-> >  1 files changed, 11 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 885207a..b81adf8 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2057,9 +2057,6 @@ loop_again:
-> >  					priority != DEF_PRIORITY)
-> >  				continue;
-> >  
-> > -			if (!zone_watermark_ok(zone, order,
-> > -					high_wmark_pages(zone), end_zone, 0))
-> > -				all_zones_ok = 0;
+> ---
+>  arch/x86/kernel/e820.c   |    8 ++++++++
+>  arch/x86/kernel/head32.c |    2 --
+>  arch/x86/kernel/head64.c |    2 --
+>  arch/x86/kernel/setup.c  |   19 ++++++++++++++++++-
+>  arch/x86/mm/ioremap.c    |   16 ----------------
+>  5 files changed, 26 insertions(+), 21 deletions(-)
 > 
-> This will make kswapd stop doing reclaim if all zones have
-> zone_is_all_unreclaimable():
-> 
-> 			if (zone_is_all_unreclaimable(zone))
-> 				continue;
-> 
-> This seems bad.
+> Index: linux-2.6/arch/x86/kernel/setup.c
+> ===================================================================
+> --- linux-2.6.orig/arch/x86/kernel/setup.c
+> +++ linux-2.6/arch/x86/kernel/setup.c
+> @@ -657,6 +657,23 @@ static struct dmi_system_id __initdata b
+>  	{}
+>  };
+>  
+> +static void __init trim_bios_range(void)
 
-Do you mean zone_is_all_unreclaimable in front of if (nr_slab ==0 && ..)?
+How about e820_trim_bios_range() ?
 
-                        reclaim_state->reclaimed_slab = 0;
-                        nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
-                                                lru_pages);
-                        sc.nr_reclaimed += reclaim_state->reclaimed_slab;
-                        total_scanned += sc.nr_scanned;
-                        if (zone_is_all_unreclaimable(zone)) <=== 
-                                continue;
-
-
-Actually I think the check is pointless, too. 
-We set ZONE_ALL_UNRECLAIMABLE after the check and increase next zone in
-loop. 
-The check is a little bit effective in just case concurrent zone
-reclaim. But if we remove the check, it's one more call
-zone_watermark_ok and it's okay, I think. 
-
-In addition, we check zone_is_all_unreclaimable in start in loop
-following as. 
-
-                for (i = 0; i <= end_zone; i++) {
-                        struct zone *zone = pgdat->node_zones + i; 
-                        int nr_slab;
-                        int nid, zid; 
-
-                        if (!populated_zone(zone))
-                                continue;
-
-                        if (zone_is_all_unreclaimable(zone) && <===
-                                        priority != DEF_PRIORITY)
-                                continue;
-
-so the check in higher priority is effective if anyone doesn't free any
-page. 
+> +{
+> +	/*
+> +	 * A special case is the first 4Kb of memory;
+> +	 * This is a BIOS owned area, not kernel ram, but generally
+> +	 * not listed as such in the E820 table.
+> +	 */
+> +	e820_update_range(0, PAGE_SIZE, E820_RAM, E820_RESERVED);
+> +	/*
+> +	 * special case: Some BIOSen report the PC BIOS
+> +	 * area (640->1Mb) as ram even though it is not.
+> +	 * take them out.
+> +	 */
+> +	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
+> +	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+> +}
+> +
 
 
-> 
-> >  			temp_priority[i] = priority;
-> >  			sc.nr_scanned = 0;
-> >  			note_zone_scanning_priority(zone, priority);
-> > @@ -2099,13 +2096,17 @@ loop_again:
-> >  			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
-> >  				sc.may_writepage = 1;
-> >  
-> > -			/*
-> > -			 * We are still under min water mark. it mean we have
-> > -			 * GFP_ATOMIC allocation failure risk. Hurry up!
-> > -			 */
-> > -			if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
-> > -					      end_zone, 0))
-> > -				has_under_min_watermark_zone = 1;
-> > +			if (!zone_watermark_ok(zone, order,
-> > +					high_wmark_pages(zone), end_zone, 0)) {
-> > +				all_zones_ok = 0;
-> > +				/*
-> > +				 * We are still under min water mark. it mean we have
-> > +				 * GFP_ATOMIC allocation failure risk. Hurry up!
-> > +				 */
-> > +				if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
-> > +						      end_zone, 0))
-> > +					has_under_min_watermark_zone = 1;
-> > +			}
-> >  
-> 
-> The vmscan.c code makes an effort to look nice in an 80-col display.
+> Index: linux-2.6/arch/x86/kernel/head32.c
+> ===================================================================
+> --- linux-2.6.orig/arch/x86/kernel/head32.c
+> +++ linux-2.6/arch/x86/kernel/head32.c
+> @@ -29,8 +29,6 @@ static void __init i386_default_early_se
+>  
+>  void __init i386_start_kernel(void)
+>  {
+> -	reserve_early_overlap_ok(0, PAGE_SIZE, "BIOS data page");
+> -
+>  #ifdef CONFIG_X86_TRAMPOLINE
+>  	/*
+>  	 * But first pinch a few for the stack/trampoline stuff
+> Index: linux-2.6/arch/x86/kernel/head64.c
+> ===================================================================
+> --- linux-2.6.orig/arch/x86/kernel/head64.c
+> +++ linux-2.6/arch/x86/kernel/head64.c
+> @@ -98,8 +98,6 @@ void __init x86_64_start_reservations(ch
+>  {
+>  	copy_bootdata(__va(real_mode_data));
+>  
+> -	reserve_early_overlap_ok(0, PAGE_SIZE, "BIOS data page");
+> -
+>  	reserve_early(__pa_symbol(&_text), __pa_symbol(&__bss_stop), "TEXT DATA BSS");
+>  
+>  #ifdef CONFIG_BLK_DEV_INITRD
 
-Okay. I will keep in mind. 
--- 
-Kind regards,
-Minchan Kim
+The above two trunks don't apply in latest linux-next.
+Not a big problem for my test though.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
