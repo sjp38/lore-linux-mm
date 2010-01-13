@@ -1,54 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F241A6B0071
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 10:04:30 -0500 (EST)
-Message-ID: <4B4DE0C1.7080709@suse.com>
-Date: Wed, 13 Jan 2010 10:03:29 -0500
-From: Jeff Mahoney <jeffm@suse.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 75B9D6B0071
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 10:34:20 -0500 (EST)
+Received: by pxi5 with SMTP id 5so17654198pxi.12
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2010 07:34:19 -0800 (PST)
+Date: Wed, 13 Jan 2010 23:34:12 +0800
+From: Li Hong <lihong.hi@gmail.com>
+Subject: [PATCH 2/3] mm: page_alloc.c Adjust a call site to
+ trace_mm_page_free_direct
+Message-ID: <20100113153412.GA12398@xhl>
+Reply-To: 20100113144917.GA11934@xhl.kvack.org
 MIME-Version: 1.0
-Subject: [patch] hugetlb: Fix section mismatches #2
-References: <20100113004855.550486769@suse.com> <20100113004938.715904356@suse.com> <alpine.DEB.2.00.1001130127450.469@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1001130127450.469@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 List-ID: <linux-mm.kvack.org>
 
- hugetlb_register_node calls hugetlb_sysfs_add_hstate, which is marked with
- __init. Since hugetlb_register_node is only called by
- hugetlb_register_all_nodes, which in turn is only called by hugetlb_init,
- it's safe to mark both of them as __init.
+Move a call of 'trace_mm_page_free_direct' from 'free_hot_page' to
+'free_hot_cold_page'. It is clearer and close to 'kmemcheck_free_shadow', as it
+is done in function '__free_pages_ok'.
 
-Signed-off-by: Jeff Mahoney <jeffm@suse.com>
+Signed-off-by: Li Hong <lihong.hi@gmail.com>
 ---
- mm/hugetlb.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1650,7 +1650,7 @@ static void hugetlb_unregister_all_nodes
-  * Register hstate attributes for a single node sysdev.
-  * No-op if attributes already registered.
-  */
--void hugetlb_register_node(struct node *node)
-+void __init hugetlb_register_node(struct node *node)
- {
- 	struct hstate *h;
- 	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
-@@ -1683,7 +1683,7 @@ void hugetlb_register_node(struct node *
-  * sysdevs of nodes that have memory.  All on-line nodes should have
-  * registered their associated sysdev by this time.
-  */
--static void hugetlb_register_all_nodes(void)
-+static void __init hugetlb_register_all_nodes(void)
- {
- 	int nid;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 24344cd..175dd36 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1082,6 +1082,7 @@ static void free_hot_cold_page(struct page *page, int cold)
+        int migratetype;
+        int wasMlocked = __TestClearPageMlocked(page);
  
++       trace_mm_page_free_direct(page, 0);
+        kmemcheck_free_shadow(page, 0);
+ 
+        if (PageAnon(page))
+@@ -1136,7 +1137,6 @@ out:
+ 
+ void free_hot_page(struct page *page)
+ {
+-       trace_mm_page_free_direct(page, 0);
+        free_hot_cold_page(page, 0);
+ }
+        
 -- 
-Jeff Mahoney
-SUSE Labs
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
