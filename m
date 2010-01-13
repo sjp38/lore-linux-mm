@@ -1,136 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B33A36B0071
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 09:10:07 -0500 (EST)
-Date: Wed, 13 Jan 2010 22:09:56 +0800
-From: "Wu, Fengguang" <fengguang.wu@intel.com>
-Subject: [PATCH 1/8] vfs: fix too big f_pos handling
-Message-ID: <20100113140955.GA18593@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 23F736B0071
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 09:22:12 -0500 (EST)
+Received: by pxi5 with SMTP id 5so17594416pxi.12
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2010 06:22:08 -0800 (PST)
+Date: Wed, 13 Jan 2010 22:23:57 +0800
+From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
+Subject: Re: [PATCH 8/8] hwpoison: prevent /dev/kcore from accessing
+	hwpoison pages
+Message-ID: <20100113142357.GA4038@hack>
+References: <20100113135305.013124116@intel.com> <20100113135958.291404947@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20100113135958.291404947@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Pekka Enberg <penberg@cs.helsinki.fi>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-[CC fsdevel for opinions]
 
+Your $subject, I think you mean /proc/kcore...
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Wed, Jan 13, 2010 at 09:53:13PM +0800, Wu Fengguang wrote:
+>Silently fill buffer with zeros when encounter hwpoison pages
+>(accessing the hwpoison page content is deadly).
+>
+>This patch does not cover X86_32 - which has a dumb kern_addr_valid().
+>It is unlikely anyone run a 32bit kernel will care about the hwpoison
+>feature - its usable memory is limited.
+>
+>CC: Ingo Molnar <mingo@elte.hu>
+>CC: Andi Kleen <andi@firstfloor.org> 
+>CC: Pekka Enberg <penberg@cs.helsinki.fi>
+>Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Now, rw_verify_area() checsk f_pos is negative or not. And if
-negative, returns -EINVAL.
+This patch looks fine for me.
+Reviewed-by: WANG Cong <xiyou.wangcong@gmail.com>
 
-But, some special files as /dev/(k)mem and /proc/<pid>/mem etc..
-has negative offsets. And we can't do any access via read/write
-to the file(device).
+>---
+> arch/x86/mm/init_64.c |   16 +++++++++++++---
+> 1 file changed, 13 insertions(+), 3 deletions(-)
+>
+>--- linux-mm.orig/arch/x86/mm/init_64.c	2010-01-13 21:23:04.000000000 +0800
+>+++ linux-mm/arch/x86/mm/init_64.c	2010-01-13 21:25:32.000000000 +0800
+>@@ -825,6 +825,7 @@ int __init reserve_bootmem_generic(unsig
+> int kern_addr_valid(unsigned long addr)
+> {
+> 	unsigned long above = ((long)addr) >> __VIRTUAL_MASK_SHIFT;
+>+	unsigned long pfn;
+> 	pgd_t *pgd;
+> 	pud_t *pud;
+> 	pmd_t *pmd;
+>@@ -845,14 +846,23 @@ int kern_addr_valid(unsigned long addr)
+> 	if (pmd_none(*pmd))
+> 		return 0;
+> 
+>-	if (pmd_large(*pmd))
+>-		return pfn_valid(pmd_pfn(*pmd));
+>+	if (pmd_large(*pmd)) {
+>+		pfn = pmd_pfn(*pmd);
+>+		pfn += pte_index(addr);
+>+		goto check_pfn;
+>+	}
+> 
+> 	pte = pte_offset_kernel(pmd, addr);
+> 	if (pte_none(*pte))
+> 		return 0;
+> 
+>-	return pfn_valid(pte_pfn(*pte));
+>+	pfn = pte_pfn(*pte);
+>+check_pfn:
+>+	if (!pfn_valid(pfn))
+>+		return 0;
+>+	if (PageHWPoison(pfn_to_page(pfn)))
+>+		return 0;
+>+	return 1;
+> }
+> 
+> /*
+>
+>
+>--
+>To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>the body of a message to majordomo@vger.kernel.org
+>More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>Please read the FAQ at  http://www.tux.org/lkml/
 
-This patch introduce a flag S_VERYBIG and allow negative file
-offsets.
-
-Changelog: v4->v5
- - clean up patches dor /dev/mem.
- - rebased onto 2.6.32-rc1
-
-Changelog: v3->v4
- - make changes in mem.c aligned.
- - change __negative_fpos_check() to return int. 
- - fixed bug in "pos" check.
- - added comments.
-
-Changelog: v2->v3
- - fixed bug in rw_verify_area (it cannot be compiled)
-
-CC: Heiko Carstens <heiko.carstens@de.ibm.com>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- drivers/char/mem.c |    4 ++++
- fs/proc/base.c     |    2 ++
- fs/read_write.c    |   22 ++++++++++++++++++++--
- include/linux/fs.h |    2 ++
- 4 files changed, 28 insertions(+), 2 deletions(-)
-
---- linux-mm.orig/fs/read_write.c	2010-01-13 21:23:04.000000000 +0800
-+++ linux-mm/fs/read_write.c	2010-01-13 21:23:52.000000000 +0800
-@@ -205,6 +205,21 @@ bad:
- }
- #endif
- 
-+static int
-+__negative_fpos_check(struct inode *inode, loff_t pos, size_t count)
-+{
-+	/*
-+	 * pos or pos+count is negative here, check overflow.
-+	 * too big "count" will be caught in rw_verify_area().
-+	 */
-+	if ((pos < 0) && (pos + count < pos))
-+		return -EOVERFLOW;
-+	/* If !VERYBIG inode, negative pos(pos+count) is not allowed */
-+	if (!IS_VERYBIG(inode))
-+		return -EINVAL;
-+	return 0;
-+}
-+
- /*
-  * rw_verify_area doesn't like huge counts. We limit
-  * them to something that fits in "int" so that others
-@@ -222,8 +237,11 @@ int rw_verify_area(int read_write, struc
- 	if (unlikely((ssize_t) count < 0))
- 		return retval;
- 	pos = *ppos;
--	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
--		return retval;
-+	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0)) {
-+		retval = __negative_fpos_check(inode, pos, count);
-+		if (retval)
-+			return retval;
-+	}
- 
- 	if (unlikely(inode->i_flock && mandatory_lock(inode))) {
- 		retval = locks_mandatory_area(
---- linux-mm.orig/include/linux/fs.h	2010-01-13 21:23:04.000000000 +0800
-+++ linux-mm/include/linux/fs.h	2010-01-13 21:31:02.000000000 +0800
-@@ -235,6 +235,7 @@ struct inodes_stat_t {
- #define S_NOCMTIME	128	/* Do not update file c/mtime */
- #define S_SWAPFILE	256	/* Do not truncate: swapon got its bmaps */
- #define S_PRIVATE	512	/* Inode is fs-internal */
-+#define S_VERYBIG	1024	/* Inode is huge: treat loff_t as unsigned */
- 
- /*
-  * Note that nosuid etc flags are inode-specific: setting some file-system
-@@ -269,6 +270,7 @@ struct inodes_stat_t {
- #define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
- #define IS_SWAPFILE(inode)	((inode)->i_flags & S_SWAPFILE)
- #define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
-+#define IS_VERYBIG(inode)	((inode)->i_flags & S_VERYBIG)
- 
- /* the read-only stuff doesn't really belong here, but any other place is
-    probably as bad and I don't want to create yet another include file. */
---- linux-mm.orig/drivers/char/mem.c	2010-01-13 21:23:11.000000000 +0800
-+++ linux-mm/drivers/char/mem.c	2010-01-13 21:27:28.000000000 +0800
-@@ -861,6 +861,10 @@ static int memory_open(struct inode *ino
- 	if (dev->dev_info)
- 		filp->f_mapping->backing_dev_info = dev->dev_info;
- 
-+	/* Is /dev/mem or /dev/kmem ? */
-+	if (dev->dev_info == &directly_mappable_cdev_bdi)
-+		inode->i_flags |= S_VERYBIG;
-+
- 	if (dev->fops->open)
- 		return dev->fops->open(inode, filp);
- 
---- linux-mm.orig/fs/proc/base.c	2010-01-13 21:23:04.000000000 +0800
-+++ linux-mm/fs/proc/base.c	2010-01-13 21:27:51.000000000 +0800
-@@ -861,6 +861,8 @@ static const struct file_operations proc
- static int mem_open(struct inode* inode, struct file* file)
- {
- 	file->private_data = (void*)((long)current->self_exec_id);
-+	/* this file is read only and we can catch out-of-range */
-+	inode->i_flags |= S_VERYBIG;
- 	return 0;
- }
+-- 
+Live like a child, think like the god.
  
 
 --
