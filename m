@@ -1,128 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4647D6B0071
-	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 20:47:05 -0500 (EST)
-Date: Wed, 13 Jan 2010 10:30:06 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX][PATCH] memcg: ensure list is empty at rmdir
-Message-Id: <20100113103006.8cf3b23c.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100112140836.45e7fabb.nishimura@mxp.nes.nec.co.jp>
-References: <20100112140836.45e7fabb.nishimura@mxp.nes.nec.co.jp>
+	by kanga.kvack.org (Postfix) with SMTP id F27E36B0071
+	for <linux-mm@kvack.org>; Tue, 12 Jan 2010 20:54:53 -0500 (EST)
+Received: by yxe10 with SMTP id 10so18204400yxe.12
+        for <linux-mm@kvack.org>; Tue, 12 Jan 2010 17:54:52 -0800 (PST)
+Subject: Re: [PATCH -mmotm-2010-01-06-14-34] check high watermark after
+ shrink zone
+From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <20100112150152.78604b78.akpm@linux-foundation.org>
+References: <20100108141235.ef56b567.minchan.kim@barrios-desktop>
+	 <20100112150152.78604b78.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 13 Jan 2010 10:51:47 +0900
+Message-Id: <1263347507.23507.108.camel@barrios-desktop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stable <stable@kernel.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Current mem_cgroup_force_empty() only ensures mem->res.usage == 0 on success.
-So there can be a case that the usage is zero but some of the LRUs are not
-empty if all of those pages have already been uncharged by the owner process.
+On Tue, 2010-01-12 at 15:01 -0800, Andrew Morton wrote:
+> On Fri, 8 Jan 2010 14:12:35 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+> 
+> > Kswapd check that zone have enough free by zone_water_mark.
+> > If any zone doesn't have enough page, it set all_zones_ok to zero.
+> > all_zone_ok makes kswapd retry not sleeping.
+> > 
+> > I think the watermark check before shrink zone is pointless.
+> > Kswapd try to shrink zone then the check is meaningul.
+> > 
+> > This patch move the check after shrink zone.
+> 
+> The changelog is rather hard to understand.  I changed it to
+> 
+> : Kswapd checks that zone has sufficient pages free via zone_watermark_ok().
+> : 
+> : If any zone doesn't have enough pages, we set all_zones_ok to zero. 
+> : !all_zone_ok makes kswapd retry rather than sleeping.
+> : 
+> : I think the watermark check before shrink_zone() is pointless.  Only after
+> : kswapd has tried to shrink the zone is the check meaningful.
+> : 
+> : Move the check to after the call to shrink_zone().
+> 
 
-OTOH, mem_cgroup_del_lru_list(), which can be called asynchronously with rmdir,
-accesses the mem_cgroup, so this access can cause a problem if it races with
-rmdir because the mem_cgroup might have been freed by rmdir.
+Thanks, Andrew. 
 
-Actually, I saw a bug which seems to be caused by this race.
+> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > CC: Mel Gorman <mel@csn.ul.ie>
+> > CC: Rik van Riel <riel@redhat.com>
+> > ---
+> >  mm/vmscan.c |   21 +++++++++++----------
+> >  1 files changed, 11 insertions(+), 10 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 885207a..b81adf8 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2057,9 +2057,6 @@ loop_again:
+> >  					priority != DEF_PRIORITY)
+> >  				continue;
+> >  
+> > -			if (!zone_watermark_ok(zone, order,
+> > -					high_wmark_pages(zone), end_zone, 0))
+> > -				all_zones_ok = 0;
+> 
+> This will make kswapd stop doing reclaim if all zones have
+> zone_is_all_unreclaimable():
+> 
+> 			if (zone_is_all_unreclaimable(zone))
+> 				continue;
+> 
+> This seems bad.
 
-	[1530745.949906] BUG: unable to handle kernel NULL pointer dereference at 0000000000000230
-	[1530745.950651] IP: [<ffffffff810fbc11>] mem_cgroup_del_lru_list+0x30/0x80
-	[1530745.950651] PGD 3863de067 PUD 3862c7067 PMD 0
-	[1530745.950651] Oops: 0002 [#1] SMP
-	[1530745.950651] last sysfs file: /sys/devices/system/cpu/cpu7/cache/index1/shared_cpu_map
-	[1530745.950651] CPU 3
-	[1530745.950651] Modules linked in: configs ipt_REJECT xt_tcpudp iptable_filter ip_tables x_tables bridge stp nfsd nfs_acl auth_rpcgss exportfs autofs4 hidp rfcomm l2cap crc16 bluetooth lockd sunrpc ib_iser rdma_cm ib_cm iw_cm ib_sa ib_mad ib_core ib_addr iscsi_tcp bnx2i cnic uio ipv6 cxgb3i cxgb3 mdio libiscsi_tcp libiscsi scsi_transport_iscsi dm_mirror dm_multipath scsi_dh video output sbs sbshc battery ac lp kvm_intel kvm sg ide_cd_mod cdrom serio_raw tpm_tis tpm tpm_bios acpi_memhotplug button parport_pc parport rtc_cmos rtc_core rtc_lib e1000 i2c_i801 i2c_core pcspkr dm_region_hash dm_log dm_mod ata_piix libata shpchp megaraid_mbox sd_mod scsi_mod megaraid_mm ext3 jbd uhci_hcd ohci_hcd ehci_hcd [last unloaded: freq_table]
-	[1530745.950651] Pid: 19653, comm: shmem_test_02 Tainted: G   M       2.6.32-mm1-00701-g2b04386 #3 Express5800/140Rd-4 [N8100-1065]
-	[1530745.950651] RIP: 0010:[<ffffffff810fbc11>]  [<ffffffff810fbc11>] mem_cgroup_del_lru_list+0x30/0x80
-	[1530745.950651] RSP: 0018:ffff8803863ddcb8  EFLAGS: 00010002
-	[1530745.950651] RAX: 00000000000001e0 RBX: ffff8803abc02238 RCX: 00000000000001e0
-	[1530745.950651] RDX: 0000000000000000 RSI: ffff88038611a000 RDI: ffff8803abc02238
-	[1530745.950651] RBP: ffff8803863ddcc8 R08: 0000000000000002 R09: ffff8803a04c8643
-	[1530745.950651] R10: 0000000000000000 R11: ffffffff810c7333 R12: 0000000000000000
-	[1530745.950651] R13: ffff880000017f00 R14: 0000000000000092 R15: ffff8800179d0310
-	[1530745.950651] FS:  0000000000000000(0000) GS:ffff880017800000(0000) knlGS:0000000000000000
-	[1530745.950651] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-	[1530745.950651] CR2: 0000000000000230 CR3: 0000000379d87000 CR4: 00000000000006e0
-	[1530745.950651] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-	[1530745.950651] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-	[1530745.950651] Process shmem_test_02 (pid: 19653, threadinfo ffff8803863dc000, task ffff88038612a8a0)
-	[1530745.950651] Stack:
-	[1530745.950651]  ffffea00040c2fe8 0000000000000000 ffff8803863ddd98 ffffffff810c739a
-	[1530745.950651] <0> 00000000863ddd18 000000000000000c 0000000000000000 0000000000000000
-	[1530745.950651] <0> 0000000000000002 0000000000000000 ffff8803863ddd68 0000000000000046
-	[1530745.950651] Call Trace:
-	[1530745.950651]  [<ffffffff810c739a>] release_pages+0x142/0x1e7
-	[1530745.950651]  [<ffffffff810c778f>] ? pagevec_move_tail+0x6e/0x112
-	[1530745.950651]  [<ffffffff810c781e>] pagevec_move_tail+0xfd/0x112
-	[1530745.950651]  [<ffffffff810c78a9>] lru_add_drain+0x76/0x94
-	[1530745.950651]  [<ffffffff810dba0c>] exit_mmap+0x6e/0x145
-	[1530745.950651]  [<ffffffff8103f52d>] mmput+0x5e/0xcf
-	[1530745.950651]  [<ffffffff81043ea8>] exit_mm+0x11c/0x129
-	[1530745.950651]  [<ffffffff8108fb29>] ? audit_free+0x196/0x1c9
-	[1530745.950651]  [<ffffffff81045353>] do_exit+0x1f5/0x6b7
-	[1530745.950651]  [<ffffffff8106133f>] ? up_read+0x2b/0x2f
-	[1530745.950651]  [<ffffffff8137d187>] ? lockdep_sys_exit_thunk+0x35/0x67
-	[1530745.950651]  [<ffffffff81045898>] do_group_exit+0x83/0xb0
-	[1530745.950651]  [<ffffffff810458dc>] sys_exit_group+0x17/0x1b
-	[1530745.950651]  [<ffffffff81002c1b>] system_call_fastpath+0x16/0x1b
-	[1530745.950651] Code: 54 53 0f 1f 44 00 00 83 3d cc 29 7c 00 00 41 89 f4 75 63 eb 4e 48 83 7b 08 00 75 04 0f 0b eb fe 48 89 df e8 18 f3 ff ff 44 89 e2 <48> ff 4c d0 50 48 8b 05 2b 2d 7c 00 48 39 43 08 74 39 48 8b 4b
-	[1530745.950651] RIP  [<ffffffff810fbc11>] mem_cgroup_del_lru_list+0x30/0x80
-	[1530745.950651]  RSP <ffff8803863ddcb8>
-	[1530745.950651] CR2: 0000000000000230
-	[1530745.950651] ---[ end trace c3419c1bb8acc34f ]---
-	[1530745.950651] Fixing recursive fault but reboot is needed!
+Do you mean zone_is_all_unreclaimable in front of if (nr_slab ==0 && ..)?
 
-This patch tries to fix this bug by ensuring not only the usage is zero but also
-all of the LRUs are empty. mem_cgroup_force_empty_list() checks the list is empty
-or not, so we can make use of it.
+                        reclaim_state->reclaimed_slab = 0;
+                        nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+                                                lru_pages);
+                        sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+                        total_scanned += sc.nr_scanned;
+                        if (zone_is_all_unreclaimable(zone)) <=== 
+                                continue;
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: stable@kernel.org
----
-This patch is based on 2.6.33-rc3, and can be applied to older versions too.
 
- mm/memcontrol.c |   11 ++++-------
- 1 files changed, 4 insertions(+), 7 deletions(-)
+Actually I think the check is pointless, too. 
+We set ZONE_ALL_UNRECLAIMABLE after the check and increase next zone in
+loop. 
+The check is a little bit effective in just case concurrent zone
+reclaim. But if we remove the check, it's one more call
+zone_watermark_ok and it's okay, I think. 
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 488b644..954032b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2586,7 +2586,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *mem, bool free_all)
- 	if (free_all)
- 		goto try_to_free;
- move_account:
--	while (mem->res.usage > 0) {
-+	do {
- 		ret = -EBUSY;
- 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
- 			goto out;
-@@ -2614,8 +2614,8 @@ move_account:
- 		if (ret == -ENOMEM)
- 			goto try_to_free;
- 		cond_resched();
--	}
--	ret = 0;
-+	/* "ret" should also be checked to ensure all lists are empty. */
-+	} while (mem->res.usage > 0 || ret);
- out:
- 	css_put(&mem->css);
- 	return ret;
-@@ -2648,10 +2648,7 @@ try_to_free:
- 	}
- 	lru_add_drain();
- 	/* try move_account...there may be some *locked* pages. */
--	if (mem->res.usage)
--		goto move_account;
--	ret = 0;
--	goto out;
-+	goto move_account;
- }
- 
- int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
+In addition, we check zone_is_all_unreclaimable in start in loop
+following as. 
+
+                for (i = 0; i <= end_zone; i++) {
+                        struct zone *zone = pgdat->node_zones + i; 
+                        int nr_slab;
+                        int nid, zid; 
+
+                        if (!populated_zone(zone))
+                                continue;
+
+                        if (zone_is_all_unreclaimable(zone) && <===
+                                        priority != DEF_PRIORITY)
+                                continue;
+
+so the check in higher priority is effective if anyone doesn't free any
+page. 
+
+
+> 
+> >  			temp_priority[i] = priority;
+> >  			sc.nr_scanned = 0;
+> >  			note_zone_scanning_priority(zone, priority);
+> > @@ -2099,13 +2096,17 @@ loop_again:
+> >  			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
+> >  				sc.may_writepage = 1;
+> >  
+> > -			/*
+> > -			 * We are still under min water mark. it mean we have
+> > -			 * GFP_ATOMIC allocation failure risk. Hurry up!
+> > -			 */
+> > -			if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
+> > -					      end_zone, 0))
+> > -				has_under_min_watermark_zone = 1;
+> > +			if (!zone_watermark_ok(zone, order,
+> > +					high_wmark_pages(zone), end_zone, 0)) {
+> > +				all_zones_ok = 0;
+> > +				/*
+> > +				 * We are still under min water mark. it mean we have
+> > +				 * GFP_ATOMIC allocation failure risk. Hurry up!
+> > +				 */
+> > +				if (!zone_watermark_ok(zone, order, min_wmark_pages(zone),
+> > +						      end_zone, 0))
+> > +					has_under_min_watermark_zone = 1;
+> > +			}
+> >  
+> 
+> The vmscan.c code makes an effort to look nice in an 80-col display.
+
+Okay. I will keep in mind. 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
