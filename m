@@ -1,133 +1,150 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 1/8] vfs: fix too big f_pos handling
-Date: Wed, 13 Jan 2010 21:53:06 +0800
-Message-ID: <20100113135957.242612284@intel.com>
+Subject: [PATCH 6/8] hwpoison: prevent /dev/kmem from accessing hwpoison pages
+Date: Wed, 13 Jan 2010 21:53:11 +0800
+Message-ID: <20100113135957.985957389@intel.com>
 References: <20100113135305.013124116@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 35F586B0082
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 09:00:38 -0500 (EST)
-Content-Disposition: inline; filename=f_pos-fix
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4C9F76B0082
+	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 09:00:42 -0500 (EST)
+Content-Disposition: inline; filename=hwpoison-dev-kmem.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Kelly Bowa <kmb@tuxedu.org>, Greg KH <greg@kroah.com>, Andi Kleen <andi@firstfloor.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Christoph Lameter <cl@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>, Nick Piggin <npiggin@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linux Memory Management List <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+When /dev/kmem read()/write() encounters hwpoison page, stop it
+and return the amount of work done till now, or return -EIO if
+nothing have been copied.
 
-Now, rw_verify_area() checsk f_pos is negative or not. And if
-negative, returns -EINVAL.
-
-But, some special files as /dev/(k)mem and /proc/<pid>/mem etc..
-has negative offsets. And we can't do any access via read/write
-to the file(device).
-
-This patch introduce a flag S_VERYBIG and allow negative file
-offsets.
-
-Changelog: v4->v5
- - clean up patches dor /dev/mem.
- - rebased onto 2.6.32-rc1
-
-Changelog: v3->v4
- - make changes in mem.c aligned.
- - change __negative_fpos_check() to return int. 
- - fixed bug in "pos" check.
- - added comments.
-
-Changelog: v2->v3
- - fixed bug in rw_verify_area (it cannot be compiled)
-
-CC: Heiko Carstens <heiko.carstens@de.ibm.com>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Kelly Bowa <kmb@tuxedu.org>
+CC: Greg KH <greg@kroah.com>
+CC: Andi Kleen <andi@firstfloor.org>
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Christoph Lameter <cl@linux-foundation.org>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: Tejun Heo <tj@kernel.org>
+CC: Nick Piggin <npiggin@suse.de>
+CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- drivers/char/mem.c |    4 ++++
- fs/proc/base.c     |    2 ++
- fs/read_write.c    |   22 ++++++++++++++++++++--
- include/linux/fs.h |    2 ++
- 4 files changed, 28 insertions(+), 2 deletions(-)
+ drivers/char/mem.c |   26 ++++++++++++++++++++------
+ mm/vmalloc.c       |    8 ++++++++
+ 2 files changed, 28 insertions(+), 6 deletions(-)
 
---- linux-mm.orig/fs/read_write.c	2010-01-13 21:23:04.000000000 +0800
-+++ linux-mm/fs/read_write.c	2010-01-13 21:23:52.000000000 +0800
-@@ -205,6 +205,21 @@ bad:
- }
- #endif
+--- linux-mm.orig/drivers/char/mem.c	2010-01-11 10:32:39.000000000 +0800
++++ linux-mm/drivers/char/mem.c	2010-01-11 10:32:42.000000000 +0800
+@@ -426,6 +426,9 @@ static ssize_t read_kmem(struct file *fi
+ 			 */
+ 			kbuf = xlate_dev_kmem_ptr((char *)p);
  
-+static int
-+__negative_fpos_check(struct inode *inode, loff_t pos, size_t count)
-+{
-+	/*
-+	 * pos or pos+count is negative here, check overflow.
-+	 * too big "count" will be caught in rw_verify_area().
-+	 */
-+	if ((pos < 0) && (pos + count < pos))
-+		return -EOVERFLOW;
-+	/* If !VERYBIG inode, negative pos(pos+count) is not allowed */
-+	if (!IS_VERYBIG(inode))
-+		return -EINVAL;
-+	return 0;
-+}
++			if (unlikely(virt_addr_valid(kbuf) &&
++				     PageHWPoison(virt_to_page(kbuf))))
++				return -EIO;
+ 			if (copy_to_user(buf, kbuf, sz))
+ 				return -EFAULT;
+ 			buf += sz;
+@@ -447,8 +450,10 @@ static ssize_t read_kmem(struct file *fi
+ 				break;
+ 			}
+ 			sz = vread_page(kbuf, (char *)p, sz);
+-			if (!sz)
++			if (sz <= 0) {
++				err = sz;
+ 				break;
++			}
+ 			if (copy_to_user(buf, kbuf, sz)) {
+ 				err = -EFAULT;
+ 				break;
+@@ -471,6 +476,7 @@ do_write_kmem(unsigned long p, const cha
+ {
+ 	ssize_t written, sz;
+ 	unsigned long copied;
++	int err = 0;
+ 
+ 	written = 0;
+ #ifdef __ARCH_HAS_NO_PAGE_ZERO_MAPPED
+@@ -497,13 +503,19 @@ do_write_kmem(unsigned long p, const cha
+ 		 */
+ 		ptr = xlate_dev_kmem_ptr((char *)p);
+ 
++		if (unlikely(virt_addr_valid(ptr) &&
++			     PageHWPoison(virt_to_page(ptr)))) {
++			err = -EIO;
++			break;
++		}
 +
- /*
-  * rw_verify_area doesn't like huge counts. We limit
-  * them to something that fits in "int" so that others
-@@ -222,8 +237,11 @@ int rw_verify_area(int read_write, struc
- 	if (unlikely((ssize_t) count < 0))
- 		return retval;
- 	pos = *ppos;
--	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
--		return retval;
-+	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0)) {
-+		retval = __negative_fpos_check(inode, pos, count);
-+		if (retval)
-+			return retval;
+ 		copied = copy_from_user(ptr, buf, sz);
+ 		if (copied) {
+ 			written += sz - copied;
+-			if (written)
+-				break;
+-			return -EFAULT;
++			err = -EFAULT;
++			break;
+ 		}
++
+ 		buf += sz;
+ 		p += sz;
+ 		count -= sz;
+@@ -511,7 +523,7 @@ do_write_kmem(unsigned long p, const cha
+ 	}
+ 
+ 	*ppos += written;
+-	return written;
++	return written ? written : err;
+ }
+ 
+ 
+@@ -555,7 +567,9 @@ static ssize_t write_kmem(struct file * 
+ 				err = -EFAULT;
+ 				break;
+ 			}
+-			vwrite_page(kbuf, (char *)p, sz);
++			err = vwrite_page(kbuf, (char *)p, sz);
++			if (err < 0)
++				break;
+ 			count -= sz;
+ 			buf += sz;
+ 			virtr += sz;
+--- linux-mm.orig/mm/vmalloc.c	2010-01-11 10:32:39.000000000 +0800
++++ linux-mm/mm/vmalloc.c	2010-01-11 10:33:21.000000000 +0800
+@@ -1654,6 +1654,7 @@ EXPORT_SYMBOL(vmalloc_32_user);
+  *
+  *	Returns # of bytes copied on success.
+  *	Returns 0 if @addr is not vmalloc'ed, or is mapped to non-RAM.
++ *	Returns -EIO if the mapped page is corrupted.
+  *
+  *	This function checks that addr is a valid vmalloc'ed area, and
+  *	copy data from that area to a given buffer. If the given memory range
+@@ -1684,6 +1685,10 @@ int vread_page(char *buf, char *addr, un
+ 		memset(buf, 0, count);
+ 		return 0;
+ 	}
++	if (PageHWPoison(p)) {
++		memset(buf, 0, count);
++		return -EIO;
 +	}
  
- 	if (unlikely(inode->i_flock && mandatory_lock(inode))) {
- 		retval = locks_mandatory_area(
---- linux-mm.orig/include/linux/fs.h	2010-01-13 21:23:04.000000000 +0800
-+++ linux-mm/include/linux/fs.h	2010-01-13 21:31:02.000000000 +0800
-@@ -235,6 +235,7 @@ struct inodes_stat_t {
- #define S_NOCMTIME	128	/* Do not update file c/mtime */
- #define S_SWAPFILE	256	/* Do not truncate: swapon got its bmaps */
- #define S_PRIVATE	512	/* Inode is fs-internal */
-+#define S_VERYBIG	1024	/* Inode is huge: treat loff_t as unsigned */
+ 	/*
+ 	 * To do safe access to this _mapped_ area, we need
+@@ -1707,6 +1712,7 @@ int vread_page(char *buf, char *addr, un
+  *
+  *	Returns # of bytes copied on success.
+  *	Returns 0 if @addr is not vmalloc'ed, or is mapped to non-RAM.
++ *	Returns -EIO if the mapped page is corrupted.
+  *
+  *	This function checks that addr is a valid vmalloc'ed area, and
+  *	copy data from a buffer to the given addr. If specified range of
+@@ -1736,6 +1742,8 @@ int vwrite_page(char *buf, char *addr, u
+ 		return 0;
+ 	if (!page_is_ram(page_to_pfn(p)))
+ 		return 0;
++	if (PageHWPoison(p))
++		return -EIO;
  
- /*
-  * Note that nosuid etc flags are inode-specific: setting some file-system
-@@ -269,6 +270,7 @@ struct inodes_stat_t {
- #define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
- #define IS_SWAPFILE(inode)	((inode)->i_flags & S_SWAPFILE)
- #define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
-+#define IS_VERYBIG(inode)	((inode)->i_flags & S_VERYBIG)
- 
- /* the read-only stuff doesn't really belong here, but any other place is
-    probably as bad and I don't want to create yet another include file. */
---- linux-mm.orig/drivers/char/mem.c	2010-01-13 21:23:11.000000000 +0800
-+++ linux-mm/drivers/char/mem.c	2010-01-13 21:27:28.000000000 +0800
-@@ -861,6 +861,10 @@ static int memory_open(struct inode *ino
- 	if (dev->dev_info)
- 		filp->f_mapping->backing_dev_info = dev->dev_info;
- 
-+	/* Is /dev/mem or /dev/kmem ? */
-+	if (dev->dev_info == &directly_mappable_cdev_bdi)
-+		inode->i_flags |= S_VERYBIG;
-+
- 	if (dev->fops->open)
- 		return dev->fops->open(inode, filp);
- 
---- linux-mm.orig/fs/proc/base.c	2010-01-13 21:23:04.000000000 +0800
-+++ linux-mm/fs/proc/base.c	2010-01-13 21:27:51.000000000 +0800
-@@ -861,6 +861,8 @@ static const struct file_operations proc
- static int mem_open(struct inode* inode, struct file* file)
- {
- 	file->private_data = (void*)((long)current->self_exec_id);
-+	/* this file is read only and we can catch out-of-range */
-+	inode->i_flags |= S_VERYBIG;
- 	return 0;
- }
- 
+ 	map = kmap_atomic(p, KM_USER0);
+ 	memcpy(map + offset, buf, count);
 
 
 --
