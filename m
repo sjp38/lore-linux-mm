@@ -1,137 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E72F16B006A
-	for <linux-mm@kvack.org>; Wed, 13 Jan 2010 22:29:42 -0500 (EST)
-Date: Thu, 14 Jan 2010 11:29:38 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 4/8] resources: introduce generic page_is_ram()
-Message-ID: <20100114032938.GB11709@localhost>
-References: <20100113135305.013124116@intel.com> <20100113135957.680223335@intel.com> <20100113142923.GB4038@hack>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 137656B006A
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 00:12:27 -0500 (EST)
+Received: by pxi11 with SMTP id 11so83796pxi.22
+        for <linux-mm@kvack.org>; Wed, 13 Jan 2010 21:12:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20100113142923.GB4038@hack>
+In-Reply-To: <20100114084659.D713.A69D9226@jp.fujitsu.com>
+References: <20100113171953.B3E5.A69D9226@jp.fujitsu.com>
+	 <28c262361001130231k29b933der4022f4d1da80b084@mail.gmail.com>
+	 <20100114084659.D713.A69D9226@jp.fujitsu.com>
+Date: Thu, 14 Jan 2010 14:12:25 +0900
+Message-ID: <28c262361001132112i7f50fd66qcd24dc2ddb4d78d8@mail.gmail.com>
+Subject: Re: [PATCH 2/3][v2] vmstat: add anon_scan_ratio field to zoneinfo
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Chen Liqin <liqin.chen@sunplusct.com>, Lennox Wu <lennox.wu@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linux Memory Management List <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 13, 2010 at 10:29:23PM +0800, AmA(C)rico Wang wrote:
-> On Wed, Jan 13, 2010 at 09:53:09PM +0800, Wu Fengguang wrote:
-> >It's based on walk_system_ram_range(), for archs that don't have
-> >their own page_is_ram().
-> >
-> >The static verions in MIPS and SCORE are also made global.
-> >
-> >CC: Chen Liqin <liqin.chen@sunplusct.com>
-> >CC: Lennox Wu <lennox.wu@gmail.com>
-> >CC: Ralf Baechle <ralf@linux-mips.org>
-> >CC: linux-mips@linux-mips.org
-> >CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> 
-> >Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> >---
-> > arch/mips/mm/init.c    |    2 +-
-> > arch/score/mm/init.c   |    2 +-
-> > include/linux/ioport.h |    2 ++
-> > kernel/resource.c      |   10 ++++++++++
-> > 4 files changed, 14 insertions(+), 2 deletions(-)
-> >
-> >--- linux-mm.orig/kernel/resource.c	2010-01-10 10:11:53.000000000 +0800
-> >+++ linux-mm/kernel/resource.c	2010-01-10 10:15:33.000000000 +0800
-> >@@ -297,6 +297,16 @@ int walk_system_ram_range(unsigned long 
-> > 
-> > #endif
-> > 
-> >+static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
-> >+{
-> >+	return 24;
-> >+}
-> >+
-> >+int __attribute__((weak)) page_is_ram(unsigned long pfn)
-> >+{
-> >+	return 24 == walk_system_ram_range(pfn, 1, NULL, __is_ram);
-> >+}
-> 
-> 
-> Why do you choose 24 instead of using a macro expressing its meaning?
+On Thu, Jan 14, 2010 at 8:50 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi
+>
+>> Hi, Kosaki.
+>>
+>> On Wed, Jan 13, 2010 at 5:21 PM, KOSAKI Motohiro
+>> <kosaki.motohiro@jp.fujitsu.com> wrote:
+>> > Changelog
+>> > =C2=A0from v1
+>> > =C2=A0- get_anon_scan_ratio don't tak zone->lru_lock anymore
+>> > =C2=A0 because zoneinfo_show_print takes zone->lock.
+>>
+>> When I saw this changelog first, I got confused.
+>> That's because there is no relation between lru_lock and lock in zone.
+>> You mean zoneinfo is allowed to have a stale data?
+>> Tend to agree with it.
+>
+> Well. zone->lock and zone->lru_lock should be not taked at the same time.
 
-Hmm, I thought they are close enough to be obvious.
-Anyway this should look better:
+I looked over the code since I am out of office.
+I can't find any locking problem zone->lock and zone->lru_lock.
+Do you know any locking order problem?
+Could you explain it with call graph if you don't mind?
 
-resources: introduce generic page_is_ram()
+I am out of office by tomorrow so I can't reply quickly.
+Sorry for late reponse.
 
-It's based on walk_system_ram_range(), for archs that don't have
-their own page_is_ram().
 
-The static verions in MIPS and SCORE are also made global.
-
-CC: Chen Liqin <liqin.chen@sunplusct.com>
-CC: Lennox Wu <lennox.wu@gmail.com>
-CC: Ralf Baechle <ralf@linux-mips.org>
-CC: AmA(C)rico Wang <xiyou.wangcong@gmail.com>
-CC: linux-mips@linux-mips.org
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- arch/mips/mm/init.c    |    2 +-
- arch/score/mm/init.c   |    2 +-
- include/linux/ioport.h |    2 ++
- kernel/resource.c      |   11 +++++++++++
- 4 files changed, 15 insertions(+), 2 deletions(-)
-
---- linux-mm.orig/kernel/resource.c	2010-01-13 21:27:28.000000000 +0800
-+++ linux-mm/kernel/resource.c	2010-01-14 11:28:20.000000000 +0800
-@@ -297,6 +297,17 @@ int walk_system_ram_range(unsigned long 
- 
- #endif
- 
-+#define PAGE_IS_RAM	24
-+static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
-+{
-+	return PAGE_IS_RAM;
-+}
-+int __attribute__((weak)) page_is_ram(unsigned long pfn)
-+{
-+	return PAGE_IS_RAM == walk_system_ram_range(pfn, 1, NULL, __is_ram);
-+}
-+#undef PAGE_IS_RAM
-+
- /*
-  * Find empty slot in the resource tree given range and alignment.
-  */
---- linux-mm.orig/include/linux/ioport.h	2010-01-13 21:27:28.000000000 +0800
-+++ linux-mm/include/linux/ioport.h	2010-01-13 21:44:50.000000000 +0800
-@@ -188,5 +188,7 @@ extern int
- walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
- 		void *arg, int (*func)(unsigned long, unsigned long, void *));
- 
-+extern int page_is_ram(unsigned long pfn);
-+
- #endif /* __ASSEMBLY__ */
- #endif	/* _LINUX_IOPORT_H */
---- linux-mm.orig/arch/score/mm/init.c	2010-01-13 21:27:28.000000000 +0800
-+++ linux-mm/arch/score/mm/init.c	2010-01-13 21:44:50.000000000 +0800
-@@ -59,7 +59,7 @@ static unsigned long setup_zero_page(voi
- }
- 
- #ifndef CONFIG_NEED_MULTIPLE_NODES
--static int __init page_is_ram(unsigned long pagenr)
-+int page_is_ram(unsigned long pagenr)
- {
- 	if (pagenr >= min_low_pfn && pagenr < max_low_pfn)
- 		return 1;
---- linux-mm.orig/arch/mips/mm/init.c	2010-01-13 21:27:28.000000000 +0800
-+++ linux-mm/arch/mips/mm/init.c	2010-01-13 21:44:50.000000000 +0800
-@@ -298,7 +298,7 @@ void __init fixrange_init(unsigned long 
- }
- 
- #ifndef CONFIG_NEED_MULTIPLE_NODES
--static int __init page_is_ram(unsigned long pagenr)
-+int page_is_ram(unsigned long pagenr)
- {
- 	int i;
- 
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
