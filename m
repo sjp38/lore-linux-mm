@@ -1,86 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4A3B46B0078
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 05:22:42 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0EAMaQp000448
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 14 Jan 2010 19:22:37 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 98DCB45DE57
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 19:22:36 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7831945DE4E
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 19:22:36 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F671E18002
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 19:22:36 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C7807EF8004
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 19:22:35 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] oom: OOM-Killed process don't invoke pagefault-oom
-Message-Id: <20100114191940.6749.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 473556B006A
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 07:00:06 -0500 (EST)
+Date: Thu, 14 Jan 2010 19:59:56 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] memory-hotplug: add 0x prefix to HEX block_size_bytes
+Message-ID: <20100114115956.GA2512@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 14 Jan 2010 19:22:34 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>, Jeff Dike <jdike@addtoit.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Zheng, Shaohui" <shaohui.zheng@intel.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-Nick, I've found this issue by code review. I'm glad if you review this
-patch.
-
-Thanks.
-
-=============================
-commit 1c0fe6e3 (invoke oom-killer from page fault) created
-page fault specific oom handler.
-
-But If OOM occur, alloc_pages() in page fault might return
-NULL. It mean page fault return VM_FAULT_OOM. But OOM Killer
-itself sholdn't invoke next OOM Kill. it is obviously strange.
-
-Plus, process exiting itself makes some free memory. we
-don't need kill another process.
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Nick Piggin <npiggin@suse.de>
-Cc: Jeff Dike <jdike@addtoit.com>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+CC: Andi Kleen <andi@firstfloor.org> 
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/oom_kill.c |    9 +++++++++
- 1 files changed, 9 insertions(+), 0 deletions(-)
+ drivers/base/memory.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4f167b8..86cecdf 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -596,6 +596,15 @@ void pagefault_out_of_memory(void)
+--- linux-mm.orig/drivers/base/memory.c	2010-01-14 19:55:40.000000000 +0800
++++ linux-mm/drivers/base/memory.c	2010-01-14 19:55:47.000000000 +0800
+@@ -311,7 +311,7 @@ static SYSDEV_ATTR(removable, 0444, show
+ static ssize_t
+ print_block_size(struct class *class, char *buf)
  {
- 	unsigned long freed = 0;
+-	return sprintf(buf, "%lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
++	return sprintf(buf, "%#lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
+ }
  
-+	/*
-+	 * If the task was received SIGKILL while memory allocation, alloc_pages
-+	 * might return NULL and it cause page fault return VM_FAULT_OOM. But
-+	 * in such case, the task don't need kill any another task, it need
-+	 * just die.
-+	 */
-+	if (fatal_signal_pending(current))
-+		return;
-+
- 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
- 	if (freed > 0)
- 		/* Got some memory back in the last second. */
--- 
-1.6.5.2
-
-
+ static CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
