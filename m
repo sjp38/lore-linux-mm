@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D22D96B006A
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 07:32:12 -0500 (EST)
-Date: Thu, 14 Jan 2010 13:32:09 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] sysdev: fix prototype for memory_sysdev_class
-	show/store functions
-Message-ID: <20100114123209.GM12241@basil.fritz.box>
-References: <20100114115956.GA2512@localhost> <20100114120419.GA3538@localhost>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E52A6B006A
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 07:45:41 -0500 (EST)
+Date: Thu, 14 Jan 2010 23:45:26 +1100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 5/8] vmalloc: simplify vread()/vwrite()
+Message-ID: <20100114124526.GB7518@laptop>
+References: <20100113135305.013124116@intel.com>
+ <20100113135957.833222772@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100114120419.GA3538@localhost>
+In-Reply-To: <20100113135957.833222772@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Zheng, Shaohui" <shaohui.zheng@intel.com>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 14, 2010 at 08:04:19PM +0800, Wu Fengguang wrote:
-> The function prototype mismatches in call stack:
+On Wed, Jan 13, 2010 at 09:53:10PM +0800, Wu Fengguang wrote:
+> vread()/vwrite() is only called from kcore/kmem to access one page at a time.
+> So the logic can be vastly simplified.
 > 
->                 [<ffffffff81494268>] print_block_size+0x58/0x60
->                 [<ffffffff81487e3f>] sysdev_class_show+0x1f/0x30
->                 [<ffffffff811d629b>] sysfs_read_file+0xcb/0x1f0
->                 [<ffffffff81176328>] vfs_read+0xc8/0x180
+> The changes are:
+> - remove the vmlist walk and rely solely on vmalloc_to_page()
+> - replace the VM_IOREMAP check with (page && page_is_ram(pfn))
+> - rename to vread_page()/vwrite_page()
 > 
-> Due to prototype mismatch, print_block_size() will sprintf() into
-> *attribute instead of *buf, hence user space will read the initial
-> zeros from *buf:
-> 	$ hexdump /sys/devices/system/memory/block_size_bytes
-> 	0000000 0000 0000 0000 0000
-> 	0000008
-> 
-> After patch:
-> 	cat /sys/devices/system/memory/block_size_bytes
-> 	0x8000000
-> 
-> This complements commits c29af9636 and 4a0b2b4dbe.
+> The page_is_ram() check is necessary because kmap_atomic() is not
+> designed to work with non-RAM pages.
 
-Hmm, this was already fixed in my patch in the original series
+I don't know if you can really do this. Previously vmlist_lock would be
+taken, which will prevent these vm areas from being freed.
 
-SYSFS: Fix type of sysdev class attribute in memory driver
+ 
+> Note that even for a RAM page, we don't own the page, and cannot assume
+> it's a _PAGE_CACHE_WB page.
 
-This attribute is really a sysdev_class attribute, not a plain class attribute.
+So why is this not a problem for your patch? I don't see how you handle
+it.
 
-They are identical in layout currently, but this might not always be 
-the case.
-
-And with the final patches they were identical in layout again anyways.
-
-I don't know why Greg didn't merge that one. Greg, did you forget
-some patches?
-
-For the record the full series was:
-
-SYSFS: Pass attribute in sysdev_class attributes show/store
-SYSFS: Convert node driver class attributes to be data driven
-SYSDEV: Convert cpu driver sysdev class attributes 
-SYSFS: Add sysfs_add/remove_files utility functions
-SYSFS: Add attribute array to sysdev classes
-SYSDEV: Convert node driver 
-SYSDEV: Use sysdev_class attribute arrays in node driver
-SYSFS: Add sysdev_create/remove_files
-SYSFS: Fix type of sysdev class attribute in memory driver
-SYSDEV: Add attribute argument to class_attribute show/store
-SYSFS: Add class_attr_string for simple read-only string
-SYSFS: Convert some drivers to CLASS_ATTR_STRING
-
--Andi
+What's the problem with the current code, exactly? I would prefer that
+you continue using the same vmlist locking and checking for validating
+addresses.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
