@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DBD0E6B0087
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 00:46:37 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0E5kZvg015533
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 14 Jan 2010 14:46:35 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D19B45DE5B
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 14:46:35 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CF18945DE4D
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 14:46:34 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A651B1DB8044
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 14:46:34 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AE3911DB803E
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 14:46:33 +0900 (JST)
-Date: Thu, 14 Jan 2010 14:42:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/8] vfs: fix too big f_pos handling
-Message-Id: <20100114144250.ebbe6601.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100114051308.GA14616@ZenIV.linux.org.uk>
-References: <20100113140955.GA18593@localhost>
-	<20100114051308.GA14616@ZenIV.linux.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6CF676B0089
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 00:54:48 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0E5sjcL018934
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 14 Jan 2010 14:54:46 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5087045DE60
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 14:54:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 27A0845DE6E
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 14:54:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D7E1E18003
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 14:54:45 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A8B8F1DB8040
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 14:54:44 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] [mmotm 0113] memcg: fix compile error
+Message-Id: <20100114145006.672D.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 14 Jan 2010 14:54:44 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Jan 2010 05:13:08 +0000
-Al Viro <viro@ZenIV.linux.org.uk> wrote:
 
-> On Wed, Jan 13, 2010 at 10:09:56PM +0800, Wu, Fengguang wrote:
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > Now, rw_verify_area() checsk f_pos is negative or not. And if
-> > negative, returns -EINVAL.
-> > 
-> > But, some special files as /dev/(k)mem and /proc/<pid>/mem etc..
-> > has negative offsets. And we can't do any access via read/write
-> > to the file(device).
-> > 
-> > This patch introduce a flag S_VERYBIG and allow negative file
-> > offsets.
-> 
-> Ehh...  FMODE_NEG_OFFSET in file->f_mode, perhaps?
-> 
-Any method is okay for me.
-I was just not sure where I could modify without problem.
-If modifing f_mode is allowed, I'll write new version.
+This issue was introduced by memcg-move-charges-of-anonymous-swap.patch.
 
-Thank you for advice. 
+=================================
+Now, ia64 can't compile page_cgroup.c.
+because it include asm/cmpxhg.h but almost arch don't have arch specific
+cmpxhg.h. they use asm-generic/cmpxhg.h.
 
-I'm sorry that I don't have enough time this week. So, I'll try next week.
-I think dropping this patch itself has no big influence to this patch set. 
-(but debug will be harder ;)
-Thanks,
--Kame
+Then, following errror occur.
+
+  CC      mm/page_cgroup.o
+  mm/page_cgroup.c:12:25: error: asm/cmpxchg.h: No such file or
+  directory
+  make[1]: *** [mm/page_cgroup.o] Error 1
+  make: *** [mm] Error 2
+
+Fortunately, memcg code don't use low layer cmpxchg directly. thus
+this patch remove this include line simply.
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/page_cgroup.c |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 213b0ee..3dd8853 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -9,7 +9,6 @@
+ #include <linux/vmalloc.h>
+ #include <linux/cgroup.h>
+ #include <linux/swapops.h>
+-#include <asm/cmpxchg.h>
+ 
+ static void __meminit
+ __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
+-- 
+1.6.5.2
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
