@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F17A96B0092
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 02:14:15 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0E7EDpa019487
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 14 Jan 2010 16:14:13 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6662045DE5D
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 16:14:13 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B0CE45DE57
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 16:14:12 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E33E1DB803B
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 16:14:12 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 94E271DB8046
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 16:14:11 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [resend][PATCH] mm: Restore zone->all_unreclaimable to independence word
-In-Reply-To: <alpine.DEB.2.00.1001132229250.15428@chino.kir.corp.google.com>
-References: <20100114103332.D71B.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1001132229250.15428@chino.kir.corp.google.com>
-Message-Id: <20100114161311.673B.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9BC986B0092
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 02:22:16 -0500 (EST)
+Date: Thu, 14 Jan 2010 09:22:10 +0200
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v5] add MAP_UNLOCKED mmap flag
+Message-ID: <20100114072210.GK18808@redhat.com>
+References: <20100114092845.D719.A69D9226@jp.fujitsu.com>
+ <20100114065008.GC18808@redhat.com>
+ <20100114155229.6735.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 14 Jan 2010 16:14:10 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100114155229.6735.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Huang Shijie <shijie8@gmail.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, 14 Jan 2010, KOSAKI Motohiro wrote:
+On Thu, Jan 14, 2010 at 04:02:42PM +0900, KOSAKI Motohiro wrote:
+> > On Thu, Jan 14, 2010 at 09:31:03AM +0900, KOSAKI Motohiro wrote:
+> > > > If application does mlockall(MCL_FUTURE) it is no longer possible to mmap
+> > > > file bigger than main memory or allocate big area of anonymous memory
+> > > > in a thread safe manner. Sometimes it is desirable to lock everything
+> > > > related to program execution into memory, but still be able to mmap
+> > > > big file or allocate huge amount of memory and allow OS to swap them on
+> > > > demand. MAP_UNLOCKED allows to do that.
+> > > >  
+> > > > Signed-off-by: Gleb Natapov <gleb@redhat.com>
+> > > > ---
+> > > > 
+> > > > I get reports that people find this useful, so resending.
+> > > 
+> > > This description is still wrong. It doesn't describe why this patch is useful.
+> > > 
+> > I think the text above describes the feature it adds and its use
+> > case quite well. Can you elaborate what is missing in your opinion,
+> > or suggest alternative text please?
 > 
-> > commit e815af95 (change all_unreclaimable zone member to flags) chage
-> > all_unreclaimable member to bit flag. but It have undesireble side
-> > effect.
-> > free_one_page() is one of most hot path in linux kernel and increasing
-> > atomic ops in it can reduce kernel performance a bit.
-> > 
-> > Thus, this patch revert such commit partially. at least
-> > all_unreclaimable shouldn't share memory word with other zone flags.
-> > 
+> My point is, introducing mmap new flags need strong and clearly use-case.
+> All patch should have good benefit/cost balance. the code can describe the cost,
+> but the benefit can be only explained by the patch description.
 > 
-> I still think you need to quantify this; saying you don't have a large 
-> enough of a machine that will benefit from it isn't really a rationale for 
-> the lack of any data supporting your claim.  We should be basing VM 
-> changes on data, not on speculation that there's a measurable impact 
-> here.
+> I don't think this poor description explained bit benefit rather than cost.
+> you should explain why this patch is useful and not just pretty toy.
 > 
-> Perhaps you could ask a colleague or another hacker to run a benchmark for 
-> you so that the changelog is complete?
+The benefit is that with this patch I can lock all of my application in
+memory except some very big memory areas. My use case is that I want to
+run virtual machine in such a way that everything related to machine
+emulator is locked into the memory, but guest address space can be
+swapped out at will. Guest address space is so huge that it is not
+possible to allocated it locked and then unlock. I was very surprised
+that current Linux API has no way to do it hence this patch. It may look
+like a pretty toy to you until some day you need this and has no way to
+do it.
 
-ok, fair. although I dislike current unnecessary atomic-ops.
-I'll pending this patch until get good data.
-
-thanks.
-
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
