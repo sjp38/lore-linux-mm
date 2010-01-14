@@ -1,47 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3A1596B006A
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 10:18:44 -0500 (EST)
-Date: Thu, 14 Jan 2010 09:18:40 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: SLUB ia64 linux-next crash bisected to 756dee75
-In-Reply-To: <20100113002923.GF2985@ldl.fc.hp.com>
-Message-ID: <alpine.DEB.2.00.1001140917110.14164@router.home>
-References: <20100113002923.GF2985@ldl.fc.hp.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ACE06B006A
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 12:31:10 -0500 (EST)
+Subject: Re: [PATCH v3 04/12] Add "handle page fault" PV helper.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1262700774-1808-5-git-send-email-gleb@redhat.com>
+References: <1262700774-1808-1-git-send-email-gleb@redhat.com>
+	 <1262700774-1808-5-git-send-email-gleb@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 14 Jan 2010 18:31:07 +0100
+Message-ID: <1263490267.4244.340.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alex Chiang <achiang@hp.com>
-Cc: penberg@cs.helsinki.fi, linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Try this
+On Tue, 2010-01-05 at 16:12 +0200, Gleb Natapov wrote:
+> Allow paravirtualized guest to do special handling for some page faults.
+> 
+> The patch adds one 'if' to do_page_fault() function. The call is patched
+> out when running on physical HW. I ran kernbech on the kernel with and
+> without that additional 'if' and result were rawly the same:
 
-
-Subject: [SLUB] Size kmalloc_percpu correctly
-
-We need kmalloc_percpu for all kmalloc caches not just for each shift
-value.
-
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-
----
- mm/slub.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2010-01-14 09:16:12.000000000 -0600
-+++ linux-2.6/mm/slub.c	2010-01-14 09:16:27.000000000 -0600
-@@ -2086,7 +2086,7 @@ init_kmem_cache_node(struct kmem_cache_n
- #endif
- }
-
--static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[SLUB_PAGE_SHIFT]);
-+static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
-
- static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
- {
+So why not program a different handler address for the #PF/#GP faults
+and avoid the if all together?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
