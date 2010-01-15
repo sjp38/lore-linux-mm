@@ -1,49 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 696006B006A
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 18:29:52 -0500 (EST)
-Date: Thu, 14 Jan 2010 15:29:07 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memory-hotplug: add 0x prefix to HEX block_size_bytes
-Message-Id: <20100114152907.953f8d3e.akpm@linux-foundation.org>
-In-Reply-To: <20100114115956.GA2512@localhost>
-References: <20100114115956.GA2512@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A66546B0047
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 20:39:03 -0500 (EST)
+Subject: patch staging-ramzswap-free-memory-when-create_device-is-failed.patch added to gregkh-2.6 tree
+From: <gregkh@suse.de>
+Date: Thu, 14 Jan 2010 17:36:52 -0800
+In-Reply-To: <20100111161553.3acebae9.minchan.kim@barrios-desktop>
+Message-ID: <12635194122832@kroah.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Zheng, Shaohui" <shaohui.zheng@intel.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: minchan.kim@gmail.com, gregkh@suse.de, greg@kroah.com, linux-mm@kvack.org, ngupta@vflare.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Jan 2010 19:59:56 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-> CC: Andi Kleen <andi@firstfloor.org> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  drivers/base/memory.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- linux-mm.orig/drivers/base/memory.c	2010-01-14 19:55:40.000000000 +0800
-> +++ linux-mm/drivers/base/memory.c	2010-01-14 19:55:47.000000000 +0800
-> @@ -311,7 +311,7 @@ static SYSDEV_ATTR(removable, 0444, show
->  static ssize_t
->  print_block_size(struct class *class, char *buf)
->  {
-> -	return sprintf(buf, "%lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
-> +	return sprintf(buf, "%#lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
->  }
->  
->  static CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);
+This is a note to let you know that I've just added the patch titled
 
-crappy changelog!
+    Subject: Staging: ramzswap: Free memory when create_device is failed
 
-Why this change?  Perhaps showing us an example of the before-and-after
-output would help us see what is being fixed, and why.
+to my gregkh-2.6 tree.  Its filename is
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+    staging-ramzswap-free-memory-when-create_device-is-failed.patch
+
+This tree can be found at 
+    http://www.kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/patches/
