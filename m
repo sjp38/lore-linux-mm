@@ -1,202 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D6FE36B0047
-	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 22:41:22 -0500 (EST)
-From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
-Date: Fri, 15 Jan 2010 11:41:14 +0800
-Subject: RE: [PATCH-RESEND v4] memory-hotplug: create /sys/firmware/memmap
- entry for new memory
-Message-ID: <DA586906BA1FFC4384FCFD6429ECE86034FF8354@shzsmsx502.ccr.corp.intel.com>
-References: <DA586906BA1FFC4384FCFD6429ECE86031560F92@shzsmsx502.ccr.corp.intel.com>
- <20100113142827.26b2269e.akpm@linux-foundation.org>
-In-Reply-To: <20100113142827.26b2269e.akpm@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6E6D56B006A
+	for <linux-mm@kvack.org>; Thu, 14 Jan 2010 23:47:21 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0F4lIsn000973
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 15 Jan 2010 13:47:18 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4374745DE51
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2010 13:47:18 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F47B45DE4E
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2010 13:47:18 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F40991DB8038
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2010 13:47:17 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 99E091DB803E
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2010 13:47:17 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [resend][PATCH] mm: Restore zone->all_unreclaimable to independence word
+In-Reply-To: <20100115113035.0acbb3dc.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100114151959.2c46ee79.akpm@linux-foundation.org> <20100115113035.0acbb3dc.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20100115134614.6ECF.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 15 Jan 2010 13:47:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "x86@kernel.org" <x86@kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Jan 2010 10:00:11 +0800
-"Zheng, Shaohui" <shaohui.zheng@intel.com> wrote:
+> On Thu, 14 Jan 2010 15:19:59 -0800
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > On Thu, 14 Jan 2010 16:32:29 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > 
+> > > On Thu, Jan 14, 2010 at 03:14:10PM +0800, KOSAKI Motohiro wrote:
+> > > > > On Thu, 14 Jan 2010, KOSAKI Motohiro wrote:
+> > > > > 
+> > > > > > commit e815af95 (change all_unreclaimable zone member to flags) chage
+> > > > > > all_unreclaimable member to bit flag. but It have undesireble side
+> > > > > > effect.
+> > > > > > free_one_page() is one of most hot path in linux kernel and increasing
+> > > > > > atomic ops in it can reduce kernel performance a bit.
+> > > > > > 
+> > > > > > Thus, this patch revert such commit partially. at least
+> > > > > > all_unreclaimable shouldn't share memory word with other zone flags.
+> > > > > > 
+> > > > > 
+> > > > > I still think you need to quantify this; saying you don't have a large 
+> > > > > enough of a machine that will benefit from it isn't really a rationale for 
+> > > > > the lack of any data supporting your claim.  We should be basing VM 
+> > > > > changes on data, not on speculation that there's a measurable impact 
+> > > > > here.
+> > > > > 
+> > > > > Perhaps you could ask a colleague or another hacker to run a benchmark for 
+> > > > > you so that the changelog is complete?
+> > > > 
+> > > > ok, fair. although I dislike current unnecessary atomic-ops.
+> > > > I'll pending this patch until get good data.
+> > > 
+> > > I think it's a reasonable expectation to help large boxes.
+> > > 
+> > > What we can do now, is to measure if it hurts mainline SMP
+> > > boxes. If not, we are set on doing the patch :)
+> > 
+> > yup, the effects of the change might be hard to measure.  Not that one
+> > shouldn't try!
+> > 
+> > But sometimes we just have to do a best-effort change based upon theory
+> > and past experience.
+> > 
+> > Speaking of which...
+> > 
+> > : --- a/include/linux/mmzone.h
+> > : +++ b/include/linux/mmzone.h
+> > : @@ -341,6 +341,7 @@ struct zone {
+> > :  
+> > :  	unsigned long		pages_scanned;	   /* since last reclaim */
+> > :  	unsigned long		flags;		   /* zone flags, see below */
+> > : +	int                     all_unreclaimable; /* All pages pinned */
+> > :  
+> > :  	/* Zone statistics */
+> > :  	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
+> > 
+> > Was that the best place to put the field?  It adds four bytes of
+> > padding to the zone, hence is suboptimal from a cache utilisation point
+> > of view.
+> > 
+> > It might also be that we can place this field closed in memory to other
+> > fields which are being manipulated at the same time as
+> > all_unreclaimable, hm?
+> > 
+> How about the same line where zone->lock is ?
 
-> Resend the memmap patch v4 to mailing-list after follow up fengguang's re=
-view=20
-> comments.=20
->=20
-> memory-hotplug: create /sys/firmware/memmap entry for hot-added memory
->=20
-> Interface firmware_map_add was not called in explict, Remove it and add f=
-unction
-> firmware_map_add_hotplug as hotplug interface of memmap.
->=20
-> When we hot-add new memory, sysfs does not export memmap entry for it. we=
- add
->  a call in function add_memory to function firmware_map_add_hotplug.
->=20
-> Add a new function add_sysfs_fw_map_entry to create memmap entry, it can =
-avoid=20
-> duplicated codes.
->=20
-> Thanks for the careful review from Fengguang Wu and Dave Hansen.
->=20
-
-Please describe the format of the proposed sysfs file.  Example output
-would be suitable.
-
-> @@ -123,20 +123,40 @@ static int firmware_map_add_entry(u64 start, u64 en=
-d,
->  }
-> =20
->  /**
-> - * firmware_map_add() - Adds a firmware mapping entry.
-> + * Add memmap entry on sysfs
-> + */
-> +static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
-> +{
-> +	static int map_entries_nr;
-> +	static struct kset *mmap_kset;
-> +
-> +	if (!mmap_kset) {
-> +		mmap_kset =3D kset_create_and_add("memmap", NULL, firmware_kobj);
-> +		if (!mmap_kset)
-> +			return -ENOMEM;
-> +	}
-
-This is a bit racy if two threads execute it at the same time.  I guess
-it doesn't matter.
-[Zheng, Shaohui] function add_sysfs_fw_map_entry will be called when OS boo=
-ts up and we hot-add memory, it never has chance to be execute in two threa=
-ds, it should be okay.
+Sure. page allocator obviously touch zone->lock at first.
+Incremental patch is here.
 
 
-> +	entry->kobj.kset =3D mmap_kset;
-> +	if (kobject_add(&entry->kobj, NULL, "%d", map_entries_nr++))
-> +		kobject_put(&entry->kobj);
+---
+ include/linux/mmzone.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-hm.  Is this refcounting correct?
-[Zheng, Shaohui] all objects of firmware_map_entry shares the same kset, I =
-use a static pointer to store it. When create next entry, we can get the re=
-ference easier. I already test it, it works fine.
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 4f0c6f1..0df3749 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -314,6 +314,7 @@ struct zone {
+ 	 * free areas of different sizes
+ 	 */
+ 	spinlock_t		lock;
++	int                     all_unreclaimable; /* All pages pinned */
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 	/* see spanned/present_pages for more description */
+ 	seqlock_t		span_seqlock;
+@@ -341,7 +342,6 @@ struct zone {
+ 
+ 	unsigned long		pages_scanned;	   /* since last reclaim */
+ 	unsigned long		flags;		   /* zone flags, see below */
+-	int                     all_unreclaimable; /* All pages pinned */
+ 
+ 	/* Zone statistics */
+ 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
+-- 
+1.6.5.2
 
-> +
-> +	return 0;
-> +}
 
-One caller of add_sysfs_fw_map_entry() is __meminit and the other is
-__init.  So this function can be __meminit?
-[Zheng, Shaohui] function add_sysfs_fw_map_entry() should be still here aft=
-er booting up, it will be called when we hot-add new memory, so it can not =
-be _init. __meminit should be the correct since this function is related me=
-mory hot-plug.
 
-> +/**
-> + * firmware_map_add_early() - Adds a firmware mapping entry.
->   * @start: Start of the memory range.
->   * @end:   End of the memory range (inclusive).
->   * @type:  Type of the memory range.
->   *
-> - * This function uses kmalloc() for memory
-> - * allocation. Use firmware_map_add_early() if you want to use the bootm=
-em
-> - * allocator.
-> + * Adds a firmware mapping entry. This function uses the bootmem allocat=
-or
-> + * for memory allocation.
->   *
->   * That function must be called before late_initcall.
->   *
->   * Returns 0 on success, or -ENOMEM if no memory could be allocated.
->   **/
-> -int firmware_map_add(u64 start, u64 end, const char *type)
-> +int __init firmware_map_add_early(u64 start, u64 end, const char *type)
->  {
->  	struct firmware_map_entry *entry;
-> =20
-> @@ -148,27 +168,31 @@ int firmware_map_add(u64 start, u64 end, const char=
- *type)
->  }
-> =20
->  /**
-> - * firmware_map_add_early() - Adds a firmware mapping entry.
-> + * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
-> + * memory hotplug.
->   * @start: Start of the memory range.
->   * @end:   End of the memory range (inclusive).
->   * @type:  Type of the memory range.
->   *
-> - * Adds a firmware mapping entry. This function uses the bootmem allocat=
-or
-> - * for memory allocation. Use firmware_map_add() if you want to use kmal=
-loc().
-> - *
-> - * That function must be called before late_initcall.
-> + * Adds a firmware mapping entry. This function is for memory hotplug, i=
-t is
-> + * simiar with function firmware_map_add_early. the only difference is t=
-hat
 
-s/simiar/similar/
-s/with/to/
-s/the/The/
-s/function firmware_map_add_early/firmware_map_add_early()/
-[Zheng, Shaohui] sorry for my carelessness.
-=09
-> + * it will create the syfs entry dynamically.
->   *
->   * Returns 0 on success, or -ENOMEM if no memory could be allocated.
->   **/
-> -int __init firmware_map_add_early(u64 start, u64 end, const char *type)
-> +int __meminit firmware_map_add_hotplug(u64 start, u64 end, const char *t=
-ype)
->  {
->  	struct firmware_map_entry *entry;
-> =20
-> -	entry =3D alloc_bootmem(sizeof(struct firmware_map_entry));
-> -	if (WARN_ON(!entry))
-> +	entry =3D kzalloc(sizeof(struct firmware_map_entry), GFP_ATOMIC);
-> +	if (!entry)
->  		return -ENOMEM;
-> =20
-> -	return firmware_map_add_entry(start, end, type, entry);
-> +	firmware_map_add_entry(start, end, type, entry);
-> +	/* create the memmap entry */
-> +	add_sysfs_fw_map_entry(entry);
-> +
-> +	return 0;
->  }
-> =20
->  /*
-> @@ -214,18 +238,10 @@ static ssize_t memmap_attr_show(struct kobject *kob=
-j,
->   */
->  static int __init memmap_init(void)
->  {
-> -	int i =3D 0;
->  	struct firmware_map_entry *entry;
-> -	struct kset *memmap_kset;
-> -
-> -	memmap_kset =3D kset_create_and_add("memmap", NULL, firmware_kobj);
-> -	if (WARN_ON(!memmap_kset))
-> -		return -ENOMEM;
-> =20
->  	list_for_each_entry(entry, &map_entries, list) {
-> -		entry->kobj.kset =3D memmap_kset;
-> -		if (kobject_add(&entry->kobj, NULL, "%d", i++))
-> -			kobject_put(&entry->kobj);
-> +		add_sysfs_fw_map_entry(entry);
->  	}
-
-The braces are now unneeded.  checkpatch used to warn about this I
-think.  Either someone broke checkpatch or it doesn't understand
-list_for_each_entry().
-[Zheng, Shaohui] I will remove the unneeded braces.
-
->
-> ...
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
