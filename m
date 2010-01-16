@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 491336B006A
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2010 18:32:56 -0500 (EST)
-Date: Fri, 15 Jan 2010 17:32:45 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: SLUB ia64 linux-next crash bisected to 756dee75
-In-Reply-To: <1263587721.20615.255.camel@useless.americas.hpqcorp.net>
-Message-ID: <alpine.DEB.2.00.1001151730350.10558@router.home>
-References: <20100113002923.GF2985@ldl.fc.hp.com>  <alpine.DEB.2.00.1001151358110.6590@router.home> <1263587721.20615.255.camel@useless.americas.hpqcorp.net>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3B4666B006A
+	for <linux-mm@kvack.org>; Fri, 15 Jan 2010 20:08:50 -0500 (EST)
+From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
+Date: Sat, 16 Jan 2010 09:08:41 +0800
+Subject: RE: [PATCH-RESEND v4] memory-hotplug: create /sys/firmware/memmap
+ entry for new memory
+Message-ID: <DA586906BA1FFC4384FCFD6429ECE86034FF85EB@shzsmsx502.ccr.corp.intel.com>
+References: <DA586906BA1FFC4384FCFD6429ECE86031560F92@shzsmsx502.ccr.corp.intel.com>
+ <20100115143812.b70161d2.akpm@linux-foundation.org>
+In-Reply-To: <20100115143812.b70161d2.akpm@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Alex Chiang <achiang@hp.com>, penberg@cs.helsinki.fi, linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+It is very strange issue since I already test it before sending it out, I w=
+ill retry it in local.
 
-On Fri, 15 Jan 2010, Lee Schermerhorn wrote:
+Thanks & Regards,
+Shaohui
 
-> > The following patch makes init_kmem_cache_nodes assume 0
-> > for statically allocated kmem_cache structures even after
-> > boot is complete.
->
-> I believe that on Alex's platform, the kernel will get loaded into "node
-> 2", the hardware interleaved pseudo-node, because it's located at phys
-> 0..., and has sufficient space.  So, this might not work here.
 
-Hmm. thats gets us into some strange issues.
+-----Original Message-----
+From: Andrew Morton [mailto:akpm@linux-foundation.org]=20
+Sent: Saturday, January 16, 2010 6:38 AM
+To: Zheng, Shaohui
+Cc: linux-mm@kvack.org; linux-kernel@vger.kernel.org; ak@linux.intel.com; y=
+-goto@jp.fujitsu.com; Dave Hansen; Wu, Fengguang; x86@kernel.org
+Subject: Re: [PATCH-RESEND v4] memory-hotplug: create /sys/firmware/memmap =
+entry for new memory
 
-> > Index: linux-2.6/mm/slub.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/slub.c	2010-01-15 14:02:54.000000000 -0600
-> > +++ linux-2.6/mm/slub.c	2010-01-15 14:04:47.000000000 -0600
-> > @@ -2176,7 +2176,8 @@ static int init_kmem_cache_nodes(struct
-> >  	int node;
-> >  	int local_node;
-> >
-> > -	if (slab_state >= UP)
-> > +	if (slab_state >= UP &&
->
->
-> >  s < kmalloc_caches &&
-> > +			s > kmalloc_caches + KMALLOC_CACHES)
->
-> ??? can this ever be so?  for positive KMALLOC_CACHES, I mean...
+On Mon, 11 Jan 2010 10:00:11 +0800
+"Zheng, Shaohui" <shaohui.zheng@intel.com> wrote:
 
-An allocated kmem_cache structure is definitely not in the range of the
-kmalloc_caches array. This is basically checking if s is pointing to the
-static kmalloc array.
+> memory-hotplug: create /sys/firmware/memmap entry for hot-added memory
+>=20
+> Interface firmware_map_add was not called in explict, Remove it and add f=
+unction
+> firmware_map_add_hotplug as hotplug interface of memmap.
+>=20
+> When we hot-add new memory, sysfs does not export memmap entry for it. we=
+ add
+>  a call in function add_memory to function firmware_map_add_hotplug.
+>=20
+> Add a new function add_sysfs_fw_map_entry to create memmap entry, it can =
+avoid=20
+> duplicated codes.
+
+The patch causes an early exception in kmem_cache_alloc_notrace() -
+probably due to a null cache pointer.
+
+config: http://master.kernel.org/~akpm/config-akpm2.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
