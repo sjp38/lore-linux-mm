@@ -1,61 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3B4666B006A
-	for <linux-mm@kvack.org>; Fri, 15 Jan 2010 20:08:50 -0500 (EST)
-From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
-Date: Sat, 16 Jan 2010 09:08:41 +0800
-Subject: RE: [PATCH-RESEND v4] memory-hotplug: create /sys/firmware/memmap
- entry for new memory
-Message-ID: <DA586906BA1FFC4384FCFD6429ECE86034FF85EB@shzsmsx502.ccr.corp.intel.com>
-References: <DA586906BA1FFC4384FCFD6429ECE86031560F92@shzsmsx502.ccr.corp.intel.com>
- <20100115143812.b70161d2.akpm@linux-foundation.org>
-In-Reply-To: <20100115143812.b70161d2.akpm@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A82926B0047
+	for <linux-mm@kvack.org>; Sat, 16 Jan 2010 11:23:37 -0500 (EST)
+Received: by ywh5 with SMTP id 5so3664790ywh.11
+        for <linux-mm@kvack.org>; Sat, 16 Jan 2010 08:23:35 -0800 (PST)
+Subject: [PATCH -mmotm-2010-01-15-15-34] Fix wrong offset for vma merge in
+ mbind
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sun, 17 Jan 2010 01:15:28 +0900
+Message-ID: <1263658528.2162.6.camel@barrios-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "x86@kernel.org" <x86@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-It is very strange issue since I already test it before sending it out, I w=
-ill retry it in local.
+mm-fix-mbind-vma-merge-problem.patch added vma_merge in mbind
+to merge mergeable vmas.
+But it passed wrong offset of vm_file.
 
-Thanks & Regards,
-Shaohui
+This patch fixes it.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+---
+ mm/mempolicy.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 9751f3f..7e529d0 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -570,6 +570,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+ 	struct vm_area_struct *prev;
+ 	struct vm_area_struct *vma;
+ 	int err = 0;
++	pgoff_t pgoff;
+ 	unsigned long vmstart;
+ 	unsigned long vmend;
+ 
+@@ -582,9 +583,9 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+ 		vmstart = max(start, vma->vm_start);
+ 		vmend   = min(end, vma->vm_end);
+ 
++		pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
+-				  vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+-				  new_pol);
++				  vma->anon_vma, vma->vm_file, pgoff, new_pol);
+ 		if (prev) {
+ 			vma = prev;
+ 			next = vma->vm_next;
+-- 
+1.6.3.3
 
 
------Original Message-----
-From: Andrew Morton [mailto:akpm@linux-foundation.org]=20
-Sent: Saturday, January 16, 2010 6:38 AM
-To: Zheng, Shaohui
-Cc: linux-mm@kvack.org; linux-kernel@vger.kernel.org; ak@linux.intel.com; y=
--goto@jp.fujitsu.com; Dave Hansen; Wu, Fengguang; x86@kernel.org
-Subject: Re: [PATCH-RESEND v4] memory-hotplug: create /sys/firmware/memmap =
-entry for new memory
 
-On Mon, 11 Jan 2010 10:00:11 +0800
-"Zheng, Shaohui" <shaohui.zheng@intel.com> wrote:
-
-> memory-hotplug: create /sys/firmware/memmap entry for hot-added memory
->=20
-> Interface firmware_map_add was not called in explict, Remove it and add f=
-unction
-> firmware_map_add_hotplug as hotplug interface of memmap.
->=20
-> When we hot-add new memory, sysfs does not export memmap entry for it. we=
- add
->  a call in function add_memory to function firmware_map_add_hotplug.
->=20
-> Add a new function add_sysfs_fw_map_entry to create memmap entry, it can =
-avoid=20
-> duplicated codes.
-
-The patch causes an early exception in kmem_cache_alloc_notrace() -
-probably due to a null cache pointer.
-
-config: http://master.kernel.org/~akpm/config-akpm2.txt
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
