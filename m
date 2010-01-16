@@ -1,68 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A82926B0047
-	for <linux-mm@kvack.org>; Sat, 16 Jan 2010 11:23:37 -0500 (EST)
-Received: by ywh5 with SMTP id 5so3664790ywh.11
-        for <linux-mm@kvack.org>; Sat, 16 Jan 2010 08:23:35 -0800 (PST)
-Subject: [PATCH -mmotm-2010-01-15-15-34] Fix wrong offset for vma merge in
- mbind
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 17 Jan 2010 01:15:28 +0900
-Message-ID: <1263658528.2162.6.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 630B06B0047
+	for <linux-mm@kvack.org>; Sat, 16 Jan 2010 13:46:45 -0500 (EST)
+Date: Sat, 16 Jan 2010 19:46:42 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] register MADV_HUGEPAGE
+Message-ID: <20100116184642.GA5687@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-mm-fix-mbind-vma-merge-problem.patch added vma_merge in mbind
-to merge mergeable vmas.
-But it passed wrong offset of vm_file.
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-This patch fixes it.
+In order to allow early shipping transparent hugepage feature enabled
+only inside MADV_HUGEPAGE and not globally to diminish the risk of
+unexpected performance regressions on non-hypervisor related usages
+I'd need this little define registered. This is also to avoid things
+like this:
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+#define MADV_DOFORK	11	    	 /* do inherit across fork */
+#define MADV_HWPOISON	100		    /* poison a page for testing */
+
+Picking random number not so nice... and with my proof of concept
+patch posted working and boosting performance equally to hugetlbfs but
+without its limitations, I think it is a given that eventually KVM
+will run inside MADV_HUGEPAGE madvise regions only, so I see a
+negligeable risk to pollute the kernel in including this as first bit
+of the full patchset.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/mempolicy.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 9751f3f..7e529d0 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -570,6 +570,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
- 	struct vm_area_struct *prev;
- 	struct vm_area_struct *vma;
- 	int err = 0;
-+	pgoff_t pgoff;
- 	unsigned long vmstart;
- 	unsigned long vmend;
+The rest of the transparent hugepage patchset is very ready for
+inclusion too with all cleanups requested and after full handling of
+all review on linux-mm so far, with the only exception of khugepaged
+that is about to be finished, expect a new submit on linux-mm in a few
+days. Then we'll have to plug Mel memory compaction on top of it.
+
+(in addition to the below, /sys/kernel/mm/transparent_hugepage also
+has been moved to some other distro specific location to avoid any
+possible risk of clashes or confusion with future mainline behavior)
+
+Thanks,
+Andrea
+
+diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+--- a/include/asm-generic/mman-common.h
++++ b/include/asm-generic/mman-common.h
+@@ -45,6 +45,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
  
-@@ -582,9 +583,9 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
- 		vmstart = max(start, vma->vm_start);
- 		vmend   = min(end, vma->vm_end);
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
  
-+		pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
--				  vma->anon_vma, vma->vm_file, vma->vm_pgoff,
--				  new_pol);
-+				  vma->anon_vma, vma->vm_file, pgoff, new_pol);
- 		if (prev) {
- 			vma = prev;
- 			next = vma->vm_next;
--- 
-1.6.3.3
-
-
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
