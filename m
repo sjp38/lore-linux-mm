@@ -1,85 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 53A766B0047
-	for <linux-mm@kvack.org>; Sun, 17 Jan 2010 13:58:19 -0500 (EST)
-Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was:
- Re: [linux-pm] Memory allocations in .suspend became very unreliable)
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <201001171427.27954.rjw@sisk.pl>
-References: <1263549544.3112.10.camel@maxim-laptop>
-	 <201001170138.37283.rjw@sisk.pl> <201001170224.36267.oliver@neukum.org>
-	 <201001171427.27954.rjw@sisk.pl>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 18 Jan 2010 05:58:04 +1100
-Message-ID: <1263754684.724.444.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7A1976B0047
+	for <linux-mm@kvack.org>; Sun, 17 Jan 2010 14:30:46 -0500 (EST)
+Received: by pwj10 with SMTP id 10so1637664pwj.6
+        for <linux-mm@kvack.org>; Sun, 17 Jan 2010 11:30:45 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100106070150.GL3059@balbir.in.ibm.com>
+	 <20100106161211.5a7b600f.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100107071554.GO3059@balbir.in.ibm.com>
+	 <20100107163610.aaf831e6.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100107083440.GS3059@balbir.in.ibm.com>
+	 <20100107174814.ad6820db.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100107180800.7b85ed10.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100107092736.GW3059@balbir.in.ibm.com>
+	 <20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 18 Jan 2010 01:00:44 +0530
+Message-ID: <661de9471001171130p2b0ac061he6f3dab9ef46fd06@mail.gmail.com>
+Subject: Re: [RFC] Shared page accounting for memory cgroup
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Oliver Neukum <oliver@neukum.org>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2010-01-17 at 14:27 +0100, Rafael J. Wysocki wrote:
+On Fri, Jan 8, 2010 at 5:17 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 7 Jan 2010 14:57:36 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+>> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-07 18:08:0=
+0]:
+>>
+>> > On Thu, 7 Jan 2010 17:48:14 +0900
+>> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > > > > "How pages are shared" doesn't show good hints. I don't hear suc=
+h parameter
+>> > > > > is used in production's resource monitoring software.
+>> > > > >
+>> > > >
+>> > > > You mean "How many pages are shared" are not good hints, please se=
+e my
+>> > > > justification above. With Virtualization (look at KSM for example)=
+,
+>> > > > shared pages are going to be increasingly important part of the
+>> > > > accounting.
+>> > > >
+>> > >
+>> > > Considering KSM, your cuounting style is tooo bad.
+>> > >
+>> > > You should add
+>> > >
+>> > > =A0- MEM_CGROUP_STAT_SHARED_BY_KSM
+>> > > =A0- MEM_CGROUP_STAT_FOR_TMPFS/SYSV_IPC_SHMEM
+>> > >
+>>
+>> No.. I am just talking about shared memory being important and shared
+>> accounting being useful, no counters for KSM in particular (in the
+>> memcg context).
+>>
+> Think so ? The number of memcg-private pages is in interest in my point o=
+f view.
+>
+> Anyway, I don't change my opinion as "sum of rss" is not necessary to be =
+calculated
+> in the kernel.
+> If you want to provide that in memcg, please add it to global VM as /proc=
+/meminfo.
+>
+> IIUC, KSM/SHMEM has some official method in global VM.
+>
 
-> Yes it will, but why exactly shouldn't it?  System suspend/resume _is_ a
-> special situation anyway.
+Kamezawa-San,
 
-To some extent this is similar to the boot time allocation problem for
-which it was decided to bury the logic in the allocator as well.
- 
-> Memory allocations are made for other purposes during suspend/resume too.  For
-> example, new kernel threads may be created (for async suspend/resume among
-> other things).
+I implemented the same in user space and I get really bad results, here is =
+why
 
-Right. Well, I would add in fact that this isn't even the main issue I
-see. If it was just a matter of changing a kmalloc() call in a driver
-suspend() routine, I would agree with Oliver.
+1. I need to hold and walk the tasks list in cgroups and extract RSS
+through /proc (results in worse hold times for the fork() scenario you
+menioned)
+2. The data is highly inconsistent due to the higher margin of error
+in accumulating data which is changing as we run. By the time we total
+and look at the memcg data, the data is stale
 
-However, there are two categories of allocations that make this
-extremely difficult:
+Would you be OK with the patch, if I renamed "shared_usage_in_bytes"
+to "non_private_usage_in_bytes"?
 
- - One is implicit allocations. IE. suspend() is a normal task context,
-it's expected that any function can be called that might itself call a
-function etc... that does an allocation. There is simply no way all of
-these code path can be identified and the allocation "flags" pushed up
-all the way to the API in every case.
+Given that the stat is user initiated, I don't see your concern w.r.t.
+overhead. Many subsystems like KSM do pay the overhead cost if the
+user really wants the feature or the data. I would be really
+interested in other opinions as well (if people do feel strongly
+against or for the feature)
 
- - There's a more subtle issue at play here. The moment the core starts
-calling driver's suspend() routines, all allocations can potentially
-hang since a device with dirty pages might have been suspended and the
-VM can stall trying to swap out to it. (I don't think Rafael proposed
-patch handles this in a race free way btw, but that's hard, especially
-for allocations already blocked waiting for a write back ...). That
-means that a driver that has -not- been suspended yet (and thus doesn't
-necessarily know the suspend process has been started) might be blocked
-in an allocation somewhere, holding a mutex or similar, which will then
-cause a deadlock when that same driver's suspend() routine is called
-which tries to take the same mutex.
-
-Overall, it's a can of worms. The only way out I can see that is
-reasonably sane and doesn't impose API changes thorough the kernel and
-unreasonable expectations from driver writers is to deal with it at the
-allocator level.
-
-However, it's hard to deal with the case of allocations that have
-already started waiting for IOs. It might be possible to have some VM
-hook to make them wakeup, re-evaluate the situation and get out of that
-code path but in any case it would be tricky.
-
-So Rafael's proposed patch is a first step toward fixing that problem
-but isn't, I believe, enough.
-
-> Besides, the fact that you tell people to do something doesn't necessary imply
-> that they will listen. :-)
-> 
-> I have discussed that with Ben for a couple of times and we have generally
-> agreed that memory allocation problems during suspend/resume are not avoidable
-> in general unless we disable __GFP_FS and __GFP_IO at the high level.
-> 
-
-Cheers,
-Ben.
-
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
