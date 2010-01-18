@@ -1,59 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B6F606B006A
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 10:44:42 -0500 (EST)
-Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20100118154149.38fa61d4@lxorguk.ukuu.org.uk>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 06C6B6B006A
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 11:05:40 -0500 (EST)
+Received: by fxm28 with SMTP id 28so1046035fxm.6
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2010 08:05:38 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20100118141938.GI30698@redhat.com>
 References: <20100118133755.GG30698@redhat.com>
 	 <84144f021001180609r4d7fbbd0p972d5bc0e227d09a@mail.gmail.com>
 	 <20100118141938.GI30698@redhat.com>
-	 <20100118143232.0a0c4b4d@lxorguk.ukuu.org.uk>
-	 <1263826198.4283.600.camel@laptop> <20100118150159.GB14345@redhat.com>
-	 <1263827194.4283.609.camel@laptop> <4B547A31.4090106@redhat.com>
-	 <1263827683.4283.610.camel@laptop> <4B547C09.8010906@redhat.com>
-	 <1263828247.4283.612.camel@laptop>
-	 <20100118154149.38fa61d4@lxorguk.ukuu.org.uk>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 18 Jan 2010 16:44:34 +0100
-Message-ID: <1263829474.4283.617.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 18 Jan 2010 18:05:38 +0200
+Message-ID: <84144f021001180805q4d1203b8qab8ccb1de87b2866@mail.gmail.com>
+Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Avi Kivity <avi@redhat.com>, Gleb Natapov <gleb@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-01-18 at 15:41 +0000, Alan Cox wrote:
-> On Mon, 18 Jan 2010 16:24:07 +0100
-> Peter Zijlstra <peterz@infradead.org> wrote:
-> 
-> > On Mon, 2010-01-18 at 17:19 +0200, Avi Kivity wrote:
-> > > > I would not advice that, just mlock() the text and data you need for the
-> > > > real-time thread. mlockall() is a really blunt instrument.
-> > > >    
-> > > 
-> > > May not be feasible due to libraries. 
-> > 
-> > Esp for the real-time case I could advise not to use those libraries
-> > then, since they're clearly not designed for that use case.
-> 
-> In "hard" real time cases an awful lot of libraries have things like
-> memory allocations in them and don't care about stack growth which can
-> cause faults and sleeps. The memory allocator if you are running threaded
-> was not real time priority aware either last time I checked so the
-> standard libraries are not going to give the behaviour you want unless
-> you have a proper RT environment, and even then it may be a bit iffy here
-> and there.
+On Mon, Jan 18, 2010 at 4:19 PM, Gleb Natapov <gleb@redhat.com> wrote:
+> The specific use cases were discussed in the thread following previous
+> version of the patch. I can describe my specific use case in a change log
+> and I can copy what Andrew said about his case, but is it really needed in
+> a commit message itself? It boils down to greater control over when and
+> where application can get major fault. There are applications that need
+> this kind of control. As of use of mlockall(MCL_FUTURE) how can I make
+> sure that all memory allocated behind my application's back (by dynamic
+> linker, libraries, stack) will be locked otherwise?
 
-I'm quite aware of that, which is why we recommend people to
-pre-allocate, mlock() and pre-fault everything in advance and make sure
-the RT thread doesn't touch any data/text outside of that and uses a
-limited set of system calls.
+Again, why do you want to MCL_FUTURE but then go and use MAP_UNLOCKED?
+"Greater control" is not an argument for adding a new API that needs
+to be maintained forever, a real world use case is.
 
-You can also do that for stacks using pthread_attr_setstack().
-
-
+And yes, this stuff needs to be in the changelog. Whether you want to
+spell it out or post an URL to some previous discussion is up to you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
