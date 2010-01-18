@@ -1,63 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8AE536B006A
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 09:19:48 -0500 (EST)
-Date: Mon, 18 Jan 2010 16:19:38 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
-Message-ID: <20100118141938.GI30698@redhat.com>
-References: <20100118133755.GG30698@redhat.com>
- <84144f021001180609r4d7fbbd0p972d5bc0e227d09a@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id DDD266B006A
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 09:24:19 -0500 (EST)
+Date: Tue, 19 Jan 2010 01:23:59 +1100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 5/8] vmalloc: simplify vread()/vwrite()
+Message-ID: <20100118142359.GA14472@laptop>
+References: <20100113135305.013124116@intel.com>
+ <20100113135957.833222772@intel.com>
+ <20100114124526.GB7518@laptop>
+ <20100118133512.GC721@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <84144f021001180609r4d7fbbd0p972d5bc0e227d09a@mail.gmail.com>
+In-Reply-To: <20100118133512.GC721@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 18, 2010 at 04:09:35PM +0200, Pekka Enberg wrote:
-> Hi Gleb,
+On Mon, Jan 18, 2010 at 09:35:12PM +0800, Wu Fengguang wrote:
+> On Thu, Jan 14, 2010 at 05:45:26AM -0700, Nick Piggin wrote:
+> > On Wed, Jan 13, 2010 at 09:53:10PM +0800, Wu Fengguang wrote:
+> > > vread()/vwrite() is only called from kcore/kmem to access one page at a time.
+> > > So the logic can be vastly simplified.
+> > > 
+> > > The changes are:
+> > > - remove the vmlist walk and rely solely on vmalloc_to_page()
+> > > - replace the VM_IOREMAP check with (page && page_is_ram(pfn))
+> > > - rename to vread_page()/vwrite_page()
+> > > 
+> > > The page_is_ram() check is necessary because kmap_atomic() is not
+> > > designed to work with non-RAM pages.
+> > 
+> > I don't know if you can really do this. Previously vmlist_lock would be
+> > taken, which will prevent these vm areas from being freed.
+> >  
+> > > Note that even for a RAM page, we don't own the page, and cannot assume
+> > > it's a _PAGE_CACHE_WB page.
+> > 
+> > So why is this not a problem for your patch? I don't see how you handle
+> > it.
 > 
-> On Mon, Jan 18, 2010 at 3:37 PM, Gleb Natapov <gleb@redhat.com> wrote:
-> > The current interaction between mlockall(MCL_FUTURE) and mmap has a
-> > deficiency. In 'normal' mode, without MCL_FUTURE in force, the default
-> > is that new memory mappings are not locked, but mmap provides MAP_LOCKED
-> > specifically to override that default. However, with MCL_FUTURE toggled
-> > to on, there is no analogous way to tell mmap to override the default. The
-> > proposed MAP_UNLOCKED flag would resolve this deficiency.
-> >
-> > The benefit of the patch is that it makes it possible for an application
-> > which has previously called mlockall(MCL_FUTURE) to selectively exempt
-> > new memory mappings from memory locking, on a per-mmap-call basis. There
-> > is currently no thread-safe way for an application to do this as
-> > toggling MCL_FUTURE around calls to mmap is racy in a multi-threaded
-> > context. Other threads may manipulate the address space during the
-> > window where MCL_FUTURE is off, subverting the programmers intended
-> > memory locking semantics.
-> >
-> > The ability to exempt specific memory mappings from memory locking is
-> > necessary when the region to be mapped is larger than physical memory.
-> > In such cases a call to mmap the region cannot succeed, unless
-> > MAP_UNLOCKED is available.
+> Sorry I didn't handle it. Just hope to catch attentions from someone
+> (ie. you :).
 > 
-> The changelog doesn't mention what kind of applications would want to
-> use this. Are there some? Using mlockall(MCL_FUTURE) but then having
-> some memory regions MAP_UNLOCKED sounds like a strange combination to
-> me.
-The specific use cases were discussed in the thread following previous
-version of the patch. I can describe my specific use case in a change log
-and I can copy what Andrew said about his case, but is it really needed in
-a commit message itself? It boils down to greater control over when and
-where application can get major fault. There are applications that need
-this kind of control. As of use of mlockall(MCL_FUTURE) how can I make
-sure that all memory allocated behind my application's back (by dynamic
-linker, libraries, stack) will be locked otherwise?
+> It's not a problem for x86_64 at all. For others I wonder if any
+> driver will vmalloc HIGHMEM pages with !_PAGE_CACHE_WB attribute..
+> 
+> So I noted the possible problem and leave it alone.
+
+Well it doesn't need to be vmalloc. Any kind of vmap like ioremap. And
+these can be accompanied by changing the caching attribute. Like agp
+code, for an example. But I don't know if that ever becomes a problem
+in practice.
 
 
---
-			Gleb.
+> > What's the problem with the current code, exactly? I would prefer that
+> 
+> - unnecessary complexity to handle multi-page case, since it's always
+>   called to access one single page;
+
+Fair point there. It just wasn't clear what exactly is your rationale
+because this was in a set of other patches.
+ 
+> - the kmap_atomic() cache consistency problem, which I expressed some
+>   concern (without further action)
+
+Which kmap_atomic problem? Can you explain again? Virtual cache aliasing
+problem you mean? Or caching attribute conflicts?
+
+The whole thing looks stupid though, apparently kmap is used to avoid "the
+lock". But the lock is already held. We should just use the vmap
+address.
+
+
+> > you continue using the same vmlist locking and checking for validating
+> > addresses.
+> 
+> It's a reasonable suggestion. Kame, would you agree on killing the
+> kmap_atomic() and revert to the vmlist walk?
+
+Yes, vmlist locking is always required to have a pin on the pages, and
+IMO it should be quite easy to check for IOREMAP, so we should leave
+that check there to avoid the possibility of regressions.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
