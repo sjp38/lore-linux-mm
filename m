@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A3FA26B006A
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 12:12:03 -0500 (EST)
-Date: Mon, 18 Jan 2010 19:11:48 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
-Message-ID: <20100118171148.GB22111@redhat.com>
-References: <20100118133755.GG30698@redhat.com>
- <84144f021001180609r4d7fbbd0p972d5bc0e227d09a@mail.gmail.com>
- <20100118141938.GI30698@redhat.com>
- <20100118143232.0a0c4b4d@lxorguk.ukuu.org.uk>
- <1263826198.4283.600.camel@laptop>
- <20100118150159.GB14345@redhat.com>
- <1263827194.4283.609.camel@laptop>
- <4B547A31.4090106@redhat.com>
- <1263827683.4283.610.camel@laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A08DD6B006A
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 13:09:29 -0500 (EST)
+Received: by fxm28 with SMTP id 28so1183270fxm.6
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2010 10:09:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1263827683.4283.610.camel@laptop>
+In-Reply-To: <20100118170816.GA22111@redhat.com>
+References: <20100118133755.GG30698@redhat.com>
+	 <84144f021001180609r4d7fbbd0p972d5bc0e227d09a@mail.gmail.com>
+	 <20100118141938.GI30698@redhat.com>
+	 <84144f021001180805q4d1203b8qab8ccb1de87b2866@mail.gmail.com>
+	 <20100118170816.GA22111@redhat.com>
+Date: Mon, 18 Jan 2010 20:09:26 +0200
+Message-ID: <84144f021001181009m52f7eaebp2bd746f92de08da9@mail.gmail.com>
+Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Avi Kivity <avi@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 18, 2010 at 04:14:43PM +0100, Peter Zijlstra wrote:
-> On Mon, 2010-01-18 at 17:11 +0200, Avi Kivity wrote:
-> > On 01/18/2010 05:06 PM, Peter Zijlstra wrote:
-> > > On Mon, 2010-01-18 at 17:01 +0200, Gleb Natapov wrote:
-> > >    
-> > >> There are valid uses for mlockall()
-> > >>      
-> > > That's debatable.
-> > >
-> > >    
-> > 
-> > Real-time?
-> 
-> I would not advice that, just mlock() the text and data you need for the
-> real-time thread. mlockall() is a really blunt instrument.
-> 
-Yes it is blunt, but the patch makes it less so.
+Hi Gleb,
 
---
-			Gleb.
+On Mon, Jan 18, 2010 at 7:08 PM, Gleb Natapov <gleb@redhat.com> wrote:
+>> "Greater control" is not an argument for adding a new API that needs
+>> to be maintained forever, a real world use case is.
+>>
+> If there is real world use case for mlockall() there is real use case for
+> this too. People seems to be trying to convince me that I don't need
+> mlockall() without proposing alternatives. The only alternative I see
+> lock everything from userspace.
+>
+>> And yes, this stuff needs to be in the changelog. Whether you want to
+>> spell it out or post an URL to some previous discussion is up to you.
+> The discussion was here just a couple of days ago. Here is the link
+> were I describe my use case: http://marc.info/?l=linux-mm&m=126345374125942&w=2
+> If you think it needs to be spelled out in commit log I'll do it.
+
+So this is a performance thing? Btw, is there are reason you can't use
+plain mlock() for it as suggested by Peter earlier?
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
