@@ -1,36 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D79A6B007D
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 14:07:55 -0500 (EST)
-Date: Mon, 18 Jan 2010 19:10:31 +0000
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
-Message-ID: <20100118191031.0088f49a@lxorguk.ukuu.org.uk>
-In-Reply-To: <20100118181942.GD22111@redhat.com>
-References: <20100118133755.GG30698@redhat.com>
-	<84144f021001180609r4d7fbbd0p972d5bc0e227d09a@mail.gmail.com>
-	<20100118141938.GI30698@redhat.com>
-	<84144f021001180805q4d1203b8qab8ccb1de87b2866@mail.gmail.com>
-	<20100118170816.GA22111@redhat.com>
-	<84144f021001181009m52f7eaebp2bd746f92de08da9@mail.gmail.com>
-	<20100118181942.GD22111@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 98B426B0082
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 15:41:45 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was: Re: [linux-pm] Memory allocations in .suspend became very unreliable)
+Date: Mon, 18 Jan 2010 21:41:49 +0100
+References: <1263549544.3112.10.camel@maxim-laptop> <201001171455.55909.rjw@sisk.pl> <201001181800.38574.oliver@neukum.org>
+In-Reply-To: <201001181800.38574.oliver@neukum.org>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201001182141.49907.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Oliver Neukum <oliver@neukum.org>
+Cc: Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-> I can't realistically chase every address space mapping changes and mlock
-> new areas. The only way other then mlockall() is to use custom memory
-> allocator that allocates mlocked memory.
+On Monday 18 January 2010, Oliver Neukum wrote:
+> Am Sonntag, 17. Januar 2010 14:55:55 schrieb Rafael J. Wysocki:
+> > +void mm_force_noio_allocations(void)
+> > +{
+> > +       /* Wait for all slowpath allocations using the old mask to complete */
+> > +       down_write(&gfp_allowed_mask_sem);
+> > +       saved_gfp_allowed_mask = gfp_allowed_mask;
+> > +       gfp_allowed_mask &= ~(__GFP_IO | __GFP_FS);
+> > +       up_write(&gfp_allowed_mask_sem);
+> > +}
+> 
+> In addition to this you probably want to exhaust all memory reserves
+> before you fail a memory allocation
 
-Which keeps all the special cases in your app rather than in every single
-users kernel. That seems to be the right way up, especially as you can
-make a library of it !
+I'm not really sure what you mean.
 
-Alan
+> and forbid the OOM killer to run.
+
+The OOM killer has already been disabled at this point, by the freezer.
+
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
