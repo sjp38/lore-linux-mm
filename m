@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B6C7A6B0093
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 16:56:06 -0500 (EST)
-Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was:
- Re: [linux-pm] Memory allocations in .suspend became very unreliable)
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <201001180000.23376.rjw@sisk.pl>
-References: <1263549544.3112.10.camel@maxim-laptop>
-	 <201001171427.27954.rjw@sisk.pl> <1263754684.724.444.camel@pasglop>
-	 <201001180000.23376.rjw@sisk.pl>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 19 Jan 2010 08:55:57 +1100
-Message-ID: <1263851757.724.500.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 796766B0096
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 17:56:36 -0500 (EST)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [RFC 1/1] bootmem: move big allocations behing 4G
+Date: Mon, 18 Jan 2010 23:56:30 +0100
+Message-Id: <1263855390-32497-1-git-send-email-jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Oliver Neukum <oliver@neukum.org>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: hannes@cmpxchg.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-01-18 at 00:00 +0100, Rafael J. Wysocki wrote:
-> On Sunday 17 January 2010, Benjamin Herrenschmidt wrote:
-> > On Sun, 2010-01-17 at 14:27 +0100, Rafael J. Wysocki wrote:
-> ...
-> > However, it's hard to deal with the case of allocations that have
-> > already started waiting for IOs. It might be possible to have some VM
-> > hook to make them wakeup, re-evaluate the situation and get out of that
-> > code path but in any case it would be tricky.
-> 
-> In the second version of the patch I used an rwsem that made us wait for these
-> allocations to complete before we changed gfp_allowed_mask.
-> 
-> [This is kinda buggy in the version I sent, but I'm going to send an update
-> in a minute.]
+Hi, I'm fighting a bug where Grub loads the kernel just fine, whereas
+isolinux doesn't. I found out, it's due to different addresses of
+loaded initrd. On a machine with 128G of memory, grub loads the
+initrd at 895M in our case and flat mem_map (2G long) is allocated
+above 4G due to 2-4G BIOS reservation.
 
-And nobody screamed due to cache line ping pong caused by this in the
-fast path ? :-)
+On the other hand, with isolinux, the 0-2G is free and mem_map is
+placed there leaving no space for others, hence kernel panics for
+swiotlb which needs to be below 4G.
 
-We might want to look at something a bit smarter for that sort of
-read-mostly-really-really-mostly construct, though in this case I don't
-think RCU is the answer since we are happily scheduling.
+I use the patch below, but it seems, from the code, like it won't
+work out for section allocations.
 
-I wonder if something per-cpu would do, it's thus the responsibility of
-the "writer" to take them all in order for all CPUs.
+Any ideas?
 
-Cheers,
-Ben.
+--
 
+If there is a big amount of memory (128G) in a machine and 2G of
+low 4 gigs are reserved by BIOS, the rest of the "low" memory is
+consumed by mem_map with flat mapping enabled.
+
+Consequent allocations with limit being 4G (e.g. swiotlb) fails to
+allocate and kernel panics.
+
+Try to avoid that situation on 64-bit by allocating space bigger
+than 128M above 4G if possible. With that, mem_map is allocated above
+4G and there is enough space for others (swiotlb) in low 4G.
+---
+ mm/bootmem.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 7d14868..365a0d1 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -486,6 +486,11 @@ static void * __init alloc_bootmem_core(struct bootmem_data *bdata,
+ 
+ 	step = max(align >> PAGE_SHIFT, 1UL);
+ 
++	/* on 64-bit: allocate 128M+ at 4G if satisfies limit */
++	if (BITS_PER_LONG == 64 && size >= (128UL << 20) &&
++			(4UL << 30) + size < (max << PAGE_SHIFT))
++		goal = 4UL << (30 - PAGE_SHIFT);
++
+ 	if (goal && min < goal && goal < max)
+ 		start = ALIGN(goal, step);
+ 	else
+-- 
+1.6.5.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
