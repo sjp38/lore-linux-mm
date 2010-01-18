@@ -1,45 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E34926B006A
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 02:29:58 -0500 (EST)
-Date: Mon, 18 Jan 2010 18:29:46 +1100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] oom: OOM-Killed process don't invoke pagefault-oom
-Message-ID: <20100118072946.GA10052@laptop>
-References: <20100114191940.6749.A69D9226@jp.fujitsu.com>
- <20100114130257.GB8381@laptop>
- <20100115085146.6EC0.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 139536B006A
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 02:52:50 -0500 (EST)
+From: Oliver Neukum <oliver@neukum.org>
+Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was: Re: [linux-pm] Memory allocations in .suspend became very unreliable)
+Date: Mon, 18 Jan 2010 08:53:31 +0100
+References: <1263549544.3112.10.camel@maxim-laptop> <1263754684.724.444.camel@pasglop> <201001180000.23376.rjw@sisk.pl>
+In-Reply-To: <201001180000.23376.rjw@sisk.pl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100115085146.6EC0.A69D9226@jp.fujitsu.com>
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001180853.31446.oliver@neukum.org>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Jeff Dike <jdike@addtoit.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 15, 2010 at 03:21:40PM +0900, KOSAKI Motohiro wrote:
-> > Hi,
-> > 
-> > I don't think this should be required, because the oom killer does not
-> > kill a new task if there is already one in memdie state.
-> > 
-> > If you have any further tweaks to the heuristic (such as a fatal signal
-> > pending), then it should probably go in select_bad_process() or
-> > somewhere like that.
+Am Montag, 18. Januar 2010 00:00:23 schrieb Rafael J. Wysocki:
+> On Sunday 17 January 2010, Benjamin Herrenschmidt wrote:
+> > On Sun, 2010-01-17 at 14:27 +0100, Rafael J. Wysocki wrote:
+> ...
+> > However, it's hard to deal with the case of allocations that have
+> > already started waiting for IOs. It might be possible to have some VM
+> > hook to make them wakeup, re-evaluate the situation and get out of that
+> > code path but in any case it would be tricky.
 > 
-> I see, I misunderstood. very thanks.
+> In the second version of the patch I used an rwsem that made us wait for these
+> allocations to complete before we changed gfp_allowed_mask.
 
-Well, it *might* be a good idea to check for fatal signal pending
-similar your patch. Because I think there could be large latency between
-the signal and the task moving to exit state if the process is waiting
-uninterruptible in the kernel for a while.
+This will be a very, very hot semaphore. What's the impact on performance?
 
-But if you do it in select_bad_process() then it would work for all
-classes of oom kill.
-
-Thanks,
-Nick
+	Regards
+		Oliver
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
