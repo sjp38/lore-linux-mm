@@ -1,109 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C7C6B6B006A
-	for <linux-mm@kvack.org>; Sun, 17 Jan 2010 19:52:33 -0500 (EST)
-Date: Mon, 18 Jan 2010 09:49:20 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC] Shared page accounting for memory cgroup
-Message-Id: <20100118094920.151e1370.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <661de9471001171130p2b0ac061he6f3dab9ef46fd06@mail.gmail.com>
-References: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100106070150.GL3059@balbir.in.ibm.com>
-	<20100106161211.5a7b600f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107071554.GO3059@balbir.in.ibm.com>
-	<20100107163610.aaf831e6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107083440.GS3059@balbir.in.ibm.com>
-	<20100107174814.ad6820db.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107180800.7b85ed10.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107092736.GW3059@balbir.in.ibm.com>
-	<20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com>
-	<661de9471001171130p2b0ac061he6f3dab9ef46fd06@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6B6FA6B006A
+	for <linux-mm@kvack.org>; Sun, 17 Jan 2010 20:04:19 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0I14HH5007758
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 18 Jan 2010 10:04:17 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1ADDE45DE70
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 10:04:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E519245DD70
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 10:04:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C8D1C1DB8037
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 10:04:16 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 751BD1DB803F
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 10:04:16 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3][v2] vmstat: add anon_scan_ratio field to zoneinfo
+In-Reply-To: <28c262361001150923l138f6805t22546887bf81b283@mail.gmail.com>
+References: <20100114141735.672B.A69D9226@jp.fujitsu.com> <28c262361001150923l138f6805t22546887bf81b283@mail.gmail.com>
+Message-Id: <20100118100359.AE22.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 8bit
+Date: Mon, 18 Jan 2010 10:04:15 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Jan 2010 01:00:44 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> On Fri, Jan 8, 2010 at 5:17 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Thu, 7 Jan 2010 14:57:36 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> >
-> >> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-01-07 18:08:00]:
+> Hi, KOSAKI.
+> 
+> On Thu, Jan 14, 2010 at 2:18 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >> > Well. zone->lock and zone->lru_lock should be not taked at the same time.
 > >>
-> >> > On Thu, 7 Jan 2010 17:48:14 +0900
-> >> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >> > > > > "How pages are shared" doesn't show good hints. I don't hear such parameter
-> >> > > > > is used in production's resource monitoring software.
-> >> > > > >
-> >> > > >
-> >> > > > You mean "How many pages are shared" are not good hints, please see my
-> >> > > > justification above. With Virtualization (look at KSM for example),
-> >> > > > shared pages are going to be increasingly important part of the
-> >> > > > accounting.
-> >> > > >
-> >> > >
-> >> > > Considering KSM, your cuounting style is tooo bad.
-> >> > >
-> >> > > You should add
-> >> > >
-> >> > > A - MEM_CGROUP_STAT_SHARED_BY_KSM
-> >> > > A - MEM_CGROUP_STAT_FOR_TMPFS/SYSV_IPC_SHMEM
-> >> > >
+> >> I looked over the code since I am out of office.
+> >> I can't find any locking problem zone->lock and zone->lru_lock.
+> >> Do you know any locking order problem?
+> >> Could you explain it with call graph if you don't mind?
 > >>
-> >> No.. I am just talking about shared memory being important and shared
-> >> accounting being useful, no counters for KSM in particular (in the
-> >> memcg context).
-> >>
-> > Think so ? The number of memcg-private pages is in interest in my point of view.
+> >> I am out of office by tomorrow so I can't reply quickly.
+> >> Sorry for late reponse.
 > >
-> > Anyway, I don't change my opinion as "sum of rss" is not necessary to be calculated
-> > in the kernel.
-> > If you want to provide that in memcg, please add it to global VM as /proc/meminfo.
-> >
-> > IIUC, KSM/SHMEM has some official method in global VM.
-> >
+> > This is not lock order issue. both zone->lock and zone->lru_lock are
+> > hotpath lock. then, same tame grabbing might cause performance impact.
 > 
-> Kamezawa-San,
+> Sorry for late response.
 > 
-> I implemented the same in user space and I get really bad results, here is why
+> Your patch makes get_anon_scan_ratio of zoneinfo stale.
+> What you said about performance impact is effective when VM pressure high.
+> I think stale data is all right normally.
+> But when VM pressure is high and we want to see the information in zoneinfo(
+> this case is what you said), stale data is not a good, I think.
 > 
-> 1. I need to hold and walk the tasks list in cgroups and extract RSS
-> through /proc (results in worse hold times for the fork() scenario you
-> menioned)
-> 2. The data is highly inconsistent due to the higher margin of error
-> in accumulating data which is changing as we run. By the time we total
-> and look at the memcg data, the data is stale
-> 
-> Would you be OK with the patch, if I renamed "shared_usage_in_bytes"
-> to "non_private_usage_in_bytes"?
-> 
-I think the name is still ambiguous.
+> If it's not a strong argue, I want to use old get_scan_ratio
+> in get_anon_scan_ratio.
 
-For example, if process A belongs to /cgroup/memory/01 and process B to /cgroup/memory/02,
-both process have 10MB anonymous pages and 10MB file caches of the same pages, and all of the
-file caches are charged to 01.
-In this case, the value in 01 is 0MB(=20MB - 20MB) and 10MB(20MB - 10MB), right?
+please looks such function again.
 
-I don't think "non private usage" is appropriate to this value.
-Why don't you just show "sum_of_each_process_rss" ? I think it would be easier
-to understand for users.
-But, hmm, I don't see any strong reason to do this in kernel, then :(
+usally we use recent_rotated/recent_scanned ratio. then following
+decreasing doesn't change any scan-ratio meaning. it only prevent
+stat overflow.
+
+        if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
+                spin_lock_irq(&zone->lru_lock);
+                reclaim_stat->recent_scanned[0] /= 2;
+                reclaim_stat->recent_rotated[0] /= 2;
+                spin_unlock_irq(&zone->lru_lock);
+        }
 
 
-Thanks,
-Daisuke Nishimura.
+So, I don't think current implementation can show stale data.
 
-> Given that the stat is user initiated, I don't see your concern w.r.t.
-> overhead. Many subsystems like KSM do pay the overhead cost if the
-> user really wants the feature or the data. I would be really
-> interested in other opinions as well (if people do feel strongly
-> against or for the feature)
-> 
-> Balbir Singh
+Thanks.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
