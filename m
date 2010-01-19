@@ -1,82 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 296A96001DA
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 21:27:08 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0J2R5Qv010851
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 19 Jan 2010 11:27:05 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5214945DE53
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 11:27:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 33D0645DE50
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 11:27:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FD4E1DB8037
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 11:27:05 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AB8C11DB8038
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 11:27:04 +0900 (JST)
-Date: Tue, 19 Jan 2010 11:23:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 5/8] vmalloc: simplify vread()/vwrite()
-Message-Id: <20100119112343.04f4eff5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100119013303.GA12513@localhost>
-References: <20100113135305.013124116@intel.com>
-	<20100113135957.833222772@intel.com>
-	<20100114124526.GB7518@laptop>
-	<20100118133512.GC721@localhost>
-	<20100118142359.GA14472@laptop>
-	<20100119013303.GA12513@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7C16001DA
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 21:38:23 -0500 (EST)
+Date: Tue, 19 Jan 2010 11:34:43 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC] Shared page accounting for memory cgroup
+Message-Id: <20100119113443.562e38ba.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <661de9471001181749y2fe22a15j1c01c94aa1838e99@mail.gmail.com>
+References: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100107083440.GS3059@balbir.in.ibm.com>
+	<20100107174814.ad6820db.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100107180800.7b85ed10.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100107092736.GW3059@balbir.in.ibm.com>
+	<20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com>
+	<661de9471001171130p2b0ac061he6f3dab9ef46fd06@mail.gmail.com>
+	<20100118094920.151e1370.nishimura@mxp.nes.nec.co.jp>
+	<4B541B44.3090407@linux.vnet.ibm.com>
+	<20100119102208.59a16397.nishimura@mxp.nes.nec.co.jp>
+	<661de9471001181749y2fe22a15j1c01c94aa1838e99@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Jan 2010 09:33:03 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > The whole thing looks stupid though, apparently kmap is used to avoid "the
-> > lock". But the lock is already held. We should just use the vmap
-> > address.
+On Tue, 19 Jan 2010 07:19:42 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> On Tue, Jan 19, 2010 at 6:52 AM, Daisuke Nishimura
+> <nishimura@mxp.nes.nec.co.jp> wrote:
+> [snip]
+> >> Correct, file cache is almost always considered shared, so it has
+> >>
+> >> 1. non-private or shared usage of 10MB
+> >> 2. 10 MB of file cache
+> >>
+> >> > I don't think "non private usage" is appropriate to this value.
+> >> > Why don't you just show "sum_of_each_process_rss" ? I think it would be easier
+> >> > to understand for users.
+> >>
+> >> Here is my concern
+> >>
+> >> 1. The gap between looking at memcg stat and sum of all RSS is way
+> >> higher in user space
+> >> 2. Summing up all rss without walking the tasks atomically can and
+> >> will lead to consistency issues. Data can be stale as long as it
+> >> represents a consistent snapshot of data
+> >>
+> >> We need to differentiate between
+> >>
+> >> 1. Data snapshot (taken at a time, but valid at that point)
+> >> 2. Data taken from different sources that does not form a uniform
+> >> snapshot, because the timestamping of the each of the collected data
+> >> items is different
+> >>
+> > Hmm, I'm sorry I can't understand why you need "difference".
+> > IOW, what can users or middlewares know by the value in the above case
+> > (0MB in 01 and 10MB in 02)? I've read this thread, but I can't understande about
+> > this point... Why can this value mean some of the groups are "heavy" ?
+> >
 > 
-> Yes. I wonder why Kame introduced kmap_atomic() in d0107eb07 -- given
-> that he at the same time fixed the order of removing vm_struct and
-> vmap in dd32c279983b.
+> Consider a default cgroup that is not root and assume all applications
+> move there initially. Now with a lot of shared memory,
+> the default cgroup will be the first one to page in a lot of the
+> memory and its usage will be very high. Without the concept of
+> showing how much is non-private, how does one decide if the default
+> cgroup is using a lot of memory or sharing it? How
+> do we decide on limits of a cgroup without knowing its actual usage -
+> PSS equivalent for a region of memory for a task.
 > 
-Hmm...I must check my thinking again before answering..
+As for limit, I think we should decide it based on the actual usage because
+we account and limit the accual usage. Why we should take account of the sum of rss ?
+I agree that we'd better not to ignore the sum of rss completely, but could you show me
+how the value 0MB/10MB can be used to caluculate the limit in 01/02 in detail ?
+I wouldn't argue against you if I could understand the value would be useful,
+but I can't understand how the value can be used, so I'm asking :)
 
-vmalloc/vmap is constructed by 2 layer.
-	- vmalloc layer....guarded by vmlist_lock.
-	- vmap layer   ....gurderd by purge_lock. etc.
-
-Now, let's see how vmalloc() works. It does job in 2 steps.
-vmalloc():
-  - allocate vmalloc area to the list under vmlist_lock.
-	- map pages.
-vfree()
-  - free vmalloc area from the list under vmlist_lock.
-	- unmap pages under purge_lock.
-
-Now. vread(), vwrite() just take vmlist_lock, doesn't take purge_lock().
-It walks page table and find pte entry, page, kmap and access it.
-
-Oh, yes. It seems it's safe without kmap. But My concern is percpu allocator.
-
-It uses get_vm_area() and controls mapped pages by themselves and
-map/unmap pages by with their own logic. vmalloc.c is just used for
-alloc/free virtual address. 
-
-Now, vread()/vwrite() just holds vmlist_lock() and walk page table
-without no guarantee that the found page is stably mapped. So, I used kmap.
-
-If I miss something, I'm very sorry to add such kmap.
-
-Thanks,
--Kame
+Thanks
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
