@@ -1,70 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 09B5F6B006A
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 07:49:01 -0500 (EST)
-Received: by ywh3 with SMTP id 3so1398427ywh.22
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2010 04:49:00 -0800 (PST)
-Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <84144f021001190044s397c6665qb00af48235d2d818@mail.gmail.com>
-References: <20100118141938.GI30698@redhat.com>
-	 <20100118170816.GA22111@redhat.com>
-	 <84144f021001181009m52f7eaebp2bd746f92de08da9@mail.gmail.com>
-	 <20100118181942.GD22111@redhat.com>
-	 <20100118191031.0088f49a@lxorguk.ukuu.org.uk>
-	 <20100119071734.GG14345@redhat.com>
-	 <84144f021001182337o274c8ed3q8ce60581094bc2b9@mail.gmail.com>
-	 <20100119075205.GI14345@redhat.com>
-	 <84144f021001190007q54a334dfwed64189e6cf0b7c4@mail.gmail.com>
-	 <20100119082638.GK14345@redhat.com>
-	 <84144f021001190044s397c6665qb00af48235d2d818@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 19 Jan 2010 21:48:52 +0900
-Message-ID: <1263905332.2163.11.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 045506B006A
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 08:01:08 -0500 (EST)
+Date: Tue, 19 Jan 2010 13:00:55 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/7] Allow CONFIG_MIGRATION to be set without
+	CONFIG_NUMA
+Message-ID: <20100119130055.GC23881@csn.ul.ie>
+References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-2-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001071331520.23894@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1001071331520.23894@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Gleb Natapov <gleb@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Pekka. 
+On Thu, Jan 07, 2010 at 01:46:03PM -0800, David Rientjes wrote:
+> On Wed, 6 Jan 2010, Mel Gorman wrote:
+> 
+> > CONFIG_MIGRATION currently depends on CONFIG_NUMA. The current users of
+> > page migration such as sys_move_pages(), sys_migrate_pages() and cpuset
+> > process migration are ordinarily only beneficial on NUMA.
+> > 
+> > As memory compaction will operate within a zone and is useful on both NUMA
+> > and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
+> > user selects CONFIG_COMPACTION as an option.
+> > 
+> > TODO
+> >   o After this patch is applied, the migration core is available but it
+> >     also makes NUMA-specific features available. This is too much
+> >     exposure so revisit this.
+> > 
+> 
+> CONFIG_MIGRATION is no longer strictly dependent on CONFIG_NUMA since 
+> ARCH_ENABLE_MEMORY_HOTREMOVE has allowed it to be configured for UMA 
+> machines.  All strictly NUMA features in the migration core should be 
+> isolated under its #ifdef CONFIG_NUMA (sys_move_pages()) in mm/migrate.c 
+> or by simply not compiling mm/mempolicy.c (sys_migrate_pages()), so this 
+> patch looks fine as is (although the "help" text for CONFIG_MIGRATION 
+> could be updated to reflect that it's useful for both memory hot-remove 
+> and now compaction).
+> 
 
-On Tue, 2010-01-19 at 10:44 +0200, Pekka Enberg wrote:
-> Hi Gleb,
-> 
-> On Tue, Jan 19, 2010 at 10:26 AM, Gleb Natapov <gleb@redhat.com> wrote:
-> >> design would still be broken, no? Did you try using (or extending)
-> >> posix_madvise(MADV_DONTNEED) for the guest address space? It seems to
-> > After mlockall() I can't even allocate guest address space. Or do you mean
-> > instead of mlockall()? Then how MADV_DONTNEED will help? It just drops
-> > page table for the address range (which is not what I need) and does not
-> > have any long time effect.
-> 
-> Oh right, MADV_DONTNEED is no good.
-> 
-> On Tue, Jan 19, 2010 at 10:26 AM, Gleb Natapov <gleb@redhat.com> wrote:
-> >> me that you're trying to use a big hammer (mlock) when a polite hint
-> >> for the VM would probably be sufficient for it do its job.
-> >>
-> > I what to tell to VM "swap this, don't swap that" and as far as I see
-> > there is no other way to do it currently.
-> 
-> Yeah, which is why I was suggesting that maybe posix_madvise() needs
-> to be extended to have a MADV_NEED_BUT_LESS_IMPORTANT flag that can be
-> used as a hint by mm/vmscan.c to first swap the guest address spaces.
-> 
->                         Pekka
-
-Gleb. How about using MADV_SEQUENTIAL on guest memory?
-It makes that pages of guest are moved into inactive reclaim list more
-fast. It means it is likely to swap out faster than other pages if it
-isn't hit during inactive list.
-
+That does appear to be the case, thanks. I had not double-checked
+closely and it was somewhat of a problem when the series was first
+developed.
 
 -- 
-Kind regards,
-Minchan Kim
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
