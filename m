@@ -1,61 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AF1326001DA
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 03:26:48 -0500 (EST)
-Date: Tue, 19 Jan 2010 10:26:38 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
-Message-ID: <20100119082638.GK14345@redhat.com>
-References: <20100118141938.GI30698@redhat.com>
- <84144f021001180805q4d1203b8qab8ccb1de87b2866@mail.gmail.com>
- <20100118170816.GA22111@redhat.com>
- <84144f021001181009m52f7eaebp2bd746f92de08da9@mail.gmail.com>
- <20100118181942.GD22111@redhat.com>
- <20100118191031.0088f49a@lxorguk.ukuu.org.uk>
- <20100119071734.GG14345@redhat.com>
- <84144f021001182337o274c8ed3q8ce60581094bc2b9@mail.gmail.com>
- <20100119075205.GI14345@redhat.com>
- <84144f021001190007q54a334dfwed64189e6cf0b7c4@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 695EB6001DA
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 03:33:45 -0500 (EST)
+From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
+Date: Tue, 19 Jan 2010 16:33:08 +0800
+Subject: RE: [PATCH-RESEND v4] memory-hotplug: create /sys/firmware/memmap
+ entry for new memory
+Message-ID: <DA586906BA1FFC4384FCFD6429ECE86034FF8F0C@shzsmsx502.ccr.corp.intel.com>
+References: <DA586906BA1FFC4384FCFD6429ECE86031560F92@shzsmsx502.ccr.corp.intel.com>
+ <20100115143812.b70161d2.akpm@linux-foundation.org>
+In-Reply-To: <20100115143812.b70161d2.akpm@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <84144f021001190007q54a334dfwed64189e6cf0b7c4@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "y-goto@jp.fujitsu.com" <y-goto@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "x86@kernel.org" <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 19, 2010 at 10:07:07AM +0200, Pekka Enberg wrote:
-> Hi Gleb,
-> 
-> On Tue, Jan 19, 2010 at 9:52 AM, Gleb Natapov <gleb@redhat.com> wrote:
-> >> It would be probably useful if you could point us to the application
-> >> source code that actually wants this feature.
-> >>
-> > This is two line patch to qemu that calls mlockall(MCL_CURRENT|MCL_FUTURE)
-> > at the beginning of the main() and changes guest memory allocation to
-> > use MAP_UNLOCKED flag. All alternative solutions in this thread suggest
-> > that I should rewrite qemu + all library it uses. You see why I can't
-> > take them seriously?
-> 
-> Well, that's not going to be portable, is it, so the application
-KVM is not portable ;) and that is what my main interest is.
+I did some investigation for my patch, I see that there is an error when I =
+make v4 patch from v3, I change the function firmware_map_add_early() by ca=
+relessness,=20
+The code=20
+	entry =3D alloc_bootmem(sizeof(struct firmware_map_entry));
+was changed to=20
+	entry =3D kmalloc(sizeof(struct firmware_map_entry), GFP_ATOMIC);
 
-> design would still be broken, no? Did you try using (or extending)
-> posix_madvise(MADV_DONTNEED) for the guest address space? It seems to
-After mlockall() I can't even allocate guest address space. Or do you mean
-instead of mlockall()? Then how MADV_DONTNEED will help? It just drops
-page table for the address range (which is not what I need) and does not
-have any long time effect.
 
-> me that you're trying to use a big hammer (mlock) when a polite hint
-> for the VM would probably be sufficient for it do its job.
-> 
-I what to tell to VM "swap this, don't swap that" and as far as I see
-there is no other way to do it currently.
+The modification from v3 to v4 is minor, so I did not do full testing for v=
+4 patch, I apologize for my fault.=09
 
---
-			Gleb.
+The patch works after I correct the this code. I will resend it.=20
+
+Thanks & Regards,
+Shaohui
+
+
+-----Original Message-----
+From: Andrew Morton [mailto:akpm@linux-foundation.org]=20
+Sent: Saturday, January 16, 2010 6:38 AM
+To: Zheng, Shaohui
+Cc: linux-mm@kvack.org; linux-kernel@vger.kernel.org; ak@linux.intel.com; y=
+-goto@jp.fujitsu.com; Dave Hansen; Wu, Fengguang; x86@kernel.org
+Subject: Re: [PATCH-RESEND v4] memory-hotplug: create /sys/firmware/memmap =
+entry for new memory
+
+On Mon, 11 Jan 2010 10:00:11 +0800
+"Zheng, Shaohui" <shaohui.zheng@intel.com> wrote:
+
+> memory-hotplug: create /sys/firmware/memmap entry for hot-added memory
+>=20
+> Interface firmware_map_add was not called in explict, Remove it and add f=
+unction
+> firmware_map_add_hotplug as hotplug interface of memmap.
+>=20
+> When we hot-add new memory, sysfs does not export memmap entry for it. we=
+ add
+>  a call in function add_memory to function firmware_map_add_hotplug.
+>=20
+> Add a new function add_sysfs_fw_map_entry to create memmap entry, it can =
+avoid=20
+> duplicated codes.
+
+The patch causes an early exception in kmem_cache_alloc_notrace() -
+probably due to a null cache pointer.
+
+config: http://master.kernel.org/~akpm/config-akpm2.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
