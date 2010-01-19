@@ -1,57 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D21006000C5
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 04:04:51 -0500 (EST)
-Received: by ey-out-1920.google.com with SMTP id 26so631264eyw.6
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2010 01:04:49 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E25756000C5
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 04:14:19 -0500 (EST)
+From: Oliver Neukum <oliver@neukum.org>
+Subject: Re: [linux-pm] [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was: Re: Memory allocations in .suspend became very unreliable)
+Date: Tue, 19 Jan 2010 10:15:00 +0100
+References: <1263745267.2162.42.camel@barrios-desktop> <20100118111703.AE36.A69D9226@jp.fujitsu.com> <201001182206.36365.rjw@sisk.pl>
+In-Reply-To: <201001182206.36365.rjw@sisk.pl>
 MIME-Version: 1.0
-In-Reply-To: <1263871194.724.520.camel@pasglop>
-References: <20100118110324.AE30.A69D9226@jp.fujitsu.com>
-	 <201001182155.09727.rjw@sisk.pl>
-	 <20100119101101.5F2E.A69D9226@jp.fujitsu.com>
-	 <1263871194.724.520.camel@pasglop>
-Date: Tue, 19 Jan 2010 10:04:49 +0100
-Message-ID: <195c7a901001190104x164381f9v4a58d1fce70b17b6@mail.gmail.com>
-Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was: Re:
-	[linux-pm] Memory allocations in .suspend became very unreliable)
-From: Bastien ROUCARIES <roucaries.bastien@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001191015.00470.oliver@neukum.org>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 19, 2010 at 4:19 AM, Benjamin Herrenschmidt
-<benh@kernel.crashing.org> wrote:
-> On Tue, 2010-01-19 at 10:19 +0900, KOSAKI Motohiro wrote:
->> I think the race happen itself is bad. memory and I/O subsystem can't solve such race
->> elegantly. These doesn't know enough suspend state knowlege. I think the practical
->> solution is that higher level design prevent the race happen.
->>
->>
->> > My patch attempts to avoid these two problems as well as the problem with
->> > drivers using GFP_KERNEL allocations during suspend which I admit might be
->> > solved by reworking the drivers.
->>
->> Agreed. In this case, only drivers change can solve the issue.
->
-> As I explained earlier, this is near to impossible since the allocations
-> are too often burried deep down the call stack or simply because the
-> driver doesn't know that we started suspending -another- driver...
->
-> I don't think trying to solve those problems at the driver level is
-> realistic to be honest. This is one of those things where we really just
-> need to make allocators 'just work' from a driver perspective.
+Am Montag, 18. Januar 2010 22:06:36 schrieb Rafael J. Wysocki:
+> I was concerned about another problem, though, which is what happens if the
+> suspend process runs in parallel with a memory allocation that started earlier
+> and happens to do some I/O.  I that case the suspend process doesn't know
+> about the I/O done by the mm subsystem and may disturb it in principle.
 
-Instead of masking bit could we only check if incompatible flags are
-used during suspend, and warm deeply. Call stack will be therefore
-identified, and we could have some metrics about such problem.
+How could this happen? Who would allocate that memory?
+Tasks won't be frozen while they are allocating memory.
 
-It will be a debug option like lockdep but pretty low cost.
-
-My 2 cents.
-
-Bastien
+	Regards
+		Oliver
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
