@@ -1,55 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 293EA6001DA
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 03:44:26 -0500 (EST)
-Received: by fxm28 with SMTP id 28so1760804fxm.6
-        for <linux-mm@kvack.org>; Tue, 19 Jan 2010 00:44:24 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D21006000C5
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 04:04:51 -0500 (EST)
+Received: by ey-out-1920.google.com with SMTP id 26so631264eyw.6
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2010 01:04:49 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20100119082638.GK14345@redhat.com>
-References: <20100118141938.GI30698@redhat.com>
-	 <20100118170816.GA22111@redhat.com>
-	 <84144f021001181009m52f7eaebp2bd746f92de08da9@mail.gmail.com>
-	 <20100118181942.GD22111@redhat.com>
-	 <20100118191031.0088f49a@lxorguk.ukuu.org.uk>
-	 <20100119071734.GG14345@redhat.com>
-	 <84144f021001182337o274c8ed3q8ce60581094bc2b9@mail.gmail.com>
-	 <20100119075205.GI14345@redhat.com>
-	 <84144f021001190007q54a334dfwed64189e6cf0b7c4@mail.gmail.com>
-	 <20100119082638.GK14345@redhat.com>
-Date: Tue, 19 Jan 2010 10:44:23 +0200
-Message-ID: <84144f021001190044s397c6665qb00af48235d2d818@mail.gmail.com>
-Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <1263871194.724.520.camel@pasglop>
+References: <20100118110324.AE30.A69D9226@jp.fujitsu.com>
+	 <201001182155.09727.rjw@sisk.pl>
+	 <20100119101101.5F2E.A69D9226@jp.fujitsu.com>
+	 <1263871194.724.520.camel@pasglop>
+Date: Tue, 19 Jan 2010 10:04:49 +0100
+Message-ID: <195c7a901001190104x164381f9v4a58d1fce70b17b6@mail.gmail.com>
+Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was: Re:
+	[linux-pm] Memory allocations in .suspend became very unreliable)
+From: Bastien ROUCARIES <roucaries.bastien@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, minchan.kim@gmail.com
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Gleb,
-
-On Tue, Jan 19, 2010 at 10:26 AM, Gleb Natapov <gleb@redhat.com> wrote:
->> design would still be broken, no? Did you try using (or extending)
->> posix_madvise(MADV_DONTNEED) for the guest address space? It seems to
-> After mlockall() I can't even allocate guest address space. Or do you mean
-> instead of mlockall()? Then how MADV_DONTNEED will help? It just drops
-> page table for the address range (which is not what I need) and does not
-> have any long time effect.
-
-Oh right, MADV_DONTNEED is no good.
-
-On Tue, Jan 19, 2010 at 10:26 AM, Gleb Natapov <gleb@redhat.com> wrote:
->> me that you're trying to use a big hammer (mlock) when a polite hint
->> for the VM would probably be sufficient for it do its job.
+On Tue, Jan 19, 2010 at 4:19 AM, Benjamin Herrenschmidt
+<benh@kernel.crashing.org> wrote:
+> On Tue, 2010-01-19 at 10:19 +0900, KOSAKI Motohiro wrote:
+>> I think the race happen itself is bad. memory and I/O subsystem can't solve such race
+>> elegantly. These doesn't know enough suspend state knowlege. I think the practical
+>> solution is that higher level design prevent the race happen.
 >>
-> I what to tell to VM "swap this, don't swap that" and as far as I see
-> there is no other way to do it currently.
+>>
+>> > My patch attempts to avoid these two problems as well as the problem with
+>> > drivers using GFP_KERNEL allocations during suspend which I admit might be
+>> > solved by reworking the drivers.
+>>
+>> Agreed. In this case, only drivers change can solve the issue.
+>
+> As I explained earlier, this is near to impossible since the allocations
+> are too often burried deep down the call stack or simply because the
+> driver doesn't know that we started suspending -another- driver...
+>
+> I don't think trying to solve those problems at the driver level is
+> realistic to be honest. This is one of those things where we really just
+> need to make allocators 'just work' from a driver perspective.
 
-Yeah, which is why I was suggesting that maybe posix_madvise() needs
-to be extended to have a MADV_NEED_BUT_LESS_IMPORTANT flag that can be
-used as a hint by mm/vmscan.c to first swap the guest address spaces.
+Instead of masking bit could we only check if incompatible flags are
+used during suspend, and warm deeply. Call stack will be therefore
+identified, and we could have some metrics about such problem.
 
-                        Pekka
+It will be a debug option like lockdep but pretty low cost.
+
+My 2 cents.
+
+Bastien
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
