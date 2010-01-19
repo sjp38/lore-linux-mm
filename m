@@ -1,57 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 045506B006A
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 08:01:08 -0500 (EST)
-Date: Tue, 19 Jan 2010 13:00:55 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/7] Allow CONFIG_MIGRATION to be set without
-	CONFIG_NUMA
-Message-ID: <20100119130055.GC23881@csn.ul.ie>
-References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-2-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001071331520.23894@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with SMTP id 4C80C6B006A
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 08:18:14 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id 22so327030fge.8
+        for <linux-mm@kvack.org>; Tue, 19 Jan 2010 05:18:12 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1001071331520.23894@chino.kir.corp.google.com>
+In-Reply-To: <1263905332.2163.11.camel@barrios-desktop>
+References: <20100118141938.GI30698@redhat.com>
+	 <20100118181942.GD22111@redhat.com>
+	 <20100118191031.0088f49a@lxorguk.ukuu.org.uk>
+	 <20100119071734.GG14345@redhat.com>
+	 <84144f021001182337o274c8ed3q8ce60581094bc2b9@mail.gmail.com>
+	 <20100119075205.GI14345@redhat.com>
+	 <84144f021001190007q54a334dfwed64189e6cf0b7c4@mail.gmail.com>
+	 <20100119082638.GK14345@redhat.com>
+	 <84144f021001190044s397c6665qb00af48235d2d818@mail.gmail.com>
+	 <1263905332.2163.11.camel@barrios-desktop>
+Date: Tue, 19 Jan 2010 15:18:11 +0200
+Message-ID: <84144f021001190518x450868eax2edfa5e16ff6e4b@mail.gmail.com>
+Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Gleb Natapov <gleb@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 07, 2010 at 01:46:03PM -0800, David Rientjes wrote:
-> On Wed, 6 Jan 2010, Mel Gorman wrote:
-> 
-> > CONFIG_MIGRATION currently depends on CONFIG_NUMA. The current users of
-> > page migration such as sys_move_pages(), sys_migrate_pages() and cpuset
-> > process migration are ordinarily only beneficial on NUMA.
-> > 
-> > As memory compaction will operate within a zone and is useful on both NUMA
-> > and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
-> > user selects CONFIG_COMPACTION as an option.
-> > 
-> > TODO
-> >   o After this patch is applied, the migration core is available but it
-> >     also makes NUMA-specific features available. This is too much
-> >     exposure so revisit this.
-> > 
-> 
-> CONFIG_MIGRATION is no longer strictly dependent on CONFIG_NUMA since 
-> ARCH_ENABLE_MEMORY_HOTREMOVE has allowed it to be configured for UMA 
-> machines.  All strictly NUMA features in the migration core should be 
-> isolated under its #ifdef CONFIG_NUMA (sys_move_pages()) in mm/migrate.c 
-> or by simply not compiling mm/mempolicy.c (sys_migrate_pages()), so this 
-> patch looks fine as is (although the "help" text for CONFIG_MIGRATION 
-> could be updated to reflect that it's useful for both memory hot-remove 
-> and now compaction).
-> 
+On Tue, Jan 19, 2010 at 2:48 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> Gleb. How about using MADV_SEQUENTIAL on guest memory?
+> It makes that pages of guest are moved into inactive reclaim list more
+> fast. It means it is likely to swap out faster than other pages if it
+> isn't hit during inactive list.
 
-That does appear to be the case, thanks. I had not double-checked
-closely and it was somewhat of a problem when the series was first
-developed.
+Yeah, something like that but we don't want the readahead. OTOH, it's
+not clear what Gleb's real problem is. Are the guest address spaces
+anonymous or file backed? Which parts of the emulator are swapped out
+that are causing the problem? Maybe it's a VM balancing issue that
+mlock papers over?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+                         Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
