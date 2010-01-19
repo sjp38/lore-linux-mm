@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B50456B006A
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 15:36:52 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id F15186B006A
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 15:47:15 -0500 (EST)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
 Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was: Re: [linux-pm] Memory allocations in .suspend became very unreliable)
-Date: Tue, 19 Jan 2010 21:37:35 +0100
-References: <1263549544.3112.10.camel@maxim-laptop> <201001182141.49907.rjw@sisk.pl> <201001191025.37579.oliver@neukum.org>
-In-Reply-To: <201001191025.37579.oliver@neukum.org>
+Date: Tue, 19 Jan 2010 21:47:58 +0100
+References: <20100118110324.AE30.A69D9226@jp.fujitsu.com> <20100119101101.5F2E.A69D9226@jp.fujitsu.com> <1263871194.724.520.camel@pasglop>
+In-Reply-To: <1263871194.724.520.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
-  charset="iso-8859-1"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201001192137.35232.rjw@sisk.pl>
+Message-Id: <201001192147.58185.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Oliver Neukum <oliver@neukum.org>
-Cc: Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 19 January 2010, Oliver Neukum wrote:
-> Am Montag, 18. Januar 2010 21:41:49 schrieb Rafael J. Wysocki:
-> > On Monday 18 January 2010, Oliver Neukum wrote:
-> > > Am Sonntag, 17. Januar 2010 14:55:55 schrieb Rafael J. Wysocki:
-> > > > +void mm_force_noio_allocations(void)
-> > > > +{
-> > > > +       /* Wait for all slowpath allocations using the old mask to complete */
-> > > > +       down_write(&gfp_allowed_mask_sem);
-> > > > +       saved_gfp_allowed_mask = gfp_allowed_mask;
-> > > > +       gfp_allowed_mask &= ~(__GFP_IO | __GFP_FS);
-> > > > +       up_write(&gfp_allowed_mask_sem);
-> > > > +}
-> > > 
-> > > In addition to this you probably want to exhaust all memory reserves
-> > > before you fail a memory allocation
+On Tuesday 19 January 2010, Benjamin Herrenschmidt wrote:
+> On Tue, 2010-01-19 at 10:19 +0900, KOSAKI Motohiro wrote:
+> > I think the race happen itself is bad. memory and I/O subsystem can't solve such race
+> > elegantly. These doesn't know enough suspend state knowlege. I think the practical 
+> > solution is that higher level design prevent the race happen.
 > > 
-> > I'm not really sure what you mean.
+> > 
+> > > My patch attempts to avoid these two problems as well as the problem with
+> > > drivers using GFP_KERNEL allocations during suspend which I admit might be
+> > > solved by reworking the drivers.
+> > 
+> > Agreed. In this case, only drivers change can solve the issue. 
 > 
-> Forget it, it was foolish. Instead there's a different problem.
-> Suppose we are tight on memory. The problem is that we must not
-> exhaust all memory. If we are really out of memory we may be unable
-> to satisfy memory allocations in resume()
+> As I explained earlier, this is near to impossible since the allocations
+> are too often burried deep down the call stack or simply because the
+> driver doesn't know that we started suspending -another- driver...
+> 
+> I don't think trying to solve those problems at the driver level is
+> realistic to be honest. This is one of those things where we really just
+> need to make allocators 'just work' from a driver perspective.
+> 
+> It can't be perfect of course, as mentioned earlier, there will be a
+> problem if too little free memory is really available due to lots of
+> dirty pages around, but most of this can be somewhat alleviated in
+> practice, for example by pushing things out a bit at suspend time,
+> making some more memory free etc... But yeah, nothing replaces proper
+> error handling in drivers for allocation failures even with
+> GFP_KERNEL :-)
 
-That doesn't make things any worse than the are already.  If we block on
-I/O forever during resume, the gross result is pretty much the same.
+Agreed.
 
-That said, Maxim reported that in his test case the mm subsystem apparently
-attempted to use I/O even if there was a plenty of free memory available and
-I'd like prevent _that_ from happening.
+Moreover, I didn't try to do anything about that before, because memory
+allocation problems during suspend/resume just didn't happen.  We kind of knew
+they were possible, but since they didn't show up, it wasn't immediately
+necessary to address them.
+
+Now, however, people started to see these problems in testing and I'm quite
+confident that this is a result of recent changes in the mm subsystem.  Namely,
+if you read the Maxim's report carefully, you'll notice that in his test case
+the mm subsystem apparently attempted to use I/O even though there was free
+memory available in the system.  This is the case I want to prevent from
+happening in the first place.
 
 Rafael
 
