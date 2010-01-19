@@ -1,50 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0362F6B006A
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 10:14:02 -0500 (EST)
-Date: Tue, 19 Jan 2010 10:13:59 -0500 (EST)
-From: Alan Stern <stern@rowland.harvard.edu>
-Subject: Re: [linux-pm] [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume
- (was: Re: Memory allocations in .suspend became very unreliable)
-In-Reply-To: <201001182159.25585.rjw@sisk.pl>
-Message-ID: <Pine.LNX.4.44L0.1001191012160.1437-100000@iolanthe.rowland.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 260726B006A
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 11:34:30 -0500 (EST)
+Date: Tue, 19 Jan 2010 10:34:24 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [cleanup][PATCH] Fix indentation of the comments of
+ do_migrate_pages
+In-Reply-To: <20100118142507.AE4D.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1001191034060.20081@router.home>
+References: <20100118142507.AE4D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Oliver Neukum <oliver@neukum.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-pm@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Jan 2010, Rafael J. Wysocki wrote:
 
-> On Monday 18 January 2010, Alan Stern wrote:
-> > On Mon, 18 Jan 2010, Oliver Neukum wrote:
-> > 
-> > > Am Montag, 18. Januar 2010 00:00:23 schrieb Rafael J. Wysocki:
-> > > > On Sunday 17 January 2010, Benjamin Herrenschmidt wrote:
-> > > > > On Sun, 2010-01-17 at 14:27 +0100, Rafael J. Wysocki wrote:
-> > > > ...
-> > > > > However, it's hard to deal with the case of allocations that have
-> > > > > already started waiting for IOs. It might be possible to have some VM
-> > > > > hook to make them wakeup, re-evaluate the situation and get out of that
-> > > > > code path but in any case it would be tricky.
-> > > > 
-> > > > In the second version of the patch I used an rwsem that made us wait for these
-> > > > allocations to complete before we changed gfp_allowed_mask.
-> > > 
-> > > This will be a very, very hot semaphore. What's the impact on performance?
-> > 
-> > Can it be replaced with something having lower overhead, such as SRCU?
-> 
-> I'm not sure about that.  In principle SRCU shouldn't be used if the reader can
-> sleep unpredictably long and the memory allocation sutiation is one of these.
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
-I don't think this matters.  Each SRCU usage has its own domain, and
-different domains don't affect one another.  So the only thing that
-would be blocked by a long-sleeping reader would be the suspend process
-itself, and obviously you won't mind that.
-
-Alan Stern
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
