@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E773C600473
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 19:12:50 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0J0CmmZ011076
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8C0856B0098
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 19:39:00 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0J0cv37029906
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 19 Jan 2010 09:12:48 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4121745DE52
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 09:12:48 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EFD7545DE50
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 09:12:45 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C288E38001
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 09:12:45 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0847B1DB803C
-	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 09:12:45 +0900 (JST)
+	Tue, 19 Jan 2010 09:38:57 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E05845DE4E
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 09:38:57 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 42B8A45DD70
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 09:38:57 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2AB321DB8038
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 09:38:57 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DB4541DB8037
+	for <linux-mm@kvack.org>; Tue, 19 Jan 2010 09:38:56 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v6] add MAP_UNLOCKED mmap flag
-In-Reply-To: <20100118151405.GD14345@redhat.com>
-References: <1263827194.4283.609.camel@laptop> <20100118151405.GD14345@redhat.com>
-Message-Id: <20100119091004.5F28.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] memory-hotplug: add 0x prefix to HEX block_size_bytes
+In-Reply-To: <20100118134429.GD721@localhost>
+References: <20100114152907.953f8d3e.akpm@linux-foundation.org> <20100118134429.GD721@localhost>
+Message-Id: <20100119093646.5F2B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 19 Jan 2010 09:12:44 +0900 (JST)
+Date: Tue, 19 Jan 2010 09:38:56 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Peter Zijlstra <peterz@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, andrew.c.morrow@gmail.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Zheng, Shaohui" <shaohui.zheng@intel.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, Jan 18, 2010 at 04:06:34PM +0100, Peter Zijlstra wrote:
-> > On Mon, 2010-01-18 at 17:01 +0200, Gleb Natapov wrote:
-> > > There are valid uses for mlockall()
+> > > -	return sprintf(buf, "%lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
+> > > +	return sprintf(buf, "%#lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
+>  
+> > crappy changelog!
 > > 
-> > That's debatable.
-> > 
-> Well, I have use for it. You can look at previous thread were I described
-> it and suggest alternatives.
+> > Why this change?  Perhaps showing us an example of the before-and-after
+> > output would help us see what is being fixed, and why.
+> 
+> Sorry for being late (some SMTP problem).
+> 
+>                 # cat /sys/devices/system/memory/block_size_bytes
+> before patch:   8000000
+> after  patch:   0x8000000
+> 
+> This is a good fix because someone is very likely to mistake 8000000
+> as a decimal number. 0x8000000 looks much better.
 
-Please stop suck.
-This is the reviewing. The reviewers shouldn't need to look at all
-previous thread. It mean your description isn't enough.
+I'm sorry. NAK.
+
+print_block_size() was introduced at 2005. So, we can't assume any
+programs don't use it.
+
+Your patch is good, but too late...
 
 
 
