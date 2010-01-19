@@ -1,101 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F20676B00A1
-	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 20:33:07 -0500 (EST)
-Date: Tue, 19 Jan 2010 09:33:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/8] vmalloc: simplify vread()/vwrite()
-Message-ID: <20100119013303.GA12513@localhost>
-References: <20100113135305.013124116@intel.com> <20100113135957.833222772@intel.com> <20100114124526.GB7518@laptop> <20100118133512.GC721@localhost> <20100118142359.GA14472@laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0A7B56B00A3
+	for <linux-mm@kvack.org>; Mon, 18 Jan 2010 20:49:44 -0500 (EST)
+Received: by pwj10 with SMTP id 10so2565017pwj.6
+        for <linux-mm@kvack.org>; Mon, 18 Jan 2010 17:49:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100118142359.GA14472@laptop>
+In-Reply-To: <20100119102208.59a16397.nishimura@mxp.nes.nec.co.jp>
+References: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100107083440.GS3059@balbir.in.ibm.com>
+	 <20100107174814.ad6820db.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100107180800.7b85ed10.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100107092736.GW3059@balbir.in.ibm.com>
+	 <20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com>
+	 <661de9471001171130p2b0ac061he6f3dab9ef46fd06@mail.gmail.com>
+	 <20100118094920.151e1370.nishimura@mxp.nes.nec.co.jp>
+	 <4B541B44.3090407@linux.vnet.ibm.com>
+	 <20100119102208.59a16397.nishimura@mxp.nes.nec.co.jp>
+Date: Tue, 19 Jan 2010 07:19:42 +0530
+Message-ID: <661de9471001181749y2fe22a15j1c01c94aa1838e99@mail.gmail.com>
+Subject: Re: [RFC] Shared page accounting for memory cgroup
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 18, 2010 at 07:23:59AM -0700, Nick Piggin wrote:
-> On Mon, Jan 18, 2010 at 09:35:12PM +0800, Wu Fengguang wrote:
-> > On Thu, Jan 14, 2010 at 05:45:26AM -0700, Nick Piggin wrote:
-> > > On Wed, Jan 13, 2010 at 09:53:10PM +0800, Wu Fengguang wrote:
-> > > > vread()/vwrite() is only called from kcore/kmem to access one page at a time.
-> > > > So the logic can be vastly simplified.
-> > > > 
-> > > > The changes are:
-> > > > - remove the vmlist walk and rely solely on vmalloc_to_page()
-> > > > - replace the VM_IOREMAP check with (page && page_is_ram(pfn))
-> > > > - rename to vread_page()/vwrite_page()
-> > > > 
-> > > > The page_is_ram() check is necessary because kmap_atomic() is not
-> > > > designed to work with non-RAM pages.
-> > > 
-> > > I don't know if you can really do this. Previously vmlist_lock would be
-> > > taken, which will prevent these vm areas from being freed.
-> > >  
-> > > > Note that even for a RAM page, we don't own the page, and cannot assume
-> > > > it's a _PAGE_CACHE_WB page.
-> > > 
-> > > So why is this not a problem for your patch? I don't see how you handle
-> > > it.
-> > 
-> > Sorry I didn't handle it. Just hope to catch attentions from someone
-> > (ie. you :).
-> > 
-> > It's not a problem for x86_64 at all. For others I wonder if any
-> > driver will vmalloc HIGHMEM pages with !_PAGE_CACHE_WB attribute..
-> > 
-> > So I noted the possible problem and leave it alone.
-> 
-> Well it doesn't need to be vmalloc. Any kind of vmap like ioremap. And
-> these can be accompanied by changing the caching attribute. Like agp
-> code, for an example. But I don't know if that ever becomes a problem
-> in practice.
+On Tue, Jan 19, 2010 at 6:52 AM, Daisuke Nishimura
+<nishimura@mxp.nes.nec.co.jp> wrote:
+[snip]
+>> Correct, file cache is almost always considered shared, so it has
+>>
+>> 1. non-private or shared usage of 10MB
+>> 2. 10 MB of file cache
+>>
+>> > I don't think "non private usage" is appropriate to this value.
+>> > Why don't you just show "sum_of_each_process_rss" ? I think it would be easier
+>> > to understand for users.
+>>
+>> Here is my concern
+>>
+>> 1. The gap between looking at memcg stat and sum of all RSS is way
+>> higher in user space
+>> 2. Summing up all rss without walking the tasks atomically can and
+>> will lead to consistency issues. Data can be stale as long as it
+>> represents a consistent snapshot of data
+>>
+>> We need to differentiate between
+>>
+>> 1. Data snapshot (taken at a time, but valid at that point)
+>> 2. Data taken from different sources that does not form a uniform
+>> snapshot, because the timestamping of the each of the collected data
+>> items is different
+>>
+> Hmm, I'm sorry I can't understand why you need "difference".
+> IOW, what can users or middlewares know by the value in the above case
+> (0MB in 01 and 10MB in 02)? I've read this thread, but I can't understande about
+> this point... Why can this value mean some of the groups are "heavy" ?
+>
 
-Yes vmap in general can change caching attribute. However I only care
-about vmap that maps RAM pages, since my patch treats non-RAM pages as
-hole and won't access them.
+Consider a default cgroup that is not root and assume all applications
+move there initially. Now with a lot of shared memory,
+the default cgroup will be the first one to page in a lot of the
+memory and its usage will be very high. Without the concept of
+showing how much is non-private, how does one decide if the default
+cgroup is using a lot of memory or sharing it? How
+do we decide on limits of a cgroup without knowing its actual usage -
+PSS equivalent for a region of memory for a task.
 
-> > > What's the problem with the current code, exactly? I would prefer that
-> > 
-> > - unnecessary complexity to handle multi-page case, since it's always
-> >   called to access one single page;
-> 
-> Fair point there. It just wasn't clear what exactly is your rationale
-> because this was in a set of other patches.
->  
-> > - the kmap_atomic() cache consistency problem, which I expressed some
-> >   concern (without further action)
-> 
-> Which kmap_atomic problem? Can you explain again? Virtual cache aliasing
-> problem you mean? Or caching attribute conflicts?
-
-kmap_atomic() assumes you own the page and always use _PAGE_CACHE_WB.
-So there may be conflicts if the page was !_PAGE_CACHE_WB.
-
-> The whole thing looks stupid though, apparently kmap is used to avoid "the
-> lock". But the lock is already held. We should just use the vmap
-> address.
-
-Yes. I wonder why Kame introduced kmap_atomic() in d0107eb07 -- given
-that he at the same time fixed the order of removing vm_struct and
-vmap in dd32c279983b.
-
-> > > you continue using the same vmlist locking and checking for validating
-> > > addresses.
-> > 
-> > It's a reasonable suggestion. Kame, would you agree on killing the
-> > kmap_atomic() and revert to the vmlist walk?
-> 
-> Yes, vmlist locking is always required to have a pin on the pages, and
-> IMO it should be quite easy to check for IOREMAP, so we should leave
-> that check there to avoid the possibility of regressions.
-
-I have no problem if Kame could dismiss my question :)
-
-Thanks,
-Fengguang
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
