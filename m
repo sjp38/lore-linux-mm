@@ -1,70 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D0A16B0078
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 15:54:13 -0500 (EST)
-Date: Wed, 20 Jan 2010 20:53:49 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/7] Add /proc trigger for memory compaction
-Message-ID: <20100120205348.GG5154@csn.ul.ie>
-References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-6-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001071352100.23894@chino.kir.corp.google.com> <20100120094813.GC5154@csn.ul.ie> <alpine.DEB.2.00.1001201211020.14342@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1001201211020.14342@router.home>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 55F8F6B007B
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 16:11:17 -0500 (EST)
+Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was:
+ Re: [linux-pm] Memory allocations in .suspend became very unreliable)
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <201001201231.17540.oliver@neukum.org>
+References: <20100118110324.AE30.A69D9226@jp.fujitsu.com>
+	 <195c7a901001190104x164381f9v4a58d1fce70b17b6@mail.gmail.com>
+	 <1263943071.724.540.camel@pasglop>  <201001201231.17540.oliver@neukum.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 21 Jan 2010 08:11:04 +1100
+Message-ID: <1264021864.724.552.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Oliver Neukum <oliver@neukum.org>
+Cc: Bastien ROUCARIES <roucaries.bastien@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 20, 2010 at 12:12:55PM -0600, Christoph Lameter wrote:
-> On Wed, 20 Jan 2010, Mel Gorman wrote:
+On Wed, 2010-01-20 at 12:31 +0100, Oliver Neukum wrote:
 > 
-> > True, although the per-node structures are only available on NUMA making
-> > it necessary to have two interfaces. The per-node one is handy enough
-> > because it would be just
-> >
-> > /sys/devices/system/node/nodeX/compact_node
-> > 	When written to, this node is compacted by the writing process
-> >
-> > But there does not appear to be a "good" way of having a non-NUMA
-> > interface. /sys/devices/system/node does not exist .... Does anyone
-> > remember why !NUMA does not have a /sys/devices/system/node/node0? Is
-> > there a good reason or was there just no point?
-> 
-> We could create a fake node0 for the !NUMA case I guess?
+> But we have the freezer. So generally we don't require that knowledge.
+> We can expect no normal IO to happen.
 
-I would like to but I have the same concerns as you about programs or scripts
-assuming the existence of /sys/devices/system/node/ imples NUMA.
+That came before and it's just not a safe assumption :-) The freezer to
+some extent protects drivers against ioctl's and that sort of stuff but
+really that's about it. There's plenty of things in the kernel that can
+kick IOs on their own for a reason or another, or do memory allocations
+which in turn will try to push something out and do IOs etc... even when
+"frozen".
 
-> Dont see a major
-> reason why not to do it aside from scripts that may check for the presence
-> of the file to switch to a "NUMA" mode.
-> 
+> The question is in the suspend paths. We never may use anything
+> but GFP_NOIO (and GFP_ATOMIC) in the suspend() path. We can
+> take care of that requirement in the allocator only if the whole
+> system
+> is suspended. As soon as a driver does runtime power management,
+> it is on its own. 
 
-That would suck royally and unfortunately it's partly the case with libnuma
-at least. Well, not the library itself but one of the utilities.
+I'm not sure I understand what you are trying to say here :-)
 
-numa_available() is implemented by checking the return value of get_mempolicy()
-so it's ok.
+First of all, the problem goes beyond what a driver does in its own
+suspend() path. If it was just that, we might be able to some extent to
+push enough stuff up for the driver to specify the right GFP flags
+(though even that could be nasty).
 
-It checks the max configured node by parsing the contents of the
-/sys/devices/system/node/ directory so that should also be ok as long as
-the UMA node is 0.
+The problem with system suspend also happens when your driver has not
+been suspended yet, but another one, which happens to be a block device
+with dirty pages for example, has.
 
-However, the numastat script is a perl script that makes assumptions on
-NUMA versus UMA depending on the existence of the sysfs directory. If it
-exists, it parses numastat. While this would be faked as well, we're
-talking about adding a fair amount of fakery in there and still end up
-with a behaviour change. Previously, the script would have identified
-the system was not NUMA aware and afterwards, it prints out meaningless
-values.
+Your not-yet-suspended driver might well be blocked somewhere in an
+allocation or about to make one with some kind of internal mutex held,
+that sort of thing, as part of it's normal operations, and -that- can
+hang, causing problems when subsequently that same driver suspend() gets
+called and tries to synchronize with the driver operations, for example
+by trying to acquire that same mutex.
 
-Not sure how great an option that is :(
+There's more of similarily nasty scenario. The fact is that it's going
+to hit rarely, probably without a bakctrace or a crash, and so will
+basically cause one of those rare "my laptop didn't suspend" cases that
+may not even be reported, and just contribute to the general
+unreliability of suspend/resume.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
