@@ -1,47 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 75B3C6B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 12:48:03 -0500 (EST)
-Message-ID: <4B5740CD.4020005@zytor.com>
-Date: Wed, 20 Jan 2010 09:43:41 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 18A0D6B006A
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 13:13:24 -0500 (EST)
+Date: Wed, 20 Jan 2010 12:12:55 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 5/7] Add /proc trigger for memory compaction
+In-Reply-To: <20100120094813.GC5154@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1001201211020.14342@router.home>
+References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-6-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001071352100.23894@chino.kir.corp.google.com> <20100120094813.GC5154@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 04/12] Add "handle page fault" PV helper.
-References: <1262700774-1808-5-git-send-email-gleb@redhat.com> <1263490267.4244.340.camel@laptop> <20100117144411.GI31692@redhat.com> <4B541D08.9040802@zytor.com> <20100118085022.GA30698@redhat.com> <4B5510B1.9010202@zytor.com> <20100119065537.GF14345@redhat.com> <4B55E5D8.1070402@zytor.com> <20100119174438.GA19450@redhat.com> <4B5611A9.4050301@zytor.com> <20100120100254.GC5238@redhat.com>
-In-Reply-To: <20100120100254.GC5238@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, riel@redhat.com, cl@linux-foundation.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/20/2010 02:02 AM, Gleb Natapov wrote:
+On Wed, 20 Jan 2010, Mel Gorman wrote:
+
+> True, although the per-node structures are only available on NUMA making
+> it necessary to have two interfaces. The per-node one is handy enough
+> because it would be just
 >
->> You can have the guest OS take an exception on a vector above 31 just
->> fine; you just need it to tell the hypervisor which vector it, the OS,
->> assigned for this purpose.
->>
-> VMX doesn't allow to inject hardware exception with vector greater then 31.
-> SDM 3B section 23.2.1.3.
+> /sys/devices/system/node/nodeX/compact_node
+> 	When written to, this node is compacted by the writing process
 >
+> But there does not appear to be a "good" way of having a non-NUMA
+> interface. /sys/devices/system/node does not exist .... Does anyone
+> remember why !NUMA does not have a /sys/devices/system/node/node0? Is
+> there a good reason or was there just no point?
 
-OK, you're right.  I had missed that... I presume it was done for 
-implementation reasons.
-
-> I can inject the event as HW interrupt on vector greater then 32 but not
-> go through APIC so EOI will not be required. This sounds non-architectural
-> and I am not sure kernel has entry point code for this kind of event, it
-> has one for exception and one for interrupts that goes through __do_IRQ()
-> which assumes that interrupts should be ACKed.
-
-You can also just emulate the state transition -- since you know you're 
-dealing with a flat protected-mode or long-mode OS (and just make that a 
-condition of enabling the feature) you don't have to deal with all the 
-strange combinations of directions that an unrestricted x86 event can 
-take.  Since it's an exception, it is unconditional.
-
-	-hpa
+We could create a fake node0 for the !NUMA case I guess? Dont see a major
+reason why not to do it aside from scripts that may check for the presence
+of the file to switch to a "NUMA" mode.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
