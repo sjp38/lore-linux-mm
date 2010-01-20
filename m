@@ -1,35 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2B5BD6B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 07:00:33 -0500 (EST)
-Message-ID: <4B56F040.1080703@redhat.com>
-Date: Wed, 20 Jan 2010 14:00:00 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 750926B006A
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 07:15:43 -0500 (EST)
+From: Oliver Neukum <oliver@neukum.org>
+Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was: Re: [linux-pm] Memory allocations in .suspend became very unreliable)
+Date: Wed, 20 Jan 2010 12:31:17 +0100
+References: <20100118110324.AE30.A69D9226@jp.fujitsu.com> <195c7a901001190104x164381f9v4a58d1fce70b17b6@mail.gmail.com> <1263943071.724.540.camel@pasglop>
+In-Reply-To: <1263943071.724.540.camel@pasglop>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 04/12] Add "handle page fault" PV helper.
-References: <1262700774-1808-5-git-send-email-gleb@redhat.com> <1263490267.4244.340.camel@laptop> <20100117144411.GI31692@redhat.com> <4B541D08.9040802@zytor.com> <20100118085022.GA30698@redhat.com> <4B5510B1.9010202@zytor.com> <20100119065537.GF14345@redhat.com> <4B55E5D8.1070402@zytor.com> <20100119174438.GA19450@redhat.com> <4B5611A9.4050301@zytor.com> <20100120100254.GC5238@redhat.com>
-In-Reply-To: <20100120100254.GC5238@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: Text/Plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201001201231.17540.oliver@neukum.org>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, tglx@linutronix.de, riel@redhat.com, cl@linux-foundation.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Bastien ROUCARIES <roucaries.bastien@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 01/20/2010 12:02 PM, Gleb Natapov wrote:
->
-> I can inject the event as HW interrupt on vector greater then 32 but not
-> go through APIC so EOI will not be required. This sounds non-architectural
-> and I am not sure kernel has entry point code for this kind of event, it
-> has one for exception and one for interrupts that goes through __do_IRQ()
-> which assumes that interrupts should be ACKed.
->    
+Am Mittwoch, 20. Januar 2010 00:17:51 schrieb Benjamin Herrenschmidt:
+> On Tue, 2010-01-19 at 10:04 +0100, Bastien ROUCARIES wrote:
+> > Instead of masking bit could we only check if incompatible flags are
+> > used during suspend, and warm deeply. Call stack will be therefore
+> > identified, and we could have some metrics about such problem.
+> > 
+> > It will be a debug option like lockdep but pretty low cost.
+> 
+> I still believe it would just be a giant can of worms to require every
+> call site of memory allocators to "know" whether suspend has been
+> started or not.... Along the same reasons why we added that stuff for
+> boot time allocs.
 
-Further, we start to interact with the TPR; Linux doesn't use the TPR or 
-cr8 but if it does one day we don't want it interfering with apf.
+But we have the freezer. So generally we don't require that knowledge.
+We can expect no normal IO to happen.
+The question is in the suspend paths. We never may use anything
+but GFP_NOIO (and GFP_ATOMIC) in the suspend() path. We can
+take care of that requirement in the allocator only if the whole system
+is suspended. As soon as a driver does runtime power management,
+it is on its own.
 
--- 
-error compiling committee.c: too many arguments to function
+	Regards
+		Oliver
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
