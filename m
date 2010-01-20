@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DE2466B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 10:30:04 -0500 (EST)
-Date: Wed, 20 Jan 2010 16:30:00 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 1/1] bootmem: move big allocations behing 4G
-Message-ID: <20100120153000.GA13172@cmpxchg.org>
-References: <1263855390-32497-1-git-send-email-jslaby@suse.cz> <20100119143355.GB7932@cmpxchg.org> <4B570A15.8040601@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B570A15.8040601@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 581796B006A
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 12:19:10 -0500 (EST)
+Message-ID: <4B573AEF.9010007@redhat.com>
+Date: Wed, 20 Jan 2010 12:18:39 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 04/12] Add "handle page fault" PV helper.
+References: <1262700774-1808-5-git-send-email-gleb@redhat.com> <1263490267.4244.340.camel@laptop> <20100117144411.GI31692@redhat.com> <4B541D08.9040802@zytor.com> <20100118085022.GA30698@redhat.com> <4B5510B1.9010202@zytor.com> <20100119065537.GF14345@redhat.com> <4B55E5D8.1070402@zytor.com> <20100119174438.GA19450@redhat.com> <4B5611A9.4050301@zytor.com> <20100120100254.GC5238@redhat.com> <4B56F040.1080703@redhat.com>
+In-Reply-To: <4B56F040.1080703@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, x86@kernel.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Gleb Natapov <gleb@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, tglx@linutronix.de, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Jiri,
+On 01/20/2010 07:00 AM, Avi Kivity wrote:
+> On 01/20/2010 12:02 PM, Gleb Natapov wrote:
+>>
+>> I can inject the event as HW interrupt on vector greater then 32 but not
+>> go through APIC so EOI will not be required. This sounds
+>> non-architectural
+>> and I am not sure kernel has entry point code for this kind of event, it
+>> has one for exception and one for interrupts that goes through __do_IRQ()
+>> which assumes that interrupts should be ACKed.
+>
+> Further, we start to interact with the TPR; Linux doesn't use the TPR or
+> cr8 but if it does one day we don't want it interfering with apf.
 
-On Wed, Jan 20, 2010 at 02:50:13PM +0100, Jiri Slaby wrote:
-> On 01/19/2010 03:33 PM, Johannes Weiner wrote:
-> > --- a/include/linux/bootmem.h
-> > +++ b/include/linux/bootmem.h
-> > @@ -96,20 +96,26 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
-> >  				      unsigned long align,
-> >  				      unsigned long goal);
-> >  
-> > +#ifdef MAX_DMA32_PFN
-> > +#define BOOTMEM_DEFAULT_GOAL	(__pa(MAX_DMA32_PFN << PAGE_SHIFT))
-> > +#else
-> > +#define BOOTMEM_DEFAULT_GOAL	MAX_DMA_ADDRESS
-> 
-> I just noticed this should write:
-> #define BOOTMEM_DEFAULT_GOAL   __pa(MAX_DMA_ADDRESS)
+That's not an issue is it?  The guest will tell the host what
+vector to use for pseudo page faults.
 
-Pardon my sloppiness, it's all backwards.  The other case should
-be without the __pa(), of course.
-
-I'll send a fixed and tested version later.
-
-Thanks,
-	Hannes
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
