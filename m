@@ -1,39 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 581796B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 12:19:10 -0500 (EST)
-Message-ID: <4B573AEF.9010007@redhat.com>
-Date: Wed, 20 Jan 2010 12:18:39 -0500
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 75B3C6B006A
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 12:48:03 -0500 (EST)
+Message-ID: <4B5740CD.4020005@zytor.com>
+Date: Wed, 20 Jan 2010 09:43:41 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v3 04/12] Add "handle page fault" PV helper.
-References: <1262700774-1808-5-git-send-email-gleb@redhat.com> <1263490267.4244.340.camel@laptop> <20100117144411.GI31692@redhat.com> <4B541D08.9040802@zytor.com> <20100118085022.GA30698@redhat.com> <4B5510B1.9010202@zytor.com> <20100119065537.GF14345@redhat.com> <4B55E5D8.1070402@zytor.com> <20100119174438.GA19450@redhat.com> <4B5611A9.4050301@zytor.com> <20100120100254.GC5238@redhat.com> <4B56F040.1080703@redhat.com>
-In-Reply-To: <4B56F040.1080703@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+References: <1262700774-1808-5-git-send-email-gleb@redhat.com> <1263490267.4244.340.camel@laptop> <20100117144411.GI31692@redhat.com> <4B541D08.9040802@zytor.com> <20100118085022.GA30698@redhat.com> <4B5510B1.9010202@zytor.com> <20100119065537.GF14345@redhat.com> <4B55E5D8.1070402@zytor.com> <20100119174438.GA19450@redhat.com> <4B5611A9.4050301@zytor.com> <20100120100254.GC5238@redhat.com>
+In-Reply-To: <20100120100254.GC5238@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Gleb Natapov <gleb@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, tglx@linutronix.de, cl@linux-foundation.org
+To: Gleb Natapov <gleb@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/20/2010 07:00 AM, Avi Kivity wrote:
-> On 01/20/2010 12:02 PM, Gleb Natapov wrote:
->>
->> I can inject the event as HW interrupt on vector greater then 32 but not
->> go through APIC so EOI will not be required. This sounds
->> non-architectural
->> and I am not sure kernel has entry point code for this kind of event, it
->> has one for exception and one for interrupts that goes through __do_IRQ()
->> which assumes that interrupts should be ACKed.
+On 01/20/2010 02:02 AM, Gleb Natapov wrote:
 >
-> Further, we start to interact with the TPR; Linux doesn't use the TPR or
-> cr8 but if it does one day we don't want it interfering with apf.
+>> You can have the guest OS take an exception on a vector above 31 just
+>> fine; you just need it to tell the hypervisor which vector it, the OS,
+>> assigned for this purpose.
+>>
+> VMX doesn't allow to inject hardware exception with vector greater then 31.
+> SDM 3B section 23.2.1.3.
+>
 
-That's not an issue is it?  The guest will tell the host what
-vector to use for pseudo page faults.
+OK, you're right.  I had missed that... I presume it was done for 
+implementation reasons.
 
--- 
-All rights reversed.
+> I can inject the event as HW interrupt on vector greater then 32 but not
+> go through APIC so EOI will not be required. This sounds non-architectural
+> and I am not sure kernel has entry point code for this kind of event, it
+> has one for exception and one for interrupts that goes through __do_IRQ()
+> which assumes that interrupts should be ACKed.
+
+You can also just emulate the state transition -- since you know you're 
+dealing with a flat protected-mode or long-mode OS (and just make that a 
+condition of enabling the feature) you don't have to deal with all the 
+strange combinations of directions that an unrestricted x86 event can 
+take.  Since it's an exception, it is unconditional.
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
