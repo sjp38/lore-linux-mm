@@ -1,114 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2129B6B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 04:52:11 -0500 (EST)
-Date: Wed, 20 Jan 2010 09:51:48 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 7/7] Do not compact within a preferred zone after a
-	compaction failure
-Message-ID: <20100120095148.GE5154@csn.ul.ie>
-References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-8-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001131527050.18951@chino.kir.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 0E23E6B0071
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 04:52:47 -0500 (EST)
+Date: Wed, 20 Jan 2010 17:52:42 +0800
+From: anfei <anfei.zhou@gmail.com>
+Subject: Re: cache alias in mmap + write
+Message-ID: <20100120095242.GA5672@desktop>
+References: <20100120082610.GA5155@desktop> <20100120174630.4071.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1001131527050.18951@chino.kir.corp.google.com>
+In-Reply-To: <20100120174630.4071.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@arm.linux.org.uk, jamie@shareable.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 13, 2010 at 03:28:16PM -0800, David Rientjes wrote:
-> On Wed, 6 Jan 2010, Mel Gorman wrote:
+On Wed, Jan 20, 2010 at 06:10:11PM +0900, KOSAKI Motohiro wrote:
+> Hello,
 > 
-> > The fragmentation index may indicate that a failure it due to external
-> > fragmentation, a compaction run complete and an allocation failure still
-> > fail. There are two obvious reasons as to why
-> > 
-> >   o Page migration cannot move all pages so fragmentation remains
-> >   o A suitable page may exist but watermarks are not met
-> > 
-> > In the event of compaction and allocation failure, this patch prevents
-> > compaction happening for a short interval. It's only recorded on the
-> > preferred zone but that should be enough coverage. This could have been
-> > implemented similar to the zonelist_cache but the increased size of the
-> > zonelist did not appear to be justified.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  include/linux/mmzone.h |    7 +++++++
-> >  mm/page_alloc.c        |   15 ++++++++++++++-
-> >  2 files changed, 21 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 30fe668..1d6ccbe 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -328,6 +328,13 @@ struct zone {
-> >  	unsigned long		*pageblock_flags;
-> >  #endif /* CONFIG_SPARSEMEM */
+> > diff --git a/mm/filemap.c b/mm/filemap.c
+> > index 96ac6b0..07056fb 100644
+> > --- a/mm/filemap.c
+> > +++ b/mm/filemap.c
+> > @@ -2196,6 +2196,9 @@ again:
+> >  		if (unlikely(status))
+> >  			break;
 > >  
-> > +#ifdef CONFIG_MIGRATION
-> > +	/*
-> > +	 * If a compaction fails, do not try compaction again until
-> > +	 * jiffies is after the value of compact_resume
-> > +	 */
-> > +	unsigned long		compact_resume;
-> > +#endif
-> 
-> CONFIG_COMPACTION?
-> 
-
-Yep
-
-> >  
-> >  	ZONE_PADDING(_pad1_)
-> >  
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 7275afb..9c86606 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1729,7 +1729,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
-> >  	cond_resched();
-> >  
-> >  	/* Try memory compaction for high-order allocations before reclaim */
-> > -	if (order) {
-> > +	if (order && time_after(jiffies, preferred_zone->compact_resume)) {
-> >  		*did_some_progress = try_to_compact_pages(zonelist,
-> >  						order, gfp_mask, nodemask);
-> >  		if (*did_some_progress != COMPACT_INCOMPLETE) {
-> > @@ -1748,6 +1748,19 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
-> >  			 * but not enough to satisfy watermarks.
-> >  			 */
-> >  			count_vm_event(COMPACTFAIL);
+> > +		if (mapping_writably_mapped(mapping))
+> > +			flush_dcache_page(page);
 > > +
-> > +			/*
-> > +			 * On failure, avoid compaction for a short time.
-> > +			 * XXX: This is very unsatisfactory. The failure
-> > +			 * 	to compact has nothing to do with time
-> > +			 * 	and everything to do with the requested
-> > +			 * 	order, the number of free pages and
-> > +			 * 	watermarks. How to wait on that is more
-> > +			 * 	unclear, but the answer would apply to
-> > +			 * 	other areas where the VM waits based on
-> > +			 * 	time.
-> > +			 */
-> > +			preferred_zone->compact_resume = jiffies + HZ/50;
-> >  		}
-> >  	}
-> >  
+> >  		pagefault_disable();
+> >  		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
+> >  		pagefault_enable();
 > 
-> This will need to be moved to (another) inline function dependent on 
-> CONFIG_COMPACTION since we don't have zone->compact_resume without it; 
-> it's probably better to seperate the function out rather than add #ifdef's 
-> within __alloc_pages_direct_reclaim().
+> I'm not sure ARM cache coherency model. but I guess correct patch is here.
 > 
-
-Moved to an inline called defer_compaction()
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> +		if (mapping_writably_mapped(mapping))
+> +			flush_dcache_page(page);
+> +
+>  		pagefault_disable();
+>  		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
+>  		pagefault_enable();
+> -		flush_dcache_page(page);
+> 
+> 
+> Why do we need to call flush_dcache_page() twice?
+> 
+The latter flush_dcache_page is used to flush the kernel changes
+(iov_iter_copy_from_user_atomic), which makes the userspace to see the
+write,  and the one I added is used to flush the userspace changes.
+And I think it's better to split this function into two:
+	flush_dcache_user_page(page);
+	kmap_atomic(page);
+	write to  page;
+	kunmap_atomic(page);
+	flush_dcache_kern_page(page);
+But currently there is no such API.
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
