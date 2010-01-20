@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0316B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 03:17:23 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 350DD6B006A
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 03:18:55 -0500 (EST)
 Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id o0K8HHSk009397
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 19:17:17 +1100
+	by e23smtp01.au.ibm.com (8.14.3/8.13.1) with ESMTP id o0K8H0TG022446
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 19:17:00 +1100
 Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o0K8Cbrn1601754
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 19:12:37 +1100
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o0K8ECxT1556600
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 19:14:12 +1100
 Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o0K8HGh0024564
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 19:17:17 +1100
-Message-ID: <4B56BC09.2090508@linux.vnet.ibm.com>
-Date: Wed, 20 Jan 2010 13:47:13 +0530
+	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o0K8IpTC025968
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 19:18:51 +1100
+Message-ID: <4B56BC69.6080408@linux.vnet.ibm.com>
+Date: Wed, 20 Jan 2010 13:48:49 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
 Subject: Re: [RFC] Shared page accounting for memory cgroup
-References: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com> <20100107083440.GS3059@balbir.in.ibm.com> <20100107174814.ad6820db.kamezawa.hiroyu@jp.fujitsu.com> <20100107180800.7b85ed10.kamezawa.hiroyu@jp.fujitsu.com> <20100107092736.GW3059@balbir.in.ibm.com> <20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com> <661de9471001171130p2b0ac061he6f3dab9ef46fd06@mail.gmail.com> <20100118094920.151e1370.nishimura@mxp.nes.nec.co.jp> <4B541B44.3090407@linux.vnet.ibm.com> <20100119102208.59a16397.nishimura@mxp.nes.nec.co.jp> <661de9471001181749y2fe22a15j1c01c94aa1838e99@mail.gmail.com> <20100119113443.562e38ba.nishimura@mxp.nes.nec.co.jp> <4B552C89.8000004@linux.vnet.ibm.com> <20100120130902.865d8269.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100120130902.865d8269.nishimura@mxp.nes.nec.co.jp>
+References: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com> <20100107083440.GS3059@balbir.in.ibm.com> <20100107174814.ad6820db.kamezawa.hiroyu@jp.fujitsu.com> <20100107180800.7b85ed10.kamezawa.hiroyu@jp.fujitsu.com> <20100107092736.GW3059@balbir.in.ibm.com> <20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com> <661de9471001171130p2b0ac061he6f3dab9ef46fd06@mail.gmail.com> <20100118094920.151e1370.nishimura@mxp.nes.nec.co.jp> <4B541B44.3090407@linux.vnet.ibm.com> <20100119102208.59a16397.nishimura@mxp.nes.nec.co.jp> <661de9471001181749y2fe22a15j1c01c94aa1838e99@mail.gmail.com> <20100119113443.562e38ba.nishimura@mxp.nes.nec.co.jp> <4B552C89.8000004@linux.vnet.ibm.com> <20100120130902.865d8269.nishimura@mxp.nes.nec.co.jp> <20100120161533.6d83f607.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100120161533.6d83f607.nishimura@mxp.nes.nec.co.jp>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,142 +26,160 @@ To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 20 January 2010 09:39 AM, Daisuke Nishimura wrote:
-> On Tue, 19 Jan 2010 09:22:41 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> On Tuesday 19 January 2010 08:04 AM, Daisuke Nishimura wrote:
->>> On Tue, 19 Jan 2010 07:19:42 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>>> On Tue, Jan 19, 2010 at 6:52 AM, Daisuke Nishimura
->>>> <nishimura@mxp.nes.nec.co.jp> wrote:
->>>> [snip]
->>>>>> Correct, file cache is almost always considered shared, so it has
+On Wednesday 20 January 2010 12:45 PM, Daisuke Nishimura wrote:
+> On Wed, 20 Jan 2010 13:09:02 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+>> On Tue, 19 Jan 2010 09:22:41 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>> On Tuesday 19 January 2010 08:04 AM, Daisuke Nishimura wrote:
+>>>> On Tue, 19 Jan 2010 07:19:42 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>>>> On Tue, Jan 19, 2010 at 6:52 AM, Daisuke Nishimura
+>>>>> <nishimura@mxp.nes.nec.co.jp> wrote:
+>>>>> [snip]
+>>>>>>> Correct, file cache is almost always considered shared, so it has
+>>>>>>>
+>>>>>>> 1. non-private or shared usage of 10MB
+>>>>>>> 2. 10 MB of file cache
+>>>>>>>
+>>>>>>>> I don't think "non private usage" is appropriate to this value.
+>>>>>>>> Why don't you just show "sum_of_each_process_rss" ? I think it would be easier
+>>>>>>>> to understand for users.
+>>>>>>>
+>>>>>>> Here is my concern
+>>>>>>>
+>>>>>>> 1. The gap between looking at memcg stat and sum of all RSS is way
+>>>>>>> higher in user space
+>>>>>>> 2. Summing up all rss without walking the tasks atomically can and
+>>>>>>> will lead to consistency issues. Data can be stale as long as it
+>>>>>>> represents a consistent snapshot of data
+>>>>>>>
+>>>>>>> We need to differentiate between
+>>>>>>>
+>>>>>>> 1. Data snapshot (taken at a time, but valid at that point)
+>>>>>>> 2. Data taken from different sources that does not form a uniform
+>>>>>>> snapshot, because the timestamping of the each of the collected data
+>>>>>>> items is different
+>>>>>>>
+>>>>>> Hmm, I'm sorry I can't understand why you need "difference".
+>>>>>> IOW, what can users or middlewares know by the value in the above case
+>>>>>> (0MB in 01 and 10MB in 02)? I've read this thread, but I can't understande about
+>>>>>> this point... Why can this value mean some of the groups are "heavy" ?
 >>>>>>
->>>>>> 1. non-private or shared usage of 10MB
->>>>>> 2. 10 MB of file cache
->>>>>>
->>>>>>> I don't think "non private usage" is appropriate to this value.
->>>>>>> Why don't you just show "sum_of_each_process_rss" ? I think it would be easier
->>>>>>> to understand for users.
->>>>>>
->>>>>> Here is my concern
->>>>>>
->>>>>> 1. The gap between looking at memcg stat and sum of all RSS is way
->>>>>> higher in user space
->>>>>> 2. Summing up all rss without walking the tasks atomically can and
->>>>>> will lead to consistency issues. Data can be stale as long as it
->>>>>> represents a consistent snapshot of data
->>>>>>
->>>>>> We need to differentiate between
->>>>>>
->>>>>> 1. Data snapshot (taken at a time, but valid at that point)
->>>>>> 2. Data taken from different sources that does not form a uniform
->>>>>> snapshot, because the timestamping of the each of the collected data
->>>>>> items is different
->>>>>>
->>>>> Hmm, I'm sorry I can't understand why you need "difference".
->>>>> IOW, what can users or middlewares know by the value in the above case
->>>>> (0MB in 01 and 10MB in 02)? I've read this thread, but I can't understande about
->>>>> this point... Why can this value mean some of the groups are "heavy" ?
 >>>>>
->>>>
->>>> Consider a default cgroup that is not root and assume all applications
->>>> move there initially. Now with a lot of shared memory,
->>>> the default cgroup will be the first one to page in a lot of the
->>>> memory and its usage will be very high. Without the concept of
->>>> showing how much is non-private, how does one decide if the default
->>>> cgroup is using a lot of memory or sharing it? How
->>>> do we decide on limits of a cgroup without knowing its actual usage -
->>>> PSS equivalent for a region of memory for a task.
->>>>
->>> As for limit, I think we should decide it based on the actual usage because
->>> we account and limit the accual usage. Why we should take account of the sum of rss ?
+>>>>> Consider a default cgroup that is not root and assume all applications
+>>>>> move there initially. Now with a lot of shared memory,
+>>>>> the default cgroup will be the first one to page in a lot of the
+>>>>> memory and its usage will be very high. Without the concept of
+>>>>> showing how much is non-private, how does one decide if the default
+>>>>> cgroup is using a lot of memory or sharing it? How
+>>>>> do we decide on limits of a cgroup without knowing its actual usage -
+>>>>> PSS equivalent for a region of memory for a task.
+>>>>>
+>>>> As for limit, I think we should decide it based on the actual usage because
+>>>> we account and limit the accual usage. Why we should take account of the sum of rss ?
+>>>
+>>> I am talking of non-private pages or potentially shared pages - which is
+>>> derived as follows
+>>>
+>>> sum_of_all_rss - (rss + file_mapped) (from .stat file)
+>>>
+>>> file cache is considered to be shared always
+>>>
+>>>
+>>>> I agree that we'd better not to ignore the sum of rss completely, but could you show me
+>>>> how the value 0MB/10MB can be used to caluculate the limit in 01/02 in detail ?
+>>>
+>>> In your example, usage shows that the real usage of the cgroup is 20 MB
+>>> for 01 and 10 MB for 02.
+>> right.
 >>
->> I am talking of non-private pages or potentially shared pages - which is
->> derived as follows
+>>> Today we show that we are using 40MB instead of
+>>> 30MB (when summed).
+>> Sorry, I can't understand here.
+>> If we sum usage_in_bytes in both groups, it would be 30MB.
+>> If we sum "actual rss(rss_file, rss_anon) via stat file" in both groups, it would be 30M.
+>> If we sum "total rss(rss_file, rss_anon) of all process via mm_counter" in both groups,
+>> it would be 40MB.
 >>
->> sum_of_all_rss - (rss + file_mapped) (from .stat file)
+>>> If an administrator has to make a decision to say
+>>> add more resources, the one with 20MB would be the right place w.r.t.
+>>> memory.
+>>>
+>> You mean he would add the additional resource to 00, right? Then, 
+>> the smaller "shared_usage_in_bytes" is, the more likely an administrator should
+>> add additional resources to the group ?
 >>
->> file cache is considered to be shared always
+>> But when both /cgroup/memory/aa and /cgroup/memory/bb has 20MB as acutual usage,
+>> and aa has 10MB "shared"(used by multiple processes *in aa*) usage while bb has none,
+>> "shared_usage_in_bytes" is 10MB in aa and 0MB in bb(please consider there is
+>> no "shared" usage between aa and bb).
+>> Should an administrator consider bb is heavier than aa ? I don't think so.
 >>
+>> IOW, "shared_usage_in_bytes" doesn't have any consistent meaning about which
+>> group is unfairly "heavy".
 >>
->>> I agree that we'd better not to ignore the sum of rss completely, but could you show me
->>> how the value 0MB/10MB can be used to caluculate the limit in 01/02 in detail ?
+>> The problem here is, "shared_usage_in_bytes" doesn't show neither one of nor the sum
+>> of the following value(*IFF* we have only one cgroup, "shared_usage_in_bytes" would
+>> mean a), but it has no use in real case).
 >>
->> In your example, usage shows that the real usage of the cgroup is 20 MB
->> for 01 and 10 MB for 02.
-> right.
-> 
->> Today we show that we are using 40MB instead of
->> 30MB (when summed).
-> Sorry, I can't understand here.
-> If we sum usage_in_bytes in both groups, it would be 30MB.
-
-Right
-
-> If we sum "actual rss(rss_file, rss_anon) via stat file" in both groups, it would be 30M.
-> If we sum "total rss(rss_file, rss_anon) of all process via mm_counter" in both groups,
-> it would be 40MB.
-> 
-
-mm_counter would show 40GB, memcgroup would show 30MB you are right. But
-of the 30MB, do we say the one using 20MB is consuming more resources?
-
->> If an administrator has to make a decision to say
->> add more resources, the one with 20MB would be the right place w.r.t.
->> memory.
+>>   a) memory usage used by multiple processes inside this group.
+>>   b) memory usage used by both processes inside this and another group.
+>>   c) memory usage not used by any processes inside this group, but used by
+>>      that of in another group.
 >>
-> You mean he would add the additional resource to 00, right? Then, 
-> the smaller "shared_usage_in_bytes" is, the more likely an administrator should
-> add additional resources to the group ?
+>> IMHO, we should take account of all the above values to determine which group
+>> is unfairly "heavy". I agree that the bigger the size of a) is, the bigger
+>> "shared_usage_in_bytes" of the group would be, but we cannot know any information about
+>> the size of b) by it, becase those usages are included in both actual usage(rss via stat)
+>> and sum of rss(via mm_counter). To make matters warse, "shared_usage_in_bytes" has
+>> the opposite meaning about b), i.e., the more a processe in some group(foo) has actual
+>> charges in *another* group(baa), the bigger "shared_usage_in_bytes" in "foo" would be
+>> (as 00 and 01 in my example).
+>>
+>> I would agree with you if you add interfaces to show some hints to users about above values,
+>> but "shared_usage_in_bytes" doesn't meet it at all.
+>>
+> This is just an idea(At least, we need interfaces to read and reset them).
 > 
-> But when both /cgroup/memory/aa and /cgroup/memory/bb has 20MB as acutual usage,
-> and aa has 10MB "shared"(used by multiple processes *in aa*) usage while bb has none,
-> "shared_usage_in_bytes" is 10MB in aa and 0MB in bb(please consider there is
-> no "shared" usage between aa and bb).
-> Should an administrator consider bb is heavier than aa ? I don't think so.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c> index 385e29b..bf601f2 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -83,6 +83,8 @@ enum mem_cgroup_stat_index {
+>  					used by soft limit implementation */
+>  	MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each page in/out.
+>  					used by threshold implementation */
+> +	MEM_CGROUP_STAT_SHARED_IN_GROUP,
+> +	MEM_CGROUP_STAT_SHARED_FROM_OTHERS,
 > 
-
-No.. but before OOM killing or considering moving in a virtual
-environment the cgorup "aa", the real usage should be considered or
-at-least the fact that moving "bb" would require 20MB.
-
-> IOW, "shared_usage_in_bytes" doesn't have any consistent meaning about which
-> group is unfairly "heavy".
+>  	MEM_CGROUP_STAT_NSTATS,
+>  };
+> @@ -1707,8 +1709,25 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 > 
+>  	lock_page_cgroup(pc);
+>  	if (unlikely(PageCgroupUsed(pc))) {
+> +		struct mem_cgroup *charged = pc->mem_cgroup;
+> +		struct mem_cgroup_stat *stat;
+> +		struct mem_cgroup_stat_cpu *cpustat;
+> +		int cpu;
+> +		int shared_type;
+> +
+>  		unlock_page_cgroup(pc);
+>  		mem_cgroup_cancel_charge(mem);
+> +
+> +		stat = &charged->stat;
+> +		cpu = get_cpu();
+> +		cpustat = &stat->cpustat[cpu];
+> +		if (charged == mem)
+> +			shared_type = MEM_CGROUP_STAT_SHARED_IN_GROUP;
+> +		else
+> +			shared_type = MEM_CGROUP_STAT_SHARED_FROM_OTHERS;
+> +		__mem_cgroup_stat_add_safe(cpustat, shared_type, 1);
+> +		put_cpu();
+> +
+>  		return;
 
-No, but it gives an idea of the sharing, which can be important for
-making decisions and estimating the real usage. In the case of aa, one
-can estimate private usage to be 20MB - 10MB (10MB) which is one correct
-way of looking at the heaviness of the cgroup.
+How will this work during uncharge? If the original cgroup that owns the
+pages has unmapped them?
 
-> The problem here is, "shared_usage_in_bytes" doesn't show neither one of nor the sum
-> of the following value(*IFF* we have only one cgroup, "shared_usage_in_bytes" would
-> mean a), but it has no use in real case).
-> 
->   a) memory usage used by multiple processes inside this group.
->   b) memory usage used by both processes inside this and another group.
->   c) memory usage not used by any processes inside this group, but used by
->      that of in another group.
-> 
-> IMHO, we should take account of all the above values to determine which group
-> is unfairly "heavy". I agree that the bigger the size of a) is, the bigger
-> "shared_usage_in_bytes" of the group would be, but we cannot know any information about
-> the size of b) by it, becase those usages are included in both actual usage(rss via stat)
-
-(b) IMHO is a longer term goal and can be estimated from the PSS of the
-processes within the cgroup
-
-> and sum of rss(via mm_counter). To make matters warse, "shared_usage_in_bytes" has
-> the opposite meaning about b), i.e., the more a processe in some group(foo) has actual
-> charges in *another* group(baa), the bigger "shared_usage_in_bytes" in "foo" would be
-> (as 00 and 01 in my example).
-> 
-> I would agree with you if you add interfaces to show some hints to users about above values,
-> but "shared_usage_in_bytes" doesn't meet it at all.
-> 
-
-Not sure I follow your suggestion here.
-
-Balbir
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
