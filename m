@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 52B3C6B009A
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5FFC36B009B
 	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 01:51:33 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 02 of 30] compound_lock
-Message-Id: <66df2c94d06a145c9ca0.1264054826@v2.random>
+Subject: [PATCH 05 of 30] add native_set_pmd_at
+Message-Id: <45c494a56eaa50540c5c.1264054829@v2.random>
 In-Reply-To: <patchbomb.1264054824@v2.random>
 References: <patchbomb.1264054824@v2.random>
-Date: Thu, 21 Jan 2010 07:20:26 +0100
+Date: Thu, 21 Jan 2010 07:20:29 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,51 +18,27 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add a new compound_lock() needed to serialize put_page against
-__split_huge_page_refcount().
+Used by paravirt and not paravirt set_pmd_at.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -12,6 +12,7 @@
- #include <linux/prio_tree.h>
- #include <linux/debug_locks.h>
- #include <linux/mm_types.h>
-+#include <linux/bit_spinlock.h>
- 
- struct mempolicy;
- struct anon_vma;
-@@ -294,6 +295,16 @@ static inline int is_vmalloc_or_module_a
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
+ 	native_set_pte(ptep, pte);
  }
- #endif
  
-+static inline void compound_lock(struct page *page)
++static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
++				     pmd_t *pmdp , pmd_t pmd)
 +{
-+	bit_spin_lock(PG_compound_lock, &page->flags);
++	native_set_pmd(pmdp, pmd);
 +}
 +
-+static inline void compound_unlock(struct page *page)
-+{
-+	bit_spin_unlock(PG_compound_lock, &page->flags);
-+}
-+
- static inline struct page *compound_head(struct page *page)
- {
- 	if (unlikely(PageTail(page)))
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -108,6 +108,7 @@ enum pageflags {
- #ifdef CONFIG_MEMORY_FAILURE
- 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
- #endif
-+	PG_compound_lock,
- 	__NR_PAGEFLAGS,
- 
- 	/* Filesystems */
+ #ifndef CONFIG_PARAVIRT
+ /*
+  * Rules for using pte_update - it must be called after any PTE update which
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
