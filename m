@@ -1,104 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8F5746B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 23:59:59 -0500 (EST)
-Received: by pwj10 with SMTP id 10so4481453pwj.6
-        for <linux-mm@kvack.org>; Wed, 20 Jan 2010 20:59:57 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D2DEE6B006A
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 00:05:26 -0500 (EST)
+Date: Thu, 21 Jan 2010 13:05:21 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/8] vmalloc: simplify vread()/vwrite()
+Message-ID: <20100121050521.GB24236@localhost>
+References: <20100113135305.013124116@intel.com> <20100113135957.833222772@intel.com> <20100114124526.GB7518@laptop> <20100118133512.GC721@localhost> <20100118142359.GA14472@laptop> <20100119013303.GA12513@localhost> <20100119112343.04f4eff5.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20100121094733.3778.A69D9226@jp.fujitsu.com>
-References: <20100120174630.4071.A69D9226@jp.fujitsu.com>
-	 <20100120095242.GA5672@desktop>
-	 <20100121094733.3778.A69D9226@jp.fujitsu.com>
-Date: Thu, 21 Jan 2010 12:59:57 +0800
-Message-ID: <979dd0561001202059v1870870oaa4df876aa12a756@mail.gmail.com>
-Subject: Re: cache alias in mmap + write
-From: anfei zhou <anfei.zhou@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100119112343.04f4eff5.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@arm.linux.org.uk, jamie@shareable.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 21, 2010 at 9:10 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Wed, Jan 20, 2010 at 06:10:11PM +0900, KOSAKI Motohiro wrote:
->> > Hello,
->> >
->> > > diff --git a/mm/filemap.c b/mm/filemap.c
->> > > index 96ac6b0..07056fb 100644
->> > > --- a/mm/filemap.c
->> > > +++ b/mm/filemap.c
->> > > @@ -2196,6 +2196,9 @@ again:
->> > > =A0 =A0 =A0 =A0 =A0 if (unlikely(status))
->> > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->> > >
->> > > + =A0 =A0 =A0 =A0 if (mapping_writably_mapped(mapping))
->> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flush_dcache_page(page);
->> > > +
->> > > =A0 =A0 =A0 =A0 =A0 pagefault_disable();
->> > > =A0 =A0 =A0 =A0 =A0 copied =3D iov_iter_copy_from_user_atomic(page, =
-i, offset, bytes);
->> > > =A0 =A0 =A0 =A0 =A0 pagefault_enable();
->> >
->> > I'm not sure ARM cache coherency model. but I guess correct patch is h=
-ere.
->> >
->> > + =A0 =A0 =A0 =A0 =A0 if (mapping_writably_mapped(mapping))
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flush_dcache_page(page);
->> > +
->> > =A0 =A0 =A0 =A0 =A0 =A0 pagefault_disable();
->> > =A0 =A0 =A0 =A0 =A0 =A0 copied =3D iov_iter_copy_from_user_atomic(page=
-, i, offset, bytes);
->> > =A0 =A0 =A0 =A0 =A0 =A0 pagefault_enable();
->> > - =A0 =A0 =A0 =A0 =A0 flush_dcache_page(page);
->> >
->> > Why do we need to call flush_dcache_page() twice?
->> >
->> The latter flush_dcache_page is used to flush the kernel changes
->> (iov_iter_copy_from_user_atomic), which makes the userspace to see the
->> write, =A0and the one I added is used to flush the userspace changes.
->> And I think it's better to split this function into two:
->> =A0 =A0 =A0 flush_dcache_user_page(page);
->> =A0 =A0 =A0 kmap_atomic(page);
->> =A0 =A0 =A0 write to =A0page;
->> =A0 =A0 =A0 kunmap_atomic(page);
->> =A0 =A0 =A0 flush_dcache_kern_page(page);
->> But currently there is no such API.
->
-> Why can't we create new api? this your pseudo code looks very fine to me.
->
-I will resend the patch, if this patch is acceptable, I will create
-another patch
-to introduce this new API.
->
-> note: if you don't like to create new api. I can agree your current patch=
-.
-> but I have three requests.
-> =A01. Move flush_dcache_page() into iov_iter_copy_from_user_atomic().
-> =A0 =A0Your above explanation indicate it is real intention. plus, change
-> =A0 =A0iov_iter_copy_from_user_atomic() fixes fuse too.
+On Mon, Jan 18, 2010 at 07:23:43PM -0700, KAMEZAWA Hiroyuki wrote:
+> On Tue, 19 Jan 2010 09:33:03 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > > The whole thing looks stupid though, apparently kmap is used to avoid "the
+> > > lock". But the lock is already held. We should just use the vmap
+> > > address.
+> > 
+> > Yes. I wonder why Kame introduced kmap_atomic() in d0107eb07 -- given
+> > that he at the same time fixed the order of removing vm_struct and
+> > vmap in dd32c279983b.
+> > 
+> Hmm...I must check my thinking again before answering..
+> 
+> vmalloc/vmap is constructed by 2 layer.
+> 	- vmalloc layer....guarded by vmlist_lock.
+> 	- vmap layer   ....gurderd by purge_lock. etc.
+> 
+> Now, let's see how vmalloc() works. It does job in 2 steps.
+> vmalloc():
+>   - allocate vmalloc area to the list under vmlist_lock.
+> 	- map pages.
+> vfree()
+>   - free vmalloc area from the list under vmlist_lock.
+> 	- unmap pages under purge_lock.
+> 
+> Now. vread(), vwrite() just take vmlist_lock, doesn't take purge_lock().
+> It walks page table and find pte entry, page, kmap and access it.
+> 
+> Oh, yes. It seems it's safe without kmap. But My concern is percpu allocator.
+> 
+> It uses get_vm_area() and controls mapped pages by themselves and
+> map/unmap pages by with their own logic. vmalloc.c is just used for
+> alloc/free virtual address. 
+> 
+> Now, vread()/vwrite() just holds vmlist_lock() and walk page table
+> without no guarantee that the found page is stably mapped. So, I used kmap.
+> 
+> If I miss something, I'm very sorry to add such kmap.
 
-There is a check on mapping, that's not passed into
-iov_iter_copy_from_user_atomic, and this function is only called a few plac=
-es,
-So I just add flush_dcache_page directly.
+Ah Thanks for explanation!
 
-> =A02. Add some commnet. almost developer only have x86 machine. so, arm
-> =A0 =A0specific trick need additional explicit explanation. otherwise any=
-body
-> =A0 =A0might break this code in the future.
-> =A03. Resend the patch. original mail isn't good patch format. please con=
-sider
-> =A0 =A0to reduce akpm suffer.
->
-I will send it soon.
+I did some audit and find that
+
+- set_memory_uc(), set_memory_array_uc(), set_pages_uc(),
+  set_pages_array_uc() are called EFI code and various video drivers,
+  all of them don't touch HIGHMEM RAM
+
+- Kame: ioremap() won't allow remap of physical RAM
+
+So kmap_atomic() is safe.  Let's just settle on this patch?
 
 Thanks,
-Anfei.
->
->
->
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
