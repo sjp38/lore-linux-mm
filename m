@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 89EC46B0078
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 896A86B0071
 	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 01:51:28 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 26 of 30] madvise(MADV_HUGEPAGE)
-Message-Id: <d5341c9e01e8ba5a91f1.1264054850@v2.random>
+Subject: [PATCH 18 of 30] add pmd_huge_pte to mm_struct
+Message-Id: <e96a00d0713899a06b10.1264054842@v2.random>
 In-Reply-To: <patchbomb.1264054824@v2.random>
 References: <patchbomb.1264054824@v2.random>
-Date: Thu, 21 Jan 2010 07:20:50 +0100
+Date: Thu, 21 Jan 2010 07:20:42 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,107 +18,58 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add madvise MADV_HUGEPAGE to mark regions that are important to be hugepage
-backed. Return -EINVAL if the vma is not of an anonymous type, or the feature
-isn't built into the kernel. Never silently return success.
+This increase the size of the mm struct a bit but it is needed to preallocate
+one pte for each hugepage so that split_huge_page will not require a fail path.
+Guarantee of success is a fundamental property of split_huge_page to avoid
+decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
+would otherwise force the hugepage-unaware VM code to learn rolling back in the
+middle of its pte mangling operations (if something we need it to learn
+handling pmd_trans_huge natively rather being capable of rollback). When
+split_huge_page runs a pte is needed to succeed the split, to map the newly
+splitted regular pages with a regular pte.  This way all existing VM code
+remains backwards compatible by just adding a split_huge_page* one liner. The
+memory waste of those preallocated ptes is negligible and so it is worth it.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -101,6 +101,7 @@ extern int split_huge_page(struct page *
- #endif
- 
- extern unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
-+extern int hugepage_madvise(unsigned long *vm_flags);
- static inline int PageTransHuge(struct page *page)
- {
- 	VM_BUG_ON(PageTail(page));
-@@ -119,6 +120,11 @@ static inline int split_huge_page(struct
- #define wait_split_huge_page(__anon_vma, __pmd)	\
- 	do { } while (0)
- #define PageTransHuge(page) 0
-+static inline int hugepage_madvise(unsigned long *vm_flags)
-+{
-+	BUG_ON(0);
-+	return 0;
-+}
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -463,9 +463,11 @@ int do_huge_pmd_wp_page(struct mm_struct
- 		put_page(new_page);
- 		new_page = NULL;
- 	}
--	if (unlikely(!new_page))
--		return do_huge_pmd_wp_page_fallback(mm, vma, address,
--						    pmd, orig_pmd, page, haddr);
-+	if (unlikely(!new_page)) {
-+		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
-+						   pmd, orig_pmd, page, haddr);
-+		goto out;
-+	}
- 
- 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
-@@ -495,6 +497,7 @@ int do_huge_pmd_wp_page(struct mm_struct
- 	}
- out_unlock:
- 	spin_unlock(&mm->page_table_lock);
-+out:
- 	return ret;
- }
- 
-@@ -845,3 +848,19 @@ out_unlock:
- out:
- 	return ret;
- }
-+
-+int hugepage_madvise(unsigned long *vm_flags)
-+{
-+	/*
-+	 * Be somewhat over-protective like KSM for now!
-+	 */
-+	if (*vm_flags & (VM_HUGEPAGE | VM_SHARED  | VM_MAYSHARE   |
-+			 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
-+			 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
-+			 VM_MIXEDMAP | VM_SAO))
-+		return -EINVAL;
-+
-+	*vm_flags |= VM_HUGEPAGE;
-+
-+	return 0;
-+}
-diff --git a/mm/madvise.c b/mm/madvise.c
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -71,6 +71,11 @@ static long madvise_behavior(struct vm_a
- 		if (error)
- 			goto out;
- 		break;
-+	case MADV_HUGEPAGE:
-+		error = hugepage_madvise(&new_flags);
-+		if (error)
-+			goto out;
-+		break;
- 	}
- 
- 	if (new_flags == vma->vm_flags) {
-@@ -283,6 +288,9 @@ madvise_behavior_valid(int behavior)
- 	case MADV_MERGEABLE:
- 	case MADV_UNMERGEABLE:
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -291,6 +291,9 @@ struct mm_struct {
+ #ifdef CONFIG_MMU_NOTIFIER
+ 	struct mmu_notifier_mm *mmu_notifier_mm;
  #endif
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	case MADV_HUGEPAGE:
++	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
 +#endif
- 		return 1;
+ };
  
- 	default:
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+diff --git a/kernel/fork.c b/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -498,6 +498,9 @@ void __mmdrop(struct mm_struct *mm)
+ 	mm_free_pgd(mm);
+ 	destroy_context(mm);
+ 	mmu_notifier_mm_destroy(mm);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	VM_BUG_ON(mm->pmd_huge_pte);
++#endif
+ 	free_mm(mm);
+ }
+ EXPORT_SYMBOL_GPL(__mmdrop);
+@@ -638,6 +641,10 @@ struct mm_struct *dup_mm(struct task_str
+ 	mm->token_priority = 0;
+ 	mm->last_interval = 0;
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	mm->pmd_huge_pte = NULL;
++#endif
++
+ 	if (!mm_init(mm, tsk))
+ 		goto fail_nomem;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
