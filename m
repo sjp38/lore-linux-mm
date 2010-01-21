@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 896A86B0071
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9AC2F6B007B
 	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 01:51:28 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 18 of 30] add pmd_huge_pte to mm_struct
-Message-Id: <e96a00d0713899a06b10.1264054842@v2.random>
+Subject: [PATCH 19 of 30] ensure mapcount is taken on head pages
+Message-Id: <8a02c04d705157e09086.1264054843@v2.random>
 In-Reply-To: <patchbomb.1264054824@v2.random>
 References: <patchbomb.1264054824@v2.random>
-Date: Thu, 21 Jan 2010 07:20:42 +0100
+Date: Thu, 21 Jan 2010 07:20:43 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,58 +18,58 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-This increase the size of the mm struct a bit but it is needed to preallocate
-one pte for each hugepage so that split_huge_page will not require a fail path.
-Guarantee of success is a fundamental property of split_huge_page to avoid
-decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
-would otherwise force the hugepage-unaware VM code to learn rolling back in the
-middle of its pte mangling operations (if something we need it to learn
-handling pmd_trans_huge natively rather being capable of rollback). When
-split_huge_page runs a pte is needed to succeed the split, to map the newly
-splitted regular pages with a regular pte.  This way all existing VM code
-remains backwards compatible by just adding a split_huge_page* one liner. The
-memory waste of those preallocated ptes is negligible and so it is worth it.
+Unlike the page count, the page mapcount cannot be taken on PageTail compound
+pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -291,6 +291,9 @@ struct mm_struct {
- #ifdef CONFIG_MMU_NOTIFIER
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
-+#endif
- };
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -105,6 +105,7 @@ void page_remove_rmap(struct page *);
  
- /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-diff --git a/kernel/fork.c b/kernel/fork.c
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -498,6 +498,9 @@ void __mmdrop(struct mm_struct *mm)
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
- 	mmu_notifier_mm_destroy(mm);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	VM_BUG_ON(mm->pmd_huge_pte);
-+#endif
- 	free_mm(mm);
+ static inline void page_dup_rmap(struct page *page)
+ {
++	VM_BUG_ON(PageTail(page));
+ 	atomic_inc(&page->_mapcount);
  }
- EXPORT_SYMBOL_GPL(__mmdrop);
-@@ -638,6 +641,10 @@ struct mm_struct *dup_mm(struct task_str
- 	mm->token_priority = 0;
- 	mm->last_interval = 0;
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	mm->pmd_huge_pte = NULL;
-+#endif
-+
- 	if (!mm_init(mm, tsk))
- 		goto fail_nomem;
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -674,6 +674,7 @@ void page_add_anon_rmap(struct page *pag
+ 	struct vm_area_struct *vma, unsigned long address)
+ {
+ 	int first = atomic_inc_and_test(&page->_mapcount);
++	VM_BUG_ON(PageTail(page));
+ 	if (first)
+ 		__inc_zone_page_state(page, NR_ANON_PAGES);
+ 	if (unlikely(PageKsm(page)))
+@@ -701,6 +702,7 @@ void page_add_new_anon_rmap(struct page 
+ 	struct vm_area_struct *vma, unsigned long address)
+ {
+ 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
++	VM_BUG_ON(PageTail(page));
+ 	SetPageSwapBacked(page);
+ 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+ 	__inc_zone_page_state(page, NR_ANON_PAGES);
+@@ -733,6 +735,7 @@ void page_add_file_rmap(struct page *pag
+  */
+ void page_remove_rmap(struct page *page)
+ {
++	VM_BUG_ON(PageTail(page));
+ 	/* page still mapped by someone else? */
+ 	if (!atomic_add_negative(-1, &page->_mapcount))
+ 		return;
+@@ -1281,6 +1284,7 @@ static int rmap_walk_file(struct page *p
+ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+ {
++	VM_BUG_ON(PageTail(page));
+ 	VM_BUG_ON(!PageLocked(page));
  
+ 	if (unlikely(PageKsm(page)))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
