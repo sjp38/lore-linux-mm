@@ -1,86 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4AA476B006A
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 00:23:02 -0500 (EST)
-Message-ID: <4B57E442.5060700@redhat.com>
-Date: Thu, 21 Jan 2010 00:21:06 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC -v2 PATCH -mm] change anon_vma linking to fix multi-process
- server scalability issue
-References: <20100117222140.0f5b3939@annuminas.surriel.com> <20100121133448.73BD.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100121133448.73BD.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AB8DA6B006A
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 00:24:42 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0L5OdnP008321
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 21 Jan 2010 14:24:39 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 064BF45DE4F
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 14:24:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D5BB745DE4C
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 14:24:38 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BBF2C1DB8041
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 14:24:38 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 55E9F1DB803A
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 14:24:35 +0900 (JST)
+Date: Thu, 21 Jan 2010 14:21:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/8] vmalloc: simplify vread()/vwrite()
+Message-Id: <20100121142106.c13c2bbf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100121050521.GB24236@localhost>
+References: <20100113135305.013124116@intel.com>
+	<20100113135957.833222772@intel.com>
+	<20100114124526.GB7518@laptop>
+	<20100118133512.GC721@localhost>
+	<20100118142359.GA14472@laptop>
+	<20100119013303.GA12513@localhost>
+	<20100119112343.04f4eff5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100121050521.GB24236@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, minchan.kim@gmail.com, lwoodman@redhat.com, aarcange@redhat.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 01/21/2010 12:05 AM, KOSAKI Motohiro wrote:
+On Thu, 21 Jan 2010 13:05:21 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
->> In a workload with 1000 child processes and a VMA with 1000 anonymous
->> pages per process that get COWed, this leads to a system with a million
->> anonymous pages in the same anon_vma, each of which is mapped in just
->> one of the 1000 processes.  However, the current rmap code needs to
->> walk them all, leading to O(N) scanning complexity for each page.
+> On Mon, Jan 18, 2010 at 07:23:43PM -0700, KAMEZAWA Hiroyuki wrote:
+> > On Tue, 19 Jan 2010 09:33:03 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > > > The whole thing looks stupid though, apparently kmap is used to avoid "the
+> > > > lock". But the lock is already held. We should just use the vmap
+> > > > address.
+> > > 
+> > > Yes. I wonder why Kame introduced kmap_atomic() in d0107eb07 -- given
+> > > that he at the same time fixed the order of removing vm_struct and
+> > > vmap in dd32c279983b.
+> > > 
+> > Hmm...I must check my thinking again before answering..
+> > 
+> > vmalloc/vmap is constructed by 2 layer.
+> > 	- vmalloc layer....guarded by vmlist_lock.
+> > 	- vmap layer   ....gurderd by purge_lock. etc.
+> > 
+> > Now, let's see how vmalloc() works. It does job in 2 steps.
+> > vmalloc():
+> >   - allocate vmalloc area to the list under vmlist_lock.
+> > 	- map pages.
+> > vfree()
+> >   - free vmalloc area from the list under vmlist_lock.
+> > 	- unmap pages under purge_lock.
+> > 
+> > Now. vread(), vwrite() just take vmlist_lock, doesn't take purge_lock().
+> > It walks page table and find pte entry, page, kmap and access it.
+> > 
+> > Oh, yes. It seems it's safe without kmap. But My concern is percpu allocator.
+> > 
+> > It uses get_vm_area() and controls mapped pages by themselves and
+> > map/unmap pages by with their own logic. vmalloc.c is just used for
+> > alloc/free virtual address. 
+> > 
+> > Now, vread()/vwrite() just holds vmlist_lock() and walk page table
+> > without no guarantee that the found page is stably mapped. So, I used kmap.
+> > 
+> > If I miss something, I'm very sorry to add such kmap.
+> 
+> Ah Thanks for explanation!
+> 
+> I did some audit and find that
+> 
+> - set_memory_uc(), set_memory_array_uc(), set_pages_uc(),
+>   set_pages_array_uc() are called EFI code and various video drivers,
+>   all of them don't touch HIGHMEM RAM
+> 
+> - Kame: ioremap() won't allow remap of physical RAM
+> 
+> So kmap_atomic() is safe.  Let's just settle on this patch?
+> 
+I recommend you to keep check on VM_IOREMAP. That was checked far before
+I started to see Linux. Some _unknown_ driver can call get_vm_area() and
+map arbitrary pages there.
 
->> This reduces rmap scanning complexity to O(1) for the pages of
->> the 1000 child processes, with O(N) complexity for at most 1/N
->> pages in the system.  This reduces the average scanning cost in
->> heavily forking workloads from O(N) to 2.
+I'm sorry I coundn't track discussion correctly.
 
-> I've only roughly reviewed this patch. So, perhaps I missed something.
-> My first impression is, this is slightly large but benefit is only affected
-> corner case.
+Thanks,
+-Kame
 
-At the moment it mostly triggers with artificial workloads, but
-having 1000 client connections to eg. an Oracle database is not
-unheard of.
 
-The reason for wanting to fix the corner case is because it is
-so incredibly bad.
 
-> If my remember is correct, you said you expect Nick's fair rwlock + Larry's rw-anon-lock
-> makes good result at some week ago. Why do you make alternative patch?
-> such way made bad result? or this patch have alternative benefit?
-
-After looking at the complexity figures (above), I suspect that
-making a factor 5-10 speedup is not going to fix a factor 1000
-increased complexity.
-
-> This patch seems to increase fork overhead instead decreasing vmscan overhead.
-> I'm not sure it is good deal.
-
-My hope is that the overhead of adding a few small objects per VMA
-will be unnoticable, compared to the overhead of refcounting pages,
-handling page tables, etc.
-
-The code looks like it could be a lot of anon_vma_chains, but in
-practice the depth is limited because exec() wipes them all out.
-Most of the time we will have just 0, 1 or 2 anon_vmas attached to
-a VMA - one for the current process and one for the parent.
-
-> Hmm...
-> Why can't we convert read side anon-vma walk to rcu? It need rcu aware vma
-> free, but anon_vma is alredy freed by rcu.
-
-Changing the locking to RCU does not reduce the amount of work
-that needs to be done in page_referenced_anon.  If we have 1000
-siblings with 1000 pages each, we still end up scanning all
-1000 processes for each of those 1000 pages in the pageout code.
-
-Adding parallelism to that with better locking may speed it up
-by the number of CPUs at most, which really may not help much
-in these workloads.
-
-Today having 1000 client connections to a forking server is
-considered a lot, but I suspect it could be more common in a
-few years. I would like Linux to be ready for those kinds of
-workloads.
-
--- 
-All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
