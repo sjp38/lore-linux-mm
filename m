@@ -1,30 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 730466B0078
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 15:41:34 -0500 (EST)
-Date: Thu, 21 Jan 2010 14:40:41 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 22 of 30] pmd_trans_huge migrate bugcheck
-In-Reply-To: <f5766ea214603fc6a64f.1264054846@v2.random>
-Message-ID: <alpine.DEB.2.00.1001211431300.13130@router.home>
-References: <patchbomb.1264054824@v2.random> <f5766ea214603fc6a64f.1264054846@v2.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id BDDA16B006A
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 16:38:45 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [linux-pm] [RFC][PATCH] PM: Force GFP_NOIO
+ =?iso-8859-1?q?during=09suspend/resume?= (was: Re: Memory allocations in
+ =?iso-8859-1?q?=2Esuspend=09became_very?= unreliable)
+Date: Thu, 21 Jan 2010 22:38:47 +0100
+References: <20100120085053.405A.A69D9226@jp.fujitsu.com> <201001212121.50272.rjw@sisk.pl> <4B58BC31.1040406@crca.org.au>
+In-Reply-To: <4B58BC31.1040406@crca.org.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001212238.47471.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Nigel Cunningham <ncunningham@crca.org.au>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-pm@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Jan 2010, Andrea Arcangeli wrote:
+On Thursday 21 January 2010, Nigel Cunningham wrote:
+> Hi.
+> 
+> Rafael J. Wysocki wrote:
+> > On Thursday 21 January 2010, KOSAKI Motohiro wrote:
+> >>  - Ask all drivers how much they require memory before starting suspend and
+> >>    Make enough free memory at first?
+> > 
+> > That's equivalent to reworking all drivers to allocate memory before suspend
+> > eg. with the help of PM notifiers.  Which IMHO is unrealistic.
+> 
+> What's unrealistic about it? I can see that it would be a lot of work,
+> but unrealistic? To me, at this stage, it sounds like the ideal solution.
 
-> From: Andrea Arcangeli <aarcange@redhat.com>
->
-> No pmd_trans_huge should ever materialize in migration ptes areas, because
-> try_to_unmap will split the hugepage before migration ptes are instantiated.
+First, we'd need to audit the drivers which is quite a task by itself.
+Second, we'd need to make changes, preferably test them or find someone with
+suitable hardware to do that for us and propagate them upstream.
 
-try_to_unmap? How do you isolate the hugepages from the LRU? If you do
-isolate the huge pages via a LRU and get a 2M page then the migration
-logic has to be modified to be aware that huge pages may split during try_to_unmap.
+I don't really think we have the time to do it.
+
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
