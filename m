@@ -1,81 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 2E4216B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 20:34:17 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0L1YEDF000601
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E07346B0071
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 21:11:25 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0L2BG1S005428
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 21 Jan 2010 10:34:14 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CAA845DE4F
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 10:34:13 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3240C45DE50
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 10:34:13 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F0511DB8040
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 10:34:12 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CE0B0E08005
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 10:34:11 +0900 (JST)
-Date: Thu, 21 Jan 2010 10:30:47 +0900
+	Thu, 21 Jan 2010 11:11:17 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 84A9D45DE54
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 11:11:16 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A1C945DE4F
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 11:11:16 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FB68E18004
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 11:11:16 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D5A7B1DB8038
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 11:11:15 +0900 (JST)
+Date: Thu, 21 Jan 2010 11:07:59 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] Shared page accounting for memory cgroup
-Message-Id: <20100121103047.2667b864.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100121100416.88074a46.nishimura@mxp.nes.nec.co.jp>
-References: <20100104093528.04846521.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107083440.GS3059@balbir.in.ibm.com>
-	<20100107174814.ad6820db.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107180800.7b85ed10.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100107092736.GW3059@balbir.in.ibm.com>
-	<20100108084727.429c40fc.kamezawa.hiroyu@jp.fujitsu.com>
-	<661de9471001171130p2b0ac061he6f3dab9ef46fd06@mail.gmail.com>
-	<20100118094920.151e1370.nishimura@mxp.nes.nec.co.jp>
-	<4B541B44.3090407@linux.vnet.ibm.com>
-	<20100119102208.59a16397.nishimura@mxp.nes.nec.co.jp>
-	<661de9471001181749y2fe22a15j1c01c94aa1838e99@mail.gmail.com>
-	<20100119113443.562e38ba.nishimura@mxp.nes.nec.co.jp>
-	<4B552C89.8000004@linux.vnet.ibm.com>
-	<20100120130902.865d8269.nishimura@mxp.nes.nec.co.jp>
-	<4B56BC09.2090508@linux.vnet.ibm.com>
-	<20100121100416.88074a46.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH mmotm] memcg use generic percpu allocator instead of
+ private one
+Message-Id: <20100121110759.250ed739.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4B56CEF0.2040406@linux.vnet.ibm.com>
+References: <20100120161825.15c372ac.kamezawa.hiroyu@jp.fujitsu.com>
+	<4B56CEF0.2040406@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed;
+ boundary="Multipart=_Thu__21_Jan_2010_11_07_59_+0900_sG8dNNtnL3RTT6sn"
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, kirill@shutemov.name
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Jan 2010 10:04:16 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+This is a multi-part message in MIME format.
 
-> Anyway, I wouldn't say any more about the usefullness of "shared_usage_in_bytes".
-> 
-> But if you dare to add this interface to kernel, please and please write the documentation
-> that it can be used to roughly estimate a sum of i) and ii), not sum of i) and iii), and
-> can be used to decide the weight of the group only when few pages are shared between groups.
-> So that users doesn't misunderstand nor misuse the interface.
-> 
-> And I think you should answer what Kamezawa-san pointed in http://lkml.org/lkml/2010/1/17/186.
-> 
-> 
-I wouldn't like to say anything other than 'please add stat to global VM before
-memcg if it's really important" because it seems I couldn't persuade him, he can't
-do so me. I myself never think sum of rss is important.
+--Multipart=_Thu__21_Jan_2010_11_07_59_+0900_sG8dNNtnL3RTT6sn
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 
-An additonal craim I can easily think of is fork()->exit().
-Assume there is a program with 1GB RSS and which invokes a helper program by
-fork()->exec(). This is an usual situation. Then, sum of RSS can easily
-jump up/down 1GB.
+On Wed, 20 Jan 2010 15:07:52 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+ 
+> > This includes no functional changes.
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> 
+> Before review, could you please post parallel pagefault data on a large
+> system, since root now uses these per cpu counters and its overhead is
+> now dependent on these counters. Also the data read from root cgroup is
+> also dependent on these, could you make sure that is not broken.
+> 
+Hmm, I rewrote test program for avoidng mmap_sem. This version does fork()
+instead of pthread_create() and meausre parallel-process page fault speed.
 
-Even if getting data in atomic way, the data itself can be corrupted very
-easily and the users should remove noises by themselves. So, there is no much
-difference to calculate RSS in user land or kernel. The users has to measure
-the status and estimate the stable value in statical technique.
+[Before patch]
+[root@bluextal memory]# /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-fork 8
+
+ Performance counter stats for './multi-fault-fork 8' (5 runs):
+
+       45256919  page-faults                ( +-   0.851% )
+      602230144  cache-misses               ( +-   0.187% )
+
+   61.020533723  seconds time elapsed   ( +-   0.002% 
+
+[After patch]
+[root@bluextal memory]# /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-fork 8
+
+ Performance counter stats for './multi-fault-fork 8' (5 runs):
+
+       46007166  page-faults                ( +-   0.339% )
+      599553505  cache-misses               ( +-   0.298% )
+
+   61.020937843  seconds time elapsed   ( +-   0.004% )
+
+slightly improved ? But this test program does some extreme behavior and
+you can't see difference in real-world applications, I think.
+So, I guess this is in error-range in famous (not small) benchmarks.
 
 Thanks,
 -Kame
+
+--Multipart=_Thu__21_Jan_2010_11_07_59_+0900_sG8dNNtnL3RTT6sn
+Content-Type: text/x-csrc;
+ name="multi-fault-fork.c"
+Content-Disposition: attachment;
+ filename="multi-fault-fork.c"
+Content-Transfer-Encoding: 7bit
+
+/*
+ * multi-fault.c :: causes 60secs of parallel page fault in multi-thread.
+ * % gcc -O2 -o multi-fault multi-fault.c -lpthread
+ * % multi-fault # of cpus.
+ */
+
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <sched.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
+
+/*
+ * For avoiding contention in page table lock, FAULT area is
+ * sparse. If FAULT_LENGTH is too large for your cpus, decrease it.
+ */
+#define FAULT_LENGTH	(2 * 1024 * 1024)
+#define PAGE_SIZE	4096
+
+void alarm_handler(int sig)
+{
+}
+
+void *worker(int cpu, int ppid)
+{
+	void *start, *end;
+	char *c;
+	cpu_set_t set;
+	int i;
+
+	CPU_ZERO(&set);
+	CPU_SET(cpu, &set);
+	sched_setaffinity(0, sizeof(set), &set);
+
+	start = mmap(NULL, FAULT_LENGTH, PROT_READ|PROT_WRITE,
+			MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+	if (start == MAP_FAILED) {
+		perror("mmap");
+		exit(1);
+	}
+	end = start + FAULT_LENGTH;
+
+	pause();
+	//fprintf(stderr, "run%d", cpu);
+	while (1) {
+		for (c = (char*)start; (void *)c < end; c += PAGE_SIZE)
+			*c = 0;
+		madvise(start, FAULT_LENGTH, MADV_DONTNEED);
+	}
+	return NULL;
+}
+
+int main(int argc, char *argv[])
+{
+	int num, i, ret, pid;
+
+	if (argc < 2)
+		return 0;
+
+	setpgid(0, 0);
+	signal(SIGALRM, alarm_handler);
+	num = atoi(argv[1]);	
+	pid = getpid();
+
+	for (i = 0; i < num; ++i) {
+		if (fork()) {
+			worker(i, pid);
+		}
+	}
+	sleep(1);
+	kill(-pid, SIGALRM);
+	sleep(60);
+	kill(-pid, SIGKILL);
+	return 0;
+}
+
+--Multipart=_Thu__21_Jan_2010_11_07_59_+0900_sG8dNNtnL3RTT6sn--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
