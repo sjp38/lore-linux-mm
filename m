@@ -1,51 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 117386B006A
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 18:35:11 -0500 (EST)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o0LNZ9vc002354
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 15:35:09 -0800
-Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
-	by kpbe16.cbf.corp.google.com with ESMTP id o0LNXVgg025677
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 15:34:41 -0800
-Received: by pxi9 with SMTP id 9so382336pxi.24
-        for <linux-mm@kvack.org>; Thu, 21 Jan 2010 15:34:41 -0800 (PST)
-Date: Thu, 21 Jan 2010 15:34:39 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 5/7] Add /proc trigger for memory compaction
-In-Reply-To: <20100121140948.GJ5154@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1001211514230.31073@chino.kir.corp.google.com>
-References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-6-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001071352100.23894@chino.kir.corp.google.com> <20100120094813.GC5154@csn.ul.ie> <alpine.DEB.2.00.1001201241540.6440@chino.kir.corp.google.com>
- <20100121140948.GJ5154@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with SMTP id 982506B006A
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 18:43:42 -0500 (EST)
+Date: Thu, 21 Jan 2010 17:43:35 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: SLUB ia64 linux-next crash bisected to 756dee75
+In-Reply-To: <20100121230551.GO17684@ldl.fc.hp.com>
+Message-ID: <alpine.DEB.2.00.1001211737360.20719@router.home>
+References: <alpine.DEB.2.00.1001151358110.6590@router.home> <1263587721.20615.255.camel@useless.americas.hpqcorp.net> <alpine.DEB.2.00.1001151730350.10558@router.home> <alpine.DEB.2.00.1001191252370.25101@router.home> <20100119200228.GE11010@ldl.fc.hp.com>
+ <alpine.DEB.2.00.1001191427370.26683@router.home> <20100119212935.GG11010@ldl.fc.hp.com> <alpine.DEB.2.00.1001191545170.26683@router.home> <20100121214749.GJ17684@ldl.fc.hp.com> <alpine.DEB.2.00.1001211643020.20071@router.home>
+ <20100121230551.GO17684@ldl.fc.hp.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alex Chiang <achiang@hp.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, penberg@cs.helsinki.fi, linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Jan 2010, Mel Gorman wrote:
+On Thu, 21 Jan 2010, Alex Chiang wrote:
 
-> > It would be helpful to be able to determine what is "compactable" at the 
-> > same time by adding both global and per-node "compact_order" tunables that 
-> > would default to HUGETLB_PAGE_ORDER. 
-> 
-> Well, rather than having a separate tunable, writing a number to
-> /proc/sys/vm/compact could indicate the order if that trigger is now
-> working system-wide. Would that be suitable?
-> 
+> > Looks like percpu data is corrupted. One of my earlier fixes dimensioned
+> > the kmem_cache_cpu array correctly. That is missing here.
+>
+> Ah, that was pilot error on my part. I didn't realize that the
+> second patch you sent was to be in combination with the first.
+> Sorry about that.
 
-Do you think you'll eventually find a need to call try_to_compact_pages() 
-with a higher order than the one passed to the page allocator to limit 
-"compaction thrashing" from fragmented frees to a zone where we're 
-constantly compacting order-1 pages, for instance?  I agree that memory 
-compaction should always be used before direct reclaim for higher order 
-allocations, but it may be more efficient to define a compact_min_order, 
-tunable from userspace, that would avoid the need for constant order-1 
-compactions from subsequent page allocations.
+Difficult since I also did not track how this belonged together. Sorry.
 
-If that's a possibility, we may find a need for "compact_order", now 
-renamed "compact_min_order", outside of the explicit trigger.
+
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: [SLUB] dma kmalloc handling fixes
+
+1. We need kmalloc_percpu for all of the now extended kmalloc caches
+   array not just for each shift value.
+
+2. init_kmem_cache_nodes() must assume node 0 locality for statically
+   allocated dma kmem_cache structures even after boot is complete.
+
+Reported-and-tested-by: Alex Chiang <achiang@hp.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+
+---
+ mm/slub.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-01-21 16:39:26.000000000 -0600
++++ linux-2.6/mm/slub.c	2010-01-21 16:40:35.000000000 -0600
+@@ -2086,7 +2086,7 @@ init_kmem_cache_node(struct kmem_cache_n
+ #endif
+ }
+
+-static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[SLUB_PAGE_SHIFT]);
++static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
+
+ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
+ {
+@@ -2176,7 +2176,8 @@ static int init_kmem_cache_nodes(struct
+ 	int node;
+ 	int local_node;
+
+-	if (slab_state >= UP)
++	if (slab_state >= UP && (s < kmalloc_caches ||
++			s > kmalloc_caches + KMALLOC_CACHES))
+ 		local_node = page_to_nid(virt_to_page(s));
+ 	else
+ 		local_node = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
