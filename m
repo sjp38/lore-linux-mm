@@ -1,79 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BDDF6B0082
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 10:30:40 -0500 (EST)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp06.au.ibm.com (8.14.3/8.13.1) with ESMTP id o0LFUXaw008602
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 02:30:33 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o0LFPrnw1622182
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 02:25:53 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o0LFUY5P021581
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 02:30:34 +1100
-Message-ID: <4B587317.6060404@linux.vnet.ibm.com>
-Date: Thu, 21 Jan 2010 21:00:31 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9BE3B6B007D
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 10:44:58 -0500 (EST)
+Date: Thu, 21 Jan 2010 16:44:08 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 27 of 30] memcg compound
+Message-ID: <20100121154408.GA5598@random.random>
+References: <patchbomb.1264054824@v2.random>
+ <2f3ecb53039bd9ae8c7a.1264054851@v2.random>
+ <20100121160759.3dcad6ae.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH mmotm] memcg use generic percpu allocator instead of private
- one
-References: <20100120161825.15c372ac.kamezawa.hiroyu@jp.fujitsu.com> <4B56CEF0.2040406@linux.vnet.ibm.com> <20100121110759.250ed739.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100121110759.250ed739.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100121160759.3dcad6ae.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, kirill@shutemov.name
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 21 January 2010 07:37 AM, KAMEZAWA Hiroyuki wrote:
-> On Wed, 20 Jan 2010 15:07:52 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Thu, Jan 21, 2010 at 04:07:59PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 21 Jan 2010 07:20:51 +0100
+> Andrea Arcangeli <aarcange@redhat.com> wrote:
 > 
->>> This includes no functional changes.
->>>
->>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->>
->> Before review, could you please post parallel pagefault data on a large
->> system, since root now uses these per cpu counters and its overhead is
->> now dependent on these counters. Also the data read from root cgroup is
->> also dependent on these, could you make sure that is not broken.
->>
-> Hmm, I rewrote test program for avoidng mmap_sem. This version does fork()
-> instead of pthread_create() and meausre parallel-process page fault speed.
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > Teach memcg to charge/uncharge compound pages.
+> > 
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> [Before patch]
-> [root@bluextal memory]# /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-fork 8
+> I'm sorry but I'm glad if you don't touch fast path.
 > 
->  Performance counter stats for './multi-fault-fork 8' (5 runs):
+> if (likely(page_size == PAGE_SIZE))
+> 	if (consume_stock(mem))
+> 		goto charged;
 > 
->        45256919  page-faults                ( +-   0.851% )
->       602230144  cache-misses               ( +-   0.187% )
-> 
->    61.020533723  seconds time elapsed   ( +-   0.002% 
-> 
-> [After patch]
-> [root@bluextal memory]# /root/bin/perf stat -e page-faults,cache-misses --repeat 5 ./multi-fault-fork 8
-> 
->  Performance counter stats for './multi-fault-fork 8' (5 runs):
-> 
->        46007166  page-faults                ( +-   0.339% )
->       599553505  cache-misses               ( +-   0.298% )
-> 
->    61.020937843  seconds time elapsed   ( +-   0.004% )
-> 
-> slightly improved ? But this test program does some extreme behavior and
-> you can't see difference in real-world applications, I think.
-> So, I guess this is in error-range in famous (not small) benchmarks.
+> is my recommendation.
 
-Looks good, please give me a couple of days to test, I'll revert back
-with numbers and review.
-
--- 
-Three Cheers,
-Balbir Singh
+Ok updated. But I didn't touch this code since last submit, because I
+didn't merge the other patch (not yet in mainline) that you said would
+complicate things. So I assume most if it will need to be rewritten. I
+also though you wanted to remove the hpage size from the batch logic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
