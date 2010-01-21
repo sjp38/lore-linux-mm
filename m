@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BCEC06B0082
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C36306B0085
 	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 01:51:28 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 13 of 30] special pmd_trans_* functions
-Message-Id: <e76dbe99cbe488fe3280.1264054837@v2.random>
+Subject: [PATCH 20 of 30] split_huge_page_mm/vma
+Message-Id: <487536e1fee9a05648d2.1264054844@v2.random>
 In-Reply-To: <patchbomb.1264054824@v2.random>
 References: <patchbomb.1264054824@v2.random>
-Date: Thu, 21 Jan 2010 07:20:37 +0100
+Date: Thu, 21 Jan 2010 07:20:44 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,62 +18,79 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-These returns 0 at compile time when the config option is disabled, to allow
-gcc to eliminate the transparent hugepage function calls at compile time
-without additional #ifdefs (only the export of those functions have to be
-visible to gcc but they won't be required at link time and huge_memory.o can be
-not built at all).
+split_huge_page_mm/vma compat code. Each one of those would need to be expanded
+to hundred of lines of complex code without a fully reliable
+split_huge_page_mm/vma functionality.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -394,6 +394,24 @@ static inline int pmd_present(pmd_t pmd)
- 	return pmd_flags(pmd) & _PAGE_PRESENT;
- }
+diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
+--- a/arch/x86/kernel/vm86_32.c
++++ b/arch/x86/kernel/vm86_32.c
+@@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm
+ 	if (pud_none_or_clear_bad(pud))
+ 		goto out;
+ 	pmd = pmd_offset(pud, 0xA0000);
++	split_huge_page_mm(mm, 0xA0000, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		goto out;
+ 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -446,6 +446,7 @@ static inline int check_pmd_range(struct
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_vma(vma, pmd);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		if (check_pte_range(vma, pmd, addr, next, nodes,
+diff --git a/mm/mincore.c b/mm/mincore.c
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -132,6 +132,7 @@ static long do_mincore(unsigned long add
+ 	if (pud_none_or_clear_bad(pud))
+ 		goto none_mapped;
+ 	pmd = pmd_offset(pud, addr);
++	split_huge_page_vma(vma, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		goto none_mapped;
  
-+static inline int pmd_trans_splitting(pmd_t pmd)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	return pmd_val(pmd) & _PAGE_SPLITTING;
-+#else
-+	return 0;
-+#endif
-+}
-+
-+static inline int pmd_trans_huge(pmd_t pmd)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	return pmd_val(pmd) & _PAGE_PSE;
-+#else
-+	return 0;
-+#endif
-+}
-+
- static inline int pmd_none(pmd_t pmd)
- {
- 	/* Only check low word on 32-bit platforms, since it might be
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -22,6 +22,7 @@
- #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
- #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
- #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
-+#define _PAGE_BIT_SPLITTING	_PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
- #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -89,6 +89,7 @@ static inline void change_pmd_range(stru
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_mm(mm, addr, pmd);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
+diff --git a/mm/mremap.c b/mm/mremap.c
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -42,6 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
+ 		return NULL;
  
- /* If _PAGE_BIT_PRESENT is clear, we use these: */
-@@ -45,6 +46,7 @@
- #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
- #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
- #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
-+#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
- #define __HAVE_ARCH_PTE_SPECIAL
+ 	pmd = pmd_offset(pud, addr);
++	split_huge_page_mm(mm, addr, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		return NULL;
  
- #ifdef CONFIG_KMEMCHECK
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -34,6 +34,7 @@ static int walk_pmd_range(pud_t *pud, un
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_mm(walk->mm, addr, pmd);
+ 		if (pmd_none_or_clear_bad(pmd)) {
+ 			if (walk->pte_hole)
+ 				err = walk->pte_hole(addr, next, walk);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
