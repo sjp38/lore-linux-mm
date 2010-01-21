@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C36306B0085
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C25486B0083
 	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 01:51:28 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 20 of 30] split_huge_page_mm/vma
-Message-Id: <487536e1fee9a05648d2.1264054844@v2.random>
+Subject: [PATCH 28 of 30] memcg huge memory
+Message-Id: <4c405faf58cfe5d1aa6e.1264054852@v2.random>
 In-Reply-To: <patchbomb.1264054824@v2.random>
 References: <patchbomb.1264054824@v2.random>
-Date: Thu, 21 Jan 2010 07:20:44 +0100
+Date: Thu, 21 Jan 2010 07:20:52 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,79 +18,96 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-split_huge_page_mm/vma compat code. Each one of those would need to be expanded
-to hundred of lines of complex code without a fully reliable
-split_huge_page_mm/vma functionality.
+Add memcg charge/uncharge to hugepage faults in huge_memory.c.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
---- a/arch/x86/kernel/vm86_32.c
-+++ b/arch/x86/kernel/vm86_32.c
-@@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm
- 	if (pud_none_or_clear_bad(pud))
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -212,6 +212,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	VM_BUG_ON(!PageCompound(page));
+ 	pgtable = pte_alloc_one(mm, address);
+ 	if (unlikely(!pgtable)) {
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		return VM_FAULT_OOM;
+ 	}
+@@ -228,6 +229,7 @@ static int __do_huge_pmd_anonymous_page(
+ 
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_none(*pmd))) {
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		pte_free(mm, pgtable);
+ 	} else {
+@@ -265,6 +267,10 @@ int do_huge_pmd_anonymous_page(struct mm
+ 		page = alloc_hugepage(transparent_hugepage_defrag(vma));
+ 		if (unlikely(!page))
+ 			goto out;
++		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
++			put_page(page);
++			goto out;
++		}
+ 
+ 		return __do_huge_pmd_anonymous_page(mm, vma, address, pmd,
+ 						    page, haddr);
+@@ -365,9 +371,15 @@ static int do_huge_pmd_wp_page_fallback(
+ 	for (i = 0; i < HPAGE_PMD_NR; i++) {
+ 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+ 					  vma, address);
+-		if (unlikely(!pages[i])) {
+-			while (--i >= 0)
++		if (unlikely(!pages[i] ||
++			     mem_cgroup_newpage_charge(pages[i], mm,
++						       GFP_KERNEL))) {
++			if (pages[i])
+ 				put_page(pages[i]);
++			while (--i >= 0) {
++				mem_cgroup_uncharge_page(pages[i]);
++				put_page(pages[i]);
++			}
+ 			kfree(pages);
+ 			ret |= VM_FAULT_OOM;
+ 			goto out;
+@@ -426,8 +438,10 @@ out:
+ 
+ out_free_pages:
+ 	spin_unlock(&mm->page_table_lock);
+-	for (i = 0; i < HPAGE_PMD_NR; i++)
++	for (i = 0; i < HPAGE_PMD_NR; i++) {
++		mem_cgroup_uncharge_page(pages[i]);
+ 		put_page(pages[i]);
++	}
+ 	kfree(pages);
+ 	goto out;
+ }
+@@ -469,6 +483,11 @@ int do_huge_pmd_wp_page(struct mm_struct
  		goto out;
- 	pmd = pmd_offset(pud, 0xA0000);
-+	split_huge_page_mm(mm, 0xA0000, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		goto out;
- 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -446,6 +446,7 @@ static inline int check_pmd_range(struct
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_vma(vma, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		if (check_pte_range(vma, pmd, addr, next, nodes,
-diff --git a/mm/mincore.c b/mm/mincore.c
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -132,6 +132,7 @@ static long do_mincore(unsigned long add
- 	if (pud_none_or_clear_bad(pud))
- 		goto none_mapped;
- 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_vma(vma, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		goto none_mapped;
+ 	}
  
-diff --git a/mm/mprotect.c b/mm/mprotect.c
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -89,6 +89,7 @@ static inline void change_pmd_range(stru
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_mm(mm, addr, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
-diff --git a/mm/mremap.c b/mm/mremap.c
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -42,6 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
- 		return NULL;
++	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
++		put_page(new_page);
++		ret |= VM_FAULT_OOM;
++		goto out;
++	}
+ 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
  
- 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_mm(mm, addr, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		return NULL;
+@@ -480,9 +499,10 @@ int do_huge_pmd_wp_page(struct mm_struct
+ 	smp_wmb();
  
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -34,6 +34,7 @@ static int walk_pmd_range(pud_t *pud, un
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_mm(walk->mm, addr, pmd);
- 		if (pmd_none_or_clear_bad(pmd)) {
- 			if (walk->pte_hole)
- 				err = walk->pte_hole(addr, next, walk);
+ 	spin_lock(&mm->page_table_lock);
+-	if (unlikely(!pmd_same(*pmd, orig_pmd)))
++	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
++		mem_cgroup_uncharge_page(new_page);
+ 		put_page(new_page);
+-	else {
++	} else {
+ 		pmd_t entry;
+ 		entry = mk_pmd(new_page, vma->vm_page_prot);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
