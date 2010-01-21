@@ -1,43 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AF1B66B006A
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 18:17:43 -0500 (EST)
-Date: Fri, 22 Jan 2010 00:17:14 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 22 of 30] pmd_trans_huge migrate bugcheck
-Message-ID: <20100121231714.GJ5598@random.random>
-References: <patchbomb.1264054824@v2.random>
- <f5766ea214603fc6a64f.1264054846@v2.random>
- <alpine.DEB.2.00.1001211431300.13130@router.home>
- <20100121230127.GI5598@random.random>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 117386B006A
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 18:35:11 -0500 (EST)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id o0LNZ9vc002354
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 15:35:09 -0800
+Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
+	by kpbe16.cbf.corp.google.com with ESMTP id o0LNXVgg025677
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 15:34:41 -0800
+Received: by pxi9 with SMTP id 9so382336pxi.24
+        for <linux-mm@kvack.org>; Thu, 21 Jan 2010 15:34:41 -0800 (PST)
+Date: Thu, 21 Jan 2010 15:34:39 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 5/7] Add /proc trigger for memory compaction
+In-Reply-To: <20100121140948.GJ5154@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1001211514230.31073@chino.kir.corp.google.com>
+References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-6-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001071352100.23894@chino.kir.corp.google.com> <20100120094813.GC5154@csn.ul.ie> <alpine.DEB.2.00.1001201241540.6440@chino.kir.corp.google.com>
+ <20100121140948.GJ5154@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100121230127.GI5598@random.random>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 22, 2010 at 12:01:27AM +0100, Andrea Arcangeli wrote:
-> @@ -833,6 +834,9 @@ static int do_move_page_to_node_array(st
->  				!migrate_all)
->  			goto put_and_set;
->  
-> +		if (unlikely(PageTransHuge(page)))
-> +			if (unlikely(split_huge_page(page)))
-> +				goto put_and_set;
->  		err = isolate_lru_page(page);
->  		if (!err) {
->  			list_add_tail(&page->lru, &pagelist);
+On Thu, 21 Jan 2010, Mel Gorman wrote:
 
-This was too fast of a patch, I've to move this a few lines above so
-the mapcount check will work too (also note, pagetranshuge bugs on
-tail pages and I like to keep it that way to be more strict on the
-other users, so it should be replaced by pagecompound in addition to
-moving it a little up). refcounting will adjust automatically and
-atomically during the split, simply mapcount will be >0 after the split
-on the tailpage and the tail_page->_count will be boosted by the mapcount too.
+> > It would be helpful to be able to determine what is "compactable" at the 
+> > same time by adding both global and per-node "compact_order" tunables that 
+> > would default to HUGETLB_PAGE_ORDER. 
+> 
+> Well, rather than having a separate tunable, writing a number to
+> /proc/sys/vm/compact could indicate the order if that trigger is now
+> working system-wide. Would that be suitable?
+> 
+
+Do you think you'll eventually find a need to call try_to_compact_pages() 
+with a higher order than the one passed to the page allocator to limit 
+"compaction thrashing" from fragmented frees to a zone where we're 
+constantly compacting order-1 pages, for instance?  I agree that memory 
+compaction should always be used before direct reclaim for higher order 
+allocations, but it may be more efficient to define a compact_min_order, 
+tunable from userspace, that would avoid the need for constant order-1 
+compactions from subsequent page allocations.
+
+If that's a possibility, we may find a need for "compact_order", now 
+renamed "compact_min_order", outside of the explicit trigger.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
