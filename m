@@ -1,45 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9BE3B6B007D
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 10:44:58 -0500 (EST)
-Date: Thu, 21 Jan 2010 16:44:08 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 27 of 30] memcg compound
-Message-ID: <20100121154408.GA5598@random.random>
-References: <patchbomb.1264054824@v2.random>
- <2f3ecb53039bd9ae8c7a.1264054851@v2.random>
- <20100121160759.3dcad6ae.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B132D6B007D
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 10:51:54 -0500 (EST)
+Message-ID: <4B58770A.3050107@zytor.com>
+Date: Thu, 21 Jan 2010 07:47:22 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100121160759.3dcad6ae.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 04/12] Add "handle page fault" PV helper.
+References: <1262700774-1808-5-git-send-email-gleb@redhat.com> <1263490267.4244.340.camel@laptop> <20100117144411.GI31692@redhat.com> <4B541D08.9040802@zytor.com> <20100118085022.GA30698@redhat.com> <4B5510B1.9010202@zytor.com> <20100119065537.GF14345@redhat.com> <4B55E5D8.1070402@zytor.com> <20100119174438.GA19450@redhat.com> <4B5611A9.4050301@zytor.com> <20100120100254.GC5238@redhat.com> <4B5740CD.4020005@zytor.com> <4B58181B.60405@redhat.com>
+In-Reply-To: <4B58181B.60405@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Avi Kivity <avi@redhat.com>
+Cc: Gleb Natapov <gleb@redhat.com>, Peter Zijlstra <peterz@infradead.org>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, tglx@linutronix.de, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 21, 2010 at 04:07:59PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 21 Jan 2010 07:20:51 +0100
-> Andrea Arcangeli <aarcange@redhat.com> wrote:
+On 01/21/2010 01:02 AM, Avi Kivity wrote:
+>>
+>> You can also just emulate the state transition -- since you know
+>> you're dealing with a flat protected-mode or long-mode OS (and just
+>> make that a condition of enabling the feature) you don't have to deal
+>> with all the strange combinations of directions that an unrestricted
+>> x86 event can take.  Since it's an exception, it is unconditional.
 > 
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > Teach memcg to charge/uncharge compound pages.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Do you mean create the stack frame manually?  I'd really like to avoid
+> that for many reasons, one of which is performance (need to do all the
+> virt-to-phys walks manually), the other is that we're certain to end up
+> with something horribly underspecified.  I'd really like to keep as
+> close as possible to the hardware.  For the alternative approach, see Xen.
 > 
-> I'm sorry but I'm glad if you don't touch fast path.
-> 
-> if (likely(page_size == PAGE_SIZE))
-> 	if (consume_stock(mem))
-> 		goto charged;
-> 
-> is my recommendation.
 
-Ok updated. But I didn't touch this code since last submit, because I
-didn't merge the other patch (not yet in mainline) that you said would
-complicate things. So I assume most if it will need to be rewritten. I
-also though you wanted to remove the hpage size from the batch logic.
+I obviously didn't mean to do something which didn't look like a
+hardware-delivered exception.  That by itself provides a tight spec.
+The performance issue is real, of course.
+
+Obviously, the design of VT-x was before my time at Intel, so I'm not
+familiar with why the tradeoffs that were done they way they were.
+
+	-hpa
+
+-- 
+H. Peter Anvin, Intel Open Source Technology Center
+I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
