@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 395656B00BD
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 01:52:23 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 14A166B00B9
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 01:52:22 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 11 of 30] add pmd mangling functions to x86
-Message-Id: <22367befceba0c312d15.1264054835@v2.random>
+Subject: [PATCH 23 of 30] clear_copy_huge_page
+Message-Id: <96c94965fd6da8618859.1264054847@v2.random>
 In-Reply-To: <patchbomb.1264054824@v2.random>
 References: <patchbomb.1264054824@v2.random>
-Date: Thu, 21 Jan 2010 07:20:35 +0100
+Date: Thu, 21 Jan 2010 07:20:47 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,317 +18,191 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add needed pmd mangling functions with simmetry with their pte counterparts.
-pmdp_freeze_flush is the only exception only present on the pmd side and it's
-needed to serialize the VM against split_huge_page, it simply atomically clears
-the present bit in the same way pmdp_clear_flush_young atomically clears the
-accessed bit (and both need to flush the tlb to make it effective, which is
-mandatory to happen synchronously for pmdp_freeze_flush).
+Move the copy/clear_huge_page functions to common code to share between
+hugetlb.c and huge_memory.c.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -95,11 +95,21 @@ static inline int pte_young(pte_t pte)
- 	return pte_flags(pte) & _PAGE_ACCESSED;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1379,5 +1379,14 @@ extern void shake_page(struct page *p, i
+ extern atomic_long_t mce_bad_pages;
+ extern int soft_offline_page(struct page *page, int flags);
+ 
++#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
++extern void clear_huge_page(struct page *page,
++			    unsigned long addr,
++			    unsigned int pages_per_huge_page);
++extern void copy_huge_page(struct page *dst, struct page *src,
++			   unsigned long addr, struct vm_area_struct *vma,
++			   unsigned int pages_per_huge_page);
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_H */
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -385,70 +385,6 @@ static int vma_has_reserves(struct vm_ar
+ 	return 0;
  }
  
-+static inline int pmd_young(pmd_t pmd)
-+{
-+	return pmd_flags(pmd) & _PAGE_ACCESSED;
-+}
-+
- static inline int pte_write(pte_t pte)
+-static void clear_gigantic_page(struct page *page,
+-			unsigned long addr, unsigned long sz)
+-{
+-	int i;
+-	struct page *p = page;
+-
+-	might_sleep();
+-	for (i = 0; i < sz/PAGE_SIZE; i++, p = mem_map_next(p, page, i)) {
+-		cond_resched();
+-		clear_user_highpage(p, addr + i * PAGE_SIZE);
+-	}
+-}
+-static void clear_huge_page(struct page *page,
+-			unsigned long addr, unsigned long sz)
+-{
+-	int i;
+-
+-	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
+-		clear_gigantic_page(page, addr, sz);
+-		return;
+-	}
+-
+-	might_sleep();
+-	for (i = 0; i < sz/PAGE_SIZE; i++) {
+-		cond_resched();
+-		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+-	}
+-}
+-
+-static void copy_gigantic_page(struct page *dst, struct page *src,
+-			   unsigned long addr, struct vm_area_struct *vma)
+-{
+-	int i;
+-	struct hstate *h = hstate_vma(vma);
+-	struct page *dst_base = dst;
+-	struct page *src_base = src;
+-	might_sleep();
+-	for (i = 0; i < pages_per_huge_page(h); ) {
+-		cond_resched();
+-		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
+-
+-		i++;
+-		dst = mem_map_next(dst, dst_base, i);
+-		src = mem_map_next(src, src_base, i);
+-	}
+-}
+-static void copy_huge_page(struct page *dst, struct page *src,
+-			   unsigned long addr, struct vm_area_struct *vma)
+-{
+-	int i;
+-	struct hstate *h = hstate_vma(vma);
+-
+-	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+-		copy_gigantic_page(dst, src, addr, vma);
+-		return;
+-	}
+-
+-	might_sleep();
+-	for (i = 0; i < pages_per_huge_page(h); i++) {
+-		cond_resched();
+-		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
+-	}
+-}
+-
+ static void enqueue_huge_page(struct hstate *h, struct page *page)
  {
- 	return pte_flags(pte) & _PAGE_RW;
+ 	int nid = page_to_nid(page);
+@@ -2334,7 +2270,8 @@ retry_avoidcopy:
+ 		return -PTR_ERR(new_page);
+ 	}
+ 
+-	copy_huge_page(new_page, old_page, address, vma);
++	copy_huge_page(new_page, old_page, address, vma,
++		       pages_per_huge_page(h));
+ 	__SetPageUptodate(new_page);
+ 
+ 	/*
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3396,3 +3396,73 @@ void might_fault(void)
  }
- 
-+static inline int pmd_write(pmd_t pmd)
-+{
-+	return pmd_flags(pmd) & _PAGE_RW;
-+}
-+
- static inline int pte_file(pte_t pte)
- {
- 	return pte_flags(pte) & _PAGE_FILE;
-@@ -150,6 +160,13 @@ static inline pte_t pte_set_flags(pte_t 
- 	return native_make_pte(v | set);
- }
- 
-+static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
-+{
-+	pmdval_t v = native_pmd_val(pmd);
-+
-+	return native_make_pmd(v | set);
-+}
-+
- static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
- {
- 	pteval_t v = native_pte_val(pte);
-@@ -157,6 +174,13 @@ static inline pte_t pte_clear_flags(pte_
- 	return native_make_pte(v & ~clear);
- }
- 
-+static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
-+{
-+	pmdval_t v = native_pmd_val(pmd);
-+
-+	return native_make_pmd(v & ~clear);
-+}
-+
- static inline pte_t pte_mkclean(pte_t pte)
- {
- 	return pte_clear_flags(pte, _PAGE_DIRTY);
-@@ -167,11 +191,21 @@ static inline pte_t pte_mkold(pte_t pte)
- 	return pte_clear_flags(pte, _PAGE_ACCESSED);
- }
- 
-+static inline pmd_t pmd_mkold(pmd_t pmd)
-+{
-+	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
-+}
-+
- static inline pte_t pte_wrprotect(pte_t pte)
- {
- 	return pte_clear_flags(pte, _PAGE_RW);
- }
- 
-+static inline pmd_t pmd_wrprotect(pmd_t pmd)
-+{
-+	return pmd_clear_flags(pmd, _PAGE_RW);
-+}
-+
- static inline pte_t pte_mkexec(pte_t pte)
- {
- 	return pte_clear_flags(pte, _PAGE_NX);
-@@ -182,16 +216,36 @@ static inline pte_t pte_mkdirty(pte_t pt
- 	return pte_set_flags(pte, _PAGE_DIRTY);
- }
- 
-+static inline pmd_t pmd_mkdirty(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_DIRTY);
-+}
-+
-+static inline pmd_t pmd_mkhuge(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_PSE);
-+}
-+
- static inline pte_t pte_mkyoung(pte_t pte)
- {
- 	return pte_set_flags(pte, _PAGE_ACCESSED);
- }
- 
-+static inline pmd_t pmd_mkyoung(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_ACCESSED);
-+}
-+
- static inline pte_t pte_mkwrite(pte_t pte)
- {
- 	return pte_set_flags(pte, _PAGE_RW);
- }
- 
-+static inline pmd_t pmd_mkwrite(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_RW);
-+}
-+
- static inline pte_t pte_mkhuge(pte_t pte)
- {
- 	return pte_set_flags(pte, _PAGE_PSE);
-@@ -320,6 +374,11 @@ static inline int pte_same(pte_t a, pte_
- 	return a.pte == b.pte;
- }
- 
-+static inline int pmd_same(pmd_t a, pmd_t b)
-+{
-+	return a.pmd == b.pmd;
-+}
-+
- static inline int pte_present(pte_t a)
- {
- 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
-@@ -351,7 +410,7 @@ static inline unsigned long pmd_page_vad
-  * Currently stuck as a macro due to indirect forward reference to
-  * linux/mmzone.h's __section_mem_map_addr() definition:
-  */
--#define pmd_page(pmd)	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
-+#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
- 
- /*
-  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
-@@ -372,6 +431,7 @@ static inline unsigned long pmd_index(un
-  * to linux/mm.h:page_to_nid())
-  */
- #define mk_pte(page, pgprot)   pfn_pte(page_to_pfn(page), (pgprot))
-+#define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
- 
- /*
-  * the pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
-@@ -568,14 +628,21 @@ struct vm_area_struct;
- extern int ptep_set_access_flags(struct vm_area_struct *vma,
- 				 unsigned long address, pte_t *ptep,
- 				 pte_t entry, int dirty);
-+extern int pmdp_set_access_flags(struct vm_area_struct *vma,
-+				 unsigned long address, pmd_t *pmdp,
-+				 pmd_t entry, int dirty);
- 
- #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
- extern int ptep_test_and_clear_young(struct vm_area_struct *vma,
- 				     unsigned long addr, pte_t *ptep);
-+extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
-+				     unsigned long addr, pmd_t *pmdp);
- 
- #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
- extern int ptep_clear_flush_young(struct vm_area_struct *vma,
- 				  unsigned long address, pte_t *ptep);
-+extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
-+				  unsigned long address, pmd_t *pmdp);
- 
- #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
- static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
-@@ -586,6 +653,14 @@ static inline pte_t ptep_get_and_clear(s
- 	return pte;
- }
- 
-+static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm, unsigned long addr,
-+				       pmd_t *pmdp)
-+{
-+	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
-+	pmd_update(mm, addr, pmdp);
-+	return pmd;
-+}
-+
- #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
- static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
- 					    unsigned long addr, pte_t *ptep,
-@@ -612,6 +687,16 @@ static inline void ptep_set_wrprotect(st
- 	pte_update(mm, addr, ptep);
- }
- 
-+static inline void pmdp_set_wrprotect(struct mm_struct *mm,
-+				      unsigned long addr, pmd_t *pmdp)
-+{
-+	clear_bit(_PAGE_BIT_RW, (unsigned long *)&pmdp->pmd);
-+	pmd_update(mm, addr, pmd);
-+}
-+
-+extern void pmdp_splitting_flush(struct vm_area_struct *vma,
-+				 unsigned long addr, pmd_t *pmdp);
-+
- /*
-  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
-  *
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -71,6 +71,18 @@ static inline pte_t native_ptep_get_and_
- 	return ret;
+ EXPORT_SYMBOL(might_fault);
  #endif
- }
-+static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
++
++#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
++static void clear_gigantic_page(struct page *page,
++				unsigned long addr,
++				unsigned int pages_per_huge_page)
 +{
-+#ifdef CONFIG_SMP
-+	return native_make_pmd(xchg(&xp->pmd, 0));
-+#else
-+	/* native_local_pmdp_get_and_clear,
-+	   but duplicated because of cyclic dependency */
-+	pmd_t ret = *xp;
-+	native_pmd_clear(NULL, 0, xp);
-+	return ret;
-+#endif
++	int i;
++	struct page *p = page;
++
++	might_sleep();
++	for (i = 0; i < pages_per_huge_page;
++	     i++, p = mem_map_next(p, page, i)) {
++		cond_resched();
++		clear_user_highpage(p, addr + i * PAGE_SIZE);
++	}
 +}
- 
- static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
- {
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -288,6 +288,23 @@ int ptep_set_access_flags(struct vm_area
- 	return changed;
- }
- 
-+int pmdp_set_access_flags(struct vm_area_struct *vma,
-+			  unsigned long address, pmd_t *pmdp,
-+			  pmd_t entry, int dirty)
++void clear_huge_page(struct page *page,
++		     unsigned long addr, unsigned int pages_per_huge_page)
 +{
-+	int changed = !pmd_same(*pmdp, entry);
++	int i;
 +
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+
-+	if (changed && dirty) {
-+		*pmdp = entry;
-+		pmd_update_defer(vma->vm_mm, address, pmdp);
-+		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
++		clear_gigantic_page(page, addr, pages_per_huge_page);
++		return;
 +	}
 +
-+	return changed;
-+}
-+
- int ptep_test_and_clear_young(struct vm_area_struct *vma,
- 			      unsigned long addr, pte_t *ptep)
- {
-@@ -303,6 +320,21 @@ int ptep_test_and_clear_young(struct vm_
- 	return ret;
- }
- 
-+int pmdp_test_and_clear_young(struct vm_area_struct *vma,
-+			      unsigned long addr, pmd_t *pmdp)
-+{
-+	int ret = 0;
-+
-+	if (pmd_young(*pmdp))
-+		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
-+					 (unsigned long *) &pmdp->pmd);
-+
-+	if (ret)
-+		pmd_update(vma->vm_mm, addr, pmdp);
-+
-+	return ret;
-+}
-+
- int ptep_clear_flush_young(struct vm_area_struct *vma,
- 			   unsigned long address, pte_t *ptep)
- {
-@@ -315,6 +347,34 @@ int ptep_clear_flush_young(struct vm_are
- 	return young;
- }
- 
-+int pmdp_clear_flush_young(struct vm_area_struct *vma,
-+			   unsigned long address, pmd_t *pmdp)
-+{
-+	int young;
-+
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+
-+	young = pmdp_test_and_clear_young(vma, address, pmdp);
-+	if (young)
-+		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+
-+	return young;
-+}
-+
-+void pmdp_splitting_flush(struct vm_area_struct *vma,
-+			  unsigned long address, pmd_t *pmdp)
-+{
-+	int set;
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
-+				(unsigned long *)&pmdp->pmd);
-+	if (set) {
-+		pmd_update(vma->vm_mm, address, pmdp);
-+		/* need tlb flush only to serialize against gup-fast */
-+		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	might_sleep();
++	for (i = 0; i < pages_per_huge_page; i++) {
++		cond_resched();
++		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
 +	}
 +}
 +
- /**
-  * reserve_top_address - reserves a hole in the top of kernel address space
-  * @reserve - size of hole to reserve
++static void copy_gigantic_page(struct page *dst, struct page *src,
++			       unsigned long addr,
++			       struct vm_area_struct *vma,
++			       unsigned int pages_per_huge_page)
++{
++	int i;
++	struct page *dst_base = dst;
++	struct page *src_base = src;
++	might_sleep();
++	for (i = 0; i < pages_per_huge_page; ) {
++		cond_resched();
++		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
++
++		i++;
++		dst = mem_map_next(dst, dst_base, i);
++		src = mem_map_next(src, src_base, i);
++	}
++}
++void copy_huge_page(struct page *dst, struct page *src,
++		    unsigned long addr, struct vm_area_struct *vma,
++		    unsigned int pages_per_huge_page)
++{
++	int i;
++
++	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
++		copy_gigantic_page(dst, src, addr, vma, pages_per_huge_page);
++		return;
++	}
++
++	might_sleep();
++	for (i = 0; i < pages_per_huge_page; i++) {
++		cond_resched();
++		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE,
++				   vma);
++	}
++}
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
