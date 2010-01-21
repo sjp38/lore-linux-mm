@@ -1,71 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2A7826B006A
-	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 22:12:17 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0L3CEFr009034
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 21 Jan 2010 12:12:14 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6230445DE56
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 12:12:14 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DB11A45DE53
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 12:12:12 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BD5A11DB8044
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 12:12:12 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 383ED1DB8040
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 12:12:12 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC-PATCH 0/7] Memory Compaction v1
-In-Reply-To: <1262795169-9095-1-git-send-email-mel@csn.ul.ie>
-References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie>
-Message-Id: <20100121115636.73BA.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8F5746B006A
+	for <linux-mm@kvack.org>; Wed, 20 Jan 2010 23:59:59 -0500 (EST)
+Received: by pwj10 with SMTP id 10so4481453pwj.6
+        for <linux-mm@kvack.org>; Wed, 20 Jan 2010 20:59:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 21 Jan 2010 12:12:11 +0900 (JST)
+In-Reply-To: <20100121094733.3778.A69D9226@jp.fujitsu.com>
+References: <20100120174630.4071.A69D9226@jp.fujitsu.com>
+	 <20100120095242.GA5672@desktop>
+	 <20100121094733.3778.A69D9226@jp.fujitsu.com>
+Date: Thu, 21 Jan 2010 12:59:57 +0800
+Message-ID: <979dd0561001202059v1870870oaa4df876aa12a756@mail.gmail.com>
+Subject: Re: cache alias in mmap + write
+From: anfei zhou <anfei.zhou@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@arm.linux.org.uk, jamie@shareable.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+On Thu, Jan 21, 2010 at 9:10 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> On Wed, Jan 20, 2010 at 06:10:11PM +0900, KOSAKI Motohiro wrote:
+>> > Hello,
+>> >
+>> > > diff --git a/mm/filemap.c b/mm/filemap.c
+>> > > index 96ac6b0..07056fb 100644
+>> > > --- a/mm/filemap.c
+>> > > +++ b/mm/filemap.c
+>> > > @@ -2196,6 +2196,9 @@ again:
+>> > > =A0 =A0 =A0 =A0 =A0 if (unlikely(status))
+>> > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> > >
+>> > > + =A0 =A0 =A0 =A0 if (mapping_writably_mapped(mapping))
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flush_dcache_page(page);
+>> > > +
+>> > > =A0 =A0 =A0 =A0 =A0 pagefault_disable();
+>> > > =A0 =A0 =A0 =A0 =A0 copied =3D iov_iter_copy_from_user_atomic(page, =
+i, offset, bytes);
+>> > > =A0 =A0 =A0 =A0 =A0 pagefault_enable();
+>> >
+>> > I'm not sure ARM cache coherency model. but I guess correct patch is h=
+ere.
+>> >
+>> > + =A0 =A0 =A0 =A0 =A0 if (mapping_writably_mapped(mapping))
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 flush_dcache_page(page);
+>> > +
+>> > =A0 =A0 =A0 =A0 =A0 =A0 pagefault_disable();
+>> > =A0 =A0 =A0 =A0 =A0 =A0 copied =3D iov_iter_copy_from_user_atomic(page=
+, i, offset, bytes);
+>> > =A0 =A0 =A0 =A0 =A0 =A0 pagefault_enable();
+>> > - =A0 =A0 =A0 =A0 =A0 flush_dcache_page(page);
+>> >
+>> > Why do we need to call flush_dcache_page() twice?
+>> >
+>> The latter flush_dcache_page is used to flush the kernel changes
+>> (iov_iter_copy_from_user_atomic), which makes the userspace to see the
+>> write, =A0and the one I added is used to flush the userspace changes.
+>> And I think it's better to split this function into two:
+>> =A0 =A0 =A0 flush_dcache_user_page(page);
+>> =A0 =A0 =A0 kmap_atomic(page);
+>> =A0 =A0 =A0 write to =A0page;
+>> =A0 =A0 =A0 kunmap_atomic(page);
+>> =A0 =A0 =A0 flush_dcache_kern_page(page);
+>> But currently there is no such API.
+>
+> Why can't we create new api? this your pseudo code looks very fine to me.
+>
+I will resend the patch, if this patch is acceptable, I will create
+another patch
+to introduce this new API.
+>
+> note: if you don't like to create new api. I can agree your current patch=
+.
+> but I have three requests.
+> =A01. Move flush_dcache_page() into iov_iter_copy_from_user_atomic().
+> =A0 =A0Your above explanation indicate it is real intention. plus, change
+> =A0 =A0iov_iter_copy_from_user_atomic() fixes fuse too.
 
-Sorry, I haven't read this patch at all.
+There is a check on mapping, that's not passed into
+iov_iter_copy_from_user_atomic, and this function is only called a few plac=
+es,
+So I just add flush_dcache_page directly.
 
-> The time differences are marginal but bear in mind that this is an ideal
-> case of mostly unmapped buffer pages. On nice set of results is between
-> allocations 13-18 where no pages were reclaimed, some compaction occured
-> and 300 huge pages were allocated in 0.16 seconds. Furthermore, compaction
-> allocated a high higher percentage of memory (91% of RAM as huge pages).
-> 
-> The downside appears to be that the compaction kernel reclaimed even more
-> pages than the vanilla kernel. However, take the cut-off point of 880 pages
-> that both kernels succeeded. The vanilla kernel had reclaimed 105132 pages
-> at that point. The kernel with compaction had reclaimed 59071, less than
-> half of what the vanilla kernel reclaimed. i.e. the bulk of pages reclaimed
-> with the compaction kernel were to get from 87% of memory allocated to 91%
-> as huge pages.
-> 
-> These results would appear to be an encouraging enough start.
-> 
-> Comments?
+> =A02. Add some commnet. almost developer only have x86 machine. so, arm
+> =A0 =A0specific trick need additional explicit explanation. otherwise any=
+body
+> =A0 =A0might break this code in the future.
+> =A03. Resend the patch. original mail isn't good patch format. please con=
+sider
+> =A0 =A0to reduce akpm suffer.
+>
+I will send it soon.
 
-I think "Total pages reclaimed" increasing is not good thing ;)
-Honestly, I haven't understand why your patch increase reclaimed and
-the exactly meaning of the your tool's rclm field.
-
-Can you share your mesurement script? May I run the same test?
-
-I like this patch, but I don't like increasing reclaim. I'd like to know
-this patch require any vmscan change and/or its change mitigate the issue.
-
-Thanks.
-
-
+Thanks,
+Anfei.
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
