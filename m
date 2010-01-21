@@ -1,109 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AB8DA6B006A
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 00:24:42 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0L5OdnP008321
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 21 Jan 2010 14:24:39 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 064BF45DE4F
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 14:24:39 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D5BB745DE4C
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 14:24:38 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BBF2C1DB8041
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 14:24:38 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 55E9F1DB803A
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 14:24:35 +0900 (JST)
-Date: Thu, 21 Jan 2010 14:21:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 5/8] vmalloc: simplify vread()/vwrite()
-Message-Id: <20100121142106.c13c2bbf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100121050521.GB24236@localhost>
-References: <20100113135305.013124116@intel.com>
-	<20100113135957.833222772@intel.com>
-	<20100114124526.GB7518@laptop>
-	<20100118133512.GC721@localhost>
-	<20100118142359.GA14472@laptop>
-	<20100119013303.GA12513@localhost>
-	<20100119112343.04f4eff5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100121050521.GB24236@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A9FC66B006A
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 00:47:38 -0500 (EST)
+Date: Thu, 21 Jan 2010 13:47:34 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
+	pages, too
+Message-ID: <20100121054734.GC24236@localhost>
+References: <20100120215536.GN27212@frostnet.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=gb2312
+Content-Disposition: inline
+In-Reply-To: <20100120215536.GN27212@frostnet.net>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Chris Frost <frost@cs.ucla.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Jan 2010 13:05:21 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+Hi Chris,
 
-> On Mon, Jan 18, 2010 at 07:23:43PM -0700, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 19 Jan 2010 09:33:03 +0800
-> > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > > The whole thing looks stupid though, apparently kmap is used to avoid "the
-> > > > lock". But the lock is already held. We should just use the vmap
-> > > > address.
-> > > 
-> > > Yes. I wonder why Kame introduced kmap_atomic() in d0107eb07 -- given
-> > > that he at the same time fixed the order of removing vm_struct and
-> > > vmap in dd32c279983b.
-> > > 
-> > Hmm...I must check my thinking again before answering..
-> > 
-> > vmalloc/vmap is constructed by 2 layer.
-> > 	- vmalloc layer....guarded by vmlist_lock.
-> > 	- vmap layer   ....gurderd by purge_lock. etc.
-> > 
-> > Now, let's see how vmalloc() works. It does job in 2 steps.
-> > vmalloc():
-> >   - allocate vmalloc area to the list under vmlist_lock.
-> > 	- map pages.
-> > vfree()
-> >   - free vmalloc area from the list under vmlist_lock.
-> > 	- unmap pages under purge_lock.
-> > 
-> > Now. vread(), vwrite() just take vmlist_lock, doesn't take purge_lock().
-> > It walks page table and find pte entry, page, kmap and access it.
-> > 
-> > Oh, yes. It seems it's safe without kmap. But My concern is percpu allocator.
-> > 
-> > It uses get_vm_area() and controls mapped pages by themselves and
-> > map/unmap pages by with their own logic. vmalloc.c is just used for
-> > alloc/free virtual address. 
-> > 
-> > Now, vread()/vwrite() just holds vmlist_lock() and walk page table
-> > without no guarantee that the found page is stably mapped. So, I used kmap.
-> > 
-> > If I miss something, I'm very sorry to add such kmap.
-> 
-> Ah Thanks for explanation!
-> 
-> I did some audit and find that
-> 
-> - set_memory_uc(), set_memory_array_uc(), set_pages_uc(),
->   set_pages_array_uc() are called EFI code and various video drivers,
->   all of them don't touch HIGHMEM RAM
-> 
-> - Kame: ioremap() won't allow remap of physical RAM
-> 
-> So kmap_atomic() is safe.  Let's just settle on this patch?
-> 
-I recommend you to keep check on VM_IOREMAP. That was checked far before
-I started to see Linux. Some _unknown_ driver can call get_vm_area() and
-map arbitrary pages there.
+On Wed, Jan 20, 2010 at 01:55:36PM -0800, Chris Frost wrote:
+> This patch changes readahead to move pages that are already in memory and
+> in the inactive list to the top of the list. This mirrors the behavior
+> of non-in-core pages. The position of pages already in the active list
+> remains unchanged.
+ 
+This is good in general. 
 
-I'm sorry I coundn't track discussion correctly.
+> @@ -170,19 +201,24 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+>  		rcu_read_lock();
+>  		page = radix_tree_lookup(&mapping->page_tree, page_offset);
+>  		rcu_read_unlock();
+> -		if (page)
+> -			continue;
+> -
+> -		page = page_cache_alloc_cold(mapping);
+> -		if (!page)
+> -			break;
+> -		page->index = page_offset;
+> -		list_add(&page->lru, &page_pool);
+> -		if (page_idx == nr_to_read - lookahead_size)
+> -			SetPageReadahead(page);
+> -		ret++;
+> +		if (page) {
+> +			page_cache_get(page);
+
+This is racy - the page may have already be freed and possibly reused
+by others in the mean time.
+
+If you do page_cache_get() on a random page, it may trigger bad_page()
+in the buddy page allocator, or the VM_BUG_ON() in put_page_testzero().
+
+> +			if (!pagevec_add(&retain_vec, page))
+> +				retain_pages(&retain_vec);
+> +		} else {
+> +			page = page_cache_alloc_cold(mapping);
+> +			if (!page)
+> +				break;
+> +			page->index = page_offset;
+> +			list_add(&page->lru, &page_pool);
+> +			if (page_idx == nr_to_read - lookahead_size)
+> +				SetPageReadahead(page);
+> +			ret++;
+> +		}
+
+Years ago I wrote a similar function, which can be called for both
+in-kernel-readahead (when it decides not to bring in new pages, but
+only retain existing pages) and fadvise-readahead (where it want to
+read new pages as well as retain existing pages).
+
+For better chance of code reuse, would you rebase the patch on it?
+(You'll have to do some cleanups first.)
+
++/*
++ * Move pages in danger (of thrashing) to the head of inactive_list.
++ * Not expected to happen frequently.
++ */
++static unsigned long rescue_pages(struct address_space *mapping,
++				  struct file_ra_state *ra,
++				  pgoff_t index, unsigned long nr_pages)
++{
++	struct page *grabbed_page;
++	struct page *page;
++	struct zone *zone;
++	int pgrescue = 0;
++
++	dprintk("rescue_pages(ino=%lu, index=%lu, nr=%lu)\n",
++			mapping->host->i_ino, index, nr_pages);
++
++	for(; nr_pages;) {
++		grabbed_page = page = find_get_page(mapping, index);
++		if (!page) {
++			index++;
++			nr_pages--;
++			continue;
++		}
++
++		zone = page_zone(page);
++		spin_lock_irq(&zone->lru_lock);
++
++		if (!PageLRU(page)) {
++			index++;
++			nr_pages--;
++			goto next_unlock;
++		}
++
++		do {
++			struct page *the_page = page;
++			page = list_entry((page)->lru.prev, struct page, lru);
++			index++;
++			nr_pages--;
++			ClearPageReadahead(the_page);
++			if (!PageActive(the_page) &&
++					!PageLocked(the_page) &&
++					page_count(the_page) == 1) {
++				list_move(&the_page->lru, &zone->inactive_list);
++				pgrescue++;
++			}
++		} while (nr_pages &&
++				page_mapping(page) == mapping &&
++				page_index(page) == index);
++
++next_unlock:
++		spin_unlock_irq(&zone->lru_lock);
++		page_cache_release(grabbed_page);
++		cond_resched();
++	}
++
++	ra_account(ra, RA_EVENT_READAHEAD_RESCUE, pgrescue);
++	return pgrescue;
++}
 
 Thanks,
--Kame
-
-
-
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
