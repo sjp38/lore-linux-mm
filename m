@@ -1,39 +1,49 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 0/4] devmem and readahead fixes for 2.6.33
-Date: Fri, 22 Jan 2010 12:59:14 +0800
-Message-ID: <20100122045914.993668874@intel.com>
+Subject: [PATCH 2/4] devmem: fix kmem write bug on memory holes
+Date: Fri, 22 Jan 2010 12:59:16 +0800
+Message-ID: <20100122051517.415742055@intel.com>
+References: <20100122045914.993668874@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B93376B0078
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 00:19:29 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 633556B007D
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 00:19:32 -0500 (EST)
+Content-Disposition: inline; filename=vwrite-fix.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Kroah-Hartman <gregkh@suse.de>, stable@kernel.org, Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@suse.de>, Andi Kleen <andi@firstfloor.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Christoph Lameter <cl@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>, Nick Piggin <npiggin@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable@kernel.org, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-Andrew,
+write_kmem() used to assume vwrite() always return the full buffer length.
+However now vwrite() could return 0 to indicate memory hole. This creates
+a bug that "buf" is not advanced accordingly.
 
-Here are some good fixes for 2.6.33, they have been floating around
-with other patches for some time. I should really seperate them out
-earlier..
+Fix it to simply ignore the return value, hence the memory hole.
 
-Greg,
+CC: Andi Kleen <andi@firstfloor.org>
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Christoph Lameter <cl@linux-foundation.org>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: Tejun Heo <tj@kernel.org>
+CC: Nick Piggin <npiggin@suse.de>
+CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: <stable@kernel.org>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ drivers/char/mem.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-The first two patches are on devmem. 2.6.32 also needs fixing, however
-the patches can only apply cleanly to 2.6.33. I can do backporting if
-necessary.
+--- linux-mm.orig/drivers/char/mem.c	2010-01-11 10:32:32.000000000 +0800
++++ linux-mm/drivers/char/mem.c	2010-01-11 10:32:34.000000000 +0800
+@@ -555,7 +555,7 @@ static ssize_t write_kmem(struct file * 
+ 				err = -EFAULT;
+ 				break;
+ 			}
+-			sz = vwrite(kbuf, (char *)p, sz);
++			vwrite(kbuf, (char *)p, sz);
+ 			count -= sz;
+ 			buf += sz;
+ 			virtr += sz;
 
-	[PATCH 1/4] devmem: check vmalloc address on kmem read/write
-	[PATCH 2/4] devmem: fix kmem write bug on memory holes
-
-The next two patches are on readahead. All previous kernel needs fixing,
-and the patches can apply cleanly to 2.6.32, too.
-
-	[PATCH 3/4] vfs: take f_lock on modifying f_mode after open time
-	[PATCH 4/4] readahead: introduce FMODE_RANDOM for POSIX_FADV_RANDOM
-
-Thanks,
-Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
