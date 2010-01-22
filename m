@@ -1,78 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 26CC76B006A
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 10:16:45 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0MFGgMd018015
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 23 Jan 2010 00:16:42 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A65145DE4F
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2010 00:16:42 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DCECF45DE4E
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2010 00:16:41 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C396C1DB803C
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2010 00:16:41 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 842A21DB8040
-	for <linux-mm@kvack.org>; Sat, 23 Jan 2010 00:16:41 +0900 (JST)
-Message-ID: <ea36dc1ede8240f85a69215be964c61a.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <1264168844.2789.4.camel@barrios-desktop>
-References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
-    <20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
-    <1264168844.2789.4.camel@barrios-desktop>
-Date: Sat, 23 Jan 2010 00:16:40 +0900 (JST)
-Subject: Re: [PATCH v2] oom-kill: add lowmem usage aware oom kill handling
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id BE8CA6B006A
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 10:20:29 -0500 (EST)
+Date: Fri, 22 Jan 2010 16:19:47 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
+Message-ID: <20100122151947.GA3690@random.random>
+References: <patchbomb.1264054824@v2.random>
+ <alpine.DEB.2.00.1001220845000.2704@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1001220845000.2704@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim wrote:
-> On Fri, 2010-01-22 at 15:23 +0900, KAMEZAWA Hiroyuki wrote:
->> updated. thank you for review.
+On Fri, Jan 22, 2010 at 08:46:50AM -0600, Christoph Lameter wrote:
+> Jus thinking about yesterdays fix to page migration:
+> 
+> This means that huge pages are unstable right? Kernel code cannot
+> establish a reference to a 2M/4M page and be sure that the page is not
+> broken up due to something in the VM that cannot handle huge pages?
 
->>  	CONSTRAINT_MEMORY_POLICY,
->>  };
->
-> <snip>
->> @@ -475,7 +511,7 @@ void mem_cgroup_out_of_memory(struct mem
->>
->>  	read_lock(&tasklist_lock);
->>  retry:
->> -	p = select_bad_process(&points, mem);
->> +	p = select_bad_process(&points, mem, CONSTRAINT_NONE);
->
-> Why do you fix this with only CONSTRAINT_NONE?
-> I think we can know CONSTRAINT_LOWMEM with gfp_mask in here.
->
-memcg is just for accounting anon/file pages. Then, it's never
-cause lowmem oom problem (any memory is ok for memcg).
+Physically speaking DMA-wise they cannot be broken up, only thing that
+gets broken up is the pmd that instead of mapping the page directly
+starts to map the pte. Nothing changes on the physical side of
+hugepages. khugepaged only collapse pages into hugepages if there are
+no references at all (no gup no nothing) so again no issue DMA-wise.
 
+> We need special locking for this?
 
-
-> Any problem?
->
-> Otherwise, Looks good to me. :)
->
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
->
-Thank you.
-
--Kame
-
-> --
-> Kind regards,
-> Minchan Kim
->
->
-
+Only special locking is to take page_table_lock if pmd_trans_huge is
+set. pmd_trans_huge cannot appear from under us because we either hold
+the mmap_sem in read mode, or we have the PG_lock, or in gup_fast we
+have irq disabled so the ipi of collapse_huge_page will wait. It's all
+handled transparently by the patch, you won't notice you're dealing
+with hugepage if you're gup user (unless you use gup to migrate pages
+in which case calling split_huge_page is enough like in patch ;).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
