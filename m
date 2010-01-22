@@ -1,160 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A50E86B0071
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 20:09:51 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0M19mfX018275
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 22 Jan 2010 10:09:48 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B4BE645DE6E
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 10:09:47 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 91E1245DE60
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 10:09:47 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F29E11DB8040
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 10:09:46 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D6271DB803B
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 10:09:43 +0900 (JST)
-Date: Fri, 22 Jan 2010 10:06:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] oom-kill: add lowmem usage aware oom kill handling
-Message-Id: <20100122100628.593f3394.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <28c262361001211640w4ff6d61mdf682fa706ab61e@mail.gmail.com>
-References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<1264087124.1818.15.camel@barrios-desktop>
-	<20100122084856.600b2dd5.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262361001211640w4ff6d61mdf682fa706ab61e@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with SMTP id 41DE46B0071
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 20:18:03 -0500 (EST)
+Date: Fri, 22 Jan 2010 09:17:09 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] fs: add fincore(2) (mincore(2) for file descriptors)
+Message-ID: <20100122011709.GA6700@localhost>
+References: <20100120215712.GO27212@frostnet.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100120215712.GO27212@frostnet.net>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Chris Frost <frost@cs.ucla.edu>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Benny Halevy <bhalevy@panasas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Steve VanDeBogart <vandebo-lkml@nerdbox.net>, Andi Kleen <andi@firstfloor.org>, Matt Mackall <mpm@selenic.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 Jan 2010 09:40:17 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Wed, Jan 20, 2010 at 01:57:12PM -0800, Chris Frost wrote:
+> Add the fincore() system call. fincore() is mincore() for file descriptors.
+> 
+> The functionality of fincore() can be emulated with an mmap(), mincore(),
+> and munmap(), but this emulation requires more system calls and requires
+> page table modifications. fincore() can provide a significant performance
+> improvement for non-sequential in-core queries.
 
-> On Fri, Jan 22, 2010 at 8:48 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Fri, 22 Jan 2010 00:18:44 +0900
-> > Minchan Kim <minchan.kim@gmail.com> wrote:
-> >
-> >> Hi, Kame.
-> >>
-> >> On Thu, 2010-01-21 at 14:59 +0900, KAMEZAWA Hiroyuki wrote:
-> >> > A patch for avoiding oom-serial-killer at lowmem shortage.
-> >> > Patch is onto mmotm-2010/01/15 (depends on mm-count-lowmem-rss.patch)
-> >> > Tested on x86-64/SMP + debug module(to allocated lowmem), works well.
-> >> >
-> >> > ==
-> >> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >> >
-> >> > One cause of OOM-Killer is memory shortage in lower zones.
-> >> > (If memory is enough, lowmem_reserve_ratio works well. but..)
-> >> >
-> >> > In lowmem-shortage oom-kill, oom-killer choses a vicitim process
-> >> > on their vm size. But this kills a process which has lowmem memory
-> >> > only if it's lucky. At last, there will be an oom-serial-killer.
-> >> >
-> >> > Now, we have per-mm lowmem usage counter. We can make use of it
-> >> > to select a good? victim.
-> >> >
-> >> > This patch does
-> >> > A  - add CONSTRAINT_LOWMEM to oom's constraint type.
-> >> > A  - pass constraint to __badness()
-> >> > A  - change calculation based on constraint. If CONSTRAINT_LOWMEM,
-> >> > A  A  use low_rss instead of vmsize.
-> >>
-> >> As far as low memory, it would be better to consider lowmem counter.
-> >> But as you know, {vmsize VS rss} is debatable topic.
-> >> Maybe someone doesn't like this idea.
-> >>
-> > About lowmem, vmsize never work well.
-> >
-> 
-> Tend to agree with you.
-> I am just worried about "vmsize lovers".
-> 
-> You removed considering vmsize totally.
-> In case of LOWMEM, lowcount considering make sense.
-> But never considering vmsize might be debatable.
-> 
-> So personllay, I thouhg we could add more weight lowcount
-> in case of LOWMEM. But I chaged my mind.
-> I think it make OOM heurisic more complated without big benefit.
-> 
-thanks. I don't want patch-drop again, either :)
+FYI I have a seqfile based procfile that export cached file pages with
+various states:
 
-> Simple is best.
-> 
-> >> So don't we need any test result at least?
-> > My test result was very artificial, so I didn't attach the result.
-> >
-> > A - Before this patch, sshd was killed at first.
-> > A - After this patch, memory consumer of low-rss was killed.
-> 
-> Okay. You already anwsered my question by Balbir's reply.
-> I had a question it's real problem and how often it happens.
-> 
-> >
-> >> If we don't have this patch, it happens several innocent process
-> >> killing. but we can't prevent it by this patch.
-> >>
-> > I can't catch what you mean.
-> 
-> I just said your patch's benefit.
-> 
-> >> Sorry for bothering you.
-> >>
-> >
-> > Hmm, boot option or CONFIG ? (CONFIG_OOMKILLER_EXTENSION ?)
-> >
-> > I'm now writing fork-bomb detector again and want to remove current
-> > "gathering child's vm_size" heuristics. I'd like to put that under
-> > the same config, too.
-> 
-> Totally, I don't like CONFIG option for that.
-> But vmsize lovers also don't want to change current behavior.
-> So it's desirable until your fork-form detector become mature and
-> prove it's good.
-> 
-Hmm, Okay, I'll add some. Kosaki told me sysctl is better. I'll check
-how it looks.
+root /home/wfg# echo /sbin/init > /proc/filecache
+root /home/wfg# cat /proc/filecache
+# file /sbin/init
+# flags R:referenced A:active M:mmap U:uptodate D:dirty W:writeback X:readahead P:private O:owner b:buffer d:dirty w:writeback
+# idx   len     state           refcnt
+0       6       RAMU________    2
+6       1       _AMU________    2
+7       1       RAMU________    2
+8       2       ___U________    1
 
-> One more questions about below.
-> 
-> +       if (constraint != CONSTRAINT_LOWMEM) {
-> +               list_for_each_entry(child, &p->children, sibling) {
-> +                       task_lock(child);
-> +                       if (child->mm != mm && child->mm)
-> +                               points += child->mm->total_vm/2 + 1;
-> +                       task_unlock(child);
-> +               }
-> 
-> Why didn't you consider child's lowmem counter in case of LOWMEM?
-> 
-Assume process A, B, C, D. B and C are children of A.
- 
-  A (low_rss = 0)
-  B (low_rss = 20)
-  C (low_rss = 20)
-  D (low_rss = 20)
+It was first developed to provide information for prefetching.
+Since then I've been using it as a generic page cache inspection tool.
+It helped me debug vm/fs issues, eg. readahead, writeback and vmscan.
+Though I'm not sure if the interface is acceptable to Linux.
 
-When we caluculate A's socre by above logic, A's score may be greater than
-B and C, D. We do targetted oom-kill as sniper, not as genocider. So, ignoreing
-children here is better, I think.
-I'll add some explanation to changelog.
+Here is the code snippet if you are interested :) 
+
+/*
+ * Listing of cached page ranges of a file.
+ *
+ * Usage:
+ * 		echo 'file name' > /proc/filecache
+ * 		cat /proc/filecache
+ */
+
+unsigned long page_mask;
+#define PG_MMAP		PG_lru		/* reuse any non-relevant flag */
+#define PG_BUFFER	PG_swapcache	/* ditto */
+#define PG_DIRTY	PG_error	/* ditto */
+#define PG_WRITEBACK	PG_buddy	/* ditto */
+
+/*
+ * Page state names, prefixed by their abbreviations.
+ */
+struct {
+	unsigned long	mask;
+	const char     *name;
+	int		faked;
+} page_flag [] = {
+	{1 << PG_referenced,	"R:referenced",	0},
+	{1 << PG_active,	"A:active",	0},
+	{1 << PG_MMAP,		"M:mmap",	1},
+
+	{1 << PG_uptodate,	"U:uptodate",	0},
+	{1 << PG_dirty,		"D:dirty",	0},
+	{1 << PG_writeback,	"W:writeback",	0},
+	{1 << PG_reclaim,	"X:readahead",	0},
+
+	{1 << PG_private,	"P:private",	0},
+	{1 << PG_owner_priv_1,	"O:owner",	0},
+
+	{1 << PG_BUFFER,	"b:buffer",	1},
+	{1 << PG_DIRTY,		"d:dirty",	1},
+	{1 << PG_WRITEBACK,	"w:writeback",	1},
+};
+
+static unsigned long page_flags(struct page* page)
+{
+	unsigned long flags;
+	struct address_space *mapping = page_mapping(page);
+
+	flags = page->flags & page_mask;
+
+	if (page_mapped(page))
+		flags |= (1 << PG_MMAP);
+
+	if (page_has_buffers(page))
+		flags |= (1 << PG_BUFFER);
+
+	if (mapping) {
+		if (radix_tree_tag_get(&mapping->page_tree,
+					page_index(page),
+					PAGECACHE_TAG_WRITEBACK))
+			flags |= (1 << PG_WRITEBACK);
+
+		if (radix_tree_tag_get(&mapping->page_tree,
+					page_index(page),
+					PAGECACHE_TAG_DIRTY))
+			flags |= (1 << PG_DIRTY);
+	}
+
+	return flags;
+}
+
+static int pages_similiar(struct page* page0, struct page* page)
+{
+	if (page_count(page0) != page_count(page))
+		return 0;
+
+	if (page_flags(page0) != page_flags(page))
+		return 0;
+
+	return 1;
+}
+
+static void show_range(struct seq_file *m, struct page* page, unsigned long len)
+{
+	int i;
+	unsigned long flags;
+
+	if (!m || !page)
+		return;
+
+	seq_printf(m, "%lu\t%lu\t", page->index, len);
+
+	flags = page_flags(page);
+	for (i = 0; i < ARRAY_SIZE(page_flag); i++)
+		seq_putc(m, (flags & page_flag[i].mask) ?
+					page_flag[i].name[0] : '_');
+
+	seq_printf(m, "\t%d\n", page_count(page));
+}
+
+#define BATCH_LINES	100
+static pgoff_t show_file_cache(struct seq_file *m,
+				struct address_space *mapping, pgoff_t start)
+{
+	int i;
+	int lines = 0;
+	pgoff_t len = 0;
+	struct pagevec pvec;
+	struct page *page;
+	struct page *page0 = NULL;
+
+	for (;;) {
+		pagevec_init(&pvec, 0);
+		pvec.nr = radix_tree_gang_lookup(&mapping->page_tree,
+				(void **)pvec.pages, start + len, PAGEVEC_SIZE);
+
+		if (pvec.nr == 0) {
+			show_range(m, page0, len);
+			start = ULONG_MAX;
+			goto out;
+		}
+
+		if (!page0)
+			page0 = pvec.pages[0];
+
+		for (i = 0; i < pvec.nr; i++) {
+			page = pvec.pages[i];
+
+			if (page->index == start + len &&
+					pages_similiar(page0, page))
+				len++;
+			else {
+				show_range(m, page0, len);
+				page0 = page;
+				start = page->index;
+				len = 1;
+				if (++lines > BATCH_LINES)
+					goto out;
+			}
+		}
+	}
+
+out:
+	return start;
+}
 
 Thanks,
--Kame
-
-
-
-
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
