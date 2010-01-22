@@ -1,117 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B126F6B0078
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 19:16:50 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 533AA6B0083
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 19:16:55 -0500 (EST)
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0M0GleS007002
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 22 Jan 2010 09:16:48 +0900
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0M0GrR5012712
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 22 Jan 2010 09:16:53 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FD5D45DE58
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:47 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 00B2545DE50
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:53 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 342FC45DE51
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:47 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C6ECA45DE4F
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:52 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 161BF1DB8046
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:47 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AF9731DB8044
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:52 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EF3E81DB803C
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:45 +0900 (JST)
-Date: Fri, 22 Jan 2010 09:13:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 28 of 30] memcg huge memory
-Message-Id: <20100122091317.39db5546.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100121160807.GB5598@random.random>
-References: <patchbomb.1264054824@v2.random>
-	<4c405faf58cfe5d1aa6e.1264054852@v2.random>
-	<20100121161601.6612fd79.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100121160807.GB5598@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E56C1DB8040
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:52 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC-PATCH 0/7] Memory Compaction v1
+In-Reply-To: <20100121101112.GH5154@csn.ul.ie>
+References: <20100121115636.73BA.A69D9226@jp.fujitsu.com> <20100121101112.GH5154@csn.ul.ie>
+Message-Id: <20100122091504.6BF7.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 22 Jan 2010 09:16:51 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Jan 2010 17:08:07 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> > > @@ -228,6 +229,7 @@ static int __do_huge_pmd_anonymous_page(
-> > >  
-> > >  	spin_lock(&mm->page_table_lock);
-> > >  	if (unlikely(!pmd_none(*pmd))) {
-> > > +		mem_cgroup_uncharge_page(page);
-> > >  		put_page(page);
-> > >  		pte_free(mm, pgtable);
+> > > Comments?
 > > 
-> On Thu, Jan 21, 2010 at 04:16:01PM +0900, KAMEZAWA Hiroyuki wrote:
-> > Can't we do this put_page() and uncharge() outside of page table lock ?
+> > I think "Total pages reclaimed" increasing is not good thing ;)
 > 
-> Yes we can, but it's only a microoptimization because this only
-> triggers during a controlled race condition across different
-> threads. But no problem to optimize it...
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -228,6 +228,7 @@ static int __do_huge_pmd_anonymous_page(
->  
->  	spin_lock(&mm->page_table_lock);
->  	if (unlikely(!pmd_none(*pmd))) {
-> +		spin_unlock(&mm->page_table_lock);
->  		put_page(page);
->  		pte_free(mm, pgtable);
->  	} else {
-> @@ -238,8 +239,8 @@ static int __do_huge_pmd_anonymous_page(
->  		page_add_new_anon_rmap(page, vma, haddr);
->  		set_pmd_at(mm, haddr, pmd, entry);
->  		prepare_pmd_huge_pte(pgtable, mm);
-> +		spin_unlock(&mm->page_table_lock);
->  	}
-> -	spin_unlock(&mm->page_table_lock);
->  
->  	return ret;
->  }
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -230,6 +230,7 @@ static int __do_huge_pmd_anonymous_page(
->  	spin_lock(&mm->page_table_lock);
->  	if (unlikely(!pmd_none(*pmd))) {
->  		spin_unlock(&mm->page_table_lock);
-> +		mem_cgroup_uncharge_page(page);
->  		put_page(page);
->  		pte_free(mm, pgtable);
->  	} else {
-> 
-> 
-> Also below I appended the update memcg_compound to stop using the
-> batch system. Also note your "likely" I removed it because for KVM
-> most of the time it'll be TransHugePages to be charged. I prefer
-> likely/unlikely when it's always a slow path no matter what workload
-> (assuming useful/optimized workloads only ;). 
-Hmm.. But I never believe KVM will be "likley" case in a few years.
+> First, I made a mistake in the patch. With the bug fixed, they're
+> reduced. See the post later in the thread
+> http://lkml.org/lkml/2010/1/6/215
 
-> Like said in earlier
-> email I guess the below may be wasted time because of the rework
-> coming on the file. Also note the TransHugePage check here it's used
-> instead of page_size == PAGE_SIZE to eliminate that additional branch
-> at compile time if TRANSPARENT_HUGEPAGE=n.
-> 
-seems nice.
+Oh, I see. I'm glad the issue was alredy fixed.
 
-> Now the only real pain remains in the LRU list accounting, I tried to
-> solve it but found no clean way that didn't require mess all over
-> vmscan.c. So for now hugepages in lru are accounted as 4k pages
-> ;). Nothing breaks just stats won't be as useful to the admin...
-> 
-Hmm, interesting/important problem...I keep it in my mind.
 
-Thanks,
--Kame
+> > Honestly, I haven't understand why your patch increase reclaimed and
+> > the exactly meaning of the your tool's rclm field.
+> > 
+> > Can you share your mesurement script? May I run the same test?
+> 
+> Unfortunately at the moment it's part of a mini-testgrid setup I run out
+> of the house. It doesn't lend itself to being stand-alone. I'll break it
+> out as part of the next release.
+
+surely good news :)
+
+
+> > I like this patch, but I don't like increasing reclaim. I'd like to know
+> > this patch require any vmscan change and/or its change mitigate the issue.
+> > 
+> 
+> With the bug repaired, reclaims go from 105132 to 45935 with more huge
+> pages allocated so right now, no special action is required.
+
+ok. thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
