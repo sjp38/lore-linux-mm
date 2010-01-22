@@ -1,44 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BE8CA6B006A
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 10:20:29 -0500 (EST)
-Date: Fri, 22 Jan 2010 16:19:47 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-Message-ID: <20100122151947.GA3690@random.random>
-References: <patchbomb.1264054824@v2.random>
- <alpine.DEB.2.00.1001220845000.2704@router.home>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0FCEF6B007D
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 10:41:40 -0500 (EST)
+Received: by pwj10 with SMTP id 10so1010304pwj.6
+        for <linux-mm@kvack.org>; Fri, 22 Jan 2010 07:41:39 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1001220845000.2704@router.home>
+In-Reply-To: <ea36dc1ede8240f85a69215be964c61a.squirrel@webmail-b.css.fujitsu.com>
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
+	 <1264168844.2789.4.camel@barrios-desktop>
+	 <ea36dc1ede8240f85a69215be964c61a.squirrel@webmail-b.css.fujitsu.com>
+Date: Sat, 23 Jan 2010 00:41:39 +0900
+Message-ID: <28c262361001220741n426c52a3t371aeabe89c154c7@mail.gmail.com>
+Subject: Re: [PATCH v2] oom-kill: add lowmem usage aware oom kill handling
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 22, 2010 at 08:46:50AM -0600, Christoph Lameter wrote:
-> Jus thinking about yesterdays fix to page migration:
-> 
-> This means that huge pages are unstable right? Kernel code cannot
-> establish a reference to a 2M/4M page and be sure that the page is not
-> broken up due to something in the VM that cannot handle huge pages?
+2010/1/23 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+>> <snip>
+>>> @@ -475,7 +511,7 @@ void mem_cgroup_out_of_memory(struct mem
+>>>
+>>> =C2=A0 =C2=A0 =C2=A0read_lock(&tasklist_lock);
+>>> =C2=A0retry:
+>>> - =C2=A0 =C2=A0p =3D select_bad_process(&points, mem);
+>>> + =C2=A0 =C2=A0p =3D select_bad_process(&points, mem, CONSTRAINT_NONE);
+>>
+>> Why do you fix this with only CONSTRAINT_NONE?
+>> I think we can know CONSTRAINT_LOWMEM with gfp_mask in here.
+>>
+> memcg is just for accounting anon/file pages. Then, it's never
+> cause lowmem oom problem (any memory is ok for memcg).
 
-Physically speaking DMA-wise they cannot be broken up, only thing that
-gets broken up is the pmd that instead of mapping the page directly
-starts to map the pte. Nothing changes on the physical side of
-hugepages. khugepaged only collapse pages into hugepages if there are
-no references at all (no gup no nothing) so again no issue DMA-wise.
-
-> We need special locking for this?
-
-Only special locking is to take page_table_lock if pmd_trans_huge is
-set. pmd_trans_huge cannot appear from under us because we either hold
-the mmap_sem in read mode, or we have the PG_lock, or in gup_fast we
-have irq disabled so the ipi of collapse_huge_page will wait. It's all
-handled transparently by the patch, you won't notice you're dealing
-with hugepage if you're gup user (unless you use gup to migrate pages
-in which case calling split_huge_page is enough like in patch ;).
+Okay. Thanks for the explanation.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
