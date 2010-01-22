@@ -1,44 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DFA9F6B006A
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 11:52:23 -0500 (EST)
-Date: Fri, 22 Jan 2010 10:51:35 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-In-Reply-To: <20100122151947.GA3690@random.random>
-Message-ID: <alpine.DEB.2.00.1001221008360.4176@router.home>
-References: <patchbomb.1264054824@v2.random> <alpine.DEB.2.00.1001220845000.2704@router.home> <20100122151947.GA3690@random.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5ED626B006A
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 15:58:27 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was: Re: [linux-pm] Memory allocations in .suspend became very unreliable)
+Date: Fri, 22 Jan 2010 21:58:46 +0100
+References: <20100121091023.3775.A69D9226@jp.fujitsu.com> <201001212121.50272.rjw@sisk.pl> <20100122100155.6C03.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100122100155.6C03.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001222158.46337.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 Jan 2010, Andrea Arcangeli wrote:
+On Friday 22 January 2010, KOSAKI Motohiro wrote:
+> > > Probably we have multiple option. but I don't think GFP_NOIO is good
+> > > option. It assume the system have lots non-dirty cache memory and it isn't
+> > > guranteed.
+> > 
+> > Basically nothing is guaranteed in this case.  However, does it actually make
+> > things _worse_?  
+> 
+> Hmm..
+> Do you mean we don't need to prevent accidental suspend failure?
+> Perhaps, I did misunderstand your intention. If you think your patch solve
+> this this issue, I still disagree.
 
-> On Fri, Jan 22, 2010 at 08:46:50AM -0600, Christoph Lameter wrote:
-> > Jus thinking about yesterdays fix to page migration:
-> >
-> > This means that huge pages are unstable right? Kernel code cannot
-> > establish a reference to a 2M/4M page and be sure that the page is not
-> > broken up due to something in the VM that cannot handle huge pages?
->
-> Physically speaking DMA-wise they cannot be broken up, only thing that
-> gets broken up is the pmd that instead of mapping the page directly
-> starts to map the pte. Nothing changes on the physical side of
-> hugepages. khugepaged only collapse pages into hugepages if there are
-> no references at all (no gup no nothing) so again no issue DMA-wise.
+No, I don't.
 
-Reclaim cannot kick out page size pieces of the huge page?
+> but If you think your patch mitigate the pain of this issue, I agree it.
 
-> have irq disabled so the ipi of collapse_huge_page will wait. It's all
-> handled transparently by the patch, you won't notice you're dealing
-> with hugepage if you're gup user (unless you use gup to migrate pages
-> in which case calling split_huge_page is enough like in patch ;).
+That's what I wanted to say really.
 
-What if I want to use hugepages for some purpose and I dont want to use
-512 pointers to keep track of the individual pieces?
+> I don't have any reason to oppose your first patch.
+
+Great!
+
+> > What _exactly_ does happen without the $subject patch if the
+> > system doesn't have non-dirty cache memory and someone makes a GFP_KERNEL
+> > allocation during suspend?
+> 
+> Page allocator prefer to spent lots time for reclaimable memory searching than
+> returning NULL. IOW, it can spent time few second if it doesn't have
+> reclaimable memory.
+> In typical case, OOM killer forcely make enough free memory if the system
+> don't have any memory. But under suspending time, oom killer is disabled.
+> So, if the caller (probably drivers) call alloc >1000times, the system
+> spent lots seconds.
+> 
+> In this case, GFP_NOIO doesn't help. slowness behavior is caused by
+> freeable memory search, not slow i/o.
+> 
+> However, if strange i/o device makes any i/o slowness, GFP_NOIO might help.
+> In this case, please don't ask me about i/o thing. I don't know ;)
+
+OK, thanks for the explanation.
+
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
