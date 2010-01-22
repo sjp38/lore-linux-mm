@@ -1,85 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EF9F66B006A
-	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 19:15:36 -0500 (EST)
-Date: Thu, 21 Jan 2010 17:15:34 -0700
-From: Alex Chiang <achiang@hp.com>
-Subject: Re: SLUB ia64 linux-next crash bisected to 756dee75
-Message-ID: <20100122001534.GB30417@ldl.fc.hp.com>
-References: <alpine.DEB.2.00.1001151730350.10558@router.home> <alpine.DEB.2.00.1001191252370.25101@router.home> <20100119200228.GE11010@ldl.fc.hp.com> <alpine.DEB.2.00.1001191427370.26683@router.home> <20100119212935.GG11010@ldl.fc.hp.com> <alpine.DEB.2.00.1001191545170.26683@router.home> <20100121214749.GJ17684@ldl.fc.hp.com> <alpine.DEB.2.00.1001211643020.20071@router.home> <20100121230551.GO17684@ldl.fc.hp.com> <alpine.DEB.2.00.1001211737360.20719@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1001211737360.20719@router.home>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B126F6B0078
+	for <linux-mm@kvack.org>; Thu, 21 Jan 2010 19:16:50 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0M0GleS007002
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 22 Jan 2010 09:16:48 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FD5D45DE58
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 342FC45DE51
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 161BF1DB8046
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:47 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EF3E81DB803C
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 09:16:45 +0900 (JST)
+Date: Fri, 22 Jan 2010 09:13:17 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 28 of 30] memcg huge memory
+Message-Id: <20100122091317.39db5546.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100121160807.GB5598@random.random>
+References: <patchbomb.1264054824@v2.random>
+	<4c405faf58cfe5d1aa6e.1264054852@v2.random>
+	<20100121161601.6612fd79.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100121160807.GB5598@random.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, penberg@cs.helsinki.fi, linux-ia64@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter <cl@linux-foundation.org>:
-> On Thu, 21 Jan 2010, Alex Chiang wrote:
-> 
-> > > Looks like percpu data is corrupted. One of my earlier fixes dimensioned
-> > > the kmem_cache_cpu array correctly. That is missing here.
-> >
-> > Ah, that was pilot error on my part. I didn't realize that the
-> > second patch you sent was to be in combination with the first.
-> > Sorry about that.
-> 
-> Difficult since I also did not track how this belonged together. Sorry.
+On Thu, 21 Jan 2010 17:08:07 +0100
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-No prob.
-
-Replying and cc'ing so akpm sees this as our final answer. :)
-
-/ac
-
+> > > @@ -228,6 +229,7 @@ static int __do_huge_pmd_anonymous_page(
+> > >  
+> > >  	spin_lock(&mm->page_table_lock);
+> > >  	if (unlikely(!pmd_none(*pmd))) {
+> > > +		mem_cgroup_uncharge_page(page);
+> > >  		put_page(page);
+> > >  		pte_free(mm, pgtable);
+> > 
+> On Thu, Jan 21, 2010 at 04:16:01PM +0900, KAMEZAWA Hiroyuki wrote:
+> > Can't we do this put_page() and uncharge() outside of page table lock ?
 > 
+> Yes we can, but it's only a microoptimization because this only
+> triggers during a controlled race condition across different
+> threads. But no problem to optimize it...
 > 
-> From: Christoph Lameter <cl@linux-foundation.org>
-> Subject: [SLUB] dma kmalloc handling fixes
-> 
-> 1. We need kmalloc_percpu for all of the now extended kmalloc caches
->    array not just for each shift value.
-> 
-> 2. init_kmem_cache_nodes() must assume node 0 locality for statically
->    allocated dma kmem_cache structures even after boot is complete.
-> 
-> Reported-and-tested-by: Alex Chiang <achiang@hp.com>
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-> 
-> ---
->  mm/slub.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2010-01-21 16:39:26.000000000 -0600
-> +++ linux-2.6/mm/slub.c	2010-01-21 16:40:35.000000000 -0600
-> @@ -2086,7 +2086,7 @@ init_kmem_cache_node(struct kmem_cache_n
->  #endif
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -228,6 +228,7 @@ static int __do_huge_pmd_anonymous_page(
+>  
+>  	spin_lock(&mm->page_table_lock);
+>  	if (unlikely(!pmd_none(*pmd))) {
+> +		spin_unlock(&mm->page_table_lock);
+>  		put_page(page);
+>  		pte_free(mm, pgtable);
+>  	} else {
+> @@ -238,8 +239,8 @@ static int __do_huge_pmd_anonymous_page(
+>  		page_add_new_anon_rmap(page, vma, haddr);
+>  		set_pmd_at(mm, haddr, pmd, entry);
+>  		prepare_pmd_huge_pte(pgtable, mm);
+> +		spin_unlock(&mm->page_table_lock);
+>  	}
+> -	spin_unlock(&mm->page_table_lock);
+>  
+>  	return ret;
 >  }
 > 
-> -static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[SLUB_PAGE_SHIFT]);
-> +static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -230,6 +230,7 @@ static int __do_huge_pmd_anonymous_page(
+>  	spin_lock(&mm->page_table_lock);
+>  	if (unlikely(!pmd_none(*pmd))) {
+>  		spin_unlock(&mm->page_table_lock);
+> +		mem_cgroup_uncharge_page(page);
+>  		put_page(page);
+>  		pte_free(mm, pgtable);
+>  	} else {
 > 
->  static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
->  {
-> @@ -2176,7 +2176,8 @@ static int init_kmem_cache_nodes(struct
->  	int node;
->  	int local_node;
 > 
-> -	if (slab_state >= UP)
-> +	if (slab_state >= UP && (s < kmalloc_caches ||
-> +			s > kmalloc_caches + KMALLOC_CACHES))
->  		local_node = page_to_nid(virt_to_page(s));
->  	else
->  		local_node = 0;
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-ia64" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Also below I appended the update memcg_compound to stop using the
+> batch system. Also note your "likely" I removed it because for KVM
+> most of the time it'll be TransHugePages to be charged. I prefer
+> likely/unlikely when it's always a slow path no matter what workload
+> (assuming useful/optimized workloads only ;). 
+Hmm.. But I never believe KVM will be "likley" case in a few years.
+
+> Like said in earlier
+> email I guess the below may be wasted time because of the rework
+> coming on the file. Also note the TransHugePage check here it's used
+> instead of page_size == PAGE_SIZE to eliminate that additional branch
+> at compile time if TRANSPARENT_HUGEPAGE=n.
 > 
+seems nice.
+
+> Now the only real pain remains in the LRU list accounting, I tried to
+> solve it but found no clean way that didn't require mess all over
+> vmscan.c. So for now hugepages in lru are accounted as 4k pages
+> ;). Nothing breaks just stats won't be as useful to the admin...
+> 
+Hmm, interesting/important problem...I keep it in my mind.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
