@@ -1,12 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D26CA6B006A
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 19:06:34 -0500 (EST)
-Message-ID: <4B5A3D00.8080901@bx.jp.nec.com>
-Date: Fri, 22 Jan 2010 19:04:16 -0500
+	by kanga.kvack.org (Postfix) with ESMTP id 23E7F6B006A
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 19:10:49 -0500 (EST)
+Message-ID: <4B5A3DD5.3020904@bx.jp.nec.com>
+Date: Fri, 22 Jan 2010 19:07:49 -0500
 From: Keiichi KII <k-keiichi@bx.jp.nec.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH -tip 0/2 v2] pagecache tracepoints proposal
+Subject: [RFC PATCH -tip 1/2 v2] add tracepoints for pagecache
+References: <4B5A3D00.8080901@bx.jp.nec.com>
+In-Reply-To: <4B5A3D00.8080901@bx.jp.nec.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,60 +16,184 @@ To: linux-kernel@vger.kernel.org
 Cc: lwoodman@redhat.com, linux-mm@kvack.org, mingo@elte.hu, tzanussi@gmail.com, riel@redhat.com, rostedt@goodmis.org, akpm@linux-foundation.org, fweisbec@gmail.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+This patch adds several tracepoints to track pagecach behavior.
+These trecepoints would help us monitor pagecache usage with high resolution.
 
-This is v2 of a patchset to add some tracepoints for pagecache.
+Signed-off-by: Keiichi Kii <k-keiichi@bx.jp.nec.com>
+Cc: Atsushi Tsuji <a-tsuji@bk.jp.nec.com> 
+---
+ include/trace/events/filemap.h |   83 +++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                   |    5 ++
+ mm/truncate.c                  |    2 
+ mm/vmscan.c                    |    3 +
+ 4 files changed, 93 insertions(+)
 
-I would propose several tracepoints for tracing pagecache behaviors and
-a script for these.
-By using both the tracepoints and the script, we can monitor pagecache usage
-with high resolution. Example output of the script looks like:
-
-[file list]
-                            cached
-        device      inode    pages
-  --------------------------------
-         253:0    1051413      130
-         253:0    1051399        2
-         253:0    1051414       44
-         253:0    1051417      154
-
-o postmaster-2330
-                            cached    added  removed      indirect
-        device      inode    pages    pages    pages removed pages
-  ----------------------------------------------------------------
-         253:0    1051399        0        2        0             0
-         253:0    1051417      154        0        0             0
-         253:0    1051413      130        0        0             0
-         253:0    1051414       44        0        0             0
-  ----------------------------------------------------------------
-  total:                       337        2        0             0
-
-We can now know system-wide pagecache usage by /proc/meminfo.
-But we have no method to get higher resolution information like per file or
-per process usage than system-wide one.
-A process may share some pagecache or add a pagecache to the memory or
-remove a pagecache from the memory.
-If a pagecache miss hit ratio rises, maybe it leads to extra I/O and
-affects system performance.
-
-So, by using the tracepoints we can get the following information.
- 1. how many pagecaches each process has per each file
- 2. how many pages are cached per each file
- 3. how many pagecaches each process shares
- 4. how often each process adds/removes pagecache
- 5. how long a pagecache stays in the memory
- 6. pagecache hit rate per file
-
-Especially, the monitoring pagecache usage per each file would help us tune
-some applications like database.
-
-Changelog since v1
-o Add a script based on "perf trace stream scripting support".
-
-Any comments are welcome.
---
-Keiichi Kii <k-keiichi@bx.jp.nec.com>
+Index: linux-2.6-tip/include/trace/events/filemap.h
+===================================================================
+--- /dev/null
++++ linux-2.6-tip/include/trace/events/filemap.h
+@@ -0,0 +1,83 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM filemap
++
++#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_FILEMAP_H
++
++#include <linux/fs.h>
++#include <linux/tracepoint.h>
++
++TRACE_EVENT(find_get_page,
++
++	TP_PROTO(struct address_space *mapping, pgoff_t offset,
++		struct page *page),
++
++	TP_ARGS(mapping, offset, page),
++
++	TP_STRUCT__entry(
++		__field(dev_t, s_dev)
++		__field(ino_t, i_ino)
++		__field(pgoff_t, offset)
++		__field(struct page *, page)
++		),
++
++	TP_fast_assign(
++		__entry->s_dev = mapping->host ? mapping->host->i_sb->s_dev : 0;
++		__entry->i_ino = mapping->host ? mapping->host->i_ino : 0;
++		__entry->offset = offset;
++		__entry->page = page;
++		),
++
++	TP_printk("s_dev=%u:%u i_ino=%lu offset=%lu %s", MAJOR(__entry->s_dev),
++		MINOR(__entry->s_dev), __entry->i_ino, __entry->offset,
++		__entry->page == NULL ? "page_not_found" : "page_found")
++);
++
++TRACE_EVENT(add_to_page_cache,
++
++	TP_PROTO(struct address_space *mapping, pgoff_t offset),
++
++	TP_ARGS(mapping, offset),
++
++	TP_STRUCT__entry(
++		__field(dev_t, s_dev)
++		__field(ino_t, i_ino)
++		__field(pgoff_t, offset)
++		),
++
++	TP_fast_assign(
++		__entry->s_dev = mapping->host->i_sb->s_dev;
++		__entry->i_ino = mapping->host->i_ino;
++		__entry->offset = offset;
++		),
++
++	TP_printk("s_dev=%u:%u i_ino=%lu offset=%lu", MAJOR(__entry->s_dev),
++		MINOR(__entry->s_dev), __entry->i_ino, __entry->offset)
++);
++
++TRACE_EVENT(remove_from_page_cache,
++
++	TP_PROTO(struct address_space *mapping, pgoff_t offset),
++
++	TP_ARGS(mapping, offset),
++
++	TP_STRUCT__entry(
++		__field(dev_t, s_dev)
++		__field(ino_t, i_ino)
++		__field(pgoff_t, offset)
++		),
++
++	TP_fast_assign(
++		__entry->s_dev = mapping->host->i_sb->s_dev;
++		__entry->i_ino = mapping->host->i_ino;
++		__entry->offset = offset;
++		),
++
++	TP_printk("s_dev=%u:%u i_ino=%lu offset=%lu", MAJOR(__entry->s_dev),
++		MINOR(__entry->s_dev), __entry->i_ino, __entry->offset)
++);
++
++#endif /* _TRACE_FILEMAP_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+Index: linux-2.6-tip/mm/filemap.c
+===================================================================
+--- linux-2.6-tip.orig/mm/filemap.c
++++ linux-2.6-tip/mm/filemap.c
+@@ -34,6 +34,8 @@
+ #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+ #include <linux/memcontrol.h>
+ #include <linux/mm_inline.h> /* for page_is_file_cache() */
++#define CREATE_TRACE_POINTS
++#include <trace/events/filemap.h>
+ #include "internal.h"
+ 
+ /*
+@@ -149,6 +151,7 @@ void remove_from_page_cache(struct page 
+ 	spin_lock_irq(&mapping->tree_lock);
+ 	__remove_from_page_cache(page);
+ 	spin_unlock_irq(&mapping->tree_lock);
++	trace_remove_from_page_cache(mapping, page->index);
+ 	mem_cgroup_uncharge_cache_page(page);
+ }
+ 
+@@ -419,6 +422,7 @@ int add_to_page_cache_locked(struct page
+ 			if (PageSwapBacked(page))
+ 				__inc_zone_page_state(page, NR_SHMEM);
+ 			spin_unlock_irq(&mapping->tree_lock);
++			trace_add_to_page_cache(mapping, offset);
+ 		} else {
+ 			page->mapping = NULL;
+ 			spin_unlock_irq(&mapping->tree_lock);
+@@ -642,6 +646,7 @@ repeat:
+ 	}
+ 	rcu_read_unlock();
+ 
++	trace_find_get_page(mapping, offset, page);
+ 	return page;
+ }
+ EXPORT_SYMBOL(find_get_page);
+Index: linux-2.6-tip/mm/truncate.c
+===================================================================
+--- linux-2.6-tip.orig/mm/truncate.c
++++ linux-2.6-tip/mm/truncate.c
+@@ -20,6 +20,7 @@
+ 				   do_invalidatepage */
+ #include "internal.h"
+ 
++#include <trace/events/filemap.h>
+ 
+ /**
+  * do_invalidatepage - invalidate part or all of a page
+@@ -388,6 +389,7 @@ invalidate_complete_page2(struct address
+ 	BUG_ON(page_has_private(page));
+ 	__remove_from_page_cache(page);
+ 	spin_unlock_irq(&mapping->tree_lock);
++	trace_remove_from_page_cache(mapping, page->index);
+ 	mem_cgroup_uncharge_cache_page(page);
+ 	page_cache_release(page);	/* pagecache ref */
+ 	return 1;
+Index: linux-2.6-tip/mm/vmscan.c
+===================================================================
+--- linux-2.6-tip.orig/mm/vmscan.c
++++ linux-2.6-tip/mm/vmscan.c
+@@ -48,6 +48,8 @@
+ 
+ #include "internal.h"
+ 
++#include <trace/events/filemap.h>
++
+ struct scan_control {
+ 	/* Incremented by the number of inactive pages that were scanned */
+ 	unsigned long nr_scanned;
+@@ -477,6 +479,7 @@ static int __remove_mapping(struct addre
+ 	} else {
+ 		__remove_from_page_cache(page);
+ 		spin_unlock_irq(&mapping->tree_lock);
++		trace_remove_from_page_cache(mapping, page->index);
+ 		mem_cgroup_uncharge_cache_page(page);
+ 	}
+ 
 
 
 --
