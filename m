@@ -1,216 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AC5356B006A
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 21:28:33 -0500 (EST)
-Subject: Re: [RFC PATCH -tip 1/2 v2] add tracepoints for pagecache
-From: Steven Rostedt <rostedt@goodmis.org>
-Reply-To: rostedt@goodmis.org
-In-Reply-To: <4B5A3DD5.3020904@bx.jp.nec.com>
-References: <4B5A3D00.8080901@bx.jp.nec.com>
-	 <4B5A3DD5.3020904@bx.jp.nec.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Fri, 22 Jan 2010 21:28:29 -0500
-Message-ID: <1264213709.31321.401.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0C46E6B006A
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 23:04:00 -0500 (EST)
+Date: Fri, 22 Jan 2010 20:03:48 -0800
+From: Chris Frost <frost@CS.UCLA.EDU>
+Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
+	pages, too
+Message-ID: <20100123040348.GC30844@frostnet.net>
+References: <20100120215536.GN27212@frostnet.net> <20100121054734.GC24236@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100121054734.GC24236@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Keiichi KII <k-keiichi@bx.jp.nec.com>
-Cc: linux-kernel@vger.kernel.org, lwoodman@redhat.com, linux-mm@kvack.org, mingo@elte.hu, tzanussi@gmail.com, riel@redhat.com, akpm@linux-foundation.org, fweisbec@gmail.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-01-22 at 19:07 -0500, Keiichi KII wrote:
-> This patch adds several tracepoints to track pagecach behavior.
-> These trecepoints would help us monitor pagecache usage with high resolution.
+On Thu, Jan 21, 2010 at 01:47:34PM +0800, Wu Fengguang wrote:
+> On Wed, Jan 20, 2010 at 01:55:36PM -0800, Chris Frost wrote:
+> > This patch changes readahead to move pages that are already in memory and
+> > in the inactive list to the top of the list. This mirrors the behavior
+> > of non-in-core pages. The position of pages already in the active list
+> > remains unchanged.
+>  
+> This is good in general. 
+
+Great!
+
+
+> > @@ -170,19 +201,24 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+> >  		rcu_read_lock();
+> >  		page = radix_tree_lookup(&mapping->page_tree, page_offset);
+> >  		rcu_read_unlock();
+> > -		if (page)
+> > -			continue;
+> > -
+> > -		page = page_cache_alloc_cold(mapping);
+> > -		if (!page)
+> > -			break;
+> > -		page->index = page_offset;
+> > -		list_add(&page->lru, &page_pool);
+> > -		if (page_idx == nr_to_read - lookahead_size)
+> > -			SetPageReadahead(page);
+> > -		ret++;
+> > +		if (page) {
+> > +			page_cache_get(page);
 > 
-> Signed-off-by: Keiichi Kii <k-keiichi@bx.jp.nec.com>
-> Cc: Atsushi Tsuji <a-tsuji@bk.jp.nec.com> 
-> ---
->  include/trace/events/filemap.h |   83 +++++++++++++++++++++++++++++++++++++++++
->  mm/filemap.c                   |    5 ++
->  mm/truncate.c                  |    2 
->  mm/vmscan.c                    |    3 +
->  4 files changed, 93 insertions(+)
+> This is racy - the page may have already be freed and possibly reused
+> by others in the mean time.
 > 
-> Index: linux-2.6-tip/include/trace/events/filemap.h
-> ===================================================================
-> --- /dev/null
-> +++ linux-2.6-tip/include/trace/events/filemap.h
-> @@ -0,0 +1,83 @@
-> +#undef TRACE_SYSTEM
-> +#define TRACE_SYSTEM filemap
-> +
-> +#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
-> +#define _TRACE_FILEMAP_H
-> +
-> +#include <linux/fs.h>
-> +#include <linux/tracepoint.h>
-> +
-> +TRACE_EVENT(find_get_page,
-> +
-> +	TP_PROTO(struct address_space *mapping, pgoff_t offset,
-> +		struct page *page),
-> +
-> +	TP_ARGS(mapping, offset, page),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(dev_t, s_dev)
-> +		__field(ino_t, i_ino)
-> +		__field(pgoff_t, offset)
-> +		__field(struct page *, page)
-> +		),
-> +
-> +	TP_fast_assign(
-> +		__entry->s_dev = mapping->host ? mapping->host->i_sb->s_dev : 0;
-> +		__entry->i_ino = mapping->host ? mapping->host->i_ino : 0;
-> +		__entry->offset = offset;
-> +		__entry->page = page;
-> +		),
-> +
-> +	TP_printk("s_dev=%u:%u i_ino=%lu offset=%lu %s", MAJOR(__entry->s_dev),
-> +		MINOR(__entry->s_dev), __entry->i_ino, __entry->offset,
-> +		__entry->page == NULL ? "page_not_found" : "page_found")
-> +);
-> +
-> +TRACE_EVENT(add_to_page_cache,
-> +
-> +	TP_PROTO(struct address_space *mapping, pgoff_t offset),
-> +
-> +	TP_ARGS(mapping, offset),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(dev_t, s_dev)
-> +		__field(ino_t, i_ino)
-> +		__field(pgoff_t, offset)
-> +		),
-> +
-> +	TP_fast_assign(
-> +		__entry->s_dev = mapping->host->i_sb->s_dev;
-> +		__entry->i_ino = mapping->host->i_ino;
-> +		__entry->offset = offset;
-> +		),
-> +
-> +	TP_printk("s_dev=%u:%u i_ino=%lu offset=%lu", MAJOR(__entry->s_dev),
-> +		MINOR(__entry->s_dev), __entry->i_ino, __entry->offset)
-> +);
-> +
-> +TRACE_EVENT(remove_from_page_cache,
-> +
-> +	TP_PROTO(struct address_space *mapping, pgoff_t offset),
-> +
-> +	TP_ARGS(mapping, offset),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(dev_t, s_dev)
-> +		__field(ino_t, i_ino)
-> +		__field(pgoff_t, offset)
-> +		),
-> +
-> +	TP_fast_assign(
-> +		__entry->s_dev = mapping->host->i_sb->s_dev;
-> +		__entry->i_ino = mapping->host->i_ino;
-> +		__entry->offset = offset;
-> +		),
-> +
-> +	TP_printk("s_dev=%u:%u i_ino=%lu offset=%lu", MAJOR(__entry->s_dev),
-> +		MINOR(__entry->s_dev), __entry->i_ino, __entry->offset)
-> +);
-> +
+> If you do page_cache_get() on a random page, it may trigger bad_page()
+> in the buddy page allocator, or the VM_BUG_ON() in put_page_testzero().
 
-The above qualify in converting to templates or DECLACE_TRACE_CLASS, and
-DEFINE_EVENT, That is, rename the above TRACE_EVENT into
-DECLARE_TRACE_CLASS, and then have the other one be a DEFINE_EVENT().
-See the trace/event/sched.h for examples.
+Thanks for catching these.
 
-The TRACE_EVENT can add a bit of code, so use DECLARE_TRACE_CLASS when
-possible and it will save on the size overhead.
 
--- Steve
-
-> +#endif /* _TRACE_FILEMAP_H */
-> +
-> +/* This part must be outside protection */
-> +#include <trace/define_trace.h>
-> Index: linux-2.6-tip/mm/filemap.c
-> ===================================================================
-> --- linux-2.6-tip.orig/mm/filemap.c
-> +++ linux-2.6-tip/mm/filemap.c
-> @@ -34,6 +34,8 @@
->  #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
->  #include <linux/memcontrol.h>
->  #include <linux/mm_inline.h> /* for page_is_file_cache() */
-> +#define CREATE_TRACE_POINTS
-> +#include <trace/events/filemap.h>
->  #include "internal.h"
->  
->  /*
-> @@ -149,6 +151,7 @@ void remove_from_page_cache(struct page 
->  	spin_lock_irq(&mapping->tree_lock);
->  	__remove_from_page_cache(page);
->  	spin_unlock_irq(&mapping->tree_lock);
-> +	trace_remove_from_page_cache(mapping, page->index);
->  	mem_cgroup_uncharge_cache_page(page);
->  }
->  
-> @@ -419,6 +422,7 @@ int add_to_page_cache_locked(struct page
->  			if (PageSwapBacked(page))
->  				__inc_zone_page_state(page, NR_SHMEM);
->  			spin_unlock_irq(&mapping->tree_lock);
-> +			trace_add_to_page_cache(mapping, offset);
->  		} else {
->  			page->mapping = NULL;
->  			spin_unlock_irq(&mapping->tree_lock);
-> @@ -642,6 +646,7 @@ repeat:
->  	}
->  	rcu_read_unlock();
->  
-> +	trace_find_get_page(mapping, offset, page);
->  	return page;
->  }
->  EXPORT_SYMBOL(find_get_page);
-> Index: linux-2.6-tip/mm/truncate.c
-> ===================================================================
-> --- linux-2.6-tip.orig/mm/truncate.c
-> +++ linux-2.6-tip/mm/truncate.c
-> @@ -20,6 +20,7 @@
->  				   do_invalidatepage */
->  #include "internal.h"
->  
-> +#include <trace/events/filemap.h>
->  
->  /**
->   * do_invalidatepage - invalidate part or all of a page
-> @@ -388,6 +389,7 @@ invalidate_complete_page2(struct address
->  	BUG_ON(page_has_private(page));
->  	__remove_from_page_cache(page);
->  	spin_unlock_irq(&mapping->tree_lock);
-> +	trace_remove_from_page_cache(mapping, page->index);
->  	mem_cgroup_uncharge_cache_page(page);
->  	page_cache_release(page);	/* pagecache ref */
->  	return 1;
-> Index: linux-2.6-tip/mm/vmscan.c
-> ===================================================================
-> --- linux-2.6-tip.orig/mm/vmscan.c
-> +++ linux-2.6-tip/mm/vmscan.c
-> @@ -48,6 +48,8 @@
->  
->  #include "internal.h"
->  
-> +#include <trace/events/filemap.h>
-> +
->  struct scan_control {
->  	/* Incremented by the number of inactive pages that were scanned */
->  	unsigned long nr_scanned;
-> @@ -477,6 +479,7 @@ static int __remove_mapping(struct addre
->  	} else {
->  		__remove_from_page_cache(page);
->  		spin_unlock_irq(&mapping->tree_lock);
-> +		trace_remove_from_page_cache(mapping, page->index);
->  		mem_cgroup_uncharge_cache_page(page);
->  	}
->  
 > 
+> > +			if (!pagevec_add(&retain_vec, page))
+> > +				retain_pages(&retain_vec);
+> > +		} else {
+> > +			page = page_cache_alloc_cold(mapping);
+> > +			if (!page)
+> > +				break;
+> > +			page->index = page_offset;
+> > +			list_add(&page->lru, &page_pool);
+> > +			if (page_idx == nr_to_read - lookahead_size)
+> > +				SetPageReadahead(page);
+> > +			ret++;
+> > +		}
 > 
+> Years ago I wrote a similar function, which can be called for both
+> in-kernel-readahead (when it decides not to bring in new pages, but
+> only retain existing pages) and fadvise-readahead (where it want to
+> read new pages as well as retain existing pages).
+> 
+> For better chance of code reuse, would you rebase the patch on it?
+> (You'll have to do some cleanups first.)
 
+This sounds good; thanks. I've rebased my change on the below.
+Fwiw, performance is unchanged. A few questions below.
+
+
+> +/*
+> + * Move pages in danger (of thrashing) to the head of inactive_list.
+> + * Not expected to happen frequently.
+> + */
+> +static unsigned long rescue_pages(struct address_space *mapping,
+> +				  struct file_ra_state *ra,
+> +				  pgoff_t index, unsigned long nr_pages)
+> +{
+> +	struct page *grabbed_page;
+> +	struct page *page;
+> +	struct zone *zone;
+> +	int pgrescue = 0;
+> +
+> +	dprintk("rescue_pages(ino=%lu, index=%lu, nr=%lu)\n",
+> +			mapping->host->i_ino, index, nr_pages);
+> +
+> +	for(; nr_pages;) {
+> +		grabbed_page = page = find_get_page(mapping, index);
+> +		if (!page) {
+> +			index++;
+> +			nr_pages--;
+> +			continue;
+> +		}
+> +
+> +		zone = page_zone(page);
+> +		spin_lock_irq(&zone->lru_lock);
+> +
+> +		if (!PageLRU(page)) {
+> +			index++;
+> +			nr_pages--;
+> +			goto next_unlock;
+> +		}
+> +
+> +		do {
+> +			struct page *the_page = page;
+> +			page = list_entry((page)->lru.prev, struct page, lru);
+> +			index++;
+> +			nr_pages--;
+> +			ClearPageReadahead(the_page);
+> +			if (!PageActive(the_page) &&
+> +					!PageLocked(the_page) &&
+> +					page_count(the_page) == 1) {
+
+Why require the page count to be 1?
+
+
+> +				list_move(&the_page->lru, &zone->inactive_list);
+
+The LRU list manipulation interface has changed since this patch.
+I believe we should replace the list_move() call with:
+	del_page_from_lru_list(zone, the_page, LRU_INACTIVE_FILE);
+	add_page_to_lru_list(zone, the_page, LRU_INACTIVE_FILE);
+This moves the page to the top of the list, but also notifies mem_cgroup.
+It also, I believe needlessly, decrements and then increments the zone
+state for each move.
+
+
+> +				pgrescue++;
+> +			}
+> +		} while (nr_pages &&
+> +				page_mapping(page) == mapping &&
+> +				page_index(page) == index);
+
+Is it ok to not lock each page in this while loop? (Does the zone lock
+protect all the reads and writes?)
+
+Will the zone be the same for all pages seen inside a given run of this
+while loop?
+
+Do you think performance would be better if the code used a pagevec and
+a call to find_get_pages_contig(), instead of the above find_get_page()
+and this loop over the LRU list?
+
+
+> +
+> +next_unlock:
+> +		spin_unlock_irq(&zone->lru_lock);
+> +		page_cache_release(grabbed_page);
+> +		cond_resched();
+> +	}
+> +
+> +	ra_account(ra, RA_EVENT_READAHEAD_RESCUE, pgrescue);
+
+I don't see ra_account() or relevant fields in struct file_ra_state in
+the current kernel. I'll drop the ra_account() call?
+
+
+> +	return pgrescue;
+> +}
+
+-- 
+Chris Frost
+http://www.frostnet.net/chris/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
