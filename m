@@ -1,206 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 590F96B006A
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 16:18:48 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [Update][PATCH] MM / PM: Force GFP_NOIO during suspend/hibernation and resume
-Date: Fri, 22 Jan 2010 22:19:15 +0100
-References: <201001212121.50272.rjw@sisk.pl> <20100122103830.6C09.A69D9226@jp.fujitsu.com> <1264155067.15930.4.camel@maxim-laptop>
-In-Reply-To: <1264155067.15930.4.camel@maxim-laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D26CA6B006A
+	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 19:06:34 -0500 (EST)
+Message-ID: <4B5A3D00.8080901@bx.jp.nec.com>
+Date: Fri, 22 Jan 2010 19:04:16 -0500
+From: Keiichi KII <k-keiichi@bx.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
+Subject: [RFC PATCH -tip 0/2 v2] pagecache tracepoints proposal
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Message-Id: <201001222219.15958.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Maxim Levitsky <maximlevitsky@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: lwoodman@redhat.com, linux-mm@kvack.org, mingo@elte.hu, tzanussi@gmail.com, riel@redhat.com, rostedt@goodmis.org, akpm@linux-foundation.org, fweisbec@gmail.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 22 January 2010, Maxim Levitsky wrote:
-> On Fri, 2010-01-22 at 10:42 +0900, KOSAKI Motohiro wrote: 
-> > > > > Probably we have multiple option. but I don't think GFP_NOIO is good
-> > > > > option. It assume the system have lots non-dirty cache memory and it isn't
-> > > > > guranteed.
-> > > > 
-> > > > Basically nothing is guaranteed in this case.  However, does it actually make
-> > > > things _worse_?  
-> > > 
-> > > Hmm..
-> > > Do you mean we don't need to prevent accidental suspend failure?
-> > > Perhaps, I did misunderstand your intention. If you think your patch solve
-> > > this this issue, I still disagree. but If you think your patch mitigate
-> > > the pain of this issue, I agree it. I don't have any reason to oppose your
-> > > first patch.
-> > 
-> > One question. Have anyone tested Rafael's $subject patch? 
-> > Please post test result. if the issue disapper by the patch, we can
-> > suppose the slowness is caused by i/o layer.
-> 
-> I did.
-> 
-> As far as I could see, patch does solve the problem I described.
-> 
-> Does it affect speed of suspend? I can't say for sure. It seems to be
-> the same.
+Hello,
 
-Thanks for testing.
+This is v2 of a patchset to add some tracepoints for pagecache.
 
-Below is a slightly different version of that patch.  Can you please give it a
-try?
+I would propose several tracepoints for tracing pagecache behaviors and
+a script for these.
+By using both the tracepoints and the script, we can monitor pagecache usage
+with high resolution. Example output of the script looks like:
 
-Rafael
+[file list]
+                            cached
+        device      inode    pages
+  --------------------------------
+         253:0    1051413      130
+         253:0    1051399        2
+         253:0    1051414       44
+         253:0    1051417      154
 
----
-From: Rafael J. Wysocki <rjw@sisk.pl>
-Subject: MM / PM: Force GFP_NOIO during suspend/hibernation and resume
+o postmaster-2330
+                            cached    added  removed      indirect
+        device      inode    pages    pages    pages removed pages
+  ----------------------------------------------------------------
+         253:0    1051399        0        2        0             0
+         253:0    1051417      154        0        0             0
+         253:0    1051413      130        0        0             0
+         253:0    1051414       44        0        0             0
+  ----------------------------------------------------------------
+  total:                       337        2        0             0
 
-There are quite a few GFP_KERNEL memory allocations made during
-suspend/hibernation and resume that may cause the system to hang,
-because the I/O operations they depend on cannot be completed due to
-the underlying devices being suspended.
+We can now know system-wide pagecache usage by /proc/meminfo.
+But we have no method to get higher resolution information like per file or
+per process usage than system-wide one.
+A process may share some pagecache or add a pagecache to the memory or
+remove a pagecache from the memory.
+If a pagecache miss hit ratio rises, maybe it leads to extra I/O and
+affects system performance.
 
-Mitigate this problem by clearing the __GFP_IO and __GFP_FS bits in
-gfp_allowed_mask before suspend/hibernation and restoring the
-original values of these bits in gfp_allowed_mask durig the
-subsequent resume.
+So, by using the tracepoints we can get the following information.
+ 1. how many pagecaches each process has per each file
+ 2. how many pages are cached per each file
+ 3. how many pagecaches each process shares
+ 4. how often each process adds/removes pagecache
+ 5. how long a pagecache stays in the memory
+ 6. pagecache hit rate per file
 
-Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
-Reported-by: Maxim Levitsky <maximlevitsky@gmail.com>
----
- kernel/power/hibernate.c |    6 ++++++
- kernel/power/power.h     |    3 +++
- kernel/power/suspend.c   |    2 ++
- mm/Makefile              |    1 +
- mm/pm.c                  |   28 ++++++++++++++++++++++++++++
- 5 files changed, 40 insertions(+)
+Especially, the monitoring pagecache usage per each file would help us tune
+some applications like database.
 
-Index: linux-2.6/kernel/power/hibernate.c
-===================================================================
---- linux-2.6.orig/kernel/power/hibernate.c
-+++ linux-2.6/kernel/power/hibernate.c
-@@ -334,6 +334,7 @@ int hibernation_snapshot(int platform_mo
- 		goto Close;
- 
- 	suspend_console();
-+	mm_force_noio_allocations();
- 	error = dpm_suspend_start(PMSG_FREEZE);
- 	if (error)
- 		goto Recover_platform;
-@@ -351,6 +352,7 @@ int hibernation_snapshot(int platform_mo
- 
- 	dpm_resume_end(in_suspend ?
- 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
-+	mm_allow_io_allocations();
- 	resume_console();
-  Close:
- 	platform_end(platform_mode);
-@@ -448,11 +450,13 @@ int hibernation_restore(int platform_mod
- 
- 	pm_prepare_console();
- 	suspend_console();
-+	mm_force_noio_allocations();
- 	error = dpm_suspend_start(PMSG_QUIESCE);
- 	if (!error) {
- 		error = resume_target_kernel(platform_mode);
- 		dpm_resume_end(PMSG_RECOVER);
- 	}
-+	mm_allow_io_allocations();
- 	resume_console();
- 	pm_restore_console();
- 	return error;
-@@ -481,6 +485,7 @@ int hibernation_platform_enter(void)
- 
- 	entering_platform_hibernation = true;
- 	suspend_console();
-+	mm_force_noio_allocations();
- 	error = dpm_suspend_start(PMSG_HIBERNATE);
- 	if (error) {
- 		if (hibernation_ops->recover)
-@@ -518,6 +523,7 @@ int hibernation_platform_enter(void)
-  Resume_devices:
- 	entering_platform_hibernation = false;
- 	dpm_resume_end(PMSG_RESTORE);
-+	mm_allow_io_allocations();
- 	resume_console();
- 
-  Close:
-Index: linux-2.6/kernel/power/power.h
-===================================================================
---- linux-2.6.orig/kernel/power/power.h
-+++ linux-2.6/kernel/power/power.h
-@@ -187,6 +187,9 @@ static inline void suspend_test_finish(c
- #ifdef CONFIG_PM_SLEEP
- /* kernel/power/main.c */
- extern int pm_notifier_call_chain(unsigned long val);
-+/* mm/pm.c */
-+extern void mm_force_noio_allocations(void);
-+extern void mm_allow_io_allocations(void);
- #endif
- 
- #ifdef CONFIG_HIGHMEM
-Index: linux-2.6/kernel/power/suspend.c
-===================================================================
---- linux-2.6.orig/kernel/power/suspend.c
-+++ linux-2.6/kernel/power/suspend.c
-@@ -208,6 +208,7 @@ int suspend_devices_and_enter(suspend_st
- 			goto Close;
- 	}
- 	suspend_console();
-+	mm_force_noio_allocations();
- 	suspend_test_start();
- 	error = dpm_suspend_start(PMSG_SUSPEND);
- 	if (error) {
-@@ -224,6 +225,7 @@ int suspend_devices_and_enter(suspend_st
- 	suspend_test_start();
- 	dpm_resume_end(PMSG_RESUME);
- 	suspend_test_finish("resume devices");
-+	mm_allow_io_allocations();
- 	resume_console();
-  Close:
- 	if (suspend_ops->end)
-Index: linux-2.6/mm/Makefile
-===================================================================
---- linux-2.6.orig/mm/Makefile
-+++ linux-2.6/mm/Makefile
-@@ -40,3 +40,4 @@ obj-$(CONFIG_MEMORY_FAILURE) += memory-f
- obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
- obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
- obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
-+obj-$(CONFIG_PM_SLEEP) += pm.o
-Index: linux-2.6/mm/pm.c
-===================================================================
---- /dev/null
-+++ linux-2.6/mm/pm.c
-@@ -0,0 +1,28 @@
-+#include <linux/gfp.h>
-+
-+static gfp_t saved_gfp_allowed_mask;
-+
-+#define GFP_IOFS (__GFP_IO | __GFP_FS)
-+
-+/**
-+ * mm_force_noio_allocations - Modify gfp_allowed_mask to disable IO allocations
-+ *
-+ * Change gfp_allowed_mask by unsetting __GFP_IO and __GFP_FS in it and save the
-+ * old value.
-+ */
-+void mm_force_noio_allocations(void)
-+{
-+	saved_gfp_allowed_mask = gfp_allowed_mask;
-+	gfp_allowed_mask &= ~GFP_IOFS;
-+}
-+
-+/**
-+ * mm_allow_io_allocations - Modify gfp_allowed_mask to allow IO allocations
-+ *
-+ * If the saved value of gfp_allowed_mask has __GFP_IO set, modify the current
-+ * gfp_allowed_mask by setting this bit and anlogously for __GFP_FS.
-+ */
-+void mm_allow_io_allocations(void)
-+{
-+	gfp_allowed_mask |= saved_gfp_allowed_mask & GFP_IOFS;
-+}
+Changelog since v1
+o Add a script based on "perf trace stream scripting support".
+
+Any comments are welcome.
+--
+Keiichi Kii <k-keiichi@bx.jp.nec.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
