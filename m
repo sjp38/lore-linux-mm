@@ -1,180 +1,320 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0C46E6B006A
-	for <linux-mm@kvack.org>; Fri, 22 Jan 2010 23:04:00 -0500 (EST)
-Date: Fri, 22 Jan 2010 20:03:48 -0800
-From: Chris Frost <frost@CS.UCLA.EDU>
-Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
-	pages, too
-Message-ID: <20100123040348.GC30844@frostnet.net>
-References: <20100120215536.GN27212@frostnet.net> <20100121054734.GC24236@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100121054734.GC24236@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A81936B006A
+	for <linux-mm@kvack.org>; Sat, 23 Jan 2010 03:21:04 -0500 (EST)
+Received: by iwn41 with SMTP id 41so1605013iwn.12
+        for <linux-mm@kvack.org>; Sat, 23 Jan 2010 00:21:07 -0800 (PST)
+Subject: Re: [RFC PATCH -tip 2/2 v2] add a scripts for pagecache usage per
+ process
+From: Tom Zanussi <tzanussi@gmail.com>
+In-Reply-To: <4B5A3E19.6060502@bx.jp.nec.com>
+References: <4B5A3D00.8080901@bx.jp.nec.com>
+	 <4B5A3E19.6060502@bx.jp.nec.com>
+Content-Type: text/plain
+Date: Sat, 23 Jan 2010 02:21:05 -0600
+Message-Id: <1264234865.6595.75.camel@tropicana>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>
+To: Keiichi KII <k-keiichi@bx.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, lwoodman@redhat.com, linux-mm@kvack.org, mingo@elte.hu, riel@redhat.com, rostedt@goodmis.org, akpm@linux-foundation.org, fweisbec@gmail.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 21, 2010 at 01:47:34PM +0800, Wu Fengguang wrote:
-> On Wed, Jan 20, 2010 at 01:55:36PM -0800, Chris Frost wrote:
-> > This patch changes readahead to move pages that are already in memory and
-> > in the inactive list to the top of the list. This mirrors the behavior
-> > of non-in-core pages. The position of pages already in the active list
-> > remains unchanged.
->  
-> This is good in general. 
+Hi,
 
-Great!
-
-
-> > @@ -170,19 +201,24 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
-> >  		rcu_read_lock();
-> >  		page = radix_tree_lookup(&mapping->page_tree, page_offset);
-> >  		rcu_read_unlock();
-> > -		if (page)
-> > -			continue;
-> > -
-> > -		page = page_cache_alloc_cold(mapping);
-> > -		if (!page)
-> > -			break;
-> > -		page->index = page_offset;
-> > -		list_add(&page->lru, &page_pool);
-> > -		if (page_idx == nr_to_read - lookahead_size)
-> > -			SetPageReadahead(page);
-> > -		ret++;
-> > +		if (page) {
-> > +			page_cache_get(page);
+On Fri, 2010-01-22 at 19:08 -0500, Keiichi KII wrote:
+> The scripts are implemented based on the trace stream scripting support.
+> And the scripts implement the following.
+>  - how many pagecaches each process has per each file
+>  - how many pages are cached per each file
+>  - how many pagecaches each process shares
 > 
-> This is racy - the page may have already be freed and possibly reused
-> by others in the mean time.
+
+Nice, it looks like a very useful script - I gave it a quick try and it
+seems to work well...
+
+The only problem I see, nothing to do with your script and nothing you
+can do anything about at the moment, is that the record step generates a
+huge amount of data, which of course makes the event processing take
+awhile.  A lot of it appears to be due to perf itself - being able to
+filter out the perf-generated events in the kernel would make a big
+difference, I think; you normally don't want to see those anyway...
+
+BTW, I see that you did your first version in Python - not that you'd
+want to redo it again, but just FYI I now have working Python support
+that I'll be posting soon - I still have some small details to hammer
+out, but if you have any other scripts in the pipeline, in a couple days
+you'll be able to use Python instead if you want.
+
+A few more small comments below...
+
+> To monitor pagecache usage per a process, run "pagecache-usage-record" to
+> record perf data for "pagecache-usage.pl" and run "pagecache-usage-report"
+> to display.
+
+Another way of course would be to use 'perf trace record/report' and the
+script name as shown by perf trace -l:
+
+$ perf trace record pagecache-usage
+$ perf trace report pagecache-usage
+
 > 
-> If you do page_cache_get() on a random page, it may trigger bad_page()
-> in the buddy page allocator, or the VM_BUG_ON() in put_page_testzero().
-
-Thanks for catching these.
-
-
+> The below outputs show execution sample.
 > 
-> > +			if (!pagevec_add(&retain_vec, page))
-> > +				retain_pages(&retain_vec);
-> > +		} else {
-> > +			page = page_cache_alloc_cold(mapping);
-> > +			if (!page)
-> > +				break;
-> > +			page->index = page_offset;
-> > +			list_add(&page->lru, &page_pool);
-> > +			if (page_idx == nr_to_read - lookahead_size)
-> > +				SetPageReadahead(page);
-> > +			ret++;
-> > +		}
+> [file list]
+>         device      inode   caches
+>   --------------------------------
+>          253:0    1051413      130
+>          253:0    1051399        2
+>          253:0    1051414       44
+>          253:0    1051417      154
 > 
-> Years ago I wrote a similar function, which can be called for both
-> in-kernel-readahead (when it decides not to bring in new pages, but
-> only retain existing pages) and fadvise-readahead (where it want to
-> read new pages as well as retain existing pages).
+> [process list]
+> o postmaster-2330
+>                             cached    added  removed      indirect
+>         device      inode    pages    pages    pages removed pages
+>   ----------------------------------------------------------------
+>          253:0    1051399        0        2        0             0
+>          253:0    1051417      154        0        0             0
+>          253:0    1051413      130        0        0             0
+>          253:0    1051414       44        0        0             0
+>   ----------------------------------------------------------------
+>   total:                       337        2        0             0
 > 
-> For better chance of code reuse, would you rebase the patch on it?
-> (You'll have to do some cleanups first.)
+> >From the output, we can know some information like:
+> 
+> - if "added pages" > "cached pages" on process list then
+>     It means repeating add/remove pagecache many times.
+>   => Bad case for pagecache usage
+> 
+> - if "added pages" <= "cached pages" on process list then
+>     It means no unnecessary I/O operations.
+>   => Good case for pagecache usage.
+> 
+> - if "caches" on file list > 
+>          sum "cached pages" per each file on process list then
+>     It means there are unneccessary pagecaches in the memory. 
+>   => Bad case for pagecache usage
+> 
+> Signed-off-by: Keiichi Kii <k-keiichi@bx.jp.nec.com>
+> Cc: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+> ---
+>  tools/perf/scripts/perl/bin/pagecache-usage-record |    7 
+>  tools/perf/scripts/perl/bin/pagecache-usage-report |    6 
+>  tools/perf/scripts/perl/pagecache-usage.pl         |  160 +++++++++++++++++++++
+>  3 files changed, 173 insertions(+)
+> 
+> Index: linux-2.6-tip/tools/perf/scripts/perl/bin/pagecache-usage-record
+> ===================================================================
+> --- /dev/null
+> +++ linux-2.6-tip/tools/perf/scripts/perl/bin/pagecache-usage-record
+> @@ -0,0 +1,7 @@
+> +#!/bin/bash
+> +perf record -c 1 -f -a -M -R -e filemap:add_to_page_cache -e filemap:find_get_page -e filemap:remove_from_page_cache
+> +
+> +
+> +
+> +
+> +
+> Index: linux-2.6-tip/tools/perf/scripts/perl/bin/pagecache-usage-report
+> ===================================================================
+> --- /dev/null
+> +++ linux-2.6-tip/tools/perf/scripts/perl/bin/pagecache-usage-report
+> @@ -0,0 +1,6 @@
+> +#!/bin/bash
+> +# description: pagecache usage per process
+> +perf trace -s ~/libexec/perf-core/scripts/perl/pagecache-usage.pl
+> +
+> +
+> +
+> Index: linux-2.6-tip/tools/perf/scripts/perl/pagecache-usage.pl
+> ===================================================================
+> --- /dev/null
+> +++ linux-2.6-tip/tools/perf/scripts/perl/pagecache-usage.pl
+> @@ -0,0 +1,160 @@
+> +# perf trace event handlers, generated by perf trace -g perl
 
-This sounds good; thanks. I've rebased my change on the below.
-Fwiw, performance is unchanged. A few questions below.
+You might want to get rid of this and add a short description and your
+name, if you want to take credit for it. ;-)
 
+> +# Licensed under the terms of the GNU GPL License version 2
+> +
 
-> +/*
-> + * Move pages in danger (of thrashing) to the head of inactive_list.
-> + * Not expected to happen frequently.
-> + */
-> +static unsigned long rescue_pages(struct address_space *mapping,
-> +				  struct file_ra_state *ra,
-> +				  pgoff_t index, unsigned long nr_pages)
+> +# The common_* event handler fields are the most useful fields common to
+> +# all events.  They don't necessarily correspond to the 'common_*' fields
+> +# in the format files.  Those fields not available as handler params can
+> +# be retrieved using Perl functions of the form common_*($context).
+> +# See Context.pm for the list of available functions.
+> +
+
+You can get rid of this part too - it's just meant to be helpful
+information generated when starting a script.
+
+> +use lib "$ENV{'PERF_EXEC_PATH'}/scripts/perl/Perf-Trace-Util/lib";
+> +use lib "./Perf-Trace-Util/lib";
+> +use Perf::Trace::Core;
+> +use Perf::Trace::Context;
+> +use Perf::Trace::Util;
+> +use List::Util qw/sum/;
+> +my %files;
+> +my %processes;
+> +my %records;
+> +
+> +sub trace_end
 > +{
-> +	struct page *grabbed_page;
-> +	struct page *page;
-> +	struct zone *zone;
-> +	int pgrescue = 0;
+> +	print_pagecache_usage_per_file();
+> +	print "\n";
+> +	print_pagecache_usage_per_process();
+> +	print_unhandled();
+> +}
 > +
-> +	dprintk("rescue_pages(ino=%lu, index=%lu, nr=%lu)\n",
-> +			mapping->host->i_ino, index, nr_pages);
+> +sub filemap::remove_from_page_cache
+> +{
+> +	my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
+> +	    $common_pid, $common_comm,
+> +	    $s_dev, $i_ino, $offset) = @_;
+> +	my $f = \%{$files{$s_dev}{$i_ino}};
+> +	my $r = \%{$records{$common_comm."-".$common_pid}{$f}};
 > +
-> +	for(; nr_pages;) {
-> +		grabbed_page = page = find_get_page(mapping, index);
-> +		if (!page) {
-> +			index++;
-> +			nr_pages--;
-> +			continue;
-> +		}
+> +	delete $$f{$offset};
+> +	$$r{inode} = $i_ino;
+> +	$$r{dev} = $s_dev;
+> +	if (exists $$r{added}{$offset}) {
+> +	    $$r{removed}++;
+> +	} else {
+> +	    $$r{indirect_removed}++;
+> +	}
+> +}
 > +
-> +		zone = page_zone(page);
-> +		spin_lock_irq(&zone->lru_lock);
+> +sub filemap::add_to_page_cache
+> +{
+> +	my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
+> +	    $common_pid, $common_comm,
+> +	    $s_dev, $i_ino, $offset) = @_;
+> +	my $f = \%{$files{$s_dev}{$i_ino}};
+> +	my $r = \%{$records{$common_comm."-".$common_pid}{$f}};
 > +
-> +		if (!PageLRU(page)) {
-> +			index++;
-> +			nr_pages--;
-> +			goto next_unlock;
-> +		}
+> +	$$f{$offset}++;
+> +	$$r{added}{$offset}++;
+> +	$$r{inode} = $i_ino;
+> +	$$r{dev} = $s_dev;
+> +}
 > +
-> +		do {
-> +			struct page *the_page = page;
-> +			page = list_entry((page)->lru.prev, struct page, lru);
-> +			index++;
-> +			nr_pages--;
-> +			ClearPageReadahead(the_page);
-> +			if (!PageActive(the_page) &&
-> +					!PageLocked(the_page) &&
-> +					page_count(the_page) == 1) {
-
-Why require the page count to be 1?
-
-
-> +				list_move(&the_page->lru, &zone->inactive_list);
-
-The LRU list manipulation interface has changed since this patch.
-I believe we should replace the list_move() call with:
-	del_page_from_lru_list(zone, the_page, LRU_INACTIVE_FILE);
-	add_page_to_lru_list(zone, the_page, LRU_INACTIVE_FILE);
-This moves the page to the top of the list, but also notifies mem_cgroup.
-It also, I believe needlessly, decrements and then increments the zone
-state for each move.
-
-
-> +				pgrescue++;
-> +			}
-> +		} while (nr_pages &&
-> +				page_mapping(page) == mapping &&
-> +				page_index(page) == index);
-
-Is it ok to not lock each page in this while loop? (Does the zone lock
-protect all the reads and writes?)
-
-Will the zone be the same for all pages seen inside a given run of this
-while loop?
-
-Do you think performance would be better if the code used a pagevec and
-a call to find_get_pages_contig(), instead of the above find_get_page()
-and this loop over the LRU list?
-
-
+> +sub filemap::find_get_page
+> +{
+> +	my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
+> +	    $common_pid, $common_comm,
+> +	    $s_dev, $i_ino, $offset, $page) = @_;
+> +	my $f = \%{$files{$s_dev}{$i_ino}};
+> +	my $r = \%{$records{$common_comm."-".$common_pid}{$f}};
 > +
-> +next_unlock:
-> +		spin_unlock_irq(&zone->lru_lock);
-> +		page_cache_release(grabbed_page);
-> +		cond_resched();
+> +	if ($page != 0) {
+> +	    $$f{$offset}++;
+> +	    $$r{cached}++;
+> +	    $$r{inode} = $i_ino;
+> +	    $$r{dev} = $s_dev;
+> +	}
+> +}
+> +
+> +my %unhandled;
+> +
+> +sub trace_unhandled
+> +{
+> +	my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
+> +	    $common_pid, $common_comm) = @_;
+> +
+> +	$unhandled{$event_name}++;
+> +}
+> +
+> +sub print_unhandled
+> +{
+> +	if ((scalar keys %unhandled) == 0) {
+> +	    print "unhandled events nothing\n";
+
+This is kind of distracting - it's not too useful to know that you don't
+have unhandled events, but if you do have some, it is useful to print
+those as you do below - it points out that some event type are being
+unnecessarily recorded or the script is being run on the wrong trace
+data.
+
+Thanks,
+
+Tom
+
+> +	    return;
 > +	}
 > +
-> +	ra_account(ra, RA_EVENT_READAHEAD_RESCUE, pgrescue);
-
-I don't see ra_account() or relevant fields in struct file_ra_state in
-the current kernel. I'll drop the ra_account() call?
-
-
-> +	return pgrescue;
+> +	print "\nunhandled events:\n\n";
+> +
+> +	printf("%-40s  %10s\n", "event", "count");
+> +	printf("%-40s  %10s\n", "----------------------------------------",
+> +	       "-----------");
+> +
+> +	foreach my $event_name (keys %unhandled) {
+> +	    printf("%-40s  %10d\n", $event_name, $unhandled{$event_name});
+> +	}
 > +}
-
--- 
-Chris Frost
-http://www.frostnet.net/chris/
+> +
+> +sub minor
+> +{
+> +	my $dev = shift;
+> +	return $dev & ((1 << 20) - 1);
+> +}
+> +
+> +sub major
+> +{
+> +	my $dev = shift;
+> +	return $dev >> 20;
+> +}
+> +
+> +sub print_pagecache_usage_per_file
+> +{
+> +	print "[file list]\n";
+> +	printf("  %12s %10s %8s\n", "", "", "cached");
+> +	printf("  %12s %10s %8s\n", "device", "inode", "pages");
+> +	printf("  %s\n", '-' x 32);
+> +	while(my($dev, $file) = each(%files)) {
+> +	    while(my($inode, $r) = each(%$file)) {
+> +		my $count = values %$r;
+> +		next if $count == 0;
+> +		printf("  %12s %10d %8d\n",
+> +		       major($dev).":".minor($dev), $inode, $count);
+> +	    }
+> +	}
+> +}
+> +
+> +sub print_pagecache_usage_per_process
+> +{
+> +	print "[process list]\n";
+> +	while(my ($pid, $v) = each(%records)) {
+> +	    my ($sum_cached, $sum_added, $sum_removed, $sum_indirect_removed);
+> +
+> +	    print "o $pid\n";
+> +	    printf("  %12s %10s %8s %8s %8s %13s\n", "", "",
+> +		   "cached", "added", "removed", "indirect");
+> +	    printf("  %12s %10s %8s %8s %8s %13s\n", "device", "inode",
+> +		   "pages", "pages", "pages", "removed pages");
+> +	    printf("  %s\n", '-' x 64);
+> +	    while(my ($file, $r) = each(%$v)) {
+> +		my $added_num = List::Util::sum(values %{$$r{added}});
+> +		$sum_cached += $$r{cached};
+> +		$sum_added += $added_num;
+> +		$sum_removed += $$r{removed};
+> +		$sum_indirect_removed += $$r{indirect_removed};
+> +		printf("  %12s %10d %8d %8d %8d %13d\n",
+> +		       major($$r{dev}).":".minor($$r{dev}), $$r{inode},
+> +		       $$r{cached}, $added_num, $$r{removed},
+> +		       $$r{indirect_removed});
+> +	    }
+> +	    printf("  %s\n", '-' x 64);
+> +	    printf("  total: %5s %10s %8d %8d %8d %13d\n", "", "", $sum_cached,
+> +		   $sum_added, $sum_removed, $sum_indirect_removed);
+> +	    print "\n";
+> +	}
+> +}
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
