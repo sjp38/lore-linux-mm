@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 97C4A600786
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:29:56 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B99E5600789
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:29:58 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 03 of 31] alter compound get_page/put_page
-Message-Id: <20250cf88c2fdeada432.1264439934@v2.random>
+Subject: [PATCH 07 of 31] add native_set_pmd_at
+Message-Id: <6bc8379009274b8af0c2.1264439938@v2.random>
 In-Reply-To: <patchbomb.1264439931@v2.random>
 References: <patchbomb.1264439931@v2.random>
-Date: Mon, 25 Jan 2010 18:18:54 +0100
+Date: Mon, 25 Jan 2010 18:18:58 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,186 +18,27 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Alter compound get_page/put_page to keep references on subpages too, in order
-to allow __split_huge_page_refcount to split an hugepage even while subpages
-have been pinned by one of the get_user_pages() variants.
+Used by paravirt and not paravirt set_pmd_at.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
---- a/arch/powerpc/mm/gup.c
-+++ b/arch/powerpc/mm/gup.c
-@@ -47,6 +47,14 @@ static noinline int gup_pte_range(pmd_t 
- 			put_page(page);
- 			return 0;
- 		}
-+		if (PageTail(page)) {
-+			/*
-+			 * __split_huge_page_refcount() cannot run
-+			 * from under us.
-+			 */
-+			VM_BUG_ON(atomic_read(&page->_count) < 0);
-+			atomic_inc(&page->_count);
-+		}
- 		pages[*nr] = page;
- 		(*nr)++;
- 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -128,6 +128,14 @@ static noinline int gup_huge_pmd(pmd_t p
- 	do {
- 		VM_BUG_ON(compound_head(page) != head);
- 		pages[*nr] = page;
-+		if (PageTail(page)) {
-+			/*
-+			 * __split_huge_page_refcount() cannot run
-+			 * from under us.
-+			 */
-+			VM_BUG_ON(atomic_read(&page->_count) < 0);
-+			atomic_inc(&page->_count);
-+		}
- 		(*nr)++;
- 		page++;
- 		refs++;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -319,9 +319,17 @@ static inline int page_count(struct page
- 
- static inline void get_page(struct page *page)
- {
--	page = compound_head(page);
--	VM_BUG_ON(atomic_read(&page->_count) == 0);
-+	VM_BUG_ON(atomic_read(&page->_count) < !PageTail(page));
- 	atomic_inc(&page->_count);
-+	if (unlikely(PageTail(page))) {
-+		/*
-+		 * This is safe only because
-+		 * __split_huge_page_refcount can't run under
-+		 * get_page().
-+		 */
-+		VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
-+		atomic_inc(&page->first_page->_count);
-+	}
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
+ 	native_set_pte(ptep, pte);
  }
  
- static inline struct page *virt_to_head_page(const void *x)
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -409,7 +409,8 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
-+	 1 << PG_compound_lock)
- 
++static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
++				     pmd_t *pmdp , pmd_t pmd)
++{
++	native_set_pmd(pmdp, pmd);
++}
++
+ #ifndef CONFIG_PARAVIRT
  /*
-  * Flags checked when a page is prepped for return by the page allocator.
-diff --git a/mm/swap.c b/mm/swap.c
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -55,17 +55,82 @@ static void __page_cache_release(struct 
- 		del_page_from_lru(zone, page);
- 		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 	}
-+}
-+
-+static void __put_single_page(struct page *page)
-+{
-+	__page_cache_release(page);
- 	free_hot_page(page);
- }
- 
-+static void __put_compound_page(struct page *page)
-+{
-+	compound_page_dtor *dtor;
-+
-+	__page_cache_release(page);
-+	dtor = get_compound_page_dtor(page);
-+	(*dtor)(page);
-+}
-+
- static void put_compound_page(struct page *page)
- {
--	page = compound_head(page);
--	if (put_page_testzero(page)) {
--		compound_page_dtor *dtor;
--
--		dtor = get_compound_page_dtor(page);
--		(*dtor)(page);
-+	if (unlikely(PageTail(page))) {
-+		/* __split_huge_page_refcount can run under us */
-+		struct page *page_head = page->first_page;
-+		smp_rmb();
-+		if (likely(PageTail(page) && get_page_unless_zero(page_head))) {
-+			if (unlikely(!PageHead(page_head))) {
-+				/* PageHead is cleared after PageTail */
-+				smp_rmb();
-+				VM_BUG_ON(PageTail(page));
-+				goto out_put_head;
-+			}
-+			/*
-+			 * Only run compound_lock on a valid PageHead,
-+			 * after having it pinned with
-+			 * get_page_unless_zero() above.
-+			 */
-+			smp_mb();
-+			/* page_head wasn't a dangling pointer */
-+			compound_lock(page_head);
-+			if (unlikely(!PageTail(page))) {
-+				/* __split_huge_page_refcount run before us */
-+				compound_unlock(page_head);
-+				VM_BUG_ON(PageHead(page_head));
-+			out_put_head:
-+				if (put_page_testzero(page_head))
-+					__put_single_page(page_head);
-+			out_put_single:
-+				if (put_page_testzero(page))
-+					__put_single_page(page);
-+				return;
-+			}
-+			VM_BUG_ON(page_head != page->first_page);
-+			/*
-+			 * We can release the refcount taken by
-+			 * get_page_unless_zero now that
-+			 * split_huge_page_refcount is blocked on the
-+			 * compound_lock.
-+			 */
-+			if (put_page_testzero(page_head))
-+				VM_BUG_ON(1);
-+			/* __split_huge_page_refcount will wait now */
-+			VM_BUG_ON(atomic_read(&page->_count) <= 0);
-+			atomic_dec(&page->_count);
-+			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
-+			compound_unlock(page_head);
-+			if (put_page_testzero(page_head))
-+				__put_compound_page(page_head);
-+		} else {
-+			/* page_head is a dangling pointer */
-+			VM_BUG_ON(PageTail(page));
-+			goto out_put_single;
-+		}
-+	} else if (put_page_testzero(page)) {
-+		if (PageHead(page))
-+			__put_compound_page(page);
-+		else
-+			__put_single_page(page);
- 	}
- }
- 
-@@ -74,7 +139,7 @@ void put_page(struct page *page)
- 	if (unlikely(PageCompound(page)))
- 		put_compound_page(page);
- 	else if (put_page_testzero(page))
--		__page_cache_release(page);
-+		__put_single_page(page);
- }
- EXPORT_SYMBOL(put_page);
- 
+  * Rules for using pte_update - it must be called after any PTE update which
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
