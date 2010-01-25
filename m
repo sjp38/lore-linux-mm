@@ -1,267 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D86196B0071
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 03:37:54 -0500 (EST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC -v2 PATCH -mm] change anon_vma linking to fix multi-process server scalability issue
-In-Reply-To: <4B59D16A.1060706@redhat.com>
-References: <20100122135809.6C11.A69D9226@jp.fujitsu.com> <4B59D16A.1060706@redhat.com>
-Message-Id: <20100125163425.BDBB.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FFB96B0047
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 07:37:56 -0500 (EST)
+Date: Mon, 25 Jan 2010 23:37:46 +1100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 2/2] xfs: use scalable vmap API
+Message-ID: <20100125123746.GA24406@laptop>
+References: <20081021082542.GA6974@wotan.suse.de>
+ <20081021082735.GB6974@wotan.suse.de>
+ <20081021120932.GB13348@infradead.org>
+ <20081022093018.GD4359@wotan.suse.de>
+ <20100119121505.GA9428@infradead.org>
+ <20100125075445.GD19664@laptop>
+ <20100125081750.GA20012@infradead.org>
+ <20100125083309.GF19664@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Mon, 25 Jan 2010 17:37:49 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100125083309.GF19664@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, minchan.kim@gmail.com, lwoodman@redhat.com, aarcange@redhat.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On 01/22/2010 01:57 AM, KOSAKI Motohiro wrote:
+On Mon, Jan 25, 2010 at 07:33:09PM +1100, Nick Piggin wrote:
+> > Any easy way to get them?  Sorry, not uptodate on your new vmalloc
+> > implementation anymore.
 > 
-> > [ generally, this patch have too few lock related comment. I think I
-> >    haven't undestand correct lock rule of this patch. ]
-> 
-> I do not introduce any new locks with this patch, locking the
-> linked list on each "side" of the anon_vma_link with the lock
-> on that side - the anon_vma lock for the same_anon_vma list
-> and the per-mm locks on the vma side of the list.
-> 
-> >> @@ -516,7 +517,8 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
-> >>   	/*
-> >>   	 * cover the whole range: [new_start, old_end)
-> >>   	 */
-> >> -	vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL);
-> >> +	if (vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL))
-> >> +		return -ENOMEM;
-> >
-> > shift_arg_pages() have two vma_adjust() call. why don't we need change both?
-> 
-> Because shrinking a VMA cannot fail.  Looking at it some
-> more, this call cannot fail either because we check that
-> there is enough space to grow this VMA downward.
+> Let me try writing a few (tested) patches here first that I can send you.
 
-I see. you are right.
+Well is it easy to reproduce the vmap failure? Here is a better tested
+patch if you can try it. It fixes a couple of bugs and does some purging
+of fragmented blocks.
 
+If it does not help, can you tell me how many CPUs in your system?
 
-> >> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> >> index 84a524a..44cfb13 100644
-> >> --- a/include/linux/mm_types.h
-> >> +++ b/include/linux/mm_types.h
-> >> @@ -167,7 +167,7 @@ struct vm_area_struct {
-> >>   	 * can only be in the i_mmap tree.  An anonymous MAP_PRIVATE, stack
-> >>   	 * or brk vma (with NULL file) can only be in an anon_vma list.
-> >>   	 */
-> >> -	struct list_head anon_vma_node;	/* Serialized by anon_vma->lock */
-> >> +	struct list_head anon_vma_chain; /* Serialized by anon_vma->lock */
-> >>   	struct anon_vma *anon_vma;	/* Serialized by page_table_lock */
-> >
-> > Is this comment really correct? for example, following vma->anon_vma_chain
-> > operation is in place out of anon_vma lock.
-> 
-> > I guess you intend to write /* locked by mmap_sem&  friends */.
-> 
-> You are right. I will fix that comment.
-> 
-> > note: however I don't think "&  friends" is good comment ;-)
-> 
-> No kidding - however this is how mmap.c already serializes
-> all kinds of things :)
+Thanks,
+Nick
 
-ok.
+--
 
-
-> >>   	/* Function pointers to deal with this struct. */
-> >> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> >> index b019ae6..0d1903a 100644
-> >> --- a/include/linux/rmap.h
-> >> +++ b/include/linux/rmap.h
-> >> @@ -37,7 +37,27 @@ struct anon_vma {
-> >>   	 * is serialized by a system wide lock only visible to
-> >>   	 * mm_take_all_locks() (mm_all_locks_mutex).
-> >>   	 */
-> >> -	struct list_head head;	/* List of private "related" vmas */
-> >> +	struct list_head head;	/* Chain of private "related" vmas */
-> >> +};
-> >
-> > Hmm..
-> > It seems unclear comment. this list head don't linked struct vm_area_struct.
-> > instead, linked struct anon_vma_chain. so "related vmas" isn't kindly comment.
-> 
-> True, it is a chain that points to the related VMAs.
-
-thanks.
-
-
-> >> +
-> >> +/*
-> >> + * The copy-on-write semantics of fork mean that an anon_vma
-> >> + * can become associated with multiple processes. Furthermore,
-> >> + * each child process will have its own anon_vma, where new
-> >> + * pages for that process are instantiated.
-> >> + *
-> >> + * This structure allows us to find the anon_vmas associated
-> >> + * with a VMA, or the VMAs associated with an anon_vma.
-> >> + * The "same_vma" list contains the anon_vma_chains linking
-> >> + * all the anon_vmas associated with this VMA.
-> >> + * The "same_anon_vma" list contains the anon_vma_chains
-> >> + * which link all the VMAs associated with this anon_vma.
-> >> + */
-> >> +struct anon_vma_chain {
-> >> +	struct vm_area_struct *vma;
-> >> +	struct anon_vma *anon_vma;
-> >> +	struct list_head same_vma;	/* locked by mmap_sem&  friends */
-> >> +	struct list_head same_anon_vma;	/* locked by anon_vma->lock */
-> >>   };
-> >
-> > Probably, This place need more lots comments. struct anon_vma_chain
-> > makes very complex relationship graph. example or good ascii art is needed.
-> > especially, fork parent and child have different anon_vma_chain. it
-> > seems tricky.
-> 
-> I guess I'll have to draw up some ascii art...
-> 
-> >> +static inline void anon_vma_merge(struct vm_area_struct *vma,
-> >> +				  struct vm_area_struct *next)
-> >> +{
-> >> +	BUG_ON(vma->anon_vma != next->anon_vma);
-> >> +	unlink_anon_vmas(next);
-> >> +}
-> >> +
-> >
-> > Probably VM_BUG_ON is enough?
-> 
-> OK.
-
-thanks.
-
-
-
-> >> @@ -792,11 +809,13 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
-> >>   				is_mergeable_anon_vma(prev->anon_vma,
-> >>   						      next->anon_vma)) {
-> >>   							/* cases 1, 6 */
-> >> -			vma_adjust(prev, prev->vm_start,
-> >> +			err = vma_adjust(prev, prev->vm_start,
-> >>   				next->vm_end, prev->vm_pgoff, NULL);
-> >>   		} else					/* cases 2, 5, 7 */
-> >> -			vma_adjust(prev, prev->vm_start,
-> >> +			err = vma_adjust(prev, prev->vm_start,
-> >>   				end, prev->vm_pgoff, NULL);
-> >> +		if (err)
-> >> +			return NULL;
-> >>   		return prev;
-> >>   	}
-> >
-> > Currently, the callers of vma_merge() assume vma_merge doesn't failure.
-> > IOW, they don't think return NULL is failure.
-> >
-> > Probably we need to change all callers too.
-> 
-> Are you sure?  To me it looks like vma_merge returns NULL when it
-> fails to do a merge, leaving the VMAs alone as a result.
-> 
-> What am I missing?
-
-I think it depend on what mean "failure".
-
- 1) Don't merge because sibling vma have different vma attribute
- 2) Don't merge because no memory
-
-traditionally, only (1) can occur. 
-
-
-Example, mlock.c have following code.
-
-        *prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
-                          vma->vm_file, pgoff, vma_policy(vma));
-        if (*prev) {
-                vma = *prev;
-                goto success;
-        }
-
-        if (start != vma->vm_start) {
-                ret = split_vma(mm, vma, start, 1);
-                if (ret)
-                        goto out;
-        }
-
-It doesn't assume NULL is failure. it treat merely "don't merge".
-But if (2) occur, the syscall should fail, I think.
-
-
-> >> @@ -2454,7 +2506,8 @@ int mm_take_all_locks(struct mm_struct *mm)
-> >>   		if (signal_pending(current))
-> >>   			goto out_unlock;
-> >>   		if (vma->anon_vma)
-> >> -			vm_lock_anon_vma(mm, vma->anon_vma);
-> >> +			list_for_each_entry(avc,&vma->anon_vma_chain, same_vma)
-> >> +				vm_lock_anon_vma(mm, avc->anon_vma);
-> >>   	}
-> >
-> > This function is not protected by mmap_sem. but anon_vma_chain->same_vma
-> > iteration need to mmap_sem if your commnet is correct.
-> 
-> The comment above mm_take_all_locks says:
-> 
->   * The caller must take the mmap_sem in write mode before calling
->   * mm_take_all_locks(). The caller isn't allowed to release the
->   * mmap_sem until mm_drop_all_locks() returns.
-
-you are right. sorry my fault ;-)
-
-
-
-> >> @@ -188,10 +276,21 @@ static void anon_vma_ctor(void *data)
-> >>   	INIT_LIST_HEAD(&anon_vma->head);
-> >>   }
-> >
-> >
-> >>   void __init anon_vma_init(void)
-> >>   {
-> >>   	anon_vma_cachep = kmem_cache_create("anon_vma", sizeof(struct anon_vma),
-> >>   			0, SLAB_DESTROY_BY_RCU|SLAB_PANIC, anon_vma_ctor);
-> >> +	anon_vma_chain_cachep = kmem_cache_create("anon_vma_chain",
-> >> +			sizeof(struct anon_vma_chain), 0,
-> >> +			SLAB_DESTROY_BY_RCU|SLAB_PANIC, anon_vma_chain_ctor);
-> >>   }
-> >
-> > Why do we need SLAB_DESTROY_BY_RCU?
-> > anon_vma's one is required by page migration. (Oops, It should be commented, I think)
-> > but which code require anon_vma_chain's one?
-> 
-> I just copied that code over - I guess we don't need that flag
-> and I'll remove it.
-
-ok.
-
-
-> >>   /*
-> >> @@ -240,6 +339,14 @@ vma_address(struct page *page, struct vm_area_struct *vma)
-> >>   		/* page should be within @vma mapping range */
-> >>   		return -EFAULT;
-> >>   	}
-> >> +	if (unlikely(vma->vm_flags&  VM_LOCK_RMAP))
-> >> +		/*
-> >> +		 * This VMA is being unlinked or not yet linked into the
-> >> +		 * VMA tree.  Do not try to follow this rmap.  This race
-> >> +		 * condition can result in page_referenced ignoring a
-> >> +		 * reference or try_to_unmap failing to unmap a page.
-> >> +		 */
-> >> +		return -EFAULT;
-> >>   	return address;
-> >>   }
-> >
-> > In this place, the task have anon_vma->lock, but don't have mmap_sem.
-> > But, VM_LOCK_RMAP changing point (i.e. vma_adjust()) is protected by mmap_sem.
-> >
-> > IOW, "if (vma->vm_flags&  VM_LOCK_RMAP)" return unstable value. Why can we use
-> > unstable value as "lock"?
-> 
-> That's a good question.  I will have to think about it some more.
-
-thanks.
-
-
+Index: linux-2.6/mm/vmalloc.c
+===================================================================
+--- linux-2.6.orig/mm/vmalloc.c	2010-01-25 23:35:03.000000000 +1100
++++ linux-2.6/mm/vmalloc.c	2010-01-25 23:35:15.000000000 +1100
+@@ -509,6 +509,9 @@ static unsigned long lazy_max_pages(void
+ 
+ static atomic_t vmap_lazy_nr = ATOMIC_INIT(0);
+ 
++/* for per-CPU blocks */
++static void purge_fragmented_blocks_allcpus(void);
++
+ /*
+  * Purges all lazily-freed vmap areas.
+  *
+@@ -539,6 +542,9 @@ static void __purge_vmap_area_lazy(unsig
+ 	} else
+ 		spin_lock(&purge_lock);
+ 
++	if (sync)
++		purge_fragmented_blocks_allcpus();
++
+ 	rcu_read_lock();
+ 	list_for_each_entry_rcu(va, &vmap_area_list, list) {
+ 		if (va->flags & VM_LAZY_FREE) {
+@@ -667,8 +673,6 @@ static bool vmap_initialized __read_most
+ struct vmap_block_queue {
+ 	spinlock_t lock;
+ 	struct list_head free;
+-	struct list_head dirty;
+-	unsigned int nr_dirty;
+ };
+ 
+ struct vmap_block {
+@@ -678,10 +682,9 @@ struct vmap_block {
+ 	unsigned long free, dirty;
+ 	DECLARE_BITMAP(alloc_map, VMAP_BBMAP_BITS);
+ 	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
+-	union {
+-		struct list_head free_list;
+-		struct rcu_head rcu_head;
+-	};
++	struct list_head free_list;
++	struct rcu_head rcu_head;
++	struct list_head purge;
+ };
+ 
+ /* Queue of free and dirty vmap blocks, for allocation and flushing purposes */
+@@ -757,7 +760,7 @@ static struct vmap_block *new_vmap_block
+ 	vbq = &get_cpu_var(vmap_block_queue);
+ 	vb->vbq = vbq;
+ 	spin_lock(&vbq->lock);
+-	list_add(&vb->free_list, &vbq->free);
++	list_add_rcu(&vb->free_list, &vbq->free);
+ 	spin_unlock(&vbq->lock);
+ 	put_cpu_var(vmap_block_queue);
+ 
+@@ -776,8 +779,6 @@ static void free_vmap_block(struct vmap_
+ 	struct vmap_block *tmp;
+ 	unsigned long vb_idx;
+ 
+-	BUG_ON(!list_empty(&vb->free_list));
+-
+ 	vb_idx = addr_to_vb_idx(vb->va->va_start);
+ 	spin_lock(&vmap_block_tree_lock);
+ 	tmp = radix_tree_delete(&vmap_block_tree, vb_idx);
+@@ -788,12 +789,61 @@ static void free_vmap_block(struct vmap_
+ 	call_rcu(&vb->rcu_head, rcu_free_vb);
+ }
+ 
++static void purge_fragmented_blocks(int cpu)
++{
++	LIST_HEAD(purge);
++	struct vmap_block *vb;
++	struct vmap_block *n_vb;
++	struct vmap_block_queue *vbq = &per_cpu(vmap_block_queue, cpu);
++
++	rcu_read_lock();
++	list_for_each_entry_rcu(vb, &vbq->free, free_list) {
++
++		if (!(vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS))
++			continue;
++
++		spin_lock(&vb->lock);
++		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
++			vb->free = 0; /* prevent further allocs after releasing lock */
++			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
++			bitmap_fill(vb->alloc_map, VMAP_BBMAP_BITS);
++			bitmap_fill(vb->dirty_map, VMAP_BBMAP_BITS);
++			spin_lock(&vbq->lock);
++			list_del_rcu(&vb->free_list);
++			spin_unlock(&vbq->lock);
++			spin_unlock(&vb->lock);
++			list_add_tail(&vb->purge, &purge);
++		} else
++			spin_unlock(&vb->lock);
++	}
++	rcu_read_unlock();
++
++	list_for_each_entry_safe(vb, n_vb, &purge, purge) {
++		list_del(&vb->purge);
++		free_vmap_block(vb);
++	}
++}
++
++static void purge_fragmented_blocks_thiscpu(void)
++{
++	purge_fragmented_blocks(smp_processor_id());
++}
++
++static void purge_fragmented_blocks_allcpus(void)
++{
++	int cpu;
++
++	for_each_possible_cpu(cpu)
++		purge_fragmented_blocks(cpu);
++}
++
+ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
+ {
+ 	struct vmap_block_queue *vbq;
+ 	struct vmap_block *vb;
+ 	unsigned long addr = 0;
+ 	unsigned int order;
++	int purge = 0;
+ 
+ 	BUG_ON(size & ~PAGE_MASK);
+ 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
+@@ -806,24 +856,38 @@ again:
+ 		int i;
+ 
+ 		spin_lock(&vb->lock);
++		if (vb->free < 1UL << order)
++			goto next;
++
+ 		i = bitmap_find_free_region(vb->alloc_map,
+ 						VMAP_BBMAP_BITS, order);
+ 
+-		if (i >= 0) {
+-			addr = vb->va->va_start + (i << PAGE_SHIFT);
+-			BUG_ON(addr_to_vb_idx(addr) !=
+-					addr_to_vb_idx(vb->va->va_start));
+-			vb->free -= 1UL << order;
+-			if (vb->free == 0) {
+-				spin_lock(&vbq->lock);
+-				list_del_init(&vb->free_list);
+-				spin_unlock(&vbq->lock);
++		if (i < 0) {
++			if (vb->free + vb->dirty == VMAP_BBMAP_BITS) {
++				/* fragmented and no outstanding allocations */
++				BUG_ON(vb->dirty != VMAP_BBMAP_BITS);
++				purge = 1;
+ 			}
+-			spin_unlock(&vb->lock);
+-			break;
++			goto next;
+ 		}
++		addr = vb->va->va_start + (i << PAGE_SHIFT);
++		BUG_ON(addr_to_vb_idx(addr) !=
++				addr_to_vb_idx(vb->va->va_start));
++		vb->free -= 1UL << order;
++		if (vb->free == 0) {
++			spin_lock(&vbq->lock);
++			list_del_rcu(&vb->free_list);
++			spin_unlock(&vbq->lock);
++		}
++		spin_unlock(&vb->lock);
++		break;
++next:
+ 		spin_unlock(&vb->lock);
+ 	}
++
++	if (purge)
++		purge_fragmented_blocks_thiscpu();
++
+ 	put_cpu_var(vmap_block_queue);
+ 	rcu_read_unlock();
+ 
+@@ -860,11 +924,11 @@ static void vb_free(const void *addr, un
+ 	BUG_ON(!vb);
+ 
+ 	spin_lock(&vb->lock);
+-	bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order);
++	BUG_ON(bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order));
+ 
+ 	vb->dirty += 1UL << order;
+ 	if (vb->dirty == VMAP_BBMAP_BITS) {
+-		BUG_ON(vb->free || !list_empty(&vb->free_list));
++		BUG_ON(vb->free);
+ 		spin_unlock(&vb->lock);
+ 		free_vmap_block(vb);
+ 	} else
+@@ -1033,8 +1097,6 @@ void __init vmalloc_init(void)
+ 		vbq = &per_cpu(vmap_block_queue, i);
+ 		spin_lock_init(&vbq->lock);
+ 		INIT_LIST_HEAD(&vbq->free);
+-		INIT_LIST_HEAD(&vbq->dirty);
+-		vbq->nr_dirty = 0;
+ 	}
+ 
+ 	/* Import existing vmlist entries. */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
