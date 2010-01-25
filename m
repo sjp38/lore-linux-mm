@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CF9046B0078
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D308E6B008C
 	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:29:54 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 27 of 31] pmd_trans_huge migrate bugcheck
-Message-Id: <6b6458f2e29438998adc.1264439958@v2.random>
+Subject: [PATCH 10 of 31] export maybe_mkwrite
+Message-Id: <ea11f0b2fa42a8254a86.1264439941@v2.random>
 In-Reply-To: <patchbomb.1264439931@v2.random>
 References: <patchbomb.1264439931@v2.random>
-Date: Mon, 25 Jan 2010 18:19:18 +0100
+Date: Mon, 25 Jan 2010 18:19:01 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,56 +18,58 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No pmd_trans_huge should ever materialize in migration ptes areas, because
-we split the hugepage before migration ptes are instantiated.
+huge_memory.c needs it too when it fallbacks in copying hugepages into regular
+fragmented pages if hugepage allocation fails during COW.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -107,6 +107,10 @@ static inline int PageTransHuge(struct p
- 	VM_BUG_ON(PageTail(page));
- 	return PageHead(page);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -383,6 +383,19 @@ static inline void set_compound_order(st
  }
-+static inline int PageTransCompound(struct page *page)
+ 
+ /*
++ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
++ * servicing faults for write access.  In the normal case, do always want
++ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
++ * that do not have writing enabled, when used by access_process_vm.
++ */
++static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
 +{
-+	return PageCompound(page);
++	if (likely(vma->vm_flags & VM_WRITE))
++		pte = pte_mkwrite(pte);
++	return pte;
 +}
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define transparent_hugepage_flags 0UL
- static inline int split_huge_page(struct page *page)
-@@ -120,6 +124,7 @@ static inline int split_huge_page(struct
- #define wait_split_huge_page(__anon_vma, __pmd)	\
- 	do { } while (0)
- #define PageTransHuge(page) 0
-+#define PageTransCompound(page) 0
- static inline int hugepage_madvise(unsigned long *vm_flags)
- {
- 	BUG_ON(0);
-diff --git a/mm/migrate.c b/mm/migrate.c
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -99,6 +99,7 @@ static int remove_migration_pte(struct p
- 		goto out;
- 
- 	pmd = pmd_offset(pud, addr);
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	if (!pmd_present(*pmd))
- 		goto out;
- 
-@@ -819,6 +820,10 @@ static int do_move_page_to_node_array(st
- 		if (PageReserved(page) || PageKsm(page))
- 			goto put_and_set;
- 
-+		if (unlikely(PageTransCompound(page)))
-+			if (unlikely(split_huge_page(page)))
-+				goto put_and_set;
 +
- 		pp->page = page;
- 		err = page_to_nid(page);
++/*
+  * Multiple processes may "see" the same page. E.g. for untouched
+  * mappings of /dev/null, all processes see the same page full of
+  * zeroes, and text pages of executables and shared libraries have
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1943,19 +1943,6 @@ static inline int pte_unmap_same(struct 
+ 	return same;
+ }
  
+-/*
+- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
+- * servicing faults for write access.  In the normal case, do always want
+- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
+- * that do not have writing enabled, when used by access_process_vm.
+- */
+-static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+-{
+-	if (likely(vma->vm_flags & VM_WRITE))
+-		pte = pte_mkwrite(pte);
+-	return pte;
+-}
+-
+ static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+ {
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
