@@ -1,40 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3A79A600786
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:30:17 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 15DA86007AD
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:30:43 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 00 of 31] Transparent Hugepage support #6
-Message-Id: <patchbomb.1264439931@v2.random>
-Date: Mon, 25 Jan 2010 18:18:51 +0100
+Subject: [PATCH 30 of 31] transparent hugepage vmstat
+Message-Id: <f23262352d9a48d44c96.1264439961@v2.random>
+In-Reply-To: <patchbomb.1264439931@v2.random>
+References: <patchbomb.1264439931@v2.random>
+Date: Mon, 25 Jan 2010 18:19:21 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello everyone,
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-so this is working on my laptop and for now on I'll keeping taking advantage
-of hugepages here on my laptop (all sysctl set to "always") and there are no
-bugs left that I am aware of, my laptop seems rock solid with sound, skype
-videocall, youtube etc... On server I'm running this with lockdep, full
-preempt and all all debug goodies enabled, and it's doing swap storms of 5G in
-a loop with firefox and stuff running as well (which triggers the futex and
-stuff on hugepages without splitting them).
+Add hugepage stat information to /proc/vmstat and /proc/meminfo.
 
-The major bug that triggered with firefox was futex (firefox is using
-hugepages all the time now), it was tricky to find because futex takes the pin
-on a tail page and then run put_page on the head page only, so leaving at a
-much later time (during pte teardown) one hugepage being freed but with
-bad_page triggering because of the atomic count of the tail page being > 0.
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
 
-Other cleanups and changes as usual.
-
-I think next submit should be against mmotd, not agaist mainline anymore.
-I still wait answer from Dave on the tail page handling for hugetlbfs to
-decide if to optimize that bit with yet another new PG_trans_huge bitflag.
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -101,6 +101,9 @@ static int meminfo_proc_show(struct seq_
+ #ifdef CONFIG_MEMORY_FAILURE
+ 		"HardwareCorrupted: %5lu kB\n"
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		"AnonHugePages:  %8lu kB\n"
++#endif
+ 		,
+ 		K(i.totalram),
+ 		K(i.freeram),
+@@ -151,6 +154,10 @@ static int meminfo_proc_show(struct seq_
+ #ifdef CONFIG_MEMORY_FAILURE
+ 		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
++		   HPAGE_PMD_NR)
++#endif
+ 		);
+ 
+ 	hugetlb_report_meminfo(m);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -112,6 +112,7 @@ enum zone_stat_item {
+ 	NUMA_LOCAL,		/* allocation from local node */
+ 	NUMA_OTHER,		/* allocation from other node */
+ #endif
++	NR_ANON_TRANSPARENT_HUGEPAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+ /*
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -719,6 +719,9 @@ static void __split_huge_page_refcount(s
+ 		put_page(page_tail);
+ 	}
+ 
++	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
++
+ 	ClearPageCompound(page);
+ 	compound_unlock(page);
+ 	spin_unlock_irq(&zone->lru_lock);
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -687,8 +687,13 @@ void page_add_anon_rmap(struct page *pag
+ 	struct vm_area_struct *vma, unsigned long address)
+ {
+ 	int first = atomic_inc_and_test(&page->_mapcount);
+-	if (first)
+-		__inc_zone_page_state(page, NR_ANON_PAGES);
++	if (first) {
++		if (!PageTransHuge(page))
++			__inc_zone_page_state(page, NR_ANON_PAGES);
++		else
++			__inc_zone_page_state(page,
++					      NR_ANON_TRANSPARENT_HUGEPAGES);
++	}
+ 	if (unlikely(PageKsm(page)))
+ 		return;
+ 
+@@ -716,7 +721,10 @@ void page_add_new_anon_rmap(struct page 
+ 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+ 	SetPageSwapBacked(page);
+ 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+-	__inc_zone_page_state(page, NR_ANON_PAGES);
++	if (!PageTransHuge(page))
++	    __inc_zone_page_state(page, NR_ANON_PAGES);
++	else
++	    __inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+ 	__page_set_anon_rmap(page, vma, address);
+ 	if (page_evictable(page, vma))
+ 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
+@@ -763,7 +771,11 @@ void page_remove_rmap(struct page *page)
+ 	}
+ 	if (PageAnon(page)) {
+ 		mem_cgroup_uncharge_page(page);
+-		__dec_zone_page_state(page, NR_ANON_PAGES);
++		if (!PageTransHuge(page))
++			__dec_zone_page_state(page, NR_ANON_PAGES);
++		else
++			__dec_zone_page_state(page,
++					      NR_ANON_TRANSPARENT_HUGEPAGES);
+ 	} else {
+ 		__dec_zone_page_state(page, NR_FILE_MAPPED);
+ 		mem_cgroup_update_file_mapped(page, -1);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -655,6 +655,9 @@ static const char * const vmstat_text[] 
+ 	"numa_local",
+ 	"numa_other",
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	"nr_anon_transparent_hugepages",
++#endif
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ 	"pgpgin",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
