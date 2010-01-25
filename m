@@ -1,71 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7416B009D
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 16:53:24 -0500 (EST)
-Message-ID: <4B5E1281.7090700@suse.de>
-Date: Tue, 26 Jan 2010 00:52:01 +0300
-From: Alexey Starikovskiy <astarikovskiy@suse.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A8BFE6B0098
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 17:19:11 -0500 (EST)
+Message-ID: <4B5E1855.4090809@bx.jp.nec.com>
+Date: Mon, 25 Jan 2010 17:16:53 -0500
+From: Keiichi KII <k-keiichi@bx.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [Update][PATCH] MM / PM: Force GFP_NOIO during suspend/hibernation
- and resume
-References: <201001212121.50272.rjw@sisk.pl> <201001222219.15958.rjw@sisk.pl> <1264238962.16031.4.camel@maxim-laptop> <201001252249.18690.rjw@sisk.pl>
-In-Reply-To: <201001252249.18690.rjw@sisk.pl>
+Subject: Re: [RFC PATCH -tip 2/2 v2] add a scripts for pagecache usage per
+ process
+References: <4B5A3D00.8080901@bx.jp.nec.com>	 <4B5A3E19.6060502@bx.jp.nec.com> <1264234865.6595.75.camel@tropicana>
+In-Reply-To: <1264234865.6595.75.camel@tropicana>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Maxim Levitsky <maximlevitsky@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Tom Zanussi <tzanussi@gmail.com>
+Cc: linux-kernel@vger.kernel.org, lwoodman@redhat.com, linux-mm@kvack.org, mingo@elte.hu, riel@redhat.com, rostedt@goodmis.org, akpm@linux-foundation.org, fweisbec@gmail.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-Rafael J. Wysocki D?D,N?DuN?:
-> On Saturday 23 January 2010, Maxim Levitsky wrote:
->> On Fri, 2010-01-22 at 22:19 +0100, Rafael J. Wysocki wrote: 
->>> On Friday 22 January 2010, Maxim Levitsky wrote:
->>>> On Fri, 2010-01-22 at 10:42 +0900, KOSAKI Motohiro wrote: 
->>>>>>>> Probably we have multiple option. but I don't think GFP_NOIO is good
->>>>>>>> option. It assume the system have lots non-dirty cache memory and it isn't
->>>>>>>> guranteed.
->>>>>>> Basically nothing is guaranteed in this case.  However, does it actually make
->>>>>>> things _worse_?  
->>>>>> Hmm..
->>>>>> Do you mean we don't need to prevent accidental suspend failure?
->>>>>> Perhaps, I did misunderstand your intention. If you think your patch solve
->>>>>> this this issue, I still disagree. but If you think your patch mitigate
->>>>>> the pain of this issue, I agree it. I don't have any reason to oppose your
->>>>>> first patch.
->>>>> One question. Have anyone tested Rafael's $subject patch? 
->>>>> Please post test result. if the issue disapper by the patch, we can
->>>>> suppose the slowness is caused by i/o layer.
->>>> I did.
->>>>
->>>> As far as I could see, patch does solve the problem I described.
->>>>
->>>> Does it affect speed of suspend? I can't say for sure. It seems to be
->>>> the same.
->>> Thanks for testing.
->> I'll test that too, soon.
->> Just to note that I left my hibernate loop run overnight, and now I am
->> posting from my notebook after it did 590 hibernate cycles.
+(2010a1'01ae??23ae?JPY 03:21), Tom Zanussi wrote:
+> Hi,
 > 
-> Did you have a chance to test it?
+> On Fri, 2010-01-22 at 19:08 -0500, Keiichi KII wrote:
+>> The scripts are implemented based on the trace stream scripting support.
+>> And the scripts implement the following.
+>>  - how many pagecaches each process has per each file
+>>  - how many pages are cached per each file
+>>  - how many pagecaches each process shares
+>>
 > 
->> Offtopic, but Note that to achieve that I had to stop using global acpi
->> hardware lock. I tried all kinds of things, but for now it just hands
->> from time to time.
->> See http://bugzilla.kernel.org/show_bug.cgi?id=14668
+> Nice, it looks like a very useful script - I gave it a quick try and it
+> seems to work well...
 > 
-> I'm going to look at that later this week, although I'm not sure I can do more
-> than Alex about that.
-> 
-> Rafael
-Rafael,
-If you can point to where one may insert callback to be called just before handing control to resume kernel,
-it may help...
+> The only problem I see, nothing to do with your script and nothing you
+> can do anything about at the moment, is that the record step generates a
+> huge amount of data, which of course makes the event processing take
+> awhile.  A lot of it appears to be due to perf itself - being able to
+> filter out the perf-generated events in the kernel would make a big
+> difference, I think; you normally don't want to see those anyway...
 
-Regards,
-Alex.
+Yes, right. I don't want to process the data of perf itself.
+I will try to find any way to solve this problem. 
 
+> BTW, I see that you did your first version in Python - not that you'd
+> want to redo it again, but just FYI I now have working Python support
+> that I'll be posting soon - I still have some small details to hammer
+> out, but if you have any other scripts in the pipeline, in a couple days
+> you'll be able to use Python instead if you want.
 
+It will help me create some scripts. I will use Python support if it is posted.
+
+>> To monitor pagecache usage per a process, run "pagecache-usage-record" to
+>> record perf data for "pagecache-usage.pl" and run "pagecache-usage-report"
+>> to display.
+> 
+> Another way of course would be to use 'perf trace record/report' and the
+> script name as shown by perf trace -l:
+> 
+> $ perf trace record pagecache-usage
+> $ perf trace report pagecache-usage
+
+Thank you for your information.
+I will use this way.
+
+>> Index: linux-2.6-tip/tools/perf/scripts/perl/pagecache-usage.pl
+>> ===================================================================
+>> --- /dev/null
+>> +++ linux-2.6-tip/tools/perf/scripts/perl/pagecache-usage.pl
+>> @@ -0,0 +1,160 @@
+>> +# perf trace event handlers, generated by perf trace -g perl
+> 
+> You might want to get rid of this and add a short description and your
+> name, if you want to take credit for it. ;-)
+> 
+>> +# Licensed under the terms of the GNU GPL License version 2
+>> +
+> 
+>> +# The common_* event handler fields are the most useful fields common to
+>> +# all events.  They don't necessarily correspond to the 'common_*' fields
+>> +# in the format files.  Those fields not available as handler params can
+>> +# be retrieved using Perl functions of the form common_*($context).
+>> +# See Context.pm for the list of available functions.
+>> +
+> 
+> You can get rid of this part too - it's just meant to be helpful
+> information generated when starting a script.
+> 
+
+I'll remove unnecessary comments and add a short description next time.
+
+>> +my %unhandled;
+>> +
+>> +sub trace_unhandled
+>> +{
+>> +	my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
+>> +	    $common_pid, $common_comm) = @_;
+>> +
+>> +	$unhandled{$event_name}++;
+>> +}
+>> +
+>> +sub print_unhandled
+>> +{
+>> +	if ((scalar keys %unhandled) == 0) {
+>> +	    print "unhandled events nothing\n";
+> 
+> This is kind of distracting - it's not too useful to know that you don't
+> have unhandled events, but if you do have some, it is useful to print
+> those as you do below - it points out that some event type are being
+> unnecessarily recorded or the script is being run on the wrong trace
+> data.
+
+I don't have unhandled events to monitor pagecache usage as you say.
+So I will remove these code.
+
+Thanks,
+Keiichi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
