@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F05E16B009B
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D9CC66B0098
 	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:30:12 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 16 of 31] bail out gup_fast on splitting pmd
-Message-Id: <d8ae252e514e075d2ef8.1264439947@v2.random>
+Subject: [PATCH 02 of 31] compound_lock
+Message-Id: <2b3c25de83b48e698c52.1264439933@v2.random>
 In-Reply-To: <patchbomb.1264439931@v2.random>
 References: <patchbomb.1264439931@v2.random>
-Date: Mon, 25 Jan 2010 18:19:07 +0100
+Date: Mon, 25 Jan 2010 18:18:53 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,35 +18,51 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Force gup_fast to take the slow path and block if the pmd is splitting, not
-only if it's none.
+Add a new compound_lock() needed to serialize put_page against
+__split_huge_page_refcount().
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -156,7 +156,18 @@ static int gup_pmd_range(pud_t pud, unsi
- 		pmd_t pmd = *pmdp;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -12,6 +12,7 @@
+ #include <linux/prio_tree.h>
+ #include <linux/debug_locks.h>
+ #include <linux/mm_types.h>
++#include <linux/bit_spinlock.h>
  
- 		next = pmd_addr_end(addr, end);
--		if (pmd_none(pmd))
-+		/*
-+		 * The pmd_trans_splitting() check below explains why
-+		 * pmdp_splitting_flush has to flush the tlb, to stop
-+		 * this gup-fast code from running while we set the
-+		 * splitting bit in the pmd. Returning zero will take
-+		 * the slow path that will call wait_split_huge_page()
-+		 * if the pmd is still in splitting state. gup-fast
-+		 * can't because it has irq disabled and
-+		 * wait_split_huge_page() would never return as the
-+		 * tlb flush IPI wouldn't run.
-+		 */
-+		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
- 			return 0;
- 		if (unlikely(pmd_large(pmd))) {
- 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
+ struct mempolicy;
+ struct anon_vma;
+@@ -294,6 +295,16 @@ static inline int is_vmalloc_or_module_a
+ }
+ #endif
+ 
++static inline void compound_lock(struct page *page)
++{
++	bit_spin_lock(PG_compound_lock, &page->flags);
++}
++
++static inline void compound_unlock(struct page *page)
++{
++	bit_spin_unlock(PG_compound_lock, &page->flags);
++}
++
+ static inline struct page *compound_head(struct page *page)
+ {
+ 	if (unlikely(PageTail(page)))
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -108,6 +108,7 @@ enum pageflags {
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
+ #endif
++	PG_compound_lock,
+ 	__NR_PAGEFLAGS,
+ 
+ 	/* Filesystems */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
