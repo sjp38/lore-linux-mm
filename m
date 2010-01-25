@@ -1,33 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 373066B009E
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 14:01:20 -0500 (EST)
-Date: Mon, 25 Jan 2010 20:00:52 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] - Fix unmap_vma() bug related to mmu_notifiers
-Message-ID: <20100125190052.GF5756@random.random>
-References: <20100125174556.GA23003@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100125174556.GA23003@sgi.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B4126B008C
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 14:58:46 -0500 (EST)
+Date: Mon, 25 Jan 2010 11:58:14 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Flush dcache before writing into page to avoid alias
+Message-Id: <20100125115814.156d401d.akpm@linux-foundation.org>
+In-Reply-To: <20100125133308.GA26799@desktop>
+References: <979dd0561001202107v4ddc1eb7xa59a7c16c452f7a2@mail.gmail.com>
+	<20100125133308.GA26799@desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jack Steiner <steiner@sgi.com>
-Cc: mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: anfei <anfei.zhou@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux@arm.linux.org.uk, Jamie Lokier <jamie@shareable.org>, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 25, 2010 at 11:45:56AM -0600, Jack Steiner wrote:
-> unmap_vmas() can fail to correctly flush the TLB if a
-> callout to mmu_notifier_invalidate_range_start() sleeps.
+On Mon, 25 Jan 2010 21:33:08 +0800 anfei <anfei.zhou@gmail.com> wrote:
 
-Not sure I understand: the callbacks invoked by
-mmu_notifier_invalidate_range_start can't sleep, or rcu locking inside
-mmu notifier will break too (first thing that should be replaced with
-srcu if they were allowed to sleep).
+> Hi Andrew,
+> 
+> On Thu, Jan 21, 2010 at 01:07:57PM +0800, anfei zhou wrote:
+> > The cache alias problem will happen if the changes of user shared mapping
+> > is not flushed before copying, then user and kernel mapping may be mapped
+> > into two different cache line, it is impossible to guarantee the coherence
+> > after iov_iter_copy_from_user_atomic.  So the right steps should be:
+> > 	flush_dcache_page(page);
+> > 	kmap_atomic(page);
+> > 	write to page;
+> > 	kunmap_atomic(page);
+> > 	flush_dcache_page(page);
+> > More precisely, we might create two new APIs flush_dcache_user_page and
+> > flush_dcache_kern_page to replace the two flush_dcache_page accordingly.
+> > 
+> > Here is a snippet tested on omap2430 with VIPT cache, and I think it is
+> > not ARM-specific:
+> > 	int val = 0x11111111;
+> > 	fd = open("abc", O_RDWR);
+> > 	addr = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+> > 	*(addr+0) = 0x44444444;
+> > 	tmp = *(addr+0);
+> > 	*(addr+1) = 0x77777777;
+> > 	write(fd, &val, sizeof(int));
+> > 	close(fd);
+> > The results are not always 0x11111111 0x77777777 at the beginning as expected.
+> > 
+> Is this a real bug or not necessary to support?
 
-In short there's no schedule that could be added because of those
-callbacks so if this code isn't ok and schedules and screw on the
-mmu_gather tlb it's probably not mmu notifier related.
+Bug.  If variable `addr' has type int* then the contents of that file
+should be 0x11111111 0x77777777.  You didn't tell us what the contents
+were in the incorrect case, but I guess it doesn't matter.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
