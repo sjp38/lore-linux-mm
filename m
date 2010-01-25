@@ -1,36 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 18B5C6B009D
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 16:34:06 -0500 (EST)
-Date: Mon, 25 Jan 2010 16:34:03 -0500
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch 2/2] xfs: use scalable vmap API
-Message-ID: <20100125213403.GA1309@infradead.org>
-References: <20081021082542.GA6974@wotan.suse.de> <20081021082735.GB6974@wotan.suse.de> <20081021120932.GB13348@infradead.org> <20081022093018.GD4359@wotan.suse.de> <20100119121505.GA9428@infradead.org> <20100125075445.GD19664@laptop> <20100125081750.GA20012@infradead.org> <20100125083309.GF19664@laptop> <20100125123746.GA24406@laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3303B6B0098
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 16:48:55 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [Update][PATCH] MM / PM: Force GFP_NOIO during suspend/hibernation and resume
+Date: Mon, 25 Jan 2010 22:49:18 +0100
+References: <201001212121.50272.rjw@sisk.pl> <201001222219.15958.rjw@sisk.pl> <1264238962.16031.4.camel@maxim-laptop>
+In-Reply-To: <1264238962.16031.4.camel@maxim-laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100125123746.GA24406@laptop>
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001252249.18690.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, xfs@oss.sgi.com, linux-mm@kvack.org
+To: Maxim Levitsky <maximlevitsky@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Alexey Starikovskiy <astarikovskiy@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 25, 2010 at 11:37:46PM +1100, Nick Piggin wrote:
-> On Mon, Jan 25, 2010 at 07:33:09PM +1100, Nick Piggin wrote:
-> > > Any easy way to get them?  Sorry, not uptodate on your new vmalloc
-> > > implementation anymore.
+On Saturday 23 January 2010, Maxim Levitsky wrote:
+> On Fri, 2010-01-22 at 22:19 +0100, Rafael J. Wysocki wrote: 
+> > On Friday 22 January 2010, Maxim Levitsky wrote:
+> > > On Fri, 2010-01-22 at 10:42 +0900, KOSAKI Motohiro wrote: 
+> > > > > > > Probably we have multiple option. but I don't think GFP_NOIO is good
+> > > > > > > option. It assume the system have lots non-dirty cache memory and it isn't
+> > > > > > > guranteed.
+> > > > > > 
+> > > > > > Basically nothing is guaranteed in this case.  However, does it actually make
+> > > > > > things _worse_?  
+> > > > > 
+> > > > > Hmm..
+> > > > > Do you mean we don't need to prevent accidental suspend failure?
+> > > > > Perhaps, I did misunderstand your intention. If you think your patch solve
+> > > > > this this issue, I still disagree. but If you think your patch mitigate
+> > > > > the pain of this issue, I agree it. I don't have any reason to oppose your
+> > > > > first patch.
+> > > > 
+> > > > One question. Have anyone tested Rafael's $subject patch? 
+> > > > Please post test result. if the issue disapper by the patch, we can
+> > > > suppose the slowness is caused by i/o layer.
+> > > 
+> > > I did.
+> > > 
+> > > As far as I could see, patch does solve the problem I described.
+> > > 
+> > > Does it affect speed of suspend? I can't say for sure. It seems to be
+> > > the same.
 > > 
-> > Let me try writing a few (tested) patches here first that I can send you.
+> > Thanks for testing.
 > 
-> Well is it easy to reproduce the vmap failure? Here is a better tested
-> patch if you can try it. It fixes a couple of bugs and does some purging
-> of fragmented blocks.
+> I'll test that too, soon.
+> Just to note that I left my hibernate loop run overnight, and now I am
+> posting from my notebook after it did 590 hibernate cycles.
 
-So far I've not run out of vmalloc space yet with quite a few xfstests
-iterations and not encountered any other problems either.
+Did you have a chance to test it?
 
-Thanks for looking into this!
+> Offtopic, but Note that to achieve that I had to stop using global acpi
+> hardware lock. I tried all kinds of things, but for now it just hands
+> from time to time.
+> See http://bugzilla.kernel.org/show_bug.cgi?id=14668
+
+I'm going to look at that later this week, although I'm not sure I can do more
+than Alex about that.
+
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
