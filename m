@@ -1,150 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 625E36B009C
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 17:37:17 -0500 (EST)
-Date: Mon, 25 Jan 2010 14:36:35 -0800
-From: Chris Frost <frost@cs.ucla.edu>
-Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
-	pages, too
-Message-ID: <20100125223635.GC2822@frostnet.net>
-References: <20100120215536.GN27212@frostnet.net> <20100121054734.GC24236@localhost> <20100123040348.GC30844@frostnet.net> <20100123102222.GA6943@localhost> <20100125094228.f7ca1430.kamezawa.hiroyu@jp.fujitsu.com> <20100125024544.GA16462@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8FDA36003C1
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 17:47:46 -0500 (EST)
+Date: Mon, 25 Jan 2010 23:46:43 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
+Message-ID: <20100125224643.GA30452@random.random>
+References: <patchbomb.1264054824@v2.random>
+ <alpine.DEB.2.00.1001220845000.2704@router.home>
+ <20100122151947.GA3690@random.random>
+ <alpine.DEB.2.00.1001221008360.4176@router.home>
+ <20100123175847.GC6494@random.random>
+ <alpine.DEB.2.00.1001251529070.5379@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100125024544.GA16462@localhost>
+In-Reply-To: <alpine.DEB.2.00.1001251529070.5379@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-I changed Wu's patch to add a PageLRU() guard that I believe is required
-and optimized zone lock acquisition to only unlock and lock at zone changes.
-This optimization seems to provide a 10-20% system time improvement for
-some of my GIMP benchmarks and no improvement for other benchmarks.
+On Mon, Jan 25, 2010 at 03:50:31PM -0600, Christoph Lameter wrote:
+> There is always VM activity, so we need 512 pointers sigh.
 
-I agree that the remove and add lru list entry code looks correct.
-putback_lru_page() has to worry about a page's evictable status
-changing, but I think this code does not because it holds the page
-zone lock.
+well you said some week ago that actual systems never swap and swap is
+useless... if they don't swap there will be just 1 pointer in the
+pmd. The mprotect/mremap we want to learn using pmd_trans_huge
+natively without split but again, this is incremental work.
 
-Wu removed the ClearPageReadahead(page) call on in-core pages that
-Kamezawa's change added. This removal, not making this call, looks
-ok to me.
+> So its not possible to use these "huge" pages in a useful way inside of
+> the kernel. They are volatile and temporary.
 
-Thanks Wu and Kamezawa.
+They are so useless that firefox never splits them, this is my
+laptop. khugepaged running so if there's swapout, after swapin they
+will be collapsed back into hugepages.
 
+AnonPages:        357148 kB
+AnonHugePages:     53248 kB
 
-What's next?
+> In short they cannot be treated as 2M entities unless we add some logic to
+> prevent splitting.
 
----
-readahead: retain inactive lru pages to be accessed soon
-From: Chris Frost <frost@cs.ucla.edu>
+They can on the physical side, splitting only involves the virtual
+side, this is why O_DIRECT DMA through gup already works on hugepages
+without splitting them.
 
-Ensure that cached pages in the inactive list are not prematurely evicted;
-move such pages to lru head when they are covered by
-- in-kernel heuristic readahead
-- an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
+> Frankly this seems to be adding splitting that cannot be used if one
+> really wants to use large pages for something.
+> 
+> I still think we should get transparent huge page support straight up
+> first without complicated fallback schemes that makes huge pages difficult
+> to use.
 
-Before this patch, pages already in core may be evicted before the
-pages covered by the same prefetch scan but that were not yet in core.
-Many small read requests may be forced on the disk because of this behavior.
-
-In particular, posix_fadvise(... POSIX_FADV_WILLNEED) on an in-core page
-has no effect on the page's location in the LRU list, even if it is the
-next victim on the inactive list.
-
-This change helps address the performance problems we encountered
-while modifying SQLite and the GIMP to use large file prefetching.
-Overall these prefetching techniques improved the runtime of large
-benchmarks by 10-17x for these applications. More in the publication
-_Reducing Seek Overhead with Application-Directed Prefetching_ in
-USENIX ATC 2009 and at http://libprefetch.cs.ucla.edu/.
-
-Signed-off-by: Chris Frost <frost@cs.ucla.edu>
-Signed-off-by: Steve VanDeBogart <vandebo@cs.ucla.edu>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- readahead.c |   47 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 47 insertions(+)
-
-diff --git a/mm/readahead.c b/mm/readahead.c
-index aa1aa23..c1d67ab 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -9,7 +9,9 @@
- 
- #include <linux/kernel.h>
- #include <linux/fs.h>
-+#include <linux/memcontrol.h>
- #include <linux/mm.h>
-+#include <linux/mm_inline.h>
- #include <linux/module.h>
- #include <linux/blkdev.h>
- #include <linux/backing-dev.h>
-@@ -133,6 +135,43 @@ out:
- }
- 
- /*
-+ * The file range is expected to be accessed in near future.  Move pages
-+ * (possibly in inactive lru tail) to lru head, so that they are retained
-+ * in memory for some reasonable time.
-+ */
-+static void retain_inactive_pages(struct address_space *mapping,
-+				  pgoff_t index, int len)
-+{
-+	int i;
-+	struct page *page;
-+	struct zone *zone;
-+	struct zone *locked_zone = NULL;
-+
-+	for (i = 0; i < len; i++) {
-+		page = find_get_page(mapping, index + i);
-+		if (!page)
-+			continue;
-+		zone = page_zone(page);
-+		if (zone != locked_zone) {
-+			if (locked_zone)
-+				spin_unlock_irq(&locked_zone->lru_lock);
-+			locked_zone = zone;
-+			spin_lock_irq(&locked_zone->lru_lock);
-+		}
-+		if (!PageActive(page) && !PageUnevictable(page) &&
-+		    PageLRU(page)) {
-+			int lru = page_lru_base_type(page);
-+
-+			del_page_from_lru_list(zone, page, lru);
-+			add_page_to_lru_list(zone, page, lru);
-+		}
-+		put_page(page);
-+	}
-+	if (locked_zone)
-+		spin_unlock_irq(&locked_zone->lru_lock);
-+}
-+
-+/*
-  * __do_page_cache_readahead() actually reads a chunk of disk.  It allocates all
-  * the pages first, then submits them all for I/O. This avoids the very bad
-  * behaviour which would occur if page allocations are causing VM writeback.
-@@ -184,6 +223,14 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 	}
- 
- 	/*
-+	 * Normally readahead will auto stop on cached segments, so we won't
-+	 * hit many cached pages. If it does happen, bring the inactive pages
-+	 * adjecent to the newly prefetched ones(if any).
-+	 */
-+	if (ret < nr_to_read)
-+		retain_inactive_pages(mapping, offset, page_idx);
-+
-+	/*
- 	 * Now start the IO.  We ignore I/O errors - if the page is not
- 	 * uptodate then the caller will launch readpage again, and
- 	 * will then handle the error.
-
--- 
-Chris Frost
-http://www.frostnet.net/chris/
+Just send me patches to remove all callers of split_huge_page, then
+split_huge_page can go away too. But saying that hugepages aren't
+useful already is absurd, kvm with "madvise" default of sysfs already
+gets the full benefit, nothing more can be achieved by kvm in
+performance and functionality than what my patch delivers already
+(ok swapping will be a little more efficient if done through 2M I/O
+but swap performance isn't so critical). Our objective is to over time
+eliminate the need of split_huge_page. khugepaged will remain required
+forever, unless the whole kernel ram will become relocatable and
+defrag not just an heuristic but a guarantee (it is needed after one
+VM exits and release several gigs of hugepages, so the other VM get
+the speedup).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
