@@ -1,55 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6D5A06B009A
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 16:16:42 -0500 (EST)
-Date: Mon, 25 Jan 2010 22:16:15 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] - Fix unmap_vma() bug related to mmu_notifiers
-Message-ID: <20100125211615.GH5756@random.random>
-References: <20100125174556.GA23003@sgi.com>
- <20100125190052.GF5756@random.random>
- <20100125211033.GA24272@sgi.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 18B5C6B009D
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 16:34:06 -0500 (EST)
+Date: Mon, 25 Jan 2010 16:34:03 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [patch 2/2] xfs: use scalable vmap API
+Message-ID: <20100125213403.GA1309@infradead.org>
+References: <20081021082542.GA6974@wotan.suse.de> <20081021082735.GB6974@wotan.suse.de> <20081021120932.GB13348@infradead.org> <20081022093018.GD4359@wotan.suse.de> <20100119121505.GA9428@infradead.org> <20100125075445.GD19664@laptop> <20100125081750.GA20012@infradead.org> <20100125083309.GF19664@laptop> <20100125123746.GA24406@laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100125211033.GA24272@sgi.com>
+In-Reply-To: <20100125123746.GA24406@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Jack Steiner <steiner@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, cl@linux-foundation.org, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, xfs@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 25, 2010 at 03:10:33PM -0600, Jack Steiner wrote:
-> On Mon, Jan 25, 2010 at 08:00:52PM +0100, Andrea Arcangeli wrote:
-> > On Mon, Jan 25, 2010 at 11:45:56AM -0600, Jack Steiner wrote:
-> > > unmap_vmas() can fail to correctly flush the TLB if a
-> > > callout to mmu_notifier_invalidate_range_start() sleeps.
+On Mon, Jan 25, 2010 at 11:37:46PM +1100, Nick Piggin wrote:
+> On Mon, Jan 25, 2010 at 07:33:09PM +1100, Nick Piggin wrote:
+> > > Any easy way to get them?  Sorry, not uptodate on your new vmalloc
+> > > implementation anymore.
 > > 
-> > Not sure I understand: the callbacks invoked by
-> > mmu_notifier_invalidate_range_start can't sleep, or rcu locking inside
-> > mmu notifier will break too (first thing that should be replaced with
-> > srcu if they were allowed to sleep).
-> > 
-> > In short there's no schedule that could be added because of those
-> > callbacks so if this code isn't ok and schedules and screw on the
-> > mmu_gather tlb it's probably not mmu notifier related.
+> > Let me try writing a few (tested) patches here first that I can send you.
 > 
-> Hmmmm. I was under the impression that the range callbacks _were_ allowed to
-> sleep. That was certainly in the original patches posted by christoph. I was
-> not aware that it had changed.
+> Well is it easy to reproduce the vmap failure? Here is a better tested
+> patch if you can try it. It fixes a couple of bugs and does some purging
+> of fragmented blocks.
 
-There's rcu, srcu not... srcu is the first thing to add, and then
-anon_vma refcounting, then we can go sleepable...
+So far I've not run out of vmalloc space yet with quite a few xfstests
+iterations and not encountered any other problems either.
 
-> I'll let Robin provide details but the way mmu_notifiers are used by
-> xpmem, I believe sleeping is essential. The 'start" callout sends messages to
-> another OS instances to teardown cross-SSI mappings. That is difficult
-> to do w/o a sleep.
-> 
-> We'll dig deeper tomorrow & see what we can do....
-
-The old patches are in my ftp area, they should still apply, you
-should concentrate testing with those additional ones applied, then it
-will work for xpmem too ;)
+Thanks for looking into this!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
