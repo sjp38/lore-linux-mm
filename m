@@ -1,38 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 40D556B0047
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 07:39:47 -0500 (EST)
-Date: Mon, 25 Jan 2010 07:39:44 -0500
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch 2/2] xfs: use scalable vmap API
-Message-ID: <20100125123943.GA7394@infradead.org>
-References: <20081021082542.GA6974@wotan.suse.de> <20081021082735.GB6974@wotan.suse.de> <20081021120932.GB13348@infradead.org> <20081022093018.GD4359@wotan.suse.de> <20100119121505.GA9428@infradead.org> <20100125075445.GD19664@laptop> <20100125081750.GA20012@infradead.org> <20100125083309.GF19664@laptop> <20100125123746.GA24406@laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 684E86B0047
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 08:33:15 -0500 (EST)
+Date: Mon, 25 Jan 2010 21:33:08 +0800
+From: anfei <anfei.zhou@gmail.com>
+Subject: Re: [PATCH] Flush dcache before writing into page to avoid alias
+Message-ID: <20100125133308.GA26799@desktop>
+References: <979dd0561001202107v4ddc1eb7xa59a7c16c452f7a2@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100125123746.GA24406@laptop>
+In-Reply-To: <979dd0561001202107v4ddc1eb7xa59a7c16c452f7a2@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, xfs@oss.sgi.com, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux@arm.linux.org.uk, Jamie Lokier <jamie@shareable.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 25, 2010 at 11:37:46PM +1100, Nick Piggin wrote:
-> On Mon, Jan 25, 2010 at 07:33:09PM +1100, Nick Piggin wrote:
-> > > Any easy way to get them?  Sorry, not uptodate on your new vmalloc
-> > > implementation anymore.
-> > 
-> > Let me try writing a few (tested) patches here first that I can send you.
-> 
-> Well is it easy to reproduce the vmap failure? Here is a better tested
-> patch if you can try it. It fixes a couple of bugs and does some purging
-> of fragmented blocks.
-> 
-> If it does not help, can you tell me how many CPUs in your system?
+Hi Andrew,
 
-The simplest one to reproduce it is a 1 cpu kvm virtual machine.  Will
-give your patch a try ASAP - while it's easy to reproduce it takes some
-time as I appears only when doing a second xfstests run after a first
-finished fine, which makes it look like a leak to me.
+On Thu, Jan 21, 2010 at 01:07:57PM +0800, anfei zhou wrote:
+> The cache alias problem will happen if the changes of user shared mapping
+> is not flushed before copying, then user and kernel mapping may be mapped
+> into two different cache line, it is impossible to guarantee the coherence
+> after iov_iter_copy_from_user_atomic.  So the right steps should be:
+> 	flush_dcache_page(page);
+> 	kmap_atomic(page);
+> 	write to page;
+> 	kunmap_atomic(page);
+> 	flush_dcache_page(page);
+> More precisely, we might create two new APIs flush_dcache_user_page and
+> flush_dcache_kern_page to replace the two flush_dcache_page accordingly.
+> 
+> Here is a snippet tested on omap2430 with VIPT cache, and I think it is
+> not ARM-specific:
+> 	int val = 0x11111111;
+> 	fd = open("abc", O_RDWR);
+> 	addr = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+> 	*(addr+0) = 0x44444444;
+> 	tmp = *(addr+0);
+> 	*(addr+1) = 0x77777777;
+> 	write(fd, &val, sizeof(int));
+> 	close(fd);
+> The results are not always 0x11111111 0x77777777 at the beginning as expected.
+> 
+Is this a real bug or not necessary to support?
+
+Thanks,
+Anfei.
+
+> Signed-off-by: Anfei <anfei.zhou@gmail.com>
+> ---
+>  fs/fuse/file.c |    3 +++
+>  mm/filemap.c   |    3 +++
+>  2 files changed, 6 insertions(+), 0 deletions(-)
+> 
+> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+> index c18913a..a9f5e13 100644
+> --- a/fs/fuse/file.c
+> +++ b/fs/fuse/file.c
+> @@ -828,6 +828,9 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
+>  		if (!page)
+>  			break;
+> 
+> +		if (mapping_writably_mapped(mapping))
+> +			flush_dcache_page(page);
+> +
+>  		pagefault_disable();
+>  		tmp = iov_iter_copy_from_user_atomic(page, ii, offset, bytes);
+>  		pagefault_enable();
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 96ac6b0..07056fb 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -2196,6 +2196,9 @@ again:
+>  		if (unlikely(status))
+>  			break;
+> 
+> +		if (mapping_writably_mapped(mapping))
+> +			flush_dcache_page(page);
+> +
+>  		pagefault_disable();
+>  		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
+>  		pagefault_enable();
+> -- 
+> 1.6.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
