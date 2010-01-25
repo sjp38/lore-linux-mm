@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3A9516B0098
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5262E6B0099
 	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:30:12 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 11 of 31] comment reminder in destroy_compound_page
-Message-Id: <95d240ff3377ad7d5f94.1264439942@v2.random>
+Subject: [PATCH 06 of 31] clear compound mapping
+Message-Id: <395871ee2922102a26dd.1264439937@v2.random>
 In-Reply-To: <patchbomb.1264439931@v2.random>
 References: <patchbomb.1264439931@v2.random>
-Date: Mon, 25 Jan 2010 18:19:02 +0100
+Date: Mon, 25 Jan 2010 18:18:57 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,8 +18,8 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
-on its internal behavior.
+Clear compound mapping for anonymous compound pages like it already happens for
+regular anonymous pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
@@ -27,14 +27,15 @@ Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -311,6 +311,7 @@ void prep_compound_page(struct page *pag
- 	}
- }
+@@ -584,6 +584,8 @@ static void __free_pages_ok(struct page 
  
-+/* update __split_huge_page_refcount if you change this function */
- static int destroy_compound_page(struct page *page, unsigned long order)
- {
- 	int i;
+ 	kmemcheck_free_shadow(page, order);
+ 
++	if (PageAnon(page))
++		page->mapping = NULL;
+ 	for (i = 0 ; i < (1 << order) ; ++i)
+ 		bad += free_pages_check(page + i);
+ 	if (bad)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
