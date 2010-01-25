@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D44E76B0087
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:29:53 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id CF9046B0078
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:29:54 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 28 of 31] memcg compound
-Message-Id: <592e77074f9cda18ab67.1264439959@v2.random>
+Subject: [PATCH 27 of 31] pmd_trans_huge migrate bugcheck
+Message-Id: <6b6458f2e29438998adc.1264439958@v2.random>
 In-Reply-To: <patchbomb.1264439931@v2.random>
 References: <patchbomb.1264439931@v2.random>
-Date: Mon, 25 Jan 2010 18:19:19 +0100
+Date: Mon, 25 Jan 2010 18:19:18 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,263 +18,56 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Teach memcg to charge/uncharge compound pages.
+No pmd_trans_huge should ever materialize in migration ptes areas, because
+we split the hugepage before migration ptes are instantiated.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1401,8 +1401,8 @@ static int __cpuinit memcg_stock_cpu_cal
-  * oom-killer can be invoked.
-  */
- static int __mem_cgroup_try_charge(struct mm_struct *mm,
--			gfp_t gfp_mask, struct mem_cgroup **memcg,
--			bool oom, struct page *page)
-+				   gfp_t gfp_mask, struct mem_cgroup **memcg,
-+				   bool oom, struct page *page, int page_size)
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -107,6 +107,10 @@ static inline int PageTransHuge(struct p
+ 	VM_BUG_ON(PageTail(page));
+ 	return PageHead(page);
+ }
++static inline int PageTransCompound(struct page *page)
++{
++	return PageCompound(page);
++}
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define transparent_hugepage_flags 0UL
+ static inline int split_huge_page(struct page *page)
+@@ -120,6 +124,7 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++#define PageTransCompound(page) 0
+ static inline int hugepage_madvise(unsigned long *vm_flags)
  {
- 	struct mem_cgroup *mem, *mem_over_limit;
- 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-@@ -1415,6 +1415,9 @@ static int __mem_cgroup_try_charge(struc
- 		return 0;
- 	}
+ 	BUG_ON(0);
+diff --git a/mm/migrate.c b/mm/migrate.c
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -99,6 +99,7 @@ static int remove_migration_pte(struct p
+ 		goto out;
  
-+	if (PageTransHuge(page))
-+		csize = page_size;
+ 	pmd = pmd_offset(pud, addr);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (!pmd_present(*pmd))
+ 		goto out;
+ 
+@@ -819,6 +820,10 @@ static int do_move_page_to_node_array(st
+ 		if (PageReserved(page) || PageKsm(page))
+ 			goto put_and_set;
+ 
++		if (unlikely(PageTransCompound(page)))
++			if (unlikely(split_huge_page(page)))
++				goto put_and_set;
 +
- 	/*
- 	 * We always charge the cgroup the mm_struct belongs to.
- 	 * The mm_struct's mem_cgroup changes on task migration if the
-@@ -1439,8 +1442,9 @@ static int __mem_cgroup_try_charge(struc
- 		int ret = 0;
- 		unsigned long flags = 0;
+ 		pp->page = page;
+ 		err = page_to_nid(page);
  
--		if (consume_stock(mem))
--			goto charged;
-+		if (!PageTransHuge(page))
-+			if (consume_stock(mem))
-+				goto charged;
- 
- 		ret = res_counter_charge(&mem->res, csize, &fail_res);
- 		if (likely(!ret)) {
-@@ -1460,7 +1464,7 @@ static int __mem_cgroup_try_charge(struc
- 									res);
- 
- 		/* reduce request size and retry */
--		if (csize > PAGE_SIZE) {
-+		if (csize > page_size) {
- 			csize = PAGE_SIZE;
- 			continue;
- 		}
-@@ -1491,7 +1495,7 @@ static int __mem_cgroup_try_charge(struc
- 			goto nomem;
- 		}
- 	}
--	if (csize > PAGE_SIZE)
-+	if (csize > page_size)
- 		refill_stock(mem, csize - PAGE_SIZE);
- charged:
- 	/*
-@@ -1512,12 +1516,12 @@ nomem:
-  * This function is for that and do uncharge, put css's refcnt.
-  * gotten by try_charge().
-  */
--static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
-+static void mem_cgroup_cancel_charge(struct mem_cgroup *mem, int page_size)
- {
- 	if (!mem_cgroup_is_root(mem)) {
--		res_counter_uncharge(&mem->res, PAGE_SIZE);
-+		res_counter_uncharge(&mem->res, page_size);
- 		if (do_swap_account)
--			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+			res_counter_uncharge(&mem->memsw, page_size);
- 	}
- 	css_put(&mem->css);
- }
-@@ -1575,8 +1579,9 @@ struct mem_cgroup *try_get_mem_cgroup_fr
-  */
- 
- static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
--				     struct page_cgroup *pc,
--				     enum charge_type ctype)
-+				       struct page_cgroup *pc,
-+				       enum charge_type ctype,
-+				       int page_size)
- {
- 	/* try_charge() can return NULL to *memcg, taking care of it. */
- 	if (!mem)
-@@ -1585,7 +1590,7 @@ static void __mem_cgroup_commit_charge(s
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
--		mem_cgroup_cancel_charge(mem);
-+		mem_cgroup_cancel_charge(mem, page_size);
- 		return;
- 	}
- 
-@@ -1722,7 +1727,8 @@ static int mem_cgroup_move_parent(struct
- 		goto put;
- 
- 	parent = mem_cgroup_from_cont(pcg);
--	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page);
-+	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page,
-+		PAGE_SIZE);
- 	if (ret || !parent)
- 		goto put_back;
- 
-@@ -1730,7 +1736,7 @@ static int mem_cgroup_move_parent(struct
- 	if (!ret)
- 		css_put(&parent->css);	/* drop extra refcnt by try_charge() */
- 	else
--		mem_cgroup_cancel_charge(parent);	/* does css_put */
-+		mem_cgroup_cancel_charge(parent, PAGE_SIZE); /* does css_put */
- put_back:
- 	putback_lru_page(page);
- put:
-@@ -1752,6 +1758,10 @@ static int mem_cgroup_charge_common(stru
- 	struct mem_cgroup *mem;
- 	struct page_cgroup *pc;
- 	int ret;
-+	int page_size = PAGE_SIZE;
-+
-+	if (PageTransHuge(page))
-+		page_size <<= compound_order(page);
- 
- 	pc = lookup_page_cgroup(page);
- 	/* can happen at boot */
-@@ -1760,11 +1770,12 @@ static int mem_cgroup_charge_common(stru
- 	prefetchw(pc);
- 
- 	mem = memcg;
--	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page);
-+	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page,
-+				      page_size);
- 	if (ret || !mem)
- 		return ret;
- 
--	__mem_cgroup_commit_charge(mem, pc, ctype);
-+	__mem_cgroup_commit_charge(mem, pc, ctype, page_size);
- 	return 0;
- }
- 
-@@ -1773,8 +1784,6 @@ int mem_cgroup_newpage_charge(struct pag
- {
- 	if (mem_cgroup_disabled())
- 		return 0;
--	if (PageCompound(page))
--		return 0;
- 	/*
- 	 * If already mapped, we don't have to account.
- 	 * If page cache, page->mapping has address_space.
-@@ -1787,7 +1796,7 @@ int mem_cgroup_newpage_charge(struct pag
- 	if (unlikely(!mm))
- 		mm = &init_mm;
- 	return mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
-+					MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
- }
- 
- static void
-@@ -1880,14 +1889,14 @@ int mem_cgroup_try_charge_swapin(struct 
- 	if (!mem)
- 		goto charge_cur_mm;
- 	*ptr = mem;
--	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page);
-+	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page, PAGE_SIZE);
- 	/* drop extra refcnt from tryget */
- 	css_put(&mem->css);
- 	return ret;
- charge_cur_mm:
- 	if (unlikely(!mm))
- 		mm = &init_mm;
--	return __mem_cgroup_try_charge(mm, mask, ptr, true, page);
-+	return __mem_cgroup_try_charge(mm, mask, ptr, true, page, PAGE_SIZE);
- }
- 
- static void
-@@ -1903,7 +1912,7 @@ __mem_cgroup_commit_charge_swapin(struct
- 	cgroup_exclude_rmdir(&ptr->css);
- 	pc = lookup_page_cgroup(page);
- 	mem_cgroup_lru_del_before_commit_swapcache(page);
--	__mem_cgroup_commit_charge(ptr, pc, ctype);
-+	__mem_cgroup_commit_charge(ptr, pc, ctype, PAGE_SIZE);
- 	mem_cgroup_lru_add_after_commit_swapcache(page);
- 	/*
- 	 * Now swap is on-memory. This means this page may be
-@@ -1952,11 +1961,12 @@ void mem_cgroup_cancel_charge_swapin(str
- 		return;
- 	if (!mem)
- 		return;
--	mem_cgroup_cancel_charge(mem);
-+	mem_cgroup_cancel_charge(mem, PAGE_SIZE);
- }
- 
- static void
--__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
-+__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype,
-+	      int page_size)
- {
- 	struct memcg_batch_info *batch = NULL;
- 	bool uncharge_memsw = true;
-@@ -1989,14 +1999,14 @@ __do_uncharge(struct mem_cgroup *mem, co
- 	if (batch->memcg != mem)
- 		goto direct_uncharge;
- 	/* remember freed charge and uncharge it later */
--	batch->bytes += PAGE_SIZE;
-+	batch->bytes += page_size;
- 	if (uncharge_memsw)
--		batch->memsw_bytes += PAGE_SIZE;
-+		batch->memsw_bytes += page_size;
- 	return;
- direct_uncharge:
--	res_counter_uncharge(&mem->res, PAGE_SIZE);
-+	res_counter_uncharge(&mem->res, page_size);
- 	if (uncharge_memsw)
--		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+		res_counter_uncharge(&mem->memsw, page_size);
- 	return;
- }
- 
-@@ -2009,6 +2019,10 @@ __mem_cgroup_uncharge_common(struct page
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *mem = NULL;
- 	struct mem_cgroup_per_zone *mz;
-+	int page_size = PAGE_SIZE;
-+
-+	if (PageTransHuge(page))
-+		page_size <<= compound_order(page);
- 
- 	if (mem_cgroup_disabled())
- 		return NULL;
-@@ -2048,7 +2062,7 @@ __mem_cgroup_uncharge_common(struct page
- 	}
- 
- 	if (!mem_cgroup_is_root(mem))
--		__do_uncharge(mem, ctype);
-+		__do_uncharge(mem, ctype, page_size);
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
- 		mem_cgroup_swap_statistics(mem, true);
- 	mem_cgroup_charge_statistics(mem, pc, false);
-@@ -2217,7 +2231,7 @@ int mem_cgroup_prepare_migration(struct 
- 
- 	if (mem) {
- 		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false,
--						page);
-+					      page, PAGE_SIZE);
- 		css_put(&mem->css);
- 	}
- 	*ptr = mem;
-@@ -2260,7 +2274,7 @@ void mem_cgroup_end_migration(struct mem
- 	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
- 	 * So, double-counting is effectively avoided.
- 	 */
--	__mem_cgroup_commit_charge(mem, pc, ctype);
-+	__mem_cgroup_commit_charge(mem, pc, ctype, PAGE_SIZE);
- 
- 	/*
- 	 * Both of oldpage and newpage are still under lock_page().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
