@@ -1,208 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A9F8D6B007E
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:29:52 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 25C336B0047
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 12:29:53 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 23 of 31] clear_copy_huge_page
-Message-Id: <5995a134e166236e03c2.1264439954@v2.random>
+Subject: [PATCH 24 of 31] kvm mmu transparent hugepage support
+Message-Id: <a47a97dca3fb2a09f187.1264439955@v2.random>
 In-Reply-To: <patchbomb.1264439931@v2.random>
 References: <patchbomb.1264439931@v2.random>
-Date: Mon, 25 Jan 2010 18:19:14 +0100
+Date: Mon, 25 Jan 2010 18:19:15 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+From: Marcelo Tosatti <mtosatti@redhat.com>
 
-Move the copy/clear_huge_page functions to common code to share between
-hugetlb.c and huge_memory.c.
+This should work for both hugetlbfs and transparent hugepages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1382,5 +1382,14 @@ extern void shake_page(struct page *p, i
- extern atomic_long_t mce_bad_pages;
- extern int soft_offline_page(struct page *page, int flags);
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -489,6 +489,15 @@ static int host_mapping_level(struct kvm
+ out:
+ 	up_read(&current->mm->mmap_sem);
  
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+extern void clear_huge_page(struct page *page,
-+			    unsigned long addr,
-+			    unsigned int pages_per_huge_page);
-+extern void copy_huge_page(struct page *dst, struct page *src,
-+			   unsigned long addr, struct vm_area_struct *vma,
-+			   unsigned int pages_per_huge_page);
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
++	/* check for transparent hugepages */
++	if (page_size == PAGE_SIZE) {
++		struct page *page = gfn_to_page(kvm, gfn);
 +
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -385,70 +385,6 @@ static int vma_has_reserves(struct vm_ar
- 	return 0;
- }
- 
--static void clear_gigantic_page(struct page *page,
--			unsigned long addr, unsigned long sz)
--{
--	int i;
--	struct page *p = page;
--
--	might_sleep();
--	for (i = 0; i < sz/PAGE_SIZE; i++, p = mem_map_next(p, page, i)) {
--		cond_resched();
--		clear_user_highpage(p, addr + i * PAGE_SIZE);
--	}
--}
--static void clear_huge_page(struct page *page,
--			unsigned long addr, unsigned long sz)
--{
--	int i;
--
--	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
--		clear_gigantic_page(page, addr, sz);
--		return;
--	}
--
--	might_sleep();
--	for (i = 0; i < sz/PAGE_SIZE; i++) {
--		cond_resched();
--		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
--	}
--}
--
--static void copy_gigantic_page(struct page *dst, struct page *src,
--			   unsigned long addr, struct vm_area_struct *vma)
--{
--	int i;
--	struct hstate *h = hstate_vma(vma);
--	struct page *dst_base = dst;
--	struct page *src_base = src;
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page(h); ) {
--		cond_resched();
--		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
--
--		i++;
--		dst = mem_map_next(dst, dst_base, i);
--		src = mem_map_next(src, src_base, i);
--	}
--}
--static void copy_huge_page(struct page *dst, struct page *src,
--			   unsigned long addr, struct vm_area_struct *vma)
--{
--	int i;
--	struct hstate *h = hstate_vma(vma);
--
--	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
--		copy_gigantic_page(dst, src, addr, vma);
--		return;
--	}
--
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page(h); i++) {
--		cond_resched();
--		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
--	}
--}
--
- static void enqueue_huge_page(struct hstate *h, struct page *page)
- {
- 	int nid = page_to_nid(page);
-@@ -2334,7 +2270,8 @@ retry_avoidcopy:
- 		return -PTR_ERR(new_page);
- 	}
- 
--	copy_huge_page(new_page, old_page, address, vma);
-+	copy_huge_page(new_page, old_page, address, vma,
-+		       pages_per_huge_page(h));
- 	__SetPageUptodate(new_page);
- 
- 	/*
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3396,3 +3396,73 @@ void might_fault(void)
- }
- EXPORT_SYMBOL(might_fault);
- #endif
-+
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+static void clear_gigantic_page(struct page *page,
-+				unsigned long addr,
-+				unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	struct page *p = page;
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page;
-+	     i++, p = mem_map_next(p, page, i)) {
-+		cond_resched();
-+		clear_user_highpage(p, addr + i * PAGE_SIZE);
-+	}
-+}
-+void clear_huge_page(struct page *page,
-+		     unsigned long addr, unsigned int pages_per_huge_page)
-+{
-+	int i;
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		clear_gigantic_page(page, addr, pages_per_huge_page);
-+		return;
++		if (!is_error_page(page) && PageHead(page))
++			page_size = KVM_HPAGE_SIZE(2);
++		kvm_release_page_clean(page);
 +	}
 +
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; i++) {
-+		cond_resched();
-+		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-+	}
-+}
-+
-+static void copy_gigantic_page(struct page *dst, struct page *src,
-+			       unsigned long addr,
-+			       struct vm_area_struct *vma,
-+			       unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	struct page *dst_base = dst;
-+	struct page *src_base = src;
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; ) {
-+		cond_resched();
-+		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
-+
-+		i++;
-+		dst = mem_map_next(dst, dst_base, i);
-+		src = mem_map_next(src, src_base, i);
-+	}
-+}
-+void copy_huge_page(struct page *dst, struct page *src,
-+		    unsigned long addr, struct vm_area_struct *vma,
-+		    unsigned int pages_per_huge_page)
-+{
-+	int i;
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		copy_gigantic_page(dst, src, addr, vma, pages_per_huge_page);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; i++) {
-+		cond_resched();
-+		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE,
-+				   vma);
-+	}
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+ 	for (i = PT_PAGE_TABLE_LEVEL;
+ 	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
+ 		if (page_size >= KVM_HPAGE_SIZE(i))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
