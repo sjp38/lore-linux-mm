@@ -1,59 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6749E6B007B
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 07:36:10 -0500 (EST)
-Date: Tue, 26 Jan 2010 13:35:33 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-Message-ID: <20100126123533.GF30452@random.random>
-References: <patchbomb.1264054824@v2.random>
- <alpine.DEB.2.00.1001220845000.2704@router.home>
- <20100122151947.GA3690@random.random>
- <alpine.DEB.2.00.1001221008360.4176@router.home>
- <20100123175847.GC6494@random.random>
- <alpine.DEB.2.00.1001251529070.5379@router.home>
- <4B5E3CC0.2060006@redhat.com>
- <20100126065303.GJ8483@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4A3DA6B0071
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:02:27 -0500 (EST)
+Date: Tue, 26 Jan 2010 21:02:12 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
+	pages, too
+Message-ID: <20100126130211.GA25407@localhost>
+References: <20100120215536.GN27212@frostnet.net> <20100121054734.GC24236@localhost> <20100123040348.GC30844@frostnet.net> <20100123102222.GA6943@localhost> <20100125094228.f7ca1430.kamezawa.hiroyu@jp.fujitsu.com> <20100125024544.GA16462@localhost> <20100125223635.GC2822@frostnet.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=gb2312
 Content-Disposition: inline
-In-Reply-To: <20100126065303.GJ8483@redhat.com>
+In-Reply-To: <20100125223635.GC2822@frostnet.net>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Chris Frost <frost@cs.ucla.edu>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 08:53:03AM +0200, Gleb Natapov wrote:
-> On Mon, Jan 25, 2010 at 07:52:16PM -0500, Rik van Riel wrote:
-> > On 01/25/2010 04:50 PM, Christoph Lameter wrote:
-> > 
-> > >So its not possible to use these "huge" pages in a useful way inside of
-> > >the kernel. They are volatile and temporary.
-> > 
-> > >In short they cannot be treated as 2M entities unless we add some logic to
-> > >prevent splitting.
-> > >
-> > >Frankly this seems to be adding splitting that cannot be used if one
-> > >really wants to use large pages for something.
-> > 
-> > What exactly do you need the stable huge pages for?
-> > 
-> > Do you have anything specific in mind that we should take
-> > into account?
-> > 
-> > Want to send in an incremental patch that can temporarily block
-> > the pageout code from splitting up a huge page, so your direct
-> > users of huge pages can rely on them sticking around until the
-> > transaction is done?
-> > 
-> Shouldn't mlock() do the trick?
+On Mon, Jan 25, 2010 at 03:36:35PM -0700, Chris Frost wrote:
+> I changed Wu's patch to add a PageLRU() guard that I believe is required
 
-gup already does the trick of preventing swapping of only the pieces
-that are pinned. But it's ok only for temporary direct access like
-DMA, ideally if the access to the page can be stopped synchronously
-and the mapping is longstanding (not something dma can do, so O_DIRECT
-can't do) mmu notifier should be used to allow paging of the page and
-teardown the secondary mmu mapping.
+Good catch, Thanks!
+
+> and optimized zone lock acquisition to only unlock and lock at zone changes.
+> This optimization seems to provide a 10-20% system time improvement for
+> some of my GIMP benchmarks and no improvement for other benchmarks.
+
+OK.
+
+> I agree that the remove and add lru list entry code looks correct.
+> putback_lru_page() has to worry about a page's evictable status
+> changing, but I think this code does not because it holds the page
+> zone lock.
+> 
+> Wu removed the ClearPageReadahead(page) call on in-core pages that
+> Kamezawa's change added. This removal, not making this call, looks
+> ok to me.
+> 
+> Thanks Wu and Kamezawa.
+> 
+> 
+> What's next?
+
+I happen to be preparing a readahead series, will include this one :)
+
+Thanks,
+Fengguang
+
+> ---
+> readahead: retain inactive lru pages to be accessed soon
+> From: Chris Frost <frost@cs.ucla.edu>
+> 
+> Ensure that cached pages in the inactive list are not prematurely evicted;
+> move such pages to lru head when they are covered by
+> - in-kernel heuristic readahead
+> - an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
+> 
+> Before this patch, pages already in core may be evicted before the
+> pages covered by the same prefetch scan but that were not yet in core.
+> Many small read requests may be forced on the disk because of this behavior.
+> 
+> In particular, posix_fadvise(... POSIX_FADV_WILLNEED) on an in-core page
+> has no effect on the page's location in the LRU list, even if it is the
+> next victim on the inactive list.
+> 
+> This change helps address the performance problems we encountered
+> while modifying SQLite and the GIMP to use large file prefetching.
+> Overall these prefetching techniques improved the runtime of large
+> benchmarks by 10-17x for these applications. More in the publication
+> _Reducing Seek Overhead with Application-Directed Prefetching_ in
+> USENIX ATC 2009 and at http://libprefetch.cs.ucla.edu/.
+> 
+> Signed-off-by: Chris Frost <frost@cs.ucla.edu>
+> Signed-off-by: Steve VanDeBogart <vandebo@cs.ucla.edu>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  readahead.c |   47 +++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 47 insertions(+)
+> 
+> diff --git a/mm/readahead.c b/mm/readahead.c
+> index aa1aa23..c1d67ab 100644
+> --- a/mm/readahead.c
+> +++ b/mm/readahead.c
+> @@ -9,7 +9,9 @@
+>  
+>  #include <linux/kernel.h>
+>  #include <linux/fs.h>
+> +#include <linux/memcontrol.h>
+>  #include <linux/mm.h>
+> +#include <linux/mm_inline.h>
+>  #include <linux/module.h>
+>  #include <linux/blkdev.h>
+>  #include <linux/backing-dev.h>
+> @@ -133,6 +135,43 @@ out:
+>  }
+>  
+>  /*
+> + * The file range is expected to be accessed in near future.  Move pages
+> + * (possibly in inactive lru tail) to lru head, so that they are retained
+> + * in memory for some reasonable time.
+> + */
+> +static void retain_inactive_pages(struct address_space *mapping,
+> +				  pgoff_t index, int len)
+> +{
+> +	int i;
+> +	struct page *page;
+> +	struct zone *zone;
+> +	struct zone *locked_zone = NULL;
+> +
+> +	for (i = 0; i < len; i++) {
+> +		page = find_get_page(mapping, index + i);
+> +		if (!page)
+> +			continue;
+> +		zone = page_zone(page);
+> +		if (zone != locked_zone) {
+> +			if (locked_zone)
+> +				spin_unlock_irq(&locked_zone->lru_lock);
+> +			locked_zone = zone;
+> +			spin_lock_irq(&locked_zone->lru_lock);
+> +		}
+> +		if (!PageActive(page) && !PageUnevictable(page) &&
+> +		    PageLRU(page)) {
+> +			int lru = page_lru_base_type(page);
+> +
+> +			del_page_from_lru_list(zone, page, lru);
+> +			add_page_to_lru_list(zone, page, lru);
+> +		}
+> +		put_page(page);
+> +	}
+> +	if (locked_zone)
+> +		spin_unlock_irq(&locked_zone->lru_lock);
+> +}
+> +
+> +/*
+>   * __do_page_cache_readahead() actually reads a chunk of disk.  It allocates all
+>   * the pages first, then submits them all for I/O. This avoids the very bad
+>   * behaviour which would occur if page allocations are causing VM writeback.
+> @@ -184,6 +223,14 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+>  	}
+>  
+>  	/*
+> +	 * Normally readahead will auto stop on cached segments, so we won't
+> +	 * hit many cached pages. If it does happen, bring the inactive pages
+> +	 * adjecent to the newly prefetched ones(if any).
+> +	 */
+> +	if (ret < nr_to_read)
+> +		retain_inactive_pages(mapping, offset, page_idx);
+> +
+> +	/*
+>  	 * Now start the IO.  We ignore I/O errors - if the page is not
+>  	 * uptodate then the caller will launch readpage again, and
+>  	 * will then handle the error.
+> 
+> -- 
+> Chris Frost
+> http://www.frostnet.net/chris/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
