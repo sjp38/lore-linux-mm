@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 216126B008C
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 11:14:05 -0500 (EST)
-Message-ID: <4B5F1496.4040209@redhat.com>
-Date: Tue, 26 Jan 2010 11:13:10 -0500
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D54526003C1
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 11:14:32 -0500 (EST)
+Message-ID: <4B5F14BE.3050509@redhat.com>
+Date: Tue, 26 Jan 2010 11:13:50 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05 of 31] fix bad_page to show the real reason the page
- is bad
-References: <patchbomb.1264513915@v2.random> <b64fb7a441f9ce407cc4.1264513920@v2.random>
-In-Reply-To: <b64fb7a441f9ce407cc4.1264513920@v2.random>
+Subject: Re: [PATCH 06 of 31] clear compound mapping
+References: <patchbomb.1264513915@v2.random> <7cf11b425ecd44419ccc.1264513921@v2.random>
+In-Reply-To: <7cf11b425ecd44419ccc.1264513921@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,8 +19,8 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> page_count shows the count of the head page, but the actual check is done on
-> the tail page, so show what is really being checked.
+> Clear compound mapping for anonymous compound pages like it already happens for
+> regular anonymous pages.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
