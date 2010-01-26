@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0E2596B007D
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 17:53:58 -0500 (EST)
-Message-ID: <4B5F7255.9020105@redhat.com>
-Date: Tue, 26 Jan 2010 17:53:09 -0500
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 614F06B007D
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 17:54:13 -0500 (EST)
+Message-ID: <4B5F7277.9060708@redhat.com>
+Date: Tue, 26 Jan 2010 17:53:43 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 28 of 31] memcg compound
-References: <patchbomb.1264513915@v2.random> <6d3d1a3f07fbd98e17d0.1264513943@v2.random>
-In-Reply-To: <6d3d1a3f07fbd98e17d0.1264513943@v2.random>
+Subject: Re: [PATCH 29 of 31] memcg huge memory
+References: <patchbomb.1264513915@v2.random> <3724f9beef3fb0ff8894.1264513944@v2.random>
+In-Reply-To: <3724f9beef3fb0ff8894.1264513944@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,7 +19,7 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Teach memcg to charge/uncharge compound pages.
+> Add memcg charge/uncharge to hugepage faults in huge_memory.c.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
