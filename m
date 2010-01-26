@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 95D3B6B00A0
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 17:35:30 -0500 (EST)
-Message-ID: <4B5F6E01.3070603@redhat.com>
-Date: Tue, 26 Jan 2010 17:34:41 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 42D2C6B007D
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 17:51:26 -0500 (EST)
+Message-ID: <4B5F71C3.1090102@redhat.com>
+Date: Tue, 26 Jan 2010 17:50:43 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 25 of 31] transparent hugepage core
-References: <patchbomb.1264513915@v2.random> <1c30e46110876936258a.1264513940@v2.random>
-In-Reply-To: <1c30e46110876936258a.1264513940@v2.random>
+Subject: Re: [PATCH 26 of 31] madvise(MADV_HUGEPAGE)
+References: <patchbomb.1264513915@v2.random> <b26aef1396c178f15e14.1264513941@v2.random>
+In-Reply-To: <b26aef1396c178f15e14.1264513941@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,9 +19,11 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Lately I've been working to make KVM use hugepages transparently
-> without the usual restrictions of hugetlbfs. Some of the restrictions
-> I'd like to see removed:
+> Add madvise MADV_HUGEPAGE to mark regions that are important to be hugepage
+> backed. Return -EINVAL if the vma is not of an anonymous type, or the feature
+> isn't built into the kernel. Never silently return success.
+>
+> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
