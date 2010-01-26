@@ -1,165 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 696CC6B00A1
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 14:45:11 -0500 (EST)
-Date: Tue, 26 Jan 2010 19:44:55 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 14 of 31] add pmd mangling generic functions
-Message-ID: <20100126194455.GS16468@csn.ul.ie>
-References: <patchbomb.1264513915@v2.random> <d0424f095bd097ecd715.1264513929@v2.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E175E6B00AE
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 14:47:26 -0500 (EST)
+Date: Tue, 26 Jan 2010 20:46:21 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
+Message-ID: <20100126194621.GU30452@random.random>
+References: <20100122151947.GA3690@random.random>
+ <alpine.DEB.2.00.1001221008360.4176@router.home>
+ <20100123175847.GC6494@random.random>
+ <alpine.DEB.2.00.1001251529070.5379@router.home>
+ <4B5E3CC0.2060006@redhat.com>
+ <alpine.DEB.2.00.1001260947580.23549@router.home>
+ <20100126161625.GO30452@random.random>
+ <20100126164230.GC16468@csn.ul.ie>
+ <20100126165254.GR30452@random.random>
+ <20100126172613.GD16468@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d0424f095bd097ecd715.1264513929@v2.random>
+In-Reply-To: <20100126172613.GD16468@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 02:52:09PM +0100, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli <aarcange@redhat.com>
+On Tue, Jan 26, 2010 at 05:26:13PM +0000, Mel Gorman wrote:
+> You're not, I beat you to it a long time ago. In fact, I just watched a dumb
+> hit smack into a treadmill (feeling badminded) with the browser using huge
+> pages in the background just to confirm I wasn't imagining it.  Launched with
 > 
-> Some are needed to build but not actually used on archs not supporting
-> transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
+> hugectl --shm --heap epiphany-browser
 > 
+> HugePages_Total:       5
+> HugePages_Free:        1
+> HugePages_Rsvd:        1
+> HugePages_Surp:        5
+> Hugepagesize:       4096 kB
+> (Surp implies the huge pages were allocated on demand, not statically)
 
-If they are not used, why are they needed to build?
+eheh ;)
 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
-> 
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -23,6 +23,19 @@
->  	}								  \
->  	__changed;							  \
->  })
-> +
-> +#define pmdp_set_access_flags(__vma, __address, __pmdp, __entry, __dirty) \
-> +	({								\
-> +		int __changed = !pmd_same(*(__pmdp), __entry);		\
-> +		VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);		\
-> +		if (__changed) {					\
-> +			set_pmd_at((__vma)->vm_mm, __address, __pmdp,	\
-> +				   __entry);				\
-> +			flush_tlb_range(__vma, __address,		\
-> +					(__address) + HPAGE_PMD_SIZE);	\
-> +		}							\
-> +		__changed;						\
-> +	})
->  #endif
->  
->  #ifndef __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-> @@ -37,6 +50,17 @@
->  			   (__ptep), pte_mkold(__pte));			\
->  	r;								\
->  })
-> +#define pmdp_test_and_clear_young(__vma, __address, __pmdp)		\
-> +({									\
-> +	pmd_t __pmd = *(__pmdp);					\
-> +	int r = 1;							\
-> +	if (!pmd_young(__pmd))						\
-> +		r = 0;							\
-> +	else								\
-> +		set_pmd_at((__vma)->vm_mm, (__address),			\
-> +			   (__pmdp), pmd_mkold(__pmd));			\
-> +	r;								\
-> +})
->  #endif
->  
->  #ifndef __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
-> @@ -48,6 +72,16 @@
->  		flush_tlb_page(__vma, __address);			\
->  	__young;							\
->  })
-> +#define pmdp_clear_flush_young(__vma, __address, __pmdp)		\
-> +({									\
-> +	int __young;							\
-> +	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
-> +	__young = pmdp_test_and_clear_young(__vma, __address, __pmdp);	\
-> +	if (__young)							\
-> +		flush_tlb_range(__vma, __address,			\
-> +				(__address) + HPAGE_PMD_SIZE);		\
-> +	__young;							\
-> +})
->  #endif
->  
->  #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR
-> @@ -57,6 +91,13 @@
->  	pte_clear((__mm), (__address), (__ptep));			\
->  	__pte;								\
->  })
-> +
-> +#define pmdp_get_and_clear(__mm, __address, __pmdp)			\
-> +({									\
-> +	pmd_t __pmd = *(__pmdp);					\
-> +	pmd_clear((__mm), (__address), (__pmdp));			\
-> +	__pmd;								\
-> +})
->  #endif
->  
->  #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
-> @@ -88,6 +129,15 @@ do {									\
->  	flush_tlb_page(__vma, __address);				\
->  	__pte;								\
->  })
-> +
-> +#define pmdp_clear_flush(__vma, __address, __pmdp)			\
-> +({									\
-> +	pmd_t __pmd;							\
-> +	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
-> +	__pmd = pmdp_get_and_clear((__vma)->vm_mm, __address, __pmdp);	\
-> +	flush_tlb_range(__vma, __address, (__address) + HPAGE_PMD_SIZE);\
-> +	__pmd;								\
-> +})
->  #endif
->  
->  #ifndef __HAVE_ARCH_PTEP_SET_WRPROTECT
-> @@ -97,10 +147,26 @@ static inline void ptep_set_wrprotect(st
->  	pte_t old_pte = *ptep;
->  	set_pte_at(mm, address, ptep, pte_wrprotect(old_pte));
->  }
-> +
-> +static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long address, pmd_t *pmdp)
-> +{
-> +	pmd_t old_pmd = *pmdp;
-> +	set_pmd_at(mm, address, pmdp, pmd_wrprotect(old_pmd));
-> +}
-> +
-> +#define pmdp_splitting_flush(__vma, __address, __pmdp)			\
-> +({									\
-> +	pmd_t __pmd = pmd_mksplitting(*(__pmdp));			\
-> +	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
-> +	set_pmd_at((__vma)->vm_mm, __address, __pmdp, __pmd);		\
-> +	/* tlb flush only to serialize against gup-fast */		\
-> +	flush_tlb_range(__vma, __address, (__address) + HPAGE_PMD_SIZE);\
-> +})
->  #endif
->  
->  #ifndef __HAVE_ARCH_PTE_SAME
->  #define pte_same(A,B)	(pte_val(A) == pte_val(B))
-> +#define pmd_same(A,B)	(pmd_val(A) == pmd_val(B))
->  #endif
->  
->  #ifndef __HAVE_ARCH_PAGE_TEST_DIRTY
-> @@ -344,6 +410,10 @@ extern void untrack_pfn_vma(struct vm_ar
->  				unsigned long size);
->  #endif
->  
-> +#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-> +#define pmd_write(pmd) 0
-> +#endif
-> +
->  #endif /* !__ASSEMBLY__ */
->  
->  #endif /* _ASM_GENERIC_PGTABLE_H */
-> 
+> Yes, this is not transparent and it's unlikely that a normal user would go
+> to the hassle although conceivably a distro could set a launcher to
+> automtaically try huge pages where available.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+It'll never happen, I think hugetlbfs can't even be mounted by default
+on all distro... or it's not writable, otherwise it's a mlock
+DoS...
+
+> I'm just saying that hugetlbfs and the existing utilities are not so bad
+> as to be slammed. Just because it's possible to do something like this does
+> not detract from transparent support in any way.
+
+Agreed, power users can already take advantage from hugepages, I don't
+object that, problem is most people can't and we want to take
+advantage of them not just in firefox but whenever possible. Another
+app using hugepages is knotify4 for example.
+
+> In virtualisation in particular, the lack of swapping makes hugetlbfs a
+> no-go in it's current form. No doubt about it and the transparent
+> support will certainly shine with respect to KVM.
+
+Exactly.
+
+> On the flip-side, architecture limitations likely make transparent
+> support a no-go on IA-64 and very likely PPC64 so it doesn't solve
+> everything either.
+
+Exactly! This is how we discovered that hugetlbfs will stay around
+maybe forever, regardless how transparent hugepage will expand over
+the tmpfs/pagecache layer.
+
+> The existing stuff will continue to exist alongside transparent support
+> because they are ideal in different situations.
+
+Agreed.
+
+> FWIW, I'm still reading through the patches and have not spotted anything
+> new that is problematic but I'm only half-way through. By and large, I'm
+> pro-the-patches but am somewhat compelled to defend hugetlbfs :)
+
+NOTE: I very much defend hugetlbfs too! But not for using it with
+firefox on desktop nor on virtualization cloud. For DBMS hugetlbfs may
+remain superior solution than transparent hugepage because of the
+finegrined reservation capabilities. We're in full agreement ;).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
