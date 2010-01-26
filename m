@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CEFE16B0095
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id EA8196B0096
 	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:19 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 10 of 31] export maybe_mkwrite
-Message-Id: <1779fe2f7714b38953ec.1264513925@v2.random>
+Subject: [PATCH 21 of 31] split_huge_page_mm/vma
+Message-Id: <9cb2a8a61d32163dced8.1264513936@v2.random>
 In-Reply-To: <patchbomb.1264513915@v2.random>
 References: <patchbomb.1264513915@v2.random>
-Date: Tue, 26 Jan 2010 14:52:05 +0100
+Date: Tue, 26 Jan 2010 14:52:16 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,58 +18,79 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-huge_memory.c needs it too when it fallbacks in copying hugepages into regular
-fragmented pages if hugepage allocation fails during COW.
+split_huge_page_mm/vma compat code. Each one of those would need to be expanded
+to hundred of lines of complex code without a fully reliable
+split_huge_page_mm/vma functionality.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -387,6 +387,19 @@ static inline void set_compound_order(st
- }
+diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
+--- a/arch/x86/kernel/vm86_32.c
++++ b/arch/x86/kernel/vm86_32.c
+@@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm
+ 	if (pud_none_or_clear_bad(pud))
+ 		goto out;
+ 	pmd = pmd_offset(pud, 0xA0000);
++	split_huge_page_mm(mm, 0xA0000, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		goto out;
+ 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -446,6 +446,7 @@ static inline int check_pmd_range(struct
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_vma(vma, pmd);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		if (check_pte_range(vma, pmd, addr, next, nodes,
+diff --git a/mm/mincore.c b/mm/mincore.c
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -132,6 +132,7 @@ static long do_mincore(unsigned long add
+ 	if (pud_none_or_clear_bad(pud))
+ 		goto none_mapped;
+ 	pmd = pmd_offset(pud, addr);
++	split_huge_page_vma(vma, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		goto none_mapped;
  
- /*
-+ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-+ * servicing faults for write access.  In the normal case, do always want
-+ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-+ * that do not have writing enabled, when used by access_process_vm.
-+ */
-+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-+{
-+	if (likely(vma->vm_flags & VM_WRITE))
-+		pte = pte_mkwrite(pte);
-+	return pte;
-+}
-+
-+/*
-  * Multiple processes may "see" the same page. E.g. for untouched
-  * mappings of /dev/null, all processes see the same page full of
-  * zeroes, and text pages of executables and shared libraries have
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1943,19 +1943,6 @@ static inline int pte_unmap_same(struct 
- 	return same;
- }
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -89,6 +89,7 @@ static inline void change_pmd_range(stru
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_mm(mm, addr, pmd);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
+diff --git a/mm/mremap.c b/mm/mremap.c
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -42,6 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
+ 		return NULL;
  
--/*
-- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-- * servicing faults for write access.  In the normal case, do always want
-- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-- * that do not have writing enabled, when used by access_process_vm.
-- */
--static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
--{
--	if (likely(vma->vm_flags & VM_WRITE))
--		pte = pte_mkwrite(pte);
--	return pte;
--}
--
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
- {
- 	/*
+ 	pmd = pmd_offset(pud, addr);
++	split_huge_page_mm(mm, addr, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		return NULL;
+ 
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -34,6 +34,7 @@ static int walk_pmd_range(pud_t *pud, un
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_mm(walk->mm, addr, pmd);
+ 		if (pmd_none_or_clear_bad(pmd)) {
+ 			if (walk->pte_hole)
+ 				err = walk->pte_hole(addr, next, walk);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
