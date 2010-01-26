@@ -1,70 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8FDA36003C1
-	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 17:47:46 -0500 (EST)
-Date: Mon, 25 Jan 2010 23:46:43 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-Message-ID: <20100125224643.GA30452@random.random>
-References: <patchbomb.1264054824@v2.random>
- <alpine.DEB.2.00.1001220845000.2704@router.home>
- <20100122151947.GA3690@random.random>
- <alpine.DEB.2.00.1001221008360.4176@router.home>
- <20100123175847.GC6494@random.random>
- <alpine.DEB.2.00.1001251529070.5379@router.home>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id EB9426B0089
+	for <linux-mm@kvack.org>; Mon, 25 Jan 2010 19:42:56 -0500 (EST)
+Date: Tue, 26 Jan 2010 01:42:48 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: [PATCH] trivial grammar fix: if and only if
+In-Reply-To: <1264451889-10234-1-git-send-email-u.kleine-koenig@pengutronix.de>
+Message-ID: <alpine.LNX.2.00.1001260142380.30977@pobox.suse.cz>
+References: <1264451889-10234-1-git-send-email-u.kleine-koenig@pengutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1001251529070.5379@router.home>
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: =?ISO-8859-15?Q?Uwe_Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nicolas Pitre <nico@marvell.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 25, 2010 at 03:50:31PM -0600, Christoph Lameter wrote:
-> There is always VM activity, so we need 512 pointers sigh.
+On Mon, 25 Jan 2010, Uwe Kleine-KA?nig wrote:
 
-well you said some week ago that actual systems never swap and swap is
-useless... if they don't swap there will be just 1 pointer in the
-pmd. The mprotect/mremap we want to learn using pmd_trans_huge
-natively without split but again, this is incremental work.
-
-> So its not possible to use these "huge" pages in a useful way inside of
-> the kernel. They are volatile and temporary.
-
-They are so useless that firefox never splits them, this is my
-laptop. khugepaged running so if there's swapout, after swapin they
-will be collapsed back into hugepages.
-
-AnonPages:        357148 kB
-AnonHugePages:     53248 kB
-
-> In short they cannot be treated as 2M entities unless we add some logic to
-> prevent splitting.
-
-They can on the physical side, splitting only involves the virtual
-side, this is why O_DIRECT DMA through gup already works on hugepages
-without splitting them.
-
-> Frankly this seems to be adding splitting that cannot be used if one
-> really wants to use large pages for something.
+> Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
+> Cc: Nicolas Pitre <nico@marvell.com>
+> ---
+>  mm/highmem.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> I still think we should get transparent huge page support straight up
-> first without complicated fallback schemes that makes huge pages difficult
-> to use.
+> diff --git a/mm/highmem.c b/mm/highmem.c
+> index 9c1e627..bed8a8b 100644
+> --- a/mm/highmem.c
+> +++ b/mm/highmem.c
+> @@ -220,7 +220,7 @@ EXPORT_SYMBOL(kmap_high);
+>   * @page: &struct page to pin
+>   *
+>   * Returns the page's current virtual memory address, or NULL if no mapping
+> - * exists.  When and only when a non null address is returned then a
+> + * exists.  If and only if a non null address is returned then a
+>   * matching call to kunmap_high() is necessary.
+>   *
+>   * This can be called from any context.
 
-Just send me patches to remove all callers of split_huge_page, then
-split_huge_page can go away too. But saying that hugepages aren't
-useful already is absurd, kvm with "madvise" default of sysfs already
-gets the full benefit, nothing more can be achieved by kvm in
-performance and functionality than what my patch delivers already
-(ok swapping will be a little more efficient if done through 2M I/O
-but swap performance isn't so critical). Our objective is to over time
-eliminate the need of split_huge_page. khugepaged will remain required
-forever, unless the whole kernel ram will become relocatable and
-defrag not just an heuristic but a guarantee (it is needed after one
-VM exits and release several gigs of hugepages, so the other VM get
-the speedup).
+Applied, thanks.
+
+-- 
+Jiri Kosina
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
