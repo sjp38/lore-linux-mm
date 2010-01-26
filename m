@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A337F6B00A0
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 17:52:17 -0500 (EST)
-Message-ID: <4B5F71FE.2070105@redhat.com>
-Date: Tue, 26 Jan 2010 17:51:42 -0500
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0E2596B007D
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 17:53:58 -0500 (EST)
+Message-ID: <4B5F7255.9020105@redhat.com>
+Date: Tue, 26 Jan 2010 17:53:09 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 27 of 31] pmd_trans_huge migrate bugcheck
-References: <patchbomb.1264513915@v2.random> <5aefa2dc3ed192ca192a.1264513942@v2.random>
-In-Reply-To: <5aefa2dc3ed192ca192a.1264513942@v2.random>
+Subject: Re: [PATCH 28 of 31] memcg compound
+References: <patchbomb.1264513915@v2.random> <6d3d1a3f07fbd98e17d0.1264513943@v2.random>
+In-Reply-To: <6d3d1a3f07fbd98e17d0.1264513943@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,8 +19,7 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> No pmd_trans_huge should ever materialize in migration ptes areas, because
-> we split the hugepage before migration ptes are instantiated.
+> Teach memcg to charge/uncharge compound pages.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
