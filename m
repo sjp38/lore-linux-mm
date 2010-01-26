@@ -1,77 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BDF586B0088
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 18:31:13 -0500 (EST)
-Received: by ewy24 with SMTP id 24so455930ewy.6
-        for <linux-mm@kvack.org>; Tue, 26 Jan 2010 15:31:11 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <74fd948d1001261350n2f26c057ubbe056d11d19abf2@mail.gmail.com>
-References: <74fd948d1001261121r7e6d03a4i75ce40705abed4e0@mail.gmail.com>
-	 <4B5F52FE.5000201@crca.org.au> <1264539045.3536.1348.camel@calx>
-	 <4B5F5794.8020302@cs.helsinki.fi>
-	 <74fd948d1001261350n2f26c057ubbe056d11d19abf2@mail.gmail.com>
-Date: Tue, 26 Jan 2010 23:31:11 +0000
-Message-ID: <74fd948d1001261531v7a09e1e8t54a7a5a5a2df277b@mail.gmail.com>
-Subject: Re: BUG at mm/slab.c:2990 with 2.6.33-rc5-tuxonice
-From: Pedro Ribeiro <pedrib@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A3F096B008A
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 18:47:44 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0QNlfd9006976
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 27 Jan 2010 08:47:42 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8606C45DE53
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 08:47:41 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6375245DE4E
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 08:47:41 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 48C361DB8040
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 08:47:41 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EC5AD1DB8038
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 08:47:40 +0900 (JST)
+Date: Wed, 27 Jan 2010 08:44:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
+Message-Id: <20100127084419.248bb3a7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100126151606.54764be2.akpm@linux-foundation.org>
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100126151606.54764be2.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, rientjes@google.com, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-2010/1/26 Pedro Ribeiro <pedrib@gmail.com>:
-> 2010/1/26 Pekka Enberg <penberg@cs.helsinki.fi>:
->> Matt Mackall wrote:
->>>
->>> On Wed, 2010-01-27 at 07:39 +1100, Nigel Cunningham wrote:
->>>>
->>>> Hi.
->>>>
->>>> Pedro Ribeiro wrote:
->>>>>
->>>>> Hi,
->>>>>
->>>>> I hit a bug at mm/slab.c:2990 with .33-rc5.
->>>>> Unfortunately nothing more is available than a screen picture with a
->>>>> crash dump, although it is a good one.
->>>>> The bug was hit almost at the end of a hibernation cycle with
->>>>> Tux-on-Ice, while saving memory contents to an encrypted swap
->>>>> partition.
->>>>>
->>>>> The image is here http://img264.imageshack.us/img264/9634/mmslab.jpg
->>>>> (150 kb)
->>>>>
->>>>> Hopefully it is of any use for you. Please let me know if you need any
->>>>> more info.
->>>>
->>>> Looks to me to be completely unrelated to TuxOnIce - at least at a first
->>>> glance.
->>>>
->>>> Ccing the slab allocator maintainers listed in MAINTAINERS.
->>>
->>> Not sure if this will do us any good, it's the second oops.
->>
->> Looks like slab corruption to me which is usually not a slab bug but caused
->> by buggy callers. Is CONFIG_DEBUG_SLAB enabled?
->>
->
-> I have enabled it and compiled the kernel. As soon as I hit the bug, I
-> will send a photo here.
->
-> Regards,
-> Pedro
->
+On Tue, 26 Jan 2010 15:16:06 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-The pic is here.
-http://img43.imageshack.us/img43/3644/dsc01061ko.jpg
+> On Mon, 25 Jan 2010 15:15:03 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > -unsigned long badness(struct task_struct *p, unsigned long uptime)
+> > +unsigned long badness(struct task_struct *p, unsigned long uptime,
+> > +			int constraint)
+> 
+> And badness() should be renamed to something better (eg, oom_badness), and
+> the declaration should be placed in a mm-specific header file.
+> 
+> Yes, the code was already like that.  But please don't leave crappiness in
+> place when you come across it - take the opportunity to fix it up.
+> 
+Sure. I'll write v4.
 
-There was a buttload of output before that, which I tried capturing in
-video, but its too crappy to post.
-Do you know if/where I can get patches for KDB in .33?
-
-Regards,
-Pedro
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
