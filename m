@@ -1,53 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 390D86B0078
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 01:53:48 -0500 (EST)
-Date: Tue, 26 Jan 2010 08:53:03 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-Message-ID: <20100126065303.GJ8483@redhat.com>
-References: <patchbomb.1264054824@v2.random>
- <alpine.DEB.2.00.1001220845000.2704@router.home>
- <20100122151947.GA3690@random.random>
- <alpine.DEB.2.00.1001221008360.4176@router.home>
- <20100123175847.GC6494@random.random>
- <alpine.DEB.2.00.1001251529070.5379@router.home>
- <4B5E3CC0.2060006@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 60EF86B0078
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 01:56:37 -0500 (EST)
+Received: by pwj10 with SMTP id 10so3502040pwj.6
+        for <linux-mm@kvack.org>; Mon, 25 Jan 2010 22:56:34 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B5E3CC0.2060006@redhat.com>
+Date: Tue, 26 Jan 2010 14:56:34 +0800
+Message-ID: <cf18f8341001252256q65b90d76vfe3094a1bb5424e7@mail.gmail.com>
+Subject: [PATCH] page_alloc: change bit ops 'or' to logical ops in free/new
+	page check
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 25, 2010 at 07:52:16PM -0500, Rik van Riel wrote:
-> On 01/25/2010 04:50 PM, Christoph Lameter wrote:
-> 
-> >So its not possible to use these "huge" pages in a useful way inside of
-> >the kernel. They are volatile and temporary.
-> 
-> >In short they cannot be treated as 2M entities unless we add some logic to
-> >prevent splitting.
-> >
-> >Frankly this seems to be adding splitting that cannot be used if one
-> >really wants to use large pages for something.
-> 
-> What exactly do you need the stable huge pages for?
-> 
-> Do you have anything specific in mind that we should take
-> into account?
-> 
-> Want to send in an incremental patch that can temporarily block
-> the pageout code from splitting up a huge page, so your direct
-> users of huge pages can rely on them sticking around until the
-> transaction is done?
-> 
-Shouldn't mlock() do the trick?
+Using logical 'or' in  function free_page_mlock() and
+check_new_page() makes code clear and
+sometimes more effective (Because it can ignore other condition
+compare if the first condition
+is already true).
 
---
-			Gleb.
+It's Nick's patch "mm: microopt conditions" changed it from logical
+ops to bit ops.
+Maybe I didn't consider something. If so, please let me know and just
+ignore this patch.
+Thanks!
+
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+
+diff --git mm/page_alloc.c mm/page_alloc.c
+index 05ae4e0..91ece14 100644
+--- mm/page_alloc.c
++++ mm/page_alloc.c
+@@ -500,9 +500,9 @@ static inline void free_page_mlock(struct page *page)
+
+ static inline int free_pages_check(struct page *page)
+ {
+-       if (unlikely(page_mapcount(page) |
+-               (page->mapping != NULL)  |
+-               (atomic_read(&page->_count) != 0) |
++       if (unlikely(page_mapcount(page) ||
++               (page->mapping != NULL)  ||
++               (atomic_read(&page->_count) != 0) ||
+                (page->flags & PAGE_FLAGS_CHECK_AT_FREE))) {
+                bad_page(page);
+                return 1;
+@@ -671,9 +671,9 @@ static inline void expand(struct zone *zone, struct page *pa
+  */
+ static inline int check_new_page(struct page *page)
+ {
+-       if (unlikely(page_mapcount(page) |
+-               (page->mapping != NULL)  |
+-               (atomic_read(&page->_count) != 0)  |
++       if (unlikely(page_mapcount(page) ||
++               (page->mapping != NULL)  ||
++               (atomic_read(&page->_count) != 0)  ||
+                (page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
+                bad_page(page);
+                return 1;
+
+-- 
+Regards,
+-Bob Liu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
