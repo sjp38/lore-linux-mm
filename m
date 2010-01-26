@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 64CD16B00A6
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:15:09 -0500 (EST)
-Message-ID: <4B5F22E4.7090007@redhat.com>
-Date: Tue, 26 Jan 2010 12:14:12 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 233946B00A6
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:21:59 -0500 (EST)
+Message-ID: <4B5F2486.7010103@redhat.com>
+Date: Tue, 26 Jan 2010 12:21:10 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 14 of 31] add pmd mangling generic functions
-References: <patchbomb.1264513915@v2.random> <d0424f095bd097ecd715.1264513929@v2.random>
-In-Reply-To: <d0424f095bd097ecd715.1264513929@v2.random>
+Subject: Re: [PATCH 16 of 31] bail out gup_fast on splitting pmd
+References: <patchbomb.1264513915@v2.random> <cc86f09d614465026c0f.1264513931@v2.random>
+In-Reply-To: <cc86f09d614465026c0f.1264513931@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,8 +19,8 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Some are needed to build but not actually used on archs not supporting
-> transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
+> Force gup_fast to take the slow path and block if the pmd is splitting, not
+> only if it's none.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
