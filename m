@@ -1,159 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 167496B00B9
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 14:53:36 -0500 (EST)
-Date: Tue, 26 Jan 2010 19:53:21 +0000
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3398E6B007D
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 14:57:09 -0500 (EST)
+Date: Tue, 26 Jan 2010 19:56:55 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 17 of 31] pte alloc trans splitting
-Message-ID: <20100126195320.GU16468@csn.ul.ie>
-References: <patchbomb.1264513915@v2.random> <a1d9fddd067c94c98c5a.1264513932@v2.random>
+Subject: Re: [PATCH 19 of 31] clear page compound
+Message-ID: <20100126195655.GV16468@csn.ul.ie>
+References: <patchbomb.1264513915@v2.random> <fdc4060ac52e26d9e91f.1264513934@v2.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <a1d9fddd067c94c98c5a.1264513932@v2.random>
+In-Reply-To: <fdc4060ac52e26d9e91f.1264513934@v2.random>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 02:52:12PM +0100, Andrea Arcangeli wrote:
+On Tue, Jan 26, 2010 at 02:52:14PM +0100, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> pte alloc routines must wait for split_huge_page if the pmd is not
-> present and not null (i.e. pmd_trans_splitting). The additional
-> branches are optimized away at compile time by pmd_trans_splitting if
-> the config option is off. However we must pass the vma down in order
-> to know the anon_vma lock to wait for.
+> split_huge_page must transform a compound page to a regular page and needs
+> ClearPageCompound.
 > 
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
 > ---
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -955,7 +955,8 @@ static inline int __pmd_alloc(struct mm_
->  int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
->  #endif
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -349,7 +349,7 @@ static inline void set_page_writeback(st
+>   * tests can be used in performance sensitive paths. PageCompound is
+>   * generally not used in hot code paths.
+>   */
+> -__PAGEFLAG(Head, head)
+> +__PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
+>  __PAGEFLAG(Tail, tail)
 >  
-> -int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
-> +int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-> +		pmd_t *pmd, unsigned long address);
->  int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
+>  static inline int PageCompound(struct page *page)
+> @@ -357,6 +357,13 @@ static inline int PageCompound(struct pa
+>  	return page->flags & ((1L << PG_head) | (1L << PG_tail));
 >  
+>  }
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +static inline void ClearPageCompound(struct page *page)
+> +{
+> +	BUG_ON(!PageHead(page));
+> +	ClearPageHead(page);
+> +}
+> +#endif
+>  #else
 >  /*
-> @@ -1024,12 +1025,14 @@ static inline void pgtable_page_dtor(str
->  	pte_unmap(pte);					\
->  } while (0)
->  
-> -#define pte_alloc_map(mm, pmd, address)			\
-> -	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
-> -		NULL: pte_offset_map(pmd, address))
-> +#define pte_alloc_map(mm, vma, pmd, address)				\
-> +	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, vma,	\
-> +							pmd, address))?	\
-> +	 NULL: pte_offset_map(pmd, address))
->  
->  #define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
-> -	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
-> +	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, NULL,	\
-> +							pmd, address))?	\
->  		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
->  
->  #define pte_alloc_kernel(pmd, address)			\
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -324,9 +324,11 @@ void free_pgtables(struct mmu_gather *tl
->  	}
+>   * Reduce page flag use as much as possible by overlapping
+> @@ -394,6 +401,14 @@ static inline void __ClearPageTail(struc
+>  	page->flags &= ~PG_head_tail_mask;
 >  }
 >  
-> -int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
-> +int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-> +		pmd_t *pmd, unsigned long address)
->  {
->  	pgtable_t new = pte_alloc_one(mm, address);
-> +	int wait_split_huge_page;
->  	if (!new)
->  		return -ENOMEM;
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +static inline void ClearPageCompound(struct page *page)
+> +{
+> +	BUG_ON(page->flags & PG_head_tail_mask != (1L << PG_compound));
+
+1L?
+
+> +	ClearPageCompound(page);
+> +}
+> +#endif
+> +
+>  #endif /* !PAGEFLAGS_EXTENDED */
 >  
-> @@ -346,14 +348,18 @@ int __pte_alloc(struct mm_struct *mm, pm
->  	smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
->  
->  	spin_lock(&mm->page_table_lock);
-> -	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
-> +	wait_split_huge_page = 0;
-> +	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
->  		mm->nr_ptes++;
->  		pmd_populate(mm, pmd, new);
->  		new = NULL;
-> -	}
-> +	} else if (unlikely(pmd_trans_splitting(*pmd)))
-> +		wait_split_huge_page = 1;
->  	spin_unlock(&mm->page_table_lock);
->  	if (new)
->  		pte_free(mm, new);
-> +	if (wait_split_huge_page)
-> +		wait_split_huge_page(vma->anon_vma, pmd);
->  	return 0;
->  }
->  
-> @@ -366,10 +372,11 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
->  	smp_wmb(); /* See comment in __pte_alloc */
->  
->  	spin_lock(&init_mm.page_table_lock);
-> -	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
-> +	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
->  		pmd_populate_kernel(&init_mm, pmd, new);
->  		new = NULL;
-> -	}
-> +	} else
-> +		VM_BUG_ON(pmd_trans_splitting(*pmd));
->  	spin_unlock(&init_mm.page_table_lock);
->  	if (new)
->  		pte_free_kernel(&init_mm, new);
-> @@ -3020,7 +3027,7 @@ int handle_mm_fault(struct mm_struct *mm
->  	pmd = pmd_alloc(mm, pud, address);
->  	if (!pmd)
->  		return VM_FAULT_OOM;
-> -	pte = pte_alloc_map(mm, pmd, address);
-> +	pte = pte_alloc_map(mm, vma, pmd, address);
->  	if (!pte)
->  		return VM_FAULT_OOM;
->  
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -48,7 +48,8 @@ static pmd_t *get_old_pmd(struct mm_stru
->  	return pmd;
->  }
->  
-> -static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
-> +static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
-> +			    unsigned long addr)
->  {
->  	pgd_t *pgd;
->  	pud_t *pud;
-> @@ -63,7 +64,7 @@ static pmd_t *alloc_new_pmd(struct mm_st
->  	if (!pmd)
->  		return NULL;
->  
-> -	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
-> +	if (!pmd_present(*pmd) && __pte_alloc(mm, vma, pmd, addr))
->  		return NULL;
->  
->  	return pmd;
-> @@ -148,7 +149,7 @@ unsigned long move_page_tables(struct vm
->  		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
->  		if (!old_pmd)
->  			continue;
-> -		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
-> +		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
->  		if (!new_pmd)
->  			break;
->  		next = (new_addr + PMD_SIZE) & PMD_MASK;
+>  #ifdef CONFIG_MMU
 > 
 
 -- 
