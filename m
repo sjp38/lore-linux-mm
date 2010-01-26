@@ -1,46 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0669D6B00AA
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 16:38:58 -0500 (EST)
-Date: Tue, 26 Jan 2010 22:38:53 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] - Fix unmap_vma() bug related to mmu_notifiers
-Message-ID: <20100126213853.GY30452@random.random>
-References: <20100125174556.GA23003@sgi.com>
- <20100125190052.GF5756@random.random>
- <20100125211033.GA24272@sgi.com>
- <20100125211615.GH5756@random.random>
- <20100126212904.GE6653@sgi.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9D5216B00A9
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 16:50:22 -0500 (EST)
+Received: by ewy24 with SMTP id 24so343285ewy.6
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2010 13:50:20 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100126212904.GE6653@sgi.com>
+In-Reply-To: <4B5F5794.8020302@cs.helsinki.fi>
+References: <74fd948d1001261121r7e6d03a4i75ce40705abed4e0@mail.gmail.com>
+	 <4B5F52FE.5000201@crca.org.au> <1264539045.3536.1348.camel@calx>
+	 <4B5F5794.8020302@cs.helsinki.fi>
+Date: Tue, 26 Jan 2010 21:50:19 +0000
+Message-ID: <74fd948d1001261350n2f26c057ubbe056d11d19abf2@mail.gmail.com>
+Subject: Re: BUG at mm/slab.c:2990 with 2.6.33-rc5-tuxonice
+From: Pedro Ribeiro <pedrib@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Robin Holt <holt@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, cl@linux-foundation.org, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nigel Cunningham <ncunningham@crca.org.au>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 03:29:04PM -0600, Robin Holt wrote:
-> On Mon, Jan 25, 2010 at 10:16:15PM +0100, Andrea Arcangeli wrote:
-> > The old patches are in my ftp area, they should still apply, you
-> > should concentrate testing with those additional ones applied, then it
-> > will work for xpmem too ;)
-> 
-> Andrea, could you point me at your ftp area?
+2010/1/26 Pekka Enberg <penberg@cs.helsinki.fi>:
+> Matt Mackall wrote:
+>>
+>> On Wed, 2010-01-27 at 07:39 +1100, Nigel Cunningham wrote:
+>>>
+>>> Hi.
+>>>
+>>> Pedro Ribeiro wrote:
+>>>>
+>>>> Hi,
+>>>>
+>>>> I hit a bug at mm/slab.c:2990 with .33-rc5.
+>>>> Unfortunately nothing more is available than a screen picture with a
+>>>> crash dump, although it is a good one.
+>>>> The bug was hit almost at the end of a hibernation cycle with
+>>>> Tux-on-Ice, while saving memory contents to an encrypted swap
+>>>> partition.
+>>>>
+>>>> The image is here http://img264.imageshack.us/img264/9634/mmslab.jpg
+>>>> (150 kb)
+>>>>
+>>>> Hopefully it is of any use for you. Please let me know if you need any
+>>>> more info.
+>>>
+>>> Looks to me to be completely unrelated to TuxOnIce - at least at a first
+>>> glance.
+>>>
+>>> Ccing the slab allocator maintainers listed in MAINTAINERS.
+>>
+>> Not sure if this will do us any good, it's the second oops.
+>
+> Looks like slab corruption to me which is usually not a slab bug but caused
+> by buggy callers. Is CONFIG_DEBUG_SLAB enabled?
+>
 
-Sure, this is the very latest version I maintained:
+I have enabled it and compiled the kernel. As soon as I hit the bug, I
+will send a photo here.
 
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.26-rc7/mmu-notifier-v18/
-
-Note, it may be an option to make mmu notifier sleepable through
-.config, unless people uses xpmem there is no reason to add
-refcounting to vmas. That is something we'd pay even if no KVM is used
-and no mmu notifer is used. I think the ideal is that anon-vma lock
-should be a rwspinlock and only rcu (no refcounting) with
-MMU_NOTIFIER_SLEEPABLE=n, and a read-write sem + refcounting if
-MMU_NOTIFIER_SLEEPABLE=y. MMU_NOTIFIER_SLEEPABLE doesn't need to be
-user visible, simply XPMEM=y will automatically set
-MMU_NOTIFIER_SLEEPABLE=y.
+Regards,
+Pedro
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
