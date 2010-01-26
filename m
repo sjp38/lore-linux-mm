@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 12DE06B0096
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 13:16:29 -0500 (EST)
-Message-ID: <4B5F3105.8070805@redhat.com>
-Date: Tue, 26 Jan 2010 13:14:29 -0500
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 83D656B009E
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 13:17:25 -0500 (EST)
+Message-ID: <4B5F318C.40101@redhat.com>
+Date: Tue, 26 Jan 2010 13:16:44 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 23 of 31] clear_copy_huge_page
-References: <patchbomb.1264513915@v2.random> <cf4634443c63583c5603.1264513938@v2.random>
-In-Reply-To: <cf4634443c63583c5603.1264513938@v2.random>
+Subject: Re: [PATCH 24 of 31] kvm mmu transparent hugepage support
+References: <patchbomb.1264513915@v2.random> <7b60a9aaced1f01ce82b.1264513939@v2.random>
+In-Reply-To: <7b60a9aaced1f01ce82b.1264513939@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,12 +17,12 @@ Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@u
 List-ID: <linux-mm.kvack.org>
 
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli<aarcange@redhat.com>
+> From: Marcelo Tosatti<mtosatti@redhat.com>
 >
-> Move the copy/clear_huge_page functions to common code to share between
-> hugetlb.c and huge_memory.c.
+> This should work for both hugetlbfs and transparent hugepages.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+> Signed-off-by: Marcelo Tosatti<mtosatti@redhat.com>
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
