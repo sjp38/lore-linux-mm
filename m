@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5FE306003C1
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 10:56:22 -0500 (EST)
-Date: Tue, 26 Jan 2010 09:55:43 -0600 (CST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 198C56B008C
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 11:01:09 -0500 (EST)
+Date: Tue, 26 Jan 2010 10:00:46 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-In-Reply-To: <20100126123533.GF30452@random.random>
-Message-ID: <alpine.DEB.2.00.1001260955130.23549@router.home>
-References: <patchbomb.1264054824@v2.random> <alpine.DEB.2.00.1001220845000.2704@router.home> <20100122151947.GA3690@random.random> <alpine.DEB.2.00.1001221008360.4176@router.home> <20100123175847.GC6494@random.random> <alpine.DEB.2.00.1001251529070.5379@router.home>
- <4B5E3CC0.2060006@redhat.com> <20100126065303.GJ8483@redhat.com> <20100126123533.GF30452@random.random>
+Subject: Re: [PATCH 03 of 31] alter compound get_page/put_page
+In-Reply-To: <20100126153140.GK30452@random.random>
+Message-ID: <alpine.DEB.2.00.1001261000380.23549@router.home>
+References: <patchbomb.1264513915@v2.random> <936cd613e4ae2d20c62b.1264513918@v2.random> <4B5F037D.9050801@redhat.com> <20100126153140.GK30452@random.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 26 Jan 2010, Andrea Arcangeli wrote:
 
-> gup already does the trick of preventing swapping of only the pieces
-> that are pinned. But it's ok only for temporary direct access like
-> DMA, ideally if the access to the page can be stopped synchronously
-> and the mapping is longstanding (not something dma can do, so O_DIRECT
-> can't do) mmu notifier should be used to allow paging of the page and
-> teardown the secondary mmu mapping.
+> On Tue, Jan 26, 2010 at 10:00:13AM -0500, Rik van Riel wrote:
+> > Ahh, I see you added the #ifdef in this patch.
+>
+> Yep, or x86 wouldn't build because there wasn't enough space in
+> page-flags. #7 should build on all archs including i386. I guess I
+> should have folded the changes in the previous patch like said in
+> previous email, I'll clean it up now, end result is the same.
 
-How does it do that? Take a reference on each of the 512 pieces? Or does
-it take one reference?
+Sounds good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
