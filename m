@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 736456B0082
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id BF7D36B00BB
 	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 09:52:16 -0500 (EST)
-Message-ID: <4B5F0179.6070005@redhat.com>
-Date: Tue, 26 Jan 2010 09:51:37 -0500
+Message-ID: <4B5F00FA.9020900@redhat.com>
+Date: Tue, 26 Jan 2010 09:49:30 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02 of 31] compound_lock
-References: <patchbomb.1264513915@v2.random> <1037f5f6264364a9e4cc.1264513917@v2.random>
-In-Reply-To: <1037f5f6264364a9e4cc.1264513917@v2.random>
+Subject: Re: [PATCH 01 of 31] define MADV_HUGEPAGE
+References: <patchbomb.1264513915@v2.random> <da09747e3b1d0368a0a6.1264513916@v2.random>
+In-Reply-To: <da09747e3b1d0368a0a6.1264513916@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,24 +19,9 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:51 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Add a new compound_lock() needed to serialize put_page against
-> __split_huge_page_refcount().
+> Define MADV_HUGEPAGE.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
-
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -108,6 +108,7 @@ enum pageflags {
->   #ifdef CONFIG_MEMORY_FAILURE
->   	PG_hwpoison,		/* hardware poisoned page. Don't touch */
->   #endif
-> +	PG_compound_lock,
-
-Maybe this should be under an #ifdef so it does not take
-up a bit flag on 32 bit systems where it isn't compiled?
-
-Other than that,
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
