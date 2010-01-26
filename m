@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0C9D96B0098
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0A98C6B0088
 	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:19 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 07 of 31] add native_set_pmd_at
-Message-Id: <9eb834451b22eab29fab.1264513922@v2.random>
+Subject: [PATCH 06 of 31] clear compound mapping
+Message-Id: <7cf11b425ecd44419ccc.1264513921@v2.random>
 In-Reply-To: <patchbomb.1264513915@v2.random>
 References: <patchbomb.1264513915@v2.random>
-Date: Tue, 26 Jan 2010 14:52:02 +0100
+Date: Tue, 26 Jan 2010 14:52:01 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,27 +18,24 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Used by paravirt and not paravirt set_pmd_at.
+Clear compound mapping for anonymous compound pages like it already happens for
+regular anonymous pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
- 	native_set_pte(ptep, pte);
- }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -584,6 +584,8 @@ static void __free_pages_ok(struct page 
  
-+static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+				     pmd_t *pmdp , pmd_t pmd)
-+{
-+	native_set_pmd(pmdp, pmd);
-+}
-+
- #ifndef CONFIG_PARAVIRT
- /*
-  * Rules for using pte_update - it must be called after any PTE update which
+ 	kmemcheck_free_shadow(page, order);
+ 
++	if (PageAnon(page))
++		page->mapping = NULL;
+ 	for (i = 0 ; i < (1 << order) ; ++i)
+ 		bad += free_pages_check(page + i);
+ 	if (bad)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
