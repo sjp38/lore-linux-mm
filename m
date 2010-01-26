@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BF7D36B00BB
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 09:52:16 -0500 (EST)
-Message-ID: <4B5F00FA.9020900@redhat.com>
-Date: Tue, 26 Jan 2010 09:49:30 -0500
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7114D6003C1
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 10:01:47 -0500 (EST)
+Message-ID: <4B5F037D.9050801@redhat.com>
+Date: Tue, 26 Jan 2010 10:00:13 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01 of 31] define MADV_HUGEPAGE
-References: <patchbomb.1264513915@v2.random> <da09747e3b1d0368a0a6.1264513916@v2.random>
-In-Reply-To: <da09747e3b1d0368a0a6.1264513916@v2.random>
+Subject: Re: [PATCH 03 of 31] alter compound get_page/put_page
+References: <patchbomb.1264513915@v2.random> <936cd613e4ae2d20c62b.1264513918@v2.random>
+In-Reply-To: <936cd613e4ae2d20c62b.1264513918@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,9 +19,13 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:51 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Define MADV_HUGEPAGE.
+> Alter compound get_page/put_page to keep references on subpages too, in order
+> to allow __split_huge_page_refcount to split an hugepage even while subpages
+> have been pinned by one of the get_user_pages() variants.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+
+Ahh, I see you added the #ifdef in this patch.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
