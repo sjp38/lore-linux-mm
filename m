@@ -1,80 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D5E026B00AF
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:26:28 -0500 (EST)
-Date: Tue, 26 Jan 2010 17:26:13 +0000
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C0096B00AA
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:35:06 -0500 (EST)
+Date: Tue, 26 Jan 2010 17:34:51 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-Message-ID: <20100126172613.GD16468@csn.ul.ie>
-References: <alpine.DEB.2.00.1001220845000.2704@router.home> <20100122151947.GA3690@random.random> <alpine.DEB.2.00.1001221008360.4176@router.home> <20100123175847.GC6494@random.random> <alpine.DEB.2.00.1001251529070.5379@router.home> <4B5E3CC0.2060006@redhat.com> <alpine.DEB.2.00.1001260947580.23549@router.home> <20100126161625.GO30452@random.random> <20100126164230.GC16468@csn.ul.ie> <20100126165254.GR30452@random.random>
+Subject: Re: [PATCH 21 of 31] split_huge_page_mm/vma
+Message-ID: <20100126173450.GE16468@csn.ul.ie>
+References: <patchbomb.1264513915@v2.random> <9cb2a8a61d32163dced8.1264513936@v2.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100126165254.GR30452@random.random>
+In-Reply-To: <9cb2a8a61d32163dced8.1264513936@v2.random>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 05:52:55PM +0100, Andrea Arcangeli wrote:
-> > hugetlbfs may be not be ideal, but it's not quite as catastrophic as
-> > commonly believed either.
+On Tue, Jan 26, 2010 at 02:52:16PM +0100, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> I want 100% of userbase to take advantage of it, hugetlbfs isn't even
-> mounted by default... and there is no way to use libhugetlbfs by
-> default.
+> split_huge_page_mm/vma compat code. Each one of those would need to be expanded
+> to hundred of lines of complex code without a fully reliable
+> split_huge_page_mm/vma functionality.
 > 
-> I think hugetlbfs is fine for a niche of users (for those power users
-> kernel hackers and huge DBMS it may also be better than transparent
-> hugepage and they should keep using it!!! thanks to being able to
-> reserve pages at boot), but for the 99% of userbase it's exactly as
-> catastrophic as commonly believed. Otherwise I am 100% sure that I
-> wouldn't be the first one on linux to decrease the tlb misses with 2M
-
-You're not, I beat you to it a long time ago. In fact, I just watched a dumb
-hit smack into a treadmill (feeling badminded) with the browser using huge
-pages in the background just to confirm I wasn't imagining it.  Launched with
-
-hugectl --shm --heap epiphany-browser
-
-HugePages_Total:       5
-HugePages_Free:        1
-HugePages_Rsvd:        1
-HugePages_Surp:        5
-Hugepagesize:       4096 kB
-(Surp implies the huge pages were allocated on demand, not statically)
-
-17:22:01 up 7 days,  1:05, 24 users,  load average: 0.62, 0.30, 0.13
-
-Yes, this is not transparent and it's unlikely that a normal user would go
-to the hassle although conceivably a distro could set a launcher to
-automtaically try huge pages where available.
-
-I'm just saying that hugetlbfs and the existing utilities are not so bad
-as to be slammed. Just because it's possible to do something like this does
-not detract from transparent support in any way.
-
-> pages while watching videos on youtube (>60M on hugepages will happen
-> with atom netbook). And that's nothing compared to many other
-> workloads. Yes not so important for desktop but on server especially
-> with EPT/NPT it's a must and hugetlbfs is as catastrophic as on
-> "default desktop" in the virtualization cloud.
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+> 
+> diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
+> --- a/arch/x86/kernel/vm86_32.c
+> +++ b/arch/x86/kernel/vm86_32.c
+> @@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm
+>  	if (pud_none_or_clear_bad(pud))
+>  		goto out;
+>  	pmd = pmd_offset(pud, 0xA0000);
+> +	split_huge_page_mm(mm, 0xA0000, pmd);
+>  	if (pmd_none_or_clear_bad(pmd))
+>  		goto out;
+>  	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -446,6 +446,7 @@ static inline int check_pmd_range(struct
+>  	pmd = pmd_offset(pud, addr);
+>  	do {
+>  		next = pmd_addr_end(addr, end);
+> +		split_huge_page_vma(vma, pmd);
+>  		if (pmd_none_or_clear_bad(pmd))
+>  			continue;
+>  		if (check_pte_range(vma, pmd, addr, next, nodes,
+> diff --git a/mm/mincore.c b/mm/mincore.c
+> --- a/mm/mincore.c
+> +++ b/mm/mincore.c
+> @@ -132,6 +132,7 @@ static long do_mincore(unsigned long add
+>  	if (pud_none_or_clear_bad(pud))
+>  		goto none_mapped;
+>  	pmd = pmd_offset(pud, addr);
+> +	split_huge_page_vma(vma, pmd);
+>  	if (pmd_none_or_clear_bad(pmd))
+>  		goto none_mapped;
+>  
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -89,6 +89,7 @@ static inline void change_pmd_range(stru
+>  	pmd = pmd_offset(pud, addr);
+>  	do {
+>  		next = pmd_addr_end(addr, end);
+> +		split_huge_page_mm(mm, addr, pmd);
+>  		if (pmd_none_or_clear_bad(pmd))
+>  			continue;
+>  		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -42,6 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
+>  		return NULL;
+>  
+>  	pmd = pmd_offset(pud, addr);
+> +	split_huge_page_mm(mm, addr, pmd);
+>  	if (pmd_none_or_clear_bad(pmd))
+>  		return NULL;
+>  
+> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+> --- a/mm/pagewalk.c
+> +++ b/mm/pagewalk.c
+> @@ -34,6 +34,7 @@ static int walk_pmd_range(pud_t *pud, un
+>  	pmd = pmd_offset(pud, addr);
+>  	do {
+>  		next = pmd_addr_end(addr, end);
+> +		split_huge_page_mm(walk->mm, addr, pmd);
+>  		if (pmd_none_or_clear_bad(pmd)) {
+>  			if (walk->pte_hole)
+>  				err = walk->pte_hole(addr, next, walk);
 > 
 
-In virtualisation in particular, the lack of swapping makes hugetlbfs a
-no-go in it's current form. No doubt about it and the transparent
-support will certainly shine with respect to KVM.
+I guess this is the part that breaks huge pages when smaps is read. That
+is a bit of a snag as a normal user could cause a lot of churn by
+reading those files a lot.
 
-On the flip-side, architecture limitations likely make transparent
-support a no-go on IA-64 and very likely PPC64 so it doesn't solve
-everything either.
-
-The existing stuff will continue to exist alongside transparent support
-because they are ideal in different situations.
-
-FWIW, I'm still reading through the patches and have not spotted anything
-new that is problematic but I'm only half-way through. By and large, I'm
-pro-the-patches but am somewhat compelled to defend hugetlbfs :)
+In the event that gets fixed up, it's worth considering what KernelPageSize:
+and MMUPageSize: should be printing in smaps for regions of memory backed
+by a mix of base and huge pages.
 
 -- 
 Mel Gorman
