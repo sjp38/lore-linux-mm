@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0C0B86B007E
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:15 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D7A456B0083
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:16 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 23 of 31] clear_copy_huge_page
-Message-Id: <cf4634443c63583c5603.1264513938@v2.random>
+Subject: [PATCH 20 of 31] add pmd_huge_pte to mm_struct
+Message-Id: <1bd3154fd08b9710ca0e.1264513935@v2.random>
 In-Reply-To: <patchbomb.1264513915@v2.random>
 References: <patchbomb.1264513915@v2.random>
-Date: Tue, 26 Jan 2010 14:52:18 +0100
+Date: Tue, 26 Jan 2010 14:52:15 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,191 +18,58 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Move the copy/clear_huge_page functions to common code to share between
-hugetlb.c and huge_memory.c.
+This increase the size of the mm struct a bit but it is needed to preallocate
+one pte for each hugepage so that split_huge_page will not require a fail path.
+Guarantee of success is a fundamental property of split_huge_page to avoid
+decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
+would otherwise force the hugepage-unaware VM code to learn rolling back in the
+middle of its pte mangling operations (if something we need it to learn
+handling pmd_trans_huge natively rather being capable of rollback). When
+split_huge_page runs a pte is needed to succeed the split, to map the newly
+splitted regular pages with a regular pte.  This way all existing VM code
+remains backwards compatible by just adding a split_huge_page* one liner. The
+memory waste of those preallocated ptes is negligible and so it is worth it.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1386,5 +1386,14 @@ extern void shake_page(struct page *p, i
- extern atomic_long_t mce_bad_pages;
- extern int soft_offline_page(struct page *page, int flags);
- 
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+extern void clear_huge_page(struct page *page,
-+			    unsigned long addr,
-+			    unsigned int pages_per_huge_page);
-+extern void copy_huge_page(struct page *dst, struct page *src,
-+			   unsigned long addr, struct vm_area_struct *vma,
-+			   unsigned int pages_per_huge_page);
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -385,70 +385,6 @@ static int vma_has_reserves(struct vm_ar
- 	return 0;
- }
- 
--static void clear_gigantic_page(struct page *page,
--			unsigned long addr, unsigned long sz)
--{
--	int i;
--	struct page *p = page;
--
--	might_sleep();
--	for (i = 0; i < sz/PAGE_SIZE; i++, p = mem_map_next(p, page, i)) {
--		cond_resched();
--		clear_user_highpage(p, addr + i * PAGE_SIZE);
--	}
--}
--static void clear_huge_page(struct page *page,
--			unsigned long addr, unsigned long sz)
--{
--	int i;
--
--	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
--		clear_gigantic_page(page, addr, sz);
--		return;
--	}
--
--	might_sleep();
--	for (i = 0; i < sz/PAGE_SIZE; i++) {
--		cond_resched();
--		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
--	}
--}
--
--static void copy_gigantic_page(struct page *dst, struct page *src,
--			   unsigned long addr, struct vm_area_struct *vma)
--{
--	int i;
--	struct hstate *h = hstate_vma(vma);
--	struct page *dst_base = dst;
--	struct page *src_base = src;
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page(h); ) {
--		cond_resched();
--		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
--
--		i++;
--		dst = mem_map_next(dst, dst_base, i);
--		src = mem_map_next(src, src_base, i);
--	}
--}
--static void copy_huge_page(struct page *dst, struct page *src,
--			   unsigned long addr, struct vm_area_struct *vma)
--{
--	int i;
--	struct hstate *h = hstate_vma(vma);
--
--	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
--		copy_gigantic_page(dst, src, addr, vma);
--		return;
--	}
--
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page(h); i++) {
--		cond_resched();
--		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
--	}
--}
--
- static void enqueue_huge_page(struct hstate *h, struct page *page)
- {
- 	int nid = page_to_nid(page);
-@@ -2334,7 +2270,8 @@ retry_avoidcopy:
- 		return -PTR_ERR(new_page);
- 	}
- 
--	copy_huge_page(new_page, old_page, address, vma);
-+	copy_huge_page(new_page, old_page, address, vma,
-+		       pages_per_huge_page(h));
- 	__SetPageUptodate(new_page);
- 
- 	/*
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3396,3 +3396,73 @@ void might_fault(void)
- }
- EXPORT_SYMBOL(might_fault);
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -291,6 +291,9 @@ struct mm_struct {
+ #ifdef CONFIG_MMU_NOTIFIER
+ 	struct mmu_notifier_mm *mmu_notifier_mm;
  #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
++#endif
+ };
+ 
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+diff --git a/kernel/fork.c b/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -498,6 +498,9 @@ void __mmdrop(struct mm_struct *mm)
+ 	mm_free_pgd(mm);
+ 	destroy_context(mm);
+ 	mmu_notifier_mm_destroy(mm);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	VM_BUG_ON(mm->pmd_huge_pte);
++#endif
+ 	free_mm(mm);
+ }
+ EXPORT_SYMBOL_GPL(__mmdrop);
+@@ -638,6 +641,10 @@ struct mm_struct *dup_mm(struct task_str
+ 	mm->token_priority = 0;
+ 	mm->last_interval = 0;
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	mm->pmd_huge_pte = NULL;
++#endif
 +
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+static void clear_gigantic_page(struct page *page,
-+				unsigned long addr,
-+				unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	struct page *p = page;
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page;
-+	     i++, p = mem_map_next(p, page, i)) {
-+		cond_resched();
-+		clear_user_highpage(p, addr + i * PAGE_SIZE);
-+	}
-+}
-+void clear_huge_page(struct page *page,
-+		     unsigned long addr, unsigned int pages_per_huge_page)
-+{
-+	int i;
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		clear_gigantic_page(page, addr, pages_per_huge_page);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; i++) {
-+		cond_resched();
-+		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-+	}
-+}
-+
-+static void copy_gigantic_page(struct page *dst, struct page *src,
-+			       unsigned long addr,
-+			       struct vm_area_struct *vma,
-+			       unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	struct page *dst_base = dst;
-+	struct page *src_base = src;
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; ) {
-+		cond_resched();
-+		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
-+
-+		i++;
-+		dst = mem_map_next(dst, dst_base, i);
-+		src = mem_map_next(src, src_base, i);
-+	}
-+}
-+void copy_huge_page(struct page *dst, struct page *src,
-+		    unsigned long addr, struct vm_area_struct *vma,
-+		    unsigned int pages_per_huge_page)
-+{
-+	int i;
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		copy_gigantic_page(dst, src, addr, vma, pages_per_huge_page);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; i++) {
-+		cond_resched();
-+		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE,
-+				   vma);
-+	}
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+ 	if (!mm_init(mm, tsk))
+ 		goto fail_nomem;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
