@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 614F06B007D
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 17:54:13 -0500 (EST)
-Message-ID: <4B5F7277.9060708@redhat.com>
-Date: Tue, 26 Jan 2010 17:53:43 -0500
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9BA336B0095
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 17:56:31 -0500 (EST)
+Message-ID: <4B5F72FF.9080204@redhat.com>
+Date: Tue, 26 Jan 2010 17:55:59 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 29 of 31] memcg huge memory
-References: <patchbomb.1264513915@v2.random> <3724f9beef3fb0ff8894.1264513944@v2.random>
-In-Reply-To: <3724f9beef3fb0ff8894.1264513944@v2.random>
+Subject: Re: [PATCH 30 of 31] transparent hugepage vmstat
+References: <patchbomb.1264513915@v2.random> <d75b849a4142269635e1.1264513945@v2.random>
+In-Reply-To: <d75b849a4142269635e1.1264513945@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,11 +19,23 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Add memcg charge/uncharge to hugepage faults in huge_memory.c.
+> Add hugepage stat information to /proc/vmstat and /proc/meminfo.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> @@ -716,7 +721,10 @@ void page_add_new_anon_rmap(struct page
+>   	VM_BUG_ON(address<  vma->vm_start || address>= vma->vm_end);
+>   	SetPageSwapBacked(page);
+>   	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+> -	__inc_zone_page_state(page, NR_ANON_PAGES);
+> +	if (!PageTransHuge(page))
+> +	    __inc_zone_page_state(page, NR_ANON_PAGES);
+> +	else
+> +	    __inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+
+Does this have the potential to unbalance the pageout code, by
+not counting the hugepages at all?  (as opposed to counting a
+hugepage as 1 page)
 
 -- 
 All rights reversed.
