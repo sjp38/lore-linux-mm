@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B8FEA6B009D
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:24:45 -0500 (EST)
-Message-ID: <4B5F2535.6030907@redhat.com>
-Date: Tue, 26 Jan 2010 12:24:05 -0500
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0CCF86B00A6
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:25:02 -0500 (EST)
+Message-ID: <4B5F2551.5010504@redhat.com>
+Date: Tue, 26 Jan 2010 12:24:33 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 17 of 31] pte alloc trans splitting
-References: <patchbomb.1264513915@v2.random> <a1d9fddd067c94c98c5a.1264513932@v2.random>
-In-Reply-To: <a1d9fddd067c94c98c5a.1264513932@v2.random>
+Subject: Re: [PATCH 18 of 31] add pmd mmu_notifier helpers
+References: <patchbomb.1264513915@v2.random> <148499c93749cce0e28f.1264513933@v2.random>
+In-Reply-To: <148499c93749cce0e28f.1264513933@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,11 +19,7 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> pte alloc routines must wait for split_huge_page if the pmd is not
-> present and not null (i.e. pmd_trans_splitting). The additional
-> branches are optimized away at compile time by pmd_trans_splitting if
-> the config option is off. However we must pass the vma down in order
-> to know the anon_vma lock to wait for.
+> Add mmu notifier helpers to handle pmd huge operations.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
