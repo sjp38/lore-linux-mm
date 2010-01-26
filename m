@@ -1,56 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4B1FD6B0099
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 18:07:52 -0500 (EST)
-Message-ID: <4B5F75B2.1000203@redhat.com>
-Date: Tue, 26 Jan 2010 18:07:30 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-References: <patchbomb.1264054824@v2.random> <alpine.DEB.2.00.1001220845000.2704@router.home> <20100122151947.GA3690@random.random> <alpine.DEB.2.00.1001221008360.4176@router.home> <20100123175847.GC6494@random.random> <alpine.DEB.2.00.1001251529070.5379@router.home> <4B5E3CC0.2060006@redhat.com> <alpine.DEB.2.00.1001260947580.23549@router.home>
-In-Reply-To: <alpine.DEB.2.00.1001260947580.23549@router.home>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DB826B009A
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 18:12:44 -0500 (EST)
+Date: Tue, 26 Jan 2010 15:12:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
+Message-Id: <20100126151202.75bd9347.akpm@linux-foundation.org>
+In-Reply-To: <20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, rientjes@google.com, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On 01/26/2010 10:54 AM, Christoph Lameter wrote:
-> On Mon, 25 Jan 2010, Rik van Riel wrote:
+On Mon, 25 Jan 2010 15:15:03 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
->>> I still think we should get transparent huge page support straight up
->>> first without complicated fallback schemes that makes huge pages difficult
->>> to use.
->>
->> Without swapping, they will become difficult to use for system
->> administrators, at least in the workloads we care about.
->
-> Huge pages are already in use through hugetlbs for such workloads. That
-> works without swap. So why is this suddenly such a must have requirement?
->
-> Why not swap 2M huge pages as a whole?
+> Did several tests on x86-32 and I felt that sysctl value should be
+> printed on oom log... this is v3.
+> 
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Default oom-killer uses badness calculation based on process's vm_size
+> and some amounts of heuristics. Some users see proc->oom_score and
+> proc->oom_adj to control oom-killed tendency under their server.
+> 
+> Now, we know oom-killer don't work ideally in some situaion, in PCs. Some
+> enhancements are demanded. But such enhancements for oom-killer makes
+> incomaptibility to oom-controls in enterprise world. So, this patch
+> adds sysctl for extensions for oom-killer. Main purpose is for
+> making a chance for wider test for new scheme.
+> 
+> One cause of OOM-Killer is memory shortage in lower zones.
+> (If memory is enough, lowmem_reserve_ratio works well. but..)
+> I saw lowmem-oom frequently on x86-32 and sometimes on ia64 in
+> my cusotmer support jobs. If we just see process's vm_size at oom,
+> we can never kill a process which has lowmem.
+> At last, there will be an oom-serial-killer.
+> 
+> Now, we have per-mm lowmem usage counter. We can make use of it
+> to select a good victim.
+> 
+> This patch does
+>   - add sysctl for new bahavior.
+>   - add CONSTRAINT_LOWMEM to oom's constraint type.
+>   - pass constraint to __badness()
+>   - change calculation based on constraint. If CONSTRAINT_LOWMEM,
+>     use low_rss instead of vmsize.
+> 
+> Changelog 2010/01/25
+>  - showing extension_mask value in OOM kill main log header.
+> Changelog 2010/01/22:
+>  - added sysctl
+>  - fixed !CONFIG_MMU
+>  - fixed fs/proc/base.c breakacge.
 
-A few reasons:
+It'd be nice to see some testing results for this.  Perhaps "here's a
+test case and here's the before-and-after behaviour".
 
-1) Fragmentation of swap space (or the need for a separate
-    swap area for 2MB pages)
+I don't like the sysctl knob much.  Hardly anyone will know to enable
+it so the feature won't get much testing and this binary decision
+fractures the testing effort.  It would be much better if we can get
+everyone running the same code.  I mean, if there are certain workloads
+on certain machines with which the oom-killer doesn't behave correctly
+then fix it!
 
-2) There is no code to allow us to swap out 2MB pages
+Why was the '#include <linux/sysctl.h>" removed from sysctl.c?
 
-3) Internal fragmentation.  While 4kB pages are smaller than
-    the objects allocated by many programs, it is likely that
-    most 2MB pages contain both frequently used and rarely
-    used malloced objects.  Swapping out just the rarely used
-    4kB pages from a number of 2MB pages allows us to keep all
-    of the frequently used data in memory.
+The patch adds a random newline to sysctl.c.
 
-    Swapping out 2MB pages, on the other hand, makes it harder
-    to keep the working set in memory. TLB misses are much cheaper
-    than major page faults.
-
--- 
-All rights reversed.
+It was never a good idea to add extern declarations to sysctl.c.  It's
+better to add them to a subsystem-specific header file (ie:
+mm-sysctl.h) and then include that file from the mm files that define
+or use sysctl_foo, and include it into sysctl.c.  Oh well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
