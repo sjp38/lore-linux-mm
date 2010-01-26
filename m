@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6F2B06003C1
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:00:12 -0500 (EST)
-Message-ID: <4B5F1F82.4000901@redhat.com>
-Date: Tue, 26 Jan 2010 11:59:46 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5999C6003C1
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:04:05 -0500 (EST)
+Message-ID: <4B5F206D.2010601@redhat.com>
+Date: Tue, 26 Jan 2010 12:03:41 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 11 of 31] comment reminder in destroy_compound_page
-References: <patchbomb.1264513915@v2.random> <3d8c3e636b1250af8f51.1264513926@v2.random>
-In-Reply-To: <3d8c3e636b1250af8f51.1264513926@v2.random>
+Subject: Re: [PATCH 12 of 31] config_transparent_hugepage
+References: <patchbomb.1264513915@v2.random> <e3f4fc366daf5ba210ab.1264513927@v2.random>
+In-Reply-To: <e3f4fc366daf5ba210ab.1264513927@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,15 +19,11 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
-> on its internal behavior.
+> Add config option.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
 Acked-by: Rik van Riel <riel@redhat.com>
-
-Though I guess some of these little patches could be folded
-together, for easier changeset browsing :)
 
 -- 
 All rights reversed.
