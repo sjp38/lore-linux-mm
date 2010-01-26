@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 185136B008A
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:25 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 32CC36B0096
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:29 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 19 of 31] clear page compound
-Message-Id: <fdc4060ac52e26d9e91f.1264513934@v2.random>
+Subject: [PATCH 01 of 31] define MADV_HUGEPAGE
+Message-Id: <da09747e3b1d0368a0a6.1264513916@v2.random>
 In-Reply-To: <patchbomb.1264513915@v2.random>
 References: <patchbomb.1264513915@v2.random>
-Date: Tue, 26 Jan 2010 14:52:14 +0100
+Date: Tue, 26 Jan 2010 14:51:56 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,53 +18,23 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-split_huge_page must transform a compound page to a regular page and needs
-ClearPageCompound.
+Define MADV_HUGEPAGE.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -349,7 +349,7 @@ static inline void set_page_writeback(st
-  * tests can be used in performance sensitive paths. PageCompound is
-  * generally not used in hot code paths.
-  */
--__PAGEFLAG(Head, head)
-+__PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
- __PAGEFLAG(Tail, tail)
+diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+--- a/include/asm-generic/mman-common.h
++++ b/include/asm-generic/mman-common.h
+@@ -45,6 +45,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
  
- static inline int PageCompound(struct page *page)
-@@ -357,6 +357,13 @@ static inline int PageCompound(struct pa
- 	return page->flags & ((1L << PG_head) | (1L << PG_tail));
- 
- }
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON(!PageHead(page));
-+	ClearPageHead(page);
-+}
-+#endif
- #else
- /*
-  * Reduce page flag use as much as possible by overlapping
-@@ -394,6 +401,14 @@ static inline void __ClearPageTail(struc
- 	page->flags &= ~PG_head_tail_mask;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON(page->flags & PG_head_tail_mask != (1L << PG_compound));
-+	ClearPageCompound(page);
-+}
-+#endif
++#define MADV_HUGEPAGE	15		/* Worth backing with hugepages */
 +
- #endif /* !PAGEFLAGS_EXTENDED */
+ /* compatibility flags */
+ #define MAP_FILE	0
  
- #ifdef CONFIG_MMU
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
