@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 4085F6B00A2
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:11:49 -0500 (EST)
-Message-ID: <4B5F2242.3010309@redhat.com>
-Date: Tue, 26 Jan 2010 12:11:30 -0500
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 64CD16B00A6
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:15:09 -0500 (EST)
+Message-ID: <4B5F22E4.7090007@redhat.com>
+Date: Tue, 26 Jan 2010 12:14:12 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13 of 31] add pmd mangling functions to x86
-References: <patchbomb.1264513915@v2.random> <3bd66d70a20aa0f0f48a.1264513928@v2.random>
-In-Reply-To: <3bd66d70a20aa0f0f48a.1264513928@v2.random>
+Subject: Re: [PATCH 14 of 31] add pmd mangling generic functions
+References: <patchbomb.1264513915@v2.random> <d0424f095bd097ecd715.1264513929@v2.random>
+In-Reply-To: <d0424f095bd097ecd715.1264513929@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,12 +19,8 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Add needed pmd mangling functions with simmetry with their pte counterparts.
-> pmdp_freeze_flush is the only exception only present on the pmd side and it's
-> needed to serialize the VM against split_huge_page, it simply atomically clears
-> the present bit in the same way pmdp_clear_flush_young atomically clears the
-> accessed bit (and both need to flush the tlb to make it effective, which is
-> mandatory to happen synchronously for pmdp_freeze_flush).
+> Some are needed to build but not actually used on archs not supporting
+> transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
