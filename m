@@ -1,35 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FD7F6B0095
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 18:16:43 -0500 (EST)
-Date: Tue, 26 Jan 2010 15:16:06 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
-Message-Id: <20100126151606.54764be2.akpm@linux-foundation.org>
-In-Reply-To: <20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BDF586B0088
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 18:31:13 -0500 (EST)
+Received: by ewy24 with SMTP id 24so455930ewy.6
+        for <linux-mm@kvack.org>; Tue, 26 Jan 2010 15:31:11 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <74fd948d1001261350n2f26c057ubbe056d11d19abf2@mail.gmail.com>
+References: <74fd948d1001261121r7e6d03a4i75ce40705abed4e0@mail.gmail.com>
+	 <4B5F52FE.5000201@crca.org.au> <1264539045.3536.1348.camel@calx>
+	 <4B5F5794.8020302@cs.helsinki.fi>
+	 <74fd948d1001261350n2f26c057ubbe056d11d19abf2@mail.gmail.com>
+Date: Tue, 26 Jan 2010 23:31:11 +0000
+Message-ID: <74fd948d1001261531v7a09e1e8t54a7a5a5a2df277b@mail.gmail.com>
+Subject: Re: BUG at mm/slab.c:2990 with 2.6.33-rc5-tuxonice
+From: Pedro Ribeiro <pedrib@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, rientjes@google.com, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Jan 2010 15:15:03 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+2010/1/26 Pedro Ribeiro <pedrib@gmail.com>:
+> 2010/1/26 Pekka Enberg <penberg@cs.helsinki.fi>:
+>> Matt Mackall wrote:
+>>>
+>>> On Wed, 2010-01-27 at 07:39 +1100, Nigel Cunningham wrote:
+>>>>
+>>>> Hi.
+>>>>
+>>>> Pedro Ribeiro wrote:
+>>>>>
+>>>>> Hi,
+>>>>>
+>>>>> I hit a bug at mm/slab.c:2990 with .33-rc5.
+>>>>> Unfortunately nothing more is available than a screen picture with a
+>>>>> crash dump, although it is a good one.
+>>>>> The bug was hit almost at the end of a hibernation cycle with
+>>>>> Tux-on-Ice, while saving memory contents to an encrypted swap
+>>>>> partition.
+>>>>>
+>>>>> The image is here http://img264.imageshack.us/img264/9634/mmslab.jpg
+>>>>> (150 kb)
+>>>>>
+>>>>> Hopefully it is of any use for you. Please let me know if you need any
+>>>>> more info.
+>>>>
+>>>> Looks to me to be completely unrelated to TuxOnIce - at least at a first
+>>>> glance.
+>>>>
+>>>> Ccing the slab allocator maintainers listed in MAINTAINERS.
+>>>
+>>> Not sure if this will do us any good, it's the second oops.
+>>
+>> Looks like slab corruption to me which is usually not a slab bug but caused
+>> by buggy callers. Is CONFIG_DEBUG_SLAB enabled?
+>>
+>
+> I have enabled it and compiled the kernel. As soon as I hit the bug, I
+> will send a photo here.
+>
+> Regards,
+> Pedro
+>
 
-> -unsigned long badness(struct task_struct *p, unsigned long uptime)
-> +unsigned long badness(struct task_struct *p, unsigned long uptime,
-> +			int constraint)
+The pic is here.
+http://img43.imageshack.us/img43/3644/dsc01061ko.jpg
 
-And badness() should be renamed to something better (eg, oom_badness), and
-the declaration should be placed in a mm-specific header file.
+There was a buttload of output before that, which I tried capturing in
+video, but its too crappy to post.
+Do you know if/where I can get patches for KDB in .33?
 
-Yes, the code was already like that.  But please don't leave crappiness in
-place when you come across it - take the opportunity to fix it up.
+Regards,
+Pedro
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
