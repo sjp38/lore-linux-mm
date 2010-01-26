@@ -1,218 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 222626003C1
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 15:10:41 -0500 (EST)
-Date: Tue, 26 Jan 2010 20:10:26 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 23 of 31] clear_copy_huge_page
-Message-ID: <20100126201026.GY16468@csn.ul.ie>
-References: <patchbomb.1264513915@v2.random> <cf4634443c63583c5603.1264513938@v2.random>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 77FF76003C1
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 15:37:42 -0500 (EST)
+Message-ID: <4B5F52FE.5000201@crca.org.au>
+Date: Wed, 27 Jan 2010 07:39:26 +1100
+From: Nigel Cunningham <ncunningham@crca.org.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <cf4634443c63583c5603.1264513938@v2.random>
+Subject: Re: BUG at mm/slab.c:2990 with 2.6.33-rc5-tuxonice
+References: <74fd948d1001261121r7e6d03a4i75ce40705abed4e0@mail.gmail.com>
+In-Reply-To: <74fd948d1001261121r7e6d03a4i75ce40705abed4e0@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Pedro Ribeiro <pedrib@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org >> linux-mm" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 02:52:18PM +0100, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> Move the copy/clear_huge_page functions to common code to share between
-> hugetlb.c and huge_memory.c.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Hi.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
-> ---
+Pedro Ribeiro wrote:
+> Hi,
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1386,5 +1386,14 @@ extern void shake_page(struct page *p, i
->  extern atomic_long_t mce_bad_pages;
->  extern int soft_offline_page(struct page *page, int flags);
->  
-> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-> +extern void clear_huge_page(struct page *page,
-> +			    unsigned long addr,
-> +			    unsigned int pages_per_huge_page);
-> +extern void copy_huge_page(struct page *dst, struct page *src,
-> +			   unsigned long addr, struct vm_area_struct *vma,
-> +			   unsigned int pages_per_huge_page);
-> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
-> +
->  #endif /* __KERNEL__ */
->  #endif /* _LINUX_MM_H */
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -385,70 +385,6 @@ static int vma_has_reserves(struct vm_ar
->  	return 0;
->  }
->  
-> -static void clear_gigantic_page(struct page *page,
-> -			unsigned long addr, unsigned long sz)
-> -{
-> -	int i;
-> -	struct page *p = page;
-> -
-> -	might_sleep();
-> -	for (i = 0; i < sz/PAGE_SIZE; i++, p = mem_map_next(p, page, i)) {
-> -		cond_resched();
-> -		clear_user_highpage(p, addr + i * PAGE_SIZE);
-> -	}
-> -}
-> -static void clear_huge_page(struct page *page,
-> -			unsigned long addr, unsigned long sz)
-> -{
-> -	int i;
-> -
-> -	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
-> -		clear_gigantic_page(page, addr, sz);
-> -		return;
-> -	}
-> -
-> -	might_sleep();
-> -	for (i = 0; i < sz/PAGE_SIZE; i++) {
-> -		cond_resched();
-> -		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-> -	}
-> -}
-> -
-> -static void copy_gigantic_page(struct page *dst, struct page *src,
-> -			   unsigned long addr, struct vm_area_struct *vma)
-> -{
-> -	int i;
-> -	struct hstate *h = hstate_vma(vma);
-> -	struct page *dst_base = dst;
-> -	struct page *src_base = src;
-> -	might_sleep();
-> -	for (i = 0; i < pages_per_huge_page(h); ) {
-> -		cond_resched();
-> -		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
-> -
-> -		i++;
-> -		dst = mem_map_next(dst, dst_base, i);
-> -		src = mem_map_next(src, src_base, i);
-> -	}
-> -}
-> -static void copy_huge_page(struct page *dst, struct page *src,
-> -			   unsigned long addr, struct vm_area_struct *vma)
-> -{
-> -	int i;
-> -	struct hstate *h = hstate_vma(vma);
-> -
-> -	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
-> -		copy_gigantic_page(dst, src, addr, vma);
-> -		return;
-> -	}
-> -
-> -	might_sleep();
-> -	for (i = 0; i < pages_per_huge_page(h); i++) {
-> -		cond_resched();
-> -		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
-> -	}
-> -}
-> -
->  static void enqueue_huge_page(struct hstate *h, struct page *page)
->  {
->  	int nid = page_to_nid(page);
-> @@ -2334,7 +2270,8 @@ retry_avoidcopy:
->  		return -PTR_ERR(new_page);
->  	}
->  
-> -	copy_huge_page(new_page, old_page, address, vma);
-> +	copy_huge_page(new_page, old_page, address, vma,
-> +		       pages_per_huge_page(h));
->  	__SetPageUptodate(new_page);
->  
->  	/*
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3396,3 +3396,73 @@ void might_fault(void)
->  }
->  EXPORT_SYMBOL(might_fault);
->  #endif
-> +
-> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-> +static void clear_gigantic_page(struct page *page,
-> +				unsigned long addr,
-> +				unsigned int pages_per_huge_page)
-> +{
-> +	int i;
-> +	struct page *p = page;
-> +
-> +	might_sleep();
-> +	for (i = 0; i < pages_per_huge_page;
-> +	     i++, p = mem_map_next(p, page, i)) {
-> +		cond_resched();
-> +		clear_user_highpage(p, addr + i * PAGE_SIZE);
-> +	}
-> +}
-> +void clear_huge_page(struct page *page,
-> +		     unsigned long addr, unsigned int pages_per_huge_page)
-> +{
-> +	int i;
-> +
-> +	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-> +		clear_gigantic_page(page, addr, pages_per_huge_page);
-> +		return;
-> +	}
-> +
-> +	might_sleep();
-> +	for (i = 0; i < pages_per_huge_page; i++) {
-> +		cond_resched();
-> +		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-> +	}
-> +}
-> +
-> +static void copy_gigantic_page(struct page *dst, struct page *src,
-> +			       unsigned long addr,
-> +			       struct vm_area_struct *vma,
-> +			       unsigned int pages_per_huge_page)
-> +{
-> +	int i;
-> +	struct page *dst_base = dst;
-> +	struct page *src_base = src;
-> +	might_sleep();
-> +	for (i = 0; i < pages_per_huge_page; ) {
-> +		cond_resched();
-> +		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
-> +
-> +		i++;
-> +		dst = mem_map_next(dst, dst_base, i);
-> +		src = mem_map_next(src, src_base, i);
-> +	}
-> +}
-> +void copy_huge_page(struct page *dst, struct page *src,
-> +		    unsigned long addr, struct vm_area_struct *vma,
-> +		    unsigned int pages_per_huge_page)
-> +{
-> +	int i;
-> +
-> +	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-> +		copy_gigantic_page(dst, src, addr, vma, pages_per_huge_page);
-> +		return;
-> +	}
-> +
-> +	might_sleep();
-> +	for (i = 0; i < pages_per_huge_page; i++) {
-> +		cond_resched();
-> +		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE,
-> +				   vma);
-> +	}
-> +}
-> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+> I hit a bug at mm/slab.c:2990 with .33-rc5.
+> Unfortunately nothing more is available than a screen picture with a
+> crash dump, although it is a good one.
+> The bug was hit almost at the end of a hibernation cycle with
+> Tux-on-Ice, while saving memory contents to an encrypted swap
+> partition.
 > 
+> The image is here http://img264.imageshack.us/img264/9634/mmslab.jpg (150 kb)
+> 
+> Hopefully it is of any use for you. Please let me know if you need any
+> more info.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Looks to me to be completely unrelated to TuxOnIce - at least at a first
+glance.
+
+Ccing the slab allocator maintainers listed in MAINTAINERS.
+
+Regards,
+
+Nigel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
