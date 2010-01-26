@@ -1,32 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5999C6003C1
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:04:05 -0500 (EST)
-Message-ID: <4B5F206D.2010601@redhat.com>
-Date: Tue, 26 Jan 2010 12:03:41 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1F7056B009E
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:10:11 -0500 (EST)
+Message-ID: <4B5F21D4.1090305@redhat.com>
+Date: Tue, 26 Jan 2010 19:09:40 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 12 of 31] config_transparent_hugepage
-References: <patchbomb.1264513915@v2.random> <e3f4fc366daf5ba210ab.1264513927@v2.random>
-In-Reply-To: <e3f4fc366daf5ba210ab.1264513927@v2.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
+References: <patchbomb.1264054824@v2.random> <alpine.DEB.2.00.1001220845000.2704@router.home> <20100122151947.GA3690@random.random> <alpine.DEB.2.00.1001221008360.4176@router.home> <20100123175847.GC6494@random.random> <alpine.DEB.2.00.1001251529070.5379@router.home> <20100125224643.GA30452@random.random> <alpine.DEB.2.00.1001260939050.23549@router.home> <20100126161120.GN30452@random.random> <alpine.DEB.2.00.1001261022480.25184@router.home>
+In-Reply-To: <alpine.DEB.2.00.1001261022480.25184@router.home>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli<aarcange@redhat.com>
->
-> Add config option.
->
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+On 01/26/2010 06:30 PM, Christoph Lameter wrote:
+> On Tue, 26 Jan 2010, Andrea Arcangeli wrote:
+>    
+>> No. O_DIRECT already works on those pages without splitting them,
+>> there is no need to split them, just run 512 gups like you would be
+>> doing if those weren't hugepages.
+>>      
+> That show the scaling issue is not solved.
+>    
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Well, gup works for a range of addresses, so all you need it one, and 
+I'm sure it can be optimized to take advantage of transparent huge pages.
 
 -- 
-All rights reversed.
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
