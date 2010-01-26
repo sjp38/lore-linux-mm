@@ -1,51 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AB2B36B00A2
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 13:39:19 -0500 (EST)
-Date: Tue, 26 Jan 2010 18:39:03 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 06 of 31] clear compound mapping
-Message-ID: <20100126183903.GK16468@csn.ul.ie>
-References: <patchbomb.1264513915@v2.random> <7cf11b425ecd44419ccc.1264513921@v2.random>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 562106B009A
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 14:09:08 -0500 (EST)
+Message-ID: <4B5F3C9C.3050908@nortel.com>
+Date: Tue, 26 Jan 2010 13:03:56 -0600
+From: "Chris Friesen" <cfriesen@nortel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <7cf11b425ecd44419ccc.1264513921@v2.random>
+Subject: which fields in /proc/meminfo are orthogonal?
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 02:52:01PM +0100, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> Clear compound mapping for anonymous compound pages like it already happens for
-> regular anonymous pages.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Hi,
 
-> ---
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -584,6 +584,8 @@ static void __free_pages_ok(struct page 
->  
->  	kmemcheck_free_shadow(page, order);
->  
-> +	if (PageAnon(page))
-> +		page->mapping = NULL;
->  	for (i = 0 ; i < (1 << order) ; ++i)
->  		bad += free_pages_check(page + i);
->  	if (bad)
-> 
+We have a system (2.6.27 based) which seems to be increasing its memory
+consumption by several MB an hour.  Summing up Pss for all maps in all
+processes doesn't seem to explain it, so I'm looking at the kernel.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I've backported the kmemleak functionality.  It's self-test module shows
+leaks so I know it's working, but it doesn't report any leaks that would
+correspond to the memory increase.
+
+I'm currently trying to figure out which of the entries in /proc/meminfo
+are actually orthogonal to each other.  Ideally I'd like to be able to
+add up the suitable entries and have it work out to the total memory on
+the system, so that I can then narrow down exactly where the memory is
+going.  Is this feasable?
+
+I'll keep reading the code but if anyone happens to know this already
+I'd appreciate some assistance.
+
+Thanks,
+
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
