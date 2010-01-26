@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 764446B009D
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:21 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 150976B0047
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:22 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 27 of 31] pmd_trans_huge migrate bugcheck
-Message-Id: <5aefa2dc3ed192ca192a.1264513942@v2.random>
+Subject: [PATCH 09 of 31] no paravirt version of pmd ops
+Message-Id: <3ab5d5b2bc21dbbdbf0a.1264513924@v2.random>
 In-Reply-To: <patchbomb.1264513915@v2.random>
 References: <patchbomb.1264513915@v2.random>
-Date: Tue, 26 Jan 2010 14:52:22 +0100
+Date: Tue, 26 Jan 2010 14:52:04 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,56 +18,31 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No pmd_trans_huge should ever materialize in migration ptes areas, because
-we split the hugepage before migration ptes are instantiated.
+No paravirt version of set_pmd_at/pmd_update/pmd_update_defer.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -107,6 +107,10 @@ static inline int PageTransHuge(struct p
- 	VM_BUG_ON(PageTail(page));
- 	return PageHead(page);
- }
-+static inline int PageTransCompound(struct page *page)
-+{
-+	return PageCompound(page);
-+}
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define transparent_hugepage_enabled(__vma) 0
- #define transparent_hugepage_defrag(__vma) 0
-@@ -124,6 +128,7 @@ static inline int split_huge_page(struct
- #define wait_split_huge_page(__anon_vma, __pmd)	\
- 	do { } while (0)
- #define PageTransHuge(page) 0
-+#define PageTransCompound(page) 0
- static inline int hugepage_madvise(unsigned long *vm_flags)
- {
- 	BUG_ON(0);
-diff --git a/mm/migrate.c b/mm/migrate.c
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -99,6 +99,7 @@ static int remove_migration_pte(struct p
- 		goto out;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -33,6 +33,7 @@ extern struct list_head pgd_list;
+ #else  /* !CONFIG_PARAVIRT */
+ #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
+ #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
++#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
  
- 	pmd = pmd_offset(pud, addr);
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	if (!pmd_present(*pmd))
- 		goto out;
+ #define set_pte_atomic(ptep, pte)					\
+ 	native_set_pte_atomic(ptep, pte)
+@@ -57,6 +58,8 @@ extern struct list_head pgd_list;
  
-@@ -819,6 +820,10 @@ static int do_move_page_to_node_array(st
- 		if (PageReserved(page) || PageKsm(page))
- 			goto put_and_set;
+ #define pte_update(mm, addr, ptep)              do { } while (0)
+ #define pte_update_defer(mm, addr, ptep)        do { } while (0)
++#define pmd_update(mm, addr, ptep)              do { } while (0)
++#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
  
-+		if (unlikely(PageTransCompound(page)))
-+			if (unlikely(split_huge_page(page)))
-+				goto put_and_set;
-+
- 		pp->page = page;
- 		err = page_to_nid(page);
- 
+ #define pgd_val(x)	native_pgd_val(x)
+ #define __pgd(x)	native_make_pgd(x)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
