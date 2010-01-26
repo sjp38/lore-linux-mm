@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0CCF86B00A6
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:25:02 -0500 (EST)
-Message-ID: <4B5F2551.5010504@redhat.com>
-Date: Tue, 26 Jan 2010 12:24:33 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 219516B00AC
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:25:32 -0500 (EST)
+Message-ID: <4B5F257C.1060208@redhat.com>
+Date: Tue, 26 Jan 2010 12:25:16 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 18 of 31] add pmd mmu_notifier helpers
-References: <patchbomb.1264513915@v2.random> <148499c93749cce0e28f.1264513933@v2.random>
-In-Reply-To: <148499c93749cce0e28f.1264513933@v2.random>
+Subject: Re: [PATCH 19 of 31] clear page compound
+References: <patchbomb.1264513915@v2.random> <fdc4060ac52e26d9e91f.1264513934@v2.random>
+In-Reply-To: <fdc4060ac52e26d9e91f.1264513934@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,7 +19,8 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Add mmu notifier helpers to handle pmd huge operations.
+> split_huge_page must transform a compound page to a regular page and needs
+> ClearPageCompound.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
