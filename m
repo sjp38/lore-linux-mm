@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C232F6B009F
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D9C686B00A1
 	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:20 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 17 of 31] pte alloc trans splitting
-Message-Id: <a1d9fddd067c94c98c5a.1264513932@v2.random>
+Subject: [PATCH 13 of 31] add pmd mangling functions to x86
+Message-Id: <3bd66d70a20aa0f0f48a.1264513928@v2.random>
 In-Reply-To: <patchbomb.1264513915@v2.random>
 References: <patchbomb.1264513915@v2.random>
-Date: Tue, 26 Jan 2010 14:52:12 +0100
+Date: Tue, 26 Jan 2010 14:52:08 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,138 +18,274 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-pte alloc routines must wait for split_huge_page if the pmd is not
-present and not null (i.e. pmd_trans_splitting). The additional
-branches are optimized away at compile time by pmd_trans_splitting if
-the config option is off. However we must pass the vma down in order
-to know the anon_vma lock to wait for.
+Add needed pmd mangling functions with simmetry with their pte counterparts.
+pmdp_freeze_flush is the only exception only present on the pmd side and it's
+needed to serialize the VM against split_huge_page, it simply atomically clears
+the present bit in the same way pmdp_clear_flush_young atomically clears the
+accessed bit (and both need to flush the tlb to make it effective, which is
+mandatory to happen synchronously for pmdp_freeze_flush).
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -955,7 +955,8 @@ static inline int __pmd_alloc(struct mm_
- int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
- #endif
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -150,6 +150,67 @@ static inline pte_t pte_set_flags(pte_t 
+ 	return native_make_pte(v | set);
+ }
  
--int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
-+int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-+		pmd_t *pmd, unsigned long address);
- int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline int pmd_young(pmd_t pmd)
++{
++	return pmd_flags(pmd) & _PAGE_ACCESSED;
++}
++
++static inline int pmd_write(pmd_t pmd)
++{
++	return pmd_flags(pmd) & _PAGE_RW;
++}
++
++static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
++{
++	pmdval_t v = native_pmd_val(pmd);
++
++	return native_make_pmd(v | set);
++}
++
++static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
++{
++	pmdval_t v = native_pmd_val(pmd);
++
++	return native_make_pmd(v & ~clear);
++}
++
++static inline pmd_t pmd_mkold(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
++}
++
++static inline pmd_t pmd_wrprotect(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_RW);
++}
++
++static inline pmd_t pmd_mkdirty(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_DIRTY);
++}
++
++static inline pmd_t pmd_mkhuge(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_PSE);
++}
++
++static inline pmd_t pmd_mkyoung(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_ACCESSED);
++}
++
++static inline pmd_t pmd_mkwrite(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_RW);
++}
++
++static inline int pmd_same(pmd_t a, pmd_t b)
++{
++	return a.pmd == b.pmd;
++}
++#endif
++
+ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
+ {
+ 	pteval_t v = native_pte_val(pte);
+@@ -351,7 +412,7 @@ static inline unsigned long pmd_page_vad
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pmd_page(pmd)	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
++#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
  
  /*
-@@ -1024,12 +1025,14 @@ static inline void pgtable_page_dtor(str
- 	pte_unmap(pte);					\
- } while (0)
+  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+@@ -372,6 +433,7 @@ static inline unsigned long pmd_index(un
+  * to linux/mm.h:page_to_nid())
+  */
+ #define mk_pte(page, pgprot)   pfn_pte(page_to_pfn(page), (pgprot))
++#define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
  
--#define pte_alloc_map(mm, pmd, address)			\
--	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
--		NULL: pte_offset_map(pmd, address))
-+#define pte_alloc_map(mm, vma, pmd, address)				\
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, vma,	\
-+							pmd, address))?	\
-+	 NULL: pte_offset_map(pmd, address))
+ /*
+  * the pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
+@@ -568,14 +630,21 @@ struct vm_area_struct;
+ extern int ptep_set_access_flags(struct vm_area_struct *vma,
+ 				 unsigned long address, pte_t *ptep,
+ 				 pte_t entry, int dirty);
++extern int pmdp_set_access_flags(struct vm_area_struct *vma,
++				 unsigned long address, pmd_t *pmdp,
++				 pmd_t entry, int dirty);
  
- #define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
--	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, NULL,	\
-+							pmd, address))?	\
- 		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
+ #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+ extern int ptep_test_and_clear_young(struct vm_area_struct *vma,
+ 				     unsigned long addr, pte_t *ptep);
++extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
++				     unsigned long addr, pmd_t *pmdp);
  
- #define pte_alloc_kernel(pmd, address)			\
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -324,9 +324,11 @@ void free_pgtables(struct mmu_gather *tl
- 	}
+ #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+ extern int ptep_clear_flush_young(struct vm_area_struct *vma,
+ 				  unsigned long address, pte_t *ptep);
++extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
++				  unsigned long address, pmd_t *pmdp);
+ 
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+@@ -586,6 +655,16 @@ static inline pte_t ptep_get_and_clear(s
+ 	return pte;
  }
  
--int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
-+int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-+		pmd_t *pmd, unsigned long address)
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm, unsigned long addr,
++				       pmd_t *pmdp)
++{
++	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
++	pmd_update(mm, addr, pmdp);
++	return pmd;
++}
++#endif
++
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
+ 					    unsigned long addr, pte_t *ptep,
+@@ -612,6 +691,18 @@ static inline void ptep_set_wrprotect(st
+ 	pte_update(mm, addr, ptep);
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void pmdp_set_wrprotect(struct mm_struct *mm,
++				      unsigned long addr, pmd_t *pmdp)
++{
++	clear_bit(_PAGE_BIT_RW, (unsigned long *)&pmdp->pmd);
++	pmd_update(mm, addr, pmdp);
++}
++#endif
++
++extern void pmdp_splitting_flush(struct vm_area_struct *vma,
++				 unsigned long addr, pmd_t *pmdp);
++
+ /*
+  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+  *
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -71,6 +71,18 @@ static inline pte_t native_ptep_get_and_
+ 	return ret;
+ #endif
+ }
++static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
++{
++#ifdef CONFIG_SMP
++	return native_make_pmd(xchg(&xp->pmd, 0));
++#else
++	/* native_local_pmdp_get_and_clear,
++	   but duplicated because of cyclic dependency */
++	pmd_t ret = *xp;
++	native_pmd_clear(NULL, 0, xp);
++	return ret;
++#endif
++}
+ 
+ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
  {
- 	pgtable_t new = pte_alloc_one(mm, address);
-+	int wait_split_huge_page;
- 	if (!new)
- 		return -ENOMEM;
- 
-@@ -346,14 +348,18 @@ int __pte_alloc(struct mm_struct *mm, pm
- 	smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
- 
- 	spin_lock(&mm->page_table_lock);
--	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
-+	wait_split_huge_page = 0;
-+	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
- 		mm->nr_ptes++;
- 		pmd_populate(mm, pmd, new);
- 		new = NULL;
--	}
-+	} else if (unlikely(pmd_trans_splitting(*pmd)))
-+		wait_split_huge_page = 1;
- 	spin_unlock(&mm->page_table_lock);
- 	if (new)
- 		pte_free(mm, new);
-+	if (wait_split_huge_page)
-+		wait_split_huge_page(vma->anon_vma, pmd);
- 	return 0;
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -288,6 +288,25 @@ int ptep_set_access_flags(struct vm_area
+ 	return changed;
  }
  
-@@ -366,10 +372,11 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
- 	smp_wmb(); /* See comment in __pte_alloc */
- 
- 	spin_lock(&init_mm.page_table_lock);
--	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
-+	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
- 		pmd_populate_kernel(&init_mm, pmd, new);
- 		new = NULL;
--	}
-+	} else
-+		VM_BUG_ON(pmd_trans_splitting(*pmd));
- 	spin_unlock(&init_mm.page_table_lock);
- 	if (new)
- 		pte_free_kernel(&init_mm, new);
-@@ -3020,7 +3027,7 @@ int handle_mm_fault(struct mm_struct *mm
- 	pmd = pmd_alloc(mm, pud, address);
- 	if (!pmd)
- 		return VM_FAULT_OOM;
--	pte = pte_alloc_map(mm, pmd, address);
-+	pte = pte_alloc_map(mm, vma, pmd, address);
- 	if (!pte)
- 		return VM_FAULT_OOM;
- 
-diff --git a/mm/mremap.c b/mm/mremap.c
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -48,7 +48,8 @@ static pmd_t *get_old_pmd(struct mm_stru
- 	return pmd;
- }
- 
--static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
-+static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
-+			    unsigned long addr)
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++int pmdp_set_access_flags(struct vm_area_struct *vma,
++			  unsigned long address, pmd_t *pmdp,
++			  pmd_t entry, int dirty)
++{
++	int changed = !pmd_same(*pmdp, entry);
++
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++
++	if (changed && dirty) {
++		*pmdp = entry;
++		pmd_update_defer(vma->vm_mm, address, pmdp);
++		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	}
++
++	return changed;
++}
++#endif
++
+ int ptep_test_and_clear_young(struct vm_area_struct *vma,
+ 			      unsigned long addr, pte_t *ptep)
  {
- 	pgd_t *pgd;
- 	pud_t *pud;
-@@ -63,7 +64,7 @@ static pmd_t *alloc_new_pmd(struct mm_st
- 	if (!pmd)
- 		return NULL;
+@@ -303,6 +322,23 @@ int ptep_test_and_clear_young(struct vm_
+ 	return ret;
+ }
  
--	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
-+	if (!pmd_present(*pmd) && __pte_alloc(mm, vma, pmd, addr))
- 		return NULL;
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++int pmdp_test_and_clear_young(struct vm_area_struct *vma,
++			      unsigned long addr, pmd_t *pmdp)
++{
++	int ret = 0;
++
++	if (pmd_young(*pmdp))
++		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
++					 (unsigned long *) &pmdp->pmd);
++
++	if (ret)
++		pmd_update(vma->vm_mm, addr, pmdp);
++
++	return ret;
++}
++#endif
++
+ int ptep_clear_flush_young(struct vm_area_struct *vma,
+ 			   unsigned long address, pte_t *ptep)
+ {
+@@ -315,6 +351,36 @@ int ptep_clear_flush_young(struct vm_are
+ 	return young;
+ }
  
- 	return pmd;
-@@ -148,7 +149,7 @@ unsigned long move_page_tables(struct vm
- 		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
- 		if (!old_pmd)
- 			continue;
--		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
-+		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
- 		if (!new_pmd)
- 			break;
- 		next = (new_addr + PMD_SIZE) & PMD_MASK;
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++int pmdp_clear_flush_young(struct vm_area_struct *vma,
++			   unsigned long address, pmd_t *pmdp)
++{
++	int young;
++
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++
++	young = pmdp_test_and_clear_young(vma, address, pmdp);
++	if (young)
++		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++
++	return young;
++}
++
++void pmdp_splitting_flush(struct vm_area_struct *vma,
++			  unsigned long address, pmd_t *pmdp)
++{
++	int set;
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
++				(unsigned long *)&pmdp->pmd);
++	if (set) {
++		pmd_update(vma->vm_mm, address, pmdp);
++		/* need tlb flush only to serialize against gup-fast */
++		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	}
++}
++#endif
++
+ /**
+  * reserve_top_address - reserves a hole in the top of kernel address space
+  * @reserve - size of hole to reserve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
