@@ -1,47 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 72A806B0047
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:47:06 -0500 (EST)
-Date: Tue, 26 Jan 2010 14:46:13 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 01 of 31] define MADV_HUGEPAGE
-Message-ID: <20100126134613.GG30452@random.random>
-References: <patchbomb.1264439931@v2.random>
- <edb236c55565378596ae.1264439932@v2.random>
- <20100126114101.GB16468@csn.ul.ie>
- <20100126123037.GE30452@random.random>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9FCC16B0047
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:15 -0500 (EST)
+Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100126123037.GE30452@random.random>
+Content-Transfer-Encoding: 7bit
+Subject: [PATCH 18 of 31] add pmd mmu_notifier helpers
+Message-Id: <148499c93749cce0e28f.1264513933@v2.random>
+In-Reply-To: <patchbomb.1264513915@v2.random>
+References: <patchbomb.1264513915@v2.random>
+Date: Tue, 26 Jan 2010 14:52:13 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 01:30:37PM +0100, Andrea Arcangeli wrote:
-> Very error prone that you can register in arch file, there are 4
-> billions MADV_ available, the arch files shall be removed and it
-> should all be defined in mman-common.h.
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-It seems 15 is free:
+Add mmu notifier helpers to handle pmd huge operations.
 
-cd arch; grep -r MADV_ . |grep 15
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
 
-so I will pick that one. Please nobody use number 15 or we
-screwup...
-
-I'll make a new #7 submit that also fixes one bug in
-split_huge_page_mm/vma, find_vma should run on "address" not on
-"address+HPAGE_PMD_SIZE-1" or it fails on the last hugepage on the vma
-unless "address" is hugepage aligned (firefox flash tripped on this
-last night, but thanks to the amount of BUG_ON that I added it was
-immediate to fix). No more problems with java applets, flash etc...
-
- 14:45:10 up 15:10,  5 users,  load average: 0.22, 0.17, 0.06
-
-AnonPages:        612988 kB
-AnonHugePages:     65536 kB
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -243,6 +243,32 @@ static inline void mmu_notifier_mm_destr
+ 	__pte;								\
+ })
+ 
++#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
++({									\
++	pmd_t __pmd;							\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
++	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
++					    (__address)+HPAGE_PMD_SIZE);\
++	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
++	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
++					  (__address)+HPAGE_PMD_SIZE);	\
++	__pmd;								\
++})
++
++#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
++({									\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
++	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
++					    (__address)+HPAGE_PMD_SIZE);\
++	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
++	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
++					  (__address)+HPAGE_PMD_SIZE);	\
++})
++
+ #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
+ ({									\
+ 	int __young;							\
+@@ -254,6 +280,17 @@ static inline void mmu_notifier_mm_destr
+ 	__young;							\
+ })
+ 
++#define pmdp_clear_flush_young_notify(__vma, __address, __pmdp)		\
++({									\
++	int __young;							\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
++	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
++						  ___address);		\
++	__young;							\
++})
++
+ #define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
+ ({									\
+ 	struct mm_struct *___mm = __mm;					\
+@@ -305,7 +342,10 @@ static inline void mmu_notifier_mm_destr
+ }
+ 
+ #define ptep_clear_flush_young_notify ptep_clear_flush_young
++#define pmdp_clear_flush_young_notify pmdp_clear_flush_young
+ #define ptep_clear_flush_notify ptep_clear_flush
++#define pmdp_clear_flush_notify pmdp_clear_flush
++#define pmdp_splitting_flush_notify pmdp_splitting_flush
+ #define set_pte_at_notify set_pte_at
+ 
+ #endif /* CONFIG_MMU_NOTIFIER */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
