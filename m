@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 817046B0099
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C07556B009E
 	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:20 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 15 of 31] special pmd_trans_* functions
-Message-Id: <98da7b804fb624c399a3.1264513930@v2.random>
+Subject: [PATCH 14 of 31] add pmd mangling generic functions
+Message-Id: <d0424f095bd097ecd715.1264513929@v2.random>
 In-Reply-To: <patchbomb.1264513915@v2.random>
 References: <patchbomb.1264513915@v2.random>
-Date: Tue, 26 Jan 2010 14:52:10 +0100
+Date: Tue, 26 Jan 2010 14:52:09 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,68 +18,138 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-These returns 0 at compile time when the config option is disabled, to allow
-gcc to eliminate the transparent hugepage function calls at compile time
-without additional #ifdefs (only the export of those functions have to be
-visible to gcc but they won't be required at link time and huge_memory.o can be
-not built at all).
+Some are needed to build but not actually used on archs not supporting
+transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -396,6 +396,18 @@ static inline int pmd_present(pmd_t pmd)
- 	return pmd_flags(pmd) & _PAGE_PRESENT;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline int pmd_trans_splitting(pmd_t pmd)
-+{
-+	return pmd_val(pmd) & _PAGE_SPLITTING;
-+}
-+
-+static inline int pmd_trans_huge(pmd_t pmd)
-+{
-+	return pmd_val(pmd) & _PAGE_PSE;
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+
- static inline int pmd_none(pmd_t pmd)
- {
- 	/* Only check low word on 32-bit platforms, since it might be
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -22,6 +22,7 @@
- #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
- #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
- #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
-+#define _PAGE_BIT_SPLITTING	_PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
- #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
- 
- /* If _PAGE_BIT_PRESENT is clear, we use these: */
-@@ -45,6 +46,7 @@
- #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
- #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
- #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
-+#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
- #define __HAVE_ARCH_PTE_SPECIAL
- 
- #ifdef CONFIG_KMEMCHECK
 diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
 --- a/include/asm-generic/pgtable.h
 +++ b/include/asm-generic/pgtable.h
-@@ -412,6 +412,8 @@ extern void untrack_pfn_vma(struct vm_ar
- 
- #ifndef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_write(pmd) 0
-+#define pmd_trans_huge(pmd) 0
-+#define pmd_trans_splitting(pmd) 0
+@@ -23,6 +23,19 @@
+ 	}								  \
+ 	__changed;							  \
+ })
++
++#define pmdp_set_access_flags(__vma, __address, __pmdp, __entry, __dirty) \
++	({								\
++		int __changed = !pmd_same(*(__pmdp), __entry);		\
++		VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);		\
++		if (__changed) {					\
++			set_pmd_at((__vma)->vm_mm, __address, __pmdp,	\
++				   __entry);				\
++			flush_tlb_range(__vma, __address,		\
++					(__address) + HPAGE_PMD_SIZE);	\
++		}							\
++		__changed;						\
++	})
  #endif
  
+ #ifndef __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+@@ -37,6 +50,17 @@
+ 			   (__ptep), pte_mkold(__pte));			\
+ 	r;								\
+ })
++#define pmdp_test_and_clear_young(__vma, __address, __pmdp)		\
++({									\
++	pmd_t __pmd = *(__pmdp);					\
++	int r = 1;							\
++	if (!pmd_young(__pmd))						\
++		r = 0;							\
++	else								\
++		set_pmd_at((__vma)->vm_mm, (__address),			\
++			   (__pmdp), pmd_mkold(__pmd));			\
++	r;								\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+@@ -48,6 +72,16 @@
+ 		flush_tlb_page(__vma, __address);			\
+ 	__young;							\
+ })
++#define pmdp_clear_flush_young(__vma, __address, __pmdp)		\
++({									\
++	int __young;							\
++	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
++	__young = pmdp_test_and_clear_young(__vma, __address, __pmdp);	\
++	if (__young)							\
++		flush_tlb_range(__vma, __address,			\
++				(__address) + HPAGE_PMD_SIZE);		\
++	__young;							\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR
+@@ -57,6 +91,13 @@
+ 	pte_clear((__mm), (__address), (__ptep));			\
+ 	__pte;								\
+ })
++
++#define pmdp_get_and_clear(__mm, __address, __pmdp)			\
++({									\
++	pmd_t __pmd = *(__pmdp);					\
++	pmd_clear((__mm), (__address), (__pmdp));			\
++	__pmd;								\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+@@ -88,6 +129,15 @@ do {									\
+ 	flush_tlb_page(__vma, __address);				\
+ 	__pte;								\
+ })
++
++#define pmdp_clear_flush(__vma, __address, __pmdp)			\
++({									\
++	pmd_t __pmd;							\
++	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
++	__pmd = pmdp_get_and_clear((__vma)->vm_mm, __address, __pmdp);	\
++	flush_tlb_range(__vma, __address, (__address) + HPAGE_PMD_SIZE);\
++	__pmd;								\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTEP_SET_WRPROTECT
+@@ -97,10 +147,26 @@ static inline void ptep_set_wrprotect(st
+ 	pte_t old_pte = *ptep;
+ 	set_pte_at(mm, address, ptep, pte_wrprotect(old_pte));
+ }
++
++static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long address, pmd_t *pmdp)
++{
++	pmd_t old_pmd = *pmdp;
++	set_pmd_at(mm, address, pmdp, pmd_wrprotect(old_pmd));
++}
++
++#define pmdp_splitting_flush(__vma, __address, __pmdp)			\
++({									\
++	pmd_t __pmd = pmd_mksplitting(*(__pmdp));			\
++	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
++	set_pmd_at((__vma)->vm_mm, __address, __pmdp, __pmd);		\
++	/* tlb flush only to serialize against gup-fast */		\
++	flush_tlb_range(__vma, __address, (__address) + HPAGE_PMD_SIZE);\
++})
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PTE_SAME
+ #define pte_same(A,B)	(pte_val(A) == pte_val(B))
++#define pmd_same(A,B)	(pmd_val(A) == pmd_val(B))
+ #endif
+ 
+ #ifndef __HAVE_ARCH_PAGE_TEST_DIRTY
+@@ -344,6 +410,10 @@ extern void untrack_pfn_vma(struct vm_ar
+ 				unsigned long size);
+ #endif
+ 
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
++#define pmd_write(pmd) 0
++#endif
++
  #endif /* !__ASSEMBLY__ */
+ 
+ #endif /* _ASM_GENERIC_PGTABLE_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
