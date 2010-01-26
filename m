@@ -1,39 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 054CE6B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:32:35 -0500 (EST)
-Date: Tue, 26 Jan 2010 21:32:17 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
-	pages, too
-Message-ID: <20100126133217.GB25407@localhost>
-References: <20100120215536.GN27212@frostnet.net> <20100121054734.GC24236@localhost> <20100123040348.GC30844@frostnet.net> <20100123102222.GA6943@localhost> <20100125094228.f7ca1430.kamezawa.hiroyu@jp.fujitsu.com> <20100125024544.GA16462@localhost> <20100125223635.GC2822@frostnet.net>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 72A806B0047
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:47:06 -0500 (EST)
+Date: Tue, 26 Jan 2010 14:46:13 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 01 of 31] define MADV_HUGEPAGE
+Message-ID: <20100126134613.GG30452@random.random>
+References: <patchbomb.1264439931@v2.random>
+ <edb236c55565378596ae.1264439932@v2.random>
+ <20100126114101.GB16468@csn.ul.ie>
+ <20100126123037.GE30452@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=gb2312
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100125223635.GC2822@frostnet.net>
+In-Reply-To: <20100126123037.GE30452@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Chris Frost <frost@cs.ucla.edu>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 25, 2010 at 03:36:35PM -0700, Chris Frost wrote:
-> I changed Wu's patch to add a PageLRU() guard that I believe is required
-> and optimized zone lock acquisition to only unlock and lock at zone changes.
-> This optimization seems to provide a 10-20% system time improvement for
-> some of my GIMP benchmarks and no improvement for other benchmarks.
+On Tue, Jan 26, 2010 at 01:30:37PM +0100, Andrea Arcangeli wrote:
+> Very error prone that you can register in arch file, there are 4
+> billions MADV_ available, the arch files shall be removed and it
+> should all be defined in mman-common.h.
 
-> +			del_page_from_lru_list(zone, page, lru);
-> +			add_page_to_lru_list(zone, page, lru);
-> +		}
-> +		put_page(page);
+It seems 15 is free:
 
-Hmm. put_page() inside lru_lock can deadlock. So you need to further
-optimize the code to do pagevec_lookup() and pagevec_release() plus
-cond_resched().
+cd arch; grep -r MADV_ . |grep 15
 
-Thanks,
-Fengguang
+so I will pick that one. Please nobody use number 15 or we
+screwup...
+
+I'll make a new #7 submit that also fixes one bug in
+split_huge_page_mm/vma, find_vma should run on "address" not on
+"address+HPAGE_PMD_SIZE-1" or it fails on the last hugepage on the vma
+unless "address" is hugepage aligned (firefox flash tripped on this
+last night, but thanks to the amount of BUG_ON that I added it was
+immediate to fix). No more problems with java applets, flash etc...
+
+ 14:45:10 up 15:10,  5 users,  load average: 0.22, 0.17, 0.06
+
+AnonPages:        612988 kB
+AnonHugePages:     65536 kB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
