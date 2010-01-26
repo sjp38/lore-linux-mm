@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 793FD6B00AA
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:22:49 -0500 (EST)
-Message-ID: <4B5F2467.6030701@redhat.com>
-Date: Tue, 26 Jan 2010 12:20:39 -0500
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B8FEA6B009D
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 12:24:45 -0500 (EST)
+Message-ID: <4B5F2535.6030907@redhat.com>
+Date: Tue, 26 Jan 2010 12:24:05 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 15 of 31] special pmd_trans_* functions
-References: <patchbomb.1264513915@v2.random> <98da7b804fb624c399a3.1264513930@v2.random>
-In-Reply-To: <98da7b804fb624c399a3.1264513930@v2.random>
+Subject: Re: [PATCH 17 of 31] pte alloc trans splitting
+References: <patchbomb.1264513915@v2.random> <a1d9fddd067c94c98c5a.1264513932@v2.random>
+In-Reply-To: <a1d9fddd067c94c98c5a.1264513932@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,19 +19,15 @@ List-ID: <linux-mm.kvack.org>
 On 01/26/2010 08:52 AM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> These returns 0 at compile time when the config option is disabled, to allow
-> gcc to eliminate the transparent hugepage function calls at compile time
-> without additional #ifdefs (only the export of those functions have to be
-> visible to gcc but they won't be required at link time and huge_memory.o can be
-> not built at all).
+> pte alloc routines must wait for split_huge_page if the pmd is not
+> present and not null (i.e. pmd_trans_splitting). The additional
+> branches are optimized away at compile time by pmd_trans_splitting if
+> the config option is off. However we must pass the vma down in order
+> to know the anon_vma lock to wait for.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
 Acked-by: Rik van Riel <riel@redhat.com>
-
-Took me a few minutes to figure out why reusing that bit
-in the page table entry is safe.  IMHO that could use a
-more verbose changelog message.
 
 -- 
 All rights reversed.
