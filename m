@@ -1,86 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1EDDC6B009E
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 13:23:49 -0500 (EST)
-Date: Tue, 26 Jan 2010 12:23:04 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 00 of 30] Transparent Hugepage support #3
-In-Reply-To: <20100126164550.GQ30452@random.random>
-Message-ID: <alpine.DEB.2.00.1001261213500.27159@router.home>
-References: <patchbomb.1264054824@v2.random> <alpine.DEB.2.00.1001220845000.2704@router.home> <20100122151947.GA3690@random.random> <alpine.DEB.2.00.1001221008360.4176@router.home> <20100123175847.GC6494@random.random> <alpine.DEB.2.00.1001251529070.5379@router.home>
- <20100125224643.GA30452@random.random> <alpine.DEB.2.00.1001260939050.23549@router.home> <20100126161120.GN30452@random.random> <alpine.DEB.2.00.1001261022480.25184@router.home> <20100126164550.GQ30452@random.random>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C4386B00A2
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 13:37:31 -0500 (EST)
+Date: Tue, 26 Jan 2010 18:37:07 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 04 of 31] update futex compound knowledge
+Message-ID: <20100126183706.GI16468@csn.ul.ie>
+References: <patchbomb.1264513915@v2.random> <948638099c17d3da3d6f.1264513919@v2.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <948638099c17d3da3d6f.1264513919@v2.random>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jan 2010, Andrea Arcangeli wrote:
+On Tue, Jan 26, 2010 at 02:51:59PM +0100, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> Futex code is smarter than most other gup_fast O_DIRECT code and knows about
+> the compound internals. However now doing a put_page(head_page) will not
+> release the pin on the tail page taken by gup-fast, leading to all sort of
+> refcounting bugchecks. Getting a stable head_page is a little tricky.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+> 
+> diff --git a/kernel/futex.c b/kernel/futex.c
+> --- a/kernel/futex.c
+> +++ b/kernel/futex.c
+> @@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
+>  {
+>  	unsigned long address = (unsigned long)uaddr;
+>  	struct mm_struct *mm = current->mm;
+> -	struct page *page;
+> +	struct page *page, *page_head;
+>  	int err;
+>  
+>  	/*
+> @@ -250,10 +250,32 @@ again:
+>  	if (err < 0)
+>  		return err;
+>  
+> -	page = compound_head(page);
+> -	lock_page(page);
+> -	if (!page->mapping) {
+> -		unlock_page(page);
+> +	page_head = page;
+> +	if (unlikely(PageTail(page))) {
+> +		put_page(page);
+> +		/* serialize against __split_huge_page_splitting() */
+> +		local_irq_disable();
+> +		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
 
-> > So the allocation works in 2M chunks. Okay that scales at that point but
-> > code cannot rely on these 2M chunks to continue to exist without
-> > ancilliary expensive measures (mmu notifier)
->
-> mmu notifier "ancilliary expensive measures"? Ask robin with xpmem,
-> check gru and see how slower kvm runs thanks to mmu notifier..
+I'm not fully getting from the changelog why the second round through
+__get_user_pages_fast() is necessary or why the write parameter is
+unconditionally 1.
 
-This is overhead that will be there everytime you get a reference on a 2M
-page. Its not a one time thing like with xpmem and kvm.
+Is the second round necessary just so compound_head() is called with
+interrupts disabled? Is that sufficient?
 
-> All you're asking is in the future to also add a 2M-wide pin in gup,
-> that is not what the current API provides, and so it requires a new
-> gup_huge_fast API, not the current one, and it is feasible! Just not
-> done in this implementation as it'd make things more complex.
+> +			page_head = compound_head(page);
+> +			local_irq_enable();
+> +		} else {
+> +			local_irq_enable();
+> +			goto again;
+> +		}
+> +	}
+> +
+> +	lock_page(page_head);
+> +	if (unlikely(page_head != page)) {
+> +		compound_lock(page_head);
+> +		if (unlikely(!PageTail(page))) {
+> +			compound_unlock(page_head);
+> +			unlock_page(page_head);
+> +			put_page(page);
+> +			goto again;
+> +		}
+> +	}
+> +	if (!page_head->mapping) {
+> +		unlock_page(page_head);
+>  		put_page(page);
+>  		goto again;
+>  	}
+> @@ -265,19 +287,21 @@ again:
+>  	 * it's a read-only handle, it's expected that futexes attach to
+>  	 * the object not the particular process.
+>  	 */
+> -	if (PageAnon(page)) {
+> +	if (PageAnon(page_head)) {
+>  		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
+>  		key->private.mm = mm;
+>  		key->private.address = address;
+>  	} else {
+>  		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+> -		key->shared.inode = page->mapping->host;
+> -		key->shared.pgoff = page->index;
+> +		key->shared.inode = page_head->mapping->host;
+> +		key->shared.pgoff = page_head->index;
+>  	}
+>  
+>  	get_futex_key_refs(key);
+>  
+> -	unlock_page(page);
+> +	if (unlikely(PageTail(page)))
+> +		compound_unlock(page_head);
+> +	unlock_page(page_head);
+>  	put_page(page);
+>  	return 0;
+>  }
+> 
 
-I have never asked for anything in gup. gup does not break up a huge page.
-
-> Just stop this red herring of yours that a replacement of the
-> pmd_trans_huge with a pte has anything to do with the physical side of
-> the hugepage. Splitting the page doesn't alter the physical side at
-> all, it's a _virtual_ split, and your remaining argument is how to
-
-Splitting a page allows reclaim / page migration to occur on 4k components
-of the huge page. Thus you are not guaranteed the integrity of your 2M
-page.
-
-> take a global pin on only the head page and having it distributed to
-> all tail pages when the virtual split happens. This is utterly
-> unnecessary overhead to all subsystems using mmu notifier, but it
-> might speedup O_DIRECT a little bit on hugepages, so it may happen
-> later.
-
-Simply taking a refcount on the head page of a compound page should pin it
-for good until the refcount is released. These are established conventions
-and doing so has minimal overhead.
-
-> > mmu notifier is expensive. The earlier implementations were able to get a
-> > stable huge page reference by simply doing a get_page().
->
-> That only works on hugetlbfs and it's not a property of gup_fast. It
-> breaks if userland maps a different mapping under you or if
-> libhugetlbfs is unloaded. We can extend the refcounting logic to
-> achieve the same "1 op pins 2M" feature but first of all we need a new
-> API gup_huge_fast, current api doesn't allow it. I think it's simply
-> wise to wait stabilizing this, before adding a new feature but if you
-> want me to do it now that's ok with me.
-
-Maybe you can explain why gup is so important to you? Its one example of
-establishing references to pages. Establishing a page reference is a basic
-feature of the Linux Operating system and doing so pins that page in
-memory for until the code is done and releases the refcount.
-
-Why not keep the same semantics for huge pages instead of all the
-complicated stuff here? No need for a compound lock etc etc.
-
-If you want to break up a huge page then make sure that all refcounts on
-the head page are accounted for and then convert it to 4k chunks.
-Basically a form of page migration and it does not require any new
-VM semantics or locks.
-
-
-
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
