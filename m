@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9FCC16B0047
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CA1756B004D
 	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 08:59:15 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 18 of 31] add pmd mmu_notifier helpers
-Message-Id: <148499c93749cce0e28f.1264513933@v2.random>
+Subject: [PATCH 16 of 31] bail out gup_fast on splitting pmd
+Message-Id: <cc86f09d614465026c0f.1264513931@v2.random>
 In-Reply-To: <patchbomb.1264513915@v2.random>
 References: <patchbomb.1264513915@v2.random>
-Date: Tue, 26 Jan 2010 14:52:13 +0100
+Date: Tue, 26 Jan 2010 14:52:11 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,76 +18,35 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add mmu notifier helpers to handle pmd huge operations.
+Force gup_fast to take the slow path and block if the pmd is splitting, not
+only if it's none.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -243,6 +243,32 @@ static inline void mmu_notifier_mm_destr
- 	__pte;								\
- })
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -156,7 +156,18 @@ static int gup_pmd_range(pud_t pud, unsi
+ 		pmd_t pmd = *pmdp;
  
-+#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
-+({									\
-+	pmd_t __pmd;							\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
-+	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
-+					    (__address)+HPAGE_PMD_SIZE);\
-+	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
-+	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
-+					  (__address)+HPAGE_PMD_SIZE);	\
-+	__pmd;								\
-+})
-+
-+#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
-+({									\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
-+	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
-+					    (__address)+HPAGE_PMD_SIZE);\
-+	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
-+	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
-+					  (__address)+HPAGE_PMD_SIZE);	\
-+})
-+
- #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
- ({									\
- 	int __young;							\
-@@ -254,6 +280,17 @@ static inline void mmu_notifier_mm_destr
- 	__young;							\
- })
- 
-+#define pmdp_clear_flush_young_notify(__vma, __address, __pmdp)		\
-+({									\
-+	int __young;							\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
-+	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
-+						  ___address);		\
-+	__young;							\
-+})
-+
- #define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
- ({									\
- 	struct mm_struct *___mm = __mm;					\
-@@ -305,7 +342,10 @@ static inline void mmu_notifier_mm_destr
- }
- 
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
-+#define pmdp_clear_flush_young_notify pmdp_clear_flush_young
- #define ptep_clear_flush_notify ptep_clear_flush
-+#define pmdp_clear_flush_notify pmdp_clear_flush
-+#define pmdp_splitting_flush_notify pmdp_splitting_flush
- #define set_pte_at_notify set_pte_at
- 
- #endif /* CONFIG_MMU_NOTIFIER */
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none(pmd))
++		/*
++		 * The pmd_trans_splitting() check below explains why
++		 * pmdp_splitting_flush has to flush the tlb, to stop
++		 * this gup-fast code from running while we set the
++		 * splitting bit in the pmd. Returning zero will take
++		 * the slow path that will call wait_split_huge_page()
++		 * if the pmd is still in splitting state. gup-fast
++		 * can't because it has irq disabled and
++		 * wait_split_huge_page() would never return as the
++		 * tlb flush IPI wouldn't run.
++		 */
++		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_large(pmd))) {
+ 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
