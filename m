@@ -1,51 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 93FD06B009E
-	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 19:51:59 -0500 (EST)
-Date: Tue, 26 Jan 2010 16:50:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/4] devmem and readahead fixes for 2.6.33
-Message-Id: <20100126165050.6ab7977b.akpm@linux-foundation.org>
-In-Reply-To: <20100122053157.GA8312@suse.de>
-References: <20100122045914.993668874@intel.com>
-	<20100122053157.GA8312@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 635D36003C1
+	for <linux-mm@kvack.org>; Tue, 26 Jan 2010 19:55:14 -0500 (EST)
+Date: Tue, 26 Jan 2010 19:55:10 -0500
+From: Jeff Dike <jdike@addtoit.com>
+Subject: Re: which fields in /proc/meminfo are orthogonal?
+Message-ID: <20100127005510.GA8637@c2.user-mode-linux.org>
+References: <4B5F3C9C.3050908@nortel.com> <4B5F54DE.7030302@nortel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B5F54DE.7030302@nortel.com>
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <gregkh@suse.de>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, stable@kernel.org, Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Jan 2010 21:31:57 -0800
-Greg KH <gregkh@suse.de> wrote:
-
-> On Fri, Jan 22, 2010 at 12:59:14PM +0800, Wu Fengguang wrote:
-> > Andrew,
-> > 
-> > Here are some good fixes for 2.6.33, they have been floating around
-> > with other patches for some time. I should really seperate them out
-> > earlier..
-> > 
-> > Greg,
-> > 
-> > The first two patches are on devmem. 2.6.32 also needs fixing, however
-> > the patches can only apply cleanly to 2.6.33. I can do backporting if
-> > necessary.
-> > 
-> > 	[PATCH 1/4] devmem: check vmalloc address on kmem read/write
-> > 	[PATCH 2/4] devmem: fix kmem write bug on memory holes
+On Tue, Jan 26, 2010 at 02:47:26PM -0600, Chris Friesen wrote:
+> I've tried adding up
+> MemFree+Buffers+Cached+AnonPages+Mapped+Slab+PageTables+VmallocUsed
 > 
-> After these hit Linus's tree, please send the backport to
-> stable@kernel.org and I will be glad to queue them up.
+> (hugepages are disabled and there is no swap)
 > 
+> Shortly after boot this gets me within about 3MB of MemTotal.  However,
+> after 1070 minutes there is a 64MB difference between MemTotal and the
+> above sum.
 
-I tagged the first two patches for -stable and shall send them in for 2.6.33.
+I believe that pages allocated directly with get_free_pages won't show
+up in your sum.  So, just look for someone doing a lot of that :-)
 
-The second two patches aren't quite as obvious - perhaps a risk of
-weird regressions.  So I'm thinking I'll send them in for 2.6.34-rc1
-and I tagged them as "[2.6.33.x]" for -stable, so you can feed them
-into 2.6.33.x once 2.6.34-rcX has had a bit of testing time, OK?
+				Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
