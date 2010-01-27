@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B28506B004D
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 15:58:01 -0500 (EST)
-Message-ID: <4B60A8AC.40708@redhat.com>
-Date: Wed, 27 Jan 2010 15:57:16 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B92166B004D
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 16:46:50 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH 01 of 31] define MADV_HUGEPAGE
+Date: Wed, 27 Jan 2010 22:44:47 +0100
+References: <patchbomb.1264513915@v2.random> <da09747e3b1d0368a0a6.1264513916@v2.random> <alpine.LSU.2.00.1001271600450.25739@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1001271600450.25739@sister.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC -v2 PATCH -mm] change anon_vma linking to fix multi-process
- server scalability issue
-References: <20100121133448.73BD.A69D9226@jp.fujitsu.com> <4B57E442.5060700@redhat.com> <20100122135809.6C11.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100122135809.6C11.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201001272244.47211.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, minchan.kim@gmail.com, lwoodman@redhat.com, aarcange@redhat.com
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 01/22/2010 01:57 AM, KOSAKI Motohiro wrote:
+On Wednesday 27 January 2010, Hugh Dickins wrote:
+> So I think you should follow what we did with MADV_MERGEABLE:
+> define it in asm-generic/mman-common.h and the four arches,
+> use the expected number 14 wherever you can, and 67 for parisc.
+> 
+> Or if you feel there's virtue in using the same number on all
+> arches (it would be less confusing, yes) and want to pave that way
+> (as we'd have better done with MADV_MERGEABLE), add a comment into
+> four of those files to point to parisc's peculiar group, and use
+> the same number 67 on all (perhaps via an asm-generic/madv-common.h).
+> 
+> I'd take the lazy way out and follow what we did with MADV_MERGEABLE,
+> unless Arnd (Mr Asm-Generic) would prefer something else.
 
->> @@ -240,6 +339,14 @@ vma_address(struct page *page, struct vm_area_struct *vma)
->>   		/* page should be within @vma mapping range */
->>   		return -EFAULT;
->>   	}
->> +	if (unlikely(vma->vm_flags&  VM_LOCK_RMAP))
->> +		/*
->> +		 * This VMA is being unlinked or not yet linked into the
->> +		 * VMA tree.  Do not try to follow this rmap.  This race
->> +		 * condition can result in page_referenced ignoring a
->> +		 * reference or try_to_unmap failing to unmap a page.
->> +		 */
->> +		return -EFAULT;
->>   	return address;
->>   }
->
-> In this place, the task have anon_vma->lock, but don't have mmap_sem.
-> But, VM_LOCK_RMAP changing point (i.e. vma_adjust()) is protected by mmap_sem.
->
-> IOW, "if (vma->vm_flags&  VM_LOCK_RMAP)" return unstable value. Why can we use
-> unstable value as "lock"?
+I fully agree with using 14 in asm-generic and 67 in parisc.
 
-I know the answer to this one. The VMA cannot be freed until the
-anon_vmas have been unlinked.
-
-That is serialized on the anon_vma->lock.  Either the pageout
-code has that lock, or the VMA teardown code in mmap.c has it.
-
-Either way they're protected from each other.
-
--- 
-All rights reversed.
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
