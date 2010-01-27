@@ -1,99 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9C2AA6B0047
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 13:59:37 -0500 (EST)
-Date: Wed, 27 Jan 2010 19:58:37 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4DB516B0047
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 14:46:09 -0500 (EST)
+Date: Wed, 27 Jan 2010 20:45:04 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 03 of 31] alter compound get_page/put_page
-Message-ID: <20100127185837.GH12736@random.random>
+Subject: Re: [PATCH 04 of 31] update futex compound knowledge
+Message-ID: <20100127194504.GA13766@random.random>
 References: <patchbomb.1264513915@v2.random>
- <936cd613e4ae2d20c62b.1264513918@v2.random>
- <20100126180234.GH16468@csn.ul.ie>
+ <948638099c17d3da3d6f.1264513919@v2.random>
+ <20100126183706.GI16468@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100126180234.GH16468@csn.ul.ie>
+In-Reply-To: <20100126183706.GI16468@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 06:02:35PM +0000, Mel Gorman wrote:
-> > diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
-> > --- a/arch/powerpc/mm/gup.c
-> > +++ b/arch/powerpc/mm/gup.c
-> > @@ -47,6 +47,14 @@ static noinline int gup_pte_range(pmd_t 
-> >  			put_page(page);
-> >  			return 0;
-> >  		}
-> > +		if (PageTail(page)) {
-> > +			/*
-> > +			 * __split_huge_page_refcount() cannot run
-> > +			 * from under us.
-> > +			 */
-> > +			VM_BUG_ON(atomic_read(&page->_count) < 0);
-> > +			atomic_inc(&page->_count);
-> > +		}
-> 
-> Is it worth considering making some of these VM_BUG_ON's BUG_ON's? None
-> of them will trigger in production setups. While you have tested heavily
-> on your own machines, there might be some wacky corner case.  I know the
-> downside is two atomics in there instead of one in there but it might be
-> worth it for a year anyway.
+On Tue, Jan 26, 2010 at 06:37:07PM +0000, Mel Gorman wrote:
+> I'm not fully getting from the changelog why the second round through
+> __get_user_pages_fast() is necessary or why the write parameter is
+> unconditionally 1.
 
-atomic_read isn't atomic. But it's also a fast path so I wouldn't like
-to have that... if things go under split_huge_page or free_pages_ok
-will cry I think, later, so it shouldn't go unnoticed.
+The write parameter is unconditionally to 1 because the first gup_fast
+already existing had it unconditionally set to 1, it's not relevant
+with this change.
 
-> Also, Dave had suggested making this a helper in a previous revision to
-> avoid duplicating the comment if nothing else. It wouldn't hurt.
+> Is the second round necessary just so compound_head() is called with
+> interrupts disabled? Is that sufficient?
 
-Ok! It must have been obfuscated by more urgent issues... thanks for
-the reminder!
+Correct. It's necessary and sufficient, because if it returns == 1, it
+means the huge pmd is established and cannot go away from under
+us. pmdp_splitting_flush_notify in __split_huge_page_splitting will
+have to wait for local_irq_enable before the IPI delivery can
+return. This means __split_huge_page_refcount can't be running from
+under us, and in turn when we run compound_head(page) we're not
+reading a dangling pointer from tailpage->first_page. Then after we
+get to stable head page, we are always safe to call compound_lock and
+after taking the compound lock on head page we can finally re-check if
+the page returned by gup-fast is still a tail page. in which case
+we're set and we didn't need to split the hugepage in order to take a
+futex on it.
 
-> #define __PG_COMPOUND_LOCK           (1 << PG_compound_lock)
-> 
-> and 1 << __PG_COMPOUND_LOCK
-> 
-> so __PG_COMPOUND_LOCK is already shifted. Is that intentional? Unless I am
-> missing something obvious, it looks like it should be
-> 
->  +      1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
->  +      __PG_COMPOUND_LOCK)
-> 
-> If it is not intentional, it should be harmless at runtime because the impact
-> is not checking a flag is properly clear.
-
-Correct.
-
-> >  static void put_compound_page(struct page *page)
-> >  {
-> > -	page = compound_head(page);
-> > -	if (put_page_testzero(page)) {
-> > -		compound_page_dtor *dtor;
-> > -
-> > -		dtor = get_compound_page_dtor(page);
-> > -		(*dtor)(page);
-> > +	if (unlikely(PageTail(page))) {
-> > +		/* __split_huge_page_refcount can run under us */
-> > +		struct page *page_head = page->first_page;
-> > +		smp_rmb();
-> 
-> Can you explain why the barrier is needed and why this is sufficient? It
-
-smp_rmb is needed to be sure we read a first_page from a tail page. If
-it wasn't a tail page no more, while we read first_page, it wouldn't
-be safe.
-
-> looks like you are checking for races before compound_lock() is called but
-> I'm not seeing how the window is fully closed if that is the case.
-
-I need to be sure I'm getting a real valid head_page before I can run
-compound_lock, so the above smp_rmb with the smb_wmb before
-overwriting first_page in split_huge_page is meant to guarantee it.
-
-In futex it's the same, except there I disabled irqs as it's simpler
-and gup-fast accesses are all already in l1.
+I'll add above to changelog.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
