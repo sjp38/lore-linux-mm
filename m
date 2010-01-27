@@ -1,142 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 726566B004D
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 11:52:50 -0500 (EST)
-Date: Wed, 27 Jan 2010 16:52:30 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] page_alloc: change bit ops 'or' to logical ops in
- free/new page check
-In-Reply-To: <cf18f8341001260020p44cec4abq24a354251c78dacb@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1001271638410.25739@sister.anvils>
-References: <cf18f8341001252256q65b90d76vfe3094a1bb5424e7@mail.gmail.com>  <20100126155852.1D53.A69D9226@jp.fujitsu.com> <cf18f8341001260020p44cec4abq24a354251c78dacb@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D370E6B004D
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 12:14:03 -0500 (EST)
+Date: Wed, 27 Jan 2010 18:13:16 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 01 of 31] define MADV_HUGEPAGE
+Message-ID: <20100127171316.GC12736@random.random>
+References: <patchbomb.1264513915@v2.random>
+ <da09747e3b1d0368a0a6.1264513916@v2.random>
+ <alpine.LSU.2.00.1001271600450.25739@sister.anvils>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1392313750-1264611150=:25739"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1001271600450.25739@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Wed, Jan 27, 2010 at 04:37:57PM +0000, Hugh Dickins wrote:
+> It embarrasses me to find the time to comment on so trivial a patch,
+> and none more interesting; but I have to say that I don't think this
+> patch can be right - in two ways.
+> 
+> You moved MADV_HUGEPAGE from 14 to 15 because someone noticed
+> #define MADV_16K_PAGES 14 in arch/parisc/include/asm/mman.h?
 
---8323584-1392313750-1264611150=:25739
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+Correct.
 
-On Tue, 26 Jan 2010, Bob Liu wrote:
-> On Tue, Jan 26, 2010 at 3:00 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> Using logical 'or' in =C2=A0function free_page_mlock() and
-> >> check_new_page() makes code clear and
-> >> sometimes more effective (Because it can ignore other condition
-> >> compare if the first condition
-> >> is already true).
-> >>
-> >> It's Nick's patch "mm: microopt conditions" changed it from logical
-> >> ops to bit ops.
-> >> Maybe I didn't consider something. If so, please let me know and just
-> >> ignore this patch.
+> Well, if we need to respect that, then we ought to respect its
+> /* The range 12-64 is reserved for page size specification. */:
+> 15 would be intended for 32K pages.
 
-Yes, please do ignore (unless you've found that logicals and branches
-are actually now more efficient than the bitwises on recent processors).
+It would be probably better if those were defined with #define MADV_
+instead of a comment that won't showup on my grep... I checked with
+grep across all archs and nothing showed up.
 
-> >> Thanks!
-> >
-> > I think current code is intentional. On modern cpu, bit-or is faster th=
-an
-> > logical or.
->=20
-> Hmm, but if use logical ops it can be optimized by the compiler.
-> In this situation, eg, if page_mapcount(page) is true, then other compare=
-tion
-> including atomic_read() willn't be called anymore.
-> If use bit ops, atomic_read() and other comparetion will still be called.
+> I don't know why parisc (even as far back as 2.4.0) wants those
+> definitions: I guess to allow some peculiar-to-parisc program
+> to build on Linux, yet fail with EINVAL when it runs?  I rather
+> think they should never have been added (and perhaps could even
+> be removed).
+> 
+> But, whether 14 or 15 or something else, I expect you're preventing
+> mm/madvise.c from building on alpha, mips, parisc and xtensa.
+> Those arches don't include asm-generic/mman-common.h, because of
+> various divergencies, of which MADV_16K_PAGES would be just one.
+> 
+> So I think you should follow what we did with MADV_MERGEABLE:
+> define it in asm-generic/mman-common.h and the four arches,
+> use the expected number 14 wherever you can, and 67 for parisc.
+> 
+> Or if you feel there's virtue in using the same number on all
+> arches (it would be less confusing, yes) and want to pave that way
+> (as we'd have better done with MADV_MERGEABLE), add a comment into
+> four of those files to point to parisc's peculiar group, and use
+> the same number 67 on all (perhaps via an asm-generic/madv-common.h).
+> 
+> I'd take the lazy way out and follow what we did with MADV_MERGEABLE,
+> unless Arnd (Mr Asm-Generic) would prefer something else.
 
-In many contexts that would be a valid point to make.  But please look at
-what these checks are about.  999999999 times out of a billion every one of
-those tests has to be made, as efficiently as possible.  You're asking to
-optimize for when memory corruption or whatever has made one condition true
-which should never be true.
+I've no problem to do the not-lazy way of madv-common.h, and yes I
+think it's less confusing to have one number for all archs...
 
-Hugh
-
->=20
-> I am not sure whether cpu and compiler will optimize it like the
-> logical bit ops.
-> If there will, the current code is intertional, else i think the
-> logical ops is better.
-> thanks!
->=20
-> -       if (unlikely(page_mapcount(page) |
-> -               (page->mapping !=3D NULL)  |
-> -               (atomic_read(&page->_count) !=3D 0) |
-> +       if (unlikely(page_mapcount(page) ||
-> +               (page->mapping !=3D NULL)  ||
-> +               (atomic_read(&page->_count) !=3D 0) ||
->                (page->flags & PAGE_FLAGS_CHECK_AT_FREE))) {
->=20
->=20
-> >
-> > Do you have opposite benchmark number result?
-> >
->=20
-> I haven't now :-).  I will test it when I have enough time.
->=20
-> >
-> >>
-> >> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> >> ---
-> >>
-> >> diff --git mm/page_alloc.c mm/page_alloc.c
-> >> index 05ae4e0..91ece14 100644
-> >> --- mm/page_alloc.c
-> >> +++ mm/page_alloc.c
-> >> @@ -500,9 +500,9 @@ static inline void free_page_mlock(struct page *pa=
-ge)
-> >>
-> >> =C2=A0static inline int free_pages_check(struct page *page)
-> >> =C2=A0{
-> >> - =C2=A0 =C2=A0 =C2=A0 if (unlikely(page_mapcount(page) |
-> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (page->mapping !=3D=
- NULL) =C2=A0|
-> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (atomic_read(&page-=
->_count) !=3D 0) |
-> >> + =C2=A0 =C2=A0 =C2=A0 if (unlikely(page_mapcount(page) ||
-> >> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (page->mapping !=3D=
- NULL) =C2=A0||
-> >> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (atomic_read(&page-=
->_count) !=3D 0) ||
-> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (page->flags &=
- PAGE_FLAGS_CHECK_AT_FREE))) {
-> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 bad_page(page)=
-;
-> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 1;
-> >> @@ -671,9 +671,9 @@ static inline void expand(struct zone *zone, struc=
-t page *pa
-> >> =C2=A0 */
-> >> =C2=A0static inline int check_new_page(struct page *page)
-> >> =C2=A0{
-> >> - =C2=A0 =C2=A0 =C2=A0 if (unlikely(page_mapcount(page) |
-> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (page->mapping !=3D=
- NULL) =C2=A0|
-> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (atomic_read(&page-=
->_count) !=3D 0) =C2=A0|
-> >> + =C2=A0 =C2=A0 =C2=A0 if (unlikely(page_mapcount(page) ||
-> >> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (page->mapping !=3D=
- NULL) =C2=A0||
-> >> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (atomic_read(&page-=
->_count) !=3D 0) =C2=A0||
-> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (page->flags &=
- PAGE_FLAGS_CHECK_AT_PREP))) {
-> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 bad_page(page)=
-;
-> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 1;
-> >>
->=20
-> --=20
-> Regards,
-> -Bob Liu
---8323584-1392313750-1264611150=:25739--
+Let's say, to me the important thing is we agree on one number, and
+that MADV_HUGEPAGE is useful for embedded that may want to turn off
+transparent hugepage feature except on a few mappings (to avoids
+risking to lose minor memory during cows).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
