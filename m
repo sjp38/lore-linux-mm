@@ -1,36 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A14BB6B004D
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 17:12:39 -0500 (EST)
-Date: Wed, 27 Jan 2010 14:12:08 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Flush dcache before writing into page to avoid alias
-Message-Id: <20100127141208.dd8244a7.akpm@linux-foundation.org>
-In-Reply-To: <20100127215959.GC15325@Chamillionaire.breakpoint.cc>
-References: <979dd0561001202107v4ddc1eb7xa59a7c16c452f7a2@mail.gmail.com>
-	<20100125133308.GA26799@desktop>
-	<20100125115814.156d401d.akpm@linux-foundation.org>
-	<20100125200004.GF22481@n2100.arm.linux.org.uk>
-	<20100127215959.GC15325@Chamillionaire.breakpoint.cc>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 38D7F6B0047
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 17:52:18 -0500 (EST)
+Date: Wed, 27 Jan 2010 23:51:32 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 19 of 31] clear page compound
+Message-ID: <20100127225132.GA24242@random.random>
+References: <patchbomb.1264513915@v2.random>
+ <fdc4060ac52e26d9e91f.1264513934@v2.random>
+ <20100126195655.GV16468@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100126195655.GV16468@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, anfei <anfei.zhou@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jamie Lokier <jamie@shareable.org>, linux-arm-kernel@lists.infradead.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Jan 2010 22:59:59 +0100
-Sebastian Andrzej Siewior <sebastian@breakpoint.cc> wrote:
-
-> I just wanted to query what the status of this patch is. This patch
-> seems to fix a real bug which causes a test suite to fail on ARM [0].
-> The test suite passes on my VIVT ARM with this patch.
+On Tue, Jan 26, 2010 at 07:56:55PM +0000, Mel Gorman wrote:
+> > +static inline void ClearPageCompound(struct page *page)
+> > +{
+> > +	BUG_ON(page->flags & PG_head_tail_mask != (1L << PG_compound));
 > 
-> [0] http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=524003
+> 1L?
 
-I have it queued for 2.6.33, backportable to 2.6.32.x, assuming that
-nobody sees any issues with it.
+cleaned up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
