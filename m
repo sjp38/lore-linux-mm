@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A86A6B004D
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 03:38:26 -0500 (EST)
-Date: Wed, 27 Jan 2010 19:38:19 +1100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/2] xfs: use scalable vmap API
-Message-ID: <20100127083819.GA11072@laptop>
-References: <20081021082542.GA6974@wotan.suse.de>
- <20081021082735.GB6974@wotan.suse.de>
- <20081021120932.GB13348@infradead.org>
- <20081022093018.GD4359@wotan.suse.de>
- <20100119121505.GA9428@infradead.org>
- <20100125075445.GD19664@laptop>
- <20100125081750.GA20012@infradead.org>
- <20100125083309.GF19664@laptop>
- <20100125123746.GA24406@laptop>
- <20100125213403.GA1309@infradead.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 682096B0071
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 06:27:07 -0500 (EST)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp03.in.ibm.com (8.14.3/8.13.1) with ESMTP id o0RBR2Ce014710
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 16:57:02 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o0RBR25Z606414
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 16:57:02 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o0RBR1ZE031457
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 22:27:01 +1100
+Message-ID: <4B602304.9000709@linux.vnet.ibm.com>
+Date: Wed, 27 Jan 2010 16:57:00 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100125213403.GA1309@infradead.org>
+Subject: Re: [PATCH 28 of 30] memcg huge memory
+References: <patchbomb.1264054824@v2.random> <4c405faf58cfe5d1aa6e.1264054852@v2.random> <20100121161601.6612fd79.kamezawa.hiroyu@jp.fujitsu.com> <20100121160807.GB5598@random.random> <20100122091317.39db5546.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100122091317.39db5546.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: xfs@oss.sgi.com, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 25, 2010 at 04:34:03PM -0500, Christoph Hellwig wrote:
-> On Mon, Jan 25, 2010 at 11:37:46PM +1100, Nick Piggin wrote:
-> > On Mon, Jan 25, 2010 at 07:33:09PM +1100, Nick Piggin wrote:
-> > > > Any easy way to get them?  Sorry, not uptodate on your new vmalloc
-> > > > implementation anymore.
-> > > 
-> > > Let me try writing a few (tested) patches here first that I can send you.
-> > 
-> > Well is it easy to reproduce the vmap failure? Here is a better tested
-> > patch if you can try it. It fixes a couple of bugs and does some purging
-> > of fragmented blocks.
+On Friday 22 January 2010 05:43 AM, KAMEZAWA Hiroyuki wrote:
 > 
-> So far I've not run out of vmalloc space yet with quite a few xfstests
-> iterations and not encountered any other problems either.
-> 
-> Thanks for looking into this!
+>> Now the only real pain remains in the LRU list accounting, I tried to
+>> solve it but found no clean way that didn't require mess all over
+>> vmscan.c. So for now hugepages in lru are accounted as 4k pages
+>> ;). Nothing breaks just stats won't be as useful to the admin...
+>>
+> Hmm, interesting/important problem...I keep it in my mind.
 
-OK thanks for testing. I'll send it upstream if you haven't had any
-problems so far.
+I hope the memcg accounting is not broken, I see you do the right thing
+while charging pages. The patch overall seems alright. Could you please
+update the Documentation/cgroups/memory.txt file as well with what these
+changes mean and memcg_tests.txt to indicate how to test the changes?
+
+-- 
+Three Cheers,
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
