@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 85BBC6B004D
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 03:02:19 -0500 (EST)
-Message-ID: <4B5FF307.9080900@cs.helsinki.fi>
-Date: Wed, 27 Jan 2010 10:02:15 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A86A6B004D
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 03:38:26 -0500 (EST)
+Date: Wed, 27 Jan 2010 19:38:19 +1100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 2/2] xfs: use scalable vmap API
+Message-ID: <20100127083819.GA11072@laptop>
+References: <20081021082542.GA6974@wotan.suse.de>
+ <20081021082735.GB6974@wotan.suse.de>
+ <20081021120932.GB13348@infradead.org>
+ <20081022093018.GD4359@wotan.suse.de>
+ <20100119121505.GA9428@infradead.org>
+ <20100125075445.GD19664@laptop>
+ <20100125081750.GA20012@infradead.org>
+ <20100125083309.GF19664@laptop>
+ <20100125123746.GA24406@laptop>
+ <20100125213403.GA1309@infradead.org>
 MIME-Version: 1.0
-Subject: Re: BUG at mm/slab.c:2990 with 2.6.33-rc5-tuxonice
-References: <74fd948d1001261121r7e6d03a4i75ce40705abed4e0@mail.gmail.com>	 <4B5F52FE.5000201@crca.org.au> <1264539045.3536.1348.camel@calx>	 <4B5F5794.8020302@cs.helsinki.fi>	 <74fd948d1001261350n2f26c057ubbe056d11d19abf2@mail.gmail.com> <74fd948d1001261531v7a09e1e8t54a7a5a5a2df277b@mail.gmail.com>
-In-Reply-To: <74fd948d1001261531v7a09e1e8t54a7a5a5a2df277b@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100125213403.GA1309@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Pedro Ribeiro <pedrib@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pedro Ribeiro kirjoitti:
-> 2010/1/26 Pedro Ribeiro <pedrib@gmail.com>:
->> 2010/1/26 Pekka Enberg <penberg@cs.helsinki.fi>:
->>> Matt Mackall wrote:
->>>> On Wed, 2010-01-27 at 07:39 +1100, Nigel Cunningham wrote:
->>>>> Hi.
->>>>>
->>>>> Pedro Ribeiro wrote:
->>>>>> Hi,
->>>>>>
->>>>>> I hit a bug at mm/slab.c:2990 with .33-rc5.
->>>>>> Unfortunately nothing more is available than a screen picture with a
->>>>>> crash dump, although it is a good one.
->>>>>> The bug was hit almost at the end of a hibernation cycle with
->>>>>> Tux-on-Ice, while saving memory contents to an encrypted swap
->>>>>> partition.
->>>>>>
->>>>>> The image is here http://img264.imageshack.us/img264/9634/mmslab.jpg
->>>>>> (150 kb)
->>>>>>
->>>>>> Hopefully it is of any use for you. Please let me know if you need any
->>>>>> more info.
->>>>> Looks to me to be completely unrelated to TuxOnIce - at least at a first
->>>>> glance.
->>>>>
->>>>> Ccing the slab allocator maintainers listed in MAINTAINERS.
->>>> Not sure if this will do us any good, it's the second oops.
->>> Looks like slab corruption to me which is usually not a slab bug but caused
->>> by buggy callers. Is CONFIG_DEBUG_SLAB enabled?
->>>
->> I have enabled it and compiled the kernel. As soon as I hit the bug, I
->> will send a photo here.
->>
->> Regards,
->> Pedro
->>
+On Mon, Jan 25, 2010 at 04:34:03PM -0500, Christoph Hellwig wrote:
+> On Mon, Jan 25, 2010 at 11:37:46PM +1100, Nick Piggin wrote:
+> > On Mon, Jan 25, 2010 at 07:33:09PM +1100, Nick Piggin wrote:
+> > > > Any easy way to get them?  Sorry, not uptodate on your new vmalloc
+> > > > implementation anymore.
+> > > 
+> > > Let me try writing a few (tested) patches here first that I can send you.
+> > 
+> > Well is it easy to reproduce the vmap failure? Here is a better tested
+> > patch if you can try it. It fixes a couple of bugs and does some purging
+> > of fragmented blocks.
 > 
-> The pic is here.
-> http://img43.imageshack.us/img43/3644/dsc01061ko.jpg
+> So far I've not run out of vmalloc space yet with quite a few xfstests
+> iterations and not encountered any other problems either.
 > 
-> There was a buttload of output before that, which I tried capturing in
-> video, but its too crappy to post.
+> Thanks for looking into this!
 
-Can you try passing "pause_on_oops=15" as kernel parameter? It should 
-delay the next oops for 15 seconds so there's enough time to take a 
-picture of the first one?
-
-Also, you could try CONFIG_SLUB and passing "slub_debug" as kernel 
-parameter to get nicer diagnostics of the bug.
-
-> Do you know if/where I can get patches for KDB in .33?
-
-Nope, sorry.
-
-			Pekka
+OK thanks for testing. I'll send it upstream if you haven't had any
+problems so far.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
