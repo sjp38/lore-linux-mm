@@ -1,21 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D2F6B0047
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 07:23:26 -0500 (EST)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp05.au.ibm.com (8.14.3/8.13.1) with ESMTP id o0SCJwg5007358
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 23:19:58 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o0SCNJqI1667298
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 23:23:19 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o0SCNIfJ002114
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 23:23:18 +1100
-Date: Thu, 28 Jan 2010 17:53:14 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5F8756B0047
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 07:37:33 -0500 (EST)
+Date: Thu, 28 Jan 2010 13:36:32 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH 28 of 30] memcg huge memory
-Message-ID: <20100128122314.GC25191@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <20100128123632.GA14876@random.random>
 References: <patchbomb.1264054824@v2.random>
  <4c405faf58cfe5d1aa6e.1264054852@v2.random>
  <20100121161601.6612fd79.kamezawa.hiroyu@jp.fujitsu.com>
@@ -23,74 +13,48 @@ References: <patchbomb.1264054824@v2.random>
  <20100122091317.39db5546.kamezawa.hiroyu@jp.fujitsu.com>
  <4B602304.9000709@linux.vnet.ibm.com>
  <20100128113915.GH24242@random.random>
+ <20100128122314.GC25191@balbir.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100128113915.GH24242@random.random>
+In-Reply-To: <20100128122314.GC25191@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* Andrea Arcangeli <aarcange@redhat.com> [2010-01-28 12:39:15]:
-
-> On Wed, Jan 27, 2010 at 04:57:00PM +0530, Balbir Singh wrote:
-> > On Friday 22 January 2010 05:43 AM, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > >> Now the only real pain remains in the LRU list accounting, I tried to
-> > >> solve it but found no clean way that didn't require mess all over
-> > >> vmscan.c. So for now hugepages in lru are accounted as 4k pages
-> > >> ;). Nothing breaks just stats won't be as useful to the admin...
-> > >>
-> > > Hmm, interesting/important problem...I keep it in my mind.
-> > 
-> > I hope the memcg accounting is not broken, I see you do the right thing
-> > while charging pages. The patch overall seems alright. Could you please
-> > update the Documentation/cgroups/memory.txt file as well with what these
-> > changes mean and memcg_tests.txt to indicate how to test the changes?
+On Thu, Jan 28, 2010 at 05:53:14PM +0530, Balbir Singh wrote:
+> I would expect some Documentation stating the following
 > 
-> Where exactly does that memory.txt go into the implementation details?
-> Grepping the function names I changed over that file leads to
-> nothing. It doesn't seem to be covering internals at all. The other
-> file only place that shows some function names I could see needing an
-> update is this:
-> 
->      At try_charge(), there are no flags to say "this page is
->      charged".
->      at this point, usage += PAGE_SIZE.
-> 
->      At commit(), the function checks the page should be charged or
->      not
->      and set flags or avoid charging.(usage -= PAGE_SIZE)
-> 
->      At cancel(), simply usage -= PAGE_SIZE.
-> 
-> but it won't go into much more details than this, so I can only
-> imagine to add this, explaining how the real page size is obtained and
-> if I would go into the compound page accounting explanation that
-> probably would bring it to a detail level that file didn't have in the
-> first place.
-> 
+> 1. Impact of transparent hugepages on memcg
 
-I would expect some Documentation stating the following
+Expected is none except using right page size for compound pages like
+described in my comment so far. If there is an impact visible to the
+user then we've got something to fix. Only change in implementation
+terms is to use the right page_size instead of fixed PAGE_SIZE.
 
-1. Impact of transparent hugepages on memcg
-2. What does this mean to limit_in_bytes and usage_in_bytes and other
-features
-3. What does this mean for OOM, reclaim, etc, can there be some
-side-effects.
+> 2. What does this mean to limit_in_bytes and usage_in_bytes and other
+> features
 
+Dunno but I would expect no change at all.
 
-> But again I'm very confused on what exactly you expect me to update on
-> that file, so if below isn't ok best would be that you send me a patch
-> to integrate with your signoff. That would be the preferred way to me.
->
+> 3. What does this mean for OOM, reclaim, etc, can there be some
+> side-effects.
 
-I'll read through your patchset and see if I can come up with a useful
-patch. 
+Zero impact, but lru ordering isn't always guaranteed _identical_ as
+tail pages may have to be added to the lru while the lru head is
+isolated and we can't mangle over the stack of the other cpu that is
+accessed lockless. Same lru ordering is guaranteed however when
+split_huge_page runs on a page that has PageLRU set (I add tail pages
+to page_head->lru instead of the zone lru head in that case). besides
+this lru detail may change in future implementation and it is totally
+unrelated to memcg as far as I can tell so no idea why to document it
+there...
 
--- 
-	Balbir
+> I'll read through your patchset and see if I can come up with a useful
+> patch. 
+
+Ok, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
