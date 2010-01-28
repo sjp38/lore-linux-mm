@@ -1,62 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C081A6B0047
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 05:03:55 -0500 (EST)
-Date: Thu, 28 Jan 2010 11:03:27 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] - Fix unmap_vma() bug related to mmu_notifiers
-Message-ID: <20100128100327.GF24242@random.random>
-References: <20100125174556.GA23003@sgi.com>
- <20100125190052.GF5756@random.random>
- <20100125211033.GA24272@sgi.com>
- <20100125211615.GH5756@random.random>
- <20100126212904.GE6653@sgi.com>
- <20100126213853.GY30452@random.random>
- <20100128031841.GG6616@sgi.com>
- <20100128034943.GH6616@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100128034943.GH6616@sgi.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A14AE6B0047
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 05:34:25 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0SAYNA9010490
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 28 Jan 2010 19:34:23 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DCEDF45DE4F
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:34:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B037945DE4E
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:34:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BA521DB803C
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:34:22 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 53B291DB8037
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:34:22 +0900 (JST)
+Date: Thu, 28 Jan 2010 19:30:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v4 1/2] sysctl clean up vm related variable declarations
+Message-Id: <20100128193057.41523885.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1001280048110.15953@chino.kir.corp.google.com>
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100126151202.75bd9347.akpm@linux-foundation.org>
+	<20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100126161952.ee267d1c.akpm@linux-foundation.org>
+	<20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100127153053.b8a8a1a1.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100127153232.f8efc531.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.1001280048110.15953@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Robin Holt <holt@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>, cl@linux-foundation.org, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, minchan.kim@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 27, 2010 at 09:49:44PM -0600, Robin Holt wrote:
-> > I think that with the SRCU patch, we have enough.  Is that true or have
-> > I missed something?
+On Thu, 28 Jan 2010 00:54:49 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
+
+> > ---
+> >  include/linux/mm.h     |    5 +++++
+> >  include/linux/mmzone.h |    1 +
+> >  include/linux/oom.h    |    5 +++++
+> >  kernel/sysctl.c        |   16 ++--------------
+> >  mm/mmap.c              |    5 +++++
+> >  5 files changed, 18 insertions(+), 14 deletions(-)
+> > 
+> > Index: mmotm-2.6.33-Jan15-2/include/linux/mm.h
+> > ===================================================================
+> > --- mmotm-2.6.33-Jan15-2.orig/include/linux/mm.h
+> > +++ mmotm-2.6.33-Jan15-2/include/linux/mm.h
+> > @@ -1432,6 +1432,7 @@ int in_gate_area_no_task(unsigned long a
+> >  #define in_gate_area(task, addr) ({(void)task; in_gate_area_no_task(addr);})
+> >  #endif	/* __HAVE_ARCH_GATE_AREA */
+> >  
+> > +extern int sysctl_drop_caches;
+> >  int drop_caches_sysctl_handler(struct ctl_table *, int,
+> >  					void __user *, size_t *, loff_t *);
+> >  unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+> > @@ -1476,5 +1477,9 @@ extern int soft_offline_page(struct page
+> >  
+> >  extern void dump_page(struct page *page);
+> >  
+> > +#ifndef CONFIG_NOMMU
+> > +extern int sysctl_nr_trim_pages;
 > 
-> I wasn't quite complete in my previous email.  Your srcu patch
-> plus Jack's patch to move the tlb_gather_mmu to after the
-> mmu_notifier_invalidate_range_start().
+> This should be #ifndef CONFIG_MMU.
+> 
+yes...thank you for review.
 
-My pmdp_clear_flush_notify with transparent hugepage will give some
-trouble because it's using mmu_notifier_invalidate_range_start to
-provide backwards compatible API to mmu notifier users like GRU that
-may be mapping physical hugepages with 4k secondary tlb mappings
-(which have to be all invalidated not only the first one). So that
-would still require the full series as it's like if the rmap code
-would be using mmu_notifier_invalidate_range_start. But we can
-probably get away by forcing all mmu notifier methods to provide a
-mmu_notifier_invalidate_hugepage.
-
-But in addition to srcu surely you also need i_mmap_lock_to_sem for
-unmap_mapping_range_vma taking i_mmap_lock, basically you missed
-truncate. Which then in cascade requires free_pgtables,
-rwsem-contended, unmap_vmas (the latter are for the tlb gather
-required to be in atomic context to avoid scheduling to other cpus
-while holding the tlb gather).
-
-So you only avoid the need of anon-vma switching to rwsem (because
-there's no range-vmtruncate but only rmap uses it on a page-by-page
-basis with mmu_notifier_invalidate_page). So at that point IMHO you
-can as well add a CONFIG_MMU_NOTIFIER_SLEEPABLE and allow scheduling
-everywhere in mmu notifier IMHO, but if you prefer to avoid changing
-anon_vma lock to rwsem and add refcounting that is ok with me too. I
-just think it'd be cleaner to switch them all to sleepable code if we
-have to provide for it and most of the work on the i_mmap_lock side is
-mandatory anyway.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
