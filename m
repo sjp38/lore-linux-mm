@@ -1,49 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E90096B00A9
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:38 -0500 (EST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5033B6B00A5
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:41 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 24 of 31] kvm mmu transparent hugepage support
-Message-Id: <3cbe3e4bf941d72144fa.1264689218@v2.random>
+Subject: [PATCH 11 of 31] comment reminder in destroy_compound_page
+Message-Id: <0a5fd4e7fa7cd2f2d171.1264689205@v2.random>
 In-Reply-To: <patchbomb.1264689194@v2.random>
 References: <patchbomb.1264689194@v2.random>
-Date: Thu, 28 Jan 2010 15:33:38 +0100
+Date: Thu, 28 Jan 2010 15:33:25 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-From: Marcelo Tosatti <mtosatti@redhat.com>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-This should work for both hugetlbfs and transparent hugepages.
+Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
+on its internal behavior.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -489,6 +489,15 @@ static int host_mapping_level(struct kvm
- out:
- 	up_read(&current->mm->mmap_sem);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -311,6 +311,7 @@ void prep_compound_page(struct page *pag
+ 	}
+ }
  
-+	/* check for transparent hugepages */
-+	if (page_size == PAGE_SIZE) {
-+		struct page *page = gfn_to_page(kvm, gfn);
-+
-+		if (!is_error_page(page) && PageHead(page))
-+			page_size = KVM_HPAGE_SIZE(2);
-+		kvm_release_page_clean(page);
-+	}
-+
- 	for (i = PT_PAGE_TABLE_LEVEL;
- 	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
- 		if (page_size >= KVM_HPAGE_SIZE(i))
++/* update __split_huge_page_refcount if you change this function */
+ static int destroy_compound_page(struct page *page, unsigned long order)
+ {
+ 	int i;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
