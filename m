@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E97EF6B0082
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id D9B6B6B007D
 	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:19 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 02 of 31] compound_lock
-Message-Id: <f4d281ae108e4ac7b720.1264689196@v2.random>
+Subject: [PATCH 27 of 31] pmd_trans_huge migrate bugcheck
+Message-Id: <356ea2db042eb27fc671.1264689221@v2.random>
 In-Reply-To: <patchbomb.1264689194@v2.random>
 References: <patchbomb.1264689194@v2.random>
-Date: Thu, 28 Jan 2010 15:33:16 +0100
+Date: Thu, 28 Jan 2010 15:33:41 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,80 +18,57 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add a new compound_lock() needed to serialize put_page against
-__split_huge_page_refcount().
+No pmd_trans_huge should ever materialize in migration ptes areas, because
+we split the hugepage before migration ptes are instantiated.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -12,6 +12,7 @@
- #include <linux/prio_tree.h>
- #include <linux/debug_locks.h>
- #include <linux/mm_types.h>
-+#include <linux/bit_spinlock.h>
- 
- struct mempolicy;
- struct anon_vma;
-@@ -294,6 +295,20 @@ static inline int is_vmalloc_or_module_a
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -107,6 +107,10 @@ static inline int PageTransHuge(struct p
+ 	VM_BUG_ON(PageTail(page));
+ 	return PageHead(page);
  }
- #endif
- 
-+static inline void compound_lock(struct page *page)
++static inline int PageTransCompound(struct page *page)
 +{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_lock(PG_compound_lock, &page->flags);
-+#endif
++	return PageCompound(page);
 +}
-+
-+static inline void compound_unlock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_unlock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
- static inline struct page *compound_head(struct page *page)
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define transparent_hugepage_enabled(__vma) 0
+ #define transparent_hugepage_defrag(__vma) 0
+@@ -124,6 +128,7 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++#define PageTransCompound(page) 0
+ static inline int hugepage_madvise(unsigned long *vm_flags)
  {
- 	if (unlikely(PageTail(page)))
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -108,6 +108,9 @@ enum pageflags {
- #ifdef CONFIG_MEMORY_FAILURE
- 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	PG_compound_lock,
-+#endif
- 	__NR_PAGEFLAGS,
+ 	BUG_ON(0);
+diff --git a/mm/migrate.c b/mm/migrate.c
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -99,6 +99,7 @@ static int remove_migration_pte(struct p
+ 		goto out;
  
- 	/* Filesystems */
-@@ -399,6 +402,12 @@ static inline void __ClearPageTail(struc
- #define __PG_MLOCKED		0
- #endif
+ 	pmd = pmd_offset(pud, addr);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (!pmd_present(*pmd))
+ 		goto out;
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
-+#else
-+#define __PG_COMPOUND_LOCK		0
-+#endif
+@@ -819,6 +820,10 @@ static int do_move_page_to_node_array(st
+ 		if (PageReserved(page) || PageKsm(page))
+ 			goto put_and_set;
+ 
++		if (unlikely(PageTransCompound(page)))
++			if (unlikely(split_huge_page(page)))
++				goto put_and_set;
 +
- /*
-  * Flags checked when a page is freed.  Pages being freed should not have
-  * these flags set.  It they are, there is a problem.
-@@ -408,7 +417,8 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
-+	 __PG_COMPOUND_LOCK)
+ 		pp->page = page;
+ 		err = page_to_nid(page);
  
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
