@@ -1,82 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A14AE6B0047
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 05:34:25 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0SAYNA9010490
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 28 Jan 2010 19:34:23 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DCEDF45DE4F
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:34:22 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B037945DE4E
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:34:22 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BA521DB803C
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:34:22 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 53B291DB8037
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:34:22 +0900 (JST)
-Date: Thu, 28 Jan 2010 19:30:57 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v4 1/2] sysctl clean up vm related variable declarations
-Message-Id: <20100128193057.41523885.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1001280048110.15953@chino.kir.corp.google.com>
-References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100126151202.75bd9347.akpm@linux-foundation.org>
-	<20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100126161952.ee267d1c.akpm@linux-foundation.org>
-	<20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100127153053.b8a8a1a1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100127153232.f8efc531.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1001280048110.15953@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 363D06B0047
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 06:40:10 -0500 (EST)
+Date: Thu, 28 Jan 2010 12:39:15 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 28 of 30] memcg huge memory
+Message-ID: <20100128113915.GH24242@random.random>
+References: <patchbomb.1264054824@v2.random>
+ <4c405faf58cfe5d1aa6e.1264054852@v2.random>
+ <20100121161601.6612fd79.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100121160807.GB5598@random.random>
+ <20100122091317.39db5546.kamezawa.hiroyu@jp.fujitsu.com>
+ <4B602304.9000709@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B602304.9000709@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, minchan.kim@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jan 2010 00:54:49 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
-
-> > ---
-> >  include/linux/mm.h     |    5 +++++
-> >  include/linux/mmzone.h |    1 +
-> >  include/linux/oom.h    |    5 +++++
-> >  kernel/sysctl.c        |   16 ++--------------
-> >  mm/mmap.c              |    5 +++++
-> >  5 files changed, 18 insertions(+), 14 deletions(-)
+On Wed, Jan 27, 2010 at 04:57:00PM +0530, Balbir Singh wrote:
+> On Friday 22 January 2010 05:43 AM, KAMEZAWA Hiroyuki wrote:
 > > 
-> > Index: mmotm-2.6.33-Jan15-2/include/linux/mm.h
-> > ===================================================================
-> > --- mmotm-2.6.33-Jan15-2.orig/include/linux/mm.h
-> > +++ mmotm-2.6.33-Jan15-2/include/linux/mm.h
-> > @@ -1432,6 +1432,7 @@ int in_gate_area_no_task(unsigned long a
-> >  #define in_gate_area(task, addr) ({(void)task; in_gate_area_no_task(addr);})
-> >  #endif	/* __HAVE_ARCH_GATE_AREA */
-> >  
-> > +extern int sysctl_drop_caches;
-> >  int drop_caches_sysctl_handler(struct ctl_table *, int,
-> >  					void __user *, size_t *, loff_t *);
-> >  unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
-> > @@ -1476,5 +1477,9 @@ extern int soft_offline_page(struct page
-> >  
-> >  extern void dump_page(struct page *page);
-> >  
-> > +#ifndef CONFIG_NOMMU
-> > +extern int sysctl_nr_trim_pages;
+> >> Now the only real pain remains in the LRU list accounting, I tried to
+> >> solve it but found no clean way that didn't require mess all over
+> >> vmscan.c. So for now hugepages in lru are accounted as 4k pages
+> >> ;). Nothing breaks just stats won't be as useful to the admin...
+> >>
+> > Hmm, interesting/important problem...I keep it in my mind.
 > 
-> This should be #ifndef CONFIG_MMU.
-> 
-yes...thank you for review.
+> I hope the memcg accounting is not broken, I see you do the right thing
+> while charging pages. The patch overall seems alright. Could you please
+> update the Documentation/cgroups/memory.txt file as well with what these
+> changes mean and memcg_tests.txt to indicate how to test the changes?
 
-Thanks,
--Kame
+Where exactly does that memory.txt go into the implementation details?
+Grepping the function names I changed over that file leads to
+nothing. It doesn't seem to be covering internals at all. The other
+file only place that shows some function names I could see needing an
+update is this:
+
+     At try_charge(), there are no flags to say "this page is
+     charged".
+     at this point, usage += PAGE_SIZE.
+
+     At commit(), the function checks the page should be charged or
+     not
+     and set flags or avoid charging.(usage -= PAGE_SIZE)
+
+     At cancel(), simply usage -= PAGE_SIZE.
+
+but it won't go into much more details than this, so I can only
+imagine to add this, explaining how the real page size is obtained and
+if I would go into the compound page accounting explanation that
+probably would bring it to a detail level that file didn't have in the
+first place.
+
+But again I'm very confused on what exactly you expect me to update on
+that file, so if below isn't ok best would be that you send me a patch
+to integrate with your signoff. That would be the preferred way to me.
+
+Thanks!
+Andrea
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -4,6 +4,10 @@ NOTE: The Memory Resource Controller has
+ to as the memory controller in this document. Do not confuse memory controller
+ used here with the memory controller that is used in hardware.
+ 
++NOTE: When in this documentation we refer to PAGE_SIZE, we actually
++mean the real page size of the page being accounted which is bigger than
++PAGE_SIZE for compound pages.
++
+ Salient features
+ 
+ a. Enable control of Anonymous, Page Cache (mapped and unmapped) and
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
