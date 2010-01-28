@@ -1,98 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0B81D6B00C3
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:57 -0500 (EST)
-Content-Type: text/plain; charset="us-ascii"
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Subject: [PATCH 21 of 31] split_huge_page_mm/vma
-Message-Id: <7b48266c6c48b8d8e7d4.1264689215@v2.random>
-In-Reply-To: <patchbomb.1264689194@v2.random>
-References: <patchbomb.1264689194@v2.random>
-Date: Thu, 28 Jan 2010 15:33:35 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 16C0D6B00C5
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 10:20:59 -0500 (EST)
+Date: Thu, 28 Jan 2010 16:20:48 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] - Fix unmap_vma() bug related to mmu_notifiers
+Message-ID: <20100128152048.GA1217@random.random>
+References: <20100125174556.GA23003@sgi.com>
+ <20100125190052.GF5756@random.random>
+ <20100125211033.GA24272@sgi.com>
+ <20100125211615.GH5756@random.random>
+ <20100126212904.GE6653@sgi.com>
+ <20100126213853.GY30452@random.random>
+ <20100128031841.GG6616@sgi.com>
+ <20100128034943.GH6616@sgi.com>
+ <20100128100327.GF24242@random.random>
+ <20100128132503.GJ6616@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100128132503.GJ6616@sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
+To: Robin Holt <holt@sgi.com>
+Cc: Jack Steiner <steiner@sgi.com>, cl@linux-foundation.org, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+On Thu, Jan 28, 2010 at 07:25:03AM -0600, Robin Holt wrote:
+> The GRU is using a hardware TLB of 2MB page size when the
+> is_vm_hugetlb_page() indicates it is a 2MB vma.  From my reading of it,
+> your callout to mmu_notifier_invalidate_page() will work for gru and I
+> think it will work for XPMEM as well, but I am not certain of that yet.
+> I am certain that it can be made to work for XPMEM.  I think using the
+> range callouts are actually worse because now we are mixing the conceptual
+> uses of page and range.
 
-split_huge_page_mm/vma compat code. Each one of those would need to be expanded
-to hundred of lines of complex code without a fully reliable
-split_huge_page_mm/vma functionality.
+KVM also will obviously be fine, the whole point of transparent
+hugepage support is to allow mapping 2M tlb and 2M shadow pages in the
+spmd... In fact I'm already calling the 4k callout for the 2M
+pmdp_flush_clear_young_notify... because worst case that won't cash
+but only swap less smart. However at the moment start/stop is just
+safer... and gives more peace of mind and they can't schedule
+anyway... but I surely would prefer a single call too, if nothing else
+for performance reasons. Said that it's definitely not a fast path
+worth worrying about for KVM.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
----
+Even the tlb_flush of pmdp_*flush on x86 is a range flush in
+transparent huegepage support because I found errata that invlpg isn't
+ok to flush PSE tlb on some cpus but then I didn't check the details,
+I just wanted less risk right now, later it can be optimized (worst
+case dependent on cpuid).
 
-diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
---- a/arch/x86/kernel/vm86_32.c
-+++ b/arch/x86/kernel/vm86_32.c
-@@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm
- 	if (pud_none_or_clear_bad(pud))
- 		goto out;
- 	pmd = pmd_offset(pud, 0xA0000);
-+	split_huge_page_mm(mm, 0xA0000, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		goto out;
- 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -446,6 +446,7 @@ static inline int check_pmd_range(struct
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_vma(vma, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		if (check_pte_range(vma, pmd, addr, next, nodes,
-diff --git a/mm/mincore.c b/mm/mincore.c
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -132,6 +132,7 @@ static long do_mincore(unsigned long add
- 	if (pud_none_or_clear_bad(pud))
- 		goto none_mapped;
- 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_vma(vma, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		goto none_mapped;
- 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -89,6 +89,7 @@ static inline void change_pmd_range(stru
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_mm(mm, addr, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
-diff --git a/mm/mremap.c b/mm/mremap.c
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -42,6 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
- 		return NULL;
- 
- 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_mm(mm, addr, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		return NULL;
- 
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -34,6 +34,7 @@ static int walk_pmd_range(pud_t *pud, un
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_mm(walk->mm, addr, pmd);
- 		if (pmd_none_or_clear_bad(pmd)) {
- 			if (walk->pte_hole)
- 				err = walk->pte_hole(addr, next, walk);
+Note also that pmdp_splitting_flush_notify probably can drop the
+_notify part. As long as there is symmetry with the "pages" returned
+by gup and their respective put_page and you only use the "page" to do
+put_page and get its physical address, there is no need to be notified
+about a split_huge_page. At the moment it seems just a little more
+paranoid but again not a requirement by design because hugepages are
+stable, and only thing that can require an invalidate is a physical
+relocation that only happens during swap (or similar). split_huge_page
+doesn't affect _physical_ at all, and in turn there is in theory no
+need to modify the secondary mmu mappings, when the primary mmu
+mappings are altered. One of the reasons of altering the primary mmu
+mappings is to avoid confusing the code that can't handle huge pmd
+natively and would crash on them, so we virtually split the page to
+show to that code an environment it won't find itself lost.
+
+> I must be missing something key here.  I thought unmap_mapping_range_vma
+> would percolate down to calling mmu_notifier_invalidate_page() which
+> xpmem can sleep in.  Based upon that assumption, I don't see the
+> need for the other patches.
+
+unmap_mapping_range takes i_mmap_lock (spinlock) and then calls
+zap_page_range that calls unmap_vmas under spinlock, that leads to
+mmu_notifier_invalidate_range_start under i_mmap_lock. That only
+happens for truncate... That was also the reason that Christioph's
+first patchset had a sleep parameter in its version of
+mmu_notifier_invalidate_something(sleep) (and sleep=0 was passed when
+it was called inside truncate IIRC).
+
+> I don't see the mandatory part here.  Maybe it is your broken english
+
+Eheh, my english so bad ah... :(. And my writing is probably better
+than my pronunciation ;)
+
+> combined with my ignorance, but I do not see what the statement
+> "i_mmap_lock side is mandatory" is based upon.  It looks to me like
+
+Tried to explain again above, hope it is clearer this time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
