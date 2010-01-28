@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9512F6B0096
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:25 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 2D82D6B0095
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:29 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 26 of 31] madvise(MADV_HUGEPAGE)
-Message-Id: <214351b4885809bab75a.1264689220@v2.random>
+Subject: [PATCH 04 of 31] update futex compound knowledge
+Message-Id: <2503a08ae3183f675931.1264689198@v2.random>
 In-Reply-To: <patchbomb.1264689194@v2.random>
 References: <patchbomb.1264689194@v2.random>
-Date: Thu, 28 Jan 2010 15:33:40 +0100
+Date: Thu, 28 Jan 2010 15:33:18 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,108 +18,112 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add madvise MADV_HUGEPAGE to mark regions that are important to be hugepage
-backed. Return -EINVAL if the vma is not of an anonymous type, or the feature
-isn't built into the kernel. Never silently return success.
+Futex code is smarter than most other gup_fast O_DIRECT code and knows about
+the compound internals. However now doing a put_page(head_page) will not
+release the pin on the tail page taken by gup-fast, leading to all sort of
+refcounting bugchecks. Getting a stable head_page is a little tricky.
+
+page_head = page is there because if this is not a tail page it's also the
+page_head. Only in case this is a tail page, compound_head is called, otherwise
+it's guaranteed unnecessary. And if it's a tail page compound_head has to run
+atomically inside irq disabled section __get_user_pages_fast before returning.
+Otherwise ->first_page won't be a stable pointer.
+
+Disableing irq before __get_user_page_fast and releasing irq after running
+compound_head is needed because if __get_user_page_fast returns == 1, it means
+the huge pmd is established and cannot go away from under us.
+pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
+for local_irq_enable before the IPI delivery can return. This means
+__split_huge_page_refcount can't be running from under us, and in turn when we
+run compound_head(page) we're not reading a dangling pointer from
+tailpage->first_page. Then after we get to stable head page, we are always safe
+to call compound_lock and after taking the compound lock on head page we can
+finally re-check if the page returned by gup-fast is still a tail page. in
+which case we're set and we didn't need to split the hugepage in order to take
+a futex on it.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -101,6 +101,7 @@ extern int split_huge_page(struct page *
- #endif
- 
- extern unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
-+extern int hugepage_madvise(unsigned long *vm_flags);
- static inline int PageTransHuge(struct page *page)
+diff --git a/kernel/futex.c b/kernel/futex.c
+--- a/kernel/futex.c
++++ b/kernel/futex.c
+@@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
  {
- 	VM_BUG_ON(PageTail(page));
-@@ -123,6 +124,11 @@ static inline int split_huge_page(struct
- #define wait_split_huge_page(__anon_vma, __pmd)	\
- 	do { } while (0)
- #define PageTransHuge(page) 0
-+static inline int hugepage_madvise(unsigned long *vm_flags)
-+{
-+	BUG_ON(0);
-+	return 0;
-+}
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 	unsigned long address = (unsigned long)uaddr;
+ 	struct mm_struct *mm = current->mm;
+-	struct page *page;
++	struct page *page, *page_head;
+ 	int err;
  
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -465,9 +465,11 @@ int do_huge_pmd_wp_page(struct mm_struct
- 		put_page(new_page);
- 		new_page = NULL;
- 	}
--	if (unlikely(!new_page))
--		return do_huge_pmd_wp_page_fallback(mm, vma, address,
--						    pmd, orig_pmd, page, haddr);
-+	if (unlikely(!new_page)) {
-+		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
-+						   pmd, orig_pmd, page, haddr);
-+		goto out;
-+	}
+ 	/*
+@@ -250,10 +250,36 @@ again:
+ 	if (err < 0)
+ 		return err;
  
- 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
-@@ -497,6 +499,7 @@ int do_huge_pmd_wp_page(struct mm_struct
- 	}
- out_unlock:
- 	spin_unlock(&mm->page_table_lock);
-+out:
- 	return ret;
- }
- 
-@@ -847,3 +850,19 @@ out_unlock:
- out:
- 	return ret;
- }
-+
-+int hugepage_madvise(unsigned long *vm_flags)
-+{
-+	/*
-+	 * Be somewhat over-protective like KSM for now!
-+	 */
-+	if (*vm_flags & (VM_HUGEPAGE | VM_SHARED  | VM_MAYSHARE   |
-+			 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
-+			 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
-+			 VM_MIXEDMAP | VM_SAO))
-+		return -EINVAL;
-+
-+	*vm_flags |= VM_HUGEPAGE;
-+
-+	return 0;
-+}
-diff --git a/mm/madvise.c b/mm/madvise.c
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -71,6 +71,11 @@ static long madvise_behavior(struct vm_a
- 		if (error)
- 			goto out;
- 		break;
-+	case MADV_HUGEPAGE:
-+		error = hugepage_madvise(&new_flags);
-+		if (error)
-+			goto out;
-+		break;
- 	}
- 
- 	if (new_flags == vma->vm_flags) {
-@@ -283,6 +288,9 @@ madvise_behavior_valid(int behavior)
- 	case MADV_MERGEABLE:
- 	case MADV_UNMERGEABLE:
- #endif
+-	page = compound_head(page);
+-	lock_page(page);
+-	if (!page->mapping) {
+-		unlock_page(page);
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	case MADV_HUGEPAGE:
++	page_head = page;
++	if (unlikely(PageTail(page))) {
++		put_page(page);
++		/* serialize against __split_huge_page_splitting() */
++		local_irq_disable();
++		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
++			page_head = compound_head(page);
++			local_irq_enable();
++		} else {
++			local_irq_enable();
++			goto again;
++		}
++	}
++#else
++	page_head = compound_head(page);
 +#endif
- 		return 1;
++
++	lock_page(page_head);
++	if (unlikely(page_head != page)) {
++		compound_lock(page_head);
++		if (unlikely(!PageTail(page))) {
++			compound_unlock(page_head);
++			unlock_page(page_head);
++			put_page(page);
++			goto again;
++		}
++	}
++	if (!page_head->mapping) {
++		unlock_page(page_head);
+ 		put_page(page);
+ 		goto again;
+ 	}
+@@ -265,19 +291,21 @@ again:
+ 	 * it's a read-only handle, it's expected that futexes attach to
+ 	 * the object not the particular process.
+ 	 */
+-	if (PageAnon(page)) {
++	if (PageAnon(page_head)) {
+ 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
+ 		key->private.mm = mm;
+ 		key->private.address = address;
+ 	} else {
+ 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+-		key->shared.inode = page->mapping->host;
+-		key->shared.pgoff = page->index;
++		key->shared.inode = page_head->mapping->host;
++		key->shared.pgoff = page_head->index;
+ 	}
  
- 	default:
+ 	get_futex_key_refs(key);
+ 
+-	unlock_page(page);
++	if (unlikely(PageTail(page)))
++		compound_unlock(page_head);
++	unlock_page(page_head);
+ 	put_page(page);
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
