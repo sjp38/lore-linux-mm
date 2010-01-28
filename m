@@ -1,96 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D0D996B0089
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 10:50:12 -0500 (EST)
-Message-ID: <4B61B00D.7070202@zytor.com>
-Date: Thu, 28 Jan 2010 07:41:01 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E95736B008C
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 10:58:28 -0500 (EST)
+Date: Thu, 28 Jan 2010 16:57:58 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 04 of 31] update futex compound knowledge
+Message-ID: <20100128155758.GF1217@random.random>
+References: <patchbomb.1264513915@v2.random>
+ <948638099c17d3da3d6f.1264513919@v2.random>
+ <20100126183706.GI16468@csn.ul.ie>
+ <20100127194504.GA13766@random.random>
+ <20100128153357.GC7139@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [Security] DoS on x86_64
-References: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com> <20100128001802.8491e8c1.akpm@linux-foundation.org>
-In-Reply-To: <20100128001802.8491e8c1.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100128153357.GC7139@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mathias Krause <minipli@googlemail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, security@kernel.org, Mike Waychison <mikew@google.com>, Michael Davidson <md@google.com>, "Luck, Tony" <tony.luck@intel.com>, Roland McGrath <roland@redhat.com>, James Morris <jmorris@namei.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 01/28/2010 12:18 AM, Andrew Morton wrote:
-> On Thu, 28 Jan 2010 08:34:02 +0100 Mathias Krause <minipli@googlemail.com> wrote:
+On Thu, Jan 28, 2010 at 03:33:57PM +0000, Mel Gorman wrote:
+> On Wed, Jan 27, 2010 at 08:45:04PM +0100, Andrea Arcangeli wrote:
+> > On Tue, Jan 26, 2010 at 06:37:07PM +0000, Mel Gorman wrote:
+> > > I'm not fully getting from the changelog why the second round through
+> > > __get_user_pages_fast() is necessary or why the write parameter is
+> > > unconditionally 1.
+> > 
+> > The write parameter is unconditionally to 1 because the first gup_fast
+> > already existing had it unconditionally set to 1, it's not relevant
+> > with this change.
+> > 
 > 
->> I found by accident an reliable way to panic the kernel on an x86_64  
->> system. Since this one can be triggered by an unprivileged user I  
->> CCed security@kernel.org. I also haven't found a corresponding bug on  
->> bugzilla.kernel.org. So, what to do to trigger the bug:
->>
->> 1. Enable core dumps
->> 2. Start an 32 bit program that tries to execve() an 64 bit program
->> 3. The 64 bit program cannot be started by the kernel because it  
->> can't find the interpreter, i.e. execve returns with an error
->> 4. Generate a segmentation fault
->> 5. panic
-> 
-> hrm, isn't this the same as "failed exec() leaves caller with incorrect
-> personality", discussed in December? afacit nothing happened as a result
-> of that.
+> hmm, really? I was seeing rw == VERIFY_WRITE rather than an
+> unconditional. I'll double check the kernel version I'm reading against
+> when I read the next review.
 
-Yes, it is.  We closed the ptrace-related hole which made it exploitable
-as something more than a DoS, but it got stalled out a bit at that point.
+No problem ;) and now I get why asked it, in my current version (last
+pull) the code is:
 
-Funny enough I talked to Ralf about the whole situation as late as
-yesterday.  I did a bunch of digging into this about how to fix it
-properly -- the code is infernally screwed up because of the compat
-macro layer.
+again:
+	err = get_user_pages_fast(address, 1, 1, &page);
 
-This is what it looks like from my point of view:
+Clearly if the above would have been rw == VERIFY_WRITE I would have
+not used 1 in the __ irq disabled callout.
 
-- At some point in the past, some personalities would play games with
-the filename space in order to provide a separate namespace for
-libraries.  As a result, we had to at least partially switch
-personalities before looking up the interpreter.
+> Do please. That explanation helps a lot.
 
-- There is no cleanup macro!  The personality switch macro is supposed
-to use an arch-specific deferred state change in order to handle
-irreversible changes, but even setting a deferral bit can be a state
-leak which could cause an exec to malfunction later.
-
-- *As far as I have been able to discern*, there aren't actually any
-architectures which use personalities which muck with the namespace
-anymore.  The x86 layer in IA64, in particular, used to do it, but that
-code has been dead for a while; similar with the iBCS2 layer in i386.
-
-- In my opinion, we should defer the personality switch until we have
-passed the point of no return.
-
-- The actual point of no return in the case of binfmt_elf.c is inside
-the subroutine flush_old_exec() [which makes sense - the actual process
-switch shouldn't be dependent on the binfmt] which isn't subject to
-compat-level macro munging.
-
-- The "right thing" probably is replacing the compat macros with an ops
-struct.  Replacing the SET_PERSONALITY() macro with a function pointer
-would make it possible to pass it as a function pointer to
-flush_old_exec() -- the current implementation as macros makes that
-impossible.
-
-- The only other realistic option seems to be to have a new macro to
-clean up the effects of SET_PERSONALITY() and add it to all failure
-paths.  This can be done more straightforward than it sounds by moving
-SET_PERSONALITY() down to just before flush_old_exec(), and then the
-cleanup macro would be executed onto the (retval).
-
-- Either way, this is a panarchitectural change, involving some pretty
-grotty code in the form of the compat macros.
-
-I guess I should do the x86 implementation of one of these, but I don't
-see any way to fix the actual problem without touching every architecture.
-
-	-hpa
-
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+Glad it helps despite my broken english eheh, already included in #8
+submit ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
