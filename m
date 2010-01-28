@@ -1,42 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id F09DB6004A8
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 14:56:39 -0500 (EST)
-Message-Id: <20100128195627.373584000@alcatraz.americas.sgi.com>
-Date: Thu, 28 Jan 2010 13:56:27 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: [RFP 0/3] Make mmu_notifier_invalidate_range_start able to sleep.
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 538956B008A
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 15:43:51 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH 01 of 31] define MADV_HUGEPAGE
+Date: Thu, 28 Jan 2010 21:30:30 +0100
+References: <patchbomb.1264689194@v2.random> <3fbe1ac741ce289f2585.1264689195@v2.random>
+In-Reply-To: <3fbe1ac741ce289f2585.1264689195@v2.random>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001282130.30144.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This proposed set of patches is three parts.  The first changes
-mmu_notifiers over to using srcu instead of rcu, the second move the
-tlb_gather_mmu after the mmu_notifier_invalidate_range_start, and the
-last allows the truncate call to zap_page_range work in an atomic context.
+On Thursday 28 January 2010, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> Define MADV_HUGEPAGE.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-The atomic context is accomplished by unlocking the i_mmap_lock and then
-making a second call into mmu_notifier_invalidate_range_start().
-
-Signed-off-by: Robin Holt <holt@sgi.com>
-Cc: Jack Steiner <steiner@sgi.com>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org
-
----
-
- include/linux/mm.h           |    2 -
- include/linux/mmu_notifier.h |   20 +++++++-----
- include/linux/srcu.h         |    2 +
- mm/fremap.c                  |    2 -
- mm/hugetlb.c                 |    2 -
- mm/memory.c                  |   36 ++++++++++++++++------
- mm/mmap.c                    |    6 +--
- mm/mmu_notifier.c            |   69 ++++++++++++++++++++++++++-----------------
- mm/mprotect.c                |    2 -
- mm/mremap.c                  |    2 -
- 10 files changed, 90 insertions(+), 53 deletions(-)
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
