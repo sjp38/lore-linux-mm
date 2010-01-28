@@ -1,90 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0749A6B0047
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 08:25:07 -0500 (EST)
-Date: Thu, 28 Jan 2010 07:25:03 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] - Fix unmap_vma() bug related to mmu_notifiers
-Message-ID: <20100128132503.GJ6616@sgi.com>
-References: <20100125174556.GA23003@sgi.com>
- <20100125190052.GF5756@random.random>
- <20100125211033.GA24272@sgi.com>
- <20100125211615.GH5756@random.random>
- <20100126212904.GE6653@sgi.com>
- <20100126213853.GY30452@random.random>
- <20100128031841.GG6616@sgi.com>
- <20100128034943.GH6616@sgi.com>
- <20100128100327.GF24242@random.random>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 645686B0047
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:11 -0500 (EST)
+Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100128100327.GF24242@random.random>
+Content-Transfer-Encoding: 7bit
+Subject: [PATCH 30 of 31] transparent hugepage vmstat
+Message-Id: <1b17fea63e1decd00b12.1264689224@v2.random>
+In-Reply-To: <patchbomb.1264689194@v2.random>
+References: <patchbomb.1264689194@v2.random>
+Date: Thu, 28 Jan 2010 15:33:44 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Robin Holt <holt@sgi.com>, Jack Steiner <steiner@sgi.com>, cl@linux-foundation.org, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 28, 2010 at 11:03:27AM +0100, Andrea Arcangeli wrote:
-> On Wed, Jan 27, 2010 at 09:49:44PM -0600, Robin Holt wrote:
-> > > I think that with the SRCU patch, we have enough.  Is that true or have
-> > > I missed something?
-> > 
-> > I wasn't quite complete in my previous email.  Your srcu patch
-> > plus Jack's patch to move the tlb_gather_mmu to after the
-> > mmu_notifier_invalidate_range_start().
-> 
-> My pmdp_clear_flush_notify with transparent hugepage will give some
-> trouble because it's using mmu_notifier_invalidate_range_start to
-> provide backwards compatible API to mmu notifier users like GRU that
-> may be mapping physical hugepages with 4k secondary tlb mappings
-> (which have to be all invalidated not only the first one). So that
-> would still require the full series as it's like if the rmap code
-> would be using mmu_notifier_invalidate_range_start. But we can
-> probably get away by forcing all mmu notifier methods to provide a
-> mmu_notifier_invalidate_hugepage.
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-The GRU is using a hardware TLB of 2MB page size when the
-is_vm_hugetlb_page() indicates it is a 2MB vma.  From my reading of it,
-your callout to mmu_notifier_invalidate_page() will work for gru and I
-think it will work for XPMEM as well, but I am not certain of that yet.
-I am certain that it can be made to work for XPMEM.  I think using the
-range callouts are actually worse because now we are mixing the conceptual
-uses of page and range.
+Add hugepage stat information to /proc/vmstat and /proc/meminfo.
 
-> But in addition to srcu surely you also need i_mmap_lock_to_sem for
-> unmap_mapping_range_vma taking i_mmap_lock, basically you missed
-> truncate. Which then in cascade requires free_pgtables,
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+---
 
-I must be missing something key here.  I thought unmap_mapping_range_vma
-would percolate down to calling mmu_notifier_invalidate_page() which
-xpmem can sleep in.  Based upon that assumption, I don't see the
-need for the other patches.
-
-> rwsem-contended, unmap_vmas (the latter are for the tlb gather
-> required to be in atomic context to avoid scheduling to other cpus
-> while holding the tlb gather).
-> 
-> So you only avoid the need of anon-vma switching to rwsem (because
-> there's no range-vmtruncate but only rmap uses it on a page-by-page
-> basis with mmu_notifier_invalidate_page). So at that point IMHO you
-> can as well add a CONFIG_MMU_NOTIFIER_SLEEPABLE and allow scheduling
-> everywhere in mmu notifier IMHO, but if you prefer to avoid changing
-> anon_vma lock to rwsem and add refcounting that is ok with me too. I
-> just think it'd be cleaner to switch them all to sleepable code if we
-> have to provide for it and most of the work on the i_mmap_lock side is
-> mandatory anyway.
-
-I don't see the mandatory part here.  Maybe it is your broken english
-combined with my ignorance, but I do not see what the statement
-"i_mmap_lock side is mandatory" is based upon.  It looks to me like
-everywhere that is calling an mmu_notifier_invalidate_* while holding
-the i_mmap_lock is calling mmu_notifier_invalidate_page().  That is
-currently safe for sleeping as far as XPMEM is concerned.  Is there a
-place that is calling mmu_notifier_invalidate_range_*() while holding
-the i_mmap_lock which I have missed?
-
-Thanks,
-Robin
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -101,6 +101,9 @@ static int meminfo_proc_show(struct seq_
+ #ifdef CONFIG_MEMORY_FAILURE
+ 		"HardwareCorrupted: %5lu kB\n"
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		"AnonHugePages:  %8lu kB\n"
++#endif
+ 		,
+ 		K(i.totalram),
+ 		K(i.freeram),
+@@ -151,6 +154,10 @@ static int meminfo_proc_show(struct seq_
+ #ifdef CONFIG_MEMORY_FAILURE
+ 		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
++		   HPAGE_PMD_NR)
++#endif
+ 		);
+ 
+ 	hugetlb_report_meminfo(m);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -112,6 +112,7 @@ enum zone_stat_item {
+ 	NUMA_LOCAL,		/* allocation from local node */
+ 	NUMA_OTHER,		/* allocation from other node */
+ #endif
++	NR_ANON_TRANSPARENT_HUGEPAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+ /*
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -720,6 +720,9 @@ static void __split_huge_page_refcount(s
+ 		put_page(page_tail);
+ 	}
+ 
++	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
++
+ 	ClearPageCompound(page);
+ 	compound_unlock(page);
+ 	spin_unlock_irq(&zone->lru_lock);
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -687,8 +687,13 @@ void page_add_anon_rmap(struct page *pag
+ 	struct vm_area_struct *vma, unsigned long address)
+ {
+ 	int first = atomic_inc_and_test(&page->_mapcount);
+-	if (first)
+-		__inc_zone_page_state(page, NR_ANON_PAGES);
++	if (first) {
++		if (!PageTransHuge(page))
++			__inc_zone_page_state(page, NR_ANON_PAGES);
++		else
++			__inc_zone_page_state(page,
++					      NR_ANON_TRANSPARENT_HUGEPAGES);
++	}
+ 	if (unlikely(PageKsm(page)))
+ 		return;
+ 
+@@ -716,7 +721,10 @@ void page_add_new_anon_rmap(struct page 
+ 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+ 	SetPageSwapBacked(page);
+ 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+-	__inc_zone_page_state(page, NR_ANON_PAGES);
++	if (!PageTransHuge(page))
++	    __inc_zone_page_state(page, NR_ANON_PAGES);
++	else
++	    __inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+ 	__page_set_anon_rmap(page, vma, address);
+ 	if (page_evictable(page, vma))
+ 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
+@@ -763,7 +771,11 @@ void page_remove_rmap(struct page *page)
+ 	}
+ 	if (PageAnon(page)) {
+ 		mem_cgroup_uncharge_page(page);
+-		__dec_zone_page_state(page, NR_ANON_PAGES);
++		if (!PageTransHuge(page))
++			__dec_zone_page_state(page, NR_ANON_PAGES);
++		else
++			__dec_zone_page_state(page,
++					      NR_ANON_TRANSPARENT_HUGEPAGES);
+ 	} else {
+ 		__dec_zone_page_state(page, NR_FILE_MAPPED);
+ 		mem_cgroup_update_file_mapped(page, -1);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -655,6 +655,9 @@ static const char * const vmstat_text[] 
+ 	"numa_local",
+ 	"numa_other",
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	"nr_anon_transparent_hugepages",
++#endif
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ 	"pgpgin",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
