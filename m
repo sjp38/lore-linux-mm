@@ -1,37 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F04676B0047
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 20:22:44 -0500 (EST)
-Message-ID: <4B60E6BA.8010303@redhat.com>
-Date: Wed, 27 Jan 2010 20:22:02 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 04AFD6B0047
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 22:18:48 -0500 (EST)
+Date: Wed, 27 Jan 2010 21:18:42 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] - Fix unmap_vma() bug related to mmu_notifiers
+Message-ID: <20100128031841.GG6616@sgi.com>
+References: <20100125174556.GA23003@sgi.com>
+ <20100125190052.GF5756@random.random>
+ <20100125211033.GA24272@sgi.com>
+ <20100125211615.GH5756@random.random>
+ <20100126212904.GE6653@sgi.com>
+ <20100126213853.GY30452@random.random>
 MIME-Version: 1.0
-Subject: Re: [PATCH 30 of 31] transparent hugepage vmstat
-References: <patchbomb.1264513915@v2.random> <d75b849a4142269635e1.1264513945@v2.random> <4B5F72FF.9080204@redhat.com> <20100128010449.GE24242@random.random>
-In-Reply-To: <20100128010449.GE24242@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100126213853.GY30452@random.random>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Robin Holt <holt@sgi.com>, Jack Steiner <steiner@sgi.com>, cl@linux-foundation.org, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/27/2010 08:04 PM, Andrea Arcangeli wrote:
-> On Tue, Jan 26, 2010 at 05:55:59PM -0500, Rik van Riel wrote:
->> Does this have the potential to unbalance the pageout code, by
->> not counting the hugepages at all?  (as opposed to counting a
->> hugepage as 1 page)
->
-> When I checked it looked like this wasn't used by the pageout code.
+On Tue, Jan 26, 2010 at 10:38:53PM +0100, Andrea Arcangeli wrote:
+> On Tue, Jan 26, 2010 at 03:29:04PM -0600, Robin Holt wrote:
+> > On Mon, Jan 25, 2010 at 10:16:15PM +0100, Andrea Arcangeli wrote:
+> > > The old patches are in my ftp area, they should still apply, you
+> > > should concentrate testing with those additional ones applied, then it
+> > > will work for xpmem too ;)
+> > 
+> > Andrea, could you point me at your ftp area?
+> 
+> Sure, this is the very latest version I maintained:
+> 
+> http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.26-rc7/mmu-notifier-v18/
 
-You're right.  I got confused with the stats that the LRU
-code maintains.  31 patches is entirely too much in one
-review sitting :)
+Let me start with what XPMEM currently has.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+We adjusted xpmem so that the mmu_notifier_invalidate_page() callout
+does not need to sleep.  It takes the arguments passed in and adds them
+to a queue for clearing the pages.  We added a seperate kernel thread
+which manages this clearing.
 
--- 
-All rights reversed.
+The mmu_notifier_invalidate_range_end() likewise does not really need
+to sleep either.
+
+That leaves the mmu_notifier_invalidate_range_start() callout.  This does
+not need to drop the mm_sem.  It does need to be able to sleep waiting
+for the invalidations to complete on the other process.  That other
+process may be on a different SSI connected to the same Numalink fabric.
+
+I think that with the SRCU patch, we have enough.  Is that true or have
+I missed something?
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
