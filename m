@@ -1,70 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B5E76B0047
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 02:42:48 -0500 (EST)
-Date: Wed, 27 Jan 2010 23:42:35 -0800 (PST)
-From: Steve VanDeBogart <vandebo-lkml@NerdBox.Net>
-Subject: Re: [PATCH] fs: add fincore(2) (mincore(2) for file descriptors)
-In-Reply-To: <20100126141229.e1a81b29.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.1.00.1001272319530.2909@abydos.NerdBox.Net>
-References: <20100120215712.GO27212@frostnet.net> <20100126141229.e1a81b29.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 930A36B0047
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 03:09:44 -0500 (EST)
+Received: by pzk3 with SMTP id 3so49813pzk.11
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2010 00:09:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+In-Reply-To: <alpine.DEB.1.00.1001272300120.2909@abydos.NerdBox.Net>
+References: <20100120215536.GN27212@frostnet.net>
+	 <20100121054734.GC24236@localhost>
+	 <28c262361001262309x332a895aoa906dda0bc040859@mail.gmail.com>
+	 <alpine.DEB.1.00.1001272300120.2909@abydos.NerdBox.Net>
+Date: Thu, 28 Jan 2010 17:09:43 +0900
+Message-ID: <28c262361001280009u509f169dnc558d013150ca00b@mail.gmail.com>
+Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
+	pages, too
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Frost <frost@cs.ucla.edu>, Heiko Carstens <heiko.carstens@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Benny Halevy <bhalevy@panasas.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Steve VanDeBogart <vandebo-lkml@nerdbox.net>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Chris Frost <frost@cs.ucla.edu>, Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jan 2010, Andrew Morton wrote:
-
-> On Wed, 20 Jan 2010 13:57:12 -0800
-> Chris Frost <frost@cs.ucla.edu> wrote:
+On Thu, Jan 28, 2010 at 4:16 PM, Steve VanDeBogart
+<vandebo-lkml@nerdbox.net> wrote:
+> On Wed, 27 Jan 2010, Minchan Kim wrote:
 >
->> In this patch find_get_page() is called for each page, which in turn
->> calls rcu_read_lock(), for each page. We have found that amortizing
->> these RCU calls, e.g., by introducing a variant of find_get_pages_contig()
->> that does not skip missing pages, can speedup the above microbenchmark
->> by 260x when querying many pages per system call. But we have not observed
->> noticeable improvements to our macrobenchmarks. I'd be happy to also post
->> this change or look further into it, but this seems like a reasonable
->> first patch, at least.
+>> This patch effect happens when inactive file list is small, I think.
+>> It means it's high memory pressure. so if we move ra pages into
 >
-> I must say, the syscall appeals to my inner geek.  Lot of applications
-> are leaving a lot of time on the floor due to bad disk access patterns.
-> A really smart library which uses this facility could help all over
-> the place.
+> This patch does the same thing regardless of memory pressure - it
+> doesn't just apply in high memory pressure situations. =C2=A0Is your conc=
+ern
+> that in high memory pressure situations this patch with make things worse=
+?
+
+Yes.
+
 >
-> Is it likely that these changes to SQLite and Gimp would be merged into
-> the upstream applications?
-
-Changes to the GIMP fit nicely into the code structure, so it's feasible
-to push this kind of optimization upstream.  The changes in SQLite are
-a bit more focused on the benchmark, but a more general approach is not
-conceptually difficult.  SQLite may not want the added complexity, but
-other database may be interested in the performance improvement.
-
-Of course, these kernel changes are needed before any application can
-optimize its IO as we did with libprefetch.
-
->> +	if (pgoff >= file_npages || pgend > file_npages) {
->> +		retval = -EINVAL;
->> +		goto done;
->> +	}
+>> head of inactive list, other application which require free page urgentl=
+y
+>> suffer from latency or are killed.
 >
-> Should this return -EINVAL, or should it just return "0": nothing there?
+> I don't think this patch will affect the number of pages reclaimed, only
+> which pages are reclaimed. =C2=A0In extreme cases it could increase the t=
+ime
+
+Most likely.
+But it can affect the number of pages reclaimed at sometime.
+
+For example,
+
+scanning window size for reclaim =3D 5.
+P : hard reclaimable page
+R : readaheaded page(easily reclaimable page)
+
+without this patch
+HEAD-P - P - P - P ................ - P - R -R -R -R -R- TAIL
+
+reclaimed pages : 5
+
+with this patch
+HEAD-R-R-R-R-R .................... - P -P -P -P -P -P -TAIL
+
+reclaimed pages : 0 =3D> might be OOMed.
+
+Yes. It's very extreme example.
+it is just for explanation. :)
+
+> needed to reclaim that many pages, but the inactive list would have to be
+> very short.
+
+I think short inactive list means now we are suffering from shortage of
+free memory. So I think it would be better to discard ra pages rather than
+OOMed.
+
 >
-> Bear in mind that this code is racy against truncate (I think?), and
-> this is "by design".  If that race does occur, we want to return
-> something graceful to userspace and I suggest that "nope, nothing
-> there" is a more graceful result that "erk, you screwed up".  Because
-> the application _didn't_ screw up: the pages were there when the
-> syscall was first performed.
+>> If VM don't have this patch, of course ra pages are discarded and
+>> then I/O performance would be bad. but as I mentioned, it's time
+>> high memory pressure. so I/O performance low makes system
+>> natural throttling. It can help out of =C2=A0system memory pressure.
+>
+> Even in low memory situations, improving I/O performance can help the
+> overall system performance. =C2=A0For example if most of the inactive lis=
+t is
+> dirty, needlessly discarding pages, just to refetch them will clog
+> I/O and increase the time needed to write out the dirty pages.
 
-That's a good point.  Not in core seems like the right answer for 
-pgoff >= file_npages.
+Yes. That's what I said.
+But my point is that it makes system I/O throttling by clogging I/O natural=
+ly.
+It can prevent fast consumption of memory.
+Actually I think mm don't have to consider I/O throttling as far as possibl=
+e.
+It's role of I/O subsystem. but it's not real.
+There are some codes for I/O throttling in mm.
 
---
-Steve
+>
+>> In summary I think it's good about viewpoint of I/O but I am not sure
+>> it's good about viewpoint of system.
+>
+> In this case, I think what's good for I/O is good for the system.
+> Please help me understand if I am missing something. =C2=A0Thanks
+
+You didn't missed anything. :)
+I don't know how this patch affect in low memory situation.
+What we just need is experiment which is valuable.
+
+Wu have a catch in my concern and are making new version.
+I am looking forward to that.
+
+>
+> --
+> Steve
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
