@@ -1,41 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 837036001DA
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 18:10:15 -0500 (EST)
-Date: Thu, 28 Jan 2010 15:09:28 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [Security] DoS on x86_64
-In-Reply-To: <4B62141E.4050107@zytor.com>
-Message-ID: <alpine.LFD.2.00.1001281507080.3846@localhost.localdomain>
-References: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com> <20100128001802.8491e8c1.akpm@linux-foundation.org> <4B61B00D.7070202@zytor.com> <alpine.LFD.2.00.1001281427220.22433@localhost.localdomain> <4B62141E.4050107@zytor.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D9D656004A4
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 18:15:39 -0500 (EST)
+Message-ID: <4B621A6A.6070507@zytor.com>
+Date: Thu, 28 Jan 2010 15:14:50 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [Security] DoS on x86_64
+References: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com> <20100128001802.8491e8c1.akpm@linux-foundation.org> <4B61B00D.7070202@zytor.com> <alpine.LFD.2.00.1001281427220.22433@localhost.localdomain> <alpine.LFD.2.00.1001281449220.3846@localhost.localdomain>
+In-Reply-To: <alpine.LFD.2.00.1001281449220.3846@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, security@kernel.org, "Luck, Tony" <tony.luck@intel.com>, James Morris <jmorris@namei.org>, Mike Waychison <mikew@google.com>, Michael Davidson <md@google.com>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Mathias Krause <minipli@googlemail.com>, Roland McGrath <roland@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mathias Krause <minipli@googlemail.com>, security@kernel.org, "Luck, Tony" <tony.luck@intel.com>, James Morris <jmorris@namei.org>, Mike Waychison <mikew@google.com>, Michael Davidson <md@google.com>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Thu, 28 Jan 2010, H. Peter Anvin wrote:
+On 01/28/2010 03:06 PM, Linus Torvalds wrote:
 > 
-> So this patch, *plus* removing any delayed side effects from
-> SET_PERSONALITY() [e.g. the TIF_ABI_PENDING stuff in x86-64 which is
-> intended to have a forward action from SET_PERSONALITY() to
-> flush_thread()] might just work.  I will try it out.
+> 
+> On Thu, 28 Jan 2010, Linus Torvalds wrote:
+>>
+>> I have _not_ tested any of this, and maybe there is some crazy reason why 
+>> this won't work, but I'm not seeing it.
+> 
+> Grr. We also do "arch_pick_mmap_layout()" in "flush_old_exec()".
+> 
+> That whole function is mis-named. It doesn't actually flush the old exec, 
+> it also creates the new one.
+> 
+> However, we then re-do it afterwards in fs/binfmt_elf.c, so again, that 
+> doesn't really matter.
+> 
+> What _does_ matter, however, is the crazy stuff we do in flush_thread() 
+> wrt TIF_ABI_PENDING. That's just crazy.
+> 
+> So no, the trivial patch won't work.
+> 
+> How about splitting up "flush_old_exec()" into two pieces? We'd have a 
+> "flush_old_exec()" and a "setup_new_exec()" piece, and all existing 
+> callers of flush_old_exec() would just be changed to call both?
+> 
 
-Yeah, if you do that, then my "split up" patch isn't necessary. And it 
-would make the code a whole lot more straightforward, and remove that 
-whole crazy TIF_ABI_PENDING thing.
+Ah yes.  This really is a lot better than the track which I originally
+was thinking about, which was something like adding a callout from
+flush_old_exec().
 
-Getting rid of the whole TIF_ABI_PENDING crap would be wonderful. It would 
-make SET_PERSONALITY() (and flush_thread()) way more obvious. 
+I will try this... plus remove the TIF_ABI_PENDING stuff from x86, and
+see how it works.
 
-So that would be much better than the untested "split up flush_old_exec" 
-patch I just sent out. So forget that patch, and let's go with your 
-further cleanup approach instead.
-
-			Linus
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
