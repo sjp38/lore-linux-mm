@@ -1,94 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 014696B009D
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:37 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E90096B00A9
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:38 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 18 of 31] add pmd mmu_notifier helpers
-Message-Id: <e2324ce52cc1b55ce641.1264689212@v2.random>
+Subject: [PATCH 24 of 31] kvm mmu transparent hugepage support
+Message-Id: <3cbe3e4bf941d72144fa.1264689218@v2.random>
 In-Reply-To: <patchbomb.1264689194@v2.random>
 References: <patchbomb.1264689194@v2.random>
-Date: Thu, 28 Jan 2010 15:33:32 +0100
+Date: Thu, 28 Jan 2010 15:33:38 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+From: Marcelo Tosatti <mtosatti@redhat.com>
 
-Add mmu notifier helpers to handle pmd huge operations.
+This should work for both hugetlbfs and transparent hugepages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -243,6 +243,32 @@ static inline void mmu_notifier_mm_destr
- 	__pte;								\
- })
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -489,6 +489,15 @@ static int host_mapping_level(struct kvm
+ out:
+ 	up_read(&current->mm->mmap_sem);
  
-+#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
-+({									\
-+	pmd_t __pmd;							\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
-+	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
-+					    (__address)+HPAGE_PMD_SIZE);\
-+	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
-+	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
-+					  (__address)+HPAGE_PMD_SIZE);	\
-+	__pmd;								\
-+})
++	/* check for transparent hugepages */
++	if (page_size == PAGE_SIZE) {
++		struct page *page = gfn_to_page(kvm, gfn);
 +
-+#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
-+({									\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
-+	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
-+					    (__address)+HPAGE_PMD_SIZE);\
-+	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
-+	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
-+					  (__address)+HPAGE_PMD_SIZE);	\
-+})
++		if (!is_error_page(page) && PageHead(page))
++			page_size = KVM_HPAGE_SIZE(2);
++		kvm_release_page_clean(page);
++	}
 +
- #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
- ({									\
- 	int __young;							\
-@@ -254,6 +280,17 @@ static inline void mmu_notifier_mm_destr
- 	__young;							\
- })
- 
-+#define pmdp_clear_flush_young_notify(__vma, __address, __pmdp)		\
-+({									\
-+	int __young;							\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
-+	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
-+						  ___address);		\
-+	__young;							\
-+})
-+
- #define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
- ({									\
- 	struct mm_struct *___mm = __mm;					\
-@@ -305,7 +342,10 @@ static inline void mmu_notifier_mm_destr
- }
- 
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
-+#define pmdp_clear_flush_young_notify pmdp_clear_flush_young
- #define ptep_clear_flush_notify ptep_clear_flush
-+#define pmdp_clear_flush_notify pmdp_clear_flush
-+#define pmdp_splitting_flush_notify pmdp_splitting_flush
- #define set_pte_at_notify set_pte_at
- 
- #endif /* CONFIG_MMU_NOTIFIER */
+ 	for (i = PT_PAGE_TABLE_LEVEL;
+ 	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
+ 		if (page_size >= KVM_HPAGE_SIZE(i))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
