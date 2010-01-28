@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9E80C6B007B
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:15 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6F9456B007E
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:17 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 05 of 31] fix bad_page to show the real reason the page is bad
-Message-Id: <5b49d00f81f42696a447.1264689199@v2.random>
+Subject: [PATCH 12 of 31] config_transparent_hugepage
+Message-Id: <fb7b7a9bdd51cc87d63d.1264689206@v2.random>
 In-Reply-To: <patchbomb.1264689194@v2.random>
 References: <patchbomb.1264689194@v2.random>
-Date: Thu, 28 Jan 2010 15:33:19 +0100
+Date: Thu, 28 Jan 2010 15:33:26 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,26 +18,34 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-page_count shows the count of the head page, but the actual check is done on
-the tail page, so show what is really being checked.
+Add config option.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -265,7 +265,7 @@ static void bad_page(struct page *page)
- 		current->comm, page_to_pfn(page));
- 	printk(KERN_ALERT
- 		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
--		page, (void *)page->flags, page_count(page),
-+		page, (void *)page->flags, atomic_read(&page->_count),
- 		page_mapcount(page), page->mapping, page->index);
+diff --git a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -283,3 +283,17 @@ config NOMMU_INITIAL_TRIM_EXCESS
+ 	  of 1 says that all excess pages should be trimmed.
  
- 	dump_stack();
+ 	  See Documentation/nommu-mmap.txt for more information.
++
++config TRANSPARENT_HUGEPAGE
++	bool "Transparent Hugepage support" if EMBEDDED
++	depends on X86_64
++	default y
++	help
++	  Transparent Hugepages allows the kernel to use huge pages and
++	  huge tlb transparently to the applications whenever possible.
++	  This feature can improve computing performance to certain
++	  applications by speeding up page faults during memory
++	  allocation, by reducing the number of tlb misses and by speeding
++	  up the pagetable walking.
++
++	  If memory constrained on embedded, you may want to say N.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
