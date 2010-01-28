@@ -1,44 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id EEA946B009D
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 10:58:47 -0500 (EST)
-Date: Thu, 28 Jan 2010 16:57:32 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 14 of 31] add pmd mangling generic functions
-Message-ID: <20100128155732.GE1217@random.random>
-References: <patchbomb.1264513915@v2.random>
- <d0424f095bd097ecd715.1264513929@v2.random>
- <20100126194455.GS16468@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with ESMTP id 8A87B6001DA
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 11:12:11 -0500 (EST)
+Date: Thu, 28 Jan 2010 16:11:53 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 04 of 31] update futex compound knowledge
+Message-ID: <20100128161153.GE7139@csn.ul.ie>
+References: <patchbomb.1264689194@v2.random> <2503a08ae3183f675931.1264689198@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100126194455.GS16468@csn.ul.ie>
+In-Reply-To: <2503a08ae3183f675931.1264689198@v2.random>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <chellwig@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 26, 2010 at 07:44:55PM +0000, Mel Gorman wrote:
-> On Tue, Jan 26, 2010 at 02:52:09PM +0100, Andrea Arcangeli wrote:
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > Some are needed to build but not actually used on archs not supporting
-> > transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
-> > 
+On Thu, Jan 28, 2010 at 03:33:18PM +0100, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> If they are not used, why are they needed to build?
+> Futex code is smarter than most other gup_fast O_DIRECT code and knows about
+> the compound internals. However now doing a put_page(head_page) will not
+> release the pin on the tail page taken by gup-fast, leading to all sort of
+> refcounting bugchecks. Getting a stable head_page is a little tricky.
+> 
+> page_head = page is there because if this is not a tail page it's also the
+> page_head. Only in case this is a tail page, compound_head is called, otherwise
+> it's guaranteed unnecessary. And if it's a tail page compound_head has to run
+> atomically inside irq disabled section __get_user_pages_fast before returning.
+> Otherwise ->first_page won't be a stable pointer.
+> 
+> Disableing irq before __get_user_page_fast and releasing irq after running
+> compound_head is needed because if __get_user_page_fast returns == 1, it means
+> the huge pmd is established and cannot go away from under us.
+> pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
+> for local_irq_enable before the IPI delivery can return. This means
+> __split_huge_page_refcount can't be running from under us, and in turn when we
+> run compound_head(page) we're not reading a dangling pointer from
+> tailpage->first_page. Then after we get to stable head page, we are always safe
+> to call compound_lock and after taking the compound lock on head page we can
+> finally re-check if the page returned by gup-fast is still a tail page. in
+> which case we're set and we didn't need to split the hugepage in order to take
+> a futex on it.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Oh well I went extra mile in my last patchset. can re-review the new
-version? Maybe it builds on all archs too ;)
+When I rebased my tree, I found that the get_user_pages_fast() write is 1
+unconditionally now where it wasn't on 2.6.32 so sorry about that confusion.
 
-But I kept the pmd unused methods implemented as long as long as the
-pte counterpart existed. But I ensured the pmd methods defines to
-BUG() if TRANSPARENT_HUGEPAGE is null, to be 100% sure nobody uses
-them unless it is allowed to. It is needed to build because things
-like pmd_write are used in memory.c, but they have to be optimized
-away at compile time, so no actual BUG() bytecode should never hit
-kernel .text and especially BUG() will make sure it won't hit runtime
-in case it does...
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+
+
+> ---
+> 
+> diff --git a/kernel/futex.c b/kernel/futex.c
+> --- a/kernel/futex.c
+> +++ b/kernel/futex.c
+> @@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
+>  {
+>  	unsigned long address = (unsigned long)uaddr;
+>  	struct mm_struct *mm = current->mm;
+> -	struct page *page;
+> +	struct page *page, *page_head;
+>  	int err;
+>  
+>  	/*
+> @@ -250,10 +250,36 @@ again:
+>  	if (err < 0)
+>  		return err;
+>  
+> -	page = compound_head(page);
+> -	lock_page(page);
+> -	if (!page->mapping) {
+> -		unlock_page(page);
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +	page_head = page;
+> +	if (unlikely(PageTail(page))) {
+> +		put_page(page);
+> +		/* serialize against __split_huge_page_splitting() */
+> +		local_irq_disable();
+> +		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
+> +			page_head = compound_head(page);
+> +			local_irq_enable();
+> +		} else {
+> +			local_irq_enable();
+> +			goto again;
+> +		}
+> +	}
+> +#else
+> +	page_head = compound_head(page);
+> +#endif
+> +
+> +	lock_page(page_head);
+> +	if (unlikely(page_head != page)) {
+> +		compound_lock(page_head);
+> +		if (unlikely(!PageTail(page))) {
+> +			compound_unlock(page_head);
+> +			unlock_page(page_head);
+> +			put_page(page);
+> +			goto again;
+> +		}
+> +	}
+> +	if (!page_head->mapping) {
+> +		unlock_page(page_head);
+>  		put_page(page);
+>  		goto again;
+>  	}
+> @@ -265,19 +291,21 @@ again:
+>  	 * it's a read-only handle, it's expected that futexes attach to
+>  	 * the object not the particular process.
+>  	 */
+> -	if (PageAnon(page)) {
+> +	if (PageAnon(page_head)) {
+>  		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
+>  		key->private.mm = mm;
+>  		key->private.address = address;
+>  	} else {
+>  		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+> -		key->shared.inode = page->mapping->host;
+> -		key->shared.pgoff = page->index;
+> +		key->shared.inode = page_head->mapping->host;
+> +		key->shared.pgoff = page_head->index;
+>  	}
+>  
+>  	get_futex_key_refs(key);
+>  
+> -	unlock_page(page);
+> +	if (unlikely(PageTail(page)))
+> +		compound_unlock(page_head);
+> +	unlock_page(page_head);
+>  	put_page(page);
+>  	return 0;
+>  }
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
