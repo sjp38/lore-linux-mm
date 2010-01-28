@@ -1,38 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B8C036B0047
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 03:20:40 -0500 (EST)
-Date: Thu, 28 Jan 2010 00:18:02 -0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B3A756B0078
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 03:23:27 -0500 (EST)
+Date: Thu, 28 Jan 2010 00:23:13 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Security] DoS on x86_64
-Message-Id: <20100128001802.8491e8c1.akpm@linux-foundation.org>
-In-Reply-To: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com>
-References: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com>
+Subject: Re: [PATCH] fs: add fincore(2) (mincore(2) for file descriptors)
+Message-Id: <20100128002313.2b94344e.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.1.00.1001272319530.2909@abydos.NerdBox.Net>
+References: <20100120215712.GO27212@frostnet.net>
+	<20100126141229.e1a81b29.akpm@linux-foundation.org>
+	<alpine.DEB.1.00.1001272319530.2909@abydos.NerdBox.Net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mathias Krause <minipli@googlemail.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, security@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Mike Waychison <mikew@google.com>Thomas Gleixner <tglx@linutronix.de>, Michael Davidson <md@google.com>, "Luck, Tony" <tony.luck@intel.com>, Roland McGrath <roland@redhat.com>, James Morris <jmorris@namei.org>
+To: Steve VanDeBogart <vandebo-lkml@NerdBox.Net>
+Cc: Chris Frost <frost@cs.ucla.edu>, Heiko Carstens <heiko.carstens@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Benny Halevy <bhalevy@panasas.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jan 2010 08:34:02 +0100 Mathias Krause <minipli@googlemail.com> wrote:
+On Wed, 27 Jan 2010 23:42:35 -0800 (PST) Steve VanDeBogart <vandebo-lkml@NerdBox.Net> wrote:
 
-> I found by accident an reliable way to panic the kernel on an x86_64  
-> system. Since this one can be triggered by an unprivileged user I  
-> CCed security@kernel.org. I also haven't found a corresponding bug on  
-> bugzilla.kernel.org. So, what to do to trigger the bug:
+> > Is it likely that these changes to SQLite and Gimp would be merged into
+> > the upstream applications?
 > 
-> 1. Enable core dumps
-> 2. Start an 32 bit program that tries to execve() an 64 bit program
-> 3. The 64 bit program cannot be started by the kernel because it  
-> can't find the interpreter, i.e. execve returns with an error
-> 4. Generate a segmentation fault
-> 5. panic
+> Changes to the GIMP fit nicely into the code structure, so it's feasible
+> to push this kind of optimization upstream.  The changes in SQLite are
+> a bit more focused on the benchmark, but a more general approach is not
+> conceptually difficult.  SQLite may not want the added complexity, but
+> other database may be interested in the performance improvement.
+> 
+> Of course, these kernel changes are needed before any application can
+> optimize its IO as we did with libprefetch.
 
-hrm, isn't this the same as "failed exec() leaves caller with incorrect
-personality", discussed in December? afacit nothing happened as a result
-of that.
+That didn't really answer my question.
+
+If there's someone signed up and motivated to do the hard work of
+getting these changes integrated into the upstream applications then
+that makes us more interested.  If, however it was some weekend
+proof-of-concept hack which shortly dies an instadeath then...  meh,
+not so much.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
