@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5B32C6B0078
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9E80C6B007B
 	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:15 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 06 of 31] clear compound mapping
-Message-Id: <24489b06c16c4760e1c8.1264689200@v2.random>
+Subject: [PATCH 05 of 31] fix bad_page to show the real reason the page is bad
+Message-Id: <5b49d00f81f42696a447.1264689199@v2.random>
 In-Reply-To: <patchbomb.1264689194@v2.random>
 References: <patchbomb.1264689194@v2.random>
-Date: Thu, 28 Jan 2010 15:33:20 +0100
+Date: Thu, 28 Jan 2010 15:33:19 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,8 +18,8 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Clear compound mapping for anonymous compound pages like it already happens for
-regular anonymous pages.
+page_count shows the count of the head page, but the actual check is done on
+the tail page, so show what is really being checked.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
@@ -29,15 +29,15 @@ Acked-by: Mel Gorman <mel@csn.ul.ie>
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -584,6 +584,8 @@ static void __free_pages_ok(struct page 
+@@ -265,7 +265,7 @@ static void bad_page(struct page *page)
+ 		current->comm, page_to_pfn(page));
+ 	printk(KERN_ALERT
+ 		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
+-		page, (void *)page->flags, page_count(page),
++		page, (void *)page->flags, atomic_read(&page->_count),
+ 		page_mapcount(page), page->mapping, page->index);
  
- 	kmemcheck_free_shadow(page, order);
- 
-+	if (PageAnon(page))
-+		page->mapping = NULL;
- 	for (i = 0 ; i < (1 << order) ; ++i)
- 		bad += free_pages_check(page + i);
- 	if (bad)
+ 	dump_stack();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
