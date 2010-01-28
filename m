@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A99116B0089
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id DBE4C6B0095
 	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:57:24 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 01 of 31] define MADV_HUGEPAGE
-Message-Id: <3fbe1ac741ce289f2585.1264689195@v2.random>
+Subject: [PATCH 08 of 31] add pmd paravirt ops
+Message-Id: <022453dc1c4f84b06ac9.1264689202@v2.random>
 In-Reply-To: <patchbomb.1264689194@v2.random>
 References: <patchbomb.1264689194@v2.random>
-Date: Thu, 28 Jan 2010 15:33:15 +0100
+Date: Thu, 28 Jan 2010 15:33:22 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,71 +18,98 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Define MADV_HUGEPAGE.
+Paravirt ops pmd_update/pmd_update_defer/pmd_set_at. Not all might be necessary
+(vmware needs pmd_update, Xen needs set_pmd_at, nobody needs pmd_update_defer),
+but this is to keep full simmetry with pte paravirt ops, which looks cleaner
+and simpler from a common code POV.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
---- a/arch/alpha/include/asm/mman.h
-+++ b/arch/alpha/include/asm/mman.h
-@@ -53,6 +53,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -449,6 +449,11 @@ static inline void pte_update(struct mm_
+ {
+ 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
+ }
++static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
++			      pmd_t *pmdp)
++{
++	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
++}
  
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
+ static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
+ 				    pte_t *ptep)
+@@ -456,6 +461,12 @@ static inline void pte_update_defer(stru
+ 	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
+ }
+ 
++static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
++				    pmd_t *pmdp)
++{
++	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
++}
 +
- /* compatibility flags */
- #define MAP_FILE	0
+ static inline pte_t __pte(pteval_t val)
+ {
+ 	pteval_t ret;
+@@ -557,6 +568,18 @@ static inline void set_pte_at(struct mm_
+ 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
+ }
  
-diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
---- a/arch/mips/include/asm/mman.h
-+++ b/arch/mips/include/asm/mman.h
-@@ -77,6 +77,8 @@
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- #define MADV_HWPOISON    100		/* poison a page for testing */
- 
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
++			      pmd_t *pmdp, pmd_t pmd)
++{
++	if (sizeof(pmdval_t) > sizeof(long))
++		/* 5 arg words */
++		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
++	else
++		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp, pmd.pmd);
++}
++#endif
 +
- /* compatibility flags */
- #define MAP_FILE	0
+ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
+ 	pmdval_t val = native_pmd_val(pmd);
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -266,10 +266,16 @@ struct pv_mmu_ops {
+ 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep, pte_t pteval);
+ 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
++	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
++			   pmd_t *pmdp, pmd_t pmdval);
+ 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep);
+ 	void (*pte_update_defer)(struct mm_struct *mm,
+ 				 unsigned long addr, pte_t *ptep);
++	void (*pmd_update)(struct mm_struct *mm, unsigned long addr,
++			   pmd_t *pmdp);
++	void (*pmd_update_defer)(struct mm_struct *mm,
++				 unsigned long addr, pmd_t *pmdp);
  
-diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
---- a/arch/parisc/include/asm/mman.h
-+++ b/arch/parisc/include/asm/mman.h
-@@ -59,6 +59,8 @@
- #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
+ 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
+ 					pte_t *ptep);
+diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -422,8 +422,11 @@ struct pv_mmu_ops pv_mmu_ops = {
+ 	.set_pte = native_set_pte,
+ 	.set_pte_at = native_set_pte_at,
+ 	.set_pmd = native_set_pmd,
++	.set_pmd_at = native_set_pmd_at,
+ 	.pte_update = paravirt_nop,
+ 	.pte_update_defer = paravirt_nop,
++	.pmd_update = paravirt_nop,
++	.pmd_update_defer = paravirt_nop,
  
-+#define MADV_HUGEPAGE	67		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- #define MAP_VARIABLE	0
-diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
---- a/arch/xtensa/include/asm/mman.h
-+++ b/arch/xtensa/include/asm/mman.h
-@@ -83,6 +83,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- 
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
---- a/include/asm-generic/mman-common.h
-+++ b/include/asm-generic/mman-common.h
-@@ -45,6 +45,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- 
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
+ 	.ptep_modify_prot_start = __ptep_modify_prot_start,
+ 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
