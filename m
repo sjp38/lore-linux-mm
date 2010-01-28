@@ -1,36 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6AC3C6B0092
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 12:07:21 -0500 (EST)
-Date: Thu, 28 Jan 2010 18:05:08 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 31] Transparent Hugepage support #8
-Message-ID: <20100128170508.GH1217@random.random>
-References: <patchbomb.1264689194@v2.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DEDE6B0087
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 12:11:49 -0500 (EST)
+Date: Thu, 28 Jan 2010 09:10:37 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [Security] DoS on x86_64
+In-Reply-To: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com>
+Message-ID: <alpine.LFD.2.00.1001280902340.22433@localhost.localdomain>
+References: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <patchbomb.1264689194@v2.random>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
+To: Mathias Krause <minipli@googlemail.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, security@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 28, 2010 at 03:33:14PM +0100, Andrea Arcangeli wrote:
-> I suggest to try it (especially if you use i915_gem, as I need to know if
-> anybody else can reproduce the khugepaged warning with pte_special set) and
 
-If you test the #8 submit, please add i915.modeline=1 or better set
-CONFIG_DRM_I915_KMS=y or I was just told that the problem goes away.
 
-quilt:
+On Thu, 28 Jan 2010, Mathias Krause wrote:
+> 
+> 1. Enable core dumps
+> 2. Start an 32 bit program that tries to execve() an 64 bit program
+> 3. The 64 bit program cannot be started by the kernel because it can't find
+> the interpreter, i.e. execve returns with an error
+> 4. Generate a segmentation fault
+> 5. panic
 
-	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.33-rc5/transparent_hugepage-8/
+Hmm. Nothing happens for me when I try this. I just get the expected 
+SIGSEGV. Can you post the oops/panic message?
 
-I also provide a monolith that will make life easier to apply it on
-top of upstream, if somebody wants to help testing this.
+I don't get a core-dump, even though it says I do:
 
-	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.33-rc5/transparent_hugepage-8.bz2
+	[torvalds@nehalem amd64_killer]$ ./run.sh 
+	* look at /proc/22768/maps and press enter to continue...
+	* executing ./poison...
+	* that failed (No such file or directory), as expected :)
+	* look at /proc/22768/maps and press enter to continue...
+	* fasten your seat belt, generating segmentation fault...
+	./run.sh: line 6: 22768 Segmentation fault      (core dumped) ./amd64_killer ./poison
+
+This is with current -git (I don't have any machines around running older 
+kernels), so maybe we fixed it already, of course.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
