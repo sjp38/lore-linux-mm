@@ -1,56 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 010746B0047
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 02:16:56 -0500 (EST)
-Date: Wed, 27 Jan 2010 23:16:49 -0800 (PST)
-From: Steve VanDeBogart <vandebo-lkml@NerdBox.Net>
-Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
- pages, too
-In-Reply-To: <28c262361001262309x332a895aoa906dda0bc040859@mail.gmail.com>
-Message-ID: <alpine.DEB.1.00.1001272300120.2909@abydos.NerdBox.Net>
-References: <20100120215536.GN27212@frostnet.net>  <20100121054734.GC24236@localhost> <28c262361001262309x332a895aoa906dda0bc040859@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id A522C6B0047
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 02:34:34 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id 19so515789fgg.8
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2010 23:34:31 -0800 (PST)
+Mime-Version: 1.0 (Apple Message framework v753.1)
+Content-Type: multipart/signed; protocol="application/pgp-signature"; micalg=pgp-sha1; boundary="Apple-Mail-25-741517454"
+Message-Id: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com>
+From: Mathias Krause <minipli@googlemail.com>
+Subject: DoS on x86_64
+Date: Thu, 28 Jan 2010 08:34:02 +0100
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Chris Frost <frost@cs.ucla.edu>, Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org
+Cc: security@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Jan 2010, Minchan Kim wrote:
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--Apple-Mail-25-741517454
+Content-Type: multipart/mixed; boundary=Apple-Mail-24-741517396
 
-> This patch effect happens when inactive file list is small, I think.
-> It means it's high memory pressure. so if we move ra pages into
 
-This patch does the same thing regardless of memory pressure - it
-doesn't just apply in high memory pressure situations.  Is your concern
-that in high memory pressure situations this patch with make things worse?
+--Apple-Mail-24-741517396
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset=US-ASCII;
+	delsp=yes;
+	format=flowed
 
-> head of inactive list, other application which require free page urgently
-> suffer from latency or are killed.
+Hello security team,
 
-I don't think this patch will affect the number of pages reclaimed, only
-which pages are reclaimed.  In extreme cases it could increase the time
-needed to reclaim that many pages, but the inactive list would have to be
-very short.
+I found by accident an reliable way to panic the kernel on an x86_64  
+system. Since this one can be triggered by an unprivileged user I  
+CCed security@kernel.org. I also haven't found a corresponding bug on  
+bugzilla.kernel.org. So, what to do to trigger the bug:
 
-> If VM don't have this patch, of course ra pages are discarded and
-> then I/O performance would be bad. but as I mentioned, it's time
-> high memory pressure. so I/O performance low makes system
-> natural throttling. It can help out of  system memory pressure.
+1. Enable core dumps
+2. Start an 32 bit program that tries to execve() an 64 bit program
+3. The 64 bit program cannot be started by the kernel because it  
+can't find the interpreter, i.e. execve returns with an error
+4. Generate a segmentation fault
+5. panic
 
-Even in low memory situations, improving I/O performance can help the
-overall system performance.  For example if most of the inactive list 
-is dirty, needlessly discarding pages, just to refetch them will clog
-I/O and increase the time needed to write out the dirty pages.
+The problem seams to be located in fs/binfmt_elf.c:load_elf_binary().  
+It calls SET_PERSONALITY() prior checking that the ELF interpreter is  
+available. This in turn makes the previously 32 bit process a 64 bit  
+one which would be fine if execve() would succeed. But after the  
+SET_PERSONALITY() the open_exec() call fails (because it cannot find  
+the interpreter) and execve() almost instantly returns with an error.  
+If you now look at /proc/PID/maps you'll see, that it has the  
+vsyscall page mapped which shouldn't be. But the process is not dead  
+yet, it's still running. By now generating a segmentation fault and  
+in turn trying to generate a core dump the kernel just dies. I  
+haven't yet looked into this code but maybe you guys are much faster  
+than me and just can fix this problem :)
 
-> In summary I think it's good about viewpoint of I/O but I am not sure
-> it's good about viewpoint of system.
+Test case for this bug is attached. It was tested on a 2.6.26.7 and  
+2.6.30.10, but I may affect even older kernels. So it may be  
+interesting for stable, too.
 
-In this case, I think what's good for I/O is good for the system.
-Please help me understand if I am missing something.  Thanks
 
---
-Steve
+Greetings,
+Mathias Krause
+--Apple-Mail-24-741517396
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream;
+	x-unix-mode=0644;
+	name=amd64_killer.tgz
+Content-Disposition: attachment;
+	filename=amd64_killer.tgz
+
+H4sIANGvYEsAA+2WW0/bMBSA+0p+xYGpkFRtLm1aJAqTpmkPaJuY0KRt2lDlOm5rNXEq2+moBv99
+xymlDTDYAxdN8/cS5/j4XB07JEt68WDK05TJoPY0hMh+t7t89qrPK2pR1OmEUXu/0w5r+Ozsd2vQ
+faJ4KhRKEwlQy6b36z00v0pk9fxHIJv933zx6aP5MPXoxfGf+t+O4o3+R6gXdcOoV4NnKeJ/3v9X
+XNC0SBgcqoUKJFN5ISnzJ6+d6oxezJi6Q8yzO5SxpNpIN8SF4EonN1R1kvLhTZnkYnxLj+dVEZNS
+lCLH4UJDRrhwzYDIMW0CnWBLGw18mV+/MDGfefDL2UIPBdUgU55xDTSXbFAO+46zxUfgjplezrmn
+H44/Hn8evD05fdeE3bWmB9tHEJbGtmYYSS7dnfUqb8fr4wQ7x3FkhpdXhtcGfKM6oIWEo7UhzFuP
+3J1PKSOKARNkmLIyPEiKbKYAFXIJ7JzRQmOJQE+4EeZjSTL/h1h6XVn5lhdAiYAkB5XDcLGxblRa
+IdkMze8Vyyq0KERhO95bmbkdvCksHEIbLi6AUMqUMqL59+isCV8HJ++9ahaFImN2AHUFvXjI9cDE
+icabUC4Kz+7wslragDTPp0A0BLiKBvUkyAjmT0SC6aJjrI1mEnSO1RGYUsF830fT2IIZT1zPGPw5
+4Zie6aVpv1t2DLPb89Btv+JsXZi6QjvrIKMySDM9Z+tcd69H5Ybqb5rSEwx6RNBzAm5deWgIgz2f
+MapRcuCVtnH7LbdMuYVNsC+W+ogozQQs8JMHxdDrkKXaGBNMkrIkio0zdIkvuUD1ItXLEhk/DXf5
+ZXkQnsf7UQTo5s2e8SCZLqSAsO9cOi99vlnup3L/y0L4avLoPh76/2vH3dX930Pw/u90Ud3e/8/A
+q+1gyEWgJo4zphRaWacNrRw2twVUfwvhSrEXQ+tL2my1koUgGaetlIspk81A5KKFR7s5W7SPtw+a
+m+Vc4Qly01D19nH8yg8o+MHVMnuIWCwWi8VisVgsFovFYrFYLBaLxWKxWCx/x28dR5RHACgAAA==
+
+--Apple-Mail-24-741517396--
+
+--Apple-Mail-25-741517454
+content-type: application/pgp-signature; x-mac-type=70674453;
+	name=PGP.sig
+content-description: Signierter Teil der Nachricht
+content-disposition: inline; filename=PGP.sig
+content-transfer-encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.7 (Darwin)
+
+iD8DBQFLYT3qZS2uZ5iBxS8RAlkuAJ0Z6sRcp0EugNbzBSSuNVa6BEIRdgCg5qbJ
+aVoW/AaM2gT3/QO1KcuGk7s=
+=/aZl
+-----END PGP SIGNATURE-----
+
+--Apple-Mail-25-741517454--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
