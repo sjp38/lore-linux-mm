@@ -1,50 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AF916B007E
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 03:32:35 -0500 (EST)
-Date: Thu, 28 Jan 2010 00:32:32 -0800 (PST)
-From: Steve VanDeBogart <vandebo-lkml@NerdBox.Net>
-Subject: Re: [PATCH] fs: add fincore(2) (mincore(2) for file descriptors)
-In-Reply-To: <20100128002313.2b94344e.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.1.00.1001280028160.2909@abydos.NerdBox.Net>
-References: <20100120215712.GO27212@frostnet.net> <20100126141229.e1a81b29.akpm@linux-foundation.org> <alpine.DEB.1.00.1001272319530.2909@abydos.NerdBox.Net> <20100128002313.2b94344e.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 131966B0047
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 03:55:00 -0500 (EST)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o0S8stAo006819
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 08:54:56 GMT
+Received: from pwj2 (pwj2.prod.google.com [10.241.219.66])
+	by wpaz29.hot.corp.google.com with ESMTP id o0S8srxI030945
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 00:54:54 -0800
+Received: by pwj2 with SMTP id 2so329445pwj.34
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2010 00:54:53 -0800 (PST)
+Date: Thu, 28 Jan 2010 00:54:49 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v4 1/2] sysctl clean up vm related variable
+ declarations
+In-Reply-To: <20100127153232.f8efc531.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1001280048110.15953@chino.kir.corp.google.com>
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com> <20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com> <20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com> <20100126151202.75bd9347.akpm@linux-foundation.org>
+ <20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com> <20100126161952.ee267d1c.akpm@linux-foundation.org> <20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com> <20100127153053.b8a8a1a1.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100127153232.f8efc531.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Frost <frost@cs.ucla.edu>, Heiko Carstens <heiko.carstens@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Benny Halevy <bhalevy@panasas.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, minchan.kim@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jan 2010, Andrew Morton wrote:
+On Wed, 27 Jan 2010, KAMEZAWA Hiroyuki wrote:
 
-> On Wed, 27 Jan 2010 23:42:35 -0800 (PST) Steve VanDeBogart <vandebo-lkml@NerdBox.Net> wrote:
->
->>> Is it likely that these changes to SQLite and Gimp would be merged into
->>> the upstream applications?
->>
->> Changes to the GIMP fit nicely into the code structure, so it's feasible
->> to push this kind of optimization upstream.  The changes in SQLite are
->> a bit more focused on the benchmark, but a more general approach is not
->> conceptually difficult.  SQLite may not want the added complexity, but
->> other database may be interested in the performance improvement.
->>
->> Of course, these kernel changes are needed before any application can
->> optimize its IO as we did with libprefetch.
->
-> That didn't really answer my question.
->
-> If there's someone signed up and motivated to do the hard work of
-> getting these changes integrated into the upstream applications then
-> that makes us more interested.  If, however it was some weekend
-> proof-of-concept hack which shortly dies an instadeath then...  meh,
-> not so much.
+> Now, there are many "extern" declaration in kernel/sysctl.c. "extern"
+> declaration in *.c file is not appreciated in general.
+> And Hmm...it seems there are a few redundant declarations.
+> 
 
-Sorry I misunderstood.  The maintainer of GraphicsMagick has already
-contacted us about making changes similar to our GIMP changes.  So yes,
-there is interest in really using these changes.
+sysctl_overcommit_memory and sysctl_overcommit_ratio, right?
 
---
-Steve
+> Because most of sysctl variables are defined in its own header file,
+> they should be declared in the same style, be done in its own *.h file.
+> 
+> This patch removes some VM(memory management) related sysctl's
+> variable declaration from kernel/sysctl.c and move them to
+> proper places.
+> 
+> Change log:
+>  - 2010/01/27 (new)
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+This is a very nice cleanup of the sysctl code, I hope you find the time 
+to push it regardless of the future direction of the oom killer lowmem 
+constraint.
+
+One comment below.
+
+> ---
+>  include/linux/mm.h     |    5 +++++
+>  include/linux/mmzone.h |    1 +
+>  include/linux/oom.h    |    5 +++++
+>  kernel/sysctl.c        |   16 ++--------------
+>  mm/mmap.c              |    5 +++++
+>  5 files changed, 18 insertions(+), 14 deletions(-)
+> 
+> Index: mmotm-2.6.33-Jan15-2/include/linux/mm.h
+> ===================================================================
+> --- mmotm-2.6.33-Jan15-2.orig/include/linux/mm.h
+> +++ mmotm-2.6.33-Jan15-2/include/linux/mm.h
+> @@ -1432,6 +1432,7 @@ int in_gate_area_no_task(unsigned long a
+>  #define in_gate_area(task, addr) ({(void)task; in_gate_area_no_task(addr);})
+>  #endif	/* __HAVE_ARCH_GATE_AREA */
+>  
+> +extern int sysctl_drop_caches;
+>  int drop_caches_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+>  unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+> @@ -1476,5 +1477,9 @@ extern int soft_offline_page(struct page
+>  
+>  extern void dump_page(struct page *page);
+>  
+> +#ifndef CONFIG_NOMMU
+> +extern int sysctl_nr_trim_pages;
+
+This should be #ifndef CONFIG_MMU.
+
+> +#endif
+> +
+>  #endif /* __KERNEL__ */
+>  #endif /* _LINUX_MM_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
