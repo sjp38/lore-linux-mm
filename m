@@ -1,48 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A48D36B0047
-	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 19:29:19 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o0S0TKri009025
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 28 Jan 2010 09:29:21 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C17F945DE55
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:29:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8690D45DE52
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:29:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 68542E18006
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:29:20 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 18206E18003
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 09:29:20 +0900 (JST)
-Date: Thu, 28 Jan 2010 09:26:00 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5269A6B0047
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 19:59:56 -0500 (EST)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id o0S0xvhS001120
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 16:59:57 -0800
+Received: from pwj10 (pwj10.prod.google.com [10.241.219.74])
+	by wpaz37.hot.corp.google.com with ESMTP id o0S0xtZx011421
+	for <linux-mm@kvack.org>; Wed, 27 Jan 2010 16:59:56 -0800
+Received: by pwj10 with SMTP id 10so116549pwj.26
+        for <linux-mm@kvack.org>; Wed, 27 Jan 2010 16:59:55 -0800 (PST)
+Date: Wed, 27 Jan 2010 16:59:52 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
-Message-Id: <20100128092600.95e044f7.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100128001636.2026a6bc@lxorguk.ukuu.org.uk>
-References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100126151202.75bd9347.akpm@linux-foundation.org>
-	<20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100126161952.ee267d1c.akpm@linux-foundation.org>
-	<20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100128001636.2026a6bc@lxorguk.ukuu.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <alpine.DEB.2.00.1001271652270.17513@chino.kir.corp.google.com>
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com> <20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com> <20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com> <20100126151202.75bd9347.akpm@linux-foundation.org>
+ <20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com> <20100126161952.ee267d1c.akpm@linux-foundation.org> <20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com> <20100128001636.2026a6bc@lxorguk.ukuu.org.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rientjes@google.com, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, minchan.kim@gmail.com, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Thank you for comment. But I stoppped this already....
-
-On Thu, 28 Jan 2010 00:16:36 +0000
-Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
+On Thu, 28 Jan 2010, Alan Cox wrote:
 
 > > Now, /proc/<pid>/oom_score and /proc/<pid>/oom_adj are used by servers.
 > 
@@ -50,12 +32,9 @@ Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
 > where windows slowly get to be bigger bigger oom targes the longer
 > they've been non-focussed)
 > 
-Sure.
 
-> > For my customers, I don't like oom black magic. I'd like to recommend to
-> > use memcg, of course ;) But lowmem oom cannot be handled by memcg, well.
-> > So I started from this. 
-> 
+Right, oom_adj is used much more widely than described.
+
 > I can't help feeling this is the wrong approach. IFF we are running out
 > of low memory pages then killing stuff for that reason is wrong to begin
 > with except in extreme cases and those extreme cases are probably also
@@ -68,26 +47,23 @@ Sure.
 > exactly the same sequence of operations as a page out and page in
 > somewhere else skipping the widdling on the disk bit in the middle.
 > 
-> There are cases we can't do that - eg if the kernel has it pinned for
-> DMA, but in that case OOM isn't going to recover the page either - at
-> least not until the DMA or whatever unpins it (at which point you could
-> just move it).
-> 
-> Am I missing something fundamental here ?
-> 
 
-I just wanted to make oom-killer shouldn't kill sshd or X-serivce or
-task launcher IOW, oom-killer shouldn't do not-reasonalble selection.
+Mel Gorman's memory compaction patchset will preempt direct reclaim and 
+the oom killer if it can defragment zones by page migration such that a 
+higher order allocation would now succeed.
 
-If lowmem user is killed, I'll be satisfied with the cace "Oh, the process
-is killed because lowmem was in short and it used lowmem, Hmmm..." and
-never be satisfied with the cace "Ohch!, F*cking OOM killer killed X-server
-and 10s of innocent processes!!!".
+In this specific context, both compaction and direct reclaim will have 
+failed so the oom killer is the only alternative.  For __GFP_NOFAIL, 
+that's required.  However, there has been some long-standing debate (and 
+not only for lowmem, but for all oom conditions) about when the page 
+allocator should simply return NULL.  We've always killed something on 
+blocking allocations to favor current at the expense of other memory hogs, 
+but that may be changed soon: it may make sense to defer oom killing 
+completely unless the badness() score reaches a certain threshold such 
+that memory leakers really can be dealt with accordingly.
 
-But year, I stop this. For me, panic_on_oom=1 is all and enough.
-
-Thanks,
--Kame
+In the lowmem case, it certainly seems plausible to use the same behavior 
+that we currently do for mempolicy-constrained ooms: kill current.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
