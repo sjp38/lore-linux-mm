@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id CAD866B007D
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 01:23:26 -0500 (EST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 409C76B0082
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 01:23:29 -0500 (EST)
 From: "H. Peter Anvin" <hpa@zytor.com>
 Subject: [PATCH 1/2] Split 'flush_old_exec' into two functions
-Date: Thu, 28 Jan 2010 21:34:02 -0800
-Message-Id: <1264743243-4285-1-git-send-email-hpa@zytor.com>
+Date: Thu, 28 Jan 2010 21:36:13 -0800
+Message-Id: <1264743374-4358-1-git-send-email-hpa@zytor.com>
 In-Reply-To: <4B627236.1040508@zytor.com>
 References: <4B627236.1040508@zytor.com>
 Sender: owner-linux-mm@kvack.org
