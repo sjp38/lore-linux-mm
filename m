@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4108E6B009E
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 20:19:05 -0500 (EST)
-Message-ID: <4B623757.7090001@redhat.com>
-Date: Thu, 28 Jan 2010 20:18:15 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 43D816B007B
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 23:44:45 -0500 (EST)
+Date: Thu, 28 Jan 2010 20:43:24 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [Security] DoS on x86_64
+In-Reply-To: <4B621D48.4090203@zytor.com>
+Message-ID: <alpine.LFD.2.00.1001282040160.3768@localhost.localdomain>
+References: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com> <20100128001802.8491e8c1.akpm@linux-foundation.org> <4B61B00D.7070202@zytor.com> <alpine.LFD.2.00.1001281427220.22433@localhost.localdomain> <4B62141E.4050107@zytor.com>
+ <alpine.LFD.2.00.1001281507080.3846@localhost.localdomain> <4B621D48.4090203@zytor.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm] change anon_vma linking to fix multi-process server
- 	scalability issue
-References: <20100128002000.2bf5e365@annuminas.surriel.com>	 <1264696641.17063.32.camel@barrios-desktop>	 <4B61C83A.20301@redhat.com> <28c262361001281655x70e5f77awf4d890d20f57ca83@mail.gmail.com>
-In-Reply-To: <28c262361001281655x70e5f77awf4d890d20f57ca83@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, lwoodman@redhat.com, akpm@linux-foundation.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, aarcange@redhat.com
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, security@kernel.org, "Luck, Tony" <tony.luck@intel.com>, James Morris <jmorris@namei.org>, Mike Waychison <mikew@google.com>, Michael Davidson <md@google.com>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Mathias Krause <minipli@googlemail.com>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 01/28/2010 07:55 PM, Minchan Kim wrote:
-> On Fri, Jan 29, 2010 at 2:24 AM, Rik van Riel<riel@redhat.com>  wrote:
 
->> What am I overlooking?
->
-> I also look at the code more detail and found me wrong.
-> In mprotect case 6,  the importer is fixed as head of vmas while next
-> is marched
-> on forward. So anon_vma_clone is just called once at first time.
-> So as what you said, It's no problem.
-> Totally, my mistake. Sorry for that, Rik.
 
-No problem.  I spent about a day and a half with a few pieces
-of paper going over all this code, before deciding how to code
-this :)
+On Thu, 28 Jan 2010, H. Peter Anvin wrote:
+> 
+> I think your splitup patch might still be a good idea in the sense that
+> your flush_old_exec() is the parts that can fail.
+> 
+> So I think the splitup patch, plus removing delayed effects, might be
+> the right thing to do?  Testing that approach now...
 
--- 
-All rights reversed.
+So I didn't see any patch from you, so here's my try instead. 
+
+I'll follow up with two patches: the first one does the split-up (and I 
+tried to make it very obvious that it has _no_ semantic changes what-so- 
+ever and is purely a preparatory patch), and the second actually changes 
+the ELF loader to do the SET_PERSONALITY() call in the sane spot, and gets 
+rid of that crazy indirect bit.
+
+Comments?
+
+It looks like ppc/sparc have had similar issues, I have _not_ done those 
+architectures. I don't imagine that they'll complain much.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
