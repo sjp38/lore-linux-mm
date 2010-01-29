@@ -1,16 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B43A6B007B
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 01:15:44 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F7266B0078
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 01:23:22 -0500 (EST)
 From: "H. Peter Anvin" <hpa@zytor.com>
 Subject: [PATCH 2/2] x86: get rid of the insane TIF_ABI_PENDING bit
-Date: Thu, 28 Jan 2010 22:14:43 -0800
-Message-Id: <1264745683-2135-2-git-send-email-hpa@zytor.com>
-In-Reply-To: <4B627236.1040508@zytor.com>
+Date: Thu, 28 Jan 2010 21:36:14 -0800
+Message-Id: <1264743374-4358-2-git-send-email-hpa@zytor.com>
+In-Reply-To: <1264743374-4358-1-git-send-email-hpa@zytor.com>
 References: <4B627236.1040508@zytor.com>
+ <1264743374-4358-1-git-send-email-hpa@zytor.com>
 Sender: owner-linux-mm@kvack.org
 To: torvalds@linux-foundation.org
-Cc: akpm@linux-foundation.org, security@kernel.org, tony.luck@intel.com, jmorris@namei.org, mikew@google.com, md@google.com, linux-mm@kvack.org, mingo@redhat.com, tglx@linutronix.de, minipli@googlemail.com, roland@redhat.com, ralf@linux-mips.org, "H. Peter Anvin" <hpa@zytor.com>
+Cc: akpm@linux-foundation.org, security@kernel.org, tony.luck@intel.com, jmorris@namei.org, mikew@google.com, md@google.com, linux-mm@kvack.org, mingo@redhat.com, tglx@linutronix.de, minipli@googlemail.com, roland@redhat.com, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
 Now that the previous commit made it possible to do the personality
@@ -26,9 +27,9 @@ Signed-off-by: H. Peter Anvin <hpa@zytor.com>
  arch/x86/ia32/ia32_aout.c          |    1 -
  arch/x86/include/asm/elf.h         |   10 ++--------
  arch/x86/include/asm/thread_info.h |    2 --
- arch/x86/kernel/process.c          |   12 ------------
+ arch/x86/kernel/process.c          |   12 +++---------
  arch/x86/kernel/process_64.c       |   11 +++++++++++
- 5 files changed, 13 insertions(+), 23 deletions(-)
+ 5 files changed, 16 insertions(+), 20 deletions(-)
 
 diff --git a/arch/x86/ia32/ia32_aout.c b/arch/x86/ia32/ia32_aout.c
 index 435d2a5..f9f4724 100644
@@ -84,14 +85,13 @@ index 375c917..e0d2890 100644
  #define _TIF_IO_BITMAP		(1 << TIF_IO_BITMAP)
  #define _TIF_FREEZE		(1 << TIF_FREEZE)
 diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
-index 02c3ee0..c9b3522 100644
+index 02c3ee0..7d42304 100644
 --- a/arch/x86/kernel/process.c
 +++ b/arch/x86/kernel/process.c
-@@ -115,18 +115,6 @@ void flush_thread(void)
- {
+@@ -116,15 +116,9 @@ void flush_thread(void)
  	struct task_struct *tsk = current;
  
--#ifdef CONFIG_X86_64
+ #ifdef CONFIG_X86_64
 -	if (test_tsk_thread_flag(tsk, TIF_ABI_PENDING)) {
 -		clear_tsk_thread_flag(tsk, TIF_ABI_PENDING);
 -		if (test_tsk_thread_flag(tsk, TIF_IA32)) {
@@ -101,11 +101,12 @@ index 02c3ee0..c9b3522 100644
 -			current_thread_info()->status |= TS_COMPAT;
 -		}
 -	}
--#endif
--
++	/* Set up the first "return" to user space */
++	if (test_tsk_thread_flag(tsk, TIF_IA32))
++		current_thread_info()->status |= TS_COMPAT;
+ #endif
+ 
  	flush_ptrace_hw_breakpoint(tsk);
- 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
- 	/*
 diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
 index f9e0331..41a26a8 100644
 --- a/arch/x86/kernel/process_64.c
