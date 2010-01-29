@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A0076B007D
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 23:44:45 -0500 (EST)
-Date: Thu, 28 Jan 2010 20:43:54 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 70C396B007B
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 23:48:08 -0500 (EST)
+Date: Thu, 28 Jan 2010 20:47:19 -0800 (PST)
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: [PATCH 1/2] Split 'flush_old_exec' into two functions
-In-Reply-To: <alpine.LFD.2.00.1001282040160.3768@localhost.localdomain>
-Message-ID: <alpine.LFD.2.00.1001282043300.3768@localhost.localdomain>
+Subject: [PATCH 2/2] x86: get rid of the insane TIF_ABI_PENDING bit
+In-Reply-To: <alpine.LFD.2.00.1001282043300.3768@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.1001282043580.3768@localhost.localdomain>
 References: <144AC102-422A-4AA3-864D-F90183837EA3@googlemail.com> <20100128001802.8491e8c1.akpm@linux-foundation.org> <4B61B00D.7070202@zytor.com> <alpine.LFD.2.00.1001281427220.22433@localhost.localdomain> <4B62141E.4050107@zytor.com>
- <alpine.LFD.2.00.1001281507080.3846@localhost.localdomain> <4B621D48.4090203@zytor.com> <alpine.LFD.2.00.1001282040160.3768@localhost.localdomain>
+ <alpine.LFD.2.00.1001281507080.3846@localhost.localdomain> <4B621D48.4090203@zytor.com> <alpine.LFD.2.00.1001282040160.3768@localhost.localdomain> <alpine.LFD.2.00.1001282043300.3768@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,210 +17,187 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, security@kernel.org, "Luck, Tony"
 List-ID: <linux-mm.kvack.org>
 
 
-
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 28 Jan 2010 19:56:16 -0800
-Subject: [PATCH 1/2] Split 'flush_old_exec' into two functions
+Date: Thu, 28 Jan 2010 20:37:30 -0800
+Subject: [PATCH 2/2] x86: get rid of the insane TIF_ABI_PENDING bit
 
-'flush_old_exec()' is the point of no return when doing an execve(), and
-it is pretty badly misnamed.  It doesn't just flush the old executable
-environment, it also starts up the new one.
+Now that the previous commit made it possible to do the personality
+setting at the point of no return, we do just that for ELF binaries.
+And suddenly all the reasons for that insane TIF_ABI_PENDING bit go
+away, and we can just make SET_PERSONALITY() just do the obvious thing
+for a 32-bit compat process.
 
-Which is very inconvenient for things like setting up the new
-personality, because we want the new personality to affect the starting
-of the new environment, but at the same time we do _not_ want the new
-personality to take effect if flushing the old one fails.
-
-As a result, the x86-64 '32-bit' personality is actually done using this
-insane "I'm going to change the ABI, but I haven't done it yet" bit
-(TIF_ABI_PENDING), with SET_PERSONALITY() not actually setting the
-personality, but just the "pending" bit, so that "flush_thread()" can do
-the actual personality magic.
-
-This patch in no way changes any of that insanity, but it does split the
-'flush_old_exec()' function up into a preparatory part that can fail
-(still called flush_old_exec()), and a new part that will actually set
-up the new exec environment (setup_new_exec()).  All callers are changed
-to trivially comply with the new world order.
+Everything becomes much more straightforward this way.
 
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 ---
- arch/sh/kernel/process_64.c |    2 +-
- arch/x86/ia32/ia32_aout.c   |    1 +
- fs/binfmt_aout.c            |    2 ++
- fs/binfmt_elf.c             |    2 ++
- fs/binfmt_elf_fdpic.c       |    2 ++
- fs/binfmt_flat.c            |    1 +
- fs/binfmt_som.c             |    2 ++
- fs/exec.c                   |   24 ++++++++++++------------
- include/linux/binfmts.h     |    1 +
- include/linux/sched.h       |    2 +-
- 10 files changed, 25 insertions(+), 14 deletions(-)
 
-diff --git a/arch/sh/kernel/process_64.c b/arch/sh/kernel/process_64.c
-index 31f80c6..ec79faf 100644
---- a/arch/sh/kernel/process_64.c
-+++ b/arch/sh/kernel/process_64.c
-@@ -368,7 +368,7 @@ void exit_thread(void)
- void flush_thread(void)
- {
- 
--	/* Called by fs/exec.c (flush_old_exec) to remove traces of a
-+	/* Called by fs/exec.c (setup_new_exec) to remove traces of a
- 	 * previously running executable. */
- #ifdef CONFIG_SH_FPU
- 	if (last_task_used_math == current) {
+This not only makes things more straightforward, it removes more lines of 
+code than it adds too. Partly because we don't need that comment about the 
+crazy case any more.
+
+What say you guys? For a change, I've actually tested these two patches. I 
+never saw the problem that Mathias saw, but I _could_ see the incorrect 
+64-bit [vsyscall] vma in /proc/xyz/maps after the failed execve, and that 
+is gone with this patch.
+
+That said, I don't really have any 32-bit binaries. The only 32-bit binary 
+I tested was Mathias test-case. It worked. The code looks sane. What can I 
+say?
+
+ arch/x86/ia32/ia32_aout.c          |    1 -
+ arch/x86/include/asm/elf.h         |    6 ++----
+ arch/x86/include/asm/thread_info.h |    3 +--
+ arch/x86/kernel/process.c          |   12 ------------
+ fs/binfmt_elf.c                    |   26 ++------------------------
+ fs/exec.c                          |    2 +-
+ 6 files changed, 6 insertions(+), 44 deletions(-)
+
 diff --git a/arch/x86/ia32/ia32_aout.c b/arch/x86/ia32/ia32_aout.c
-index 2a4d073..9bc3298 100644
+index 9bc3298..a6b35c9 100644
 --- a/arch/x86/ia32/ia32_aout.c
 +++ b/arch/x86/ia32/ia32_aout.c
-@@ -307,6 +307,7 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
- 	retval = flush_old_exec(bprm);
- 	if (retval)
- 		return retval;
-+	setup_new_exec(bprm);
- 
- 	regs->cs = __USER32_CS;
- 	regs->r8 = regs->r9 = regs->r10 = regs->r11 = regs->r12 =
-diff --git a/fs/binfmt_aout.c b/fs/binfmt_aout.c
-index 346b694..56ef825 100644
---- a/fs/binfmt_aout.c
-+++ b/fs/binfmt_aout.c
-@@ -259,6 +259,8 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
- 		return retval;
- 
+@@ -316,7 +316,6 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
  	/* OK, This is the point of no return */
-+	setup_new_exec(bprm);
-+
- #ifdef __alpha__
- 	SET_AOUT_PERSONALITY(bprm, ex);
- #else
+ 	set_personality(PER_LINUX);
+ 	set_thread_flag(TIF_IA32);
+-	clear_thread_flag(TIF_ABI_PENDING);
+ 
+ 	current->mm->end_code = ex.a_text +
+ 		(current->mm->start_code = N_TXTADDR(ex));
+diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
+index b4501ee..4c17e20 100644
+--- a/arch/x86/include/asm/elf.h
++++ b/arch/x86/include/asm/elf.h
+@@ -183,11 +183,9 @@ void start_thread_ia32(struct pt_regs *regs, u32 new_ip, u32 new_sp);
+ 
+ #define COMPAT_SET_PERSONALITY(ex)			\
+ do {							\
+-	if (test_thread_flag(TIF_IA32))			\
+-		clear_thread_flag(TIF_ABI_PENDING);	\
+-	else						\
+-		set_thread_flag(TIF_ABI_PENDING);	\
++	set_thread_flag(TIF_IA32);			\
+ 	current->personality |= force_personality32;	\
++	current_thread_info()->status |= TS_COMPAT;	\
+ } while (0)
+ 
+ #define COMPAT_ELF_PLATFORM			("i686")
+diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+index 375c917..4ce5b15 100644
+--- a/arch/x86/include/asm/thread_info.h
++++ b/arch/x86/include/asm/thread_info.h
+@@ -87,7 +87,7 @@ struct thread_info {
+ #define TIF_NOTSC		16	/* TSC is not accessible in userland */
+ #define TIF_IA32		17	/* 32bit process */
+ #define TIF_FORK		18	/* ret_from_fork */
+-#define TIF_ABI_PENDING		19
++					/* 19 - unused */
+ #define TIF_MEMDIE		20
+ #define TIF_DEBUG		21	/* uses debug registers */
+ #define TIF_IO_BITMAP		22	/* uses I/O bitmap */
+@@ -112,7 +112,6 @@ struct thread_info {
+ #define _TIF_NOTSC		(1 << TIF_NOTSC)
+ #define _TIF_IA32		(1 << TIF_IA32)
+ #define _TIF_FORK		(1 << TIF_FORK)
+-#define _TIF_ABI_PENDING	(1 << TIF_ABI_PENDING)
+ #define _TIF_DEBUG		(1 << TIF_DEBUG)
+ #define _TIF_IO_BITMAP		(1 << TIF_IO_BITMAP)
+ #define _TIF_FREEZE		(1 << TIF_FREEZE)
+diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
+index 02c3ee0..c9b3522 100644
+--- a/arch/x86/kernel/process.c
++++ b/arch/x86/kernel/process.c
+@@ -115,18 +115,6 @@ void flush_thread(void)
+ {
+ 	struct task_struct *tsk = current;
+ 
+-#ifdef CONFIG_X86_64
+-	if (test_tsk_thread_flag(tsk, TIF_ABI_PENDING)) {
+-		clear_tsk_thread_flag(tsk, TIF_ABI_PENDING);
+-		if (test_tsk_thread_flag(tsk, TIF_IA32)) {
+-			clear_tsk_thread_flag(tsk, TIF_IA32);
+-		} else {
+-			set_tsk_thread_flag(tsk, TIF_IA32);
+-			current_thread_info()->status |= TS_COMPAT;
+-		}
+-	}
+-#endif
+-
+ 	flush_ptrace_hw_breakpoint(tsk);
+ 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
+ 	/*
 diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index edd90c4..c7e6973 100644
+index c7e6973..bcf5ddb 100644
 --- a/fs/binfmt_elf.c
 +++ b/fs/binfmt_elf.c
-@@ -741,6 +741,8 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
- 		goto out_free_dentry;
+@@ -662,27 +662,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+ 			if (elf_interpreter[elf_ppnt->p_filesz - 1] != '\0')
+ 				goto out_free_interp;
  
- 	/* OK, This is the point of no return */
-+	setup_new_exec(bprm);
-+
- 	current->flags &= ~PF_FORKNOEXEC;
- 	current->mm->def_flags = def_flags;
- 
-diff --git a/fs/binfmt_elf_fdpic.c b/fs/binfmt_elf_fdpic.c
-index c57d9ce..26d0ba3 100644
---- a/fs/binfmt_elf_fdpic.c
-+++ b/fs/binfmt_elf_fdpic.c
-@@ -318,6 +318,8 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
- 	/* there's now no turning back... the old userspace image is dead,
- 	 * defunct, deceased, etc. after this point we have to exit via
- 	 * error_kill */
-+	setup_new_exec(bprm);
-+
- 	set_personality(PER_LINUX_FDPIC);
- 	if (elf_read_implies_exec(&exec_params.hdr, executable_stack))
- 		current->personality |= READ_IMPLIES_EXEC;
-diff --git a/fs/binfmt_flat.c b/fs/binfmt_flat.c
-index d4a00ea..d6a43eb 100644
---- a/fs/binfmt_flat.c
-+++ b/fs/binfmt_flat.c
-@@ -518,6 +518,7 @@ static int load_flat_file(struct linux_binprm * bprm,
- 		}
- 
- 		/* OK, This is the point of no return */
-+		setup_new_exec(bprm);
- 		set_personality(PER_LINUX_32BIT);
+-			/*
+-			 * The early SET_PERSONALITY here is so that the lookup
+-			 * for the interpreter happens in the namespace of the 
+-			 * to-be-execed image.  SET_PERSONALITY can select an
+-			 * alternate root.
+-			 *
+-			 * However, SET_PERSONALITY is NOT allowed to switch
+-			 * this task into the new images's memory mapping
+-			 * policy - that is, TASK_SIZE must still evaluate to
+-			 * that which is appropriate to the execing application.
+-			 * This is because exit_mmap() needs to have TASK_SIZE
+-			 * evaluate to the size of the old image.
+-			 *
+-			 * So if (say) a 64-bit application is execing a 32-bit
+-			 * application it is the architecture's responsibility
+-			 * to defer changing the value of TASK_SIZE until the
+-			 * switch really is going to happen - do this in
+-			 * flush_thread().	- akpm
+-			 */
+-			SET_PERSONALITY(loc->elf_ex);
+-
+ 			interpreter = open_exec(elf_interpreter);
+ 			retval = PTR_ERR(interpreter);
+ 			if (IS_ERR(interpreter))
+@@ -730,9 +709,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+ 		/* Verify the interpreter has a valid arch */
+ 		if (!elf_check_arch(&loc->interp_elf_ex))
+ 			goto out_free_dentry;
+-	} else {
+-		/* Executables without an interpreter also need a personality  */
+-		SET_PERSONALITY(loc->elf_ex);
  	}
  
-diff --git a/fs/binfmt_som.c b/fs/binfmt_som.c
-index 2a9b533..1189fb1 100644
---- a/fs/binfmt_som.c
-+++ b/fs/binfmt_som.c
-@@ -225,6 +225,8 @@ load_som_binary(struct linux_binprm * bprm, struct pt_regs * regs)
- 		goto out_free;
+ 	/* Flush all traces of the currently running executable */
+@@ -740,6 +716,8 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+ 	if (retval)
+ 		goto out_free_dentry;
  
- 	/* OK, This is the point of no return */
-+	setup_new_exec(bprm);
++	SET_PERSONALITY(loc->elf_ex);
 +
- 	current->flags &= ~PF_FORKNOEXEC;
- 	current->personality = PER_HPUX;
+ 	/* OK, This is the point of no return */
+ 	setup_new_exec(bprm);
  
 diff --git a/fs/exec.c b/fs/exec.c
-index 632b02e..9e10e6e 100644
+index 9e10e6e..5835fe2 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -941,9 +941,7 @@ void set_task_comm(struct task_struct *tsk, char *buf)
- 
- int flush_old_exec(struct linux_binprm * bprm)
- {
--	char * name;
--	int i, ch, retval;
--	char tcomm[sizeof(current->comm)];
-+	int retval;
- 
- 	/*
- 	 * Make sure we have a private signal table and that
-@@ -959,8 +957,16 @@ int flush_old_exec(struct linux_binprm * bprm)
- 	 * Release all of the old mmap stuff
- 	 */
- 	retval = exec_mmap(bprm->mm);
--	if (retval)
--		goto out;
-+out:
-+	return retval;
-+}
-+EXPORT_SYMBOL(flush_old_exec);
-+
-+void setup_new_exec(struct linux_binprm * bprm)
-+{
-+	char * name;
-+	int i, ch;
-+	char tcomm[sizeof(current->comm)];
+@@ -723,7 +723,6 @@ static int exec_mmap(struct mm_struct *mm)
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
+ 	task_unlock(tsk);
+-	arch_pick_mmap_layout(mm);
+ 	if (old_mm) {
+ 		up_read(&old_mm->mmap_sem);
+ 		BUG_ON(active_mm != old_mm);
+@@ -969,6 +968,7 @@ void setup_new_exec(struct linux_binprm * bprm)
+ 	char tcomm[sizeof(current->comm)];
  
  	bprm->mm = NULL;		/* We're using it now */
++	arch_pick_mmap_layout(current->mm);
  
-@@ -1019,14 +1025,8 @@ int flush_old_exec(struct linux_binprm * bprm)
- 			
- 	flush_signal_handlers(current, 0);
- 	flush_old_files(current->files);
--
--	return 0;
--
--out:
--	return retval;
- }
--
--EXPORT_SYMBOL(flush_old_exec);
-+EXPORT_SYMBOL(setup_new_exec);
- 
- /*
-  * Prepare credentials and lock ->cred_guard_mutex.
-diff --git a/include/linux/binfmts.h b/include/linux/binfmts.h
-index cd4349b..89c6249 100644
---- a/include/linux/binfmts.h
-+++ b/include/linux/binfmts.h
-@@ -109,6 +109,7 @@ extern int prepare_binprm(struct linux_binprm *);
- extern int __must_check remove_arg_zero(struct linux_binprm *);
- extern int search_binary_handler(struct linux_binprm *,struct pt_regs *);
- extern int flush_old_exec(struct linux_binprm * bprm);
-+extern void setup_new_exec(struct linux_binprm * bprm);
- 
- extern int suid_dumpable;
- #define SUID_DUMP_DISABLE	0	/* No setuid dumping */
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 6f7bba9..abdfacc 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1369,7 +1369,7 @@ struct task_struct {
- 	char comm[TASK_COMM_LEN]; /* executable name excluding path
- 				     - access with [gs]et_task_comm (which lock
- 				       it with task_lock())
--				     - initialized normally by flush_old_exec */
-+				     - initialized normally by setup_new_exec */
- /* file system info */
- 	int link_count, total_link_count;
- #ifdef CONFIG_SYSVIPC
+ 	/* This is the point of no return */
+ 	current->sas_ss_sp = current->sas_ss_size = 0;
 -- 
 1.7.0.rc0.33.g7c3932
 
