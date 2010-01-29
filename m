@@ -1,44 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4ABB16B0083
-	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:02:28 -0500 (EST)
-Date: Fri, 29 Jan 2010 01:00:04 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 25 of 31] transparent hugepage core
-Message-ID: <20100129000004.GR1217@random.random>
-References: <patchbomb.1264689194@v2.random>
- <ac9bbf9e2c95840eb237.1264689219@v2.random>
- <20100128175753.GF7139@csn.ul.ie>
- <20100128223653.GL1217@random.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0D3566B0092
+	for <linux-mm@kvack.org>; Thu, 28 Jan 2010 19:25:24 -0500 (EST)
+Received: by fxm9 with SMTP id 9so1403551fxm.10
+        for <linux-mm@kvack.org>; Thu, 28 Jan 2010 16:25:23 -0800 (PST)
+Message-ID: <4B622AEE.3080906@gmail.com>
+Date: Fri, 29 Jan 2010 01:25:18 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100128223653.GL1217@random.random>
+Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>	<20100126151202.75bd9347.akpm@linux-foundation.org>	<20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com>	<20100126161952.ee267d1c.akpm@linux-foundation.org>	<20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com> <20100128001636.2026a6bc@lxorguk.ukuu.org.uk>
+In-Reply-To: <20100128001636.2026a6bc@lxorguk.ukuu.org.uk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rientjes@google.com, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 28, 2010 at 11:36:53PM +0100, Andrea Arcangeli wrote:
-> able to split it anyway. Maybe we can chance it so that a hugepage is
-> always guaranteed to have PageLRU set, but split_huge_page has to take
+Alan Cox wrote:
 
-The most important benefit of not having enforced that guarantee, is
-that young bits will be checked on isolated pages (so with pagelru not
-set), when they are still mapped by pmd_trans_huge pmd. This way qemu
-pte side, and kvm spte side will both always keep using hugetlb and
-pmd_trans_huge in pmd/spmd (as long as at least one between the pmds
-and spmds has the young bit set).
+> Am I missing something fundamental here ?
 
-Like said to Robin in a different thread, it may not be necessary to
-call pmdp_flush_splitting_notify, pmdp_flush_splitting may be enough
-if the mmu notifier users learn that if they map a spmd with PSE set
-they may also get an invalidate at a later time when the page has no
-pagehead/tail/compound set anymore. Current way is conceptually
-simpler and less risky because by the time we clear pagetail/compound
-in split_huge_page_refcount the secondary mapping is gone just after
-the primary mapping (ksm minor fault will wait for splitting bit to go
-away like any other regular page fault from other threads).
+Yes, the fact linux mm currently sucks. How else would you explain
+possibility of killing random (often root owned) processes using a 5
+lines program started by an ordinary user? Killed process could be an
+apache web server or X server on a desktop. I demonstrated this flaw few
+months ago here and only Kame tried to find a way to fix it but
+encountered noncooperation.
+
+I don't know what to say, really. Sad... Actually funny, when you know
+that competition OS, often ridiculed by linux users, doesn't suffer any
+consequences when that same 5 line program is run.
+
+Regards,
+Vedran
+
+
+-- 
+http://vedranf.net | a8e7a7783ca0d460fee090cc584adc12
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
