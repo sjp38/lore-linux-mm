@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F7266B0078
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 01:23:22 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 614396B0078
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 01:23:24 -0500 (EST)
 From: "H. Peter Anvin" <hpa@zytor.com>
 Subject: [PATCH 2/2] x86: get rid of the insane TIF_ABI_PENDING bit
-Date: Thu, 28 Jan 2010 21:36:14 -0800
-Message-Id: <1264743374-4358-2-git-send-email-hpa@zytor.com>
-In-Reply-To: <1264743374-4358-1-git-send-email-hpa@zytor.com>
+Date: Thu, 28 Jan 2010 21:34:03 -0800
+Message-Id: <1264743243-4285-2-git-send-email-hpa@zytor.com>
+In-Reply-To: <1264743243-4285-1-git-send-email-hpa@zytor.com>
 References: <4B627236.1040508@zytor.com>
- <1264743374-4358-1-git-send-email-hpa@zytor.com>
+ <1264743243-4285-1-git-send-email-hpa@zytor.com>
 Sender: owner-linux-mm@kvack.org
 To: torvalds@linux-foundation.org
 Cc: akpm@linux-foundation.org, security@kernel.org, tony.luck@intel.com, jmorris@namei.org, mikew@google.com, md@google.com, linux-mm@kvack.org, mingo@redhat.com, tglx@linutronix.de, minipli@googlemail.com, roland@redhat.com, "H. Peter Anvin" <hpa@zytor.com>
