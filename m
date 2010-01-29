@@ -1,66 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5A54F6B008A
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 12:46:36 -0500 (EST)
-Date: Fri, 29 Jan 2010 17:46:34 +0000 (GMT)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH] mm: fix migratetype bug which slowed swapping
-In-Reply-To: <20100129173430.GK7139@csn.ul.ie>
-Message-ID: <alpine.LSU.2.00.1001291742150.12906@sister.anvils>
-References: <4B5FA147.5040802@teksavvy.com> <4B610FDA.50104@teksavvy.com> <4B6113C7.201@teksavvy.com> <201001281152.20352.rjw@sisk.pl> <4B61964F.6060307@teksavvy.com> <4B619C6D.9030205@teksavvy.com> <20100128142437.GA7139@csn.ul.ie> <4B62E904.9020401@teksavvy.com>
- <20100129154653.GJ7139@csn.ul.ie> <alpine.LSU.2.00.1001291716520.10968@sister.anvils> <20100129173430.GK7139@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6164A6B0047
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 14:00:05 -0500 (EST)
+Date: Fri, 29 Jan 2010 19:59:14 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 25 of 31] transparent hugepage core
+Message-ID: <20100129185914.GG21747@random.random>
+References: <patchbomb.1264689194@v2.random>
+ <ac9bbf9e2c95840eb237.1264689219@v2.random>
+ <20100128175753.GF7139@csn.ul.ie>
+ <20100128223653.GL1217@random.random>
+ <20100129152939.GI7139@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100129152939.GI7139@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Mark Lord <kernel@teksavvy.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-After memory pressure has forced it to dip into the reserves, 2.6.32's
-5f8dcc21211a3d4e3a7a5ca366b469fb88117f61 "page-allocator: split per-cpu
-list into one-list-per-migrate-type" has been returning MIGRATE_RESERVE
-pages to the MIGRATE_MOVABLE free_list: in some sense depleting reserves.
+On Fri, Jan 29, 2010 at 03:29:39PM +0000, Mel Gorman wrote:
+> In that case, I'd suggest simply no_transparent_hugepage with the
+> expectation that it's only used to get around early-boot problems that
+> might crop up. While the opportunity for a user to hang themselves is
+> always good for chuckles, there is little point giving them more rope
+> than they need :)
 
-Fix that in the most straightforward way (which, considering the overheads
-of alternative approaches, is Mel's preference): the right migratetype is
-already in page_private(page), but free_pcppages_bulk() wasn't using it.
+I tend to agree.
 
-How did this bug show up?  As a 20% slowdown in my tmpfs loop kbuild
-swapping tests, on PowerMac G5 with SLUB allocator.  Bisecting to that
-commit was easy, but explaining the magnitude of the slowdown not easy.
+> Unfortunately, I don't have a i915 but I'll be testing the patchset on
+> the laptop over the weekend.
 
-The same effect appears, but much less markedly, with SLAB, and even
-less markedly on other machines (the PowerMac divides into fewer zones
-than x86, I think that may be a factor).  We guess that lumpy reclaim
-of short-lived high-order pages is implicated in some way, and probably
-this bug has been tickling a poor decision somewhere in page reclaim.
+To debug this I sent this patch that makes khugepaged a readonly
+thing, a pure pagetable scanner validator. And I asked to boot with
+transparent_hugepage=16 (that only enables the crippled down version
+of khugepaged that will never create transhuge pages). This way no
+hugepage will ever be generated and no hugepmd either. So if i915
+still trips on this, we'll know it's not my fault. Otherwise we've to
+dig deeper in the patch.
 
-But instrumentation hasn't told me much, I've run out of time and
-imagination to determine exactly what's going on, and shouldn't hold up
-the fix any longer: it's valid, and might even fix other misbehaviours.
+the i915 bug triggers at boot time only with i915.modeset=1 but it
+doesn't on my laptop also with i915 KMS=y. It starts before X. So I
+think the explanation is some splash screen (which I don't have) is
+mmapping the DRM framebuffer and DRM framebuffer corrupts some pte to
+point to the agpgart area. Otherwise it means some hugepage is
+confusing it, but nothing related to i915 should _ever_ care about
+hugepages because hugepages are only generated on vm_ops = NULL, and
+it must never happen that remap_pfn_range or vm_insert_pfn or anything
+like that happens on a vma with vm_ops not null.
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Cc: stable@kernel.org
----
-
- mm/page_alloc.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
---- 2.6.33-rc5/mm/page_alloc.c	2010-01-22 12:36:18.000000000 +0000
-+++ linux/mm/page_alloc.c	2010-01-22 12:53:38.000000000 +0000
-@@ -556,8 +556,9 @@ static void free_pcppages_bulk(struct zo
- 			page = list_entry(list->prev, struct page, lru);
- 			/* must delete as __free_one_page list manipulates */
- 			list_del(&page->lru);
--			__free_one_page(page, zone, 0, migratetype);
--			trace_mm_page_pcpu_drain(page, 0, migratetype);
-+			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-+			__free_one_page(page, zone, 0, page_private(page));
-+			trace_mm_page_pcpu_drain(page, 0, page_private(page));
- 		} while (--count && --batch_free && !list_empty(list));
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1552,8 +1552,10 @@ static int khugepaged_scan_pmd(struct mm
+ 		if (page_count(page) != 1)
+ 			goto out_unmap;
  	}
- 	spin_unlock(&zone->lock);
++#if 0
+ 	if (referenced)
+ 		ret = 1;
++#endif
+ out_unmap:
+ 	pte_unmap_unlock(pte, ptl);
+ 	if (ret) {
+
+I think this is also a must to add for mainline in addition to the
+above debugging trick (this will be the next step if the khugepaged
+crippled down in readonly mode and transparent_hugepage=16 still show
+the bug triggering, basically declaring transparent hugepage inocent,
+if hugepage is innocent then the below will have a chance to expose
+the bug).
+
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1678,6 +1680,7 @@ int vm_insert_pfn(struct vm_area_struct 
+ 						(VM_PFNMAP|VM_MIXEDMAP));
+ 	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
+ 	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
++	BUG_ON(!vma->vm_ops);
+ 
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+ 		return -EFAULT;
+@@ -1697,6 +1700,7 @@ int vm_insert_mixed(struct vm_area_struc
+ 			unsigned long pfn)
+ {
+ 	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
++	BUG_ON(!vma->vm_ops);
+ 
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+ 		return -EFAULT;
+@@ -1828,6 +1832,7 @@ int remap_pfn_range(struct vm_area_struc
+ 		return -EINVAL;
+ 
+ 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
++	BUG_ON(!vma->vm_ops);
+ 
+ 	err = track_pfn_vma_new(vma, &prot, pfn, PAGE_ALIGN(size));
+ 	if (err) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
