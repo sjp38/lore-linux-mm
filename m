@@ -1,74 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EA8466B0047
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 16:07:11 -0500 (EST)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o0TL79xp011750
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 13:07:09 -0800
-Received: from pxi12 (pxi12.prod.google.com [10.243.27.12])
-	by wpaz5.hot.corp.google.com with ESMTP id o0TL6fj8011654
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 13:07:08 -0800
-Received: by pxi12 with SMTP id 12so1971983pxi.33
-        for <linux-mm@kvack.org>; Fri, 29 Jan 2010 13:07:07 -0800 (PST)
-Date: Fri, 29 Jan 2010 13:07:01 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
-In-Reply-To: <5a0e6098f900aa36993b2b7f2320f927.squirrel@webmail-b.css.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1001291258490.2938@chino.kir.corp.google.com>
-References: <f8c9aca9c98db8ae7df3ac2d7ac8d922.squirrel@webmail-b.css.fujitsu.com> <20100129162137.79b2a6d4@lxorguk.ukuu.org.uk> <c6c48fdf7f746add49bb9cc058b513ae.squirrel@webmail-b.css.fujitsu.com> <20100129163030.1109ce78@lxorguk.ukuu.org.uk>
- <5a0e6098f900aa36993b2b7f2320f927.squirrel@webmail-b.css.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A85E6B0071
+	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 16:08:53 -0500 (EST)
+Date: Fri, 29 Jan 2010 13:08:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFP 3/3] Make mmu_notifier_invalidate_range_start able to
+ sleep.
+Message-Id: <20100129130820.1544eb1f.akpm@linux-foundation.org>
+In-Reply-To: <20100128195634.798620000@alcatraz.americas.sgi.com>
+References: <20100128195627.373584000@alcatraz.americas.sgi.com>
+	<20100128195634.798620000@alcatraz.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, vedran.furac@gmail.com, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Jack Steiner <steiner@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 30 Jan 2010, KAMEZAWA Hiroyuki wrote:
+On Thu, 28 Jan 2010 13:56:30 -0600
+Robin Holt <holt@sgi.com> wrote:
 
-> okay...I guess the cause of the problem Vedran met came from
-> this calculation.
-> ==
->  109         /*
->  110          * Processes which fork a lot of child processes are likely
->  111          * a good choice. We add half the vmsize of the children if they
->  112          * have an own mm. This prevents forking servers to flood the
->  113          * machine with an endless amount of children. In case a single
->  114          * child is eating the vast majority of memory, adding only half
->  115          * to the parents will make the child our kill candidate of
-> choice.
->  116          */
->  117         list_for_each_entry(child, &p->children, sibling) {
->  118                 task_lock(child);
->  119                 if (child->mm != mm && child->mm)
->  120                         points += child->mm->total_vm/2 + 1;
->  121                 task_unlock(child);
->  122         }
->  123
-> ==
-> This makes task launcher(the fist child of some daemon.) first victim.
+> 
+> Make the truncate case handle the need to sleep.  We accomplish this
+> by failing the mmu_notifier_invalidate_range_start(... atomic==1)
+> case which inturn falls back to unmap_mapping_range_vma() with the
+> restart_address == start_address.  In that case, we make an additional
+> callout to mmu_notifier_invalidate_range_start(... atomic==0) after the
+> i_mmap_lock has been released.
 
-That "victim", p, is passed to oom_kill_process() which does this:
+This is a mushroom patch.  This patch (and the rest of the patchset)
+fails to provide any reason for making any change to anything.
 
-	/* Try to kill a child first */
-	list_for_each_entry(c, &p->children, sibling) {
-		if (c->mm == p->mm)
-			continue;
-		if (!oom_kill_task(c))
-			return 0;
-	}
-	return oom_kill_task(p);
+I understand that it has something to do with xpmem?  That needs to be
+spelled out in some detail please, so we understand the requirements
+and perhaps can suggest alternatives.  If we have enough information we
+can perhaps even suggest alternatives _within xpmem_.  But right now, we
+have nothing.
 
-which prevents your example of the task launcher from getting killed 
-unless it itself is using such an egregious amount of memory that its VM 
-size has caused the heuristic to select the daemon in the first place.  
-We only look at a single level of children, and attempt to kill one of 
-those children not sharing memory with the selected task first, so your 
-example is exaggerated for dramatic value.
+> ===================================================================
+> --- mmu_notifiers_sleepable_v1.orig/include/linux/mmu_notifier.h	2010-01-28 13:43:26.000000000 -0600
+> +++ mmu_notifiers_sleepable_v1/include/linux/mmu_notifier.h	2010-01-28 13:43:26.000000000 -0600
+> @@ -170,8 +170,8 @@ extern void __mmu_notifier_change_pte(st
+>  				      unsigned long address, pte_t pte);
+>  extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+>  					  unsigned long address);
+> -extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+> -				  unsigned long start, unsigned long end);
+> +extern int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+> +			    unsigned long start, unsigned long end, int atomic);
 
-The oom killer has been doing this for years and I haven't noticed a huge 
-surge in complaints about it killing X specifically because of that code 
-in oom_kill_process().
+Perhaps `atomic' could be made bool.
+
+> ...
+>
+> @@ -1018,12 +1019,17 @@ unsigned long unmap_vmas(struct mmu_gath
+>  	unsigned long start = start_addr;
+>  	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
+>  	struct mm_struct *mm = vma->vm_mm;
+> +	int ret;
+>  
+>  	/*
+>  	 * mmu_notifier_invalidate_range_start can sleep. Don't initialize
+>  	 * mmu_gather until it completes
+>  	 */
+> -	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
+> +	ret = mmu_notifier_invalidate_range_start(mm, start_addr,
+> +					end_addr, (i_mmap_lock == NULL));
+> +	if (ret)
+> +		goto out;
+> +
+
+afaict, `ret' doesn't get used for anything.
+
+>  	*tlbp = tlb_gather_mmu(mm, fullmm);
+>  	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
+>  		unsigned long end;
+> @@ -1107,7 +1113,7 @@ unsigned long zap_page_range(struct vm_a
+>  		unsigned long size, struct zap_details *details)
+>  {
+>  	struct mm_struct *mm = vma->vm_mm;
+> -	struct mmu_gather *tlb;
+> +	struct mmu_gather *tlb == NULL;
+
+This statement doesn't do what you thought it did.  Didn't the compiler warn?
+
+>  	unsigned long end = address + size;
+>  	unsigned long nr_accounted = 0;
+>  
+> @@ -1908,7 +1914,7 @@ int apply_to_page_range(struct mm_struct
+>  	int err;
+>  
+>  	BUG_ON(addr >= end);
+> -	mmu_notifier_invalidate_range_start(mm, start, end);
+> +	mmu_notifier_invalidate_range_start(mm, start, end, 0);
+>  	pgd = pgd_offset(mm, addr);
+>  	do {
+>  		next = pgd_addr_end(addr, end);
+> @@ -2329,6 +2335,7 @@ static int unmap_mapping_range_vma(struc
+>  {
+>  	unsigned long restart_addr;
+>  	int need_break;
+> +	int need_unlocked_invalidate;
+>  
+>  	/*
+>  	 * files that support invalidating or truncating portions of the
+> @@ -2350,7 +2357,9 @@ again:
+>  
+>  	restart_addr = zap_page_range(vma, start_addr,
+>  					end_addr - start_addr, details);
+> -	need_break = need_resched() || spin_needbreak(details->i_mmap_lock);
+> +	need_unlocked_invalidate = (restart_addr == start_addr);
+> +	need_break = need_resched() || spin_needbreak(details->i_mmap_lock) ||
+> +					need_unlocked_invalidate;
+>  
+>  	if (restart_addr >= end_addr) {
+>  		/* We have now completed this vma: mark it so */
+> @@ -2365,6 +2374,10 @@ again:
+>  	}
+>  
+>  	spin_unlock(details->i_mmap_lock);
+> +	if (need_unlocked_invalidate) {
+> +		mmu_notifier_invalidate_range_start(vma->mm, start, end, 0);
+> +		mmu_notifier_invalidate_range_end(vma->mm, start, end);
+> +	}
+
+This is the appropriate place at which to add a comment explaining to
+the reader what the code is doing.
+
+> -void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+> -				  unsigned long start, unsigned long end)
+> +int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+> +			     unsigned long start, unsigned long end, int atomic)
+
+The implementation would be considerably less ugly if we could do away
+with the `atomic' thing altogether and just assume `atomic=false'
+throughout?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
