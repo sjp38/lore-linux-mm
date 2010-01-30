@@ -1,53 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D9B326B0047
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2010 12:44:19 -0500 (EST)
-Date: Sat, 30 Jan 2010 17:45:16 +0000
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C3F3D6B0047
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2010 13:17:51 -0500 (EST)
+Received: by fxm8 with SMTP id 8so3018830fxm.6
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2010 10:17:48 -0800 (PST)
+Message-ID: <4B6477C7.70508@gmail.com>
+Date: Sat, 30 Jan 2010 19:17:43 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
+MIME-Version: 1.0
 Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
-Message-ID: <20100130174516.2257d7fa@lxorguk.ukuu.org.uk>
-In-Reply-To: <4B646CBE.6050404@gmail.com>
-References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100126151202.75bd9347.akpm@linux-foundation.org>
-	<20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100126161952.ee267d1c.akpm@linux-foundation.org>
-	<20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100128001636.2026a6bc@lxorguk.ukuu.org.uk>
-	<4B622AEE.3080906@gmail.com>
-	<20100129003547.521a1da9@lxorguk.ukuu.org.uk>
-	<4B62327F.3010208@gmail.com>
-	<20100129110321.564cb866@lxorguk.ukuu.org.uk>
-	<4B64272D.8020509@gmail.com>
-	<20100130125917.600beb51@lxorguk.ukuu.org.uk>
-	<4B646CBE.6050404@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>	<20100126151202.75bd9347.akpm@linux-foundation.org>	<20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com>	<20100126161952.ee267d1c.akpm@linux-foundation.org>	<20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com>	<20100128001636.2026a6bc@lxorguk.ukuu.org.uk>	<4B622AEE.3080906@gmail.com>	<20100129003547.521a1da9@lxorguk.ukuu.org.uk>	<4B62327F.3010208@gmail.com>	<20100129110321.564cb866@lxorguk.ukuu.org.uk>	<4B64272D.8020509@gmail.com>	<20100130125917.600beb51@lxorguk.ukuu.org.uk>	<4B646CBE.6050404@gmail.com> <20100130174516.2257d7fa@lxorguk.ukuu.org.uk>
+In-Reply-To: <20100130174516.2257d7fa@lxorguk.ukuu.org.uk>
+Content-Type: multipart/mixed;
+ boundary="------------050309020409040608090004"
 Sender: owner-linux-mm@kvack.org
-To: vedran.furac@gmail.com
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rientjes@google.com, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> I can't say I'm able to correctly read kernel code, but I believe
-> default is set by:
+This is a multi-part message in MIME format.
+--------------050309020409040608090004
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-It['s set by the distribution - the kerne has a default value but given
-the same distributions are shipping the crap userspace that breaks with
-no-overcommit do you think they'll set it to break their user apps ?
+Alan Cox wrote:
 
-No.
-
-> http://vedranf.net/tmp/oom.ogv  (you can watch it using VLC for example)
+>> http://vedranf.net/tmp/oom.ogv  (you can watch it using VLC for example)
+>>
+>> Actually anyone receiving this mail should see it. What do you think,
+>> what will customers rather choose if they see this?
 > 
-> Actually anyone receiving this mail should see it. What do you think,
-> what will customers rather choose if they see this?
+> Address that to the distributions. Their customers. Systems I set up for
+> people always have no overcommit enabled.
 
-Address that to the distributions. Their customers. Systems I set up for
-people always have no overcommit enabled.
+And distros say that's a bug in kernel. Result: nothing gets done and
+users will continue to swear at linux after it kills their work...
 
-Alan
+
+-- 
+http://vedranf.net | a8e7a7783ca0d460fee090cc584adc12
+
+--------------050309020409040608090004
+Content-Type: text/x-vcard; charset=utf-8;
+ name="vedran_furac.vcf"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="vedran_furac.vcf"
+
+YmVnaW46dmNhcmQNCmZuO3F1b3RlZC1wcmludGFibGU6VmVkcmFuIEZ1cmE9QzQ9OEQNCm47
+cXVvdGVkLXByaW50YWJsZTpGdXJhPUM0PThEO1ZlZHJhbg0KYWRyOjs7Ozs7O0Nyb2F0aWEN
+CmVtYWlsO2ludGVybmV0OnZlZHJhbi5mdXJhY0BnbWFpbC5jb20NCngtbW96aWxsYS1odG1s
+OkZBTFNFDQp1cmw6aHR0cDovL3ZlZHJhbmYubmV0DQp2ZXJzaW9uOjIuMQ0KZW5kOnZjYXJk
+DQoNCg==
+--------------050309020409040608090004--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
