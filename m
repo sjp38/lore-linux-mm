@@ -1,129 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5DA256B0047
-	for <linux-mm@kvack.org>; Fri, 29 Jan 2010 19:34:53 -0500 (EST)
-Date: Fri, 29 Jan 2010 19:34:10 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm] remove VM_LOCK_RMAP code
-Message-ID: <20100129193410.7ce915d0@annuminas.surriel.com>
-In-Reply-To: <20100129151423.8b71b88e.akpm@linux-foundation.org>
-References: <20100128002000.2bf5e365@annuminas.surriel.com>
-	<20100129151423.8b71b88e.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 49A256B0088
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2010 07:33:55 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id e12so206782fga.8
+        for <linux-mm@kvack.org>; Sat, 30 Jan 2010 04:33:52 -0800 (PST)
+Message-ID: <4B64272D.8020509@gmail.com>
+Date: Sat, 30 Jan 2010 13:33:49 +0100
+From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
+Reply-To: vedran.furac@gmail.com
+MIME-Version: 1.0
+Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
+References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>	<20100126151202.75bd9347.akpm@linux-foundation.org>	<20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com>	<20100126161952.ee267d1c.akpm@linux-foundation.org>	<20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com>	<20100128001636.2026a6bc@lxorguk.ukuu.org.uk>	<4B622AEE.3080906@gmail.com>	<20100129003547.521a1da9@lxorguk.ukuu.org.uk>	<4B62327F.3010208@gmail.com> <20100129110321.564cb866@lxorguk.ukuu.org.uk>
+In-Reply-To: <20100129110321.564cb866@lxorguk.ukuu.org.uk>
+Content-Type: multipart/mixed;
+ boundary="------------070504030300050103070008"
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, lwoodman@redhat.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, aarcange@redhat.com
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rientjes@google.com, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-When a VMA is in an inconsistent state during setup or teardown, the
-worst that can happen is that the rmap code will not be able to find
-the page.
+This is a multi-part message in MIME format.
+--------------070504030300050103070008
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-It is also impossible for the rmap code to follow a pointer to an
-already freed VMA, because the rmap code holds the anon_vma->lock,
-which the VMA teardown code needs to take before the VMA is removed
-from the anon_vma chain.
+Alan Cox wrote:
 
-Hence, we should not need the VM_LOCK_RMAP locking at all.
+>> off by default. Problem is that it breaks java and some other stuff that
+>> allocates much more memory than it needs. Very quickly Committed_AS hits
+>> CommitLimit and one cannot allocate any more while there is plenty of
+>> memory still unused.
+> 
+> So how about you go and have a complain at the people who are causing
+> your problem, rather than the kernel.
 
-Sent as a separate patch because I would appreciate it if others
-could verify my logic :)
+That would pass completely unnoticed and ignored as long as overcommit
+is enabled by default.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- include/linux/mm.h |    4 ----
- mm/mmap.c          |   15 ---------------
- mm/rmap.c          |   12 ------------
- 3 files changed, 0 insertions(+), 31 deletions(-)
+>>> theoretical limit, but you generally need more swap (it's one of the
+>>> reasons why things like BSD historically have a '3 * memory' rule).
+>> Say I have 8GB of memory and there's always some free, why would I need
+>> swap?
+> 
+> So that all the applications that allocate tons of address space and
+> don't use it can swap when you hit that corner case, and as a result you
+> don't need to go OOM. You should only get an OOM when you run out of
+> memory + swap.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 93bbb70..5866e0c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -96,11 +96,7 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
- #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
- #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
--#ifdef CONFIG_MMU
--#define VM_LOCK_RMAP	0x01000000	/* Do not follow this rmap (mmu mmap) */
--#else
- #define VM_MAPPED_COPY	0x01000000	/* T if mapped copy of data (nommu mmap) */
--#endif
- #define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
- #define VM_ALWAYSDUMP	0x04000000	/* Always include in core dumps */
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 58a3d72..de9e953 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -554,9 +554,7 @@ again:			remove_next = 1 + (end > next->vm_end);
- 		 */
- 		if (importer && !importer->anon_vma) {
- 			/* Block reverse map lookups until things are set up. */
--			importer->vm_flags |= VM_LOCK_RMAP;
- 			if (anon_vma_clone(importer, vma)) {
--				importer->vm_flags &= ~VM_LOCK_RMAP;
- 				return -ENOMEM;
- 			}
- 			importer->anon_vma = anon_vma;
-@@ -618,11 +616,6 @@ again:			remove_next = 1 + (end > next->vm_end);
- 		__vma_unlink(mm, next, vma);
- 		if (file)
- 			__remove_shared_vm_struct(next, file, mapping);
--		/*
--		 * This VMA is now dead, no need for rmap to follow it.
--		 * Call anon_vma_merge below, outside of i_mmap_lock.
--		 */
--		next->vm_flags |= VM_LOCK_RMAP;
- 	} else if (insert) {
- 		/*
- 		 * split_vma has split insert from vma, and needs
-@@ -635,20 +628,12 @@ again:			remove_next = 1 + (end > next->vm_end);
- 	if (mapping)
- 		spin_unlock(&mapping->i_mmap_lock);
- 
--	/*
--	 * The current VMA has been set up. It is now safe for the
--	 * rmap code to get from the pages to the ptes.
--	 */
--	if (anon_vma && importer)
--		importer->vm_flags &= ~VM_LOCK_RMAP;
--
- 	if (remove_next) {
- 		if (file) {
- 			fput(file);
- 			if (next->vm_flags & VM_EXECUTABLE)
- 				removed_exe_file_vma(mm);
- 		}
--		/* Protected by mmap_sem and VM_LOCK_RMAP. */
- 		if (next->anon_vma)
- 			anon_vma_merge(vma, next);
- 		mm->map_count--;
-diff --git a/mm/rmap.c b/mm/rmap.c
-index aa11f3c..818615a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -329,18 +329,6 @@ vma_address(struct page *page, struct vm_area_struct *vma)
- 		/* page should be within @vma mapping range */
- 		return -EFAULT;
- 	}
--	if (unlikely(vma->vm_flags & VM_LOCK_RMAP)) {
--		/*
--		 * This VMA is being unlinked or is not yet linked into the
--		 * VMA tree.  Do not try to follow this rmap.  This race
--		 * condition can result in page_referenced() ignoring a
--		 * reference or in try_to_unmap() failing to unmap a page.
--		 * The VMA cannot be freed under us because we hold the
--		 * anon_vma->lock, which the munmap code takes while
--		 * unlinking the anon_vmas from the VMA.
--		 */
--		return -EFAULT;
--	}
- 	return address;
- }
- 
+Yes, but unfortunately using swap makes machine crawl with huge disk IO
+every time you access some application you haven't been using for a few
+hours. So recently more and more people are disabling it completely with
+positive experience.
+
+>>> So sounds to me like a problem between the keyboard and screen (coupled
+>> Unfortunately it is not. Give me ssh access to your computer (leave
+>> overcommit on) and I'll kill your X with anything running on it.
+> 
+> If you have overcommit on then you can cause stuff to get killed. Thats
+> what the option enables.
+
+s/stuff/wrong stuff/
+
+> It's really very simple: overcommit off you must have enough RAM and swap
+> to hold all allocations requested. Overcommit on - you don't need this
+> but if you do use more than is available on the system something has to
+> go.
+> 
+> It's kind of like banking  overcommit off is proper banking, overcommit
+> on is modern western banking.
+
+Hehe, yes and you know the consequences.
+
+If you look at malloc(3) you would see this:
+
+"This means that when malloc() returns non-NULL there is no guarantee
+that the memory really is available.  This is a really bad bug."
+
+So, if you don't want to change the OOM algorithm why not fixing this
+bug then? And after that change the proc(5) manpage entry for
+/proc/sys/vm/overcommit_memory into something like:
+
+0: heuristic overcommit (enable this if you have memory problems with
+                          some buggy software)
+1: always overcommit, never check
+2: always check, never overcommit (this is the default)
+
+Regards,
+Vedran
+
+
+-- 
+http://vedranf.net | a8e7a7783ca0d460fee090cc584adc12
+
+--------------070504030300050103070008
+Content-Type: text/x-vcard; charset=utf-8;
+ name="vedran_furac.vcf"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="vedran_furac.vcf"
+
+YmVnaW46dmNhcmQNCmZuO3F1b3RlZC1wcmludGFibGU6VmVkcmFuIEZ1cmE9QzQ9OEQNCm47
+cXVvdGVkLXByaW50YWJsZTpGdXJhPUM0PThEO1ZlZHJhbg0KYWRyOjs7Ozs7O0Nyb2F0aWEN
+CmVtYWlsO2ludGVybmV0OnZlZHJhbi5mdXJhY0BnbWFpbC5jb20NCngtbW96aWxsYS1odG1s
+OkZBTFNFDQp1cmw6aHR0cDovL3ZlZHJhbmYubmV0DQp2ZXJzaW9uOjIuMQ0KZW5kOnZjYXJk
+DQoNCg==
+--------------070504030300050103070008--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
