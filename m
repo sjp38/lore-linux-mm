@@ -1,59 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C3F3D6B0047
-	for <linux-mm@kvack.org>; Sat, 30 Jan 2010 13:17:51 -0500 (EST)
-Received: by fxm8 with SMTP id 8so3018830fxm.6
-        for <linux-mm@kvack.org>; Sat, 30 Jan 2010 10:17:48 -0800 (PST)
-Message-ID: <4B6477C7.70508@gmail.com>
-Date: Sat, 30 Jan 2010 19:17:43 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8BE996B0047
+	for <linux-mm@kvack.org>; Sat, 30 Jan 2010 13:29:21 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: Bug in find_vma_prev - mmap.c
+Date: Sat, 30 Jan 2010 19:29:47 +0100
+References: <6cafb0f01001291657q4ccbee86rce3143a4be7a1433@mail.gmail.com>
+In-Reply-To: <6cafb0f01001291657q4ccbee86rce3143a4be7a1433@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
-References: <20100121145905.84a362bb.kamezawa.hiroyu@jp.fujitsu.com>	<20100122152332.750f50d9.kamezawa.hiroyu@jp.fujitsu.com>	<20100125151503.49060e74.kamezawa.hiroyu@jp.fujitsu.com>	<20100126151202.75bd9347.akpm@linux-foundation.org>	<20100127085355.f5306e78.kamezawa.hiroyu@jp.fujitsu.com>	<20100126161952.ee267d1c.akpm@linux-foundation.org>	<20100127095812.d7493a8f.kamezawa.hiroyu@jp.fujitsu.com>	<20100128001636.2026a6bc@lxorguk.ukuu.org.uk>	<4B622AEE.3080906@gmail.com>	<20100129003547.521a1da9@lxorguk.ukuu.org.uk>	<4B62327F.3010208@gmail.com>	<20100129110321.564cb866@lxorguk.ukuu.org.uk>	<4B64272D.8020509@gmail.com>	<20100130125917.600beb51@lxorguk.ukuu.org.uk>	<4B646CBE.6050404@gmail.com> <20100130174516.2257d7fa@lxorguk.ukuu.org.uk>
-In-Reply-To: <20100130174516.2257d7fa@lxorguk.ukuu.org.uk>
-Content-Type: multipart/mixed;
- boundary="------------050309020409040608090004"
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001301929.47659.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rientjes@google.com, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Tony Perkins <da.perk@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------050309020409040608090004
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+[Adding CCs]
 
-Alan Cox wrote:
-
->> http://vedranf.net/tmp/oom.ogv  (you can watch it using VLC for example)
->>
->> Actually anyone receiving this mail should see it. What do you think,
->> what will customers rather choose if they see this?
+On Saturday 30 January 2010, Tony Perkins wrote:
+> This code returns vma (mm->mmap) if it sees that addr is lower than first VMA.
+> However, I think it falsely returns vma (mm->mmap) on the case where
+> addr is in the first VMA.
 > 
-> Address that to the distributions. Their customers. Systems I set up for
-> people always have no overcommit enabled.
+> If it is the first VMA region:
+> - *pprev should be set to NULL
+> - implying prev is NULL
+> - and should therefore return vma (so in this case, I just added if
+> it's the first VMA and it's within range)
+> 
+> /* Same as find_vma, but also return a pointer to the previous VMA in *pprev. */
+> struct vm_area_struct *
+> find_vma_prev(struct mm_struct *mm, unsigned long addr,
+>             struct vm_area_struct **pprev)
+> {
+>     struct vm_area_struct *vma = NULL, *prev = NULL;
+>     struct rb_node *rb_node;
+>     if (!mm)
+>         goto out;
+> 
+>     /* Guard against addr being lower than the first VMA */
+>     vma = mm->mmap;
+> 
+>     /* Go through the RB tree quickly. */
+>     rb_node = mm->mm_rb.rb_node;
+> 
+>     while (rb_node) {
+>         struct vm_area_struct *vma_tmp;
+>         vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+> 
+>         if (addr < vma_tmp->vm_end) {
+>             // TONY: if (vma_tmp->vm_start <= addr) vma = vma_tmp; //
+> this returns the correct 'vma' when vma is the first node (i.e., no
+> prev)
+>             rb_node = rb_node->rb_left;
+>         } else {
+>             prev = vma_tmp;
+>             if (!prev->vm_next || (addr < prev->vm_next->vm_end))
+>                 break;
+>             rb_node = rb_node->rb_right;
+>         }
+>     }
+> 
+> out:
+>     *pprev = prev;
+>     return prev ? prev->vm_next : vma;
+> }
+> 
+> Is this a known issue and/or has this problem been addressed?
+> Also, please CC my email address with responses.
 
-And distros say that's a bug in kernel. Result: nothing gets done and
-users will continue to swear at linux after it kills their work...
+Well, I guess you should let the mm people know (CCs added).
 
-
--- 
-http://vedranf.net | a8e7a7783ca0d460fee090cc584adc12
-
---------------050309020409040608090004
-Content-Type: text/x-vcard; charset=utf-8;
- name="vedran_furac.vcf"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
- filename="vedran_furac.vcf"
-
-YmVnaW46dmNhcmQNCmZuO3F1b3RlZC1wcmludGFibGU6VmVkcmFuIEZ1cmE9QzQ9OEQNCm47
-cXVvdGVkLXByaW50YWJsZTpGdXJhPUM0PThEO1ZlZHJhbg0KYWRyOjs7Ozs7O0Nyb2F0aWEN
-CmVtYWlsO2ludGVybmV0OnZlZHJhbi5mdXJhY0BnbWFpbC5jb20NCngtbW96aWxsYS1odG1s
-OkZBTFNFDQp1cmw6aHR0cDovL3ZlZHJhbmYubmV0DQp2ZXJzaW9uOjIuMQ0KZW5kOnZjYXJk
-DQoNCg==
---------------050309020409040608090004--
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
