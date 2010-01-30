@@ -1,49 +1,53 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7251A6B0047
-	for <linux-mm@kvack.org>; Thu, 30 Sep 2010 23:43:33 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o913hSCN006452
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 1 Oct 2010 12:43:29 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A61EE45DE7A
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 12:43:28 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 825A445DE70
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 12:43:28 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 64A071DB803E
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 12:43:28 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A4E31DB803A
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 12:43:28 +0900 (JST)
-Date: Fri, 1 Oct 2010 12:38:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH v2] memcg: fix thresholds with use_hierarchy ==
- 1
-Message-Id: <20101001123814.0b777694.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1285841792-23664-1-git-send-email-kirill@shutemov.name>
-References: <1285841792-23664-1-git-send-email-kirill@shutemov.name>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 4/4] hwpoison: avoid "still referenced by -1 users" warning
+Date: Sat, 30 Jan 2010 17:25:13 +0800
+Message-ID: <20100130093704.146687888@intel.com>
+References: <20100130092509.793222613@intel.com>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1Ov8CL-0003He-DN
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Sep 2010 14:31:49 +0200
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3A9C16B010D
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 08:31:35 -0400 (EDT)
+Content-Disposition: inline; filename=hwpoison-no-warn-unknown.patch
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutsemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@suse.de>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+List-Id: linux-mm.kvack.org
 
-On Thu, 30 Sep 2010 13:16:32 +0300
-"Kirill A. Shutsemov" <kirill@shutemov.name> wrote:
+Get rid of the amusing last line, emitted for slab/reserved kernel pages:
 
-> From: Kirill A. Shutemov <kirill@shutemov.name>
-> 
-> We need to check parent's thresholds if parent has use_hierarchy == 1 to
-> be sure that parent's threshold events will be triggered even if parent
-> itself is not active (no MEM_CGROUP_EVENTS).
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+[  328.396842] MCE 0x1ff00: Unknown page state
+[  328.399058] MCE 0x1ff00: dirty unknown page state page recovery: Failed
+[  328.402465] MCE 0x1ff00: unknown page state page still referenced by -1 users
+
+CC: Andi Kleen <andi@firstfloor.org>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/memory-failure.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- linux-mm.orig/mm/memory-failure.c	2010-01-22 11:20:28.000000000 +0800
++++ linux-mm/mm/memory-failure.c	2010-01-30 17:23:40.000000000 +0800
+@@ -803,7 +803,7 @@ static int page_action(struct page_state
+ 	count = page_count(p) - 1;
+ 	if (ps->action == me_swapcache_dirty && result == DELAYED)
+ 		count--;
+-	if (count != 0) {
++	if (count > 0) {
+ 		printk(KERN_ERR
+ 		       "MCE %#lx: %s page still referenced by %d users\n",
+ 		       pfn, ps->msg, count);
+
+
+--
+To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
