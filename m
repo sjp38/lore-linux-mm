@@ -1,51 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 430056B0078
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:02:20 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6C3546B007B
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:02:25 -0500 (EST)
 From: Joe Perches <joe@perches.com>
-Subject: [PATCH 00/10] treewide: Fix format strings that misuse continuations
-Date: Sun, 31 Jan 2010 12:02:02 -0800
-Message-Id: <cover.1264967493.git.joe@perches.com>
+Subject: [PATCH 09/10] mm/slab.c: Fix continuation line formats
+Date: Sun, 31 Jan 2010 12:02:11 -0800
+Message-Id: <9d64ab1e1d69c750d53a398e09fe5da2437668c5.1264967500.git.joe@perches.com>
+In-Reply-To: <cover.1264967493.git.joe@perches.com>
+References: <cover.1264967493.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org
-Cc: Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "David S. Miller" <davem@davemloft.net>, "James E.J. Bottomley" <James.Bottomley@suse.de>, Sonic Zhang <sonic.zhang@analog.com>, Greg Kroah-Hartman <gregkh@suse.de>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Liam Girdwood <lrg@slimlogic.co.uk>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@ozlabs.org, linux-ide@vger.kernel.org, netdev@vger.kernel.org, linux-scsi@vger.kernel.org, devel@driverdev.osuosl.org, linux-mm@kvack.org, alsa-devel@alsa-project.org
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Format strings that are continued with \ are frequently misused.
-Change them to use mostly single line formats, some longer than 80 chars.
-Fix a few miscellaneous typos at the same time.
+String constants that are continued on subsequent lines with \
+are not good.
 
-Joe Perches (10):
-  arch/powerpc: Fix continuation line formats
-  arch/blackfin: Fix continuation line formats
-  drivers/ide: Fix continuation line formats
-  drivers/serial/bfin_5xx.c: Fix continuation line formats
-  drivers/scsi/arcmsr: Fix continuation line formats
-  drivers/staging: Fix continuation line formats
-  drivers/net/amd8111e.c: Fix continuation line formats
-  fs/proc/array.c: Fix continuation line formats
-  mm/slab.c: Fix continuation line formats
-  sound/soc/blackfin: Fix continuation line formats
+The characters between seq_printf elements are tabs.
+That was probably not intentional, but isn't being changed.
+It's behind an #ifdef, so it could probably become a single space.
 
- arch/blackfin/mach-common/smp.c                    |    4 +-
- arch/powerpc/kernel/nvram_64.c                     |    6 +-
- arch/powerpc/platforms/pseries/hotplug-cpu.c       |    8 ++--
- arch/powerpc/platforms/pseries/smp.c               |    4 +-
- drivers/ide/au1xxx-ide.c                           |    4 +-
- drivers/ide/pmac.c                                 |    4 +-
- drivers/net/amd8111e.c                             |    3 +-
- drivers/scsi/arcmsr/arcmsr_hba.c                   |   49 +++++++++----------
- drivers/serial/bfin_5xx.c                          |    6 +--
- drivers/staging/dream/qdsp5/audio_mp3.c            |    3 +-
- .../rtl8187se/ieee80211/ieee80211_softmac_wx.c     |    3 +-
- drivers/staging/rtl8187se/r8180_core.c             |    3 +-
- drivers/staging/sep/sep_driver.c                   |    3 +-
- fs/proc/array.c                                    |    7 ++-
- mm/slab.c                                          |    4 +-
- sound/soc/blackfin/bf5xx-ac97-pcm.c                |    8 +--
- sound/soc/blackfin/bf5xx-i2s-pcm.c                 |    3 +-
- sound/soc/blackfin/bf5xx-tdm-pcm.c                 |    3 +-
- 18 files changed, 55 insertions(+), 70 deletions(-)
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+ mm/slab.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 7451bda..9964619 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4228,8 +4228,8 @@ static int s_show(struct seq_file *m, void *p)
+ 		unsigned long node_frees = cachep->node_frees;
+ 		unsigned long overflows = cachep->node_overflow;
+ 
+-		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu \
+-				%4lu %4lu %4lu %4lu %4lu", allocs, high, grown,
++		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu 				%4lu %4lu %4lu %4lu %4lu",
++				allocs, high, grown,
+ 				reaped, errors, max_freeable, node_allocs,
+ 				node_frees, overflows);
+ 	}
+-- 
+1.6.6.rc0.57.gad7a
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
