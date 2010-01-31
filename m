@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4C47E6B0089
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:32:51 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 03C14620014
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:32:52 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 01 of 32] define MADV_HUGEPAGE
-Message-Id: <46877c1c00c43ab4def0.1264969632@v2.random>
+Subject: [PATCH 09 of 32] no paravirt version of pmd ops
+Message-Id: <58c67d350728e515fb49.1264969640@v2.random>
 In-Reply-To: <patchbomb.1264969631@v2.random>
 References: <patchbomb.1264969631@v2.random>
-Date: Sun, 31 Jan 2010 21:27:12 +0100
+Date: Sun, 31 Jan 2010 21:27:20 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,73 +18,33 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Define MADV_HUGEPAGE.
+No paravirt version of set_pmd_at/pmd_update/pmd_update_defer.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Arnd Bergmann <arnd@arndb.de>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
---- a/arch/alpha/include/asm/mman.h
-+++ b/arch/alpha/include/asm/mman.h
-@@ -53,6 +53,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -33,6 +33,7 @@ extern struct list_head pgd_list;
+ #else  /* !CONFIG_PARAVIRT */
+ #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
+ #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
++#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
  
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
+ #define set_pte_atomic(ptep, pte)					\
+ 	native_set_pte_atomic(ptep, pte)
+@@ -57,6 +58,8 @@ extern struct list_head pgd_list;
  
-diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
---- a/arch/mips/include/asm/mman.h
-+++ b/arch/mips/include/asm/mman.h
-@@ -77,6 +77,8 @@
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- #define MADV_HWPOISON    100		/* poison a page for testing */
+ #define pte_update(mm, addr, ptep)              do { } while (0)
+ #define pte_update_defer(mm, addr, ptep)        do { } while (0)
++#define pmd_update(mm, addr, ptep)              do { } while (0)
++#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
  
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
---- a/arch/parisc/include/asm/mman.h
-+++ b/arch/parisc/include/asm/mman.h
-@@ -59,6 +59,8 @@
- #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
- 
-+#define MADV_HUGEPAGE	67		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- #define MAP_VARIABLE	0
-diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
---- a/arch/xtensa/include/asm/mman.h
-+++ b/arch/xtensa/include/asm/mman.h
-@@ -83,6 +83,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- 
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
---- a/include/asm-generic/mman-common.h
-+++ b/include/asm-generic/mman-common.h
-@@ -45,6 +45,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- 
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
+ #define pgd_val(x)	native_pgd_val(x)
+ #define __pgd(x)	native_make_pgd(x)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
