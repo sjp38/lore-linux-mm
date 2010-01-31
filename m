@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0194A6B0098
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 14F386B0099
 	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:32:48 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 29 of 32] memcg compound
-Message-Id: <876023b7cb075b002e91.1264969660@v2.random>
+Subject: [PATCH 27 of 32] madvise(MADV_HUGEPAGE)
+Message-Id: <94aa71f2e1861fee02fe.1264969658@v2.random>
 In-Reply-To: <patchbomb.1264969631@v2.random>
 References: <patchbomb.1264969631@v2.random>
-Date: Sun, 31 Jan 2010 21:27:40 +0100
+Date: Sun, 31 Jan 2010 21:27:38 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,278 +18,108 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Teach memcg to charge/uncharge compound pages.
+Add madvise MADV_HUGEPAGE to mark regions that are important to be hugepage
+backed. Return -EINVAL if the vma is not of an anonymous type, or the feature
+isn't built into the kernel. Never silently return success.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -4,6 +4,10 @@ NOTE: The Memory Resource Controller has
- to as the memory controller in this document. Do not confuse memory controller
- used here with the memory controller that is used in hardware.
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -107,6 +107,7 @@ extern int split_huge_page(struct page *
+ #endif
  
-+NOTE: When in this documentation we refer to PAGE_SIZE, we actually
-+mean the real page size of the page being accounted which is bigger than
-+PAGE_SIZE for compound pages.
-+
- Salient features
- 
- a. Enable control of Anonymous, Page Cache (mapped and unmapped) and
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1401,8 +1401,8 @@ static int __cpuinit memcg_stock_cpu_cal
-  * oom-killer can be invoked.
-  */
- static int __mem_cgroup_try_charge(struct mm_struct *mm,
--			gfp_t gfp_mask, struct mem_cgroup **memcg,
--			bool oom, struct page *page)
-+				   gfp_t gfp_mask, struct mem_cgroup **memcg,
-+				   bool oom, struct page *page, int page_size)
+ extern unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
++extern int hugepage_madvise(unsigned long *vm_flags);
+ static inline int PageTransHuge(struct page *page)
  {
- 	struct mem_cgroup *mem, *mem_over_limit;
- 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-@@ -1415,6 +1415,9 @@ static int __mem_cgroup_try_charge(struc
- 		return 0;
+ 	VM_BUG_ON(PageTail(page));
+@@ -133,6 +134,11 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++static inline int hugepage_madvise(unsigned long *vm_flags)
++{
++	BUG_ON(0);
++	return 0;
++}
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+ #endif /* _LINUX_HUGE_MM_H */
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -462,9 +462,11 @@ int do_huge_pmd_wp_page(struct mm_struct
+ 		put_page(new_page);
+ 		new_page = NULL;
  	}
+-	if (unlikely(!new_page))
+-		return do_huge_pmd_wp_page_fallback(mm, vma, address,
+-						    pmd, orig_pmd, page, haddr);
++	if (unlikely(!new_page)) {
++		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
++						   pmd, orig_pmd, page, haddr);
++		goto out;
++	}
  
-+	if (PageTransHuge(page))
-+		csize = page_size;
-+
- 	/*
- 	 * We always charge the cgroup the mm_struct belongs to.
- 	 * The mm_struct's mem_cgroup changes on task migration if the
-@@ -1439,8 +1442,9 @@ static int __mem_cgroup_try_charge(struc
- 		int ret = 0;
- 		unsigned long flags = 0;
- 
--		if (consume_stock(mem))
--			goto charged;
-+		if (!PageTransHuge(page))
-+			if (consume_stock(mem))
-+				goto charged;
- 
- 		ret = res_counter_charge(&mem->res, csize, &fail_res);
- 		if (likely(!ret)) {
-@@ -1460,7 +1464,7 @@ static int __mem_cgroup_try_charge(struc
- 									res);
- 
- 		/* reduce request size and retry */
--		if (csize > PAGE_SIZE) {
-+		if (csize > page_size) {
- 			csize = PAGE_SIZE;
- 			continue;
- 		}
-@@ -1491,7 +1495,7 @@ static int __mem_cgroup_try_charge(struc
- 			goto nomem;
- 		}
+ 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
+@@ -487,6 +489,7 @@ int do_huge_pmd_wp_page(struct mm_struct
  	}
--	if (csize > PAGE_SIZE)
-+	if (csize > page_size)
- 		refill_stock(mem, csize - PAGE_SIZE);
- charged:
- 	/*
-@@ -1512,12 +1516,12 @@ nomem:
-  * This function is for that and do uncharge, put css's refcnt.
-  * gotten by try_charge().
-  */
--static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
-+static void mem_cgroup_cancel_charge(struct mem_cgroup *mem, int page_size)
- {
- 	if (!mem_cgroup_is_root(mem)) {
--		res_counter_uncharge(&mem->res, PAGE_SIZE);
-+		res_counter_uncharge(&mem->res, page_size);
- 		if (do_swap_account)
--			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+			res_counter_uncharge(&mem->memsw, page_size);
- 	}
- 	css_put(&mem->css);
- }
-@@ -1575,8 +1579,9 @@ struct mem_cgroup *try_get_mem_cgroup_fr
-  */
- 
- static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
--				     struct page_cgroup *pc,
--				     enum charge_type ctype)
-+				       struct page_cgroup *pc,
-+				       enum charge_type ctype,
-+				       int page_size)
- {
- 	/* try_charge() can return NULL to *memcg, taking care of it. */
- 	if (!mem)
-@@ -1585,7 +1590,7 @@ static void __mem_cgroup_commit_charge(s
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
--		mem_cgroup_cancel_charge(mem);
-+		mem_cgroup_cancel_charge(mem, page_size);
- 		return;
- 	}
- 
-@@ -1722,7 +1727,8 @@ static int mem_cgroup_move_parent(struct
- 		goto put;
- 
- 	parent = mem_cgroup_from_cont(pcg);
--	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page);
-+	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page,
-+		PAGE_SIZE);
- 	if (ret || !parent)
- 		goto put_back;
- 
-@@ -1730,7 +1736,7 @@ static int mem_cgroup_move_parent(struct
- 	if (!ret)
- 		css_put(&parent->css);	/* drop extra refcnt by try_charge() */
- 	else
--		mem_cgroup_cancel_charge(parent);	/* does css_put */
-+		mem_cgroup_cancel_charge(parent, PAGE_SIZE); /* does css_put */
- put_back:
- 	putback_lru_page(page);
- put:
-@@ -1752,6 +1758,10 @@ static int mem_cgroup_charge_common(stru
- 	struct mem_cgroup *mem;
- 	struct page_cgroup *pc;
- 	int ret;
-+	int page_size = PAGE_SIZE;
-+
-+	if (PageTransHuge(page))
-+		page_size <<= compound_order(page);
- 
- 	pc = lookup_page_cgroup(page);
- 	/* can happen at boot */
-@@ -1760,11 +1770,12 @@ static int mem_cgroup_charge_common(stru
- 	prefetchw(pc);
- 
- 	mem = memcg;
--	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page);
-+	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page,
-+				      page_size);
- 	if (ret || !mem)
- 		return ret;
- 
--	__mem_cgroup_commit_charge(mem, pc, ctype);
-+	__mem_cgroup_commit_charge(mem, pc, ctype, page_size);
- 	return 0;
- }
- 
-@@ -1773,8 +1784,6 @@ int mem_cgroup_newpage_charge(struct pag
- {
- 	if (mem_cgroup_disabled())
- 		return 0;
--	if (PageCompound(page))
--		return 0;
- 	/*
- 	 * If already mapped, we don't have to account.
- 	 * If page cache, page->mapping has address_space.
-@@ -1787,7 +1796,7 @@ int mem_cgroup_newpage_charge(struct pag
- 	if (unlikely(!mm))
- 		mm = &init_mm;
- 	return mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
-+					MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
- }
- 
- static void
-@@ -1880,14 +1889,14 @@ int mem_cgroup_try_charge_swapin(struct 
- 	if (!mem)
- 		goto charge_cur_mm;
- 	*ptr = mem;
--	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page);
-+	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page, PAGE_SIZE);
- 	/* drop extra refcnt from tryget */
- 	css_put(&mem->css);
+ out_unlock:
+ 	spin_unlock(&mm->page_table_lock);
++out:
  	return ret;
- charge_cur_mm:
- 	if (unlikely(!mm))
- 		mm = &init_mm;
--	return __mem_cgroup_try_charge(mm, mask, ptr, true, page);
-+	return __mem_cgroup_try_charge(mm, mask, ptr, true, page, PAGE_SIZE);
  }
  
- static void
-@@ -1903,7 +1912,7 @@ __mem_cgroup_commit_charge_swapin(struct
- 	cgroup_exclude_rmdir(&ptr->css);
- 	pc = lookup_page_cgroup(page);
- 	mem_cgroup_lru_del_before_commit_swapcache(page);
--	__mem_cgroup_commit_charge(ptr, pc, ctype);
-+	__mem_cgroup_commit_charge(ptr, pc, ctype, PAGE_SIZE);
- 	mem_cgroup_lru_add_after_commit_swapcache(page);
- 	/*
- 	 * Now swap is on-memory. This means this page may be
-@@ -1952,11 +1961,12 @@ void mem_cgroup_cancel_charge_swapin(str
- 		return;
- 	if (!mem)
- 		return;
--	mem_cgroup_cancel_charge(mem);
-+	mem_cgroup_cancel_charge(mem, PAGE_SIZE);
+@@ -837,3 +840,19 @@ out_unlock:
+ out:
+ 	return ret;
  }
- 
- static void
--__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
-+__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype,
-+	      int page_size)
- {
- 	struct memcg_batch_info *batch = NULL;
- 	bool uncharge_memsw = true;
-@@ -1989,14 +1999,14 @@ __do_uncharge(struct mem_cgroup *mem, co
- 	if (batch->memcg != mem)
- 		goto direct_uncharge;
- 	/* remember freed charge and uncharge it later */
--	batch->bytes += PAGE_SIZE;
-+	batch->bytes += page_size;
- 	if (uncharge_memsw)
--		batch->memsw_bytes += PAGE_SIZE;
-+		batch->memsw_bytes += page_size;
- 	return;
- direct_uncharge:
--	res_counter_uncharge(&mem->res, PAGE_SIZE);
-+	res_counter_uncharge(&mem->res, page_size);
- 	if (uncharge_memsw)
--		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+		res_counter_uncharge(&mem->memsw, page_size);
- 	return;
- }
- 
-@@ -2009,6 +2019,10 @@ __mem_cgroup_uncharge_common(struct page
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *mem = NULL;
- 	struct mem_cgroup_per_zone *mz;
-+	int page_size = PAGE_SIZE;
 +
-+	if (PageTransHuge(page))
-+		page_size <<= compound_order(page);
- 
- 	if (mem_cgroup_disabled())
- 		return NULL;
-@@ -2048,7 +2062,7 @@ __mem_cgroup_uncharge_common(struct page
++int hugepage_madvise(unsigned long *vm_flags)
++{
++	/*
++	 * Be somewhat over-protective like KSM for now!
++	 */
++	if (*vm_flags & (VM_HUGEPAGE | VM_SHARED  | VM_MAYSHARE   |
++			 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
++			 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
++			 VM_MIXEDMAP | VM_SAO))
++		return -EINVAL;
++
++	*vm_flags |= VM_HUGEPAGE;
++
++	return 0;
++}
+diff --git a/mm/madvise.c b/mm/madvise.c
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -71,6 +71,11 @@ static long madvise_behavior(struct vm_a
+ 		if (error)
+ 			goto out;
+ 		break;
++	case MADV_HUGEPAGE:
++		error = hugepage_madvise(&new_flags);
++		if (error)
++			goto out;
++		break;
  	}
  
- 	if (!mem_cgroup_is_root(mem))
--		__do_uncharge(mem, ctype);
-+		__do_uncharge(mem, ctype, page_size);
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
- 		mem_cgroup_swap_statistics(mem, true);
- 	mem_cgroup_charge_statistics(mem, pc, false);
-@@ -2217,7 +2231,7 @@ int mem_cgroup_prepare_migration(struct 
+ 	if (new_flags == vma->vm_flags) {
+@@ -283,6 +288,9 @@ madvise_behavior_valid(int behavior)
+ 	case MADV_MERGEABLE:
+ 	case MADV_UNMERGEABLE:
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	case MADV_HUGEPAGE:
++#endif
+ 		return 1;
  
- 	if (mem) {
- 		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false,
--						page);
-+					      page, PAGE_SIZE);
- 		css_put(&mem->css);
- 	}
- 	*ptr = mem;
-@@ -2260,7 +2274,7 @@ void mem_cgroup_end_migration(struct mem
- 	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
- 	 * So, double-counting is effectively avoided.
- 	 */
--	__mem_cgroup_commit_charge(mem, pc, ctype);
-+	__mem_cgroup_commit_charge(mem, pc, ctype, PAGE_SIZE);
- 
- 	/*
- 	 * Both of oldpage and newpage are still under lock_page().
+ 	default:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
