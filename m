@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7542B6B0089
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 881826B008A
 	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:32:48 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 31 of 32] transparent hugepage vmstat
-Message-Id: <e62b9655e9e5be514adf.1264969662@v2.random>
+Subject: [PATCH 22 of 32] split_huge_page paging
+Message-Id: <d3a07d8db16d5b74b64b.1264969653@v2.random>
 In-Reply-To: <patchbomb.1264969631@v2.random>
 References: <patchbomb.1264969631@v2.random>
-Date: Sun, 31 Jan 2010 21:27:42 +0100
+Date: Sun, 31 Jan 2010 21:27:33 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,117 +18,76 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add hugepage stat information to /proc/vmstat and /proc/meminfo.
+Paging logic that splits the page before it is unmapped and added to swap to
+ensure backwards compatibility with the legacy swap code. Eventually swap
+should natively pageout the hugepages to increase performance and decrease
+seeking and fragmentation of swap space. swapoff can just skip over huge pmd as
+they cannot be part of swap yet. In add_to_swap be careful to split the page
+only if we got a valid swap entry so we don't split hugepages with a full swap.
+
+In theory we could split pages before isolating them during the lru scan, but
+for khugepaged to be safe, I'm relying on either mmap_sem write mode, or
+PG_lock taken, so split_huge_page has to run either with mmap_sem read/write
+mode or PG_lock taken. Calling it from isolate_lru_page would make locking more
+complicated, in addition to that split_huge_page would deadlock if called by
+__isolate_lru_page because it has to take the lru lock to add the tail pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -101,6 +101,9 @@ static int meminfo_proc_show(struct seq_
- #ifdef CONFIG_MEMORY_FAILURE
- 		"HardwareCorrupted: %5lu kB\n"
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		"AnonHugePages:  %8lu kB\n"
-+#endif
- 		,
- 		K(i.totalram),
- 		K(i.freeram),
-@@ -151,6 +154,10 @@ static int meminfo_proc_show(struct seq_
- #ifdef CONFIG_MEMORY_FAILURE
- 		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
-+		   HPAGE_PMD_NR)
-+#endif
- 		);
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -378,6 +378,8 @@ static void collect_procs_anon(struct pa
+ 	struct task_struct *tsk;
+ 	struct anon_vma *av;
  
- 	hugetlb_report_meminfo(m);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -112,6 +112,7 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-+	NR_ANON_TRANSPARENT_HUGEPAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
- 
- /*
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -710,6 +710,9 @@ static void __split_huge_page_refcount(s
- 		put_page(page_tail);
- 	}
- 
-+	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
-+
- 	ClearPageCompound(page);
- 	compound_unlock(page);
- 	spin_unlock_irq(&zone->lru_lock);
++	if (unlikely(split_huge_page(page)))
++		return;
+ 	read_lock(&tasklist_lock);
+ 	av = page_lock_anon_vma(page);
+ 	if (av == NULL)	/* Not actually mapped anymore */
 diff --git a/mm/rmap.c b/mm/rmap.c
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -687,8 +687,13 @@ void page_add_anon_rmap(struct page *pag
- 	struct vm_area_struct *vma, unsigned long address)
- {
- 	int first = atomic_inc_and_test(&page->_mapcount);
--	if (first)
--		__inc_zone_page_state(page, NR_ANON_PAGES);
-+	if (first) {
-+		if (!PageTransHuge(page))
-+			__inc_zone_page_state(page, NR_ANON_PAGES);
-+		else
-+			__inc_zone_page_state(page,
-+					      NR_ANON_TRANSPARENT_HUGEPAGES);
-+	}
+@@ -1174,6 +1174,7 @@ int try_to_unmap(struct page *page, enum
+ 	int ret;
+ 
+ 	BUG_ON(!PageLocked(page));
++	BUG_ON(PageTransHuge(page));
+ 
  	if (unlikely(PageKsm(page)))
- 		return;
+ 		ret = try_to_unmap_ksm(page, flags);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -156,6 +156,12 @@ int add_to_swap(struct page *page)
+ 	if (!entry.val)
+ 		return 0;
  
-@@ -716,7 +721,10 @@ void page_add_new_anon_rmap(struct page 
- 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
- 	SetPageSwapBacked(page);
- 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
--	__inc_zone_page_state(page, NR_ANON_PAGES);
-+	if (!PageTransHuge(page))
-+	    __inc_zone_page_state(page, NR_ANON_PAGES);
-+	else
-+	    __inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
- 	__page_set_anon_rmap(page, vma, address);
- 	if (page_evictable(page, vma))
- 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
-@@ -763,7 +771,11 @@ void page_remove_rmap(struct page *page)
- 	}
- 	if (PageAnon(page)) {
- 		mem_cgroup_uncharge_page(page);
--		__dec_zone_page_state(page, NR_ANON_PAGES);
-+		if (!PageTransHuge(page))
-+			__dec_zone_page_state(page, NR_ANON_PAGES);
-+		else
-+			__dec_zone_page_state(page,
-+					      NR_ANON_TRANSPARENT_HUGEPAGES);
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
- 		mem_cgroup_update_file_mapped(page, -1);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -655,6 +655,9 @@ static const char * const vmstat_text[] 
- 	"numa_local",
- 	"numa_other",
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	"nr_anon_transparent_hugepages",
-+#endif
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
- 	"pgpgin",
++	if (unlikely(PageTransHuge(page)))
++		if (unlikely(split_huge_page(page))) {
++			swapcache_free(entry, NULL);
++			return 0;
++		}
++
+ 	/*
+ 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
+ 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -905,6 +905,8 @@ static inline int unuse_pmd_range(struct
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		if (unlikely(pmd_trans_huge(*pmd)))
++			continue;
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
