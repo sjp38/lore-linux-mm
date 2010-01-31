@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 77CDF6B008C
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:32:52 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4C47E6B0089
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:32:51 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 13 of 32] special pmd_trans_* functions
-Message-Id: <0158f16533683536a9d6.1264969644@v2.random>
+Subject: [PATCH 01 of 32] define MADV_HUGEPAGE
+Message-Id: <46877c1c00c43ab4def0.1264969632@v2.random>
 In-Reply-To: <patchbomb.1264969631@v2.random>
 References: <patchbomb.1264969631@v2.random>
-Date: Sun, 31 Jan 2010 21:27:24 +0100
+Date: Sun, 31 Jan 2010 21:27:12 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,75 +18,73 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-These returns 0 at compile time when the config option is disabled, to allow
-gcc to eliminate the transparent hugepage function calls at compile time
-without additional #ifdefs (only the export of those functions have to be
-visible to gcc but they won't be required at link time and huge_memory.o can be
-not built at all).
-
-_PAGE_BIT_UNUSED1 is never used for pmd, only on pte.
+Define MADV_HUGEPAGE.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -168,6 +168,19 @@ extern void cleanup_highmap(void);
- #define	kc_offset_to_vaddr(o) ((o) | ~__VIRTUAL_MASK)
+diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
+--- a/arch/alpha/include/asm/mman.h
++++ b/arch/alpha/include/asm/mman.h
+@@ -53,6 +53,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
  
- #define __HAVE_ARCH_PTE_SAME
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
 +
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline int pmd_trans_splitting(pmd_t pmd)
-+{
-+	return pmd_val(pmd) & _PAGE_SPLITTING;
-+}
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
+--- a/arch/mips/include/asm/mman.h
++++ b/arch/mips/include/asm/mman.h
+@@ -77,6 +77,8 @@
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+ #define MADV_HWPOISON    100		/* poison a page for testing */
+ 
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
 +
-+static inline int pmd_trans_huge(pmd_t pmd)
-+{
-+	return pmd_val(pmd) & _PAGE_PSE;
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
+--- a/arch/parisc/include/asm/mman.h
++++ b/arch/parisc/include/asm/mman.h
+@@ -59,6 +59,8 @@
+ #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
+ 
++#define MADV_HUGEPAGE	67		/* Worth backing with hugepages */
 +
- #endif /* !__ASSEMBLY__ */
+ /* compatibility flags */
+ #define MAP_FILE	0
+ #define MAP_VARIABLE	0
+diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
+--- a/arch/xtensa/include/asm/mman.h
++++ b/arch/xtensa/include/asm/mman.h
+@@ -83,6 +83,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
  
- #endif /* _ASM_X86_PGTABLE_64_H */
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -22,6 +22,7 @@
- #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
- #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
- #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
-+#define _PAGE_BIT_SPLITTING	_PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
- #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
- 
- /* If _PAGE_BIT_PRESENT is clear, we use these: */
-@@ -45,6 +46,7 @@
- #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
- #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
- #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
-+#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
- #define __HAVE_ARCH_PTE_SPECIAL
- 
- #ifdef CONFIG_KMEMCHECK
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -344,6 +344,11 @@ extern void untrack_pfn_vma(struct vm_ar
- 				unsigned long size);
- #endif
- 
-+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmd_trans_huge(pmd) 0
-+#define pmd_trans_splitting(pmd) ({ BUG(); 0; })
-+#endif
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
 +
- #endif /* !__ASSEMBLY__ */
+ /* compatibility flags */
+ #define MAP_FILE	0
  
- #endif /* _ASM_GENERIC_PGTABLE_H */
+diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+--- a/include/asm-generic/mman-common.h
++++ b/include/asm-generic/mman-common.h
+@@ -45,6 +45,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+ 
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
