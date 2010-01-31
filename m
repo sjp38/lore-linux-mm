@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2496E620027
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C557362001B
 	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:33:07 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 10 of 32] export maybe_mkwrite
-Message-Id: <25a103c4c7362a82ffe2.1264969641@v2.random>
+Subject: [PATCH 06 of 32] clear compound mapping
+Message-Id: <ca80640f7574122874b3.1264969637@v2.random>
 In-Reply-To: <patchbomb.1264969631@v2.random>
 References: <patchbomb.1264969631@v2.random>
-Date: Sun, 31 Jan 2010 21:27:21 +0100
+Date: Sun, 31 Jan 2010 21:27:17 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,60 +18,26 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-huge_memory.c needs it too when it fallbacks in copying hugepages into regular
-fragmented pages if hugepage allocation fails during COW.
+Clear compound mapping for anonymous compound pages like it already happens for
+regular anonymous pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -387,6 +387,19 @@ static inline void set_compound_order(st
- }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -585,6 +585,8 @@ static void __free_pages_ok(struct page 
  
- /*
-+ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-+ * servicing faults for write access.  In the normal case, do always want
-+ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-+ * that do not have writing enabled, when used by access_process_vm.
-+ */
-+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-+{
-+	if (likely(vma->vm_flags & VM_WRITE))
-+		pte = pte_mkwrite(pte);
-+	return pte;
-+}
-+
-+/*
-  * Multiple processes may "see" the same page. E.g. for untouched
-  * mappings of /dev/null, all processes see the same page full of
-  * zeroes, and text pages of executables and shared libraries have
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1943,19 +1943,6 @@ static inline int pte_unmap_same(struct 
- 	return same;
- }
+ 	kmemcheck_free_shadow(page, order);
  
--/*
-- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-- * servicing faults for write access.  In the normal case, do always want
-- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-- * that do not have writing enabled, when used by access_process_vm.
-- */
--static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
--{
--	if (likely(vma->vm_flags & VM_WRITE))
--		pte = pte_mkwrite(pte);
--	return pte;
--}
--
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
- {
- 	/*
++	if (PageAnon(page))
++		page->mapping = NULL;
+ 	for (i = 0 ; i < (1 << order) ; ++i)
+ 		bad += free_pages_check(page + i);
+ 	if (bad)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
