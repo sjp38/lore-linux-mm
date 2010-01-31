@@ -1,82 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8C0126B0085
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:29:38 -0500 (EST)
-Received: by fxm8 with SMTP id 8so3732750fxm.6
-        for <linux-mm@kvack.org>; Sun, 31 Jan 2010 12:29:36 -0800 (PST)
-Message-ID: <4B65E82D.5010408@gmail.com>
-Date: Sun, 31 Jan 2010 21:29:33 +0100
-From: =?UTF-8?B?VmVkcmFuIEZ1cmHEjQ==?= <vedran.furac@gmail.com>
-Reply-To: vedran.furac@gmail.com
+	by kanga.kvack.org (Postfix) with SMTP id 4E9F86B0088
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:32:22 -0500 (EST)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [PATCH 09/10] mm/slab.c: Fix continuation line formats
+Date: Sun, 31 Jan 2010 21:32:18 +0100
+References: <cover.1264967493.git.joe@perches.com> <cover.1264967493.git.joe@perches.com> <9d64ab1e1d69c750d53a398e09fe5da2437668c5.1264967500.git.joe@perches.com>
+In-reply-To: <9d64ab1e1d69c750d53a398e09fe5da2437668c5.1264967500.git.joe@perches.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
-References: <f8c9aca9c98db8ae7df3ac2d7ac8d922.squirrel@webmail-b.css.fujitsu.com> <20100129162137.79b2a6d4@lxorguk.ukuu.org.uk> <c6c48fdf7f746add49bb9cc058b513ae.squirrel@webmail-b.css.fujitsu.com> <20100129163030.1109ce78@lxorguk.ukuu.org.uk> <5a0e6098f900aa36993b2b7f2320f927.squirrel@webmail-b.css.fujitsu.com> <alpine.DEB.2.00.1001291258490.2938@chino.kir.corp.google.com> <4B642A40.1020709@gmail.com> <alpine.DEB.2.00.1001301444480.16189@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1001301444480.16189@chino.kir.corp.google.com>
-Content-Type: multipart/mixed;
- boundary="------------040708000906000408070205"
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <201001312132.19798.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@linux-foundation.org>, minchan.kim@gmail.com, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------040708000906000408070205
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Joe Perches wrote:
+> String constants that are continued on subsequent lines with \
+> are not good.
 
-David Rientjes wrote:
+Fun. I'd done the same grep earlier today. AFAICT you've got all the
+ones I had.
 
-> On Sat, 30 Jan 2010, Vedran Furac wrote:
+> The characters between seq_printf elements are tabs.
+> That was probably not intentional, but isn't being changed.
+> It's behind an #ifdef, so it could probably become a single space.
 > 
->>> The oom killer has been doing this for years and I haven't noticed a huge 
->>> surge in complaints about it killing X specifically because of that code 
->>> in oom_kill_process().
->> Well you said it yourself, you won't see a surge because "oom killer has
->> been doing this *for years*". So you'll have a more/less constant number
->> of complains over the years. Just google for: linux, random, kill, memory;
+> Signed-off-by: Joe Perches <joe@perches.com>
+> ---
+>  mm/slab.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
 > 
-> You snipped the code segment where I demonstrated that the selected task 
-> for oom kill is not necessarily the one chosen to die: if there is a child 
-> with disjoint memory that is killable, it will be selected instead.  If 
-> Xorg or sshd is being chosen for kill, then you should investigate why 
-> that is, but there is nothing random about how the oom killer chooses 
-> tasks to kill.
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 7451bda..9964619 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -4228,8 +4228,8 @@ static int s_show(struct seq_file *m, void *p)
+>  unsigned long node_frees = cachep->node_frees;
+>  unsigned long overflows = cachep->node_overflow;
+>  
+> -		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu \
+> -				%4lu %4lu %4lu %4lu %4lu", allocs, high, grown,
+> +		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu 				%4lu %4lu %4lu %4lu %4lu",
+> +				allocs, high, grown,
+>  				reaped, errors, max_freeable, node_allocs,
+>  				node_frees, overflows);
+>  }
 
-I know that it isn't random, but it sure looks like that to the end user
-and I use it to emphasize the problem. And about me investigating, that
-simply not possible as I am not a kernel hacker who understands the code
-beyond the syntax level. I can only point to the problem in hope that
-someone will fix it.
+If that spacing part is really needed (is it?), wouldn't it be more
+readable as:
+> +		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu"
+> +				" 				"
+> +				"%4lu %4lu %4lu %4lu %4lu",  
+> +				allocs, high, grown,
 
-> The facts that you're completely ignoring are that changing the heuristic 
-> baseline to rss is not going to prevent Xorg or sshd from being selected 
+Also, are there supposed to be tabs in that spacing part?
 
-In my tests a simple "ps -eo rss,command --sort rss" always showed the
-cuprit, but OK, find another approach in fixing the problem in hope for
-a positive review. Just... I feel everything will be put under the
-carpet with fingers in ears while singing everything is fine. Prove me
-wrong.
-
-Regards,
-Vedran
-
-
--- 
-http://vedranf.net | a8e7a7783ca0d460fee090cc584adc12
-
---------------040708000906000408070205
-Content-Type: text/x-vcard; charset=utf-8;
- name="vedran_furac.vcf"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
- filename="vedran_furac.vcf"
-
-YmVnaW46dmNhcmQNCmZuO3F1b3RlZC1wcmludGFibGU6VmVkcmFuIEZ1cmE9QzQ9OEQNCm47
-cXVvdGVkLXByaW50YWJsZTpGdXJhPUM0PThEO1ZlZHJhbg0KYWRyOjs7Ozs7O0Nyb2F0aWEN
-CmVtYWlsO2ludGVybmV0OnZlZHJhbi5mdXJhY0BnbWFpbC5jb20NCngtbW96aWxsYS1odG1s
-OkZBTFNFDQp1cmw6aHR0cDovL3ZlZHJhbmYubmV0DQp2ZXJzaW9uOjIuMQ0KZW5kOnZjYXJk
-DQoNCg==
---------------040708000906000408070205--
+Cheers,
+FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
