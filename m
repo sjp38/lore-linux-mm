@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6C3546B007B
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:02:25 -0500 (EST)
-From: Joe Perches <joe@perches.com>
-Subject: [PATCH 09/10] mm/slab.c: Fix continuation line formats
-Date: Sun, 31 Jan 2010 12:02:11 -0800
-Message-Id: <9d64ab1e1d69c750d53a398e09fe5da2437668c5.1264967500.git.joe@perches.com>
-In-Reply-To: <cover.1264967493.git.joe@perches.com>
-References: <cover.1264967493.git.joe@perches.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A6DB56B0082
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:03:19 -0500 (EST)
+Date: Sun, 31 Jan 2010 20:03:16 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: Bug in find_vma_prev - mmap.c
+In-Reply-To: <6cafb0f01001311056k3c6a882fla42b714256bb1e6d@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1001311955510.6227@sister.anvils>
+References: <6cafb0f01001291657q4ccbee86rce3143a4be7a1433@mail.gmail.com>  <201001301929.47659.rjw@sisk.pl>  <alpine.LSU.2.00.1001311616590.5897@sister.anvils> <6cafb0f01001311056k3c6a882fla42b714256bb1e6d@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Tony Perkins <da.perk@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-String constants that are continued on subsequent lines with \
-are not good.
+On Sun, 31 Jan 2010, Tony Perkins wrote:
+> 
+> Say for instance, that addr is not in the list (but is greater than
+> the last element).
 
-The characters between seq_printf elements are tabs.
-That was probably not intentional, but isn't being changed.
-It's behind an #ifdef, so it could probably become a single space.
+Before, you appeared to be talking about a discrepancy with the first
+vma; now you're talking about a discrepancy with the last vma?
+Or a discrepancy when the first vma is the last vma?
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/slab.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+> find_vma_prev will return the last node in the list, whereas find_vma
+> will return NULL.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 7451bda..9964619 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4228,8 +4228,8 @@ static int s_show(struct seq_file *m, void *p)
- 		unsigned long node_frees = cachep->node_frees;
- 		unsigned long overflows = cachep->node_overflow;
- 
--		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu \
--				%4lu %4lu %4lu %4lu %4lu", allocs, high, grown,
-+		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu 				%4lu %4lu %4lu %4lu %4lu",
-+				allocs, high, grown,
- 				reaped, errors, max_freeable, node_allocs,
- 				node_frees, overflows);
- 	}
--- 
-1.6.6.rc0.57.gad7a
+I'd expect find_vma_prev to return prev->vm_next, which would be NULL.
+
+> 
+> It seems that it is just inconsistent, in what it should return
+> regarding the two.
+> For instance, find_vma_prev will never return NULL, if there's at
+> least one node within the tree, whereas find_vma would.
+> find_extend_vma uses find_vma_prev and checks to see if it returns
+> NULL and is less than the return address (which would always be the
+> case).
+
+Are we disagreeing about our readings of the code, or have you seen a
+problem in practice?
+
+I admit I've not tried running this, injecting addresses into find_vma_prev
+and printk'ing the result; but I'm missing what leads you to say that
+find_vma_prev will never return NULL.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
