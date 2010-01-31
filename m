@@ -1,90 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 72DAE6001DA
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 19:05:11 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o11058M9007048
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 1 Feb 2010 09:05:08 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AD4F45DE54
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 09:05:08 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ECF845DE50
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 09:05:08 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E1D341DB803C
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 09:05:07 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D05AE38004
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 09:05:07 +0900 (JST)
-Date: Mon, 1 Feb 2010 09:01:40 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3] oom-kill: add lowmem usage aware oom kill handling
-Message-Id: <20100201090140.116cc704.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1001291258490.2938@chino.kir.corp.google.com>
-References: <f8c9aca9c98db8ae7df3ac2d7ac8d922.squirrel@webmail-b.css.fujitsu.com>
-	<20100129162137.79b2a6d4@lxorguk.ukuu.org.uk>
-	<c6c48fdf7f746add49bb9cc058b513ae.squirrel@webmail-b.css.fujitsu.com>
-	<20100129163030.1109ce78@lxorguk.ukuu.org.uk>
-	<5a0e6098f900aa36993b2b7f2320f927.squirrel@webmail-b.css.fujitsu.com>
-	<alpine.DEB.2.00.1001291258490.2938@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id B26296001DA
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 19:53:47 -0500 (EST)
+Date: Sun, 31 Jan 2010 22:31:42 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
+	pages, too
+Message-ID: <20100131143142.GA11186@localhost>
+References: <20100120215536.GN27212@frostnet.net> <20100121054734.GC24236@localhost> <20100123040348.GC30844@frostnet.net> <20100123102222.GA6943@localhost> <20100125094228.f7ca1430.kamezawa.hiroyu@jp.fujitsu.com> <20100125024544.GA16462@localhost> <20100125223635.GC2822@frostnet.net> <20100126133217.GB25407@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=gb2312
+Content-Disposition: inline
+In-Reply-To: <20100126133217.GB25407@localhost>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, vedran.furac@gmail.com, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, minchan.kim@gmail.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Chris Frost <frost@cs.ucla.edu>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Jan 2010 13:07:01 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Tue, Jan 26, 2010 at 09:32:17PM +0800, Wu Fengguang wrote:
+> On Mon, Jan 25, 2010 at 03:36:35PM -0700, Chris Frost wrote:
+> > I changed Wu's patch to add a PageLRU() guard that I believe is required
+> > and optimized zone lock acquisition to only unlock and lock at zone changes.
+> > This optimization seems to provide a 10-20% system time improvement for
+> > some of my GIMP benchmarks and no improvement for other benchmarks.
+> 
+> > +			del_page_from_lru_list(zone, page, lru);
+> > +			add_page_to_lru_list(zone, page, lru);
+> > +		}
+> > +		put_page(page);
 
-> On Sat, 30 Jan 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > okay...I guess the cause of the problem Vedran met came from
-> > this calculation.
-> > ==
-> >  109         /*
-> >  110          * Processes which fork a lot of child processes are likely
-> >  111          * a good choice. We add half the vmsize of the children if they
-> >  112          * have an own mm. This prevents forking servers to flood the
-> >  113          * machine with an endless amount of children. In case a single
-> >  114          * child is eating the vast majority of memory, adding only half
-> >  115          * to the parents will make the child our kill candidate of
-> > choice.
-> >  116          */
-> >  117         list_for_each_entry(child, &p->children, sibling) {
-> >  118                 task_lock(child);
-> >  119                 if (child->mm != mm && child->mm)
-> >  120                         points += child->mm->total_vm/2 + 1;
-> >  121                 task_unlock(child);
-> >  122         }
-> >  123
-> > ==
-> > This makes task launcher(the fist child of some daemon.) first victim.
-> 
-> That "victim", p, is passed to oom_kill_process() which does this:
-> 
-> 	/* Try to kill a child first */
-> 	list_for_each_entry(c, &p->children, sibling) {
-> 		if (c->mm == p->mm)
-> 			continue;
-> 		if (!oom_kill_task(c))
-> 			return 0;
-> 	}
-> 	return oom_kill_task(p);
-> 
+I feel very uncomfortable about this put_page() inside zone->lru_lock. 
+(might deadlock: put_page() conditionally takes zone->lru_lock again)
 
-Then, finally, per-process oom_adj(!=OOM_DISABLE) control is ignored ?
-Seems broken.
-
-I think all this children-parent logic is bad.
+If you really want the optimization, can we do it like this?
 
 Thanks,
--Kame
+Fengguang
+---
+readahead: retain inactive lru pages to be accessed soon
+From: Chris Frost <frost@cs.ucla.edu>
 
+Ensure that cached pages in the inactive list are not prematurely evicted;
+move such pages to lru head when they are covered by
+- in-kernel heuristic readahead
+- an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
 
+Before this patch, pages already in core may be evicted before the
+pages covered by the same prefetch scan but that were not yet in core.
+Many small read requests may be forced on the disk because of this behavior.
+
+In particular, posix_fadvise(... POSIX_FADV_WILLNEED) on an in-core page
+has no effect on the page's location in the LRU list, even if it is the
+next victim on the inactive list.
+
+This change helps address the performance problems we encountered
+while modifying SQLite and the GIMP to use large file prefetching.
+Overall these prefetching techniques improved the runtime of large
+benchmarks by 10-17x for these applications. More in the publication
+_Reducing Seek Overhead with Application-Directed Prefetching_ in
+USENIX ATC 2009 and at http://libprefetch.cs.ucla.edu/.
+
+Signed-off-by: Chris Frost <frost@cs.ucla.edu>
+Signed-off-by: Steve VanDeBogart <vandebo@cs.ucla.edu>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/readahead.c |   52 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)
+
+--- linux.orig/mm/readahead.c	2010-01-31 21:39:24.000000000 +0800
++++ linux/mm/readahead.c	2010-01-31 22:20:24.000000000 +0800
+@@ -9,7 +9,9 @@
+ 
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
++#include <linux/memcontrol.h>
+ #include <linux/mm.h>
++#include <linux/mm_inline.h>
+ #include <linux/module.h>
+ #include <linux/blkdev.h>
+ #include <linux/backing-dev.h>
+@@ -133,6 +135,48 @@ out:
+ }
+ 
+ /*
++ * The file range is expected to be accessed in near future.  Move pages
++ * (possibly in inactive lru tail) to lru head, so that they are retained
++ * in memory for some reasonable time.
++ */
++static void retain_inactive_pages(struct address_space *mapping,
++				  pgoff_t index, int len)
++{
++	struct page *grabbed_page;
++	struct page *page;
++	struct zone *zone;
++	int i;
++
++	for (i = 0; i < len; i++) {
++		grabbed_page = page = find_get_page(mapping, index + i);
++		if (!page)
++			continue;
++
++		zone = page_zone(page);
++		spin_lock_irq(&zone->lru_lock);
++		if (PageLRU(page) &&
++		    !PageActive(page) &&
++		    !PageUnevictable(page)) {
++			int lru = page_lru_base_type(page);
++
++			for (; i < len; i++) {
++				struct page *p = page;
++
++				if (page->mapping != mapping ||
++				    page->index != index + i)
++					break;
++				page = list_to_page(&page->lru);
++				del_page_from_lru_list(zone, p, lru);
++				add_page_to_lru_list(zone, p, lru);
++			}
++		}
++		spin_unlock_irq(&zone->lru_lock);
++		page_cache_release(grabbed_page);
++		cond_resched();
++	}
++}
++
++/*
+  * __do_page_cache_readahead() actually reads a chunk of disk.  It allocates all
+  * the pages first, then submits them all for I/O. This avoids the very bad
+  * behaviour which would occur if page allocations are causing VM writeback.
+@@ -184,6 +228,14 @@ __do_page_cache_readahead(struct address
+ 	}
+ 
+ 	/*
++	 * Normally readahead will auto stop on cached segments, so we won't
++	 * hit many cached pages. If it does happen, bring the inactive pages
++	 * adjecent to the newly prefetched ones(if any).
++	 */
++	if (ret < nr_to_read)
++		retain_inactive_pages(mapping, offset, page_idx);
++
++	/*
+ 	 * Now start the IO.  We ignore I/O errors - if the page is not
+ 	 * uptodate then the caller will launch readpage again, and
+ 	 * will then handle the error.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
