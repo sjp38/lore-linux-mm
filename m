@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C5A6F6B0093
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DC04E6B0095
 	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:32:48 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 16 of 32] bail out gup_fast on splitting pmd
-Message-Id: <aec4de4fe4faa31e56c0.1264969647@v2.random>
+Subject: [PATCH 26 of 32] verify pmd_trans_huge isn't leaking
+Message-Id: <aef3e4e1c55c4c05b16c.1264969657@v2.random>
 In-Reply-To: <patchbomb.1264969631@v2.random>
 References: <patchbomb.1264969631@v2.random>
-Date: Sun, 31 Jan 2010 21:27:27 +0100
+Date: Sun, 31 Jan 2010 21:27:37 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,37 +18,51 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Force gup_fast to take the slow path and block if the pmd is splitting, not
-only if it's none.
+pte_trans_huge must not leak in certain vmas like the mmio special pfn or
+filebacked mappings.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -160,7 +160,18 @@ static int gup_pmd_range(pud_t pud, unsi
- 		pmd_t pmd = *pmdp;
- 
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1333,6 +1333,7 @@ int __get_user_pages(struct task_struct 
+ 			pmd = pmd_offset(pud, pg);
+ 			if (pmd_none(*pmd))
+ 				return i ? : -EFAULT;
++			VM_BUG_ON(pmd_trans_huge(*pmd));
+ 			pte = pte_offset_map(pmd, pg);
+ 			if (pte_none(*pte)) {
+ 				pte_unmap(pte);
+@@ -1534,8 +1535,10 @@ pte_t *get_locked_pte(struct mm_struct *
+ 	pud_t * pud = pud_alloc(mm, pgd, addr);
+ 	if (pud) {
+ 		pmd_t * pmd = pmd_alloc(mm, pud, addr);
+-		if (pmd)
++		if (pmd) {
++			VM_BUG_ON(pmd_trans_huge(*pmd));
+ 			return pte_alloc_map_lock(mm, pmd, addr, ptl);
++		}
+ 	}
+ 	return NULL;
+ }
+@@ -1754,6 +1757,7 @@ static inline int remap_pmd_range(struct
+ 	pmd = pmd_alloc(mm, pud, addr);
+ 	if (!pmd)
+ 		return -ENOMEM;
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	do {
  		next = pmd_addr_end(addr, end);
--		if (pmd_none(pmd))
-+		/*
-+		 * The pmd_trans_splitting() check below explains why
-+		 * pmdp_splitting_flush has to flush the tlb, to stop
-+		 * this gup-fast code from running while we set the
-+		 * splitting bit in the pmd. Returning zero will take
-+		 * the slow path that will call wait_split_huge_page()
-+		 * if the pmd is still in splitting state. gup-fast
-+		 * can't because it has irq disabled and
-+		 * wait_split_huge_page() would never return as the
-+		 * tlb flush IPI wouldn't run.
-+		 */
-+		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
- 			return 0;
- 		if (unlikely(pmd_large(pmd))) {
- 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
+ 		if (remap_pte_range(mm, pmd, addr, next,
+@@ -3218,6 +3222,7 @@ static int follow_pte(struct mm_struct *
+ 		goto out;
+ 
+ 	pmd = pmd_offset(pud, address);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+ 		goto out;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
