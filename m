@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0FDA9620022
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:33:03 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3C09F620024
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 15:33:04 -0500 (EST)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 02 of 32] compound_lock
-Message-Id: <8b495f6502df869e558f.1264969633@v2.random>
+Subject: [PATCH 05 of 32] fix bad_page to show the real reason the page is bad
+Message-Id: <653255023d5d21f36d37.1264969636@v2.random>
 In-Reply-To: <patchbomb.1264969631@v2.random>
 References: <patchbomb.1264969631@v2.random>
-Date: Sun, 31 Jan 2010 21:27:13 +0100
+Date: Sun, 31 Jan 2010 21:27:16 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,81 +18,26 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add a new compound_lock() needed to serialize put_page against
-__split_huge_page_refcount().
+page_count shows the count of the head page, but the actual check is done on
+the tail page, so show what is really being checked.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -12,6 +12,7 @@
- #include <linux/prio_tree.h>
- #include <linux/debug_locks.h>
- #include <linux/mm_types.h>
-+#include <linux/bit_spinlock.h>
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -265,7 +265,7 @@ static void bad_page(struct page *page)
+ 		current->comm, page_to_pfn(page));
+ 	printk(KERN_ALERT
+ 		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
+-		page, (void *)page->flags, page_count(page),
++		page, (void *)page->flags, atomic_read(&page->_count),
+ 		page_mapcount(page), page->mapping, page->index);
  
- struct mempolicy;
- struct anon_vma;
-@@ -294,6 +295,20 @@ static inline int is_vmalloc_or_module_a
- }
- #endif
- 
-+static inline void compound_lock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_lock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
-+static inline void compound_unlock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_unlock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
- static inline struct page *compound_head(struct page *page)
- {
- 	if (unlikely(PageTail(page)))
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -108,6 +108,9 @@ enum pageflags {
- #ifdef CONFIG_MEMORY_FAILURE
- 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	PG_compound_lock,
-+#endif
- 	__NR_PAGEFLAGS,
- 
- 	/* Filesystems */
-@@ -399,6 +402,12 @@ static inline void __ClearPageTail(struc
- #define __PG_MLOCKED		0
- #endif
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
-+#else
-+#define __PG_COMPOUND_LOCK		0
-+#endif
-+
- /*
-  * Flags checked when a page is freed.  Pages being freed should not have
-  * these flags set.  It they are, there is a problem.
-@@ -408,7 +417,8 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
-+	 __PG_COMPOUND_LOCK)
- 
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
+ 	dump_stack();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
