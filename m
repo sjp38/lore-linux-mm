@@ -1,91 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A53756B007D
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 02:46:31 -0500 (EST)
-Date: Mon, 1 Feb 2010 08:45:24 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 04 of 31] update futex compound knowledge
-Message-ID: <20100201074524.GE12034@random.random>
-References: <patchbomb.1264689194@v2.random>
- <2503a08ae3183f675931.1264689198@v2.random>
- <20100128161153.GE7139@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100128161153.GE7139@csn.ul.ie>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 004146B007D
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 03:17:40 -0500 (EST)
+Received: by ywh1 with SMTP id 1so2511986ywh.18
+        for <linux-mm@kvack.org>; Mon, 01 Feb 2010 00:17:39 -0800 (PST)
+Subject: Re: [RFC PATCH -tip 2/2 v2] add a scripts for pagecache usage per
+ process
+From: Tom Zanussi <tzanussi@gmail.com>
+In-Reply-To: <4B5E1855.4090809@bx.jp.nec.com>
+References: <4B5A3D00.8080901@bx.jp.nec.com>
+	 <4B5A3E19.6060502@bx.jp.nec.com> <1264234865.6595.75.camel@tropicana>
+	 <4B5E1855.4090809@bx.jp.nec.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 01 Feb 2010 02:17:35 -0600
+Message-Id: <1265012255.6526.18.camel@tropicana>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
+To: Keiichi KII <k-keiichi@bx.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, lwoodman@redhat.com, linux-mm@kvack.org, mingo@elte.hu, riel@redhat.com, rostedt@goodmis.org, akpm@linux-foundation.org, fweisbec@gmail.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-There was a little problem in the futex code, basically we can't take
-PG_lock on a page that isn't pinned. This should fix it. I never had a
-problem in practice. Untested still.. just wanted to update you on
-this one.
+Hi,
 
-diff --git a/kernel/futex.c b/kernel/futex.c
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -258,6 +258,18 @@ again:
- 		local_irq_disable();
- 		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
- 			page_head = compound_head(page);
-+			/*
-+			 * page_head is valid pointer but we must pin
-+			 * it before taking the PG_lock and/or
-+			 * PG_compound_lock. The moment we re-enable
-+			 * irqs __split_huge_page_splitting() can
-+			 * return and the head page can be freed from
-+			 * under us. We can't take the PG_lock and/or
-+			 * PG_compound_lock on a page that could be
-+			 * freed from under us.
-+			 */
-+			if (page != page_head)
-+				get_page(page_head);
- 			local_irq_enable();
- 		} else {
- 			local_irq_enable();
-@@ -266,6 +278,8 @@ again:
- 	}
- #else
- 	page_head = compound_head(page);
-+	if (page != page_head)
-+		get_page(page_head);
- #endif
+On Mon, 2010-01-25 at 17:16 -0500, Keiichi KII wrote:
+> (2010a1'01ae??23ae?JPY 03:21), Tom Zanussi wrote:
+> > Hi,
+> > 
+> > On Fri, 2010-01-22 at 19:08 -0500, Keiichi KII wrote:
+> >> The scripts are implemented based on the trace stream scripting support.
+> >> And the scripts implement the following.
+> >>  - how many pagecaches each process has per each file
+> >>  - how many pages are cached per each file
+> >>  - how many pagecaches each process shares
+> >>
+> > 
+> > Nice, it looks like a very useful script - I gave it a quick try and it
+> > seems to work well...
+> > 
+> > The only problem I see, nothing to do with your script and nothing you
+> > can do anything about at the moment, is that the record step generates a
+> > huge amount of data, which of course makes the event processing take
+> > awhile.  A lot of it appears to be due to perf itself - being able to
+> > filter out the perf-generated events in the kernel would make a big
+> > difference, I think; you normally don't want to see those anyway...
+> 
+> Yes, right. I don't want to process the data of perf itself.
+> I will try to find any way to solve this problem. 
+> 
+
+Here's one way, using the tracepoint filters - it does make a big
+difference in this case.
+
+Before (using the new -P option, which includes perf in the trace
+data):  
+
+root@tropicana:~# perf record -c 1 -f -a -M -R -e filemap:add_to_page_cache -e filemap:find_get_page -e filemap:remove_from_page_cache -P sleep 5
+[ perf record: Woken up 0 times to write data ]
+[ perf record: Captured and wrote 71.201 MB perf.data (~3110815 samples) ]
+
+After (filters out events generated by perf):
+
+root@tropicana:~# perf record -c 1 -f -a -M -R -e filemap:add_to_page_cache -e filemap:find_get_page -e filemap:remove_from_page_cache sleep 5
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.309 MB perf.data (~13479 samples) ]
+
+Tom
+
+[PATCH] perf record: filter out perf process tracepoint events
+
+The perf process itself can generate a lot of trace data, which most
+of the time isn't of any interest.  This patch adds a predicate to the
+kernel tracepoint filter of each recorded event type which effectively
+screens out any event generated by perf.
+
+Assuming the common case would be to ignore perf, this makes it the
+default; the old behavior can be selected by using 'perf record -P'.
+
+Signed-off-by: Tom Zanussi <tzanussi@gmail.com>
+---
+ tools/perf/builtin-record.c    |   44 ++++++++++++++++++++++++++++++++++++++++
+ tools/perf/util/parse-events.h |    3 +-
+ 2 files changed, 46 insertions(+), 1 deletions(-)
+
+diff --git a/tools/perf/builtin-record.c b/tools/perf/builtin-record.c
+index eea5691..5fa113a 100644
+--- a/tools/perf/builtin-record.c
++++ b/tools/perf/builtin-record.c
+@@ -49,6 +49,8 @@ static int			no_samples			=      0;
+ static int			sample_address			=      0;
+ static int			multiplex			=      0;
+ static int			multiplex_fd			=     -1;
++static int			include_perf			=      0;
++static char			exclude_perf_pred[MAX_FILTER_STR_VAL];
  
- 	lock_page(page_head);
-@@ -274,12 +288,15 @@ again:
- 		if (unlikely(!PageTail(page))) {
- 			compound_unlock(page_head);
- 			unlock_page(page_head);
-+			put_page(page_head);
- 			put_page(page);
- 			goto again;
+ static long			samples				=      0;
+ static struct timeval		last_read;
+@@ -236,6 +238,37 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
+ 	return h_attr;
+ }
+ 
++static char *add_exclude_perf_pred(char *old_filter)
++{
++	int len = strlen(exclude_perf_pred);
++	char *filter;
++
++	if (old_filter != NULL)
++		len = len + strlen(" && ()") + strlen(old_filter);
++
++	if (len >= MAX_FILTER_STR_VAL) {
++		fprintf(stderr, "excluding perf exceeds max filter length,"
++			" use -P instead\n");
++		exit(-1);
++	}
++
++	filter = malloc(len + 1);
++	if (!filter) {
++		fprintf(stderr, "not enough memory to hold filter string\n");
++		exit(-1);
++	}
++
++	strcpy(filter, exclude_perf_pred);
++
++	if (old_filter) {
++		strcat(filter, " && (");
++		strcat(filter, old_filter);
++		strcat(filter, ")");
++	}
++
++	return filter;
++}
++
+ static void create_counter(int counter, int cpu, pid_t pid)
+ {
+ 	char *filter = filters[counter];
+@@ -375,6 +408,12 @@ try_again:
  		}
  	}
- 	if (!page_head->mapping) {
- 		unlock_page(page_head);
-+		if (page_head != page)
-+			put_page(page_head);
- 		put_page(page);
- 		goto again;
- 	}
-@@ -303,9 +320,13 @@ again:
  
- 	get_futex_key_refs(key);
- 
--	if (unlikely(PageTail(page)))
-+	unlock_page(page_head);
-+	if (page != page_head) {
-+		VM_BUG_ON(!PageTail(page));
-+		/* releasing compound_lock after page_lock won't matter */
- 		compound_unlock(page_head);
--	unlock_page(page_head);
-+		put_page(page_head);
++	if (include_perf == 0 && cpu == 0) {
++		filters[counter] = add_exclude_perf_pred(filter);
++		free(filter);
++		filter = filters[counter];
 +	}
- 	put_page(page);
- 	return 0;
++
+ 	if (filter != NULL) {
+ 		ret = ioctl(fd[nr_cpu][counter],
+ 			    PERF_EVENT_IOC_SET_FILTER, filter);
+@@ -677,6 +716,8 @@ static const struct option options[] = {
+ 		    "don't sample"),
+ 	OPT_BOOLEAN('M', "multiplex", &multiplex,
+ 		    "multiplex counter output in a single channel"),
++	OPT_BOOLEAN('P', "include-perf", &include_perf,
++		    "include perf in trace data (normally excluded)"),
+ 	OPT_END()
+ };
+ 
+@@ -716,5 +757,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
+ 		attrs[counter].sample_period = default_interval;
+ 	}
+ 
++	if (include_perf == 0)
++		sprintf(exclude_perf_pred, "common_pid != %d", getpid());
++
+ 	return __cmd_record(argc, argv);
  }
+diff --git a/tools/perf/util/parse-events.h b/tools/perf/util/parse-events.h
+index b8c1f64..d43d9b0 100644
+--- a/tools/perf/util/parse-events.h
++++ b/tools/perf/util/parse-events.h
+@@ -25,7 +25,8 @@ extern const char *__event_name(int type, u64 config);
+ extern int parse_events(const struct option *opt, const char *str, int unset);
+ extern int parse_filter(const struct option *opt, const char *str, int unset);
+ 
+-#define EVENTS_HELP_MAX (128*1024)
++#define EVENTS_HELP_MAX		(128*1024)
++#define MAX_FILTER_STR_VAL	256
+ 
+ extern void print_events(void);
+ 
+-- 
+1.6.4.GIT
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
