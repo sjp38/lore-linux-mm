@@ -1,45 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 951736B0047
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 12:04:18 -0500 (EST)
-Message-ID: <4B670968.7090801@redhat.com>
-Date: Mon, 01 Feb 2010 12:03:36 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E44596B004D
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 14:06:28 -0500 (EST)
+Date: Mon, 1 Feb 2010 13:06:24 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [RFP 1/3] srcu
+Message-ID: <20100201190624.GJ6653@sgi.com>
+References: <20100128195627.373584000@alcatraz.americas.sgi.com>
+ <20100128195633.998332000@alcatraz.americas.sgi.com>
+ <20100129125650.78ca4876.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 32 of 32] khugepaged
-References: <patchbomb.1264969631@v2.random> <51b543fab38b1290f176.1264969663@v2.random>
-In-Reply-To: <51b543fab38b1290f176.1264969663@v2.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100129125650.78ca4876.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Jack Steiner <steiner@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On 01/31/2010 03:27 PM, Andrea Arcangeli wrote:
+On Fri, Jan 29, 2010 at 12:56:50PM -0800, Andrew Morton wrote:
+> 
+> > Subject: [RFP 1/3] srcu
+> 
+> Well that was terse.
+> 
+> On Thu, 28 Jan 2010 13:56:28 -0600
+> Robin Holt <holt@sgi.com> wrote:
+> 
+> > From: Andrea Arcangeli <andrea@qumranet.com>
+> > 
+> > This converts rcu into a per-mm srcu to allow all mmu notifier methods to
+> > schedule.
+> 
+> Changelog doesn't make much sense.
 
-> +	/* stop anon_vma rmap pagetable access */
-> +	spin_lock(&vma->anon_vma->lock);
+I made the changelog a little more verbose and hopefully a little
+more clear.
 
-This is no longer enough.  The anon_vma changes that
-went into -mm recently mean that a VMA can be associated
-with multiple anon_vmas.
+> 
+> > --- mmu_notifiers_sleepable_v1.orig/include/linux/srcu.h	2010-01-28 10:36:39.000000000 -0600
+> > +++ mmu_notifiers_sleepable_v1/include/linux/srcu.h	2010-01-28 10:39:10.000000000 -0600
+> > @@ -27,6 +27,8 @@
+> >  #ifndef _LINUX_SRCU_H
+> >  #define _LINUX_SRCU_H
+> >  
+> > +#include <linux/mutex.h>
+> > +
+> >  struct srcu_struct_array {
+> >  	int c[2];
+> >  };
+> 
+> An unchangelogged, unrelated bugfix.  I guess it's OK slipping this
+> into this patch.
 
-Of course, forcefully COW copying/writing every page in
-the VMA will ensure that they are all in the anon_vma
-you lock with the code above.
+Removed.  This does not appear to be needed as it mmu_notifier.c compiles
+without warning.
 
-I suspect the easiest fix would be to lock all the
-anon_vmas attached to a VMA.  That should not lead to
-any deadlocks, since multiple siblings of the same
-parent process would be encountering their anon_vma
-structs in the same order, due to the way that
-anon_vma_clone and anon_vma_fork work.
-
-This may be too subtle for lockdep, though :/
-
--- 
-All rights reversed.
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
