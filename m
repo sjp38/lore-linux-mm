@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 055DE6B004D
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 16:38:43 -0500 (EST)
-Date: Mon, 1 Feb 2010 15:37:56 -0600 (CST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B38926B0071
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 16:47:30 -0500 (EST)
+Date: Mon, 1 Feb 2010 15:46:47 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 19 of 32] clear page compound
-In-Reply-To: <cad83688b7dcad028328.1264969650@v2.random>
-Message-ID: <alpine.DEB.2.00.1002011536490.2384@router.home>
-References: <patchbomb.1264969631@v2.random> <cad83688b7dcad028328.1264969650@v2.random>
+Subject: Re: [PATCH 28 of 32] pmd_trans_huge migrate bugcheck
+In-Reply-To: <ffe6ba65ebf40dde3c92.1264969659@v2.random>
+Message-ID: <alpine.DEB.2.00.1002011542170.2384@router.home>
+References: <patchbomb.1264969631@v2.random> <ffe6ba65ebf40dde3c92.1264969659@v2.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,13 +17,29 @@ List-ID: <linux-mm.kvack.org>
 
 On Sun, 31 Jan 2010, Andrea Arcangeli wrote:
 
-> split_huge_page must transform a compound page to a regular page and needs
-> ClearPageCompound.
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -819,6 +820,10 @@ static int do_move_page_to_node_array(st
+>  		if (PageReserved(page) || PageKsm(page))
+>  			goto put_and_set;
+>
+> +		if (unlikely(PageTransCompound(page)))
+> +			if (unlikely(split_huge_page(page)))
+> +				goto put_and_set;
+> +
+>  		pp->page = page;
+>  		err = page_to_nid(page);
 
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+How does this work? do_move_page_to_node_array takes an array of page
+pointers in pp (struct page_to_node).  Lets say one is a compound page.
 
-This should not be as me agreeing with the approach just that the
-patch is correct.
+Now we split this into 512 4k pages? and pp only points to the first of
+them?
+
+The rest of the move_pages() logic will only see one 4k page and move it.
+
+The remaining 511 pages are left dangling? With an increased refcount?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
