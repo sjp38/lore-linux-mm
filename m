@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E44596B004D
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 14:06:28 -0500 (EST)
-Date: Mon, 1 Feb 2010 13:06:24 -0600
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9B12D6B004D
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 14:07:06 -0500 (EST)
+Date: Mon, 1 Feb 2010 13:07:04 -0600
 From: Robin Holt <holt@sgi.com>
-Subject: Re: [RFP 1/3] srcu
-Message-ID: <20100201190624.GJ6653@sgi.com>
+Subject: Re: [RFP 2/3] Fix unmap_vma() bug related to mmu_notifiers
+Message-ID: <20100201190704.GK6653@sgi.com>
 References: <20100128195627.373584000@alcatraz.americas.sgi.com>
- <20100128195633.998332000@alcatraz.americas.sgi.com>
- <20100129125650.78ca4876.akpm@linux-foundation.org>
+ <20100128195634.355405000@alcatraz.americas.sgi.com>
+ <20100129125426.2cde0a5f.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100129125650.78ca4876.akpm@linux-foundation.org>
+In-Reply-To: <20100129125426.2cde0a5f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Jack Steiner <steiner@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 29, 2010 at 12:56:50PM -0800, Andrew Morton wrote:
-> 
-> > Subject: [RFP 1/3] srcu
-> 
-> Well that was terse.
-> 
-> On Thu, 28 Jan 2010 13:56:28 -0600
+On Fri, Jan 29, 2010 at 12:54:26PM -0800, Andrew Morton wrote:
+> On Thu, 28 Jan 2010 13:56:29 -0600
 > Robin Holt <holt@sgi.com> wrote:
 > 
-> > From: Andrea Arcangeli <andrea@qumranet.com>
 > > 
-> > This converts rcu into a per-mm srcu to allow all mmu notifier methods to
-> > schedule.
+> > unmap_vmas() can fail to correctly flush the TLB if a
+> > callout to mmu_notifier_invalidate_range_start() sleeps.
+> > The mmu_gather list is initialized prior to the callout. If it is reused
+> > while the thread is sleeping, the mm field may be invalid.
+> > 
+> > If the task migrates to a different cpu, the task may use the wrong
+> > mmu_gather.
 > 
-> Changelog doesn't make much sense.
-
-I made the changelog a little more verbose and hopefully a little
-more clear.
-
+> I don't think that description is complete.
 > 
-> > --- mmu_notifiers_sleepable_v1.orig/include/linux/srcu.h	2010-01-28 10:36:39.000000000 -0600
-> > +++ mmu_notifiers_sleepable_v1/include/linux/srcu.h	2010-01-28 10:39:10.000000000 -0600
-> > @@ -27,6 +27,8 @@
-> >  #ifndef _LINUX_SRCU_H
-> >  #define _LINUX_SRCU_H
-> >  
-> > +#include <linux/mutex.h>
-> > +
-> >  struct srcu_struct_array {
-> >  	int c[2];
-> >  };
-> 
-> An unchangelogged, unrelated bugfix.  I guess it's OK slipping this
-> into this patch.
+> There might be ways in which we can prevent this task from being
+> migrated to another CPU, but that doesn't fix the problem because the
+> mmu_gather is a per-CPU resource and might get trashed if another task
+> is scheduled on THIS cpu, and uses its mmu_gather.
 
-Removed.  This does not appear to be needed as it mmu_notifier.c compiles
-without warning.
+I couldn't reword it to make it any more clear.  The third paragraph of
+Jack's original changelog says basically what you said.
 
-Thanks,
 Robin
 
 --
