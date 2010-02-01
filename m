@@ -1,106 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C5F196001DA
-	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 14:22:49 -0500 (EST)
-Date: Mon, 1 Feb 2010 13:22:47 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [RFP 3/3] Make mmu_notifier_invalidate_range_start able to
- sleep.
-Message-ID: <20100201192247.GL6653@sgi.com>
-References: <20100128195627.373584000@alcatraz.americas.sgi.com>
- <20100128195634.798620000@alcatraz.americas.sgi.com>
- <20100129130820.1544eb1f.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100129130820.1544eb1f.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B04396B004D
+	for <linux-mm@kvack.org>; Mon,  1 Feb 2010 14:52:07 -0500 (EST)
+Received: by fxm8 with SMTP id 8so4822274fxm.6
+        for <linux-mm@kvack.org>; Mon, 01 Feb 2010 11:52:01 -0800 (PST)
+Subject: Re: [RFC][PATCH] PM: Force GFP_NOIO during suspend/resume (was:
+ Re: [linux-pm] Memory allocations in .suspend became very unreliable)
+From: Maxim Levitsky <maximlevitsky@gmail.com>
+In-Reply-To: <1264883863.13861.3.camel@maxim-laptop>
+References: <1263549544.3112.10.camel@maxim-laptop>
+	 <201001170138.37283.rjw@sisk.pl> <1264866419.27933.0.camel@maxim-laptop>
+	 <201001301947.10453.rjw@sisk.pl>  <1264883863.13861.3.camel@maxim-laptop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 01 Feb 2010 21:51:56 +0200
+Message-ID: <1265053916.26421.1.camel@maxim-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Jack Steiner <steiner@sgi.com>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-pm@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 29, 2010 at 01:08:20PM -0800, Andrew Morton wrote:
-> On Thu, 28 Jan 2010 13:56:30 -0600
-> Robin Holt <holt@sgi.com> wrote:
-...
-> This is a mushroom patch.  This patch (and the rest of the patchset)
-> fails to provide any reason for making any change to anything.
+On Sat, 2010-01-30 at 22:37 +0200, Maxim Levitsky wrote: 
+> On Sat, 2010-01-30 at 19:47 +0100, Rafael J. Wysocki wrote: 
+> > On Saturday 30 January 2010, Maxim Levitsky wrote:
+> > > On Sun, 2010-01-17 at 01:38 +0100, Rafael J. Wysocki wrote: 
+> > > > Hi,
+> > > > 
+> > > > I thing the snippet below is a good summary of what this is about.
+> > > 
+> > > Any progress on that?
+> > 
+> > Well, I'm waiting for you to report back:
+> > http://patchwork.kernel.org/patch/74740/
+> > 
+> > The patch is appended once again for convenience.
 > 
-> I understand that it has something to do with xpmem?  That needs to be
-> spelled out in some detail please, so we understand the requirements
-> and perhaps can suggest alternatives.  If we have enough information we
-> can perhaps even suggest alternatives _within xpmem_.  But right now, we
-> have nothing.
-
-I have a much better description of what XPMEM needs in the next version.
-
-> > +extern int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> > +			    unsigned long start, unsigned long end, int atomic);
+> Ah, sorry!
 > 
-> Perhaps `atomic' could be made bool.
-
-Done.
-
-> > @@ -1018,12 +1019,17 @@ unsigned long unmap_vmas(struct mmu_gath
-...
-> > -	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
-> > +	ret = mmu_notifier_invalidate_range_start(mm, start_addr,
-> > +					end_addr, (i_mmap_lock == NULL));
-> > +	if (ret)
-> > +		goto out;
-> > +
+> I used the second version (with the locks) and it works for sure (~500
+> cycles)
 > 
-> afaict, `ret' doesn't get used for anything.
-
-Removed 'ret'
-
-> > +	struct mmu_gather *tlb == NULL;
+> However, as I discovered today, it takes the lock also for GFP_ATOMIC,
+> and thats why I see several backtraces in the kernel log. Anyway this
+> isn't important.
 > 
-> This statement doesn't do what you thought it did.  Didn't the compiler warn?
+> I forgot all about this patch, and I am compiling the kernel right away.
+> Will put the kernel through the hibernate loop tonight.
 
-That was wrong.  I had not compiled the patchset.
+I did 123 hibernate cycles on my notebook. Everything is fine.
+This patch very very likely is working.
 
-> >  	spin_unlock(details->i_mmap_lock);
-> > +	if (need_unlocked_invalidate) {
-> > +		mmu_notifier_invalidate_range_start(vma->mm, start, end, 0);
-> > +		mmu_notifier_invalidate_range_end(vma->mm, start, end);
-> > +	}
-> 
-> This is the appropriate place at which to add a comment explaining to
-> the reader what the code is doing.
-
-Added a comment.
-
-> > -void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> > -				  unsigned long start, unsigned long end)
-> > +int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> > +			     unsigned long start, unsigned long end, int atomic)
-> 
-> The implementation would be considerably less ugly if we could do away
-> with the `atomic' thing altogether and just assume `atomic=false'
-> throughout?
-
-In order to do the atomic=false, we would either need to convert the
-_range_start/_range_end to multiple _page callouts or take Andreas
-series of patches which convert the i_mmap_lock to an i_mmap_sem and then
-implement a method to ensure the vma remains consistent while sleeping
-in the invalidate_range_start callout.
-
-Over the weekend, I think I got fairly close to the point in XPMEM where
-I can comfortably say the callouts with the i_mmap_lock unlocked will be
-unneeded.  I will still need to have the flag (currently called atomic but
-should be renamed in that case) to indicate that asynchronous clearing
-of the page tables is acceptable.  In that circumstance, XPMEM would
-queue up the clearing much as we currently do for the _invalidate_page()
-callouts and process them later with a seperate xpmem kernel thread.
-I need to do some more thinking and checking with the MPI library folks
-to see if we can caveat that behavior.
-
-Another version will be posted shortly.  I will test the synchronous
-clearing and follow up with those results.
-
-Thanks,
-Robin
+Best regards,
+Maxim Levitsky
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
