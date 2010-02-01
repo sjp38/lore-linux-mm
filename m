@@ -1,154 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6F5FE6B0087
-	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 21:17:20 -0500 (EST)
-Date: Mon, 1 Feb 2010 10:17:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm/readahead.c: update the LRU positions of in-core
-	pages, too
-Message-ID: <20100201021703.GA11260@localhost>
-References: <20100120215536.GN27212@frostnet.net> <20100121054734.GC24236@localhost> <20100123040348.GC30844@frostnet.net> <20100123102222.GA6943@localhost> <20100125094228.f7ca1430.kamezawa.hiroyu@jp.fujitsu.com> <20100125024544.GA16462@localhost> <20100125223635.GC2822@frostnet.net> <20100126133217.GB25407@localhost> <20100131143142.GA11186@localhost> <20100201020639.GA27212@frostnet.net>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CC6B86B0083
+	for <linux-mm@kvack.org>; Sun, 31 Jan 2010 23:13:15 -0500 (EST)
+Date: Mon, 1 Feb 2010 12:12:53 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: [Patch - Resend v4] Memory-Hotplug: Fix the bug on interface
+ /dev/mem for 64-bit kernel
+Message-ID: <20100201041253.GA1028@shaohui>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=gb2312
+Content-Type: multipart/mixed; boundary="BOKacYhQ+x31HxR3"
 Content-Disposition: inline
-In-Reply-To: <20100201020639.GA27212@frostnet.net>
 Sender: owner-linux-mm@kvack.org
-To: Chris Frost <frost@cs.ucla.edu>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Steve Dickson <steved@redhat.com>, David Howells <dhowells@redhat.com>, Xu Chenfeng <xcf@ustc.edu.cn>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>, Nick Piggin <npiggin@suse.de>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, haveblue@us.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, ak@linux.intel.com, fengguang.wu@intel.com, hpa@kernel.org, haicheng.li@intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jan 31, 2010 at 07:06:39PM -0700, Chris Frost wrote:
-> On Sun, Jan 31, 2010 at 10:31:42PM +0800, Wu Fengguang wrote:
-> > On Tue, Jan 26, 2010 at 09:32:17PM +0800, Wu Fengguang wrote:
-> > > On Mon, Jan 25, 2010 at 03:36:35PM -0700, Chris Frost wrote:
-> > > > I changed Wu's patch to add a PageLRU() guard that I believe is required
-> > > > and optimized zone lock acquisition to only unlock and lock at zone changes.
-> > > > This optimization seems to provide a 10-20% system time improvement for
-> > > > some of my GIMP benchmarks and no improvement for other benchmarks.
-> > 
-> > I feel very uncomfortable about this put_page() inside zone->lru_lock. 
-> > (might deadlock: put_page() conditionally takes zone->lru_lock again)
-> > 
-> > If you really want the optimization, can we do it like this?
-> 
-> Sorry that I was slow to respond. (I was out of town.)
-> 
-> Thanks for catching __page_cache_release() locking the zone.
-> I think staying simple for now sounds good. The below locks
-> and unlocks the zone for each page. Look good?
 
-OK :)
+--BOKacYhQ+x31HxR3
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Thanks,
-Fengguang
+Send the v4 patch to mailing list.
 
-> ---
-> readahead: retain inactive lru pages to be accessed soon
-> From: Chris Frost <frost@cs.ucla.edu>
-> 
-> Ensure that cached pages in the inactive list are not prematurely evicted;
-> move such pages to lru head when they are covered by
-> - in-kernel heuristic readahead
-> - an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
-> 
-> Before this patch, pages already in core may be evicted before the
-> pages covered by the same prefetch scan but that were not yet in core.
-> Many small read requests may be forced on the disk because of this
-> behavior.
-> 
-> In particular, posix_fadvise(... POSIX_FADV_WILLNEED) on an in-core page
-> has no effect on the page's location in the LRU list, even if it is the
-> next victim on the inactive list.
-> 
-> This change helps address the performance problems we encountered
-> while modifying SQLite and the GIMP to use large file prefetching.
-> Overall these prefetching techniques improved the runtime of large
-> benchmarks by 10-17x for these applications. More in the publication
-> _Reducing Seek Overhead with Application-Directed Prefetching_ in
-> USENIX ATC 2009 and at http://libprefetch.cs.ucla.edu/.
-> 
-> Signed-off-by: Chris Frost <frost@cs.ucla.edu>
-> Signed-off-by: Steve VanDeBogart <vandebo@cs.ucla.edu>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  readahead.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 44 insertions(+)
-> 
-> diff --git a/mm/readahead.c b/mm/readahead.c
-> index aa1aa23..c615f96 100644
-> --- a/mm/readahead.c
-> +++ b/mm/readahead.c
-> @@ -9,7 +9,9 @@
->  
->  #include <linux/kernel.h>
->  #include <linux/fs.h>
-> +#include <linux/memcontrol.h>
->  #include <linux/mm.h>
-> +#include <linux/mm_inline.h>
->  #include <linux/module.h>
->  #include <linux/blkdev.h>
->  #include <linux/backing-dev.h>
-> @@ -133,6 +135,40 @@ out:
->  }
->  
->  /*
-> + * The file range is expected to be accessed in near future.  Move pages
-> + * (possibly in inactive lru tail) to lru head, so that they are retained
-> + * in memory for some reasonable time.
-> + */
-> +static void retain_inactive_pages(struct address_space *mapping,
-> +				  pgoff_t index, int len)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < len; i++) {
-> +		struct page *page;
-> +		struct zone *zone;
-> +
-> +		page = find_get_page(mapping, index + i);
-> +		if (!page)
-> +			continue;
-> +		zone = page_zone(page);
-> +		spin_lock_irq(&zone->lru_lock);
-> +
-> +		if (PageLRU(page) &&
-> +			!PageActive(page) &&
-> +			!PageUnevictable(page)) {
-> +			int lru = page_lru_base_type(page);
-> +
-> +			del_page_from_lru_list(zone, page, lru);
-> +			add_page_to_lru_list(zone, page, lru);
-> +		}
-> +
-> +		spin_unlock_irq(&zone->lru_lock);
-> +		put_page(page);
-> +	}
-> +}
-> +
-> +/*
->   * __do_page_cache_readahead() actually reads a chunk of disk.  It allocates all
->   * the pages first, then submits them all for I/O. This avoids the very bad
->   * behaviour which would occur if page allocations are causing VM writeback.
-> @@ -184,6 +220,14 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
->  	}
->  
->  	/*
-> +	 * Normally readahead will auto stop on cached segments, so we won't
-> +	 * hit many cached pages. If it does happen, bring the inactive pages
-> +	 * adjecent to the newly prefetched ones(if any).
-> +	 */
-> +	if (ret < nr_to_read)
-> +		retain_inactive_pages(mapping, offset, page_idx);
-> +
-> +	/*
->  	 * Now start the IO.  We ignore I/O errors - if the page is not
->  	 * uptodate then the caller will launch readpage again, and
->  	 * will then handle the error.
-> 
-> -- 
-> Chris Frost
-> http://www.frostnet.net/chris/
+changelog:
+v1: add memory range to e820 table, and update the varibles max_pfn/max_low_pfn/high_memory
+	Peter[hpa]: memory hotplug make sense on 32-bit kernel for virtual environment.
+	Andi[ak]: No VM supports it currently, and 64bit is the important part for hotplug 
+	Fengguang[wfg]: some review comments on function naming
+v2: rename function update_pfn to update_end_of_memory_vars
+	KAMEZAWA[kame]: e820map is considerted to be stable, read-only after boot.
+	Fengguang[wfg]: rewrite function page_is_ram, make it friendly for hotplug.
+v3: keep the old e820map, update the varible max_pfn, high_memory only
+	KAMEZAWA[kame]: suggest to use memory hotplug notifier. If it's allowed, it will
+					be cleaner.
+	Fengguang[wfg]: notifier is for _outsider_ subsystems. It smells a bit overkill to do 
+					notifier _inside_ the hotplug code.
+	Fengguang[wfg]: suggest to update max_pfn/max_low_pfn/high_memory in arch/x86/mm/init_64.c:
+					arch_add_memory() now, for X86_64.  
+					Later on we can add code to arch/x86/mm/init_32.c:arch_add_memory() for X86_32.
+v4: update max_pfn/max_low_pfn/high_memory in arch/x86/mm/init_64.c:arch_add_memory() for x86_64,
+	 and resent it to mailing list, since fengguang's page_is_ram patch was accepted,
+
+
+Memory-Hotplug: Fix the bug on interface /dev/mem for 64-bit kernel
+
+The new added memory can not be access by interface /dev/mem, because we do not
+ update the variables high_memory, max_pfn and max_low_pfn.
+
+Add a function update_end_of_memory_vars to update these variables for 64-bit 
+kernel.
+
+CC: Andi Kleen <ak@linux.intel.com>
+CC: Li Haicheng <haicheng.li@intel.com>
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 5a4398a..acfc01a 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -49,6 +49,7 @@
+ #include <asm/numa.h>
+ #include <asm/cacheflush.h>
+ #include <asm/init.h>
++#include <linux/bootmem.h>
+ 
+ static unsigned long dma_reserve __initdata;
+ 
+@@ -614,6 +615,21 @@ void __init paging_init(void)
+  * Memory hotplug specific functions
+  */
+ #ifdef CONFIG_MEMORY_HOTPLUG
++/**
++ * After memory hotplug, the variable max_pfn, max_low_pfn and high_memory will
++ * be affected, it will be updated in this function.
++ */
++static inline void __meminit update_end_of_memory_vars(u64 start,
++		u64 size)
++{
++	unsigned long end_pfn = PFN_UP(start + size);
++
++	if (end_pfn > max_pfn) {
++		max_low_pfn = max_pfn = end_pfn;
++		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
++	}
++}
++
+ /*
+  * Memory is added always to NORMAL zone. This means you will never get
+  * additional DMA/DMA32 memory.
+@@ -633,6 +649,9 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
+ 	WARN_ON_ONCE(ret);
+-- 
+Thanks & Regards,
+Shaohuki
+
+
+--BOKacYhQ+x31HxR3
+Content-Type: text/x-diff; charset=us-ascii
+Content-Disposition: attachment; filename="memory-hotplug-fix-the-bug-on-interface-dev-mem-v4.patch"
+
+Memory-Hotplug: Fix the bug on interface /dev/mem for 64-bit kernel
+
+The new added memory can not be access by interface /dev/mem, because we do not
+ update the variables high_memory, max_pfn and max_low_pfn.
+
+Add a function update_end_of_memory_vars to update these variables for 64-bit 
+kernel.
+
+CC: Andi Kleen <ak@linux.intel.com>
+CC: Li Haicheng <haicheng.li@intel.com>
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 5a4398a..acfc01a 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -49,6 +49,7 @@
+ #include <asm/numa.h>
+ #include <asm/cacheflush.h>
+ #include <asm/init.h>
++#include <linux/bootmem.h>
+ 
+ static unsigned long dma_reserve __initdata;
+ 
+@@ -614,6 +615,21 @@ void __init paging_init(void)
+  * Memory hotplug specific functions
+  */
+ #ifdef CONFIG_MEMORY_HOTPLUG
++/**
++ * After memory hotplug, the variable max_pfn, max_low_pfn and high_memory will
++ * be affected, it will be updated in this function.
++ */
++static inline void __meminit update_end_of_memory_vars(u64 start,
++		u64 size)
++{
++	unsigned long end_pfn = PFN_UP(start + size);
++
++	if (end_pfn > max_pfn) {
++		max_low_pfn = max_pfn = end_pfn;
++		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
++	}
++}
++
+ /*
+  * Memory is added always to NORMAL zone. This means you will never get
+  * additional DMA/DMA32 memory.
+@@ -633,6 +649,9 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
+ 	WARN_ON_ONCE(ret);
+ 
++	/* update max_pfn, max_low_pfn and high_memory */
++	update_end_of_memory_vars(start, size);
++
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(arch_add_memory);
+
+--BOKacYhQ+x31HxR3--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
