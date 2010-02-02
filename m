@@ -1,59 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4BB5F6B007D
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 08:29:22 -0500 (EST)
-Date: Tue, 2 Feb 2010 07:29:20 -0600
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1F9D96B007D
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 08:35:54 -0500 (EST)
+Date: Tue, 2 Feb 2010 07:35:50 -0600
 From: Robin Holt <holt@sgi.com>
 Subject: Re: [RFP-V2 0/3] Make mmu_notifier_invalidate_range_start able to
  sleep.
-Message-ID: <20100202132919.GO6653@sgi.com>
+Message-ID: <20100202133550.GP6653@sgi.com>
 References: <20100202040145.555474000@alcatraz.americas.sgi.com>
  <20100202080947.GA28736@infradead.org>
- <20100202125943.GH4135@random.random>
- <20100202131341.GI4135@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100202131341.GI4135@random.random>
+In-Reply-To: <20100202080947.GA28736@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 02, 2010 at 02:13:41PM +0100, Andrea Arcangeli wrote:
-> On Tue, Feb 02, 2010 at 01:59:43PM +0100, Andrea Arcangeli wrote:
-> > slowdown the locking even if it leaves holes and corrupts memory when
-> > XPMEM can be opened by luser. It really depends if the user having
-> > access to XPMEM device is malicious, if we know it's not (assume
-> > avatar distributed rendering in closed environment or whatever) this
-> > again is an ok hack.
+On Tue, Feb 02, 2010 at 03:09:47AM -0500, Christoph Hellwig wrote:
+> On Mon, Feb 01, 2010 at 10:01:45PM -0600, Robin Holt wrote:
+> > XPMEM would like to utilize mmu_notifiers to track page table entry
+> > changes of the segment and keep the attachment page table/tlb information
+> > consistent.
 > 
-> >From another point of view: if the userland has to be as trusted as
-> the kernel for this hack to be ok, I don't get it why it's not ok to
-> just schedule unconditionally in the invalidate_range_start without
-> altering the API and gracefully deadlock in the i_mmap_lock. If the
-> secondary mappings cannot be teardown without scheduling, it means the
-> page will be swapped out but the physical pages can be still written
-> to despite the page being swapped out and reused by something else
-> leading to trivial memory corruption if the user having access to
-> xpmem device is malicious.
-> 
-> Like Andrew already said, we've no clue what the "bool atomic"
-> parameter will be used for and so it's next to impossible to judge the
-> validity of this hack (because an hack that is). We don't know how
-> xpmem will react to that event, all we know is that it won't be able
-> to invalidate secondary mappings by the time this call returns leading
-> to memory corruption. If it panics or if it ignores the invalidate
-> when atomic=1, it's equivalent or worse than just schedule in
+> Given that SGI just pushes XPMEM direclty into the distributions instead
+> of adding it upstream I don't really see the relevance of these patches.
 
-The atomic==1 case is only for the truncate case, correct?  XPMEM is
-holding reference counts on the pages it exports (get_user_pages) so
-they are not freed even when the zap_page_range has completed.  What I
-think we are dealing with is an inconsistent appearance to userland.
-The one task would SIG_BUS if it touches the memory.  The other would
-be able to read/write it just fine until the ascynchronous zap of the
-attachment completed.
+XPMEM has in the past and will again be pushed to the community.  We are
+not pushing it to the distros.  We have asked them to take very minor
+patches which have all, with the exception of one, been accepted upstream.
+The one which has not been accepted upstream has not even been pushed and
+that is only turning on MMU_NOTIFIER when CONFIG_IA64 && CONFIG_SGI_XP
+are set.
 
+We build xpmem as a GPL out of tree kernel module and library.  The
+sources are shipped with the SGI ProPack product CD.  Any customer could
+rebuild the kernel module with a simple rpmbuild --rebuild xpmem*.src.rpm
+if they wanted.
+
+Thanks,
 Robin
 
 --
