@@ -1,37 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C18016B0096
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 14:53:04 -0500 (EST)
-Date: Tue, 2 Feb 2010 13:52:11 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 32 of 32] khugepaged
-In-Reply-To: <20100201225624.GB4135@random.random>
-Message-ID: <alpine.DEB.2.00.1002021347520.19529@router.home>
-References: <patchbomb.1264969631@v2.random> <51b543fab38b1290f176.1264969663@v2.random> <alpine.DEB.2.00.1002011551560.2384@router.home> <20100201225624.GB4135@random.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 121BA6B0096
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 15:00:40 -0500 (EST)
+Date: Tue, 2 Feb 2010 11:59:03 -0800 (PST)
+From: david@lang.hm
+Subject: Re: [PATCH 10/11] readahead: dont do start-of-file readahead after
+ lseek()
+In-Reply-To: <alpine.LFD.2.00.1002021111240.3664@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1002021157280.3707@asgard.lang.hm>
+References: <20100202152835.683907822@intel.com> <20100202153317.644170708@intel.com> <20100202181321.GB75577@dspnet.fr.eu.org> <alpine.LFD.2.00.1002021037110.3664@localhost.localdomain> <20100202184831.GD75577@dspnet.fr.eu.org>
+ <alpine.LFD.2.00.1002021111240.3664@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Olivier Galibert <galibert@pobox.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Feb 2010, Andrea Arcangeli wrote:
+On Tue, 2 Feb 2010, Linus Torvalds wrote:
 
-> KSM also works exactly the same as khugepaged and migration but we
-> solved it without migration pte and apparently nobody wants to deal
-> with that special migration pte logic. So before worrying about
-> khugepaged out of the tree, you should actively go fix ksm that works
-> exactly the same and it's in mainline. Until you don't fix ksm I think
-> I should be allowed to keep khugepaged simple and lightweight without
-> being forced to migration pte.
+> Rememebr: read-ahead is about filling the empty IO spaces _between_ reads,
+> and turning many smaller reads into one bigger one. If you only have a
+> single big read, read-ahead cannot help.
+>
+> Also, keep in mind that read-ahead is not always a win. It can be a huge
+> loss too. Which is why we have _heuristics_. They fundamentally cannot
+> catch every case, but what they aim for is to do a good job on average.
 
-You are being "forced"? What language... You do not want to reuse the ksm
-code or the page migration code?
+as a note from the field, I just had an application that needed to be 
+changed because it did excessive read-ahead. it turned a 2 min reporting 
+run into a 20 min reporting run because for this report the access was 
+really random and the app forced large read-ahead.
 
-Please consider consolidating the code for the multiple ways that we do
-these complex moves of physical memory without changing the physical one.
-
-The code needs to be understandable and easy to maintain after all.
+David Lang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
