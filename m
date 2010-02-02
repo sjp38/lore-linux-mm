@@ -1,76 +1,123 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id AE56D6B0047
-	for <linux-mm@kvack.org>; Sun, 28 Feb 2010 21:03:12 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2123AqZ002366
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 1 Mar 2010 11:03:10 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5ACA345DE83
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 11:03:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF4AC45DE7B
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 11:03:08 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FE66E18009
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 11:03:08 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 923EF1DB803F
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 11:03:07 +0900 (JST)
-Date: Mon, 1 Mar 2010 10:59:32 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-Message-Id: <20100301105932.5db60c93.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100226173115.GG16335@basil.fritz.box>
-References: <alpine.DEB.2.00.1002191222320.26567@router.home>
-	<20100220090154.GB11287@basil.fritz.box>
-	<alpine.DEB.2.00.1002240949140.26771@router.home>
-	<4B862623.5090608@cs.helsinki.fi>
-	<alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1002251228140.18861@router.home>
-	<20100226114136.GA16335@basil.fritz.box>
-	<alpine.DEB.2.00.1002260904311.6641@router.home>
-	<20100226155755.GE16335@basil.fritz.box>
-	<alpine.DEB.2.00.1002261123520.7719@router.home>
-	<20100226173115.GG16335@basil.fritz.box>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 05/11] readahead: retain inactive lru pages to be accessed soon
+Date: Tue, 02 Feb 2010 23:28:40 +0800
+Message-ID: <20100202153316.936832492@intel.com>
+References: <20100202152835.683907822@intel.com>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1NcKlg-0003kV-Cz
+	for glkm-linux-mm-2@m.gmane.org; Tue, 02 Feb 2010 16:34:20 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C01FE6B0071
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 10:34:16 -0500 (EST)
+Content-Disposition: inline; filename=readahead-retain-pages-find_get_page.patch
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com
-List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Chris Frost <frost@cs.ucla.edu>, Steve VanDeBogart <vandebo@cs.ucla.edu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+List-Id: linux-mm.kvack.org
 
-On Fri, 26 Feb 2010 18:31:15 +0100
-Andi Kleen <andi@firstfloor.org> wrote:
+From: Chris Frost <frost@cs.ucla.edu>
 
-> On Fri, Feb 26, 2010 at 11:24:50AM -0600, Christoph Lameter wrote:
-> > On Fri, 26 Feb 2010, Andi Kleen wrote:
-> > 
-> > > > > Memory hotplug with node add never quite worked on x86 before,
-> > > > > for various reasons not related to slab.
-> > > >
-> > > > Ok but why did things break in such a big way?
-> > >
-> > > 1) numa memory hotadd never worked
-> > 
-> > Well Kamesan indicated that this worked if a cpu became online.
-> 
-> I mean in the general case. There were tons of problems all over.
-> 
-Then, it's cpu hotplug matter, not memory hotplug.
-cpu hotplug callback should prepaare 
+Ensure that cached pages in the inactive list are not prematurely evicted;
+move such pages to lru head when they are covered by
+- in-kernel heuristic readahead
+- an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
 
+Before this patch, pages already in core may be evicted before the
+pages covered by the same prefetch scan but that were not yet in core.
+Many small read requests may be forced on the disk because of this
+behavior.
 
-	l3 = searchp->nodelists[node];
-	BUG_ON(!l3);
+In particular, posix_fadvise(... POSIX_FADV_WILLNEED) on an in-core page
+has no effect on the page's location in the LRU list, even if it is the
+next victim on the inactive list.
 
-before onlined. Rather than taking care of races.
+This change helps address the performance problems we encountered
+while modifying SQLite and the GIMP to use large file prefetching.
+Overall these prefetching techniques improved the runtime of large
+benchmarks by 10-17x for these applications. More in the publication
+_Reducing Seek Overhead with Application-Directed Prefetching_ in
+USENIX ATC 2009 and at http://libprefetch.cs.ucla.edu/.
 
+Signed-off-by: Chris Frost <frost@cs.ucla.edu>
+Signed-off-by: Steve VanDeBogart <vandebo@cs.ucla.edu>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/readahead.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
 
-Thanks,
--Kame
+--- linux.orig/mm/readahead.c	2010-02-01 10:18:57.000000000 +0800
++++ linux/mm/readahead.c	2010-02-01 10:20:51.000000000 +0800
+@@ -9,7 +9,9 @@
+ 
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
++#include <linux/memcontrol.h>
+ #include <linux/mm.h>
++#include <linux/mm_inline.h>
+ #include <linux/module.h>
+ #include <linux/blkdev.h>
+ #include <linux/backing-dev.h>
+@@ -133,6 +135,40 @@ out:
+ }
+ 
+ /*
++ * The file range is expected to be accessed in near future.  Move pages
++ * (possibly in inactive lru tail) to lru head, so that they are retained
++ * in memory for some reasonable time.
++ */
++static void retain_inactive_pages(struct address_space *mapping,
++				  pgoff_t index, int len)
++{
++	int i;
++	struct page *page;
++	struct zone *zone;
++
++	for (i = 0; i < len; i++) {
++		page = find_get_page(mapping, index + i);
++		if (!page)
++			continue;
++
++		zone = page_zone(page);
++		spin_lock_irq(&zone->lru_lock);
++
++		if (PageLRU(page) &&
++		    !PageActive(page) &&
++		    !PageUnevictable(page)) {
++			int lru = page_lru_base_type(page);
++
++			del_page_from_lru_list(zone, page, lru);
++			add_page_to_lru_list(zone, page, lru);
++		}
++
++		spin_unlock_irq(&zone->lru_lock);
++		put_page(page);
++	}
++}
++
++/*
+  * __do_page_cache_readahead() actually reads a chunk of disk.  It allocates all
+  * the pages first, then submits them all for I/O. This avoids the very bad
+  * behaviour which would occur if page allocations are causing VM writeback.
+@@ -184,6 +220,14 @@ __do_page_cache_readahead(struct address
+ 	}
+ 
+ 	/*
++	 * Normally readahead will auto stop on cached segments, so we won't
++	 * hit many cached pages. If it does happen, bring the inactive pages
++	 * adjecent to the newly prefetched ones(if any).
++	 */
++	if (ret < nr_to_read)
++		retain_inactive_pages(mapping, offset, page_idx);
++
++	/*
+ 	 * Now start the IO.  We ignore I/O errors - if the page is not
+ 	 * uptodate then the caller will launch readpage again, and
+ 	 * will then handle the error.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
