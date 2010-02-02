@@ -1,94 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 465656B0093
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 14:38:31 -0500 (EST)
-Date: Tue, 2 Feb 2010 20:38:26 +0100
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [PATCH 01/11] readahead: limit readahead size for small devices
-Message-ID: <20100202193826.GC5733@kernel.dk>
-References: <20100202152835.683907822@intel.com> <20100202153316.375570078@intel.com>
+	by kanga.kvack.org (Postfix) with SMTP id C18016B0096
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 14:53:04 -0500 (EST)
+Date: Tue, 2 Feb 2010 13:52:11 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 32 of 32] khugepaged
+In-Reply-To: <20100201225624.GB4135@random.random>
+Message-ID: <alpine.DEB.2.00.1002021347520.19529@router.home>
+References: <patchbomb.1264969631@v2.random> <51b543fab38b1290f176.1264969663@v2.random> <alpine.DEB.2.00.1002011551560.2384@router.home> <20100201225624.GB4135@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100202153316.375570078@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 02 2010, Wu Fengguang wrote:
-> Linus reports a _really_ small & slow (505kB, 15kB/s) USB device,
-> on which blkid runs unpleasantly slow. He manages to optimize the blkid
-> reads down to 1kB+16kB, but still kernel read-ahead turns it into 48kB.
-> 
->      lseek 0,    read 1024   => readahead 4 pages (start of file)
->      lseek 1536, read 16384  => readahead 8 pages (page contiguous)
-> 
-> The readahead heuristics involved here are reasonable ones in general.
-> So it's good to fix blkid with fadvise(RANDOM), as Linus already did.
-> 
-> For the kernel part, Linus suggests:
->   So maybe we could be less aggressive about read-ahead when the size of
->   the device is small? Turning a 16kB read into a 64kB one is a big deal,
->   when it's about 15% of the whole device!
-> 
-> This looks reasonable: smaller device tend to be slower (USB sticks as
-> well as micro/mobile/old hard disks).
-> 
-> Given that the non-rotational attribute is not always reported, we can
-> take disk size as a max readahead size hint. We use a formula that
-> generates the following concrete limits:
-> 
->         disk size    readahead size
->      (scale by 4)      (scale by 2)
->                2M            	 4k
->                8M                8k
->               32M               16k
->              128M               32k
->              512M               64k
->                2G              128k
->                8G              256k
->               32G              512k
->              128G             1024k
+On Mon, 1 Feb 2010, Andrea Arcangeli wrote:
 
-I'm not sure the size part makes a ton of sense. You can have really
-fast small devices, and large slow devices. One real world example are
-the Sun FMod SSD devices, which are only 22GB in size but are faster
-than the Intel X25-E SLC disks.
+> KSM also works exactly the same as khugepaged and migration but we
+> solved it without migration pte and apparently nobody wants to deal
+> with that special migration pte logic. So before worrying about
+> khugepaged out of the tree, you should actively go fix ksm that works
+> exactly the same and it's in mainline. Until you don't fix ksm I think
+> I should be allowed to keep khugepaged simple and lightweight without
+> being forced to migration pte.
 
-What makes it even worse for these devices is that they are often
-attached to fatter controllers than ahci, where command overhead is
-larger.
+You are being "forced"? What language... You do not want to reuse the ksm
+code or the page migration code?
 
-Running your script on such a device yields (I enlarged the read-count
-by 2, makes it more reproducible):
+Please consider consolidating the code for the multiple ways that we do
+these complex moves of physical memory without changing the physical one.
 
-MARVELL SD88SA02 MP1F
-
-rasize	1st             2nd
-------------------------------------------------------------------
-  4k	 41 MB/s	 41 MB/s
- 16k	 85 MB/s	 81 MB/s
- 32k	102 MB/s	109 MB/s
- 64k	125 MB/s	144 MB/s
-128k	183 MB/s	185 MB/s
-256k	216 MB/s	216 MB/s
-512k	216 MB/s	236 MB/s
-1024k	251 MB/s	252 MB/s
-  2M	258 MB/s	258 MB/s
-  4M	266 MB/s	266 MB/s
-  8M	266 MB/s	266 MB/s
-
-So for that device, 1M-2M looks like the sweet spot, with even needing
-4-8M to fully reach full throughput.
-
-I don't think this is atypical of bigger systems. Only very recently
-have controller started to slim down the command overhead for real,
-because of the SSD devices. What probably is atypical is a device that
-is this small yet pretty fast.
-
--- 
-Jens Axboe
+The code needs to be understandable and easy to maintain after all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
