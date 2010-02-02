@@ -1,46 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1F9D96B007D
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 08:35:54 -0500 (EST)
-Date: Tue, 2 Feb 2010 07:35:50 -0600
-From: Robin Holt <holt@sgi.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id B09A06B007D
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 08:40:56 -0500 (EST)
+Date: Tue, 2 Feb 2010 14:40:47 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [RFP-V2 0/3] Make mmu_notifier_invalidate_range_start able to
  sleep.
-Message-ID: <20100202133550.GP6653@sgi.com>
+Message-ID: <20100202134047.GJ4135@random.random>
 References: <20100202040145.555474000@alcatraz.americas.sgi.com>
  <20100202080947.GA28736@infradead.org>
+ <20100202125943.GH4135@random.random>
+ <20100202131341.GI4135@random.random>
+ <20100202132919.GO6653@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100202080947.GA28736@infradead.org>
+In-Reply-To: <20100202132919.GO6653@sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 02, 2010 at 03:09:47AM -0500, Christoph Hellwig wrote:
-> On Mon, Feb 01, 2010 at 10:01:45PM -0600, Robin Holt wrote:
-> > XPMEM would like to utilize mmu_notifiers to track page table entry
-> > changes of the segment and keep the attachment page table/tlb information
-> > consistent.
-> 
-> Given that SGI just pushes XPMEM direclty into the distributions instead
-> of adding it upstream I don't really see the relevance of these patches.
+On Tue, Feb 02, 2010 at 07:29:20AM -0600, Robin Holt wrote:
+> The atomic==1 case is only for the truncate case, correct?  XPMEM is
 
-XPMEM has in the past and will again be pushed to the community.  We are
-not pushing it to the distros.  We have asked them to take very minor
-patches which have all, with the exception of one, been accepted upstream.
-The one which has not been accepted upstream has not even been pushed and
-that is only turning on MMU_NOTIFIER when CONFIG_IA64 && CONFIG_SGI_XP
-are set.
+Correct.
 
-We build xpmem as a GPL out of tree kernel module and library.  The
-sources are shipped with the SGI ProPack product CD.  Any customer could
-rebuild the kernel module with a simple rpmbuild --rebuild xpmem*.src.rpm
-if they wanted.
+> holding reference counts on the pages it exports (get_user_pages) so
+> they are not freed even when the zap_page_range has completed.  What I
+> think we are dealing with is an inconsistent appearance to userland.
+> The one task would SIG_BUS if it touches the memory.  The other would
+> be able to read/write it just fine until the ascynchronous zap of the
+> attachment completed.
 
-Thanks,
-Robin
+Ok, thanks to the page pin it won't randomly corrupt memory, but it
+can still screw the runtime of an unmodified unaware program. I think
+you've to figure out how important it is that you won't deadlock if
+luser modifies userland because this isn't a complete approach and as
+much as I care about your workload that is ok with this, I cannot
+exclude it might materialize an usage in the future where sigbus while
+other thread still access the remote pages is not ok and may screw
+userland in a more subtle way than a visible kernel deadlock. Now we
+can do this now and undo it later, nothing very problematic, but
+considering this isn't a full transparent solution, I don't see the
+big deal in just scheduling in atomic if user does what it can't do
+(there will be unexpected behavior to his app anyway if he does that).
+
+I don't see a problem in applying srcu and the tlb gather patch in
+distro kernels, those won't even prevent the upstream modules to build
+against those kernels and there will be no change of API. In general
+making the methods sleepable doesn't need to alter the API at
+all... reason of this change of API is because we're not actually
+making them sleepable but only a few.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
