@@ -1,278 +1,141 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 09/11] readahead: add /debug/readahead/stats
-Date: Tue, 02 Feb 2010 23:28:44 +0800
-Message-ID: <20100202153317.508563694@intel.com>
+Subject: [PATCH 11/11] radixtree: speed up next/prev hole search
+Date: Tue, 02 Feb 2010 23:28:46 +0800
+Message-ID: <20100202153317.782857993@intel.com>
 References: <20100202152835.683907822@intel.com>
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NcKlz-00042R-VA
-	for glkm-linux-mm-2@m.gmane.org; Tue, 02 Feb 2010 16:34:40 +0100
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 64B1F6B008A
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 10:34:27 -0500 (EST)
-Content-Disposition: inline; filename=readahead-stats.patch
-Sender: owner-linux-mm@kvack.org
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline; filename=radixtree-scan-hole-fast.patch
+Sender: linux-kernel-owner@vger.kernel.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Collect readahead stats when CONFIG_READAHEAD_STATS=y.
+Replace the hole scan functions with more fast versions:
+	- radix_tree_next_hole(root, index, max_scan)
+	- radix_tree_prev_hole(root, index, max_scan)
 
-This is enabled by default because the added overheads are trivial:
-two readahead_stats() calls per readahead.
-
-Example output:
-(taken from a fresh booted NFS-ROOT box with rsize=16k)
-
-$ cat /debug/readahead/stats
-pattern     readahead    eof_hit  cache_hit         io    sync_io    mmap_io       size async_size    io_size
-initial           524        216         26        498        498         18          7          4          4
-subsequent        181         80          1        130         13         60         25         25         24
-context            94         28          3         85         64          8          7          2          5
-thrash              0          0          0          0          0          0          0          0          0
-around            162        121         33        162        162        162         60          0         21
-fadvise             0          0          0          0          0          0          0          0          0
-random            137          0          0        137        137          0          1          0          1
-all              1098        445         63       1012        874          0         17          6          9
-
-The two most important columns are
-- io		number of readahead IO
-- io_size	average readahead IO size
-
-CC: Ingo Molnar <mingo@elte.hu> 
-CC: Jens Axboe <jens.axboe@oracle.com> 
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl> 
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/Kconfig     |   13 +++
- mm/readahead.c |  177 ++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 188 insertions(+), 2 deletions(-)
+ lib/radix-tree.c |   85 +++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 74 insertions(+), 11 deletions(-)
 
---- linux.orig/mm/readahead.c	2010-02-01 21:55:46.000000000 +0800
-+++ linux/mm/readahead.c	2010-02-01 21:57:07.000000000 +0800
-@@ -38,6 +38,179 @@ const char * const ra_pattern_names[] = 
- 	[RA_PATTERN_ALL]		= "all",
- };
+--- linux.orig/lib/radix-tree.c	2010-01-09 21:45:16.000000000 +0800
++++ linux/lib/radix-tree.c	2010-01-21 22:04:22.000000000 +0800
+@@ -609,6 +609,24 @@ int radix_tree_tag_get(struct radix_tree
+ }
+ EXPORT_SYMBOL(radix_tree_tag_get);
  
-+#ifdef CONFIG_READAHEAD_STATS
-+#include <linux/seq_file.h>
-+#include <linux/debugfs.h>
-+enum ra_account {
-+	/* number of readaheads */
-+	RA_ACCOUNT_COUNT,	/* readahead request */
-+	RA_ACCOUNT_EOF,		/* readahead request contains/beyond EOF page */
-+	RA_ACCOUNT_CHIT,	/* readahead request covers some cached pages */
-+	RA_ACCOUNT_IOCOUNT,	/* readahead IO */
-+	RA_ACCOUNT_SYNC,	/* readahead IO that is synchronous */
-+	RA_ACCOUNT_MMAP,	/* readahead IO by mmap accesses */
-+	/* number of readahead pages */
-+	RA_ACCOUNT_SIZE,	/* readahead size */
-+	RA_ACCOUNT_ASIZE,	/* readahead async size */
-+	RA_ACCOUNT_ACTUAL,	/* readahead actual IO size */
-+	/* end mark */
-+	RA_ACCOUNT_MAX,
-+};
-+
-+static unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
-+
-+static void readahead_stats(struct address_space *mapping,
-+			    pgoff_t offset,
-+			    unsigned long req_size,
-+			    unsigned int ra_flags,
-+			    pgoff_t start,
-+			    unsigned int size,
-+			    unsigned int async_size,
-+			    int actual)
++/*
++ * Find the bottom radix tree node that contains @index.
++ * Return NULL if @index is hole, or is the special root node.
++ */
++static struct radix_tree_node *
++radix_tree_lookup_node(struct radix_tree_root *root, unsigned long index)
 +{
-+	unsigned int pattern = ra_pattern(ra_flags);
++	void *slot;
 +
-+	ra_stats[pattern][RA_ACCOUNT_COUNT]++;
-+	ra_stats[pattern][RA_ACCOUNT_SIZE] += size;
-+	ra_stats[pattern][RA_ACCOUNT_ASIZE] += async_size;
-+	ra_stats[pattern][RA_ACCOUNT_ACTUAL] += actual;
++	slot = radix_tree_lookup_element(root, index, 1);
++	if (!slot || slot == &root->rnode)
++		return NULL;
 +
-+	if (actual < size) {
-+		if (start + size >
-+		    (i_size_read(mapping->host) - 1) >> PAGE_CACHE_SHIFT)
-+			ra_stats[pattern][RA_ACCOUNT_EOF]++;
-+		else
-+			ra_stats[pattern][RA_ACCOUNT_CHIT]++;
-+	}
++	slot -= (index & RADIX_TREE_MAP_MASK) * sizeof(void *);
 +
-+	if (!actual)
-+		return;
-+
-+	ra_stats[pattern][RA_ACCOUNT_IOCOUNT]++;
-+
-+	if (start <= offset && start + size > offset)
-+		ra_stats[pattern][RA_ACCOUNT_SYNC]++;
-+
-+	if (ra_flags & READAHEAD_MMAP)
-+		ra_stats[pattern][RA_ACCOUNT_MMAP]++;
++	return container_of(slot, struct radix_tree_node, slots);
 +}
 +
-+static int readahead_stats_show(struct seq_file *s, void *_)
-+{
-+	unsigned long i;
-+	unsigned long count, iocount;
+ /**
+  *	radix_tree_next_hole    -    find the next hole (not-present entry)
+  *	@root:		tree root
+@@ -630,18 +648,41 @@ EXPORT_SYMBOL(radix_tree_tag_get);
+  *	under rcu_read_lock.
+  */
+ unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+-				unsigned long index, unsigned long max_scan)
++				   unsigned long index, unsigned long max_scan)
+ {
+-	unsigned long i;
++	struct radix_tree_node *node;
++	unsigned long origin = index;
++	int i;
 +
-+	seq_printf(s, "%-10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
-+			"pattern",
-+			"readahead", "eof_hit", "cache_hit",
-+			"io", "sync_io", "mmap_io",
-+			"size", "async_size", "io_size");
++	node = rcu_dereference(root->rnode);
++	if (node == NULL)
++		return index;
 +
-+	for (i = 0; i < RA_PATTERN_MAX; i++) {
-+		count = ra_stats[i][RA_ACCOUNT_COUNT];
-+		iocount = ra_stats[i][RA_ACCOUNT_IOCOUNT];
-+		/*
-+		 * avoid division-by-zero
-+		 */
-+		if (count == 0)
-+			count = 1;
-+		if (iocount == 0)
-+			iocount = 1;
++	if (!radix_tree_is_indirect_ptr(node))
++		return index ? index : 1;
+ 
+-	for (i = 0; i < max_scan; i++) {
+-		if (!radix_tree_lookup(root, index))
++	while (index - origin < max_scan) {
++		node = radix_tree_lookup_node(root, index);
++		if (!node)
+ 			break;
+-		index++;
+-		if (index == 0)
 +
-+		seq_printf(s, "%-10s %10lu %10lu %10lu %10lu %10lu %10lu "
-+			   "%10lu %10lu %10lu\n",
-+				ra_pattern_names[i],
-+				ra_stats[i][RA_ACCOUNT_COUNT],
-+				ra_stats[i][RA_ACCOUNT_EOF],
-+				ra_stats[i][RA_ACCOUNT_CHIT],
-+				ra_stats[i][RA_ACCOUNT_IOCOUNT],
-+				ra_stats[i][RA_ACCOUNT_SYNC],
-+				ra_stats[i][RA_ACCOUNT_MMAP],
-+				ra_stats[i][RA_ACCOUNT_SIZE]   / count,
-+				ra_stats[i][RA_ACCOUNT_ASIZE]  / count,
-+				ra_stats[i][RA_ACCOUNT_ACTUAL] / iocount);
-+	}
++		if (node->count == RADIX_TREE_MAP_SIZE) {
++			index = (index | RADIX_TREE_MAP_MASK) + 1;
++			goto check_overflow;
++		}
 +
-+	return 0;
-+}
++		for (i = index & RADIX_TREE_MAP_MASK;
++		     i < RADIX_TREE_MAP_SIZE;
++		     i++, index++)
++			if (rcu_dereference(node->slots[i]) == NULL)
++				goto out;
 +
-+static int readahead_stats_open(struct inode *inode, struct file *file)
-+{
-+	return single_open(file, readahead_stats_show, NULL);
-+}
-+
-+static ssize_t readahead_stats_write(struct file *file, const char __user *buf,
-+				     size_t size, loff_t *offset)
-+{
-+	memset(ra_stats, 0, sizeof(ra_stats));
-+	return size;
-+}
-+
-+static struct file_operations readahead_stats_fops = {
-+	.owner		= THIS_MODULE,
-+	.open		= readahead_stats_open,
-+	.write		= readahead_stats_write,
-+	.read		= seq_read,
-+	.llseek		= seq_lseek,
-+	.release	= single_release,
-+};
-+
-+static struct dentry *ra_debug_root;
-+
-+static int debugfs_create_readahead(void)
-+{
-+	struct dentry *debugfs_stats;
-+
-+	ra_debug_root = debugfs_create_dir("readahead", NULL);
-+	if (!ra_debug_root)
-+		goto out;
-+
-+	debugfs_stats = debugfs_create_file("stats", 0644, ra_debug_root,
-+					    NULL, &readahead_stats_fops);
-+	if (!debugfs_stats)
-+		goto out;
-+
-+	return 0;
-+out:
-+	printk(KERN_ERR "readahead: failed to create debugfs entries\n");
-+	return -ENOMEM;
-+}
-+
-+static int __init readahead_init(void)
-+{
-+	debugfs_create_readahead();
-+	return 0;
-+}
-+
-+static void __exit readahead_exit(void)
-+{
-+	debugfs_remove_recursive(ra_debug_root);
-+}
-+
-+module_init(readahead_init);
-+module_exit(readahead_exit);
-+#endif
-+
-+static void readahead_event(struct address_space *mapping,
-+			    pgoff_t offset,
-+			    unsigned long req_size,
-+			    unsigned int ra_flags,
-+			    pgoff_t start,
-+			    unsigned int size,
-+			    unsigned int async_size,
-+			    unsigned int actual)
-+{
-+#ifdef CONFIG_READAHEAD_STATS
-+	readahead_stats(mapping, offset, req_size, ra_flags,
-+			start, size, async_size, actual);
-+	readahead_stats(mapping, offset, req_size,
-+			RA_PATTERN_ALL << READAHEAD_PATTERN_SHIFT,
-+			start, size, async_size, actual);
-+#endif
-+	trace_readahead(mapping, offset, req_size, ra_flags,
-+			start, size, async_size, actual);
-+}
-+
- /*
-  * Initialise a struct file's readahead state.  Assumes that the caller has
-  * memset *ra to zero.
-@@ -289,7 +462,7 @@ int force_page_cache_readahead(struct ad
- 		nr_to_read -= this_chunk;
++check_overflow:
++		if (unlikely(index == 0))
+ 			break;
  	}
  
--	trace_readahead(mapping, offset, nr_to_read,
-+	readahead_event(mapping, offset, nr_to_read,
- 			RA_PATTERN_FADVISE << READAHEAD_PATTERN_SHIFT,
- 			offset, nr_to_read, 0, ret);
- 
-@@ -320,7 +493,7 @@ unsigned long ra_submit(struct file_ra_s
- 	actual = __do_page_cache_readahead(mapping, filp,
- 					ra->start, ra->size, ra->async_size);
- 
--	trace_readahead(mapping, offset, req_size, ra->ra_flags,
-+	readahead_event(mapping, offset, req_size, ra->ra_flags,
- 			ra->start, ra->size, ra->async_size, actual);
- 
- 	return actual;
---- linux.orig/mm/Kconfig	2010-02-01 21:55:28.000000000 +0800
-+++ linux/mm/Kconfig	2010-02-01 21:55:49.000000000 +0800
-@@ -283,3 +283,16 @@ config NOMMU_INITIAL_TRIM_EXCESS
- 	  of 1 says that all excess pages should be trimmed.
- 
- 	  See Documentation/nommu-mmap.txt for more information.
++out:
+ 	return index;
+ }
+ EXPORT_SYMBOL(radix_tree_next_hole);
+@@ -669,16 +710,38 @@ EXPORT_SYMBOL(radix_tree_next_hole);
+ unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+ 				   unsigned long index, unsigned long max_scan)
+ {
+-	unsigned long i;
++	struct radix_tree_node *node;
++	unsigned long origin = index;
++	int i;
 +
-+config READAHEAD_STATS
-+	bool "Collect page-cache readahead stats"
-+	depends on DEBUG_FS
-+	default y
-+	help
-+	  Enable readahead events accounting. Usage:
++	node = rcu_dereference(root->rnode);
++	if (node == NULL)
++		return index;
 +
-+	  # mount -t debugfs none /debug
++	if (!radix_tree_is_indirect_ptr(node))
++		return index ? index : ULONG_MAX;
+ 
+-	for (i = 0; i < max_scan; i++) {
+-		if (!radix_tree_lookup(root, index))
++	while (origin - index < max_scan) {
++		node = radix_tree_lookup_node(root, index);
++		if (!node)
+ 			break;
+-		index--;
+-		if (index == LONG_MAX)
 +
-+	  # echo > /debug/readahead/stats  # reset counters
-+	  # do benchmarks
-+	  # cat /debug/readahead/stats     # check counters
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
++		if (node->count == RADIX_TREE_MAP_SIZE) {
++			index = (index - RADIX_TREE_MAP_SIZE) |
++					 RADIX_TREE_MAP_MASK;
++			goto check_underflow;
++		}
++
++		for (i = index & RADIX_TREE_MAP_MASK; i >= 0; i--, index--)
++			if (rcu_dereference(node->slots[i]) == NULL)
++				goto out;
++
++check_underflow:
++		if (unlikely(index == ULONG_MAX))
+ 			break;
+ 	}
+ 
++out:
+ 	return index;
+ }
+ EXPORT_SYMBOL(radix_tree_prev_hole);
