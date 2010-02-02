@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1E1D46B0098
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 11:39:37 -0500 (EST)
-Date: Tue, 2 Feb 2010 10:39:30 -0600
-From: Robin Holt <holt@sgi.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6BD896B009B
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 11:52:33 -0500 (EST)
+Date: Tue, 2 Feb 2010 17:52:24 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [RFP-V2 0/3] Make mmu_notifier_invalidate_range_start able to
  sleep.
-Message-ID: <20100202163930.GR6653@sgi.com>
-References: <20100202125943.GH4135@random.random>
- <20100202131341.GI4135@random.random>
+Message-ID: <20100202165224.GP4135@random.random>
+References: <20100202131341.GI4135@random.random>
  <20100202132919.GO6653@sgi.com>
  <20100202134047.GJ4135@random.random>
  <20100202135141.GH6616@sgi.com>
@@ -17,51 +16,62 @@ References: <20100202125943.GH4135@random.random>
  <20100202145911.GM4135@random.random>
  <20100202152142.GQ6653@sgi.com>
  <20100202160146.GO4135@random.random>
+ <20100202163930.GR6653@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100202160146.GO4135@random.random>
+In-Reply-To: <20100202163930.GR6653@sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Robin Holt <holt@sgi.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Robin Holt <holt@sgi.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 02, 2010 at 05:01:46PM +0100, Andrea Arcangeli wrote:
-> On Tue, Feb 02, 2010 at 09:21:42AM -0600, Robin Holt wrote:
-> > unmap_mapping_range_vma would then unlock the i_mmap_lock, call
-> > _inv_range_start(atomic==0) which would clear all the remote page tables
-> > and TLBs.  It would then reaquire the i_mmap_lock and retry.
+On Tue, Feb 02, 2010 at 10:39:30AM -0600, Robin Holt wrote:
+> On Tue, Feb 02, 2010 at 05:01:46PM +0100, Andrea Arcangeli wrote:
+> > On Tue, Feb 02, 2010 at 09:21:42AM -0600, Robin Holt wrote:
+> > > unmap_mapping_range_vma would then unlock the i_mmap_lock, call
+> > > _inv_range_start(atomic==0) which would clear all the remote page tables
+> > > and TLBs.  It would then reaquire the i_mmap_lock and retry.
+> > 
+> > I guess you missed why we hold the i_mmap_lock there... it's not like
+> > gratuitous locking complication there's an actual reason why it's
+> > taken, and it's to avoid the vma to be freed from under you:
 > 
-> I guess you missed why we hold the i_mmap_lock there... it's not like
-> gratuitous locking complication there's an actual reason why it's
-> taken, and it's to avoid the vma to be freed from under you:
+> Oversight on my part.  Sorry.
+> 
+> Will this work?
 
-Oversight on my part.  Sorry.
+No, it still corrupts memory as before. You need to re-run find_vma
+under mmap_sem. Then it could work...
 
-Will this work?
-static int unmap_mapping_range_vma(struct vm_area_struct *vma,
-...
-	if (need_unlocked_invalidate) {
-		mm = vma->vm_mm;
-		atomic_inc(&mm->mm_users);
-	}
-	spin_unlock(details->i_mmap_lock);
-	if (need_unlocked_invalidate) {
-		/*
-		 * zap_page_range failed to make any progress because the
-		 * mmu_notifier_invalidate_range_start was called atomically
-		 * while the callee needed to sleep.  In that event, we
-		 * make the callout while the i_mmap_lock is released.
-		 */
-		mmu_notifier_invalidate_range_start(mm, start_addr, end_addr, 0);
-		mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
-		mmput(mm);
-	}
-	cond_resched();
-	spin_lock(details->i_mmap_lock);
-	return -EINTR;
+Also it's wrong to pin mm_users, you only need mm_count here, as you
+only need to run find_vma, you don't need to prevent exit to free the
+pages indefinitely while you're blocked.
 
-Robin
+> static int unmap_mapping_range_vma(struct vm_area_struct *vma,
+> ...
+> 	if (need_unlocked_invalidate) {
+> 		mm = vma->vm_mm;
+> 		atomic_inc(&mm->mm_users);
+> 	}
+> 	spin_unlock(details->i_mmap_lock);
+> 	if (need_unlocked_invalidate) {
+> 		/*
+> 		 * zap_page_range failed to make any progress because the
+> 		 * mmu_notifier_invalidate_range_start was called atomically
+> 		 * while the callee needed to sleep.  In that event, we
+> 		 * make the callout while the i_mmap_lock is released.
+> 		 */
+> 		mmu_notifier_invalidate_range_start(mm, start_addr, end_addr, 0);
+> 		mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
+> 		mmput(mm);
+> 	}
+> 	cond_resched();
+> 	spin_lock(details->i_mmap_lock);
+> 	return -EINTR;
+> 
+> Robin
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
