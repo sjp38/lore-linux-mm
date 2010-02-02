@@ -1,58 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 889066B0098
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 15:22:22 -0500 (EST)
-Date: Tue, 2 Feb 2010 12:22:09 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 10/11] readahead: dont do start-of-file readahead after
- lseek()
-In-Reply-To: <alpine.DEB.2.00.1002021157280.3707@asgard.lang.hm>
-Message-ID: <alpine.LFD.2.00.1002021216310.3664@localhost.localdomain>
-References: <20100202152835.683907822@intel.com> <20100202153317.644170708@intel.com> <20100202181321.GB75577@dspnet.fr.eu.org> <alpine.LFD.2.00.1002021037110.3664@localhost.localdomain> <20100202184831.GD75577@dspnet.fr.eu.org>
- <alpine.LFD.2.00.1002021111240.3664@localhost.localdomain> <alpine.DEB.2.00.1002021157280.3707@asgard.lang.hm>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 921446B0098
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 15:25:46 -0500 (EST)
+Date: Tue, 2 Feb 2010 21:24:50 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 32 of 32] khugepaged
+Message-ID: <20100202202450.GR4135@random.random>
+References: <patchbomb.1264969631@v2.random>
+ <51b543fab38b1290f176.1264969663@v2.random>
+ <alpine.DEB.2.00.1002011551560.2384@router.home>
+ <20100201225624.GB4135@random.random>
+ <alpine.DEB.2.00.1002021347520.19529@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1002021347520.19529@router.home>
 Sender: owner-linux-mm@kvack.org
-To: david@lang.hm
-Cc: Olivier Galibert <galibert@pobox.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Tue, 2 Feb 2010, david@lang.hm wrote:
-
-> On Tue, 2 Feb 2010, Linus Torvalds wrote:
-> > 
-> > Also, keep in mind that read-ahead is not always a win. It can be a huge
-> > loss too. Which is why we have _heuristics_. They fundamentally cannot
-> > catch every case, but what they aim for is to do a good job on average.
+On Tue, Feb 02, 2010 at 01:52:11PM -0600, Christoph Lameter wrote:
+> On Mon, 1 Feb 2010, Andrea Arcangeli wrote:
 > 
-> as a note from the field, I just had an application that needed to be changed
-> because it did excessive read-ahead. it turned a 2 min reporting run into a 20
-> min reporting run because for this report the access was really random and the
-> app forced large read-ahead.
+> > KSM also works exactly the same as khugepaged and migration but we
+> > solved it without migration pte and apparently nobody wants to deal
+> > with that special migration pte logic. So before worrying about
+> > khugepaged out of the tree, you should actively go fix ksm that works
+> > exactly the same and it's in mainline. Until you don't fix ksm I think
+> > I should be allowed to keep khugepaged simple and lightweight without
+> > being forced to migration pte.
+> 
+> You are being "forced"? What language... You do not want to reuse the ksm
 
-Yeah. And the reason Wu did this patch is similar: something that _should_ 
-have taken just quarter of a second took about 7 seconds, because 
-read-ahead triggered on this really slow device that only feeds about 
-15kB/s (yes, _kilo_byte, not megabyte).
+How would you say it? I think if ksm was forced to the migration pte
+like it was discussed when ksm was first submitted, I would definitely
+be forced to use it here too in order to get it merged. Do you disagree?
 
-You can always use POSIX_FADVISE_RANDOM to disable it, but it's seldom 
-something that people do. And there are real loads that have random 
-components to them without being _entirely_ random, so in an optimal world 
-we should just have heuristics that work well.
+> code or the page migration code?
 
-The problem is, it's often easier to test/debug the "good" cases, ie the 
-cases where we _want_ read-ahead to trigger. So that probably means that 
-we have a tendency to read-ahead too aggressively, because those cases are 
-the ones where people can most easily look at it and say "yeah, this 
-improves throughput of a 'dd bs=8192'". 
+I prefer not to reuse the migration pte. I prefer to stick to the ksm
+method. My rationale is pretty simple, migration pte requires an
+additional logic in the pagefault code, while this doesn't and so it
+has less dependencies and it looks simpler and more self contained to
+me and it is enough for khugepaged as it is enough for ksm.
 
-So then when we find loads where read-ahead hurts, I think we need to take 
-_that_ case very seriously. Because otherwise our selection bias for 
-testing read-ahead will fail.
+> Please consider consolidating the code for the multiple ways that we do
+> these complex moves of physical memory without changing the physical one.
+> 
+> The code needs to be understandable and easy to maintain after all.
 
-		Linus
+Again, I recommend to consolidate the code between ksm.c and migrate.c
+yourself in mainline upsteam, then I'll be sure to share it in
+khugepaged. I think it'll make it worse and more complicated and this
+is all different enough that there's not enough to share, but then if
+you find a way and your patch has more - lines than + lines, I'll be
+happy to remove lines from huge_memory.c. I just don't have an obvious
+point where to start removing code from the two files given the enough
+difference in the logic and how the comparison (in ksm case) and
+copies from regular to hugepage (in khugepaged case) are nested post
+pte freezing (ksm) or pmd_huge freezing (khugepaged). I think what
+you're asking is over-engineering but again I welcome you to do it
+yourself and prove you actually save lines, I don't see it myself. I
+think if it was it so obvious as you pretend it to be, Hugh would have
+cleaned it up considering it was an issue mentioned already.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
