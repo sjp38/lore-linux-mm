@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 429BB6B0071
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 08:23:20 -0500 (EST)
-Date: Tue, 2 Feb 2010 07:23:15 -0600
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4BB5F6B007D
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 08:29:22 -0500 (EST)
+Date: Tue, 2 Feb 2010 07:29:20 -0600
 From: Robin Holt <holt@sgi.com>
 Subject: Re: [RFP-V2 0/3] Make mmu_notifier_invalidate_range_start able to
  sleep.
-Message-ID: <20100202132315.GN6653@sgi.com>
+Message-ID: <20100202132919.GO6653@sgi.com>
 References: <20100202040145.555474000@alcatraz.americas.sgi.com>
  <20100202080947.GA28736@infradead.org>
  <20100202125943.GH4135@random.random>
+ <20100202131341.GI4135@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100202125943.GH4135@random.random>
+In-Reply-To: <20100202131341.GI4135@random.random>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Christoph Hellwig <hch@infradead.org>, Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 02, 2010 at 01:59:43PM +0100, Andrea Arcangeli wrote:
-> On Tue, Feb 02, 2010 at 03:09:47AM -0500, Christoph Hellwig wrote:
-> > On Mon, Feb 01, 2010 at 10:01:45PM -0600, Robin Holt wrote:
-> > > XPMEM would like to utilize mmu_notifiers to track page table entry
-> > > changes of the segment and keep the attachment page table/tlb information
-> > > consistent.
-> > 
-> > Given that SGI just pushes XPMEM direclty into the distributions instead
-> > of adding it upstream I don't really see the relevance of these patches.
+On Tue, Feb 02, 2010 at 02:13:41PM +0100, Andrea Arcangeli wrote:
+> On Tue, Feb 02, 2010 at 01:59:43PM +0100, Andrea Arcangeli wrote:
+> > slowdown the locking even if it leaves holes and corrupts memory when
+> > XPMEM can be opened by luser. It really depends if the user having
+> > access to XPMEM device is malicious, if we know it's not (assume
+> > avatar distributed rendering in closed environment or whatever) this
+> > again is an ok hack.
 > 
-> That will then prevent upstream modules to build against those
-> kernels. Not an huge issue, for a distro that's an ok compromise. My
-> real issue with mainline is that while XPMEM is ok to break and
-> corrupt memory if people uses XPMEM on top of shared mappings (instead
-> of anonymous ones) by making a two liner change to the userland app
-> opening xpmem device, but when next mmu notifier user comes and ask
-> for full scheduling across shared mapping too as it needs security and
-> not-trusted user can open /dev/xpmem (or whatever that device is
-> located), we'll have to undo this work and fix it the real way (with
-> config option MMU_NOTIFIER_SLEEPABLE=y). But if distro have to support
-> XPMEM in default kernels, this hack is better because it won't
-> slowdown the locking even if it leaves holes and corrupts memory when
-> XPMEM can be opened by luser. It really depends if the user having
+> >From another point of view: if the userland has to be as trusted as
+> the kernel for this hack to be ok, I don't get it why it's not ok to
+> just schedule unconditionally in the invalidate_range_start without
+> altering the API and gracefully deadlock in the i_mmap_lock. If the
+> secondary mappings cannot be teardown without scheduling, it means the
+> page will be swapped out but the physical pages can be still written
+> to despite the page being swapped out and reused by something else
+> leading to trivial memory corruption if the user having access to
+> xpmem device is malicious.
+> 
+> Like Andrew already said, we've no clue what the "bool atomic"
+> parameter will be used for and so it's next to impossible to judge the
+> validity of this hack (because an hack that is). We don't know how
+> xpmem will react to that event, all we know is that it won't be able
+> to invalidate secondary mappings by the time this call returns leading
+> to memory corruption. If it panics or if it ignores the invalidate
+> when atomic=1, it's equivalent or worse than just schedule in
 
-Where is it leaving holes and corrupting memory?
+The atomic==1 case is only for the truncate case, correct?  XPMEM is
+holding reference counts on the pages it exports (get_user_pages) so
+they are not freed even when the zap_page_range has completed.  What I
+think we are dealing with is an inconsistent appearance to userland.
+The one task would SIG_BUS if it touches the memory.  The other would
+be able to read/write it just fine until the ascynchronous zap of the
+attachment completed.
 
 Robin
 
