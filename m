@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 681126B004D
-	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 09:59:21 -0500 (EST)
-Date: Tue, 2 Feb 2010 15:59:11 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 944F96B0071
+	for <linux-mm@kvack.org>; Tue,  2 Feb 2010 10:21:48 -0500 (EST)
+Date: Tue, 2 Feb 2010 09:21:42 -0600
+From: Robin Holt <holt@sgi.com>
 Subject: Re: [RFP-V2 0/3] Make mmu_notifier_invalidate_range_start able to
  sleep.
-Message-ID: <20100202145911.GM4135@random.random>
+Message-ID: <20100202152142.GQ6653@sgi.com>
 References: <20100202040145.555474000@alcatraz.americas.sgi.com>
  <20100202080947.GA28736@infradead.org>
  <20100202125943.GH4135@random.random>
@@ -16,51 +16,55 @@ References: <20100202040145.555474000@alcatraz.americas.sgi.com>
  <20100202135141.GH6616@sgi.com>
  <20100202141036.GL4135@random.random>
  <20100202142130.GI6616@sgi.com>
+ <20100202145911.GM4135@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100202142130.GI6616@sgi.com>
+In-Reply-To: <20100202145911.GM4135@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Robin Holt <holt@sgi.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Robin Holt <holt@sgi.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 02, 2010 at 08:21:30AM -0600, Robin Holt wrote:
-> Your argument seems ridiculous.  Take this larger series of patches which
-> touches many parts of the kernel and has a runtime downside for 99% of
-> the user community but only when configured on and then try and argue
-> with the distros that they should slow all users down for our 1%.
-
-I wasn't suggesting to ask to apply such a patch to a kernel distro!
-If that's you understood... That would have been the only ridiculous
-thing about it.
-
-If you want to send patches to distro your hack is probably the max as
-it alters kABI but not so much.
-
-> > to return -EINVAL I think your userland would also be safer. Only
+On Tue, Feb 02, 2010 at 03:59:11PM +0100, Andrea Arcangeli wrote:
+> > I think you missed my correction to an earlier statement.  This patcheset
+> > does not have any data corruption or userland inconsistency.  I had mistakenly
+> > spoken of a patchset I am working up as a lesser alternative to this one.
 > 
-> I think you missed my correction to an earlier statement.  This patcheset
-> does not have any data corruption or userland inconsistency.  I had mistakenly
-> spoken of a patchset I am working up as a lesser alternative to this one.
+> If there is never data corruption or userland inconsistency when I do
+> mmap(MAP_SHARED) truncate(0) then I've to wonder why at all you need
+> any modification if you already can handle remote spte invalidation
+> through atomic sections. That is ridiculous that you can handle it
+> through atomic-section truncate without sleepability, and you still
+> ask sleepability for mmu notifier in the first place...
 
-If there is never data corruption or userland inconsistency when I do
-mmap(MAP_SHARED) truncate(0) then I've to wonder why at all you need
-any modification if you already can handle remote spte invalidation
-through atomic sections. That is ridiculous that you can handle it
-through atomic-section truncate without sleepability, and you still
-ask sleepability for mmu notifier in the first place...
+In the truncate(0) example you provide, the sequence would be as follows:
 
-> This is no more a hack than the other long list of compromises that have
-> been made in the past.  Very similar to your huge page patchset which
-> invalidates a page by using the range callout.  NIHS is not the same as
-> a hack.
+On the first call from unmap_vmas into _inv_range_start(atomic==1),
+XPMEM would scan the segment's PFN table.  If there were pages in that
+range which have been exported, we would return !0 without doing any
+invalidation.
 
-My hack is just to avoid having to modify mmu notifier API to reduce
-the amount of mangling I have to ask people to digest at once, I
-simply can't do too many things at once, not right example of
-compromise as it's going to get fixed without any downside... no
-tradeoff at all.
+The unmap_vmas code would see the non-zero return and return start_addr
+back to zap_page_range and further to unmap_mapping_range_vma where
+need_unlocked_invalidate would be set.
+
+unmap_mapping_range_vma would then unlock the i_mmap_lock, call
+_inv_range_start(atomic==0) which would clear all the remote page tables
+and TLBs.  It would then reaquire the i_mmap_lock and retry.
+
+This time unmap_vmas would call _inv_range_start(atomic==1).  XPMEM would
+scan the segment's PFN table and find there were no pages exported and
+return 0.
+
+Things would proceed as normal from there.
+
+No corruption.  No intrusive locking additions that negatively affect
+the vast majority of users.  A compromise.  The only downside I can see
+at all in the CONFIG_MMU_NOTIFIER=n case is unmap_mapping_range_vma is
+slightly larger.
+
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
