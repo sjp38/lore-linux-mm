@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0A28A6B008C
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 15:12:41 -0500 (EST)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: Improving OOM killer
-Date: Wed, 3 Feb 2010 21:12:30 +0100
-References: <201002012302.37380.l.lunak@suse.cz> <201002032029.34145.elendil@planet.nl> <alpine.DEB.2.00.1002031141350.27853@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1002031141350.27853@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7070A6B008C
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 15:12:45 -0500 (EST)
+Received: by ewy7 with SMTP id 7so1874400ewy.10
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2010 12:12:47 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <201002032112.33908.elendil@planet.nl>
+In-Reply-To: <1265227746.24386.15.camel@gandalf.stny.rr.com>
+References: <1265226801-6199-1-git-send-email-jkacur@redhat.com>
+	 <1265226801-6199-2-git-send-email-jkacur@redhat.com>
+	 <1265227746.24386.15.camel@gandalf.stny.rr.com>
+Date: Wed, 3 Feb 2010 21:12:46 +0100
+Message-ID: <520f0cf11002031212p4f1497e3he82dce3af668e676@mail.gmail.com>
+Subject: Re: [RFC][PATCH] vmscan: balance local_irq_disable() and
+	local_irq_enable()
+From: John Kacur <jkacur@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, l.lunak@suse.cz, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, jkosina@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: rostedt@goodmis.org
+Cc: lkml <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 03 February 2010, David Rientjes wrote:
->  - we have always exported OOM_DISABLE, OOM_ADJUST_MIN, and
-> OOM_ADJUST_MAX via include/oom.h so that userspace should use them
-> sanely.  Setting a particular oom_adj value for anything other than
-> OOM_DISABLE means the score will be relative to other system tasks, so
-> its a value that is typically calibrated at runtime rather than static,
-> hardcoded values.
+On Wed, Feb 3, 2010 at 9:09 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
+> t On Wed, 2010-02-03 at 20:53 +0100, John Kacur wrote:
+>> Balance local_irq_disable() and local_irq_enable() as well as
+>> spin_lock_irq() and spin_lock_unlock_irq
+>>
+>> Signed-off-by: John Kacur <jkacur@redhat.com>
+>> ---
+>> =A0mm/vmscan.c | =A0 =A03 ++-
+>> =A01 files changed, 2 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index c26986c..b895025 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1200,8 +1200,9 @@ static unsigned long shrink_inactive_list(unsigned=
+ long max_scan,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (current_is_kswapd())
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __count_vm_events(KSWAPD_STE=
+AL, nr_freed);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __count_zone_vm_events(PGSTEAL, zone, nr_fre=
+ed);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 local_irq_enable();
+>>
+>> - =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&zone->lru_lock);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 spin_lock_irq(&zone->lru_lock);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Put back any unfreeable pages.
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>
+>
+> The above looks wrong. I don't know the code, but just by looking at
+> where the locking and interrupts are, I can take a guess.
+>
+> Lets add a little more of the code:
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0local_irq_disable();
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (current_is_kswapd())
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0__count_vm_events(KSWAPD_S=
+TEAL, nr_freed);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0__count_zone_vm_events(PGSTEAL, zone, nr_f=
+reed);
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&zone->lru_lock);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
+>
+> I'm guessing the __count_zone_vm_events and friends need interrupts
+> disabled here, probably due to per cpu stuff. But if you enable
+> interrupts before the spin_lock() you may let an interrupt come in and
+> invalidate what was done above it.
+>
+> So no, I do not think enabling interrupts here is a good thing.
+>
 
-That doesn't take into account:
-- applications where the oom_adj value is hardcoded to a specific value
-  (for whatever reason)
-- sysadmin scripts that set oom_adj from the console
-
-I would think that oom_adj is a documented part of the userspace ABI and 
-that the change you propose does not fit the normal backwards 
-compatibility requirements for exposed tunables.
-
-I think that at least any user who's currently setting oom_adj to -17 has a 
-right to expect that to continue to mean "oom killer disabled". And for 
-any other value they should get a similar impact to the current impact, 
-and not one that's reduced by a factor 66.
-
-> We could reuse /proc/pid/oom_adj for the new heuristic by severely
-> reducing its granularity than it otherwise would by doing
-> (oom_adj * 1000 / OOM_ADJUST_MAX), but that will eventually become
-> annoying and much more difficult to document.
-
-Probably quite true, but maybe unavoidable if one accepts the above.
-
-But I'll readily admit I'm not the final authority on this.
-
-Cheers,
-FJP
+okay, and since we have already done local_irq_disable(), then that is
+why we only need the spin_lock() and not the spin_lock_irq() flavour?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
