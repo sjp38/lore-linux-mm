@@ -1,77 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 76DF46B004D
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 10:25:53 -0500 (EST)
-Received: by bwz9 with SMTP id 9so46623bwz.10
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2010 07:25:51 -0800 (PST)
-Subject: [PATCH][mmotm-2010-02-01-16-25] Fix wrong accouting of anon and
- file
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 04 Feb 2010 00:25:39 +0900
-Message-ID: <1265210739.1052.36.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E3C436B004D
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 10:41:47 -0500 (EST)
+Date: Wed, 3 Feb 2010 09:41:29 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC] slub: ARCH_SLAB_MINALIGN defaults to 8 on x86_32. is this
+ too big?
+In-Reply-To: <1265206946.2118.57.camel@localhost>
+Message-ID: <alpine.DEB.2.00.1002030932480.5671@router.home>
+References: <1265206946.2118.57.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Richard Kennedy <richard@rsk.demon.co.uk>
+Cc: penberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Unfortunately, Kame said he doesn't support this series.
-I am not sure we need this patch or revert patch.
+On Wed, 3 Feb 2010, Richard Kennedy wrote:
 
-Who need this?
+> slub.c sets the default value of ARCH_SLAB_MINALIGN to sizeof(unsigned
+> long long) if the architecture didn't already override it.
+>
+> And as x86_32 doesn't set a value this means that slab objects get
+> aligned to 8 bytes, potentially wasting 4 bytes per object. Slub forces
+> objects to be aligned to sizeof(void *) anyway, but I don't see that
+> there is any need for it to be 8 on 32bits.
 
-David. Do you want to remain this patch in mmotm for your OOM patch 
-in future?
+Note that 64 bit entities may  exist even under 32 bit (llong) that need
+to be aligned properly.
 
-If anyone doesn't reply my question, Do we have to make revert patch?
+struct buffer_head contains a sector_t which is 64 bit so you should align
+to an 8 byte boundary.
 
-== CUT_HERE == 
+> I'm working on a patch to pack more buffer_heads into each kmem_cache
+> slab page.
+> On 32 bits the structure size is 52 bytes and with the alignment applied
+> I end up with a slab of 73 x 56 byte objects. However, if the minimum
+> alignment was sizeof(void *) then I'd get 78 x 52 byte objects. So there
+> is quite a memory saving to be had in changing this.
 
-mm-count-lowmem-rss.patch added lowmem accouting.
-But it changed file and rss accouting by mistake.
-Unfortunately my review also doesn't found it.
+SLUB is not restricted to order 0 pages and can use order 1 or 2 pages as
+long as this reduces the memory footprint (byte wastage in a slab page is
+reduced) and as long as the kernel has contiguous memory available. It
+will use order 0 when memory is fragmented.
 
-This patch fixes it.
+> Can I define a ARCH_SLAB_MINALIGN in x86_64 to sizeof(void *) ?
+> or would it be ok to change the default in slub.c to sizeof(void *) ?
+>
+> Or am I missing something ?
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/memory.c |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 3becdc3..ce8ff9d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -210,14 +210,14 @@ void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
- 
- unsigned long get_file_rss(struct mm_struct *mm)
- {
--	return get_mm_counter(mm, MM_ANONPAGES)
--		+ get_mm_counter(mm, MM_ANON_LOWPAGES);
-+	return get_mm_counter(mm, MM_FILEPAGES)
-+		+ get_mm_counter(mm, MM_FILE_LOWPAGES);
- }
- 
- unsigned long get_anon_rss(struct mm_struct *mm)
- {
--	return get_mm_counter(mm, MM_FILEPAGES)
--		+ get_mm_counter(mm, MM_FILE_LOWPAGES);
-+	return get_mm_counter(mm, MM_ANONPAGES)
-+		+ get_mm_counter(mm, MM_ANON_LOWPAGES);
- }
- 
- unsigned long get_low_rss(struct mm_struct *mm)
--- 
-1.6.5
-
-
-
--- 
-Kind regards,
-Minchan Kim
-
+I'd say leave it alone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
