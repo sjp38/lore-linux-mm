@@ -1,56 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 75A5C6B0082
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 04:41:11 -0500 (EST)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id o139f4W6031130
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 09:41:05 GMT
-Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
-	by wpaz17.hot.corp.google.com with ESMTP id o139f2Wd002723
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 01:41:03 -0800
-Received: by pzk30 with SMTP id 30so996194pzk.11
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2010 01:41:02 -0800 (PST)
-Date: Wed, 3 Feb 2010 01:40:58 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D44436B004D
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 07:10:35 -0500 (EST)
+From: Lubos Lunak <l.lunak@suse.cz>
 Subject: Re: Improving OOM killer
-In-Reply-To: <20100203164612.D3AC.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1002030131330.11389@chino.kir.corp.google.com>
-References: <201002012302.37380.l.lunak@suse.cz> <20100203164612.D3AC.A69D9226@jp.fujitsu.com>
+Date: Wed, 3 Feb 2010 13:10:27 +0100
+References: <201002012302.37380.l.lunak@suse.cz> <20100203085711.GF19641@balbir.in.ibm.com>
+In-Reply-To: <20100203085711.GF19641@balbir.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <201002031310.28271.l.lunak@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Lubos Lunak <l.lunak@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Feb 2010, KOSAKI Motohiro wrote:
+On Wednesday 03 of February 2010, Balbir Singh wrote:
+> * Lubos Lunak <l.lunak@suse.cz> [2010-02-01 23:02:37]:
+> >  In other words, use VmRSS for measuring memory usage instead of VmSize,
+> > and remove child accumulating.
+>
+> I am not sure of the impact of changing to RSS, although I've
+> personally believed that RSS based accounting is where we should go,
+> but we need to consider the following
+>
+> 1. Total VM provides data about potentially swapped pages,
 
-> Personally, I think your use case represent to typical desktop and Linux
-> have to works fine on typical desktop use-case. /proc/pid/oom_adj never fit
-> desktop use-case. In past discussion, I'v agreed with much people. but I haven't
-> reach to agree with David Rientjes about this topic.
-> 
+ Yes, I've already updated my proposal in another mail to switch from VmSize 
+to VmRSS+InSwap. I don't know how to find out the second item in code, but at 
+this point of discussion that's just details.
 
-Which point don't you agree with?  I've agreed that heuristic needs to be 
-changed and since Kame has decided to abandon his oom killer work, I said 
-that I would find time to develop a solution that would be based on 
-consensus.  I don't think that simply replacing the baseline with rss, 
-rendering oom_adj practically useless for any other purpose other than 
-polarizing priorities, and removing any penalty for tasks that fork an 
-egregious amount of tasks is acceptable to all parties, though.
+> overcommit, 
 
-When a desktop system runs a vital task that, at all costs, cannot 
-possibly be oom killed such as KDE from the user perspective, is it really 
-that outrageous of a request to set it to OOM_DISABLE?  No, it's not.  
-There are plenty of open source examples of applications that tune their 
-own oom_adj values for that reason; userspace input into the oom killer's 
-heuristic will always be an integral part of its function.
+ I don't understand how this matters. Overcommit is memory for which address 
+space has been allocated but not actual memory, right? Then that's exactly 
+what I'm claiming is wrong and am trying to reverse. Currently OOM killer 
+takes this into account because it uses VmSize, but IMO it shouldn't - if a 
+process does malloc(400M) but then it uses only a tiny fraction of that, in 
+the case of memory shortage killing that process does not solve anything in 
+practice.
 
-I believe that we can reach consensus without losing the existing 
-functionality that oom_adj provides, namely defining vital system tasks 
-and memory leakers, and without this all or nothing type attitude that 
-insists we either go with rss as a baseline because "it doesn't select X 
-first in my particular example" or you'll just take your ball and go home.
+> etc.
+> 2. RSS alone is not sufficient, RSS does not account for shared pages,
+> so we ideally need something like PSS.
+
+ Just to make sure I understand what you mean with "RSS does not account for 
+shared pages" - you say that if a page is shared by 4 processes, then when 
+calculating badness for them, only 1/4 of the page should be counted for 
+each? Yes, I suppose so, that makes sense. That's more like fine-tunning at 
+this point though, as long as there's no agreement that moving away from 
+VmSize is an improvement.
+
+> I suspect the correct answer would depend on our answers to 1 and 2
+> and a lot of testing with any changes made.
+
+ Testing - are there actually any tests for it, or do people just test random 
+scenarios when they do changes? Also, I'm curious, what areas is the OOM 
+killer actually generally known to work well in? I somehow get the feeling 
+from the discussion here that people just tweak oom_adj until it works for 
+them.
+
+-- 
+ Lubos Lunak
+ openSUSE Boosters team, KDE developer
+ l.lunak@suse.cz , l.lunak@kde.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
