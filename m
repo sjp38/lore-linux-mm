@@ -1,36 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5AF216B007E
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 03:07:05 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o13872ER009144
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 3 Feb 2010 17:07:02 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6173D45DE50
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 17:07:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 36A2645DE4D
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 17:07:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1655E1DB803E
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 17:07:02 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AE9281DB803A
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 17:07:01 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D80C46B0082
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 03:17:49 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp08.in.ibm.com (8.14.3/8.13.1) with ESMTP id o137eJbK009248
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 13:10:19 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o138HiE72957420
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 13:47:44 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o138HiAv004314
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 19:17:44 +1100
+Date: Wed, 3 Feb 2010 13:47:40 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [patch] sysctl: clean up vm related variable declarations
-In-Reply-To: <alpine.DEB.2.00.1002021832160.5344@chino.kir.corp.google.com>
-References: <20100203111224.8fe0e20c.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002021832160.5344@chino.kir.corp.google.com>
-Message-Id: <20100203170632.D3AF.A69D9226@jp.fujitsu.com>
+Message-ID: <20100203081740.GE19641@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <201002012302.37380.l.lunak@suse.cz>
+ <alpine.DEB.2.00.1002011523280.19457@chino.kir.corp.google.com>
+ <201002022210.06760.l.lunak@suse.cz>
+ <alpine.DEB.2.00.1002021643240.3393@chino.kir.corp.google.com>
+ <20100203105236.b4a60754.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1002021809220.15327@chino.kir.corp.google.com>
+ <20100203111224.8fe0e20c.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1002021832160.5344@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed,  3 Feb 2010 17:07:00 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1002021832160.5344@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, minchan.kim@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, minchan.kim@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+* David Rientjes <rientjes@google.com> [2010-02-02 18:36:42]:
 
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
@@ -48,11 +51,19 @@ List-ID: <linux-mm.kvack.org>
 > [rientjes@google.com: #ifdef fixlet]
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  include/linux/mm.h     |    5 +++++
+>  include/linux/mmzone.h |    1 +
+>  include/linux/oom.h    |    5 +++++
+>  kernel/sysctl.c        |   16 ++--------------
+>  mm/mmap.c              |    5 +++++
+>  5 files changed, 18 insertions(+), 14 deletions(-)
+>
 
-Looks good to me.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Looks good to me 
 
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
