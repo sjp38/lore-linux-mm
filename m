@@ -1,90 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C7AE26B0071
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E38EE6B007D
 	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:39:15 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
 References: <201002031039.710275915@firstfloor.org>
 In-Reply-To: <201002031039.710275915@firstfloor.org>
-Subject: [PATCH] [3/4] SLAB: Separate node initialization into separate function
-Message-Id: <20100203213914.D8654B1620@basil.firstfloor.org>
-Date: Wed,  3 Feb 2010 22:39:14 +0100 (CET)
+Subject: [PATCH] [2/4] SLAB: Set up the l3 lists for the memory of freshly added memory
+Message-Id: <20100203213913.D5CD4B1620@basil.firstfloor.org>
+Date: Wed,  3 Feb 2010 22:39:13 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
 To: submit@firstfloor.org, linux-kernel@vger.kernel.org, haicheng.li@intel.com, penberg@cs.helsinki.fi, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-No functional changes.
+So kmalloc_node() works even if no CPU is up yet on the new node.
 
-Needed for next patch.
+Requires previous refactor patch.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/slab.c |   34 +++++++++++++++++++++-------------
- 1 file changed, 21 insertions(+), 13 deletions(-)
+ mm/slab.c |   17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
 
 Index: linux-2.6.33-rc3-ak/mm/slab.c
 ===================================================================
 --- linux-2.6.33-rc3-ak.orig/mm/slab.c
 +++ linux-2.6.33-rc3-ak/mm/slab.c
-@@ -1171,19 +1171,9 @@ free_array_cache:
- 	}
+@@ -115,6 +115,7 @@
+ #include	<linux/reciprocal_div.h>
+ #include	<linux/debugobjects.h>
+ #include	<linux/kmemcheck.h>
++#include	<linux/memory.h>
+ 
+ #include	<asm/cacheflush.h>
+ #include	<asm/tlbflush.h>
+@@ -1560,6 +1561,20 @@ void __init kmem_cache_init(void)
+ 	g_cpucache_up = EARLY;
  }
  
--static int __cpuinit cpuup_prepare(long cpu)
-+static int slab_node_prepare(int node)
- {
- 	struct kmem_cache *cachep;
--	struct kmem_list3 *l3 = NULL;
--	int node = cpu_to_node(cpu);
--	const int memsize = sizeof(struct kmem_list3);
--
--	/*
--	 * We need to do this right in the beginning since
--	 * alloc_arraycache's are going to use this list.
--	 * kmalloc_node allows us to add the slab to the right
--	 * kmem_list3 and not this cpu's kmem_list3
--	 */
- 
- 	list_for_each_entry(cachep, &cache_chain, next) {
- 		/*
-@@ -1192,9 +1182,10 @@ static int __cpuinit cpuup_prepare(long
- 		 * node has not already allocated this
- 		 */
- 		if (!cachep->nodelists[node]) {
--			l3 = kmalloc_node(memsize, GFP_KERNEL, node);
-+			struct kmem_list3 *l3;
-+			l3 = kmalloc_node(sizeof(struct kmem_list3), GFP_KERNEL, node);
- 			if (!l3)
--				goto bad;
-+				return -1;
- 			kmem_list3_init(l3);
- 			l3->next_reap = jiffies + REAPTIMEOUT_LIST3 +
- 			    ((unsigned long)cachep) % REAPTIMEOUT_LIST3;
-@@ -1213,6 +1204,23 @@ static int __cpuinit cpuup_prepare(long
- 			cachep->batchcount + cachep->num;
- 		spin_unlock_irq(&cachep->nodelists[node]->list_lock);
- 	}
-+	return 0;
-+}
-+
-+static int __cpuinit cpuup_prepare(long cpu)
++static int slab_memory_callback(struct notifier_block *self,
++				unsigned long action, void *arg)
 +{
-+	struct kmem_cache *cachep;
-+	struct kmem_list3 *l3 = NULL;
-+	int node = cpu_to_node(cpu);
++	struct memory_notify *mn = (struct memory_notify *)arg;
 +
 +	/*
-+	 * We need to do this right in the beginning since
-+	 * alloc_arraycache's are going to use this list.
-+	 * kmalloc_node allows us to add the slab to the right
-+	 * kmem_list3 and not this cpu's kmem_list3
++	 * When a node goes online allocate l3s early.	 This way
++	 * kmalloc_node() works for it.
 +	 */
-+	if (slab_node_prepare(node) < 0)
-+		goto bad;
++	if (action == MEM_ONLINE && mn->status_change_nid >= 0)
++		slab_node_prepare(mn->status_change_nid);
++	return NOTIFY_OK;
++}
++
+ void __init kmem_cache_init_late(void)
+ {
+ 	struct kmem_cache *cachep;
+@@ -1583,6 +1598,8 @@ void __init kmem_cache_init_late(void)
+ 	 */
+ 	register_cpu_notifier(&cpucache_notifier);
  
++	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
++
  	/*
- 	 * Now we can go ahead with allocating the shared arrays and
+ 	 * The reap timers are started later, with a module init call: That part
+ 	 * of the kernel is not yet operational.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
