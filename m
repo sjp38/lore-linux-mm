@@ -1,89 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5E3576B004D
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 10:25:24 -0500 (EST)
-Date: Wed, 3 Feb 2010 10:24:59 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 00/11] [RFC] 512K readahead size with thrashing safe
-	readahead
-Message-ID: <20100203152454.GA17059@redhat.com>
-References: <20100202152835.683907822@intel.com> <20100202223803.GF3922@redhat.com> <20100203062756.GB22890@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100203062756.GB22890@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 76DF46B004D
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 10:25:53 -0500 (EST)
+Received: by bwz9 with SMTP id 9so46623bwz.10
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2010 07:25:51 -0800 (PST)
+Subject: [PATCH][mmotm-2010-02-01-16-25] Fix wrong accouting of anon and
+ file
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 04 Feb 2010 00:25:39 +0900
+Message-ID: <1265210739.1052.36.camel@barrios-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 03, 2010 at 02:27:56PM +0800, Wu Fengguang wrote:
-> Vivek,
-> 
-> On Wed, Feb 03, 2010 at 06:38:03AM +0800, Vivek Goyal wrote:
-> > On Tue, Feb 02, 2010 at 11:28:35PM +0800, Wu Fengguang wrote:
-> > > Andrew,
-> > > 
-> > > This is to lift default readahead size to 512KB, which I believe yields
-> > > more I/O throughput without noticeably increasing I/O latency for today's HDD.
-> > > 
-> > 
-> > Hi Fengguang,
-> > 
-> > I was doing a quick test with the patches. I was using fio to run some
-> > sequential reader threads. I have got one access to one Lun from an HP
-> > EVA. In my case it looks like with the patches throughput has come down.
-> 
-> Thank you for the quick testing!
-> 
-> This patchset does 3 things:
-> 
-> 1) 512K readahead size
-> 2) new readahead algorithms
-> 3) new readahead tracing/stats interfaces
-> 
-> (1) will impact performance, while (2) _might_ impact performance in
-> case of bugs.
-> 
-> Would you kindly retest the patchset with readahead size manually set
-> to 128KB?  That would help identify the root cause of the performance
-> drop:
-> 
->         DEV=sda
->         echo 128 > /sys/block/$DEV/queue/read_ahead_kb
-> 
+Unfortunately, Kame said he doesn't support this series.
+I am not sure we need this patch or revert patch.
 
-I have got two paths to the HP EVA and got multipath device setup(dm-3). I
-noticed with vanilla kernel read_ahead_kb=128 after boot but with your patches
-applied it is set to 4. So looks like something went wrong with device
-size/capacity detection hence wrong defaults. Manually setting
-read_ahead_kb=512, got me better performance as compare to vanilla kernel.
+Who need this?
 
-AVERAGE[bsr]    
-------- 
-job       Set NR  ReadBW(KB/s)   MaxClat(us)    WriteBW(KB/s)  MaxClat(us)    
----       --- --  ------------   -----------    -------------  -----------    
-bsr       3   1   190302         97937.3        0              0              
-bsr       3   2   185636         223286         0              0              
-bsr       3   4   185986         363658         0              0              
-bsr       3   8   184352         428478         0              0              
-bsr       3   16  185646         594311         0              0              
+David. Do you want to remain this patch in mmotm for your OOM patch 
+in future?
 
-Thanks
-Vivek
+If anyone doesn't reply my question, Do we have to make revert patch?
+
+== CUT_HERE == 
+
+mm-count-lowmem-rss.patch added lowmem accouting.
+But it changed file and rss accouting by mistake.
+Unfortunately my review also doesn't found it.
+
+This patch fixes it.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/memory.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 3becdc3..ce8ff9d 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -210,14 +210,14 @@ void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
  
-> The readahead stats provided by the patchset are very useful for
-> analyzing the problem:
-> 
->         mount -t debugfs none /debug
->         
->         # for each benchmark:
->                 echo > /debug/readahead/stats  # reset counters
->                 # do benchmark
->                 cat /debug/readahead/stats     # check counters
-> 
-> Thanks,
-> Fengguang
+ unsigned long get_file_rss(struct mm_struct *mm)
+ {
+-	return get_mm_counter(mm, MM_ANONPAGES)
+-		+ get_mm_counter(mm, MM_ANON_LOWPAGES);
++	return get_mm_counter(mm, MM_FILEPAGES)
++		+ get_mm_counter(mm, MM_FILE_LOWPAGES);
+ }
+ 
+ unsigned long get_anon_rss(struct mm_struct *mm)
+ {
+-	return get_mm_counter(mm, MM_FILEPAGES)
+-		+ get_mm_counter(mm, MM_FILE_LOWPAGES);
++	return get_mm_counter(mm, MM_ANONPAGES)
++		+ get_mm_counter(mm, MM_ANON_LOWPAGES);
+ }
+ 
+ unsigned long get_low_rss(struct mm_struct *mm)
+-- 
+1.6.5
+
+
+
+-- 
+Kind regards,
+Minchan Kim
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
