@@ -1,72 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C06226B0088
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 15:09:07 -0500 (EST)
-Subject: Re: [RFC][PATCH] vmscan: balance local_irq_disable() and
- local_irq_enable()
-From: Steven Rostedt <rostedt@goodmis.org>
-Reply-To: rostedt@goodmis.org
-In-Reply-To: <1265226801-6199-2-git-send-email-jkacur@redhat.com>
-References: <1265226801-6199-1-git-send-email-jkacur@redhat.com>
-	 <1265226801-6199-2-git-send-email-jkacur@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Wed, 03 Feb 2010 15:09:06 -0500
-Message-ID: <1265227746.24386.15.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0A28A6B008C
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 15:12:41 -0500 (EST)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: Improving OOM killer
+Date: Wed, 3 Feb 2010 21:12:30 +0100
+References: <201002012302.37380.l.lunak@suse.cz> <201002032029.34145.elendil@planet.nl> <alpine.DEB.2.00.1002031141350.27853@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002031141350.27853@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <201002032112.33908.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: John Kacur <jkacur@redhat.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, l.lunak@suse.cz, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, jkosina@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-t On Wed, 2010-02-03 at 20:53 +0100, John Kacur wrote:
-> Balance local_irq_disable() and local_irq_enable() as well as
-> spin_lock_irq() and spin_lock_unlock_irq
-> 
-> Signed-off-by: John Kacur <jkacur@redhat.com>
-> ---
->  mm/vmscan.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c26986c..b895025 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1200,8 +1200,9 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
->  		if (current_is_kswapd())
->  			__count_vm_events(KSWAPD_STEAL, nr_freed);
->  		__count_zone_vm_events(PGSTEAL, zone, nr_freed);
-> +		local_irq_enable();
->  
-> -		spin_lock(&zone->lru_lock);
-> +		spin_lock_irq(&zone->lru_lock);
->  		/*
->  		 * Put back any unfreeable pages.
->  		 */
+On Wednesday 03 February 2010, David Rientjes wrote:
+>  - we have always exported OOM_DISABLE, OOM_ADJUST_MIN, and
+> OOM_ADJUST_MAX via include/oom.h so that userspace should use them
+> sanely.  Setting a particular oom_adj value for anything other than
+> OOM_DISABLE means the score will be relative to other system tasks, so
+> its a value that is typically calibrated at runtime rather than static,
+> hardcoded values.
 
+That doesn't take into account:
+- applications where the oom_adj value is hardcoded to a specific value
+  (for whatever reason)
+- sysadmin scripts that set oom_adj from the console
 
-The above looks wrong. I don't know the code, but just by looking at
-where the locking and interrupts are, I can take a guess.
+I would think that oom_adj is a documented part of the userspace ABI and 
+that the change you propose does not fit the normal backwards 
+compatibility requirements for exposed tunables.
 
-Lets add a little more of the code:
+I think that at least any user who's currently setting oom_adj to -17 has a 
+right to expect that to continue to mean "oom killer disabled". And for 
+any other value they should get a similar impact to the current impact, 
+and not one that's reduced by a factor 66.
 
-                local_irq_disable();
-                if (current_is_kswapd())
-                        __count_vm_events(KSWAPD_STEAL, nr_freed);
-                __count_zone_vm_events(PGSTEAL, zone, nr_freed);
+> We could reuse /proc/pid/oom_adj for the new heuristic by severely
+> reducing its granularity than it otherwise would by doing
+> (oom_adj * 1000 / OOM_ADJUST_MAX), but that will eventually become
+> annoying and much more difficult to document.
 
-                spin_lock(&zone->lru_lock);
-                /*
+Probably quite true, but maybe unavoidable if one accepts the above.
 
-I'm guessing the __count_zone_vm_events and friends need interrupts
-disabled here, probably due to per cpu stuff. But if you enable
-interrupts before the spin_lock() you may let an interrupt come in and
-invalidate what was done above it.
+But I'll readily admit I'm not the final authority on this.
 
-So no, I do not think enabling interrupts here is a good thing.
-
--- Steve
-
+Cheers,
+FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
