@@ -1,57 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B42506B0047
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 13:20:35 -0500 (EST)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o13IKXXA031973
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 10:20:34 -0800
-Received: from pxi6 (pxi6.prod.google.com [10.243.27.6])
-	by wpaz9.hot.corp.google.com with ESMTP id o13IKWQX027918
-	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 10:20:32 -0800
-Received: by pxi6 with SMTP id 6so1611688pxi.0
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2010 10:20:32 -0800 (PST)
-Date: Wed, 3 Feb 2010 10:20:29 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A8296B0047
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 13:58:12 -0500 (EST)
+Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
+	by smtp-out.google.com with ESMTP id o13Iw431005044
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 10:58:05 -0800
+Received: from pzk17 (pzk17.prod.google.com [10.243.19.145])
+	by spaceape11.eur.corp.google.com with ESMTP id o13IuBWM013738
+	for <linux-mm@kvack.org>; Wed, 3 Feb 2010 10:58:03 -0800
+Received: by pzk17 with SMTP id 17so1686295pzk.6
+        for <linux-mm@kvack.org>; Wed, 03 Feb 2010 10:58:03 -0800 (PST)
+Date: Wed, 3 Feb 2010 10:58:01 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH][mmotm-2010-02-01-16-25] Fix wrong accouting of anon and
- file
-In-Reply-To: <1265210739.1052.36.camel@barrios-desktop>
-Message-ID: <alpine.DEB.2.00.1002031007150.14088@chino.kir.corp.google.com>
-References: <1265210739.1052.36.camel@barrios-desktop>
+Subject: Re: Improving OOM killer
+In-Reply-To: <20100203170127.GH19641@balbir.in.ibm.com>
+Message-ID: <alpine.DEB.2.00.1002031021190.14088@chino.kir.corp.google.com>
+References: <201002012302.37380.l.lunak@suse.cz> <4B698CEE.5020806@redhat.com> <20100203170127.GH19641@balbir.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Rik van Riel <riel@redhat.com>, Lubos Lunak <l.lunak@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Feb 2010, Minchan Kim wrote:
+On Wed, 3 Feb 2010, Balbir Singh wrote:
 
-> Unfortunately, Kame said he doesn't support this series.
-> I am not sure we need this patch or revert patch.
+> > IIRC the child accumulating code was introduced to deal with
+> > malicious code (fork bombs), but it makes things worse for the
+> > (much more common) situation of a system without malicious
+> > code simply running out of memory due to being very busy.
+> >
+> 
+> For fork bombs, we could do a number of children number test and have
+> a threshold before we consider a process and its children for
+> badness().
 > 
 
-Nobody is currently using it and it adds an overhead just by doing the 
-extra branches, so I'd be inclined to drop mm-count-lowmem-rss.patch from 
--mm and then reintroduce it later if something needs it down the line.
+Yes, we could look for the number of children with seperate mm's and then 
+penalize those threads that have forked an egregious amount, say, 500 
+tasks.  I think we should check for this threshold within the badness() 
+heuristic to identify such forkbombs and not limit it only to certain 
+applications.  
 
-> Who need this?
-> 
-> David. Do you want to remain this patch in mmotm for your OOM patch 
-> in future?
-> 
+My rewrite for the badness() heuristic is centered on the idea that scores 
+should range from 0 to 1000, 0 meaning "never kill this task" and 1000 
+meaning "kill this task first."  The baseline for a thread, p, may be 
+something like this:
 
-We'll need to do something for lowmem ooms so that we aren't needlessly 
-killing taks that don't consume it.  At this point, I think it's better to 
-just fail GFP_DMA allocations where direct reclaim (and, later, memory 
-compaction) has failed unless it is __GFP_NOFAIL, which none of them are.  
-So this would be a change to the page allocator to defer the oom killer 
-and return NULL on GFP_DMA instead of needlessly killing tasks.
+	unsigned int badness(struct task_struct *p,
+					unsigned long totalram)
+	{
+		struct task_struct *child;
+		struct mm_struct *mm;
+		int forkcount = 0;
+		long points;
 
-> If anyone doesn't reply my question, Do we have to make revert patch?
-> 
+		task_lock(p);
+		mm = p->mm;
+		if (!mm) {
+			task_unlock(p);
+			return 0;
+		}
+		points = (get_mm_rss(mm) +
+				get_mm_counter(mm, MM_SWAPENTS)) * 1000 /
+				totalram;
+		task_unlock(p);
 
-We won't need a revert patch, Andrew will be able to simply drop 
-mm-count-lowmem-rss.patch from -mm.
+		list_for_each_entry(child, &p->children, sibling)
+			/* No lock, child->mm won't be dereferenced */
+			if (child->mm && child->mm != mm)
+				forkcount++;
+
+		/* Forkbombs get penalized 10% of available RAM */
+		if (forkcount > 500)
+			points += 100;
+
+		...
+
+		/*
+		 * /proc/pid/oom_adj ranges from -1000 to +1000 to either
+		 * completely disable oom killing or always prefer it.
+		 */
+		points += p->signal->oom_adj;
+
+		if (points < 0)
+			return 0;
+		return (points <= 1000) ? points : 1000;
+	}
+
+	static struct task_struct *select_bad_process(...,
+						nodemask_t *nodemask)
+	{
+		struct task_struct *p;
+		unsigned long totalram = 0;
+		int nid;
+
+		for_each_node_mask(nid, nodemask)
+			totalram += NODE_DATA(nid)->node_present_pages;
+
+		for_each_process(p) {
+			unsigned int points;
+
+			...
+
+			if (!nodes_intersects(p->mems_allowed, nodemasks))
+				continue;
+
+			...
+			points = badness(p, totalram);
+			...
+		}
+		...
+	}
+
+In this example, /proc/pid/oom_adj now ranges from -1000 to +1000, with 
+OOM_DISABLE being -1000, to polarize tasks for oom killing or determine 
+when a task is leaking memory because it is using far more memory than it 
+should.  The nodemask passed from the page allocator should be intersected 
+with current->mems_allowed within the oom killer; userspace is then fully 
+aware of what value is an egregious amount of RAM for a task to consume, 
+including information it knows about the task's cpuset or mempolicy.  For 
+example, it would be very simple for a user to set an oom_adj of -500, 
+which means "we discount 50% of the task's allowed memory from being 
+considered in the heuristic" or +500, which means "we always allow all 
+other system/cpuset/mempolicy tasks to use at least 50% more allowed 
+memory than this one."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
