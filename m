@@ -1,57 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 957EA6B007D
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 11:06:32 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id e21so178387fga.8
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2010 08:06:30 -0800 (PST)
-Subject: Re: Improving OOM killer
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <1265209254.1052.24.camel@barrios-desktop>
-References: <201002012302.37380.l.lunak@suse.cz>
-	 <20100203085711.GF19641@balbir.in.ibm.com>
-	 <201002031310.28271.l.lunak@suse.cz>
-	 <20100203122526.GG19641@balbir.in.ibm.com>
-	 <1265209254.1052.24.camel@barrios-desktop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 04 Feb 2010 01:06:18 +0900
-Message-ID: <1265213178.1052.50.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CD8536B0071
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 11:14:11 -0500 (EST)
+Date: Wed, 3 Feb 2010 10:13:12 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 32 of 32] khugepaged
+In-Reply-To: <20100202202450.GR4135@random.random>
+Message-ID: <alpine.DEB.2.00.1002031010170.6590@router.home>
+References: <patchbomb.1264969631@v2.random> <51b543fab38b1290f176.1264969663@v2.random> <alpine.DEB.2.00.1002011551560.2384@router.home> <20100201225624.GB4135@random.random> <alpine.DEB.2.00.1002021347520.19529@router.home>
+ <20100202202450.GR4135@random.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Lubos Lunak <l.lunak@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-02-04 at 00:00 +0900, Minchan Kim wrote:
-> On Wed, 2010-02-03 at 17:55 +0530, Balbir Singh wrote:
-> > * Lubos Lunak <l.lunak@suse.cz> [2010-02-03 13:10:27]:
-> >> >  I don't understand how this matters. Overcommit is memory for which address 
-> > > space has been allocated but not actual memory, right? Then that's exactly 
-> > > what I'm claiming is wrong and am trying to reverse. Currently OOM killer 
-> > > takes this into account because it uses VmSize, but IMO it shouldn't - if a 
-> > > process does malloc(400M) but then it uses only a tiny fraction of that, in 
-> > > the case of memory shortage killing that process does not solve anything in 
-> > > practice.
-> > 
-> > We have a way of tracking commmitted address space, which is more
-> > sensible than just allocating memory and is used for tracking
-> > overcommit. I was suggesting that, that might be a better approach.
-> 
-> Yes. It does make sense. At least total_vm doesn't care about
-> MAP_NORESERVE case. But unfortunately, it's a per CPU not per Process.
+On Tue, 2 Feb 2010, Andrea Arcangeli wrote:
 
-Sorry for confusing. It was opposite. I slept :)
-The commited as doesn't care about MAP_NORESERVE case. 
-But it definitely charges memory. so I think total_vm is better than
-committed as if we really have to use vmsize heuristic continuously.
+> How would you say it? I think if ksm was forced to the migration pte
+> like it was discussed when ksm was first submitted, I would definitely
+> be forced to use it here too in order to get it merged. Do you disagree?
 
-But I am not sure that i understand your point about overcommit policy.
+How about at least consolidating the code with ksm pieces?
 
+> I prefer not to reuse the migration pte. I prefer to stick to the ksm
+> method. My rationale is pretty simple, migration pte requires an
+> additional logic in the pagefault code, while this doesn't and so it
+> has less dependencies and it looks simpler and more self contained to
+> me and it is enough for khugepaged as it is enough for ksm.
 
--- 
-Kind regards,
-Minchan Kim
+The logic is already there ready for use.
 
+> pte freezing (ksm) or pmd_huge freezing (khugepaged). I think what
+> you're asking is over-engineering but again I welcome you to do it
+> yourself and prove you actually save lines, I don't see it myself. I
+> think if it was it so obvious as you pretend it to be, Hugh would have
+> cleaned it up considering it was an issue mentioned already.
+
+I am asking for simplification and that you do the cleanup work that comes
+with introcing new functionality in the kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
