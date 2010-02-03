@@ -1,87 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 605BA6B004D
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 10:01:25 -0500 (EST)
-Received: by fxm9 with SMTP id 9so1470090fxm.10
-        for <linux-mm@kvack.org>; Wed, 03 Feb 2010 07:01:06 -0800 (PST)
-Subject: Re: Improving OOM killer
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <20100203122526.GG19641@balbir.in.ibm.com>
-References: <201002012302.37380.l.lunak@suse.cz>
-	 <20100203085711.GF19641@balbir.in.ibm.com>
-	 <201002031310.28271.l.lunak@suse.cz>
-	 <20100203122526.GG19641@balbir.in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 04 Feb 2010 00:00:54 +0900
-Message-ID: <1265209254.1052.24.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5E3576B004D
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 10:25:24 -0500 (EST)
+Date: Wed, 3 Feb 2010 10:24:59 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 00/11] [RFC] 512K readahead size with thrashing safe
+	readahead
+Message-ID: <20100203152454.GA17059@redhat.com>
+References: <20100202152835.683907822@intel.com> <20100202223803.GF3922@redhat.com> <20100203062756.GB22890@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100203062756.GB22890@localhost>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Lubos Lunak <l.lunak@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-02-03 at 17:55 +0530, Balbir Singh wrote:
-> * Lubos Lunak <l.lunak@suse.cz> [2010-02-03 13:10:27]:
+On Wed, Feb 03, 2010 at 02:27:56PM +0800, Wu Fengguang wrote:
+> Vivek,
 > 
-> > On Wednesday 03 of February 2010, Balbir Singh wrote:
-> > > * Lubos Lunak <l.lunak@suse.cz> [2010-02-01 23:02:37]:
-> > > >  In other words, use VmRSS for measuring memory usage instead of VmSize,
-> > > > and remove child accumulating.
-> > >
-> > > I am not sure of the impact of changing to RSS, although I've
-> > > personally believed that RSS based accounting is where we should go,
-> > > but we need to consider the following
-> > >
-> > > 1. Total VM provides data about potentially swapped pages,
+> On Wed, Feb 03, 2010 at 06:38:03AM +0800, Vivek Goyal wrote:
+> > On Tue, Feb 02, 2010 at 11:28:35PM +0800, Wu Fengguang wrote:
+> > > Andrew,
+> > > 
+> > > This is to lift default readahead size to 512KB, which I believe yields
+> > > more I/O throughput without noticeably increasing I/O latency for today's HDD.
+> > > 
 > > 
-> >  Yes, I've already updated my proposal in another mail to switch from VmSize 
-> > to VmRSS+InSwap. I don't know how to find out the second item in code, but at 
-> > this point of discussion that's just details.
+> > Hi Fengguang,
 > > 
-
-We have swap count with mm-count-swap-usage.patch by Kame in mmtom.
-
-> I am yet to catch up with the rest of the thread. Thanks for heads up.
+> > I was doing a quick test with the patches. I was using fio to run some
+> > sequential reader threads. I have got one access to one Lun from an HP
+> > EVA. In my case it looks like with the patches throughput has come down.
 > 
-> > > overcommit, 
-> > 
-> >  I don't understand how this matters. Overcommit is memory for which address 
-> > space has been allocated but not actual memory, right? Then that's exactly 
-> > what I'm claiming is wrong and am trying to reverse. Currently OOM killer 
-> > takes this into account because it uses VmSize, but IMO it shouldn't - if a 
-> > process does malloc(400M) but then it uses only a tiny fraction of that, in 
-> > the case of memory shortage killing that process does not solve anything in 
-> > practice.
+> Thank you for the quick testing!
 > 
-> We have a way of tracking commmitted address space, which is more
-> sensible than just allocating memory and is used for tracking
-> overcommit. I was suggesting that, that might be a better approach.
-
-Yes. It does make sense. At least total_vm doesn't care about
-MAP_NORESERVE case. But unfortunately, it's a per CPU not per Process.
-
+> This patchset does 3 things:
 > 
-> > 
-> > > etc.
-> > > 2. RSS alone is not sufficient, RSS does not account for shared pages,
-> > > so we ideally need something like PSS.
-> > 
-> >  Just to make sure I understand what you mean with "RSS does not account for 
-> > shared pages" - you say that if a page is shared by 4 processes, then when 
-> > calculating badness for them, only 1/4 of the page should be counted for 
-> > each? Yes, I suppose so, that makes sense.
+> 1) 512K readahead size
+> 2) new readahead algorithms
+> 3) new readahead tracing/stats interfaces
 > 
-> Yes, that is what I am speaking of
+> (1) will impact performance, while (2) _might_ impact performance in
+> case of bugs.
+> 
+> Would you kindly retest the patchset with readahead size manually set
+> to 128KB?  That would help identify the root cause of the performance
+> drop:
+> 
+>         DEV=sda
+>         echo 128 > /sys/block/$DEV/queue/read_ahead_kb
+> 
 
-I agree. If we want to make RSS with base of badness, it's one of things
-we have to solve.
+I have got two paths to the HP EVA and got multipath device setup(dm-3). I
+noticed with vanilla kernel read_ahead_kb=128 after boot but with your patches
+applied it is set to 4. So looks like something went wrong with device
+size/capacity detection hence wrong defaults. Manually setting
+read_ahead_kb=512, got me better performance as compare to vanilla kernel.
 
+AVERAGE[bsr]    
+------- 
+job       Set NR  ReadBW(KB/s)   MaxClat(us)    WriteBW(KB/s)  MaxClat(us)    
+---       --- --  ------------   -----------    -------------  -----------    
+bsr       3   1   190302         97937.3        0              0              
+bsr       3   2   185636         223286         0              0              
+bsr       3   4   185986         363658         0              0              
+bsr       3   8   184352         428478         0              0              
+bsr       3   16  185646         594311         0              0              
 
--- 
-Kind regards,
-Minchan Kim
-
+Thanks
+Vivek
+ 
+> The readahead stats provided by the patchset are very useful for
+> analyzing the problem:
+> 
+>         mount -t debugfs none /debug
+>         
+>         # for each benchmark:
+>                 echo > /debug/readahead/stats  # reset counters
+>                 # do benchmark
+>                 cat /debug/readahead/stats     # check counters
+> 
+> Thanks,
+> Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
