@@ -1,226 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 564396B0078
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 02:23:09 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o137N4Qu020355
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 3 Feb 2010 16:23:04 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 85A5745DE52
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:23:04 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5BF7145DE51
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:23:04 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B9291DB8043
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:23:04 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D862F1DB803C
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:23:00 +0900 (JST)
-Date: Wed, 3 Feb 2010 16:19:36 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm] memcg: use generic percpu instead of private
- implementation
-Message-Id: <20100203161936.e45955b5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100203065305.GD19641@balbir.in.ibm.com>
-References: <20100203121624.bab7be2c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100203065305.GD19641@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C6CE96B007D
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 02:50:25 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o137oMA8013797
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 3 Feb 2010 16:50:22 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 75DD545DE52
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:50:22 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 46D461EF083
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:50:22 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B3E6A1DB8042
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:50:21 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F4C51DB803A
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 16:50:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Improving OOM killer
+In-Reply-To: <201002012302.37380.l.lunak@suse.cz>
+References: <201002012302.37380.l.lunak@suse.cz>
+Message-Id: <20100203164612.D3AC.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed,  3 Feb 2010 16:50:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Lubos Lunak <l.lunak@suse.cz>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Feb 2010 12:23:05 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-02-03 12:16:24]:
+> =====
+> --- linux-2.6.31/mm/oom_kill.c.sav      2010-02-01 22:00:41.614838540 +0100
+> +++ linux-2.6.31/mm/oom_kill.c  2010-02-01 22:01:08.773757932 +0100
+> @@ -69,7 +69,7 @@ unsigned long badness(struct task_struct
+>         /*
+>          * The memory size of the process is the basis for the badness.
+>          */
+> -       points = mm->total_vm;
+> +       points = get_mm_rss(mm);
 > 
-> > This is a repost. I'll post my test program in reply to this.
-> > Updated against mmotm-2010-Feb-01.
-> > 
-> > Thanks,
-> > -Kame
-> > ==
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > When per-cpu counter for memcg was implemneted, dynamic percpu allocator
-> > was not very good. But now, we have good one and useful macros.
-> > This patch replaces memcg's private percpu counter implementation with
-> > generic dynamic percpu allocator.
-> > 
-> > The benefits are
-> > 	- We can remove private implementation.
-> > 	- The counters will be NUMA-aware. (Current one is not...)
-> > 	- This patch makes sizeof struct mem_cgroup smaller. Then,
-> > 	  struct mem_cgroup may be fit in page size on small config.
-> >         - About basic performance aspects, see below.
-> > 
-> >  [Before]
-> >  # size mm/memcontrol.o
-> >    text    data     bss     dec     hex filename
-> >   24373    2528    4132   31033    7939 mm/memcontrol.o
-> > 
-> >  [page-fault-throuput test on 8cpu/SMP in root cgroup]
-> >  # /root/bin/perf stat -a -e page-faults,cache-misses --repeat 5 ./multi-fault-fork 8
-> > 
-> >  Performance counter stats for './multi-fault-fork 8' (5 runs):
-> > 
-> >        45878618  page-faults                ( +-   0.110% )
-> >       602635826  cache-misses               ( +-   0.105% )
-> > 
-> >    61.005373262  seconds time elapsed   ( +-   0.004% )
-> > 
-> >  Then cache-miss/page fault = 13.14
-> > 
-> >  [After]
-> >  #size mm/memcontrol.o
-> >    text    data     bss     dec     hex filename
-> >   23913    2528    4132   30573    776d mm/memcontrol.o
-> >  # /root/bin/perf stat -a -e page-faults,cache-misses --repeat 5 ./multi-fault-fork 8
-> > 
-> >  Performance counter stats for './multi-fault-fork 8' (5 runs):
-> > 
-> >        48179400  page-faults                ( +-   0.271% )
-> >       588628407  cache-misses               ( +-   0.136% )
-> > 
-> >    61.004615021  seconds time elapsed   ( +-   0.004% )
-> > 
-> >   Then cache-miss/page fault = 12.22
-> > 
-> >  Text size is reduced.
-> >  This performance improvement is not big and will be invisible in real world
-> >  applications. But this result shows this patch has some good effect even
-> >  on (small) SMP.
-> > 
-> > Changelog: 2010/02/02
-> >  - adjusted to mmotm-Feb01.
-> >  - added performance result to the patch description.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > ---
-> >  mm/memcontrol.c |  184 +++++++++++++++++++-------------------------------------
-> >  1 file changed, 63 insertions(+), 121 deletions(-)
-> > 
-> > Index: mmotm-2.6.33-Feb01/mm/memcontrol.c
-> > ===================================================================
-> > --- mmotm-2.6.33-Feb01.orig/mm/memcontrol.c
-> > +++ mmotm-2.6.33-Feb01/mm/memcontrol.c
-> > @@ -89,54 +89,8 @@ enum mem_cgroup_stat_index {
-> > 
-> >  struct mem_cgroup_stat_cpu {
-> >  	s64 count[MEM_CGROUP_STAT_NSTATS];
-> > -} ____cacheline_aligned_in_smp;
-> > -
-> > -struct mem_cgroup_stat {
-> > -	struct mem_cgroup_stat_cpu cpustat[0];
-> >  };
-> > 
-> > -static inline void
-> > -__mem_cgroup_stat_set_safe(struct mem_cgroup_stat_cpu *stat,
-> > -				enum mem_cgroup_stat_index idx, s64 val)
-> > -{
-> > -	stat->count[idx] = val;
-> > -}
-> > -
-> > -static inline s64
-> > -__mem_cgroup_stat_read_local(struct mem_cgroup_stat_cpu *stat,
-> > -				enum mem_cgroup_stat_index idx)
-> > -{
-> > -	return stat->count[idx];
-> > -}
-> > -
-> > -/*
-> > - * For accounting under irq disable, no need for increment preempt count.
-> > - */
-> > -static inline void __mem_cgroup_stat_add_safe(struct mem_cgroup_stat_cpu *stat,
-> > -		enum mem_cgroup_stat_index idx, int val)
-> > -{
-> > -	stat->count[idx] += val;
-> > -}
-> > -
-> > -static s64 mem_cgroup_read_stat(struct mem_cgroup_stat *stat,
-> > -		enum mem_cgroup_stat_index idx)
-> > -{
-> > -	int cpu;
-> > -	s64 ret = 0;
-> > -	for_each_possible_cpu(cpu)
-> > -		ret += stat->cpustat[cpu].count[idx];
-> > -	return ret;
-> > -}
-> > -
-> > -static s64 mem_cgroup_local_usage(struct mem_cgroup_stat *stat)
-> > -{
-> > -	s64 ret;
-> > -
-> > -	ret = mem_cgroup_read_stat(stat, MEM_CGROUP_STAT_CACHE);
-> > -	ret += mem_cgroup_read_stat(stat, MEM_CGROUP_STAT_RSS);
-> > -	return ret;
-> > -}
-> > -
-> >  /*
-> >   * per-zone information in memory controller.
-> >   */
-> > @@ -270,9 +224,9 @@ struct mem_cgroup {
-> >  	unsigned long 	move_charge_at_immigrate;
-> > 
-> >  	/*
-> > -	 * statistics. This must be placed at the end of memcg.
-> > +	 * percpu counter.
-> >  	 */
-> > -	struct mem_cgroup_stat stat;
-> > +	struct mem_cgroup_stat_cpu *stat;
-> >  };
-> > 
-> >  /* Stuffs for move charges at task migration. */
-> > @@ -441,19 +395,14 @@ mem_cgroup_remove_exceeded(struct mem_cg
-> >  static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
-> >  {
-> >  	bool ret = false;
-> > -	int cpu;
-> >  	s64 val;
-> > -	struct mem_cgroup_stat_cpu *cpustat;
-> > 
-> > -	cpu = get_cpu();
-> > -	cpustat = &mem->stat.cpustat[cpu];
-> > -	val = __mem_cgroup_stat_read_local(cpustat, MEM_CGROUP_STAT_SOFTLIMIT);
-> > +	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
-> >  	if (unlikely(val < 0)) {
-> > -		__mem_cgroup_stat_set_safe(cpustat, MEM_CGROUP_STAT_SOFTLIMIT,
-> > +		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT],
-> >  				SOFTLIMIT_EVENTS_THRESH);
-> >  		ret = true;
-> >  	}
-> > -	put_cpu();
-> >  	return ret;
-> >  }
-> > 
-> > @@ -549,17 +498,31 @@ mem_cgroup_largest_soft_limit_node(struc
-> >  	return mz;
-> >  }
-> > 
-> > +static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
-> > +		enum mem_cgroup_stat_index idx)
-> > +{
-> > +	int cpu;
-> > +	s64 val = 0;
-> > +
-> > +	for_each_possible_cpu(cpu)
+>         /*
+>          * After this unlock we can no longer dereference local variable `mm'
+> @@ -83,21 +83,6 @@ unsigned long badness(struct task_struct
+>                 return ULONG_MAX;
 > 
-> Is for_each_possible_cpu() what we need? Is this to avoid CPU hotplug
-> events? 
+>         /*
+> -        * Processes which fork a lot of child processes are likely
+> -        * a good choice. We add half the vmsize of the children if they
+> -        * have an own mm. This prevents forking servers to flood the
+> -        * machine with an endless amount of children. In case a single
+> -        * child is eating the vast majority of memory, adding only half
+> -        * to the parents will make the child our kill candidate of choice.
+> -        */
+> -       list_for_each_entry(child, &p->children, sibling) {
+> -               task_lock(child);
+> -               if (child->mm != mm && child->mm)
+> -                       points += child->mm->total_vm/2 + 1;
+> -               task_unlock(child);
+> -       }
+> -
+> -       /*
+>          * CPU time is in tens of seconds and run time is in thousands
+>           * of seconds. There is no particular reason for this other than
+>           * that it turned out to work very well in practice.
+> =====
 > 
-> Looks good overall, except the question above.
+>  In other words, use VmRSS for measuring memory usage instead of VmSize, and 
+> remove child accumulating.
+> 
+>  I hope the above is good enough reason for the first change. VmSize includes 
+> things like read-only mappings, memory mappings that is actually unused, 
+> mappings backed by a file, mappings from video drivers, and so on. VmRSS is 
+> actual real memory used, which is what mostly matters here. While it may not 
+> be perfect, it is certainly an improvement.
+> 
+>  The second change should be done on the basis that it does more harm than 
+> good. In this specific case, it does not help to identify the source of the 
+> problem, and it incorrectly identifies kdeinit as the problem solely on the 
+> basis that it spawned many other processes. I think it's already quite hinted 
+> that this is a problem by the fact that you had to add a special protection 
+> for init - any session manager, process launcher or even xterm used for 
+> launching apps is yet another init.
+> 
+>  I also have problems finding a case where the child accounting would actually 
+> help. I mean, in practice, I can certainly come up with something in theory, 
+> and this looks to me like a solution to a very synthesized problem. In which 
+> realistic case will one process launch a limited number of children, where 
+> all of them will consume memory, but just killing the children one by one 
+> won't avoid the problem reasonably? This is unlikely to avoid a forkbomb, as 
+> in that case the number of children will be the problem. It is not necessary 
+> for just one children misbehaving and being restarted, nor will it work 
+> there. So what is that supposed to fix, and is it more likely than the case 
+> of a process launching several unrelated children?
+> 
+>  If the children accounting is supposed to handle cases like forked children 
+> of Apache, then I suggest it is adjusted only to count children that have 
+> been forked from the parent but there has been no exec(). I'm afraid I don't 
+> know how to detect that.
+> 
+> 
+>  When running a kernel with these changes applied, I can safely do the 
+> above-described case of running parallel doc generation in KDE. No clearly 
+> innocent process is selected for killing, the first choice is always an 
+> offender.
+> 
+>  Moreover, the remedy is almost instant, there is only a fraction of second of 
+> when the machine is overloaded by the I/O of swapping pages in and out (I do 
+> not use swap, but there is a large amount of memory used by read-only 
+> mappings of binaries, libraries or various other files that is in the 
+> original case rendering the machine unresponsive - I assume this is because 
+> the kernel tries to kill an innocent process, but the offenders immediatelly 
+> consume anything that is freed, requiring even memory used by code that is to 
+> be executed to be swapped in from files again).
+> 
+>  I consider the patches to be definite improvements, so if they are ok, I will 
+> format them as necessary. Now, what is the catch?
 
-Yes. It's against cpu hotplug. Further improvement is add a cpu hotplug
-handler (and merge date to other cpus). But I think it should be another
-patch.
+Personally, I think your use case represent to typical desktop and Linux
+have to works fine on typical desktop use-case. /proc/pid/oom_adj never fit
+desktop use-case. In past discussion, I'v agreed with much people. but I haven't
+reach to agree with David Rientjes about this topic.
 
-Thanks,
--Kame
+If you want to merge this patch, you need persuade him. I can't help you. sorry.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
