@@ -1,45 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B6DC66B004D
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 09:22:30 -0500 (EST)
-Subject: [RFC] slub: ARCH_SLAB_MINALIGN defaults to 8 on x86_32. is this
- too big?
-From: Richard Kennedy <richard@rsk.demon.co.uk>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 03 Feb 2010 14:22:26 +0000
-Message-ID: <1265206946.2118.57.camel@localhost>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 948056B007D
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 09:49:27 -0500 (EST)
+Message-ID: <4B698CEE.5020806@redhat.com>
+Date: Wed, 03 Feb 2010 09:49:18 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: Improving OOM killer
+References: <201002012302.37380.l.lunak@suse.cz>
+In-Reply-To: <201002012302.37380.l.lunak@suse.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>, penberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Lubos Lunak <l.lunak@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
+On 02/01/2010 05:02 PM, Lubos Lunak wrote:
 
-slub.c sets the default value of ARCH_SLAB_MINALIGN to sizeof(unsigned
-long long) if the architecture didn't already override it.
+>   In other words, use VmRSS for measuring memory usage instead of VmSize, and
+> remove child accumulating.
 
-And as x86_32 doesn't set a value this means that slab objects get
-aligned to 8 bytes, potentially wasting 4 bytes per object. Slub forces
-objects to be aligned to sizeof(void *) anyway, but I don't see that
-there is any need for it to be 8 on 32bits.
+I agree with removing the child accumulating code.  That code can
+do a lot of harm with databases like postgresql, or cause the
+system's main service (eg. httpd) to be killed when a broken cgi
+script used up too much memory.
 
-I'm working on a patch to pack more buffer_heads into each kmem_cache
-slab page.
-On 32 bits the structure size is 52 bytes and with the alignment applied
-I end up with a slab of 73 x 56 byte objects. However, if the minimum
-alignment was sizeof(void *) then I'd get 78 x 52 byte objects. So there
-is quite a memory saving to be had in changing this.
+IIRC the child accumulating code was introduced to deal with
+malicious code (fork bombs), but it makes things worse for the
+(much more common) situation of a system without malicious
+code simply running out of memory due to being very busy.
 
-Can I define a ARCH_SLAB_MINALIGN in x86_64 to sizeof(void *) ? 
-or would it be ok to change the default in slub.c to sizeof(void *) ?
+I have no strong opinion on using RSS vs VmSize.
 
-Or am I missing something ?
-
-regards
-Richard
-
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
