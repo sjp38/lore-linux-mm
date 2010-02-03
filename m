@@ -1,62 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DBDA76B0085
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 14:54:28 -0500 (EST)
-Date: Wed, 3 Feb 2010 13:54:27 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [RFP-V2 0/3] Make mmu_notifier_invalidate_range_start able to
- sleep.
-Message-ID: <20100203195427.GE6616@sgi.com>
-References: <20100202142130.GI6616@sgi.com>
- <20100202145911.GM4135@random.random>
- <20100202152142.GQ6653@sgi.com>
- <20100202160146.GO4135@random.random>
- <20100202163930.GR6653@sgi.com>
- <20100202165224.GP4135@random.random>
- <20100202165903.GN6616@sgi.com>
- <20100202201718.GQ4135@random.random>
- <20100203004833.GS6653@sgi.com>
- <20100203171413.GB5959@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100203171413.GB5959@random.random>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C06226B0088
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 15:09:07 -0500 (EST)
+Subject: Re: [RFC][PATCH] vmscan: balance local_irq_disable() and
+ local_irq_enable()
+From: Steven Rostedt <rostedt@goodmis.org>
+Reply-To: rostedt@goodmis.org
+In-Reply-To: <1265226801-6199-2-git-send-email-jkacur@redhat.com>
+References: <1265226801-6199-1-git-send-email-jkacur@redhat.com>
+	 <1265226801-6199-2-git-send-email-jkacur@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Wed, 03 Feb 2010 15:09:06 -0500
+Message-ID: <1265227746.24386.15.camel@gandalf.stny.rr.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Robin Holt <holt@sgi.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org
+To: John Kacur <jkacur@redhat.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 03, 2010 at 06:14:13PM +0100, Andrea Arcangeli wrote:
-> On Tue, Feb 02, 2010 at 06:48:33PM -0600, Robin Holt wrote:
-> > In the _invalidate_page case, it is called by the kernel from sites where
-> > the kernel is relying upon the reference count to eliminate the page from
-> > use while maintaining the page's data as clean and ready to be released.
-> > If the page is marked as dirty, etc. then the kernel will "do the right
-> > thing" with the page to maintain data consistency.
-> >
-> > The _invalidate_range_start/end pairs are used in places where the
-> > caller's address space is being modified.  If we allow the attachers
-> > to continue to use the old pages from the old mapping even for a short
-> > time after the process has started to use the new pages, there would be
-> > silent data corruption.
+t On Wed, 2010-02-03 at 20:53 +0100, John Kacur wrote:
+> Balance local_irq_disable() and local_irq_enable() as well as
+> spin_lock_irq() and spin_lock_unlock_irq
 > 
-> Just to show how fragile your assumption is, your code is already
-> generating mm corruption in fork and in ksm... the set_pte_at_notify
-> invalidate_page has to run immediately and be effective immediately
-> despite being called with the PT lock hold.
+> Signed-off-by: John Kacur <jkacur@redhat.com>
+> ---
+>  mm/vmscan.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c26986c..b895025 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1200,8 +1200,9 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
+>  		if (current_is_kswapd())
+>  			__count_vm_events(KSWAPD_STEAL, nr_freed);
+>  		__count_zone_vm_events(PGSTEAL, zone, nr_freed);
+> +		local_irq_enable();
+>  
+> -		spin_lock(&zone->lru_lock);
+> +		spin_lock_irq(&zone->lru_lock);
+>  		/*
+>  		 * Put back any unfreeable pages.
+>  		 */
 
-Actually, we don't generate corruption, but that is a little more complex.
 
-At fork time, the invalidate range happens to clear all of the segment's
-page table.
+The above looks wrong. I don't know the code, but just by looking at
+where the locking and interrupts are, I can take a guess.
 
-When XPMEM goes to refill the entry, we always call
-get_user_pages(,write=1,).  That will result in a page callout, but
-we have no entry in the segment's page table so the callout is safely
-ignored.  When the processes pte gets established, it has already broken
-COW so we are back to a safe state.
+Lets add a little more of the code:
 
-Robin
+                local_irq_disable();
+                if (current_is_kswapd())
+                        __count_vm_events(KSWAPD_STEAL, nr_freed);
+                __count_zone_vm_events(PGSTEAL, zone, nr_freed);
+
+                spin_lock(&zone->lru_lock);
+                /*
+
+I'm guessing the __count_zone_vm_events and friends need interrupts
+disabled here, probably due to per cpu stuff. But if you enable
+interrupts before the spin_lock() you may let an interrupt come in and
+invalidate what was done above it.
+
+So no, I do not think enabling interrupts here is a good thing.
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
