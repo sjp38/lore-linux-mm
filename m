@@ -1,87 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A81336B0047
-	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 22:31:14 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o143V9Zf022877
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 4 Feb 2010 12:31:09 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CB5145DE51
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 12:31:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C7E845DE62
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 12:31:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D3696EF8003
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 12:31:08 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 86DD9E78003
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 12:31:08 +0900 (JST)
-Date: Thu, 4 Feb 2010 12:27:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [stable] [PATCH] devmem: check vmalloc address on kmem
- read/write
-Message-Id: <20100204122742.2e1c38f8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100204031854.GA14324@localhost>
-References: <20100122045914.993668874@intel.com>
-	<20100203234724.GA23902@kroah.com>
-	<20100204024202.GD6343@localhost>
-	<20100204115801.cac7c342.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100204031854.GA14324@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 38C6A6B004D
+	for <linux-mm@kvack.org>; Wed,  3 Feb 2010 22:31:46 -0500 (EST)
+Date: Wed, 3 Feb 2010 19:31:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mmotm 7/8] memcg: move charges of anonymous swap
+Message-Id: <20100203193127.fe5efa17.akpm@linux-foundation.org>
+In-Reply-To: <20091221143816.9794cd17.nishimura@mxp.nes.nec.co.jp>
+References: <20091221143106.6ff3ca15.nishimura@mxp.nes.nec.co.jp>
+	<20091221143816.9794cd17.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@suse.de>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "stable@kernel.org" <stable@kernel.org>, "juha_motorsportcom@luukku.com" <juha_motorsportcom@luukku.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Feb 2010 11:18:54 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Mon, 21 Dec 2009 14:38:16 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> On Thu, Feb 04, 2010 at 10:58:01AM +0800, KAMEZAWA Hiroyuki wrote:
-> > On Thu, 4 Feb 2010 10:42:02 +0800
-> > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > 
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > 
-> > > commit 325fda71d0badc1073dc59f12a948f24ff05796a upstream.
-> > > 
-> > > Otherwise vmalloc_to_page() will BUG().
-> > > 
-> > > This also makes the kmem read/write implementation aligned with mem(4):
-> > > "References to nonexistent locations cause errors to be returned." Here
-> > > we return -ENXIO (inspired by Hugh) if no bytes have been transfered
-> > > to/from user space, otherwise return partial read/write results.
-> > > 
-> > 
-> > Wu-san, I have additonal fix to this patch. Now, *ppos update is unstable..
-> > Could you make merged one ?
-> > Maybe this one makes the all behavior clearer.
-> > 
-> > ==
-> > This is a more fix for devmem-check-vmalloc-address-on-kmem-read-write.patch
-> > Now, the condition for updating *ppos is not good. (it's updated even if EFAULT
-> > occurs..). This fixes that.
-> > 
-> > 
-> > Reported-by: "Juha Leppanen" <juha_motorsportcom@luukku.com>
+> This patch is another core part of this move-charge-at-task-migration feature.
+> It enables moving charges of anonymous swaps.
 > 
-> Sorry, can you elaborate the problem? How it break the application?
+> To move the charge of swap, we need to exchange swap_cgroup's record.
 > 
-> It looks that do_generic_file_read() also updates *ppos progressively,
-> no one complains about that.
+> In current implementation, swap_cgroup's record is protected by:
 > 
-Ah...it seems I misunderstood something...ok, *ppos should be updated every time.
+>   - page lock: if the entry is on swap cache.
+>   - swap_lock: if the entry is not on swap cache.
+> 
+> This works well in usual swap-in/out activity.
+> 
+> But this behavior make the feature of moving swap charge check many conditions
+> to exchange swap_cgroup's record safely.
+> 
+> So I changed modification of swap_cgroup's recored(swap_cgroup_record())
+> to use xchg, and define a new function to cmpxchg swap_cgroup's record.
+> 
+> This patch also enables moving charge of non pte_present but not uncharged swap
+> caches, which can be exist on swap-out path, by getting the target pages via
+> find_get_page() as do_mincore() does.
+> 
+>
+> ...
+>
+> +		else if (is_swap_pte(ptent)) {
 
-I startted from adding comment on following line and got into a maze.
-
->   return (virtr + wrote) ? : err;
-
-Sorry for noise.
-
--Kame
+is_swap_pte() isn't implemented for CONFIG_MMU=n, so the build breaks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
