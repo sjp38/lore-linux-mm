@@ -1,199 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 88D2D6B0083
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 02:48:11 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o147m8FO011673
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 4 Feb 2010 16:48:08 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F97545DE50
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 16:48:08 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E44B45DE4F
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 16:48:08 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E7D301DB803F
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 16:48:07 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 90BDE1DB8038
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 16:48:04 +0900 (JST)
-Date: Thu, 4 Feb 2010 16:44:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 7/8] memcg: move charges of anonymous swap
-Message-Id: <20100204164441.d012f6fa.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100204071840.GC5574@linux-sh.org>
-References: <20091221143106.6ff3ca15.nishimura@mxp.nes.nec.co.jp>
-	<20091221143816.9794cd17.nishimura@mxp.nes.nec.co.jp>
-	<20100203193127.fe5efa17.akpm@linux-foundation.org>
-	<20100204140942.0ef6d7b1.nishimura@mxp.nes.nec.co.jp>
-	<20100204142736.2a8bec26.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100204071840.GC5574@linux-sh.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id ACA426B0087
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 02:58:41 -0500 (EST)
+From: Lubos Lunak <l.lunak@suse.cz>
+Subject: Re: Improving OOM killer
+Date: Thu, 4 Feb 2010 08:58:32 +0100
+References: <201002012302.37380.l.lunak@suse.cz> <201002032355.01260.l.lunak@suse.cz> <alpine.DEB.2.00.1002031600490.27918@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002031600490.27918@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <201002040858.33046.l.lunak@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Feb 2010 16:18:40 +0900
-Paul Mundt <lethal@linux-sh.org> wrote:
+On Thursday 04 of February 2010, David Rientjes wrote:
+> On Wed, 3 Feb 2010, Lubos Lunak wrote:
+> >  As far as I'm concerned, this is a huge improvement over the current
+> > code (and, incidentally :), quite close to what I originally wanted). I'd
+> > be willing to test it in few real-world desktop cases if you provide a
+> > patch.
+>
+> There're some things that still need to be worked out,
 
-> On Thu, Feb 04, 2010 at 02:27:36PM +0900, KAMEZAWA Hiroyuki wrote:
+ Ok. Just please do not let the perfect stand in the way of the good for way 
+too long.
 
-> > I think memcg should depends on CONIFG_MMU.
-> > 
-> > How do you think ?
-> > 
-> Unless there's a real technical reason to make it depend on CONFIG_MMU,
-> that's just papering over the problem, and means that some nommu person
-> will have to come back and fix it properly at a later point in time.
-> 
-I have no strong opinion this. It's ok to support as much as possible.
-My concern is that there is no !MMU architecture developper around memcg. So,
-error report will be delayed.
+> Do you have any comments about the forkbomb detector or its threshold that
+> I've put in my heuristic?  I think detecting these scenarios is still an
+> important issue that we need to address instead of simply removing it from
+> consideration entirely.
 
+ I think before finding out the answer it should be first figured out what the 
+question is :). Besides the vague "forkbomb" description I still don't know 
+what realistic scenarios this is supposed to handle. IMO trying to cover 
+intentional abuse is a lost fight, so I think the purpose of this code should 
+be just to handle cases when there's a mistake leading to relatively fast 
+spawning of children of a specific parent that'll lead to OOM. The shape of 
+the children subtree doesn't matter, it can be either a parent with many 
+direct children, or children being created recursively, I think any case is 
+possible here. A realistic example would be e.g. by mistake 
+typing 'make -j22' instead of 'make -j2' and overloading the machine by too 
+many g++ instances. That would be actually a non-trivial tree of children, 
+with recursive make and sh processes in it.
 
-> CONFIG_SWAP itself is configurable even with CONFIG_MMU=y, so having
-> stubbed out helpers for the CONFIG_SWAP=n case would give the compiler a
-> chance to optimize things away in those cases, too. Embedded systems
-> especially will often have MMU=y and BLOCK=n, resulting in SWAP being
-> unset but swap cache encodings still defined.
-> 
-> How about just changing the is_swap_pte() definition to depend on SWAP
-> instead?
-> 
-I think the new feature as "move task charge" itself depends on CONFIG_MMU
-because it walks a process's page table. 
+ A good way to detect this would be checking in badness() if the process has 
+any children with relatively low CPU and real time values (let's say 
+something less than a minute). If yes, the badness score should also account 
+for all these children, recursively. I'm not sure about the exact formula, 
+just summing up the memory usage like it is done now does not fit your 0-1000 
+score idea, and it's also wrong because it doesn't take sharing of memory 
+into consideration (e.g. a KDE app with several kdelibs-based children could 
+achieve a massive score here because of extensive sharing, even though the 
+actual memory usage increase caused by them could be insignificant). I don't 
+know kernel internals, so I don't know how feasible it would be, but one 
+naive idea would be to simply count how big portion of the total memory all 
+these considered processes occupy.
 
-Then, how about this ? (sorry, I can't test this in valid way..)
+ This indeed would not handle the case when a tree of processes would slowly 
+leak, for example there being a bug in Apache and all the forked children of 
+the master process leaking memory equally, but none of the single children 
+leaking enough to score more than a single unrelated innocent process. Here I 
+question how realistic such scenario actually would be, and mainly the actual 
+possibility of detecting such case. I do not see how code could distinguish 
+this from the case of using Konsole or XTerm to launch a number of unrelated 
+KDE/X applications each of which would occupy a considerable amount of 
+memory. Here clearly killing the Konsole/XTerm and all the spawned 
+applications with it is incorrect, so with no obvious offender the OOM killer 
+would simply have to pick something. And since you now probably feel the urge 
+to point out oom_adj again, I want to point out again that it's not a very 
+good solution for the desktop and that Konsole/XTerm should not have such 
+protection, unless the user explicitly does it themselves - e.g. Konsole can 
+be set to infinite scrollback, so when accidentally running something that 
+produces a huge amount of output Konsole actually could be the only right 
+process to kill. So I think the case of slowly leaking group of children 
+cannot be reasonably solved in code.
 
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Now, "move charges at task move" feature depends on page tables. So,
-it doesn't work in !CONIFG_MMU enviroments.
-This patch moves "task move" codes under CONIFG_MMU.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- Documentation/cgroups/memory.txt |    2 ++
- mm/memcontrol.c                  |   39 ++++++++++++++++++++++++++++++++++++---
- 2 files changed, 38 insertions(+), 3 deletions(-)
-
-Index: mmotm-2.6.33-Feb3/Documentation/cgroups/memory.txt
-===================================================================
---- mmotm-2.6.33-Feb3.orig/Documentation/cgroups/memory.txt
-+++ mmotm-2.6.33-Feb3/Documentation/cgroups/memory.txt
-@@ -420,6 +420,8 @@ NOTE2: It is recommended to set the soft
- 
- Users can move charges associated with a task along with task migration, that
- is, uncharge task's pages from the old cgroup and charge them to the new cgroup.
-+This feature is not supporetd in !CONFIG_MMU environmetns because of lack of
-+page tables.
- 
- 8.1 Interface
- 
-Index: mmotm-2.6.33-Feb3/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.33-Feb3.orig/mm/memcontrol.c
-+++ mmotm-2.6.33-Feb3/mm/memcontrol.c
-@@ -20,7 +20,6 @@
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  * GNU General Public License for more details.
-  */
--
- #include <linux/res_counter.h>
- #include <linux/memcontrol.h>
- #include <linux/cgroup.h>
-@@ -2281,6 +2280,7 @@ void mem_cgroup_uncharge_swap(swp_entry_
- 	rcu_read_unlock();
- }
- 
-+#ifdef CONFIG_MMU /* this is used for task_move */
- /**
-  * mem_cgroup_move_swap_account - move swap charge and swap_cgroup's record.
-  * @entry: swap entry to be moved
-@@ -2332,6 +2332,7 @@ static int mem_cgroup_move_swap_account(
- 	}
- 	return -EINVAL;
- }
-+#endif
- #else
- static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
- 		struct mem_cgroup *from, struct mem_cgroup *to, bool need_fixup)
-@@ -3027,6 +3028,7 @@ static u64 mem_cgroup_move_charge_read(s
- 	return mem_cgroup_from_cont(cgrp)->move_charge_at_immigrate;
- }
- 
-+#ifdef CONIFG_MMU
- static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
- 					struct cftype *cft, u64 val)
- {
-@@ -3045,7 +3047,13 @@ static int mem_cgroup_move_charge_write(
- 
- 	return 0;
- }
--
-+#else
-+static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
-+				struct cftype *cft, u64 val)
-+{
-+	return -EINVAL;
-+}
-+#endif
- 
- /* For read statistics */
- enum {
-@@ -3846,6 +3854,7 @@ static int mem_cgroup_populate(struct cg
- 	return ret;
- }
- 
-+#ifdef CONFIG_MMU
- /* Handlers for move charge at task migration. */
- #define PRECHARGE_COUNT_AT_ONCE	256
- static int mem_cgroup_do_precharge(unsigned long count)
-@@ -3901,7 +3910,6 @@ one_by_one:
- 	}
- 	return ret;
- }
--
- /**
-  * is_target_pte_for_mc - check a pte whether it is valid for move charge
-  * @vma: the vma the pte to be checked belongs
-@@ -4243,6 +4251,31 @@ static void mem_cgroup_move_charge(struc
- 	}
- 	up_read(&mm->mmap_sem);
- }
-+#else
-+
-+static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-+	struct cgroup *cgroup,
-+	struct task_struct *p,
-+	bool threadgroup)
-+{
-+	return 0;
-+}
-+
-+static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
-+		struct cgroup *cgroup,
-+		struct task_struct *p,
-+		bool threadgroup)
-+{
-+}
-+
-+static void mem_cgroup_move_charge(struct mm_struct *mm)
-+{
-+}
-+
-+static void mem_cgroup_clear_mc(void)
-+{
-+}
-+#endif
- 
- static void mem_cgroup_move_task(struct cgroup_subsys *ss,
- 				struct cgroup *cont,
+-- 
+ Lubos Lunak
+ openSUSE Boosters team, KDE developer
+ l.lunak@suse.cz , l.lunak@kde.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
