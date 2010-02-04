@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9BE366004A5
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 04:50:56 -0500 (EST)
-Date: Thu, 4 Feb 2010 10:50:50 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: Improving OOM killer
-In-Reply-To: <alpine.DEB.2.00.1002031600490.27918@chino.kir.corp.google.com>
-Message-ID: <alpine.LNX.2.00.1002041044080.15395@pobox.suse.cz>
-References: <201002012302.37380.l.lunak@suse.cz> <20100203170127.GH19641@balbir.in.ibm.com> <alpine.DEB.2.00.1002031021190.14088@chino.kir.corp.google.com> <201002032355.01260.l.lunak@suse.cz> <alpine.DEB.2.00.1002031600490.27918@chino.kir.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A82AD6B0082
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 08:01:10 -0500 (EST)
+Date: Thu, 4 Feb 2010 21:00:56 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 01/11] readahead: limit readahead size for small devices
+Message-ID: <20100204130056.GB25905@localhost>
+References: <20100202152835.683907822@intel.com> <20100202153316.375570078@intel.com> <4B6A8455.5010403@ladisch.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B6A8455.5010403@ladisch.de>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lubos Lunak <l.lunak@suse.cz>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: Clemens Ladisch <clemens@ladisch.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Feb 2010, David Rientjes wrote:
+Clemens,
 
-> > > 		/* Forkbombs get penalized 10% of available RAM */
-> > > 		if (forkcount > 500)
-> > > 			points += 100;
-> > 
-> >  As far as I'm concerned, this is a huge improvement over the current code 
-> > (and, incidentally :), quite close to what I originally wanted). I'd be 
-> > willing to test it in few real-world desktop cases if you provide a patch.
-[ ... ]
-> Do you have any comments about the forkbomb detector or its threshold that 
-> I've put in my heuristic?  I think detecting these scenarios is still an 
-> important issue that we need to address instead of simply removing it from 
-> consideration entirely.
+Thanks for the data!
 
-Why does OOM killer care about forkbombs *at all*?
+On Thu, Feb 04, 2010 at 04:24:53PM +0800, Clemens Ladisch wrote:
+> Wu Fengguang wrote:
+> > Anyone has 512/128MB USB stick?
+> 
+> 64 MB, USB full speed:
+> Bus 003 Device 003: ID 08ec:0011 M-Systems Flash Disk Pioneers DiskOnKey
+> 
+> 4KB:    139.339 s, 376 kB/s
+> 16KB:   81.0427 s, 647 kB/s
+> 32KB:   71.8513 s, 730 kB/s
+> 64KB:   67.3872 s, 778 kB/s
+> 128KB:  67.5434 s, 776 kB/s
+> 256KB:  65.9019 s, 796 kB/s
+> 512KB:  66.2282 s, 792 kB/s
+> 1024KB: 67.4632 s, 777 kB/s
+> 2048KB: 69.9759 s, 749 kB/s
 
-If we really want kernel to detect forkbombs (*), we'd have to establish 
-completely separate infrastructure for that (with its own knobs for tuning 
-and possibilities of disabling it completely).
-
-The task of OOM killer is to find the process that caused the system 
-to run out of memory, and wipe it, it's as simple as that.
-
-The connection to forkbombs seems to be so loose that I don't see it.
-
-(*) How is forkbomb even defined? Where does the magic constant in 
-'forkcount > 500' come from? If your aim is to penalize server processes 
-on very loaded web/database servers, then this is probably correct 
-aproach. Otherwise, I don't seem to see the point.
+It seems to reach good throughput at 64KB readahead size :)
 
 Thanks,
-
--- 
-Jiri Kosina
-SUSE Labs, Novell Inc.
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
