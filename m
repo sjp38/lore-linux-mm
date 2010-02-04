@@ -1,56 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 972816B004D
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 11:43:15 -0500 (EST)
-Date: Thu, 4 Feb 2010 10:42:53 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC] slub: ARCH_SLAB_MINALIGN defaults to 8 on x86_32. is this
- too big?
-In-Reply-To: <1265217903.2118.86.camel@localhost>
-Message-ID: <alpine.DEB.2.00.1002041019300.28165@router.home>
-References: <1265206946.2118.57.camel@localhost>  <alpine.DEB.2.00.1002030932480.5671@router.home> <1265217903.2118.86.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E204D6B004D
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 12:22:17 -0500 (EST)
+Message-Id: <20100204171518.111950133@linux.site>
+Date: Thu, 04 Feb 2010 09:12:24 -0800
+From: Greg KH <gregkh@suse.de>
+Subject: [53/74] mm: percpu-vmap fix RCU list walking
+In-Reply-To: <20100204171850.GA16539@kroah.com>
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: penberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, stable@kernel.org
+Cc: stable-review@kernel.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Feb 2010, Richard Kennedy wrote:
+2.6.32-stable review patch.  If anyone has any objections, please let us know.
 
-> gives me this output :-
-> 32 bit : size = 12 , offset of l = 4
-> 64 bit : size = 16 , offset of l = 8
->
-> Doesn't that suggest that it would be safe to use sizeof(void *) ?
-> (at least on x86 anyway).
+------------------
 
-Maybe. But the rule of thumb is to align objects by their size which we
-would be violating.
+From: Nick Piggin <npiggin@suse.de>
 
-A 64 bit object may span multiple cachelines if aligned to a 32 bit
-boundary. Which may result in nasty surprise because the object can no
-longer be read and written from memory in an atomic way. If there is
-a guarantee that no 64 bit operation ever occurs then it may be
-fine.
+commit de5604231ce4bc8db1bc1dcd27d8540cbedf1518 upstream.
 
-Fetching a 64 bit object that straddles a cacheline boundary also requires
-2 fetches instead of one to read the object which can increase the
-cache footprint of functions accessing the structure.
+RCU list walking of the per-cpu vmap cache was broken.  It did not use
+RCU primitives, and also the union of free_list and rcu_head is
+obviously wrong (because free_list is indeed the list we are RCU
+walking).
 
-Slab allocators (aside from SLOB which is rarely used) assume the minimal
-alignment to be sizeof(unsigned long long).
+While we are there, remove a couple of unused fields from an earlier
+iteration.
 
-> We end up with a large number of buffer_heads and as they are pretty
-> small an extra 4 bytes does make a significant difference.
-> On my 64 bit machine I often see thousands of pages of buffer_heads, so
-> squeezing a few more per page could be a considerable saving.
+These APIs aren't actually used anywhere, because of problems with the
+XFS conversion.  Christoph has now verified that the problems are solved
+with these patches.  Also it is an exported interface, so I think it
+will be good to be merged now (and Christoph wants to get the XFS
+changes into their local tree).
 
-On your 64 bit machine you wont be able to do the optimization that you
-are talking about.
+Cc: linux-mm@kvack.org
+Tested-by: Christoph Hellwig <hch@infradead.org>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
 
-The buffer head structure is already fairly big so this wont make too much
-of a difference.
+---
+ mm/vmalloc.c |   20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)
+
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -667,8 +667,6 @@ static bool vmap_initialized __read_most
+ struct vmap_block_queue {
+ 	spinlock_t lock;
+ 	struct list_head free;
+-	struct list_head dirty;
+-	unsigned int nr_dirty;
+ };
+ 
+ struct vmap_block {
+@@ -678,10 +676,8 @@ struct vmap_block {
+ 	unsigned long free, dirty;
+ 	DECLARE_BITMAP(alloc_map, VMAP_BBMAP_BITS);
+ 	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
+-	union {
+-		struct list_head free_list;
+-		struct rcu_head rcu_head;
+-	};
++	struct list_head free_list;
++	struct rcu_head rcu_head;
+ };
+ 
+ /* Queue of free and dirty vmap blocks, for allocation and flushing purposes */
+@@ -757,7 +753,7 @@ static struct vmap_block *new_vmap_block
+ 	vbq = &get_cpu_var(vmap_block_queue);
+ 	vb->vbq = vbq;
+ 	spin_lock(&vbq->lock);
+-	list_add(&vb->free_list, &vbq->free);
++	list_add_rcu(&vb->free_list, &vbq->free);
+ 	spin_unlock(&vbq->lock);
+ 	put_cpu_var(vmap_cpu_blocks);
+ 
+@@ -776,8 +772,6 @@ static void free_vmap_block(struct vmap_
+ 	struct vmap_block *tmp;
+ 	unsigned long vb_idx;
+ 
+-	BUG_ON(!list_empty(&vb->free_list));
+-
+ 	vb_idx = addr_to_vb_idx(vb->va->va_start);
+ 	spin_lock(&vmap_block_tree_lock);
+ 	tmp = radix_tree_delete(&vmap_block_tree, vb_idx);
+@@ -816,7 +810,7 @@ again:
+ 			vb->free -= 1UL << order;
+ 			if (vb->free == 0) {
+ 				spin_lock(&vbq->lock);
+-				list_del_init(&vb->free_list);
++				list_del_rcu(&vb->free_list);
+ 				spin_unlock(&vbq->lock);
+ 			}
+ 			spin_unlock(&vb->lock);
+@@ -860,11 +854,11 @@ static void vb_free(const void *addr, un
+ 	BUG_ON(!vb);
+ 
+ 	spin_lock(&vb->lock);
+-	bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order);
++	BUG_ON(bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order));
+ 
+ 	vb->dirty += 1UL << order;
+ 	if (vb->dirty == VMAP_BBMAP_BITS) {
+-		BUG_ON(vb->free || !list_empty(&vb->free_list));
++		BUG_ON(vb->free);
+ 		spin_unlock(&vb->lock);
+ 		free_vmap_block(vb);
+ 	} else
+@@ -1033,8 +1027,6 @@ void __init vmalloc_init(void)
+ 		vbq = &per_cpu(vmap_block_queue, i);
+ 		spin_lock_init(&vbq->lock);
+ 		INIT_LIST_HEAD(&vbq->free);
+-		INIT_LIST_HEAD(&vbq->dirty);
+-		vbq->nr_dirty = 0;
+ 	}
+ 
+ 	/* Import existing vmlist entries. */
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
