@@ -1,85 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F9726B0047
-	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 17:53:42 -0500 (EST)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id o14Mrcrv011748
-	for <linux-mm@kvack.org>; Thu, 4 Feb 2010 22:53:39 GMT
-Received: from pzk17 (pzk17.prod.google.com [10.243.19.145])
-	by wpaz13.hot.corp.google.com with ESMTP id o14MrQdx027774
-	for <linux-mm@kvack.org>; Thu, 4 Feb 2010 14:53:37 -0800
-Received: by pzk17 with SMTP id 17so3142660pzk.6
-        for <linux-mm@kvack.org>; Thu, 04 Feb 2010 14:53:37 -0800 (PST)
-Date: Thu, 4 Feb 2010 14:53:32 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Improving OOM killer
-In-Reply-To: <201002042331.34086.elendil@planet.nl>
-Message-ID: <alpine.DEB.2.00.1002041435200.19721@chino.kir.corp.google.com>
-References: <201002012302.37380.l.lunak@suse.cz> <20100203170127.GH19641@balbir.in.ibm.com> <alpine.DEB.2.00.1002031021190.14088@chino.kir.corp.google.com> <201002032355.01260.l.lunak@suse.cz> <alpine.DEB.2.00.1002031600490.27918@chino.kir.corp.google.com>
- <4B6A1241.60009@redhat.com> <4B6A1241.60009@redhat.com> <alpine.DEB.2.00.1002041339220.6071@chino.kir.corp.google.com> <201002042331.34086.elendil@planet.nl>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0C7BE6B0047
+	for <linux-mm@kvack.org>; Thu,  4 Feb 2010 19:43:02 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o150gxfq014638
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 5 Feb 2010 09:42:59 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 382BA45DE50
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2010 09:42:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 18C5245DE4E
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2010 09:42:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 006B81DB803B
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2010 09:42:59 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B13BE1DB8037
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2010 09:42:58 +0900 (JST)
+Date: Fri, 5 Feb 2010 09:39:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH] memcg: fix oom killer kills a task in other cgroup
+Message-Id: <20100205093932.1dcdeb5f.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: Rik van Riel <riel@redhat.com>, l.lunak@suse.cz, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, jkosina@suse.cz
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Feb 2010, Frans Pop wrote:
+Please take this patch in different context with recent discussion.
+This is a quick-fix for a terrible bug.
 
-> Shouldn't fork bomb detection take into account the age of children?
-> After all, long running processes with a lot of long running children are 
-> rather unlikely to be runaway fork _bombs_.
-> 
+This patch itself is against mmotm but can be easily applied to mainline or
+stable tree, I think. (But I don't CC stable tree until I get ack.)
 
-Yeah, Lubos mentioned using cpu time as a requirement, in addition to the 
-already existing child->mm != parent->mm, as a prerequisite to be added 
-into the tally to check the forkbomb threshold.  I think something like 
-this would be appropriate:
+==
+Now, oom-killer kills process's chidlren at first. But this means
+a child in other cgroup can be killed. But it's not checked now.
 
-	struct task_cputime task_time;
-	int forkcount = 0;
-	int child_rss = 0;
+This patch fixes that.
 
-	...
+CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/oom_kill.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-	list_for_each_entry(child, &p->children, sibling) {
-		unsigned long runtime;
-
-		task_lock(child);
-		if (!child->mm || child->mm == p->mm) {
-			task_unlock(child);
-			continue;
-		}
-		thread_group_cputime(child, &task_time);
-		runtime = cputime_to_jiffies(task_time.utime) +
-				cputime_to_jiffies(task_time.stime);
-
-		/*
-		 * Only threads that have run for less than a second are
-		 * considered toward the forkbomb, these threads rarely
-		 * get to execute at all in such cases anyway.
-		 */
-		if (runtime < HZ) {
-			task_unlock(child);
-			continue;
-		}
-		child_rss += get_mm_rss(child->mm);
-		forkcount++;
-	}
-
-	if (forkcount > sysctl_oom_forkbomb_thres) {
-		/*
-		 * Penalize forkbombs by considering the average rss and
-		 * how many factors we are over the threshold.
-		 */
-		points += child_rss / sysctl_oom_forkbomb_thres;
-	}
-
-I changed the calculation from lowest child rss to average child rss, so 
-this is functionally equivalent to
-
-(average rss size of children) * (# of first-generated execve children) /
-			sysctl_oom_forkbomb_thres
+Index: mmotm-2.6.33-Feb03/mm/oom_kill.c
+===================================================================
+--- mmotm-2.6.33-Feb03.orig/mm/oom_kill.c
++++ mmotm-2.6.33-Feb03/mm/oom_kill.c
+@@ -459,6 +459,9 @@ static int oom_kill_process(struct task_
+ 	list_for_each_entry(c, &p->children, sibling) {
+ 		if (c->mm == p->mm)
+ 			continue;
++		/* Children may be in other cgroup */
++		if (mem && !task_in_mem_cgroup(c, mem))
++			continue;
+ 		if (!oom_kill_task(c))
+ 			return 0;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
