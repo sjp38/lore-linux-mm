@@ -1,112 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 82D3F6B0047
-	for <linux-mm@kvack.org>; Fri,  5 Feb 2010 16:29:16 -0500 (EST)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id o15LTDmf002206
-	for <linux-mm@kvack.org>; Fri, 5 Feb 2010 13:29:13 -0800
-Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
-	by kpbe15.cbf.corp.google.com with ESMTP id o15LSR7t014116
-	for <linux-mm@kvack.org>; Fri, 5 Feb 2010 13:29:12 -0800
-Received: by pxi5 with SMTP id 5so4791384pxi.12
-        for <linux-mm@kvack.org>; Fri, 05 Feb 2010 13:29:09 -0800 (PST)
-Date: Fri, 5 Feb 2010 13:29:07 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F7AC6B0047
+	for <linux-mm@kvack.org>; Fri,  5 Feb 2010 16:40:29 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id o15LeTH3026188
+	for <linux-mm@kvack.org>; Fri, 5 Feb 2010 21:40:29 GMT
+Received: from pzk11 (pzk11.prod.google.com [10.243.19.139])
+	by kpbe17.cbf.corp.google.com with ESMTP id o15LeRck024295
+	for <linux-mm@kvack.org>; Fri, 5 Feb 2010 13:40:27 -0800
+Received: by pzk11 with SMTP id 11so1003880pzk.32
+        for <linux-mm@kvack.org>; Fri, 05 Feb 2010 13:40:27 -0800 (PST)
+Date: Fri, 5 Feb 2010 13:40:21 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] [3/4] SLAB: Separate node initialization into separate
- function
-In-Reply-To: <20100203213914.D8654B1620@basil.firstfloor.org>
-Message-ID: <alpine.DEB.2.00.1002051324370.2376@chino.kir.corp.google.com>
-References: <201002031039.710275915@firstfloor.org> <20100203213914.D8654B1620@basil.firstfloor.org>
+Subject: Re: [PATCH 2/7] Export unusable free space index via
+ /proc/pagetypeinfo
+In-Reply-To: <20100205102349.GB20412@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1002051336360.12934@chino.kir.corp.google.com>
+References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001281411290.30252@chino.kir.corp.google.com> <20100205102349.GB20412@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: submit@firstfloor.org, linux-kernel@vger.kernel.org, haicheng.li@intel.com, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Feb 2010, Andi Kleen wrote:
+On Fri, 5 Feb 2010, Mel Gorman wrote:
 
+> > > +	/*
+> > > +	 * Index should be a value between 0 and 1. Return a value to 3
+> > > +	 * decimal places.
+> > > +	 *
+> > > +	 * 0 => no fragmentation
+> > > +	 * 1 => high fragmentation
+> > > +	 */
+> > > +	return ((info->free_pages - (info->free_blocks_suitable << order)) * 1000) / info->free_pages;
+> > > +
+> > 
+> > This value is only for userspace consumption via /proc/pagetypeinfo, so 
+> > I'm wondering why it needs to be exported as an index.  Other than a loss 
+> > of precision, wouldn't this be easier to understand (especially when 
+> > coupled with the free page counts already exported) if it were multipled 
+> > by 100 rather than 1000 and shown as a percent of _usable_ free memory at 
+> > each order? 
 > 
-> No functional changes.
+> I find it easier to understand either way, but that's hardly a surprise.
+> The 1000 is because of the loss of precision. I can make it a 100 but I
+> don't think it makes much of a difference.
 > 
-> Needed for next patch.
-> 
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> 
-> ---
->  mm/slab.c |   34 +++++++++++++++++++++-------------
->  1 file changed, 21 insertions(+), 13 deletions(-)
-> 
-> Index: linux-2.6.33-rc3-ak/mm/slab.c
-> ===================================================================
-> --- linux-2.6.33-rc3-ak.orig/mm/slab.c
-> +++ linux-2.6.33-rc3-ak/mm/slab.c
-> @@ -1171,19 +1171,9 @@ free_array_cache:
->  	}
->  }
->  
-> -static int __cpuinit cpuup_prepare(long cpu)
-> +static int slab_node_prepare(int node)
->  {
->  	struct kmem_cache *cachep;
-> -	struct kmem_list3 *l3 = NULL;
-> -	int node = cpu_to_node(cpu);
-> -	const int memsize = sizeof(struct kmem_list3);
-> -
-> -	/*
-> -	 * We need to do this right in the beginning since
-> -	 * alloc_arraycache's are going to use this list.
-> -	 * kmalloc_node allows us to add the slab to the right
-> -	 * kmem_list3 and not this cpu's kmem_list3
-> -	 */
->  
->  	list_for_each_entry(cachep, &cache_chain, next) {
->  		/*
 
-As Christoph mentioned, this patch is out of order with the previous one 
-in the series; slab_node_prepare() is called in that previous patch by a 
-memory hotplug callback without holding cache_chain_mutex (it's taken by 
-the cpu hotplug callback prior to calling cpuup_prepare() currently).  So 
-slab_node_prepare() should note that we require the mutex and the memory 
-hotplug callback should take it in the previous patch.
-
-> @@ -1192,9 +1182,10 @@ static int __cpuinit cpuup_prepare(long
->  		 * node has not already allocated this
->  		 */
->  		if (!cachep->nodelists[node]) {
-> -			l3 = kmalloc_node(memsize, GFP_KERNEL, node);
-> +			struct kmem_list3 *l3;
-> +			l3 = kmalloc_node(sizeof(struct kmem_list3), GFP_KERNEL, node);
->  			if (!l3)
-> -				goto bad;
-> +				return -1;
->  			kmem_list3_init(l3);
->  			l3->next_reap = jiffies + REAPTIMEOUT_LIST3 +
->  			    ((unsigned long)cachep) % REAPTIMEOUT_LIST3;
-> @@ -1213,6 +1204,23 @@ static int __cpuinit cpuup_prepare(long
->  			cachep->batchcount + cachep->num;
->  		spin_unlock_irq(&cachep->nodelists[node]->list_lock);
->  	}
-> +	return 0;
-> +}
-> +
-> +static int __cpuinit cpuup_prepare(long cpu)
-> +{
-> +	struct kmem_cache *cachep;
-> +	struct kmem_list3 *l3 = NULL;
-> +	int node = cpu_to_node(cpu);
-> +
-> +	/*
-> +	 * We need to do this right in the beginning since
-> +	 * alloc_arraycache's are going to use this list.
-> +	 * kmalloc_node allows us to add the slab to the right
-> +	 * kmem_list3 and not this cpu's kmem_list3
-> +	 */
-> +	if (slab_node_prepare(node) < 0)
-> +		goto bad;
->  
->  	/*
->  	 * Now we can go ahead with allocating the shared arrays and
+This suggestion was coupled with the subsequent note that there is no 
+documentation of what "unusuable free space index" is, except by the 
+implementation itself.  Since the value isn't used by the kernel,  I think 
+exporting the value as a percent would be easier understood by the user 
+without looking up the semantics.  I don't have strong feelings either 
+way, however.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
