@@ -1,44 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 882546B0078
-	for <linux-mm@kvack.org>; Sat,  6 Feb 2010 04:55:26 -0500 (EST)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id o169tMSp017066
-	for <linux-mm@kvack.org>; Sat, 6 Feb 2010 09:55:23 GMT
-Received: from pzk29 (pzk29.prod.google.com [10.243.19.157])
-	by wpaz33.hot.corp.google.com with ESMTP id o169tKxP002201
-	for <linux-mm@kvack.org>; Sat, 6 Feb 2010 01:55:21 -0800
-Received: by pzk29 with SMTP id 29so5258612pzk.17
-        for <linux-mm@kvack.org>; Sat, 06 Feb 2010 01:55:20 -0800 (PST)
-Date: Sat, 6 Feb 2010 01:55:19 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] [3/4] SLAB: Separate node initialization into separate
- function
-In-Reply-To: <20100206072746.GP29555@one.firstfloor.org>
-Message-ID: <alpine.DEB.2.00.1002060153250.17897@chino.kir.corp.google.com>
-References: <201002031039.710275915@firstfloor.org> <20100203213914.D8654B1620@basil.firstfloor.org> <alpine.DEB.2.00.1002051324370.2376@chino.kir.corp.google.com> <20100206072746.GP29555@one.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A61886B0047
+	for <linux-mm@kvack.org>; Sat,  6 Feb 2010 10:56:32 -0500 (EST)
+Date: Sat, 6 Feb 2010 16:56:24 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [1/4] SLAB: Handle node-not-up case in fallback_alloc()
+Message-ID: <20100206155624.GA2777@one.firstfloor.org>
+References: <201002031039.710275915@firstfloor.org> <20100203213912.D3081B1620@basil.firstfloor.org> <alpine.DEB.2.00.1002051251390.2376@chino.kir.corp.google.com> <20100206072508.GN29555@one.firstfloor.org> <alpine.DEB.2.00.1002060148300.17897@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1002060148300.17897@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: submit@firstfloor.org, linux-kernel@vger.kernel.org, haicheng.li@intel.com, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andi Kleen <andi@firstfloor.org>, submit@firstfloor.org, linux-kernel@vger.kernel.org, haicheng.li@intel.com, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 Feb 2010, Andi Kleen wrote:
+> If a hot-added node has not been initialized for the cache, your code is 
+> picking an existing one in zonelist order which may be excluded by 
+> current's cpuset.  Thus, your code has a very real chance of having 
+> kmem_getpages() return NULL because get_page_from_freelist() will reject 
+> non-atomic ALLOC_CPUSET allocations for prohibited nodes.  That isn't a 
+> scenario that requires a "funny cpuset," it just has to not allow whatever 
+> initialized node comes first in the zonelist.
 
-> > in the series; slab_node_prepare() is called in that previous patch by a 
-> > memory hotplug callback without holding cache_chain_mutex (it's taken by 
-> > the cpu hotplug callback prior to calling cpuup_prepare() currently).  So 
-> > slab_node_prepare() should note that we require the mutex and the memory 
-> > hotplug callback should take it in the previous patch.
-> 
-> AFAIK the code is correct. If you feel the need for additional
-> documentation feel free to send patches yourself.
-> 
+The point was that you would need to run whoever triggers the memory
+hotadd in a cpuset with limitations. That would be a clear
+don't do that if hurts(tm)
+ 
+> My suggested alternative does not pick a single initialized node, rather 
+> it tries all nodes that actually have a chance of having kmem_getpages() 
+> succeed which increases the probability that your patch actually has an 
+> effect for cpuset users.
 
-Documentation?  You're required to take cache_chain_mutex before calling 
-slab_node_prepare() in your memory hotplug notifier, it iterates 
-cache_chain.  Please look again.
+cpuset users are unlikely to trigger memory hotadds from inside limiting
+cpusets. Typically that's done from udev etc.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
