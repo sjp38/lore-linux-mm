@@ -1,77 +1,122 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 04/11] readahead: introduce {MAX|MIN}_READAHEAD_PAGES macros for ease of use
-Date: Sun, 07 Feb 2010 12:10:17 +0800
-Message-ID: <20100207041043.286260529@intel.com>
+Subject: [PATCH 02/11] readahead: retain inactive lru pages to be accessed soon
+Date: Sun, 07 Feb 2010 12:10:15 +0800
+Message-ID: <20100207041042.996584378@intel.com>
 References: <20100207041013.891441102@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NdyXr-0000mS-3Z
-	for glkm-linux-mm-2@m.gmane.org; Sun, 07 Feb 2010 05:14:51 +0100
+	id 1NdyXu-0000np-Mz
+	for glkm-linux-mm-2@m.gmane.org; Sun, 07 Feb 2010 05:14:55 +0100
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2B19D62000F
+	by kanga.kvack.org (Postfix) with SMTP id 37FB562000E
 	for <linux-mm@kvack.org>; Sat,  6 Feb 2010 23:14:18 -0500 (EST)
-Content-Disposition: inline; filename=readahead-min-max-pages.patch
+Content-Disposition: inline; filename=readahead-retain-pages-find_get_page.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Chris Frost <frost@cs.ucla.edu>, Steve VanDeBogart <vandebo@cs.ucla.edu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
+From: Chris Frost <frost@cs.ucla.edu>
+
+Ensure that cached pages in the inactive list are not prematurely evicted;
+move such pages to lru head when they are covered by
+- in-kernel heuristic readahead
+- an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
+
+Before this patch, pages already in core may be evicted before the
+pages covered by the same prefetch scan but that were not yet in core.
+Many small read requests may be forced on the disk because of this
+behavior.
+
+In particular, posix_fadvise(... POSIX_FADV_WILLNEED) on an in-core page
+has no effect on the page's location in the LRU list, even if it is the
+next victim on the inactive list.
+
+This change helps address the performance problems we encountered
+while modifying SQLite and the GIMP to use large file prefetching.
+Overall these prefetching techniques improved the runtime of large
+benchmarks by 10-17x for these applications. More in the publication
+_Reducing Seek Overhead with Application-Directed Prefetching_ in
+USENIX ATC 2009 and at http://libprefetch.cs.ucla.edu/.
+
+Signed-off-by: Chris Frost <frost@cs.ucla.edu>
+Signed-off-by: Steve VanDeBogart <vandebo@cs.ucla.edu>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- block/blk-core.c   |    3 +--
- fs/fuse/inode.c    |    2 +-
- include/linux/mm.h |    3 +++
- mm/backing-dev.c   |    2 +-
- 4 files changed, 6 insertions(+), 4 deletions(-)
+ mm/readahead.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
 
---- linux.orig/block/blk-core.c	2010-01-30 17:38:48.000000000 +0800
-+++ linux/block/blk-core.c	2010-01-30 18:10:01.000000000 +0800
-@@ -498,8 +498,7 @@ struct request_queue *blk_alloc_queue_no
+--- linux.orig/mm/readahead.c	2010-02-01 10:18:57.000000000 +0800
++++ linux/mm/readahead.c	2010-02-01 10:20:51.000000000 +0800
+@@ -9,7 +9,9 @@
  
- 	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
- 	q->backing_dev_info.unplug_io_data = q;
--	q->backing_dev_info.ra_pages =
--			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-+	q->backing_dev_info.ra_pages = MAX_READAHEAD_PAGES;
- 	q->backing_dev_info.state = 0;
- 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
- 	q->backing_dev_info.name = "block";
---- linux.orig/fs/fuse/inode.c	2010-01-30 17:38:48.000000000 +0800
-+++ linux/fs/fuse/inode.c	2010-01-30 18:10:01.000000000 +0800
-@@ -870,7 +870,7 @@ static int fuse_bdi_init(struct fuse_con
- 	int err;
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
++#include <linux/memcontrol.h>
+ #include <linux/mm.h>
++#include <linux/mm_inline.h>
+ #include <linux/module.h>
+ #include <linux/blkdev.h>
+ #include <linux/backing-dev.h>
+@@ -133,6 +135,40 @@ out:
+ }
  
- 	fc->bdi.name = "fuse";
--	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-+	fc->bdi.ra_pages = MAX_READAHEAD_PAGES;
- 	fc->bdi.unplug_io_fn = default_unplug_io_fn;
- 	/* fuse does it's own writeback accounting */
- 	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
---- linux.orig/include/linux/mm.h	2010-01-30 18:09:58.000000000 +0800
-+++ linux/include/linux/mm.h	2010-01-30 18:10:01.000000000 +0800
-@@ -1187,6 +1187,9 @@ void task_dirty_inc(struct task_struct *
- #define VM_MAX_READAHEAD	512	/* kbytes */
- #define VM_MIN_READAHEAD	32	/* kbytes (includes current page) */
- 
-+#define MAX_READAHEAD_PAGES (VM_MAX_READAHEAD*1024 / PAGE_CACHE_SIZE)
-+#define MIN_READAHEAD_PAGES DIV_ROUND_UP(VM_MIN_READAHEAD*1024, PAGE_CACHE_SIZE)
+ /*
++ * The file range is expected to be accessed in near future.  Move pages
++ * (possibly in inactive lru tail) to lru head, so that they are retained
++ * in memory for some reasonable time.
++ */
++static void retain_inactive_pages(struct address_space *mapping,
++				  pgoff_t index, int len)
++{
++	int i;
++	struct page *page;
++	struct zone *zone;
 +
- int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 			pgoff_t offset, unsigned long nr_to_read);
++	for (i = 0; i < len; i++) {
++		page = find_get_page(mapping, index + i);
++		if (!page)
++			continue;
++
++		zone = page_zone(page);
++		spin_lock_irq(&zone->lru_lock);
++
++		if (PageLRU(page) &&
++		    !PageActive(page) &&
++		    !PageUnevictable(page)) {
++			int lru = page_lru_base_type(page);
++
++			del_page_from_lru_list(zone, page, lru);
++			add_page_to_lru_list(zone, page, lru);
++		}
++
++		spin_unlock_irq(&zone->lru_lock);
++		put_page(page);
++	}
++}
++
++/*
+  * __do_page_cache_readahead() actually reads a chunk of disk.  It allocates all
+  * the pages first, then submits them all for I/O. This avoids the very bad
+  * behaviour which would occur if page allocations are causing VM writeback.
+@@ -184,6 +220,14 @@ __do_page_cache_readahead(struct address
+ 	}
  
---- linux.orig/mm/backing-dev.c	2010-01-30 17:38:48.000000000 +0800
-+++ linux/mm/backing-dev.c	2010-01-30 18:10:01.000000000 +0800
-@@ -18,7 +18,7 @@ EXPORT_SYMBOL(default_unplug_io_fn);
- 
- struct backing_dev_info default_backing_dev_info = {
- 	.name		= "default",
--	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
-+	.ra_pages	= MAX_READAHEAD_PAGES,
- 	.state		= 0,
- 	.capabilities	= BDI_CAP_MAP_COPY,
- 	.unplug_io_fn	= default_unplug_io_fn,
+ 	/*
++	 * Normally readahead will auto stop on cached segments, so we won't
++	 * hit many cached pages. If it does happen, bring the inactive pages
++	 * adjecent to the newly prefetched ones(if any).
++	 */
++	if (ret < nr_to_read)
++		retain_inactive_pages(mapping, offset, page_idx);
++
++	/*
+ 	 * Now start the IO.  We ignore I/O errors - if the page is not
+ 	 * uptodate then the caller will launch readpage again, and
+ 	 * will then handle the error.
 
 
 --
