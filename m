@@ -1,81 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 32BF06B0047
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 14:20:56 -0500 (EST)
-Date: Mon, 8 Feb 2010 11:18:52 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 15214] New: Oops at __rmqueue+0x51/0x2b3
-Message-Id: <20100208111852.a0ada2b4.akpm@linux-foundation.org>
-In-Reply-To: <20100208101045.GA23680@csn.ul.ie>
-References: <bug-15214-10286@http.bugzilla.kernel.org/>
-	<20100203143921.f2c96e8c.akpm@linux-foundation.org>
-	<20100205112000.GD20412@csn.ul.ie>
-	<201002071335.03984.ajlill@ajlc.waterloo.on.ca>
-	<20100208101045.GA23680@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D6DF66B0047
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 17:56:29 -0500 (EST)
+Date: Mon, 8 Feb 2010 14:56:05 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH] Fix for
+ hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions.patch
+ in -mm
+Message-Id: <20100208145605.5eea30b5.randy.dunlap@oracle.com>
+In-Reply-To: <Pine.LNX.4.64.0909152146470.25625@sister.anvils>
+References: <1252487811-9205-1-git-send-email-ebmunson@us.ibm.com>
+	<1253011613-6429-1-git-send-email-ebmunson@us.ibm.com>
+	<Pine.LNX.4.64.0909152146470.25625@sister.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Tony Lill <ajlill@ajlc.waterloo.on.ca>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Eric B Munson <ebmunson@us.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, Arnd Bergman <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Feb 2010 10:10:46 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Tue, 15 Sep 2009 21:53:12 +0100 (BST) Hugh Dickins wrote:
 
-> On Sun, Feb 07, 2010 at 01:34:58PM -0500, Tony Lill wrote:
-> > On Friday 05 February 2010 06:20:00 Mel Gorman wrote:
-> > > On Wed, Feb 03, 2010 at 02:39:21PM -0800, Andrew Morton wrote:
-> > > > > gcc (GCC) 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)
-> > > 
-> > > This is a bit of a reach, but how confident are you that this version of
-> > > gcc is building kernels correctly?
-> > >
-> > > There are a few disconnected reports of kernel problems with this
-> > > particular version of gcc although none that I can connect with this
-> > > problem or on x86 for that matter. One example is
-> > > 
-> > > http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=536354
-> > > 
-> > > which reported problems building kernels on the s390 with that compiler.
-> > > Moving to 4.2 helped them and it *should* have been fixed according to
-> > > this bug
-> > > 
-> > > http://bugzilla.kernel.org/show_bug.cgi?id=13012
-> > > 
-> > > It might be a red herring, but just to be sure, would you mind trying
-> > > gcc 4.2 or 4.3 just to be sure please?
+> On Tue, 15 Sep 2009, Eric B Munson wrote:
+> > Resending because this seems to have fallen between the cracks.
+> 
+> Yes, indeed.  I think it isn't quite what Arnd was suggesting, but I
+> agree with you that we might as well go for 0x080000 (so that even Alpha
+> can be just a cut-and-paste job from asm-generic), and right now it's
+> more important to finalize the number than what file it appears in.
+> 
+> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+
+so what happened with this patch ??
+
 > > 
-> > Well, it was producing working kernels up until 2.6.30, but I recompiled with
-> > gcc (Debian 4.3.2-1.1) 4.3.2
-> > and the box has been running nearly 48 hour without incident. My previous 
-> > record was 2. So I guess we can put this down to a new compiler bug.
+> > The patch
+> > hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions.patch
+> > used the value 0x40 for MAP_HUGETLB which is the same value used for
+> > various other flags on some architectures.  This collision causes
+> > unexpected use of huge pages in the best case and mmap to fail with
+> > ENOMEM or ENOSYS in the worst.  This patch changes the value for
+> > MAP_HUGETLB to a value that is not currently used on any arch.
 > > 
-> 
-> Well, it's great the problem source is known but pinning down compiler bugs
-> is a bit of a pain. Andrew, I don't recall an easy-as-in-bisection-easy
-> means of identifying which part of the compile unit went wrong and why so
-> it can be marked with #error for known broken compilers. Is there one or is
-> it a case of asking for two objdumps of __rmqueue and making a stab at it?
+> > This patch should be considered a fix to
+> > hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions.patch.
+> > 
+> > Reported-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> > Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+> > ---
+> >  include/asm-generic/mman-common.h |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+> > index 12f5982..e6adb68 100644
+> > --- a/include/asm-generic/mman-common.h
+> > +++ b/include/asm-generic/mman-common.h
+> > @@ -19,7 +19,7 @@
+> >  #define MAP_TYPE	0x0f		/* Mask for type of mapping */
+> >  #define MAP_FIXED	0x10		/* Interpret addr exactly */
+> >  #define MAP_ANONYMOUS	0x20		/* don't use a file */
+> > -#define MAP_HUGETLB	0x40		/* create a huge page mapping */
+> > +#define MAP_HUGETLB	0x080000	/* create a huge page mapping */
+> >  
+> >  #define MS_ASYNC	1		/* sync memory asynchronously */
+> >  #define MS_INVALIDATE	2		/* invalidate the caches */
+> > -- 
 
-ugh.  This is pretty rare.
-
-Probably the best strategy is to generate the two page_alloc.s files,
-fish out the __rmqueue part and then try to compare them.  The key
-part is to Cc Linus then thrash around stupidly for long enough for him
-to take pity and find the bug for you.
-
-> > I probably should have checked this before reporting a bug. Mea culpa
-> 
-> Not at all. Miscompiles like this are rare and usually caught a lot quicker
-> than this. If you hadn't reported the problem with  two different machines,
-> I would have blamed hardware and asked for a memtest. The only reason I
-> spotted this might be a compiler was because the type of error you reported
-> "couldn't happen".
-> 
-> Thanks for reporting and testing.
-
-Yup.
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
