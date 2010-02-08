@@ -1,171 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B48586B0047
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 08:43:21 -0500 (EST)
-Date: Mon, 8 Feb 2010 21:43:08 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1FFA76B0078
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 08:46:47 -0500 (EST)
+Date: Mon, 8 Feb 2010 21:46:34 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 05/11] readahead: replace ra->mmap_miss with
-	ra->ra_flags
-Message-ID: <20100208134308.GA19019@localhost>
-References: <20100207041013.891441102@intel.com> <20100207041043.429863034@intel.com> <20100208081918.GD9781@laptop>
+Subject: Re: [PATCH 03/11] readahead: bump up the default readahead size
+Message-ID: <20100208134634.GA3024@localhost>
+References: <20100207041013.891441102@intel.com> <20100207041043.147345346@intel.com> <4B6FBB3F.4010701@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20100208081918.GD9781@laptop>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4B6FBB3F.4010701@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Andi Kleen <andi@firstfloor.org>, Steven Whitehouse <swhiteho@redhat.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Matt Mackall <mpm@selenic.com>, David Woodhouse <dwmw2@infradead.org>, linux-embedded@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 08, 2010 at 04:19:18PM +0800, Nick Piggin wrote:
-> On Sun, Feb 07, 2010 at 12:10:18PM +0800, Wu Fengguang wrote:
-> > Introduce a readahead flags field and embed the existing mmap_miss in it
-> > (to save space).
-> 
-> Is that the only reason? 
+Chris,
 
-Several readahead flags/states will be introduced in the next patches.
+Firstly inform the linux-embedded maintainers :)
 
-> > It will be possible to lose the flags in race conditions, however the
-> > impact should be limited.
-> 
-> Is this really a good tradeoff? Randomly readahead behaviour can
-> change.
-
-It's OK. The readahead behavior won't change in "big" way.
-
-For the race to happen, there must be two threads sharing the same
-file descriptor to be in page fault or readahead at the same time.
-
-Note that it has always been racy for "page faults" at the same time.
-
-And if ever the race happen, we'll lose one mmap_miss++ or
-mmap_miss--. Which may change some concrete readahead behavior, but
-won't really impact overall I/O performance.
-
-> I never liked this mmap_miss counter, though. It doesn't seem like
-> it can adapt properly for changing mmap access patterns.
-
-The mmap_miss aims to avoid excessive pointless read-around for sparse
-random reads. As long as mmap_miss does not exceed MMAP_LOTSAMISS=100,
-the read-around is expected to help the common clustered random reads
-(aka. strong locality of references).
-
-> Is there any reason why the normal readahead algorithms can't
-> detect this kind of behaviour (in much fewer than 100 misses) and
-> also adapt much faster if the access changes?
-
-Assuming there's only two page fault patterns:
-- those with strong locality of references
-- those sparse random reads
-
-Then:
-
-1) MMAP_LOTSAMISS may be reduced to 10 when we increase the default
-   readahead size to 512K. The "10" is big enough to not hurt the
-   typical executable/lib page faults.
-
-2) the mmap_miss ceiling value (reduced to 0xffff in this patch) may be
-   further reduced to 0xff to adapt faster to access changes?  I'm not
-   sure though - I don't have any real world workload in mind.. Nor
-   have we heard of complaints on the mmap_miss magic.
-
-For a better (2), it's possible to have a page cache context based
-heuristic to determine if we need to do read-around immediately
-(instead of slowly counting down mmap_miss):
-
-        when page fault at @index:
-                if (mmap_miss > MMAP_LOTSAMISS) {
-     -             don't do read-around;
-     +             struct radix_tree_node *node = radix_tree_lookup_node(index);
-     +             if (node && node->count) /* any nearby page cached? */
-     +                     do read-around;
-                }
+I think it's a good suggestion to add a config option
+(CONFIG_READAHEAD_SIZE). Will update the patch..
 
 Thanks,
 Fengguang
 
-> > 
-> > CC: Nick Piggin <npiggin@suse.de>
-> > CC: Andi Kleen <andi@firstfloor.org>
-> > CC: Steven Whitehouse <swhiteho@redhat.com>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  include/linux/fs.h |   30 +++++++++++++++++++++++++++++-
-> >  mm/filemap.c       |    7 ++-----
-> >  2 files changed, 31 insertions(+), 6 deletions(-)
-> > 
-> > --- linux.orig/include/linux/fs.h	2010-02-07 11:46:35.000000000 +0800
-> > +++ linux/include/linux/fs.h	2010-02-07 11:46:37.000000000 +0800
-> > @@ -892,10 +892,38 @@ struct file_ra_state {
-> >  					   there are only # of pages ahead */
-> >  
-> >  	unsigned int ra_pages;		/* Maximum readahead window */
-> > -	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
-> > +	unsigned int ra_flags;
-> >  	loff_t prev_pos;		/* Cache last read() position */
-> >  };
-> >  
-> > +/* ra_flags bits */
-> > +#define	READAHEAD_MMAP_MISS	0x0000ffff /* cache misses for mmap access */
-> > +
-> > +/*
-> > + * Don't do ra_flags++ directly to avoid possible overflow:
-> > + * the ra fields can be accessed concurrently in a racy way.
-> > + */
-> > +static inline unsigned int ra_mmap_miss_inc(struct file_ra_state *ra)
-> > +{
-> > +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-> > +
-> > +	if (miss < READAHEAD_MMAP_MISS) {
-> > +		miss++;
-> > +		ra->ra_flags = miss | (ra->ra_flags &~ READAHEAD_MMAP_MISS);
-> > +	}
-> > +	return miss;
-> > +}
-> > +
-> > +static inline void ra_mmap_miss_dec(struct file_ra_state *ra)
-> > +{
-> > +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-> > +
-> > +	if (miss) {
-> > +		miss--;
-> > +		ra->ra_flags = miss | (ra->ra_flags &~ READAHEAD_MMAP_MISS);
-> > +	}
-> > +}
-> > +
-> >  /*
-> >   * Check if @index falls in the readahead windows.
-> >   */
-> > --- linux.orig/mm/filemap.c	2010-02-07 11:46:35.000000000 +0800
-> > +++ linux/mm/filemap.c	2010-02-07 11:46:37.000000000 +0800
-> > @@ -1418,14 +1418,12 @@ static void do_sync_mmap_readahead(struc
-> >  		return;
-> >  	}
-> >  
-> > -	if (ra->mmap_miss < INT_MAX)
-> > -		ra->mmap_miss++;
-> >  
-> >  	/*
-> >  	 * Do we miss much more than hit in this file? If so,
-> >  	 * stop bothering with read-ahead. It will only hurt.
-> >  	 */
-> > -	if (ra->mmap_miss > MMAP_LOTSAMISS)
-> > +	if (ra_mmap_miss_inc(ra) > MMAP_LOTSAMISS)
-> >  		return;
-> >  
-> >  	/*
-> > @@ -1455,8 +1453,7 @@ static void do_async_mmap_readahead(stru
-> >  	/* If we don't want any read-ahead, don't bother */
-> >  	if (VM_RandomReadHint(vma))
-> >  		return;
-> > -	if (ra->mmap_miss > 0)
-> > -		ra->mmap_miss--;
-> > +	ra_mmap_miss_dec(ra);
-> >  	if (PageReadahead(page))
-> >  		page_cache_async_readahead(mapping, ra, file,
-> >  					   page, offset, ra->ra_pages);
-> > 
+On Mon, Feb 08, 2010 at 03:20:31PM +0800, Christian Ehrhardt wrote:
+> This is related to our discussion from October 09 e.g. 
+> http://lkml.indiana.edu/hypermail/linux/kernel/0910.1/01468.html
+> 
+> I work for s390 where - as mainframe - we only have environments that 
+> benefit from 512k readahead, but I still expect some embedded devices won't.
+> While my idea of making it configurable was not liked in the past, it 
+> may be still useful when introducing this default change to let some 
+> small devices choose without patching the src (a number field defaulting 
+> to 512 and explaining the past of that value would be really nice).
+> 
+> For the discussion of 512 vs. 128 I can add from my measurements that I 
+> have seen the following:
+> - 512 is by far superior to 128 for sequential reads
+> - improvements with iozone sequential read scaling from 1 to 64 parallel 
+> processes up to +35%
+> - readahead sizes larger than 512 reevealed to not be "more useful" but 
+> increasing the chance of trashing in low mem systems
+> 
+> So I appreciate this change with a little note that I would prefer a 
+> config option.
+> -> tested & acked-by Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+> 
+> Wu Fengguang wrote:
+>  >
+>  > Use 512kb max readahead size, and 32kb min readahead size.
+>  >
+>  > The former helps io performance for common workloads.
+>  > The latter will be used in the thrashing safe context readahead.
+>  >
+>  > -- Rationals on the 512kb size --
+>  >
+>  > I believe it yields more I/O throughput without noticeably increasing
+>  > I/O latency for today's HDD.
+>  >
+>  > For example, for a 100MB/s and 8ms access time HDD, its random IO or
+>  > highly concurrent sequential IO would in theory be:
+>  >
+>  > io_size KB  access_time  transfer_time  io_latency   util%   
+> throughput KB/s
+>  > 4           8             0.04           8.04        0.49%    497.57 
+>  > 8           8             0.08           8.08        0.97%    990.33 
+>  > 16          8             0.16           8.16        1.92%   1961.69
+>  > 32          8             0.31           8.31        3.76%   3849.62
+>  > 64          8             0.62           8.62        7.25%   7420.29
+>  > 128         8             1.25           9.25       13.51%  13837.84
+>  > 256         8             2.50          10.50       23.81%  24380.95
+>  > 512         8             5.00          13.00       38.46%  39384.62
+>  > 1024        8            10.00          18.00       55.56%  56888.89
+>  > 2048        8            20.00          28.00       71.43%  73142.86
+>  > 4096        8            40.00          48.00       83.33%  85333.33
+>  >
+>  > The 128KB => 512KB readahead size boosts IO throughput from ~13MB/s to
+>  > ~39MB/s, while merely increases (minimal) IO latency from 9.25ms to 13ms.
+>  >
+>  > As for SSD, I find that Intel X25-M SSD desires large readahead size
+>  > even for sequential reads:
+>  >
+>  >     rasize    1st run        2nd run
+>  >     ----------------------------------
+>  >       4k    123 MB/s    122 MB/s
+>  >      16k      153 MB/s    153 MB/s
+>  >      32k    161 MB/s    162 MB/s
+>  >      64k    167 MB/s    168 MB/s
+>  >     128k    197 MB/s    197 MB/s
+>  >     256k    217 MB/s    217 MB/s
+>  >     512k    238 MB/s    234 MB/s
+>  >       1M    251 MB/s    248 MB/s
+>  >       2M    259 MB/s    257 MB/s
+>  >          4M    269 MB/s    264 MB/s
+>  >       8M    266 MB/s    266 MB/s
+>  >
+>  > The two other impacts of an enlarged readahead size are
+>  >
+>  > - memory footprint (caused by readahead miss)
+>  >     Sequential readahead hit ratio is pretty high regardless of max
+>  >     readahead size; the extra memory footprint is mainly caused by
+>  >     enlarged mmap read-around.
+>  >     I measured my desktop:
+>  >     - under Xwindow:
+>  >         128KB readahead hit ratio = 143MB/230MB = 62%
+>  >         512KB readahead hit ratio = 138MB/248MB = 55%
+>  >           1MB readahead hit ratio = 130MB/253MB = 51%
+>  >     - under console: (seems more stable than the Xwindow data)
+>  >         128KB readahead hit ratio = 30MB/56MB   = 53%
+>  >           1MB readahead hit ratio = 30MB/59MB   = 51%
+>  >     So the impact to memory footprint looks acceptable.
+>  >
+>  > - readahead thrashing
+>  >     It will now cost 1MB readahead buffer per stream.  Memory tight
+>  >     systems typically do not run multiple streams; but if they do
+>  >     so, it should help I/O performance as long as we can avoid
+>  >     thrashing, which can be achieved with the following patches.
+>  >
+>  > -- Benchmarks by Vivek Goyal --
+>  >
+>  > I have got two paths to the HP EVA and got multipath device setup(dm-3).
+>  > I run increasing number of sequential readers. File system is ext3 and
+>  > filesize is 1G.
+>  > I have run the tests 3 times (3sets) and taken the average of it.
+>  >
+>  > Workload=bsr      iosched=cfq     Filesz=1G   bs=32K
+>  > ======================================================================
+>  >                     2.6.33-rc5                2.6.33-rc5-readahead
+>  > job   Set NR  ReadBW(KB/s)   MaxClat(us)    ReadBW(KB/s)   MaxClat(us)
+>  > ---   --- --  ------------   -----------    ------------   -----------
+>  > bsr   3   1   141768         130965         190302         97937.3   
+>  > bsr   3   2   131979         135402         185636         223286    
+>  > bsr   3   4   132351         420733         185986         363658    
+>  > bsr   3   8   133152         455434         184352         428478    
+>  > bsr   3   16  130316         674499         185646         594311    
+>  >
+>  > I ran same test on a different piece of hardware. There are few SATA 
+> disks
+>  > (5-6) in striped configuration behind a hardware RAID controller.
+>  >
+>  > Workload=bsr      iosched=cfq     Filesz=1G   bs=32K
+>  > ======================================================================
+>  >                     2.6.33-rc5                2.6.33-rc5-readahead
+>  > job   Set NR  ReadBW(KB/s)   MaxClat(us)    ReadBW(KB/s)   
+> MaxClat(us)   
+>  > ---   --- --  ------------   -----------    ------------   
+> -----------   
+>  > bsr   3   1   147569         14369.7        160191         
+> 22752         
+>  > bsr   3   2   124716         243932         149343         
+> 184698        
+>  > bsr   3   4   123451         327665         147183         
+> 430875        
+>  > bsr   3   8   122486         455102         144568         
+> 484045        
+>  > bsr   3   16  117645         1.03957e+06    137485         
+> 1.06257e+06   
+>  >
+>  > Tested-by: Vivek Goyal <vgoyal@redhat.com>
+>  > CC: Jens Axboe <jens.axboe@oracle.com>
+>  > CC: Chris Mason <chris.mason@oracle.com>
+>  > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>  > CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
+>  > CC: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+>  > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+>  > ---
+>  >  include/linux/mm.h |    4 ++--
+>  >  1 file changed, 2 insertions(+), 2 deletions(-)
+>  >
+>  > --- linux.orig/include/linux/mm.h    2010-01-30 17:38:49.000000000 +0800
+>  > +++ linux/include/linux/mm.h    2010-01-30 18:09:58.000000000 +0800
+>  > @@ -1184,8 +1184,8 @@ int write_one_page(struct page *page, in
+>  >  void task_dirty_inc(struct task_struct *tsk);
+>  >
+>  >  /* readahead.c */
+>  > -#define VM_MAX_READAHEAD    128    /* kbytes */
+>  > -#define VM_MIN_READAHEAD    16    /* kbytes (includes current page) */
+>  > +#define VM_MAX_READAHEAD    512    /* kbytes */
+>  > +#define VM_MIN_READAHEAD    32    /* kbytes (includes current page) */
+>  >
+>  >  int force_page_cache_readahead(struct address_space *mapping, struct 
+> file *filp,
+>  >              pgoff_t offset, unsigned long nr_to_read);
+>  >
+>  >
+> 
+> -- 
+> 
+> GrA 1/4 sse / regards, Christian Ehrhardt
+> IBM Linux Technology Center, Open Virtualization 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
