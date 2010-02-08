@@ -1,129 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 627466B0047
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 08:04:21 -0500 (EST)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp07.au.ibm.com (8.14.3/8.13.1) with ESMTP id o18D4HjQ011640
-	for <linux-mm@kvack.org>; Tue, 9 Feb 2010 00:04:17 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o18D4GlF1655012
-	for <linux-mm@kvack.org>; Tue, 9 Feb 2010 00:04:17 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o18D4F7F031701
-	for <linux-mm@kvack.org>; Tue, 9 Feb 2010 00:04:16 +1100
-Date: Mon, 8 Feb 2010 18:34:12 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH -tip 0/2 v3] pagecache tracepoints proposal
-Message-ID: <20100208130412.GB24467@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <4B6B7FBF.9090005@bx.jp.nec.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B48586B0047
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 08:43:21 -0500 (EST)
+Date: Mon, 8 Feb 2010 21:43:08 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 05/11] readahead: replace ra->mmap_miss with
+	ra->ra_flags
+Message-ID: <20100208134308.GA19019@localhost>
+References: <20100207041013.891441102@intel.com> <20100207041043.429863034@intel.com> <20100208081918.GD9781@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4B6B7FBF.9090005@bx.jp.nec.com>
+In-Reply-To: <20100208081918.GD9781@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Keiichi KII <k-keiichi@bx.jp.nec.com>
-Cc: linux-kernel@vger.kernel.org, mingo@elte.hu, lwoodman@redhat.com, linux-mm@kvack.org, Tom Zanussi <tzanussi@gmail.com>, riel@redhat.com, rostedt@goodmis.org, akpm@linux-foundation.org, fweisbec@gmail.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Andi Kleen <andi@firstfloor.org>, Steven Whitehouse <swhiteho@redhat.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* Keiichi KII <k-keiichi@bx.jp.nec.com> [2010-02-04 21:17:35]:
+On Mon, Feb 08, 2010 at 04:19:18PM +0800, Nick Piggin wrote:
+> On Sun, Feb 07, 2010 at 12:10:18PM +0800, Wu Fengguang wrote:
+> > Introduce a readahead flags field and embed the existing mmap_miss in it
+> > (to save space).
+> 
+> Is that the only reason? 
 
-> Hello,
-> 
-> This is v3 of a patchset to add some tracepoints for pagecache.
-> 
-> I would propose several tracepoints for tracing pagecache behavior and
-> a script for these.
-> By using both the tracepoints and the script, we can analysis pagecache behavior
-> like usage or hit ratio with high resolution like per process or per file. 
-> Example output of the script looks like:
-> 
-> [process list]
-> o yum-3215
->                           cache find  cache hit  cache hit
->         device      inode      count      count      ratio
->   --------------------------------------------------------
->          253:0         16      34434      34130     99.12%
->          253:0        198       9692       9463     97.64%
->          253:0        639        647        628     97.06%
->          253:0        778         32         29     90.62%
->          253:0       7305      50225      49005     97.57%
->          253:0     144217         12         10     83.33%
->          253:0     262775         16         13     81.25%
-> *snip*
+Several readahead flags/states will be introduced in the next patches.
 
-Very nice, we should be able to sum these to get a system wide view
+> > It will be possible to lose the flags in race conditions, however the
+> > impact should be limited.
+> 
+> Is this really a good tradeoff? Randomly readahead behaviour can
+> change.
 
-> 
-> -------------------------------------------------------------------------------
-> 
-> [file list]
->         device              cached
->      (maj:min)      inode    pages
->   --------------------------------
->          253:0         16     5752
->          253:0        198     2233
->          253:0        639       51
->          253:0        778       86
->          253:0       7305    12307
->          253:0     144217       11
->          253:0     262775       39
-> *snip*
-> 
-> [process list]
-> o yum-3215
->         device              cached    added  removed      indirect
->      (maj:min)      inode    pages    pages    pages removed pages
->   ----------------------------------------------------------------
->          253:0         16    34130     5752        0             0
->          253:0        198     9463     2233        0             0
->          253:0        639      628       51        0             0
->          253:0        778       29       78        0             0
->          253:0       7305    49005    12307        0             0
->          253:0     144217       10       11        0             0
->          253:0     262775       13       39        0             0
-> *snip*
->   ----------------------------------------------------------------
->   total:                    102346    26165        1             0
-                                                    ^^^
-                                                Is this 1 stray?
-> 
-> We can now know system-wide pagecache usage by /proc/meminfo.
-> But we have no method to get higher resolution information like per file or
-> per process usage than system-wide one.
+It's OK. The readahead behavior won't change in "big" way.
 
-It would be really nice to see if we can detect the mapped from the
-unmapped page cache
+For the race to happen, there must be two threads sharing the same
+file descriptor to be in page fault or readahead at the same time.
 
-> A process may share some pagecache or add a pagecache to the memory or
-> remove a pagecache from the memory.
-> If a pagecache miss hit ratio rises, maybe it leads to extra I/O and
-> affects system performance.
-> 
-> So, by using the tracepoints we can get the following information.
->  1. how many pagecaches each process has per each file
->  2. how many pages are cached per each file
->  3. how many pagecaches each process shares
->  4. how often each process adds/removes pagecache
->  5. how long a pagecache stays in the memory
->  6. pagecache hit rate per file
-> 
-> Especially, the monitoring pagecache usage per each file and pagecache hit 
-> ratio would help us tune some applications like database.
-> And it will also help us tune the kernel parameters like "vm.dirty_*".
-> 
-> Changelog since v2
->   o add new script to monitor pagecache hit ratio per process.
->   o use DECLARE_EVENT_CLASS
-> 
-> Changelog since v1
->   o Add a script based on "perf trace stream scripting support".
-> 
-> Any comments are welcome.
+Note that it has always been racy for "page faults" at the same time.
 
--- 
-	Three Cheers,
-	Balbir
+And if ever the race happen, we'll lose one mmap_miss++ or
+mmap_miss--. Which may change some concrete readahead behavior, but
+won't really impact overall I/O performance.
+
+> I never liked this mmap_miss counter, though. It doesn't seem like
+> it can adapt properly for changing mmap access patterns.
+
+The mmap_miss aims to avoid excessive pointless read-around for sparse
+random reads. As long as mmap_miss does not exceed MMAP_LOTSAMISS=100,
+the read-around is expected to help the common clustered random reads
+(aka. strong locality of references).
+
+> Is there any reason why the normal readahead algorithms can't
+> detect this kind of behaviour (in much fewer than 100 misses) and
+> also adapt much faster if the access changes?
+
+Assuming there's only two page fault patterns:
+- those with strong locality of references
+- those sparse random reads
+
+Then:
+
+1) MMAP_LOTSAMISS may be reduced to 10 when we increase the default
+   readahead size to 512K. The "10" is big enough to not hurt the
+   typical executable/lib page faults.
+
+2) the mmap_miss ceiling value (reduced to 0xffff in this patch) may be
+   further reduced to 0xff to adapt faster to access changes?  I'm not
+   sure though - I don't have any real world workload in mind.. Nor
+   have we heard of complaints on the mmap_miss magic.
+
+For a better (2), it's possible to have a page cache context based
+heuristic to determine if we need to do read-around immediately
+(instead of slowly counting down mmap_miss):
+
+        when page fault at @index:
+                if (mmap_miss > MMAP_LOTSAMISS) {
+     -             don't do read-around;
+     +             struct radix_tree_node *node = radix_tree_lookup_node(index);
+     +             if (node && node->count) /* any nearby page cached? */
+     +                     do read-around;
+                }
+
+Thanks,
+Fengguang
+
+> > 
+> > CC: Nick Piggin <npiggin@suse.de>
+> > CC: Andi Kleen <andi@firstfloor.org>
+> > CC: Steven Whitehouse <swhiteho@redhat.com>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  include/linux/fs.h |   30 +++++++++++++++++++++++++++++-
+> >  mm/filemap.c       |    7 ++-----
+> >  2 files changed, 31 insertions(+), 6 deletions(-)
+> > 
+> > --- linux.orig/include/linux/fs.h	2010-02-07 11:46:35.000000000 +0800
+> > +++ linux/include/linux/fs.h	2010-02-07 11:46:37.000000000 +0800
+> > @@ -892,10 +892,38 @@ struct file_ra_state {
+> >  					   there are only # of pages ahead */
+> >  
+> >  	unsigned int ra_pages;		/* Maximum readahead window */
+> > -	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
+> > +	unsigned int ra_flags;
+> >  	loff_t prev_pos;		/* Cache last read() position */
+> >  };
+> >  
+> > +/* ra_flags bits */
+> > +#define	READAHEAD_MMAP_MISS	0x0000ffff /* cache misses for mmap access */
+> > +
+> > +/*
+> > + * Don't do ra_flags++ directly to avoid possible overflow:
+> > + * the ra fields can be accessed concurrently in a racy way.
+> > + */
+> > +static inline unsigned int ra_mmap_miss_inc(struct file_ra_state *ra)
+> > +{
+> > +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
+> > +
+> > +	if (miss < READAHEAD_MMAP_MISS) {
+> > +		miss++;
+> > +		ra->ra_flags = miss | (ra->ra_flags &~ READAHEAD_MMAP_MISS);
+> > +	}
+> > +	return miss;
+> > +}
+> > +
+> > +static inline void ra_mmap_miss_dec(struct file_ra_state *ra)
+> > +{
+> > +	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
+> > +
+> > +	if (miss) {
+> > +		miss--;
+> > +		ra->ra_flags = miss | (ra->ra_flags &~ READAHEAD_MMAP_MISS);
+> > +	}
+> > +}
+> > +
+> >  /*
+> >   * Check if @index falls in the readahead windows.
+> >   */
+> > --- linux.orig/mm/filemap.c	2010-02-07 11:46:35.000000000 +0800
+> > +++ linux/mm/filemap.c	2010-02-07 11:46:37.000000000 +0800
+> > @@ -1418,14 +1418,12 @@ static void do_sync_mmap_readahead(struc
+> >  		return;
+> >  	}
+> >  
+> > -	if (ra->mmap_miss < INT_MAX)
+> > -		ra->mmap_miss++;
+> >  
+> >  	/*
+> >  	 * Do we miss much more than hit in this file? If so,
+> >  	 * stop bothering with read-ahead. It will only hurt.
+> >  	 */
+> > -	if (ra->mmap_miss > MMAP_LOTSAMISS)
+> > +	if (ra_mmap_miss_inc(ra) > MMAP_LOTSAMISS)
+> >  		return;
+> >  
+> >  	/*
+> > @@ -1455,8 +1453,7 @@ static void do_async_mmap_readahead(stru
+> >  	/* If we don't want any read-ahead, don't bother */
+> >  	if (VM_RandomReadHint(vma))
+> >  		return;
+> > -	if (ra->mmap_miss > 0)
+> > -		ra->mmap_miss--;
+> > +	ra_mmap_miss_dec(ra);
+> >  	if (PageReadahead(page))
+> >  		page_cache_async_readahead(mapping, ra, file,
+> >  					   page, offset, ra->ra_pages);
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
