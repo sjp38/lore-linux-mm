@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B63E6B0047
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 05:11:02 -0500 (EST)
-Date: Mon, 8 Feb 2010 10:10:46 +0000
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BAE366B0078
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 07:11:04 -0500 (EST)
+Date: Mon, 8 Feb 2010 12:10:48 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bugme-new] [Bug 15214] New: Oops at __rmqueue+0x51/0x2b3
-Message-ID: <20100208101045.GA23680@csn.ul.ie>
-References: <bug-15214-10286@http.bugzilla.kernel.org/> <20100203143921.f2c96e8c.akpm@linux-foundation.org> <20100205112000.GD20412@csn.ul.ie> <201002071335.03984.ajlill@ajlc.waterloo.on.ca>
+Subject: Re: [PATCH 2/7] Export unusable free space index via
+	/proc/pagetypeinfo
+Message-ID: <20100208121048.GB23680@csn.ul.ie>
+References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001281411290.30252@chino.kir.corp.google.com> <20100205102349.GB20412@csn.ul.ie> <alpine.DEB.2.00.1002051336360.12934@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <201002071335.03984.ajlill@ajlc.waterloo.on.ca>
+In-Reply-To: <alpine.DEB.2.00.1002051336360.12934@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Tony Lill <ajlill@ajlc.waterloo.on.ca>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 07, 2010 at 01:34:58PM -0500, Tony Lill wrote:
-> On Friday 05 February 2010 06:20:00 Mel Gorman wrote:
-> > On Wed, Feb 03, 2010 at 02:39:21PM -0800, Andrew Morton wrote:
-> > > > gcc (GCC) 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)
-> > 
-> > This is a bit of a reach, but how confident are you that this version of
-> > gcc is building kernels correctly?
-> >
-> > There are a few disconnected reports of kernel problems with this
-> > particular version of gcc although none that I can connect with this
-> > problem or on x86 for that matter. One example is
-> > 
-> > http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=536354
-> > 
-> > which reported problems building kernels on the s390 with that compiler.
-> > Moving to 4.2 helped them and it *should* have been fixed according to
-> > this bug
-> > 
-> > http://bugzilla.kernel.org/show_bug.cgi?id=13012
-> > 
-> > It might be a red herring, but just to be sure, would you mind trying
-> > gcc 4.2 or 4.3 just to be sure please?
+On Fri, Feb 05, 2010 at 01:40:21PM -0800, David Rientjes wrote:
+> On Fri, 5 Feb 2010, Mel Gorman wrote:
 > 
-> Well, it was producing working kernels up until 2.6.30, but I recompiled with
-> gcc (Debian 4.3.2-1.1) 4.3.2
-> and the box has been running nearly 48 hour without incident. My previous 
-> record was 2. So I guess we can put this down to a new compiler bug.
+> > > > +	/*
+> > > > +	 * Index should be a value between 0 and 1. Return a value to 3
+> > > > +	 * decimal places.
+> > > > +	 *
+> > > > +	 * 0 => no fragmentation
+> > > > +	 * 1 => high fragmentation
+> > > > +	 */
+> > > > +	return ((info->free_pages - (info->free_blocks_suitable << order)) * 1000) / info->free_pages;
+> > > > +
+> > > 
+> > > This value is only for userspace consumption via /proc/pagetypeinfo, so 
+> > > I'm wondering why it needs to be exported as an index.  Other than a loss 
+> > > of precision, wouldn't this be easier to understand (especially when 
+> > > coupled with the free page counts already exported) if it were multipled 
+> > > by 100 rather than 1000 and shown as a percent of _usable_ free memory at 
+> > > each order? 
+> > 
+> > I find it easier to understand either way, but that's hardly a surprise.
+> > The 1000 is because of the loss of precision. I can make it a 100 but I
+> > don't think it makes much of a difference.
+> > 
+> 
+> This suggestion was coupled with the subsequent note that there is no 
+> documentation of what "unusuable free space index" is, except by the 
+> implementation itself.  Since the value isn't used by the kernel,  I think 
+> exporting the value as a percent would be easier understood by the user 
+> without looking up the semantics.  I don't have strong feelings either 
+> way, however.
 > 
 
-Well, it's great the problem source is known but pinning down compiler bugs
-is a bit of a pain. Andrew, I don't recall an easy-as-in-bisection-easy
-means of identifying which part of the compile unit went wrong and why so
-it can be marked with #error for known broken compilers. Is there one or is
-it a case of asking for two objdumps of __rmqueue and making a stab at it?
-
-> I probably should have checked this before reporting a bug. Mea culpa
-
-Not at all. Miscompiles like this are rare and usually caught a lot quicker
-than this. If you hadn't reported the problem with  two different machines,
-I would have blamed hardware and asked for a memtest. The only reason I
-spotted this might be a compiler was because the type of error you reported
-"couldn't happen".
-
-Thanks for reporting and testing.
+I'm writing documentation. I'm keeping with the 1000 value because a) I
+like the precision and b) the fragmentation index is not related to
+percentages and I think having one as a percentage and the other as an
+index would cause confusion. Thanks
 
 -- 
 Mel Gorman
