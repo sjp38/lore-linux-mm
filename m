@@ -1,64 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BAE366B0078
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 07:11:04 -0500 (EST)
-Date: Mon, 8 Feb 2010 12:10:48 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/7] Export unusable free space index via
-	/proc/pagetypeinfo
-Message-ID: <20100208121048.GB23680@csn.ul.ie>
-References: <1262795169-9095-1-git-send-email-mel@csn.ul.ie> <1262795169-9095-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1001281411290.30252@chino.kir.corp.google.com> <20100205102349.GB20412@csn.ul.ie> <alpine.DEB.2.00.1002051336360.12934@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 627466B0047
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 08:04:21 -0500 (EST)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp07.au.ibm.com (8.14.3/8.13.1) with ESMTP id o18D4HjQ011640
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2010 00:04:17 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o18D4GlF1655012
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2010 00:04:17 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o18D4F7F031701
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2010 00:04:16 +1100
+Date: Mon, 8 Feb 2010 18:34:12 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH -tip 0/2 v3] pagecache tracepoints proposal
+Message-ID: <20100208130412.GB24467@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <4B6B7FBF.9090005@bx.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1002051336360.12934@chino.kir.corp.google.com>
+In-Reply-To: <4B6B7FBF.9090005@bx.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Keiichi KII <k-keiichi@bx.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, mingo@elte.hu, lwoodman@redhat.com, linux-mm@kvack.org, Tom Zanussi <tzanussi@gmail.com>, riel@redhat.com, rostedt@goodmis.org, akpm@linux-foundation.org, fweisbec@gmail.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 05, 2010 at 01:40:21PM -0800, David Rientjes wrote:
-> On Fri, 5 Feb 2010, Mel Gorman wrote:
-> 
-> > > > +	/*
-> > > > +	 * Index should be a value between 0 and 1. Return a value to 3
-> > > > +	 * decimal places.
-> > > > +	 *
-> > > > +	 * 0 => no fragmentation
-> > > > +	 * 1 => high fragmentation
-> > > > +	 */
-> > > > +	return ((info->free_pages - (info->free_blocks_suitable << order)) * 1000) / info->free_pages;
-> > > > +
-> > > 
-> > > This value is only for userspace consumption via /proc/pagetypeinfo, so 
-> > > I'm wondering why it needs to be exported as an index.  Other than a loss 
-> > > of precision, wouldn't this be easier to understand (especially when 
-> > > coupled with the free page counts already exported) if it were multipled 
-> > > by 100 rather than 1000 and shown as a percent of _usable_ free memory at 
-> > > each order? 
-> > 
-> > I find it easier to understand either way, but that's hardly a surprise.
-> > The 1000 is because of the loss of precision. I can make it a 100 but I
-> > don't think it makes much of a difference.
-> > 
-> 
-> This suggestion was coupled with the subsequent note that there is no 
-> documentation of what "unusuable free space index" is, except by the 
-> implementation itself.  Since the value isn't used by the kernel,  I think 
-> exporting the value as a percent would be easier understood by the user 
-> without looking up the semantics.  I don't have strong feelings either 
-> way, however.
-> 
+* Keiichi KII <k-keiichi@bx.jp.nec.com> [2010-02-04 21:17:35]:
 
-I'm writing documentation. I'm keeping with the 1000 value because a) I
-like the precision and b) the fragmentation index is not related to
-percentages and I think having one as a percentage and the other as an
-index would cause confusion. Thanks
+> Hello,
+> 
+> This is v3 of a patchset to add some tracepoints for pagecache.
+> 
+> I would propose several tracepoints for tracing pagecache behavior and
+> a script for these.
+> By using both the tracepoints and the script, we can analysis pagecache behavior
+> like usage or hit ratio with high resolution like per process or per file. 
+> Example output of the script looks like:
+> 
+> [process list]
+> o yum-3215
+>                           cache find  cache hit  cache hit
+>         device      inode      count      count      ratio
+>   --------------------------------------------------------
+>          253:0         16      34434      34130     99.12%
+>          253:0        198       9692       9463     97.64%
+>          253:0        639        647        628     97.06%
+>          253:0        778         32         29     90.62%
+>          253:0       7305      50225      49005     97.57%
+>          253:0     144217         12         10     83.33%
+>          253:0     262775         16         13     81.25%
+> *snip*
+
+Very nice, we should be able to sum these to get a system wide view
+
+> 
+> -------------------------------------------------------------------------------
+> 
+> [file list]
+>         device              cached
+>      (maj:min)      inode    pages
+>   --------------------------------
+>          253:0         16     5752
+>          253:0        198     2233
+>          253:0        639       51
+>          253:0        778       86
+>          253:0       7305    12307
+>          253:0     144217       11
+>          253:0     262775       39
+> *snip*
+> 
+> [process list]
+> o yum-3215
+>         device              cached    added  removed      indirect
+>      (maj:min)      inode    pages    pages    pages removed pages
+>   ----------------------------------------------------------------
+>          253:0         16    34130     5752        0             0
+>          253:0        198     9463     2233        0             0
+>          253:0        639      628       51        0             0
+>          253:0        778       29       78        0             0
+>          253:0       7305    49005    12307        0             0
+>          253:0     144217       10       11        0             0
+>          253:0     262775       13       39        0             0
+> *snip*
+>   ----------------------------------------------------------------
+>   total:                    102346    26165        1             0
+                                                    ^^^
+                                                Is this 1 stray?
+> 
+> We can now know system-wide pagecache usage by /proc/meminfo.
+> But we have no method to get higher resolution information like per file or
+> per process usage than system-wide one.
+
+It would be really nice to see if we can detect the mapped from the
+unmapped page cache
+
+> A process may share some pagecache or add a pagecache to the memory or
+> remove a pagecache from the memory.
+> If a pagecache miss hit ratio rises, maybe it leads to extra I/O and
+> affects system performance.
+> 
+> So, by using the tracepoints we can get the following information.
+>  1. how many pagecaches each process has per each file
+>  2. how many pages are cached per each file
+>  3. how many pagecaches each process shares
+>  4. how often each process adds/removes pagecache
+>  5. how long a pagecache stays in the memory
+>  6. pagecache hit rate per file
+> 
+> Especially, the monitoring pagecache usage per each file and pagecache hit 
+> ratio would help us tune some applications like database.
+> And it will also help us tune the kernel parameters like "vm.dirty_*".
+> 
+> Changelog since v2
+>   o add new script to monitor pagecache hit ratio per process.
+>   o use DECLARE_EVENT_CLASS
+> 
+> Changelog since v1
+>   o Add a script based on "perf trace stream scripting support".
+> 
+> Any comments are welcome.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
