@@ -1,87 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 371966004A8
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 06:29:11 -0500 (EST)
-From: Nikanth Karthikesan <knikanth@suse.de>
-Subject: [PATCH] Remove references to CTL_UNNUMBERED which has been removed
-Date: Tue, 9 Feb 2010 16:59:24 +0530
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4678F6B0047
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 09:45:56 -0500 (EST)
+Date: Tue, 9 Feb 2010 14:45:38 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Bugme-new] [Bug 15214] New: Oops at __rmqueue+0x51/0x2b3
+Message-ID: <20100209144537.GA5098@csn.ul.ie>
+References: <bug-15214-10286@http.bugzilla.kernel.org/> <20100203143921.f2c96e8c.akpm@linux-foundation.org> <20100205112000.GD20412@csn.ul.ie> <201002071335.03984.ajlill@ajlc.waterloo.on.ca> <20100208101045.GA23680@csn.ul.ie> <20100208111852.a0ada2b4.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201002091659.24421.knikanth@suse.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100208111852.a0ada2b4.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Tony Lill <ajlill@ajlc.waterloo.on.ca>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-Remove references to CTL_UNNUMBERED which has been removed.
+On Mon, Feb 08, 2010 at 11:18:52AM -0800, Andrew Morton wrote:
+> On Mon, 8 Feb 2010 10:10:46 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > On Sun, Feb 07, 2010 at 01:34:58PM -0500, Tony Lill wrote:
+> > > On Friday 05 February 2010 06:20:00 Mel Gorman wrote:
+> > > > On Wed, Feb 03, 2010 at 02:39:21PM -0800, Andrew Morton wrote:
+> > > > > > gcc (GCC) 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)
+> > > > 
+> > > > This is a bit of a reach, but how confident are you that this version of
+> > > > gcc is building kernels correctly?
+> > > >
+> > > > There are a few disconnected reports of kernel problems with this
+> > > > particular version of gcc although none that I can connect with this
+> > > > problem or on x86 for that matter. One example is
+> > > > 
+> > > > http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=536354
+> > > > 
+> > > > which reported problems building kernels on the s390 with that compiler.
+> > > > Moving to 4.2 helped them and it *should* have been fixed according to
+> > > > this bug
+> > > > 
+> > > > http://bugzilla.kernel.org/show_bug.cgi?id=13012
+> > > > 
+> > > > It might be a red herring, but just to be sure, would you mind trying
+> > > > gcc 4.2 or 4.3 just to be sure please?
+> > > 
+> > > Well, it was producing working kernels up until 2.6.30, but I recompiled with
+> > > gcc (Debian 4.3.2-1.1) 4.3.2
+> > > and the box has been running nearly 48 hour without incident. My previous 
+> > > record was 2. So I guess we can put this down to a new compiler bug.
+> > > 
+> > 
+> > Well, it's great the problem source is known but pinning down compiler bugs
+> > is a bit of a pain. Andrew, I don't recall an easy-as-in-bisection-easy
+> > means of identifying which part of the compile unit went wrong and why so
+> > it can be marked with #error for known broken compilers. Is there one or is
+> > it a case of asking for two objdumps of __rmqueue and making a stab at it?
+> 
+> ugh.  This is pretty rare.
+> 
 
-Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
+Indeed. It does appear to be the case here and it's not the first bug
+related to gcc 4.1 and the kernel judging from search results on google.
 
----
+> Probably the best strategy is to generate the two page_alloc.s files,
+> fish out the __rmqueue part and then try to compare them.  The key
+> part is to Cc Linus then thrash around stupidly for long enough for him
+> to take pity and find the bug for you.
+> 
 
-Index: linux-2.6/kernel/sysctl.c
-===================================================================
---- linux-2.6.orig/kernel/sysctl.c
-+++ linux-2.6/kernel/sysctl.c
-@@ -232,10 +232,6 @@ static struct ctl_table root_table[] = {
- 		.mode		= 0555,
- 		.child		= dev_table,
- 	},
--/*
-- * NOTE: do not add new entries to this table unless you have read
-- * Documentation/sysctl/ctl_unnumbered.txt
-- */
- 	{ }
- };
- 
-@@ -936,10 +932,6 @@ static struct ctl_table kern_table[] = {
- 		.proc_handler	= proc_dointvec,
- 	},
- #endif
--/*
-- * NOTE: do not add new entries to this table unless you have read
-- * Documentation/sysctl/ctl_unnumbered.txt
-- */
- 	{ }
- };
- 
-@@ -1282,10 +1274,6 @@ static struct ctl_table vm_table[] = {
- 	},
- #endif
- 
--/*
-- * NOTE: do not add new entries to this table unless you have read
-- * Documentation/sysctl/ctl_unnumbered.txt
-- */
- 	{ }
- };
- 
-@@ -1433,10 +1421,6 @@ static struct ctl_table fs_table[] = {
- 		.child		= binfmt_misc_table,
- 	},
- #endif
--/*
-- * NOTE: do not add new entries to this table unless you have read
-- * Documentation/sysctl/ctl_unnumbered.txt
-- */
- 	{ }
- };
- 
-Index: linux-2.6/Documentation/sysctl/00-INDEX
-===================================================================
---- linux-2.6.orig/Documentation/sysctl/00-INDEX
-+++ linux-2.6/Documentation/sysctl/00-INDEX
-@@ -4,8 +4,6 @@ README
- 	- general information about /proc/sys/ sysctl files.
- abi.txt
- 	- documentation for /proc/sys/abi/*.
--ctl_unnumbered.txt
--	- explanation of why one should not add new binary sysctl numbers.
- fs.txt
- 	- documentation for /proc/sys/fs/*.
- kernel.txt
+Ok, step 1 then before I do the Team America Super Secret Signal to
+Linus for help.
+
+Tony, can you generate the .s files for me please? It should be a case
+of
+
+make clean
+rm *.s
+make CC=gcc-$BAD_VERSION KCFLAGS=-save-temps mm
+tar -czf kernel-s-files-bad-compiler.tar.gz .config *.s mm/*.c mm/*.h mm/Makefile mm/Kconfig
+
+make clean
+rm *.s
+make CC=gcc-$GOOD_VERSION KCFLAGS=-save-temps mm
+tar -czf kernel-s-files-good-compiler.tar.gz .config *.s mm/*.c mm/*.h mm/Makefile mm/Kconfig
+
+where $BAD_VERSION and $GOOD_VERSION are the two compiler versions and
+then post the two tarballs. It should contain what is needed.
+
+Thanks
+
+> > > I probably should have checked this before reporting a bug. Mea culpa
+> > 
+> > Not at all. Miscompiles like this are rare and usually caught a lot quicker
+> > than this. If you hadn't reported the problem with  two different machines,
+> > I would have blamed hardware and asked for a memtest. The only reason I
+> > spotted this might be a compiler was because the type of error you reported
+> > "couldn't happen".
+> > 
+> > Thanks for reporting and testing.
+> 
+> Yup.
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
