@@ -1,68 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 455F86B0047
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 02:12:08 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o197C5Co028828
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 9 Feb 2010 16:12:05 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 753A745DE4F
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 16:12:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A1C045DE50
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 16:12:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E19A1DB8038
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 16:12:05 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E1DFEE7800A
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 16:12:04 +0900 (JST)
-Date: Tue, 9 Feb 2010 16:08:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 92FC76B0047
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 02:50:25 -0500 (EST)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id o197oHJV011035
+	for <linux-mm@kvack.org>; Tue, 9 Feb 2010 07:50:17 GMT
+Received: from pxi33 (pxi33.prod.google.com [10.243.27.33])
+	by wpaz9.hot.corp.google.com with ESMTP id o197oFEs003239
+	for <linux-mm@kvack.org>; Mon, 8 Feb 2010 23:50:16 -0800
+Received: by pxi33 with SMTP id 33so35566pxi.10
+        for <linux-mm@kvack.org>; Mon, 08 Feb 2010 23:50:15 -0800 (PST)
+Date: Mon, 8 Feb 2010 23:50:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [BUGFIX][PATCH] memcg: fix oom killer kills a task in other
- cgroup
-Message-Id: <20100209160830.9d733f97.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1002082242180.19744@chino.kir.corp.google.com>
-References: <20100205093932.1dcdeb5f.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262361002050830m7519f1c3y8860540708527fc0@mail.gmail.com>
-	<20100209093246.36c50bae.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262361002081724l1b64e316v3141fb4567dbf905@mail.gmail.com>
-	<alpine.DEB.2.00.1002082242180.19744@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ cgroup v2
+In-Reply-To: <20100209120209.686c348c.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1002082328370.19744@chino.kir.corp.google.com>
+References: <20100205093932.1dcdeb5f.kamezawa.hiroyu@jp.fujitsu.com> <28c262361002050830m7519f1c3y8860540708527fc0@mail.gmail.com> <20100209120209.686c348c.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Feb 2010 22:49:09 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Tue, 9 Feb 2010, KAMEZAWA Hiroyuki wrote:
 
-> On Tue, 9 Feb 2010, Minchan Kim wrote:
-> 
-> > I think it's not only a latency problem of OOM but it is also a
-> > problem of deadlock.
-> > We can't expect child's lock state in oom_kill_process.
-> > 
-> 
-> task_lock() is a spinlock, it shouldn't be held for any significant length 
-> of time and certainly not during a memory allocation which would be the 
-> only way we'd block in such a state during the oom killer; if that exists, 
-> we'd deadlock when it was chosen for kill in __oom_kill_task() anyway, 
-> which negates your point about oom_kill_process() and while scanning for 
-> tasks to kill and calling badness().  We don't have any special handling 
-> for GFP_ATOMIC allocations in the oom killer for locks being held while 
-> allocating anyway, the only thing we need to be concerned about is a 
-> writelock on tasklist_lock, but the oom killer only requires a readlock.  
-> You'd be correct if we help write_lock_irq(&tasklist_lock).
-> 
-Hmm, but it's not necessary to hold task_lock, anyway. Is this patch's logic
-itself ok if I rewrite the rescription/comments ?
+> Index: mmotm-2.6.33-Feb06/include/linux/memcontrol.h
+> ===================================================================
+> --- mmotm-2.6.33-Feb06.orig/include/linux/memcontrol.h
+> +++ mmotm-2.6.33-Feb06/include/linux/memcontrol.h
+> @@ -71,7 +71,8 @@ extern unsigned long mem_cgroup_isolate_
+>  					struct mem_cgroup *mem_cont,
+>  					int active, int file);
+>  extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
+> -int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+> +int task_in_oom_mem_cgroup(struct task_struct *task,
+> +	const struct mem_cgroup *mem);
 
-Thanks,
--Kame
+This is only called from the oom killer, so I'm not sure this needs to 
+be renamed.  It seems like any caller of this function, present or future, 
+would be doing a tasklist iteration while holding a readlock on 
+tasklist_lock, so perhaps just document that task_in_mem_cgroup() requires 
+that?
+
+>  
+>  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+>  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+> @@ -215,7 +216,7 @@ static inline int mm_match_cgroup(struct
+>  	return 1;
+>  }
+>  
+> -static inline int task_in_mem_cgroup(struct task_struct *task,
+> +static inline int task_in_oom_mem_cgroup(struct task_struct *task,
+>  				     const struct mem_cgroup *mem)
+>  {
+>  	return 1;
+> Index: mmotm-2.6.33-Feb06/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-2.6.33-Feb06.orig/mm/memcontrol.c
+> +++ mmotm-2.6.33-Feb06/mm/memcontrol.c
+> @@ -781,16 +781,40 @@ void mem_cgroup_move_lists(struct page *
+>  	mem_cgroup_add_lru_list(page, to);
+>  }
+>  
+> -int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
+> +/*
+> + * This function is called from OOM Killer. This checks the task is mm_owner
+> + * and checks it's mem_cgroup is under oom.
+> + */
+> +int task_in_oom_mem_cgroup(struct task_struct *task,
+> +		const struct mem_cgroup *mem)
+>  {
+> +	struct mm_struct *mm;
+>  	int ret;
+>  	struct mem_cgroup *curr = NULL;
+>  
+> -	task_lock(task);
+> +	/*
+> + 	 * The task's task->mm pointer is guarded by task_lock() but it's
+> + 	 * risky to take task_lock in oom kill situaion. Oom-killer may
+> + 	 * kill a task which is in unknown status and cause siginificant delay
+> + 	 * or deadlock.
+> + 	 * So, we use some loose way. Because we're under taslist lock, "task"
+> + 	 * pointer is always safe and we can access it. So, accessing mem_cgroup
+> + 	 * via task struct is safe. To check the task is mm owner, we do loose
+> + 	 * check. And this is enough.
+> + 	 * There is small race at updating mm->onwer but we can ignore it.
+> + 	 * A problematic race here means that oom-selection logic by walking
+> + 	 * task list itself is racy. We can't make any strict guarantee between
+> + 	 * task's cgroup status and oom-killer selection, anyway. And, in real
+> + 	 * world, this will be no problem.
+> + 	 */
+> +	mm = task->mm;
+> +	if (!mm || mm->owner != task)
+> +		return 0;
+
+You can't dereference task->mm->owner without holding task_lock(task), but 
+I don't see why you need to even deal with task->mm.  All callers to this 
+function will check for !task->mm either during their iterations or with 
+oom_kill_task() returning 0.
+
+>  	rcu_read_lock();
+> -	curr = try_get_mem_cgroup_from_mm(task->mm);
+> +	curr = mem_cgroup_from_task(task);
+> +	if (!css_tryget(&curr->css));
+> +		curr = NULL;
+
+We can always dereference p because of tasklist_lock, there should be no 
+need to do rcu_read_lock() or any rcu dereference, so you should be able 
+to just do this:
+
+	do {
+		curr = mem_cgroup_from_task(task);
+		if (!curr)
+			break;
+	} while (!css_tryget(&curr->css));
+
+If you like that better, I suggest sending your original two-liner fix 
+using task_in_mem_cgroup() while taking task_lock(p) to stable and then 
+improving on it with a follow-up patch for mainline to do this refcount 
+variation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
