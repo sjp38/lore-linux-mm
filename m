@@ -1,110 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4678F6B0047
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 09:45:56 -0500 (EST)
-Date: Tue, 9 Feb 2010 14:45:38 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bugme-new] [Bug 15214] New: Oops at __rmqueue+0x51/0x2b3
-Message-ID: <20100209144537.GA5098@csn.ul.ie>
-References: <bug-15214-10286@http.bugzilla.kernel.org/> <20100203143921.f2c96e8c.akpm@linux-foundation.org> <20100205112000.GD20412@csn.ul.ie> <201002071335.03984.ajlill@ajlc.waterloo.on.ca> <20100208101045.GA23680@csn.ul.ie> <20100208111852.a0ada2b4.akpm@linux-foundation.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id ABB876B0047
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 10:02:18 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH] Fix for hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions.patch in -mm
+Date: Tue, 9 Feb 2010 16:01:27 +0100
+References: <1252487811-9205-1-git-send-email-ebmunson@us.ibm.com> <Pine.LNX.4.64.0909152146470.25625@sister.anvils> <20100208145605.5eea30b5.randy.dunlap@oracle.com>
+In-Reply-To: <20100208145605.5eea30b5.randy.dunlap@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100208111852.a0ada2b4.akpm@linux-foundation.org>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201002091601.28463.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Lill <ajlill@ajlc.waterloo.on.ca>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Eric B Munson <ebmunson@us.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 08, 2010 at 11:18:52AM -0800, Andrew Morton wrote:
-> On Mon, 8 Feb 2010 10:10:46 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Monday 08 February 2010, Randy Dunlap wrote:
+> On Tue, 15 Sep 2009 21:53:12 +0100 (BST) Hugh Dickins wrote:
 > 
-> > On Sun, Feb 07, 2010 at 01:34:58PM -0500, Tony Lill wrote:
-> > > On Friday 05 February 2010 06:20:00 Mel Gorman wrote:
-> > > > On Wed, Feb 03, 2010 at 02:39:21PM -0800, Andrew Morton wrote:
-> > > > > > gcc (GCC) 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)
-> > > > 
-> > > > This is a bit of a reach, but how confident are you that this version of
-> > > > gcc is building kernels correctly?
-> > > >
-> > > > There are a few disconnected reports of kernel problems with this
-> > > > particular version of gcc although none that I can connect with this
-> > > > problem or on x86 for that matter. One example is
-> > > > 
-> > > > http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=536354
-> > > > 
-> > > > which reported problems building kernels on the s390 with that compiler.
-> > > > Moving to 4.2 helped them and it *should* have been fixed according to
-> > > > this bug
-> > > > 
-> > > > http://bugzilla.kernel.org/show_bug.cgi?id=13012
-> > > > 
-> > > > It might be a red herring, but just to be sure, would you mind trying
-> > > > gcc 4.2 or 4.3 just to be sure please?
-> > > 
-> > > Well, it was producing working kernels up until 2.6.30, but I recompiled with
-> > > gcc (Debian 4.3.2-1.1) 4.3.2
-> > > and the box has been running nearly 48 hour without incident. My previous 
-> > > record was 2. So I guess we can put this down to a new compiler bug.
-> > > 
+> > On Tue, 15 Sep 2009, Eric B Munson wrote:
+> > > Resending because this seems to have fallen between the cracks.
 > > 
-> > Well, it's great the problem source is known but pinning down compiler bugs
-> > is a bit of a pain. Andrew, I don't recall an easy-as-in-bisection-easy
-> > means of identifying which part of the compile unit went wrong and why so
-> > it can be marked with #error for known broken compilers. Is there one or is
-> > it a case of asking for two objdumps of __rmqueue and making a stab at it?
-> 
-> ugh.  This is pretty rare.
-> 
-
-Indeed. It does appear to be the case here and it's not the first bug
-related to gcc 4.1 and the kernel judging from search results on google.
-
-> Probably the best strategy is to generate the two page_alloc.s files,
-> fish out the __rmqueue part and then try to compare them.  The key
-> part is to Cc Linus then thrash around stupidly for long enough for him
-> to take pity and find the bug for you.
-> 
-
-Ok, step 1 then before I do the Team America Super Secret Signal to
-Linus for help.
-
-Tony, can you generate the .s files for me please? It should be a case
-of
-
-make clean
-rm *.s
-make CC=gcc-$BAD_VERSION KCFLAGS=-save-temps mm
-tar -czf kernel-s-files-bad-compiler.tar.gz .config *.s mm/*.c mm/*.h mm/Makefile mm/Kconfig
-
-make clean
-rm *.s
-make CC=gcc-$GOOD_VERSION KCFLAGS=-save-temps mm
-tar -czf kernel-s-files-good-compiler.tar.gz .config *.s mm/*.c mm/*.h mm/Makefile mm/Kconfig
-
-where $BAD_VERSION and $GOOD_VERSION are the two compiler versions and
-then post the two tarballs. It should contain what is needed.
-
-Thanks
-
-> > > I probably should have checked this before reporting a bug. Mea culpa
+> > Yes, indeed.  I think it isn't quite what Arnd was suggesting, but I
+> > agree with you that we might as well go for 0x080000 (so that even Alpha
+> > can be just a cut-and-paste job from asm-generic), and right now it's
+> > more important to finalize the number than what file it appears in.
 > > 
-> > Not at all. Miscompiles like this are rare and usually caught a lot quicker
-> > than this. If you hadn't reported the problem with  two different machines,
-> > I would have blamed hardware and asked for a memtest. The only reason I
-> > spotted this might be a compiler was because the type of error you reported
-> > "couldn't happen".
-> > 
-> > Thanks for reporting and testing.
+> > Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 > 
-> Yup.
-> 
+> so what happened with this patch ??
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+In a later revision, we agreed to put the definition into
+asm-generic/mman.h, where it was merged in 2.6.32.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
