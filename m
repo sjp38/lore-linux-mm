@@ -1,74 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D6DF66B0047
-	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 17:56:29 -0500 (EST)
-Date: Mon, 8 Feb 2010 14:56:05 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH] Fix for
- hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions.patch
- in -mm
-Message-Id: <20100208145605.5eea30b5.randy.dunlap@oracle.com>
-In-Reply-To: <Pine.LNX.4.64.0909152146470.25625@sister.anvils>
-References: <1252487811-9205-1-git-send-email-ebmunson@us.ibm.com>
-	<1253011613-6429-1-git-send-email-ebmunson@us.ibm.com>
-	<Pine.LNX.4.64.0909152146470.25625@sister.anvils>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 047216B0047
+	for <linux-mm@kvack.org>; Mon,  8 Feb 2010 19:36:43 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o190agnU006900
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 9 Feb 2010 09:36:42 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 36ECD2E7CD1
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 09:36:42 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 09A7445DE4E
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 09:36:42 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E00331DB803B
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 09:36:41 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C1A41DB803A
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 09:36:41 +0900 (JST)
+Date: Tue, 9 Feb 2010 09:32:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix oom killer kills a task in other
+ cgroup
+Message-Id: <20100209093246.36c50bae.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <28c262361002050830m7519f1c3y8860540708527fc0@mail.gmail.com>
+References: <20100205093932.1dcdeb5f.kamezawa.hiroyu@jp.fujitsu.com>
+	<28c262361002050830m7519f1c3y8860540708527fc0@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Eric B Munson <ebmunson@us.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, Arnd Bergman <arnd@arndb.de>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Sep 2009 21:53:12 +0100 (BST) Hugh Dickins wrote:
+On Sat, 6 Feb 2010 01:30:49 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> On Tue, 15 Sep 2009, Eric B Munson wrote:
-> > Resending because this seems to have fallen between the cracks.
+> Hi, Kame.
 > 
-> Yes, indeed.  I think it isn't quite what Arnd was suggesting, but I
-> agree with you that we might as well go for 0x080000 (so that even Alpha
-> can be just a cut-and-paste job from asm-generic), and right now it's
-> more important to finalize the number than what file it appears in.
-> 
-> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-
-so what happened with this patch ??
-
-> > 
-> > The patch
-> > hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions.patch
-> > used the value 0x40 for MAP_HUGETLB which is the same value used for
-> > various other flags on some architectures.  This collision causes
-> > unexpected use of huge pages in the best case and mmap to fail with
-> > ENOMEM or ENOSYS in the worst.  This patch changes the value for
-> > MAP_HUGETLB to a value that is not currently used on any arch.
-> > 
-> > This patch should be considered a fix to
-> > hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions.patch.
-> > 
-> > Reported-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> > Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+> On Fri, Feb 5, 2010 at 9:39 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > Please take this patch in different context with recent discussion.
+> > This is a quick-fix for a terrible bug.
+> >
+> > This patch itself is against mmotm but can be easily applied to mainline or
+> > stable tree, I think. (But I don't CC stable tree until I get ack.)
+> >
+> > ==
+> > Now, oom-killer kills process's chidlren at first. But this means
+> > a child in other cgroup can be killed. But it's not checked now.
+> >
+> > This patch fixes that.
+> >
+> > CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > ---
-> >  include/asm-generic/mman-common.h |    2 +-
-> >  1 files changed, 1 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
-> > index 12f5982..e6adb68 100644
-> > --- a/include/asm-generic/mman-common.h
-> > +++ b/include/asm-generic/mman-common.h
-> > @@ -19,7 +19,7 @@
-> >  #define MAP_TYPE	0x0f		/* Mask for type of mapping */
-> >  #define MAP_FIXED	0x10		/* Interpret addr exactly */
-> >  #define MAP_ANONYMOUS	0x20		/* don't use a file */
-> > -#define MAP_HUGETLB	0x40		/* create a huge page mapping */
-> > +#define MAP_HUGETLB	0x080000	/* create a huge page mapping */
-> >  
-> >  #define MS_ASYNC	1		/* sync memory asynchronously */
-> >  #define MS_INVALIDATE	2		/* invalidate the caches */
-> > -- 
+> > A mm/oom_kill.c | A  A 3 +++
+> > A 1 file changed, 3 insertions(+)
+> >
+> > Index: mmotm-2.6.33-Feb03/mm/oom_kill.c
+> > ===================================================================
+> > --- mmotm-2.6.33-Feb03.orig/mm/oom_kill.c
+> > +++ mmotm-2.6.33-Feb03/mm/oom_kill.c
+> > @@ -459,6 +459,9 @@ static int oom_kill_process(struct task_
+> > A  A  A  A list_for_each_entry(c, &p->children, sibling) {
+> > A  A  A  A  A  A  A  A if (c->mm == p->mm)
+> > A  A  A  A  A  A  A  A  A  A  A  A continue;
+> > + A  A  A  A  A  A  A  /* Children may be in other cgroup */
+> > + A  A  A  A  A  A  A  if (mem && !task_in_mem_cgroup(c, mem))
+> > + A  A  A  A  A  A  A  A  A  A  A  continue;
+> > A  A  A  A  A  A  A  A if (!oom_kill_task(c))
+> > A  A  A  A  A  A  A  A  A  A  A  A return 0;
+> > A  A  A  A }
+> >
+> > --
+> 
+> I am worried about latency of OOM at worst case.
+> I mean that task_in_mem_cgroup calls task_lock of child.
+> We have used task_lock in many place.
+> Some place task_lock hold and then other locks.
+> For example, exit_fs held task_lock and try to hold write_lock of fs->lock.
+> If child already hold task_lock and wait to write_lock of fs->lock, OOM latency
+> is dependent of fs->lock.
+> 
+> I am not sure how many usecase is also dependent of other locks.
+> If it is not as is, we can't make sure in future.
+> 
+> So How about try_task_in_mem_cgroup?
+> If we can't hold task_lock, let's continue next child.
+> 
+It's recommended not to use trylock in unclear case.
 
----
-~Randy
+Then, I think possible replacement will be not-to-use any lock in
+task_in_mem_cgroup. In my short consideration, I don't think task_lock
+is necessary if we can add some tricks and memory barrier.
+
+Please let this patch to go as it is because this is an obvious bug fix
+and give me time.
+
+Now, I think of following.
+This makes use of the fact mm->owner is changed only at _exit() of the owner.
+If there is a race with _exit() and mm->owner is racy, the oom selection
+itself was racy and bad.
+==
+int task_in_mem_cgroup_oom(struct task_struct *tsk, struct mem_cgroup *mem)
+{
+	struct mm_struct *mm;
+	struct task_struct *tsk;
+	int ret = 0;
+
+	mm = tsk->mm;
+	if (!mm)
+		return ret;
+	/*
+	 * we are not interested in tasks other than owner. mm->owner is
+	 * updated when the owner task exits. If the owner is exiting now
+	 * (and race with us), we may miss.
+	 */
+	if (rcu_dereference(mm->owner) != tsk)
+		return ret;
+	rcu_read_lock();
+	/* while this task is alive, this task is the owner */
+	if (mem == mem_cgroup_from_task(tsk))
+		ret = 1;
+	rcu_read_unlock();
+	return ret;
+}
+==
+Hmm, it seems no memory barrier is necessary.
+
+Does anyone has another idea ?
+
+Thanks,
+-Kame
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
