@@ -1,40 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 499E86B007B
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 21:47:43 -0500 (EST)
-Message-ID: <4B733785.7060608@redhat.com>
-Date: Wed, 10 Feb 2010 17:47:33 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A850A6B007B
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 21:56:09 -0500 (EST)
+From: Lubos Lunak <l.lunak@suse.cz>
+Subject: Re: Improving OOM killer
+Date: Wed, 10 Feb 2010 22:29:24 +0100
+References: <201002012302.37380.l.lunak@suse.cz> <201002102154.43231.l.lunak@suse.cz> <4B7320BF.2020800@redhat.com>
+In-Reply-To: <4B7320BF.2020800@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 3/7 -mm] oom: select task from tasklist for mempolicy
- ooms
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228370.8001@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1002100228370.8001@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <201002102229.24448.l.lunak@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On 02/10/2010 11:32 AM, David Rientjes wrote:
-> The oom killer presently kills current whenever there is no more memory
-> free or reclaimable on its mempolicy's nodes.  There is no guarantee that
-> current is a memory-hogging task or that killing it will free any
-> substantial amount of memory, however.
+On Wednesday 10 of February 2010, Rik van Riel wrote:
+> On 02/10/2010 03:54 PM, Lubos Lunak wrote:
+> >   Which however can mean that not killing this system daemon will be
+> > traded for DoS-ing the whole system, if the daemon keeps spawning new
+> > children as soon as the OOM killer frees up resources for them.
 >
-> In such situations, it is better to scan the tasklist for nodes that are
-> allowed to allocate on current's set of nodes and kill the task with the
-> highest badness() score.  This ensures that the most memory-hogging task,
-> or the one configured by the user with /proc/pid/oom_adj, is always
-> selected in such scenarios.
->
-> Signed-off-by: David Rientjes<rientjes@google.com>
+> Killing the system daemon *is* a DoS.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+ Maybe, but if there are two such system daemons on the machine, it's only 
+half of the other DoS. And since that system daemon has already been 
+identified as a forkbomb, it's probably already useless anyway and killing 
+the children won't save anything. In which realistic case a system daemon has 
+children that together cause OOM, yet can still be considered working after 
+you kill one or a limited number of those children?
+
+> It would stop eg. the database or the web server, which is
+> generally the main task of systems that run a database or
+> a web server.
 
 -- 
-All rights reversed.
+ Lubos Lunak
+ openSUSE Boosters team, KDE developer
+ l.lunak@suse.cz , l.lunak@kde.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
