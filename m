@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 776826B0083
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 17:38:34 -0500 (EST)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o1AMVpxA005141
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 14:31:51 -0800
-Received: from pxi40 (pxi40.prod.google.com [10.243.27.40])
-	by wpaz37.hot.corp.google.com with ESMTP id o1AMVVom016862
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 14:31:50 -0800
-Received: by pxi40 with SMTP id 40so15644pxi.0
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2010 14:31:49 -0800 (PST)
-Date: Wed, 10 Feb 2010 14:31:47 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Improving OOM killer
-In-Reply-To: <20100210221847.5d7bb3cb@lxorguk.ukuu.org.uk>
-Message-ID: <alpine.DEB.2.00.1002101427490.29718@chino.kir.corp.google.com>
-References: <201002012302.37380.l.lunak@suse.cz> <4B6B4500.3010603@redhat.com> <alpine.DEB.2.00.1002041410300.16391@chino.kir.corp.google.com> <201002102154.43231.l.lunak@suse.cz> <4B7320BF.2020800@redhat.com> <20100210221847.5d7bb3cb@lxorguk.ukuu.org.uk>
+	by kanga.kvack.org (Postfix) with SMTP id C0AD26B0071
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 17:39:43 -0500 (EST)
+Message-ID: <4B731CA6.3030304@redhat.com>
+Date: Wed, 10 Feb 2010 15:52:54 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 2/7 -mm] oom: sacrifice child with highest badness score
+ for parent
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228240.8001@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002100228240.8001@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Rik van Riel <riel@redhat.com>, Lubos Lunak <l.lunak@suse.cz>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Feb 2010, Alan Cox wrote:
+On 02/10/2010 11:32 AM, David Rientjes wrote:
+> When a task is chosen for oom kill, the oom killer first attempts to
+> sacrifice a child not sharing its parent's memory instead.
+> Unfortunately, this often kills in a seemingly random fashion based on
+> the ordering of the selected task's child list.  Additionally, it is not
+> guaranteed at all to free a large amount of memory that we need to
+> prevent additional oom killing in the very near future.
+>
+> Instead, we now only attempt to sacrifice the worst child not sharing its
+> parent's memory, if one exists.  The worst child is indicated with the
+> highest badness() score.  This serves two advantages: we kill a
+> memory-hogging task more often, and we allow the configurable
+> /proc/pid/oom_adj value to be considered as a factor in which child to
+> kill.
+>
+> Reviewers may observe that the previous implementation would iterate
+> through the children and attempt to kill each until one was successful
+> and then the parent if none were found while the new code simply kills
+> the most memory-hogging task or the parent.  Note that the only time
+> oom_kill_task() fails, however, is when a child does not have an mm or
+> has a /proc/pid/oom_adj of OOM_DISABLE.  badness() returns 0 for both
+> cases, so the final oom_kill_task() will always succeed.
+>
+> Signed-off-by: David Rientjes<rientjes@google.com>
 
-> One of the problems with picking on tasks that fork a lot is that
-> describes apache perfectly. So a high loaded apache will get shot over a
-> rapid memory eating cgi script.
-> 
+Acked-by: Rik van Riel <riel@redhat.com>
 
-With my rewrite, the oom killer would not select apache but rather the 
-child with a seperate address space that is consuming the most amount of 
-allowed memory and only when a configurable number of such children (1000 
-by default) have not had any runtime.  My heuristic is only meant to 
-slightly penalize such tasks so that they can be distinguished from oom 
-kill from other parents with comparable memory usage.  Enforcing a strict 
-forkbomb policy is out of the scope of the oom killer, though, so no 
-attempt was made.
-
-> Any heuristic is going to be iffy - but that isn't IMHO a good one to
-> work from. If anything "who allocated lots of RAM recently" may be a
-> better guide but we don't keep stats for that.
-> 
-
-That's what my heuristic basically does, if a parent is identified as a 
-forkbomb, then it is only penalized by averaging the memory consumption of 
-those children and then multiplying it by the same number of times the 
-configurable forkbomb threshold was reached.
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
