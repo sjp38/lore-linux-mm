@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 514B16B0087
+	by kanga.kvack.org (Postfix) with ESMTP id 79EAB6B0088
 	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 12:03:53 -0500 (EST)
 From: Trond Myklebust <Trond.Myklebust@netapp.com>
-Subject: [PATCH 10/13] NFS: Simplify nfs_wb_page()
-Date: Wed, 10 Feb 2010 12:03:30 -0500
-Message-Id: <1265821413-21618-11-git-send-email-Trond.Myklebust@netapp.com>
-In-Reply-To: <1265821413-21618-10-git-send-email-Trond.Myklebust@netapp.com>
+Subject: [PATCH 12/13] NFS: Remove requirement for inode->i_mutex from nfs_invalidate_mapping
+Date: Wed, 10 Feb 2010 12:03:32 -0500
+Message-Id: <1265821413-21618-13-git-send-email-Trond.Myklebust@netapp.com>
+In-Reply-To: <1265821413-21618-12-git-send-email-Trond.Myklebust@netapp.com>
 References: <1265821413-21618-1-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-2-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-3-git-send-email-Trond.Myklebust@netapp.com>
@@ -17,6 +17,8 @@ References: <1265821413-21618-1-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-8-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-9-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-10-git-send-email-Trond.Myklebust@netapp.com>
+ <1265821413-21618-11-git-send-email-Trond.Myklebust@netapp.com>
+ <1265821413-21618-12-git-send-email-Trond.Myklebust@netapp.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Trond Myklebust <Trond.Myklebust@netapp.com>
@@ -24,195 +26,113 @@ List-ID: <linux-mm.kvack.org>
 
 Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
 ---
- fs/nfs/write.c         |  120 +++++++++--------------------------------------
+ fs/nfs/dir.c           |    2 +-
+ fs/nfs/inode.c         |   41 +----------------------------------------
+ fs/nfs/symlink.c       |    2 +-
  include/linux/nfs_fs.h |    1 -
- 2 files changed, 23 insertions(+), 98 deletions(-)
+ 4 files changed, 3 insertions(+), 43 deletions(-)
 
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index da7f0c4..f438d55 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -501,44 +501,6 @@ int nfs_reschedule_unstable_write(struct nfs_page *req)
- }
- #endif
+diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
+index 3c7f03b..a1f6b44 100644
+--- a/fs/nfs/dir.c
++++ b/fs/nfs/dir.c
+@@ -560,7 +560,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
+ 	desc->entry = &my_entry;
  
--/*
-- * Wait for a request to complete.
-- *
-- * Interruptible by fatal signals only.
-- */
--static int nfs_wait_on_requests_locked(struct inode *inode, pgoff_t idx_start, unsigned int npages)
--{
--	struct nfs_inode *nfsi = NFS_I(inode);
--	struct nfs_page *req;
--	pgoff_t idx_end, next;
--	unsigned int		res = 0;
--	int			error;
--
--	if (npages == 0)
--		idx_end = ~0;
--	else
--		idx_end = idx_start + npages - 1;
--
--	next = idx_start;
--	while (radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree, (void **)&req, next, 1, NFS_PAGE_TAG_LOCKED)) {
--		if (req->wb_index > idx_end)
--			break;
--
--		next = req->wb_index + 1;
--		BUG_ON(!NFS_WBACK_BUSY(req));
--
--		kref_get(&req->wb_kref);
--		spin_unlock(&inode->i_lock);
--		error = nfs_wait_on_request(req);
--		nfs_release_request(req);
--		spin_lock(&inode->i_lock);
--		if (error < 0)
--			return error;
--		res++;
--	}
--	return res;
--}
--
- #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
- static int
- nfs_need_commit(struct nfs_inode *nfsi)
-@@ -1421,7 +1383,7 @@ out_mark_dirty:
- 	return ret;
+ 	nfs_block_sillyrename(dentry);
+-	res = nfs_revalidate_mapping_nolock(inode, filp->f_mapping);
++	res = nfs_revalidate_mapping(inode, filp->f_mapping);
+ 	if (res < 0)
+ 		goto out;
+ 
+diff --git a/fs/nfs/inode.c b/fs/nfs/inode.c
+index 38e79e4..f50ad09 100644
+--- a/fs/nfs/inode.c
++++ b/fs/nfs/inode.c
+@@ -754,7 +754,7 @@ int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
+ 	return __nfs_revalidate_inode(server, inode);
  }
- #else
--static inline int nfs_commit_list(struct inode *inode, struct list_head *head, int how)
-+static int nfs_commit_inode(struct inode *inode, int how)
+ 
+-static int nfs_invalidate_mapping_nolock(struct inode *inode, struct address_space *mapping)
++static int nfs_invalidate_mapping(struct inode *inode, struct address_space *mapping)
  {
+ 	struct nfs_inode *nfsi = NFS_I(inode);
+ 	
+@@ -775,49 +775,10 @@ static int nfs_invalidate_mapping_nolock(struct inode *inode, struct address_spa
  	return 0;
  }
-@@ -1437,46 +1399,6 @@ int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
- 	return nfs_commit_unstable_pages(inode, wbc);
- }
  
--long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_control *wbc, int how)
+-static int nfs_invalidate_mapping(struct inode *inode, struct address_space *mapping)
 -{
--	struct inode *inode = mapping->host;
--	pgoff_t idx_start, idx_end;
--	unsigned int npages = 0;
--	LIST_HEAD(head);
--	long pages, ret;
+-	int ret = 0;
 -
--	/* FIXME */
--	if (wbc->range_cyclic)
--		idx_start = 0;
--	else {
--		idx_start = wbc->range_start >> PAGE_CACHE_SHIFT;
--		idx_end = wbc->range_end >> PAGE_CACHE_SHIFT;
--		if (idx_end > idx_start) {
--			pgoff_t l_npages = 1 + idx_end - idx_start;
--			npages = l_npages;
--			if (sizeof(npages) != sizeof(l_npages) &&
--					(pgoff_t)npages != l_npages)
--				npages = 0;
--		}
+-	mutex_lock(&inode->i_mutex);
+-	if (NFS_I(inode)->cache_validity & NFS_INO_INVALID_DATA) {
+-		ret = nfs_sync_mapping(mapping);
+-		if (ret == 0)
+-			ret = nfs_invalidate_mapping_nolock(inode, mapping);
 -	}
--	spin_lock(&inode->i_lock);
--	do {
--		ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
--		if (ret != 0)
--			continue;
--		pages = nfs_scan_commit(inode, &head, idx_start, npages);
--		if (pages == 0)
--			break;
--		pages += nfs_scan_commit(inode, &head, 0, 0);
--		spin_unlock(&inode->i_lock);
--		ret = nfs_commit_list(inode, &head, how);
--		spin_lock(&inode->i_lock);
--
--	} while (ret >= 0);
--	spin_unlock(&inode->i_lock);
+-	mutex_unlock(&inode->i_mutex);
 -	return ret;
 -}
 -
- /*
-  * flush the inode to disk.
-  */
-@@ -1520,45 +1442,49 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
- 	return ret;
- }
- 
--static int nfs_wb_page_priority(struct inode *inode, struct page *page,
--				int how)
-+/*
-+ * Write back all requests on one page - we do this before reading it.
-+ */
-+int nfs_wb_page(struct inode *inode, struct page *page)
- {
- 	loff_t range_start = page_offset(page);
- 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
- 	struct writeback_control wbc = {
--		.bdi = page->mapping->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
--		.nr_to_write = LONG_MAX,
-+		.nr_to_write = 0,
- 		.range_start = range_start,
- 		.range_end = range_end,
- 	};
-+	struct nfs_page *req;
-+	int need_commit;
- 	int ret;
- 
--	do {
-+	while(PagePrivate(page)) {
- 		if (clear_page_dirty_for_io(page)) {
- 			ret = nfs_writepage_locked(page, &wbc);
- 			if (ret < 0)
- 				goto out_error;
--		} else if (!PagePrivate(page))
-+		}
-+		req = nfs_find_and_lock_request(page);
-+		if (!req)
- 			break;
--		ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
--		if (ret < 0)
-+		if (IS_ERR(req)) {
-+			ret = PTR_ERR(req);
- 			goto out_error;
--	} while (PagePrivate(page));
-+		}
-+		need_commit = test_bit(PG_CLEAN, &req->wb_flags);
-+		nfs_clear_page_tag_locked(req);
-+		if (need_commit) {
-+			ret = nfs_commit_inode(inode, FLUSH_SYNC);
-+			if (ret < 0)
-+				goto out_error;
-+		}
-+	}
- 	return 0;
- out_error:
--	__mark_inode_dirty(inode, I_DIRTY_PAGES);
- 	return ret;
- }
- 
--/*
-- * Write back all requests on one page - we do this before reading it.
+-/**
+- * nfs_revalidate_mapping_nolock - Revalidate the pagecache
+- * @inode - pointer to host inode
+- * @mapping - pointer to mapping
 - */
--int nfs_wb_page(struct inode *inode, struct page* page)
+-int nfs_revalidate_mapping_nolock(struct inode *inode, struct address_space *mapping)
 -{
--	return nfs_wb_page_priority(inode, page, FLUSH_STABLE);
+-	struct nfs_inode *nfsi = NFS_I(inode);
+-	int ret = 0;
+-
+-	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
+-			|| nfs_attribute_timeout(inode) || NFS_STALE(inode)) {
+-		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
+-		if (ret < 0)
+-			goto out;
+-	}
+-	if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
+-		ret = nfs_invalidate_mapping_nolock(inode, mapping);
+-out:
+-	return ret;
 -}
 -
- #ifdef CONFIG_MIGRATION
- int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
- 		struct page *page)
+ /**
+  * nfs_revalidate_mapping - Revalidate the pagecache
+  * @inode - pointer to host inode
+  * @mapping - pointer to mapping
+- *
+- * This version of the function will take the inode->i_mutex and attempt to
+- * flush out all dirty data if it needs to invalidate the page cache.
+  */
+ int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
+ {
+diff --git a/fs/nfs/symlink.c b/fs/nfs/symlink.c
+index 412738d..2ea9e5c 100644
+--- a/fs/nfs/symlink.c
++++ b/fs/nfs/symlink.c
+@@ -50,7 +50,7 @@ static void *nfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+ 	struct page *page;
+ 	void *err;
+ 
+-	err = ERR_PTR(nfs_revalidate_mapping_nolock(inode, inode->i_mapping));
++	err = ERR_PTR(nfs_revalidate_mapping(inode, inode->i_mapping));
+ 	if (err)
+ 		goto read_failed;
+ 	page = read_cache_page(&inode->i_data, 0,
 diff --git a/include/linux/nfs_fs.h b/include/linux/nfs_fs.h
-index 3383622..b1e0877 100644
+index b1e0877..5af42eb 100644
 --- a/include/linux/nfs_fs.h
 +++ b/include/linux/nfs_fs.h
-@@ -474,7 +474,6 @@ extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
-  * Try to write back everything synchronously (but check the
-  * return value!)
-  */
--extern long nfs_sync_mapping_wait(struct address_space *, struct writeback_control *, int);
- extern int nfs_wb_all(struct inode *inode);
- extern int nfs_wb_page(struct inode *inode, struct page* page);
- extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
+@@ -346,7 +346,6 @@ extern int nfs_attribute_timeout(struct inode *inode);
+ extern int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode);
+ extern int __nfs_revalidate_inode(struct nfs_server *, struct inode *);
+ extern int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping);
+-extern int nfs_revalidate_mapping_nolock(struct inode *inode, struct address_space *mapping);
+ extern int nfs_setattr(struct dentry *, struct iattr *);
+ extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
+ extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 -- 
 1.6.6
 
