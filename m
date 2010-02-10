@@ -1,56 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8566D6B007E
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 12:03:54 -0500 (EST)
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-Subject: [PATCH 07/13] NFS: Ensure inode is always marked I_DIRTY_DATASYNC, if it has unstable pages
-Date: Wed, 10 Feb 2010 12:03:27 -0500
-Message-Id: <1265821413-21618-8-git-send-email-Trond.Myklebust@netapp.com>
-In-Reply-To: <1265821413-21618-7-git-send-email-Trond.Myklebust@netapp.com>
-References: <1265821413-21618-1-git-send-email-Trond.Myklebust@netapp.com>
- <1265821413-21618-2-git-send-email-Trond.Myklebust@netapp.com>
- <1265821413-21618-3-git-send-email-Trond.Myklebust@netapp.com>
- <1265821413-21618-4-git-send-email-Trond.Myklebust@netapp.com>
- <1265821413-21618-5-git-send-email-Trond.Myklebust@netapp.com>
- <1265821413-21618-6-git-send-email-Trond.Myklebust@netapp.com>
- <1265821413-21618-7-git-send-email-Trond.Myklebust@netapp.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 7D7296B00A2
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 12:08:59 -0500 (EST)
+Message-ID: <4B72E81D.9020409@redhat.com>
+Date: Wed, 10 Feb 2010 12:08:45 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [patch 1/7 -mm] oom: filter tasks not sharing the same cpuset
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100227590.8001@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002100227590.8001@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Trond Myklebust <Trond.Myklebust@netapp.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since nfs_scan_list() doesn't wait for locked pages, we have a race in
-which it is possible to end up with an inode that needs to send a COMMIT,
-but which does not have the I_DIRTY_DATASYNC flag set.
+On 02/10/2010 11:32 AM, David Rientjes wrote:
+> Tasks that do not share the same set of allowed nodes with the task that
+> triggered the oom should not be considered as candidates for oom kill.
+>
+> Tasks in other cpusets with a disjoint set of mems would be unfairly
+> penalized otherwise because of oom conditions elsewhere; an extreme
+> example could unfairly kill all other applications on the system if a
+> single task in a user's cpuset sets itself to OOM_DISABLE and then uses
+> more memory than allowed.
+>
+> Killing tasks outside of current's cpuset rarely would free memory for
+> current anyway.
+>
+> Signed-off-by: David Rientjes<rientjes@google.com>
 
-Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
----
- fs/nfs/write.c |    6 +++++-
- 1 files changed, 5 insertions(+), 1 deletions(-)
+Acked-by: Rik van Riel <riel@redhat.com>
 
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index 8533a2f..e027f66 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -573,11 +573,15 @@ static int
- nfs_scan_commit(struct inode *inode, struct list_head *dst, pgoff_t idx_start, unsigned int npages)
- {
- 	struct nfs_inode *nfsi = NFS_I(inode);
-+	int ret;
- 
- 	if (!nfs_need_commit(nfsi))
- 		return 0;
- 
--	return nfs_scan_list(nfsi, dst, idx_start, npages, NFS_PAGE_TAG_COMMIT);
-+	ret = nfs_scan_list(nfsi, dst, idx_start, npages, NFS_PAGE_TAG_COMMIT);
-+	if (nfs_need_commit(NFS_I(inode)))
-+		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-+	return ret;
- }
- #else
- static inline int nfs_need_commit(struct nfs_inode *nfsi)
 -- 
-1.6.6
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
