@@ -1,35 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BBE956B0078
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 21:38:14 -0500 (EST)
-Message-ID: <4B7320BF.2020800@redhat.com>
-Date: Wed, 10 Feb 2010 16:10:23 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: Improving OOM killer
-References: <201002012302.37380.l.lunak@suse.cz> <4B6B4500.3010603@redhat.com> <alpine.DEB.2.00.1002041410300.16391@chino.kir.corp.google.com> <201002102154.43231.l.lunak@suse.cz>
-In-Reply-To: <201002102154.43231.l.lunak@suse.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BB4646B0071
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 21:42:21 -0500 (EST)
+Received: by ey-out-1920.google.com with SMTP id 13so171139eye.18
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2010 15:55:39 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH mmotm] memcg: check if first threshold crossed
+Date: Thu, 11 Feb 2010 01:55:23 +0200
+Message-Id: <1265846123-2244-1-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: Lubos Lunak <l.lunak@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 02/10/2010 03:54 PM, Lubos Lunak wrote:
+There is a bug in memory thresholds code. We don't check if first
+threshold (array index 0) was crossed down. This patch fixes it.
 
->   Which however can mean that not killing this system daemon will be traded for
-> DoS-ing the whole system, if the daemon keeps spawning new children as soon
-> as the OOM killer frees up resources for them.
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Pavel Emelyanov <xemul@openvz.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Killing the system daemon *is* a DoS.
-
-It would stop eg. the database or the web server, which is
-generally the main task of systems that run a database or
-a web server.
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 41e00c2..a443c30 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3252,7 +3252,7 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
+ 	 * If none of thresholds below usage is crossed, we read
+ 	 * only one element of the array here.
+ 	 */
+-	for (; i > 0 && unlikely(t->entries[i].threshold > usage); i--)
++	for (; i >= 0 && unlikely(t->entries[i].threshold > usage); i--)
+ 		eventfd_signal(t->entries[i].eventfd, 1);
+ 
+ 	/* i = current_threshold + 1 */
 -- 
-All rights reversed.
+1.6.5.8
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
