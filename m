@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FA696B0085
+	by kanga.kvack.org (Postfix) with ESMTP id 514B16B0087
 	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 12:03:53 -0500 (EST)
 From: Trond Myklebust <Trond.Myklebust@netapp.com>
-Subject: [PATCH 09/13] NFS: Replace __nfs_write_mapping with sync_inode()
-Date: Wed, 10 Feb 2010 12:03:29 -0500
-Message-Id: <1265821413-21618-10-git-send-email-Trond.Myklebust@netapp.com>
-In-Reply-To: <1265821413-21618-9-git-send-email-Trond.Myklebust@netapp.com>
+Subject: [PATCH 10/13] NFS: Simplify nfs_wb_page()
+Date: Wed, 10 Feb 2010 12:03:30 -0500
+Message-Id: <1265821413-21618-11-git-send-email-Trond.Myklebust@netapp.com>
+In-Reply-To: <1265821413-21618-10-git-send-email-Trond.Myklebust@netapp.com>
 References: <1265821413-21618-1-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-2-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-3-git-send-email-Trond.Myklebust@netapp.com>
@@ -16,159 +16,203 @@ References: <1265821413-21618-1-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-7-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-8-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-9-git-send-email-Trond.Myklebust@netapp.com>
+ <1265821413-21618-10-git-send-email-Trond.Myklebust@netapp.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Trond Myklebust <Trond.Myklebust@netapp.com>
 List-ID: <linux-mm.kvack.org>
 
-Now that we have correct COMMIT semantics in writeback_single_inode, we can
-reduce and simplify nfs_wb_all(). Also replace nfs_wb_nocommit() with a
-call to filemap_write_and_wait(), which doesn't need to hold the
-inode->i_mutex.
-
-With that done, we can eliminate nfs_write_mapping() altogether.
-
 Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
 ---
- fs/nfs/inode.c         |   15 +++++----------
- fs/nfs/write.c         |   42 +++++-------------------------------------
- include/linux/nfs_fs.h |    2 --
- 3 files changed, 10 insertions(+), 49 deletions(-)
+ fs/nfs/write.c         |  120 +++++++++--------------------------------------
+ include/linux/nfs_fs.h |    1 -
+ 2 files changed, 23 insertions(+), 98 deletions(-)
 
-diff --git a/fs/nfs/inode.c b/fs/nfs/inode.c
-index 8819ce2..13fe0dc 100644
---- a/fs/nfs/inode.c
-+++ b/fs/nfs/inode.c
-@@ -495,17 +495,11 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
- 	int need_atime = NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATIME;
- 	int err;
- 
--	/*
--	 * Flush out writes to the server in order to update c/mtime.
--	 *
--	 * Hold the i_mutex to suspend application writes temporarily;
--	 * this prevents long-running writing applications from blocking
--	 * nfs_wb_nocommit.
--	 */
-+	/* Flush out writes to the server in order to update c/mtime.  */
- 	if (S_ISREG(inode->i_mode)) {
--		mutex_lock(&inode->i_mutex);
--		nfs_wb_nocommit(inode);
--		mutex_unlock(&inode->i_mutex);
-+		err = filemap_write_and_wait(inode->i_mapping);
-+		if (err)
-+			goto out;
- 	}
- 
- 	/*
-@@ -529,6 +523,7 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
- 		generic_fillattr(inode, stat);
- 		stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
- 	}
-+out:
- 	return err;
- }
- 
 diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index 1251555..da7f0c4 100644
+index da7f0c4..f438d55 100644
 --- a/fs/nfs/write.c
 +++ b/fs/nfs/write.c
-@@ -1443,7 +1443,6 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
- 	pgoff_t idx_start, idx_end;
- 	unsigned int npages = 0;
- 	LIST_HEAD(head);
--	int nocommit = how & FLUSH_NOCOMMIT;
- 	long pages, ret;
+@@ -501,44 +501,6 @@ int nfs_reschedule_unstable_write(struct nfs_page *req)
+ }
+ #endif
  
- 	/* FIXME */
-@@ -1460,14 +1459,11 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
- 				npages = 0;
- 		}
- 	}
--	how &= ~FLUSH_NOCOMMIT;
- 	spin_lock(&inode->i_lock);
- 	do {
- 		ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
- 		if (ret != 0)
- 			continue;
--		if (nocommit)
+-/*
+- * Wait for a request to complete.
+- *
+- * Interruptible by fatal signals only.
+- */
+-static int nfs_wait_on_requests_locked(struct inode *inode, pgoff_t idx_start, unsigned int npages)
+-{
+-	struct nfs_inode *nfsi = NFS_I(inode);
+-	struct nfs_page *req;
+-	pgoff_t idx_end, next;
+-	unsigned int		res = 0;
+-	int			error;
+-
+-	if (npages == 0)
+-		idx_end = ~0;
+-	else
+-		idx_end = idx_start + npages - 1;
+-
+-	next = idx_start;
+-	while (radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree, (void **)&req, next, 1, NFS_PAGE_TAG_LOCKED)) {
+-		if (req->wb_index > idx_end)
 -			break;
- 		pages = nfs_scan_commit(inode, &head, idx_start, npages);
- 		if (pages == 0)
- 			break;
-@@ -1481,47 +1477,19 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
+-
+-		next = req->wb_index + 1;
+-		BUG_ON(!NFS_WBACK_BUSY(req));
+-
+-		kref_get(&req->wb_kref);
+-		spin_unlock(&inode->i_lock);
+-		error = nfs_wait_on_request(req);
+-		nfs_release_request(req);
+-		spin_lock(&inode->i_lock);
+-		if (error < 0)
+-			return error;
+-		res++;
+-	}
+-	return res;
+-}
+-
+ #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+ static int
+ nfs_need_commit(struct nfs_inode *nfsi)
+@@ -1421,7 +1383,7 @@ out_mark_dirty:
  	return ret;
  }
+ #else
+-static inline int nfs_commit_list(struct inode *inode, struct list_head *head, int how)
++static int nfs_commit_inode(struct inode *inode, int how)
+ {
+ 	return 0;
+ }
+@@ -1437,46 +1399,6 @@ int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
+ 	return nfs_commit_unstable_pages(inode, wbc);
+ }
  
--static int __nfs_write_mapping(struct address_space *mapping, struct writeback_control *wbc, int how)
+-long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_control *wbc, int how)
 -{
--	int ret;
+-	struct inode *inode = mapping->host;
+-	pgoff_t idx_start, idx_end;
+-	unsigned int npages = 0;
+-	LIST_HEAD(head);
+-	long pages, ret;
 -
--	ret = nfs_writepages(mapping, wbc);
--	if (ret < 0)
--		goto out;
--	ret = nfs_sync_mapping_wait(mapping, wbc, how);
--	if (ret < 0)
--		goto out;
--	return 0;
--out:
--	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+-	/* FIXME */
+-	if (wbc->range_cyclic)
+-		idx_start = 0;
+-	else {
+-		idx_start = wbc->range_start >> PAGE_CACHE_SHIFT;
+-		idx_end = wbc->range_end >> PAGE_CACHE_SHIFT;
+-		if (idx_end > idx_start) {
+-			pgoff_t l_npages = 1 + idx_end - idx_start;
+-			npages = l_npages;
+-			if (sizeof(npages) != sizeof(l_npages) &&
+-					(pgoff_t)npages != l_npages)
+-				npages = 0;
+-		}
+-	}
+-	spin_lock(&inode->i_lock);
+-	do {
+-		ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
+-		if (ret != 0)
+-			continue;
+-		pages = nfs_scan_commit(inode, &head, idx_start, npages);
+-		if (pages == 0)
+-			break;
+-		pages += nfs_scan_commit(inode, &head, 0, 0);
+-		spin_unlock(&inode->i_lock);
+-		ret = nfs_commit_list(inode, &head, how);
+-		spin_lock(&inode->i_lock);
+-
+-	} while (ret >= 0);
+-	spin_unlock(&inode->i_lock);
 -	return ret;
 -}
 -
--/* Two pass sync: first using WB_SYNC_NONE, then WB_SYNC_ALL */
--static int nfs_write_mapping(struct address_space *mapping, int how)
-+/*
-+ * flush the inode to disk.
-+ */
-+int nfs_wb_all(struct inode *inode)
- {
- 	struct writeback_control wbc = {
--		.bdi = mapping->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
- 		.nr_to_write = LONG_MAX,
- 		.range_start = 0,
- 		.range_end = LLONG_MAX,
- 	};
- 
--	return __nfs_write_mapping(mapping, &wbc, how);
--}
--
--/*
-- * flush the inode to disk.
-- */
--int nfs_wb_all(struct inode *inode)
--{
--	return nfs_write_mapping(inode->i_mapping, 0);
--}
--
--int nfs_wb_nocommit(struct inode *inode)
--{
--	return nfs_write_mapping(inode->i_mapping, FLUSH_NOCOMMIT);
-+	return sync_inode(inode, &wbc);
+ /*
+  * flush the inode to disk.
+  */
+@@ -1520,45 +1442,49 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
+ 	return ret;
  }
  
- int nfs_wb_page_cancel(struct inode *inode, struct page *page)
+-static int nfs_wb_page_priority(struct inode *inode, struct page *page,
+-				int how)
++/*
++ * Write back all requests on one page - we do this before reading it.
++ */
++int nfs_wb_page(struct inode *inode, struct page *page)
+ {
+ 	loff_t range_start = page_offset(page);
+ 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+ 	struct writeback_control wbc = {
+-		.bdi = page->mapping->backing_dev_info,
+ 		.sync_mode = WB_SYNC_ALL,
+-		.nr_to_write = LONG_MAX,
++		.nr_to_write = 0,
+ 		.range_start = range_start,
+ 		.range_end = range_end,
+ 	};
++	struct nfs_page *req;
++	int need_commit;
+ 	int ret;
+ 
+-	do {
++	while(PagePrivate(page)) {
+ 		if (clear_page_dirty_for_io(page)) {
+ 			ret = nfs_writepage_locked(page, &wbc);
+ 			if (ret < 0)
+ 				goto out_error;
+-		} else if (!PagePrivate(page))
++		}
++		req = nfs_find_and_lock_request(page);
++		if (!req)
+ 			break;
+-		ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
+-		if (ret < 0)
++		if (IS_ERR(req)) {
++			ret = PTR_ERR(req);
+ 			goto out_error;
+-	} while (PagePrivate(page));
++		}
++		need_commit = test_bit(PG_CLEAN, &req->wb_flags);
++		nfs_clear_page_tag_locked(req);
++		if (need_commit) {
++			ret = nfs_commit_inode(inode, FLUSH_SYNC);
++			if (ret < 0)
++				goto out_error;
++		}
++	}
+ 	return 0;
+ out_error:
+-	__mark_inode_dirty(inode, I_DIRTY_PAGES);
+ 	return ret;
+ }
+ 
+-/*
+- * Write back all requests on one page - we do this before reading it.
+- */
+-int nfs_wb_page(struct inode *inode, struct page* page)
+-{
+-	return nfs_wb_page_priority(inode, page, FLUSH_STABLE);
+-}
+-
+ #ifdef CONFIG_MIGRATION
+ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
+ 		struct page *page)
 diff --git a/include/linux/nfs_fs.h b/include/linux/nfs_fs.h
-index 1eec414..3383622 100644
+index 3383622..b1e0877 100644
 --- a/include/linux/nfs_fs.h
 +++ b/include/linux/nfs_fs.h
-@@ -33,7 +33,6 @@
- #define FLUSH_STABLE		4	/* commit to stable storage */
- #define FLUSH_LOWPRI		8	/* low priority background flush */
- #define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
--#define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
- 
- #ifdef __KERNEL__
- 
-@@ -477,7 +476,6 @@ extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
+@@ -474,7 +474,6 @@ extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
+  * Try to write back everything synchronously (but check the
+  * return value!)
   */
- extern long nfs_sync_mapping_wait(struct address_space *, struct writeback_control *, int);
+-extern long nfs_sync_mapping_wait(struct address_space *, struct writeback_control *, int);
  extern int nfs_wb_all(struct inode *inode);
--extern int nfs_wb_nocommit(struct inode *inode);
  extern int nfs_wb_page(struct inode *inode, struct page* page);
  extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
- #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 -- 
 1.6.6
 
