@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 146446B007B
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 11:32:29 -0500 (EST)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o1AGWQxv005307
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 16:32:26 GMT
-Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
-	by wpaz1.hot.corp.google.com with ESMTP id o1AGWNgL012928
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:24 -0800
-Received: by pzk35 with SMTP id 35so181822pzk.25
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:23 -0800 (PST)
-Date: Wed, 10 Feb 2010 08:32:21 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 093D26B007D
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 11:32:31 -0500 (EST)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id o1AGWTN9018690
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:29 -0800
+Received: from qyk1 (qyk1.prod.google.com [10.241.83.129])
+	by kpbe15.cbf.corp.google.com with ESMTP id o1AGWC3L006169
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:28 -0800
+Received: by qyk1 with SMTP id 1so147513qyk.0
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:28 -0800 (PST)
+Date: Wed, 10 Feb 2010 08:32:24 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 6/7 -mm] oom: avoid oom killer for lowmem allocations
+Subject: [patch 7/7 -mm] oom: remove unnecessary code and cleanup
 In-Reply-To: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002100229410.8001@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002100230010.8001@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -23,42 +23,119 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If memory has been depleted in lowmem zones even with the protection
-afforded to it by /proc/sys/vm/lowmem_reserve_ratio, it is unlikely that
-killing current users will help.  The memory is either reclaimable (or
-migratable) already, in which case we should not invoke the oom killer at
-all, or it is pinned by an application for I/O.  Killing such an
-application may leave the hardware in an unspecified state and there is
-no guarantee that it will be able to make a timely exit.
+Remove the redundancy in __oom_kill_task() since:
 
-Lowmem allocations are now failed in oom conditions so that the task can
-perhaps recover or try again later.  Killing current is an unnecessary
-result for simply making a GFP_DMA or GFP_DMA32 page allocation and no
-lowmem allocations use the now-deprecated __GFP_NOFAIL bit so retrying is
-unnecessary.
+ - init can never be passed to this function: it will never be PF_EXITING
+   or selectable from select_bad_process(), and
 
-Previously, the heuristic provided some protection for those tasks with 
-CAP_SYS_RAWIO, but this is no longer necessary since we will not be
-killing tasks for the purposes of ISA allocations.
+ - it will never be passed a task from oom_kill_task() without an ->mm
+   and we're unconcerned about detachment from exiting tasks, there's no
+   reason to protect them against SIGKILL or access to memory reserves.
+
+Also moves the kernel log message to a higher level since the verbosity
+is not always emitted here; we need not print an error message if an
+exiting task is given a longer timeslice.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/page_alloc.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+ mm/oom_kill.c |   64 ++++++++++++++------------------------------------------
+ 1 files changed, 16 insertions(+), 48 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1914,6 +1914,9 @@ rebalance:
- 	 * running out of options and have to consider going OOM
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -400,67 +400,35 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		dump_tasks(mem);
+ }
+ 
+-#define K(x) ((x) << (PAGE_SHIFT-10))
+-
+ /*
+- * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
+- * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
+- * set.
++ * Give the oom killed task high priority and access to memory reserves so that
++ * it may quickly exit and free its memory.
+  */
+-static void __oom_kill_task(struct task_struct *p, int verbose)
++static void __oom_kill_task(struct task_struct *p)
+ {
+-	if (is_global_init(p)) {
+-		WARN_ON(1);
+-		printk(KERN_WARNING "tried to kill init!\n");
+-		return;
+-	}
+-
+-	task_lock(p);
+-	if (!p->mm) {
+-		WARN_ON(1);
+-		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
+-			task_pid_nr(p), p->comm);
+-		task_unlock(p);
+-		return;
+-	}
+-
+-	if (verbose)
+-		printk(KERN_ERR "Killed process %d (%s) "
+-		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+-		       task_pid_nr(p), p->comm,
+-		       K(p->mm->total_vm),
+-		       K(get_mm_counter(p->mm, MM_ANONPAGES)),
+-		       K(get_mm_counter(p->mm, MM_FILEPAGES)));
+-	task_unlock(p);
+-
+-	/*
+-	 * We give our sacrificial lamb high priority and access to
+-	 * all the memory it needs. That way it should be able to
+-	 * exit() and clear out its resources quickly...
+-	 */
+ 	p->rt.time_slice = HZ;
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+-
+ 	force_sig(SIGKILL, p);
+ }
+ 
++#define K(x) ((x) << (PAGE_SHIFT-10))
+ static int oom_kill_task(struct task_struct *p)
+ {
+-	/* WARNING: mm may not be dereferenced since we did not obtain its
+-	 * value from get_task_mm(p).  This is OK since all we need to do is
+-	 * compare mm to q->mm below.
+-	 *
+-	 * Furthermore, even if mm contains a non-NULL value, p->mm may
+-	 * change to NULL at any time since we do not hold task_lock(p).
+-	 * However, this is of no concern to us.
+-	 */
+-	if (!p->mm || p->signal->oom_adj == OOM_DISABLE)
++	task_lock(p);
++	if (!p->mm || p->signal->oom_adj == OOM_DISABLE) {
++		task_unlock(p);
+ 		return 1;
++	}
++	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
++		task_pid_nr(p), p->comm, K(p->mm->total_vm),
++	       K(get_mm_counter(p->mm, MM_ANONPAGES)),
++	       K(get_mm_counter(p->mm, MM_FILEPAGES)));
++	task_unlock(p);
+ 
+-	__oom_kill_task(p, 1);
+-
++	__oom_kill_task(p);
+ 	return 0;
+ }
++#undef K
+ 
+ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 			    unsigned int points, unsigned long totalpages,
+@@ -479,7 +447,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
  	 */
- 	if (!did_some_progress) {
-+		/* The oom killer won't necessarily free lowmem */
-+		if (high_zoneidx < ZONE_NORMAL)
-+			goto nopage;
- 		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
- 			if (oom_killer_disabled)
- 				goto nopage;
+ 	if (p->flags & PF_EXITING) {
+-		__oom_kill_task(p, 0);
++		__oom_kill_task(p);
+ 		return 0;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
