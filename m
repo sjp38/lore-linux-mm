@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A81BB6B0083
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 23:13:19 -0500 (EST)
-Message-ID: <4B7383D5.2080904@redhat.com>
-Date: Wed, 10 Feb 2010 23:13:09 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id F29676B0087
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 23:15:52 -0500 (EST)
+Message-ID: <4B73206C.8090108@redhat.com>
+Date: Wed, 10 Feb 2010 16:09:00 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 6/7 -mm] oom: avoid oom killer for lowmem allocations
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100229410.8001@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1002100229410.8001@chino.kir.corp.google.com>
+Subject: Re: Improving OOM killer
+References: <201002012302.37380.l.lunak@suse.cz> <201002040858.33046.l.lunak@suse.cz> <alpine.DEB.2.00.1002041255080.6071@chino.kir.corp.google.com> <201002102154.39771.l.lunak@suse.cz>
+In-Reply-To: <201002102154.39771.l.lunak@suse.cz>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lubos Lunak <l.lunak@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On 02/10/2010 11:32 AM, David Rientjes wrote:
+On 02/10/2010 03:54 PM, Lubos Lunak wrote:
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1914,6 +1914,9 @@ rebalance:
->   	 * running out of options and have to consider going OOM
->   	 */
->   	if (!did_some_progress) {
-> +		/* The oom killer won't necessarily free lowmem */
-> +		if (high_zoneidx<  ZONE_NORMAL)
-> +			goto nopage;
->   		if ((gfp_mask&  __GFP_FS)&&  !(gfp_mask&  __GFP_NORETRY)) {
->   			if (oom_killer_disabled)
->   				goto nopage;
+>   Simply computing the cost of the whole children subtree (or a reasonable
+> approximation) avoids the need for any magic numbers and gives a much better
+> representation of how costly the subtree is, since, well, it is the cost
+> itself.
 
-Are there architectures that only have one memory zone?
+That assumes you want to kill off that entire tree.
 
-s390 or one of the other virtualized-only architectures perhaps?
+You will not want to do that when a web server or
+database server runs out of memory, because the
+goal of the OOM killer is to allow the system to
+continue to run and be useful. This means keeping
+the services available...
 
 -- 
 All rights reversed.
