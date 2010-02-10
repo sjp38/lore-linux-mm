@@ -1,47 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4000B6B004D
-	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 22:10:20 -0500 (EST)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id o1A3AF59005589
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 03:10:15 GMT
-Received: from pxi36 (pxi36.prod.google.com [10.243.27.36])
-	by wpaz33.hot.corp.google.com with ESMTP id o1A3ADMI004262
-	for <linux-mm@kvack.org>; Tue, 9 Feb 2010 19:10:13 -0800
-Received: by pxi36 with SMTP id 36so7781127pxi.26
-        for <linux-mm@kvack.org>; Tue, 09 Feb 2010 19:10:12 -0800 (PST)
-Date: Tue, 9 Feb 2010 19:10:10 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Improving OOM killer
-In-Reply-To: <201002050835.30550.oliver@neukum.org>
-Message-ID: <alpine.DEB.2.00.1002091906020.31159@chino.kir.corp.google.com>
-References: <201002012302.37380.l.lunak@suse.cz> <alpine.LNX.2.00.1002041044080.15395@pobox.suse.cz> <alpine.DEB.2.00.1002041335140.6071@chino.kir.corp.google.com> <201002050835.30550.oliver@neukum.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 988E36B004D
+	for <linux-mm@kvack.org>; Tue,  9 Feb 2010 22:53:16 -0500 (EST)
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp09.in.ibm.com (8.14.3/8.13.1) with ESMTP id o1A3HH3K007200
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:47:17 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1A3rBNQ2859130
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 09:23:11 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o1A3rBvs005606
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 14:53:11 +1100
+Date: Wed, 10 Feb 2010 09:20:52 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
+Message-ID: <20100210035052.GH3290@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <4B71927D.6030607@nortel.com>
+ <20100210093140.12D9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100210093140.12D9.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Oliver Neukum <oliver@neukum.org>
-Cc: Jiri Kosina <jkosina@suse.cz>, Lubos Lunak <l.lunak@suse.cz>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Chris Friesen <cfriesen@nortel.com>, Rik van Riel <riel@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Feb 2010, Oliver Neukum wrote:
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2010-02-10 09:32:07]:
 
-> > That's what we're trying to do, we can look at the shear number of 
-> > children that the parent has forked and check for it to be over a certain 
-> > "forkbombing threshold" (which, yes, can be tuned from userspace), the 
-> > uptime of those children, their resident set size, etc., to attempt to 
-> > find a sane heuristic that penalizes them.
+> > Hi,
+> > 
+> > I'm hoping you can help me out.  I'm on a 2.6.27 x86 system and I'm
+> > seeing the "inactive" field in /proc/meminfo slowly growing over time to
+> > the point where eventually the oom-killer kicks in and starts killing
+> > things.  The growth is not evident in any other field in /proc/meminfo.
+> > 
+> > I'm trying to figure out where the memory is going, and what it's being
+> > used for.
+> > 
+> > As I've found, the fields in /proc/meminfo don't add up...in particular,
+> > active+inactive is quite a bit larger than
+> > buffers+cached+dirty+anonpages+mapped+pagetables+vmallocused.  Initially
+> > the difference is about 156MB, but after about 13 hrs the difference is
+> > 240MB.
+> > 
+> > How can I track down where this is going?  Can you suggest any
+> > instrumentation that I can add?
+> > 
+> > I'm reasonably capable, but I'm getting seriously confused trying to
+> > sort out the memory subsystem.  Some pointers would be appreciated.
 > 
-> Wouldn't it be saner to have a selection by user, so that users that
-> are over the overcommit limit are targeted?
-> 
+> can you please post your /proc/meminfo?
+>
 
-It's rather unnecessary for the forkbomb case because then it would 
-unfairly penalize any user that runs lots of tasks.  The forkbomb handling 
-code is really to prevent either user error, bugs in the application, or 
-maliciousness.  The goal isn't necessarily to kill anything that forks an 
-egregious amount of tasks (which is why we always prefer a child with a 
-seperate address space than a parent, anyway) but rather to try to make 
-sure the system is still usable and recoverable.
+Do you have swap enabled? Can you help with the OOM killed dmesg log?
+Does the situation get better after OOM killing. /proc/meminfo as
+Kosaki suggested would be important as well. 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
