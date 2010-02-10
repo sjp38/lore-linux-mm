@@ -1,102 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 47C2A6B0085
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 11:33:42 -0500 (EST)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o1AGWDUS005286
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 16:32:13 GMT
-Received: from qyk13 (qyk13.prod.google.com [10.241.83.141])
-	by wpaz5.hot.corp.google.com with ESMTP id o1AGUaD4021260
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:12 -0800
-Received: by qyk13 with SMTP id 13so144577qyk.31
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:12 -0800 (PST)
-Date: Wed, 10 Feb 2010 08:32:10 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/7 -mm] oom: sacrifice child with highest badness score for
- parent
-In-Reply-To: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002100228240.8001@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 302AD6B0071
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 12:03:51 -0500 (EST)
+From: Trond Myklebust <Trond.Myklebust@netapp.com>
+Subject: [PATCH 00/13] Allow the VM to manage NFS unstable writes
+Date: Wed, 10 Feb 2010 12:03:20 -0500
+Message-Id: <1265821413-21618-1-git-send-email-Trond.Myklebust@netapp.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Trond Myklebust <Trond.Myklebust@netapp.com>
 List-ID: <linux-mm.kvack.org>
 
-When a task is chosen for oom kill, the oom killer first attempts to
-sacrifice a child not sharing its parent's memory instead.
-Unfortunately, this often kills in a seemingly random fashion based on
-the ordering of the selected task's child list.  Additionally, it is not
-guaranteed at all to free a large amount of memory that we need to
-prevent additional oom killing in the very near future.
+Hi,
 
-Instead, we now only attempt to sacrifice the worst child not sharing its
-parent's memory, if one exists.  The worst child is indicated with the
-highest badness() score.  This serves two advantages: we kill a
-memory-hogging task more often, and we allow the configurable
-/proc/pid/oom_adj value to be considered as a factor in which child to
-kill.
+The following patch series applies on top of Al Viro's 'write_inode' branch
+in git://git.kernel.org/pub/scm/linux/kernel/git/viro/vfs-2.6.git/
+(which basically just adds a struct writeback_control * argument to the
+superblock's 'write_inode' callback).
 
-Reviewers may observe that the previous implementation would iterate
-through the children and attempt to kill each until one was successful
-and then the parent if none were found while the new code simply kills
-the most memory-hogging task or the parent.  Note that the only time
-oom_kill_task() fails, however, is when a child does not have an mm or
-has a /proc/pid/oom_adj of OOM_DISABLE.  badness() returns 0 for both
-cases, so the final oom_kill_task() will always succeed.
+These patches are designed to ensure better control by the VM of the NFS
+'unstable writes'. It should allow balance_dirty_pages() to manage the
+unstable write page budget, by giving it a method to tell the NFS
+client when it needs to clear out unstable writes and, by implication,
+when it can continue to cache them.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |   23 +++++++++++++++++------
- 1 files changed, 17 insertions(+), 6 deletions(-)
+This patchset has already been posted on the linux-nfs and linux-kernel
+mailing lists. I'm posting it here in order to hopefully get some feedback
+from the VM community (and possibly a few more Acks).
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -432,7 +432,10 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			    unsigned long points, struct mem_cgroup *mem,
- 			    const char *message)
- {
-+	struct task_struct *victim = p;
- 	struct task_struct *c;
-+	unsigned long victim_points = 0;
-+	struct timespec uptime;
- 
- 	if (printk_ratelimit())
- 		dump_header(p, gfp_mask, order, mem);
-@@ -446,17 +449,25 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		return 0;
- 	}
- 
--	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
--					message, task_pid_nr(p), p->comm, points);
-+	pr_err("%s: Kill process %d (%s) with score %lu or sacrifice child\n",
-+		message, task_pid_nr(p), p->comm, points);
- 
--	/* Try to kill a child first */
-+	/* Try to sacrifice the worst child first */
-+	do_posix_clock_monotonic_gettime(&uptime);
- 	list_for_each_entry(c, &p->children, sibling) {
-+		unsigned long cpoints;
-+
- 		if (c->mm == p->mm)
- 			continue;
--		if (!oom_kill_task(c))
--			return 0;
-+
-+		/* badness() returns 0 if the thread is unkillable */
-+		cpoints = badness(c, uptime.tv_sec);
-+		if (cpoints > victim_points) {
-+			victim = c;
-+			victim_points = cpoints;
-+		}
- 	}
--	return oom_kill_task(p);
-+	return oom_kill_task(victim);
- }
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+Apologies to those of you who have already received these patches through
+the other mailing lists...
+
+Cheers
+  Trond
+
+Peter Zijlstra (1):
+  VM: Split out the accounting of unstable writes from BDI_RECLAIMABLE
+
+Trond Myklebust (12):
+  VM: Don't call bdi_stat(BDI_UNSTABLE) on non-nfs backing-devices
+  NFS: Cleanup - move nfs_write_inode() into fs/nfs/write.c
+  NFS: Reduce the number of unnecessary COMMIT calls
+  VM/NFS: The VM must tell the filesystem when to free reclaimable
+    pages
+  NFS: Run COMMIT as an asynchronous RPC call when wbc->for_background
+    is set
+  NFS: Ensure inode is always marked I_DIRTY_DATASYNC, if it has
+    unstable pages
+  NFS: Simplify nfs_wb_page_cancel()
+  NFS: Replace __nfs_write_mapping with sync_inode()
+  NFS: Simplify nfs_wb_page()
+  NFS: Clean up nfs_sync_mapping
+  NFS: Remove requirement for inode->i_mutex from
+    nfs_invalidate_mapping
+  NFS: Don't write out dirty pages in nfs_release_page()
+
+ fs/nfs/client.c             |    1 +
+ fs/nfs/dir.c                |    2 +-
+ fs/nfs/file.c               |    7 ++
+ fs/nfs/inode.c              |   82 ++-------------
+ fs/nfs/symlink.c            |    2 +-
+ fs/nfs/write.c              |  238 ++++++++++++-------------------------------
+ include/linux/backing-dev.h |    9 ++-
+ include/linux/nfs_fs.h      |   13 ---
+ include/linux/writeback.h   |    5 +
+ mm/backing-dev.c            |    6 +-
+ mm/filemap.c                |    2 +-
+ mm/page-writeback.c         |   30 +++++-
+ mm/truncate.c               |    2 +-
+ 13 files changed, 130 insertions(+), 269 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
