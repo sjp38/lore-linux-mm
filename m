@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BB4646B0071
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 21:42:21 -0500 (EST)
-Received: by ey-out-1920.google.com with SMTP id 13so171139eye.18
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2010 15:55:39 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH mmotm] memcg: check if first threshold crossed
-Date: Thu, 11 Feb 2010 01:55:23 +0200
-Message-Id: <1265846123-2244-1-git-send-email-kirill@shutemov.name>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 499E86B007B
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 21:47:43 -0500 (EST)
+Message-ID: <4B733785.7060608@redhat.com>
+Date: Wed, 10 Feb 2010 17:47:33 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [patch 3/7 -mm] oom: select task from tasklist for mempolicy
+ ooms
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228370.8001@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002100228370.8001@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There is a bug in memory thresholds code. We don't check if first
-threshold (array index 0) was crossed down. This patch fixes it.
+On 02/10/2010 11:32 AM, David Rientjes wrote:
+> The oom killer presently kills current whenever there is no more memory
+> free or reclaimable on its mempolicy's nodes.  There is no guarantee that
+> current is a memory-hogging task or that killing it will free any
+> substantial amount of memory, however.
+>
+> In such situations, it is better to scan the tasklist for nodes that are
+> allowed to allocate on current's set of nodes and kill the task with the
+> highest badness() score.  This ensures that the most memory-hogging task,
+> or the one configured by the user with /proc/pid/oom_adj, is always
+> selected in such scenarios.
+>
+> Signed-off-by: David Rientjes<rientjes@google.com>
 
-Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Pavel Emelyanov <xemul@openvz.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Acked-by: Rik van Riel <riel@redhat.com>
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 41e00c2..a443c30 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3252,7 +3252,7 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
- 	 * If none of thresholds below usage is crossed, we read
- 	 * only one element of the array here.
- 	 */
--	for (; i > 0 && unlikely(t->entries[i].threshold > usage); i--)
-+	for (; i >= 0 && unlikely(t->entries[i].threshold > usage); i--)
- 		eventfd_signal(t->entries[i].eventfd, 1);
- 
- 	/* i = current_threshold + 1 */
 -- 
-1.6.5.8
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
