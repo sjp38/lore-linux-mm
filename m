@@ -1,19 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AC936B0071
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 60B156B0078
 	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 11:32:14 -0500 (EST)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o1AGW99m010798
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 16:32:09 GMT
-Received: from pzk33 (pzk33.prod.google.com [10.243.19.161])
-	by wpaz9.hot.corp.google.com with ESMTP id o1AGW72d012899
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:08 -0800
-Received: by pzk33 with SMTP id 33so216600pzk.2
-        for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:07 -0800 (PST)
-Date: Wed, 10 Feb 2010 08:32:03 -0800 (PST)
+Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
+	by smtp-out.google.com with ESMTP id o1AGWCQI018229
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:12 -0800
+Received: from pzk27 (pzk27.prod.google.com [10.243.19.155])
+	by kpbe18.cbf.corp.google.com with ESMTP id o1AGVctx027506
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:11 -0800
+Received: by pzk27 with SMTP id 27so183137pzk.33
+        for <linux-mm@kvack.org>; Wed, 10 Feb 2010 08:32:09 -0800 (PST)
+Date: Wed, 10 Feb 2010 08:32:08 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 0/7 -mm] oom killer rewrite
-Message-ID: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
+Subject: [patch 1/7 -mm] oom: filter tasks not sharing the same cpuset
+In-Reply-To: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002100227590.8001@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -21,44 +23,59 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patchset is a rewrite of the out of memory killer to address several
-issues that have been raised recently.  The most notable change is a
-complete rewrite of the badness heuristic that determines which task is
-killed; the goal was to make it as simple and predictable as possible
-while still addressing issues that plague the VM.
+Tasks that do not share the same set of allowed nodes with the task that
+triggered the oom should not be considered as candidates for oom kill.
 
-This patchset is based on mmotm-2010-02-05-15-06 because of the following
-dependencies:
+Tasks in other cpusets with a disjoint set of mems would be unfairly
+penalized otherwise because of oom conditions elsewhere; an extreme
+example could unfairly kill all other applications on the system if a
+single task in a user's cpuset sets itself to OOM_DISABLE and then uses
+more memory than allowed.
 
-	[patch 4/7] oom: badness heuristic rewrite:
-		mm-count-swap-usage.patch
+Killing tasks outside of current's cpuset rarely would free memory for
+current anyway.
 
-	[patch 5/7] oom: replace sysctls with quick mode:
-		sysctl-clean-up-vm-related-variable-delcarations.patch
-
-To apply to mainline, download 2.6.33-rc7 and apply
-
-	mm-clean-up-mm_counter.patch
-	mm-avoid-false-sharing-of-mm_counter.patch
-	mm-avoid-false_sharing-of-mm_counter-checkpatch-fixes.patch
-	mm-count-swap-usage.patch
-	mm-count-swap-usage-checkpatch-fixes.patch
-	mm-introduce-dump_page-and-print-symbolic-flag-names.patch
-	sysctl-clean-up-vm-related-variable-declarations.patch
-	sysctl-clean-up-vm-related-variable-declarations-fix.patch
-
-from http://userweb.kernel.org/~akpm/mmotm/broken-out.tar.gz first.
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/filesystems/proc.txt |   78 ++++---
- Documentation/sysctl/vm.txt        |   51 ++---
- fs/proc/base.c                     |   13 +-
- include/linux/mempolicy.h          |   13 +-
- include/linux/oom.h                |   18 +-
- kernel/sysctl.c                    |   15 +-
- mm/mempolicy.c                     |   39 +++
- mm/oom_kill.c                      |  455 +++++++++++++++++++-----------------
- mm/page_alloc.c                    |    3 +
- 9 files changed, 383 insertions(+), 302 deletions(-)
+ mm/oom_kill.c |   12 +++---------
+ 1 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -35,7 +35,7 @@ static DEFINE_SPINLOCK(zone_scan_lock);
+ /* #define DEBUG */
+ 
+ /*
+- * Is all threads of the target process nodes overlap ours?
++ * Do all threads of the target process overlap our allowed nodes?
+  */
+ static int has_intersects_mems_allowed(struct task_struct *tsk)
+ {
+@@ -167,14 +167,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+ 		points /= 4;
+ 
+ 	/*
+-	 * If p's nodes don't overlap ours, it may still help to kill p
+-	 * because p may have allocated or otherwise mapped memory on
+-	 * this node before. However it will be less likely.
+-	 */
+-	if (!has_intersects_mems_allowed(p))
+-		points /= 8;
+-
+-	/*
+ 	 * Adjust the score by oom_adj.
+ 	 */
+ 	if (oom_adj) {
+@@ -266,6 +258,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+ 			continue;
+ 		if (mem && !task_in_mem_cgroup(p, mem))
+ 			continue;
++		if (!has_intersects_mems_allowed(p))
++			continue;
+ 
+ 		/*
+ 		 * This task already has access to memory reserves and is
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
