@@ -1,48 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C0AD26B0071
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 17:39:43 -0500 (EST)
-Message-ID: <4B731CA6.3030304@redhat.com>
-Date: Wed, 10 Feb 2010 15:52:54 -0500
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id BBE956B0078
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 21:38:14 -0500 (EST)
+Message-ID: <4B7320BF.2020800@redhat.com>
+Date: Wed, 10 Feb 2010 16:10:23 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 2/7 -mm] oom: sacrifice child with highest badness score
- for parent
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228240.8001@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1002100228240.8001@chino.kir.corp.google.com>
+Subject: Re: Improving OOM killer
+References: <201002012302.37380.l.lunak@suse.cz> <4B6B4500.3010603@redhat.com> <alpine.DEB.2.00.1002041410300.16391@chino.kir.corp.google.com> <201002102154.43231.l.lunak@suse.cz>
+In-Reply-To: <201002102154.43231.l.lunak@suse.cz>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lubos Lunak <l.lunak@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On 02/10/2010 11:32 AM, David Rientjes wrote:
-> When a task is chosen for oom kill, the oom killer first attempts to
-> sacrifice a child not sharing its parent's memory instead.
-> Unfortunately, this often kills in a seemingly random fashion based on
-> the ordering of the selected task's child list.  Additionally, it is not
-> guaranteed at all to free a large amount of memory that we need to
-> prevent additional oom killing in the very near future.
->
-> Instead, we now only attempt to sacrifice the worst child not sharing its
-> parent's memory, if one exists.  The worst child is indicated with the
-> highest badness() score.  This serves two advantages: we kill a
-> memory-hogging task more often, and we allow the configurable
-> /proc/pid/oom_adj value to be considered as a factor in which child to
-> kill.
->
-> Reviewers may observe that the previous implementation would iterate
-> through the children and attempt to kill each until one was successful
-> and then the parent if none were found while the new code simply kills
-> the most memory-hogging task or the parent.  Note that the only time
-> oom_kill_task() fails, however, is when a child does not have an mm or
-> has a /proc/pid/oom_adj of OOM_DISABLE.  badness() returns 0 for both
-> cases, so the final oom_kill_task() will always succeed.
->
-> Signed-off-by: David Rientjes<rientjes@google.com>
+On 02/10/2010 03:54 PM, Lubos Lunak wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+>   Which however can mean that not killing this system daemon will be traded for
+> DoS-ing the whole system, if the daemon keeps spawning new children as soon
+> as the OOM killer frees up resources for them.
+
+Killing the system daemon *is* a DoS.
+
+It would stop eg. the database or the web server, which is
+generally the main task of systems that run a database or
+a web server.
 
 -- 
 All rights reversed.
