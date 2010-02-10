@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 84ED862000B
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 12:03:53 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A8176B0089
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 12:03:54 -0500 (EST)
 From: Trond Myklebust <Trond.Myklebust@netapp.com>
-Subject: [PATCH 13/13] NFS: Don't write out dirty pages in nfs_release_page()
-Date: Wed, 10 Feb 2010 12:03:33 -0500
-Message-Id: <1265821413-21618-14-git-send-email-Trond.Myklebust@netapp.com>
-In-Reply-To: <1265821413-21618-13-git-send-email-Trond.Myklebust@netapp.com>
+Subject: [PATCH 11/13] NFS: Clean up nfs_sync_mapping
+Date: Wed, 10 Feb 2010 12:03:31 -0500
+Message-Id: <1265821413-21618-12-git-send-email-Trond.Myklebust@netapp.com>
+In-Reply-To: <1265821413-21618-11-git-send-email-Trond.Myklebust@netapp.com>
 References: <1265821413-21618-1-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-2-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-3-git-send-email-Trond.Myklebust@netapp.com>
@@ -18,39 +18,44 @@ References: <1265821413-21618-1-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-9-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-10-git-send-email-Trond.Myklebust@netapp.com>
  <1265821413-21618-11-git-send-email-Trond.Myklebust@netapp.com>
- <1265821413-21618-12-git-send-email-Trond.Myklebust@netapp.com>
- <1265821413-21618-13-git-send-email-Trond.Myklebust@netapp.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Trond Myklebust <Trond.Myklebust@netapp.com>
 List-ID: <linux-mm.kvack.org>
 
-This causes too many commits in shrink_page_list()...
+Remove the redundant call to filemap_write_and_wait().
 
-Reported-by: Steve Rago <sar@nec-labs.com>
 Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
 ---
- fs/nfs/file.c |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+ fs/nfs/inode.c |   16 ++++++----------
+ 1 files changed, 6 insertions(+), 10 deletions(-)
 
-diff --git a/fs/nfs/file.c b/fs/nfs/file.c
-index 63f2071..dcba521 100644
---- a/fs/nfs/file.c
-+++ b/fs/nfs/file.c
-@@ -486,6 +486,13 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
+diff --git a/fs/nfs/inode.c b/fs/nfs/inode.c
+index 13fe0dc..38e79e4 100644
+--- a/fs/nfs/inode.c
++++ b/fs/nfs/inode.c
+@@ -114,16 +114,12 @@ void nfs_clear_inode(struct inode *inode)
+  */
+ int nfs_sync_mapping(struct address_space *mapping)
  {
- 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
+-	int ret;
++	int ret = 0;
  
-+	/* See comment in shrink_page_list(): although the VM may
-+	 * call this function on a dirty page, we are not expected
-+	 * to initiate writeback on it.
-+	 */
-+	if (PageDirty(page) || !page->mapping)
-+		return 0;
-+
- 	if (gfp & __GFP_WAIT)
- 		nfs_wb_page(page->mapping->host, page);
- 	/* If PagePrivate() is set, then the page is not freeable */
+-	if (mapping->nrpages == 0)
+-		return 0;
+-	unmap_mapping_range(mapping, 0, 0, 0);
+-	ret = filemap_write_and_wait(mapping);
+-	if (ret != 0)
+-		goto out;
+-	ret = nfs_wb_all(mapping->host);
+-out:
++	if (mapping->nrpages != 0) {
++		unmap_mapping_range(mapping, 0, 0, 0);
++		ret = nfs_wb_all(mapping->host);
++	}
+ 	return ret;
+ }
+ 
 -- 
 1.6.6
 
