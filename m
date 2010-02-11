@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DDF156B0047
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:42:06 -0500 (EST)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o1BLfvHj002238
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 21:41:58 GMT
-Received: from pxi38 (pxi38.prod.google.com [10.243.27.38])
-	by kpbe16.cbf.corp.google.com with ESMTP id o1BLfZnn012082
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:41:56 -0800
-Received: by pxi38 with SMTP id 38so176283pxi.21
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:41:56 -0800 (PST)
-Date: Thu, 11 Feb 2010 13:41:53 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] [1/4] SLAB: Handle node-not-up case in fallback_alloc()
- v2
-In-Reply-To: <20100211205401.002CFB1978@basil.firstfloor.org>
-Message-ID: <alpine.DEB.2.00.1002111338090.8809@chino.kir.corp.google.com>
-References: <20100211953.850854588@firstfloor.org> <20100211205401.002CFB1978@basil.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DCCEB6B0047
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:43:51 -0500 (EST)
+Date: Thu, 11 Feb 2010 13:43:43 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 4/7 -mm] oom: badness heuristic rewrite
+Message-Id: <20100211134343.4886499c.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1002102332200.22152@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1002100228540.8001@chino.kir.corp.google.com>
+	<4B73833D.5070008@redhat.com>
+	<alpine.DEB.2.00.1002102332200.22152@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com
+To: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Feb 2010, Andi Kleen wrote:
+On Thu, 11 Feb 2010 01:14:43 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> When fallback_alloc() runs the node of the CPU might not be initialized yet.
-> Handle this case by allocating in another node.
+> On Wed, 10 Feb 2010, Rik van Riel wrote:
 > 
-> v2: Try to allocate from all nodes (David Rientjes)
+> > > OOM_ADJUST_MIN and OOM_ADJUST_MAX have been exported to userspace since
+> > > 2006 via include/linux/oom.h.  This alters their values from -16 to -1000
+> > > and from +15 to +1000, respectively.
+> > 
+> > That seems like a bad idea.  Google may have the luxury of
+> > being able to recompile all its in-house applications, but
+> > this will not be true for many other users of /proc/<pid>/oom_adj
+> > 
 > 
+> Changing any value that may have a tendency to be hardcoded elsewhere is 
+> always controversial, but I think the nature of /proc/pid/oom_adj allows 
+> us to do so for two specific reasons:
+> 
+>  - hardcoded values tend not the fall within a range, they tend to either
+>    always prefer a certain task for oom kill first or disable oom killing
+>    entirely.  The current implementation uses this as a bitshift on a
+>    seemingly unpredictable and unscientific heuristic that is very 
+>    difficult to predict at runtime.  This means that fewer and fewer
+>    applications would hardcode a value of '8', for example, because its 
+>    semantics depends entirely on RAM capacity of the system to begin with
+>    since badness() scores are only useful when used in comparison with
+>    other tasks.
 
-You don't need to specifically address the cpuset restriction in 
-fallback_alloc() since kmem_getpages() will return NULL whenever a zone is 
-tried from an unallowed node, I just thought it was a faster optimization 
-considering you (i) would operate over a nodemask and not the entire 
-zonelist, (ii) it would avoid the zone_to_nid() for all zones since you 
-already did a zonelist iteration in this function, and (iii) it wouldn't 
-needlessly call kmem_getpages() for unallowed nodes.
+You'd be amazed what dumb things applications do.  Get thee to
+http://google.com/codesearch?hl=en&lr=&q=[^a-z]oom_adj[^a-z]&sbtn=Search
+and start reading.  All 641 matches ;)
 
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Here's one which which writes -16:
+http://google.com/codesearch/p?hl=en#eN5TNOm7KtI/trunk/wlan/vendor/asus/eeepc/init.rc&q=[^a-z]oom_adj[^a-z]&sa=N&cd=70&ct=rc
 
-That said, I don't want to see this fix go unmerged since you already 
-declined to make that optimization once:
-
-Acked-by: David Rientjes <rientjes@google.com>
+Let's not change the ABI please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
