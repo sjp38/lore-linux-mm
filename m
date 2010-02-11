@@ -1,28 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8A8F56B0047
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 15:07:46 -0500 (EST)
-Date: Thu, 11 Feb 2010 14:07:18 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch] mm: suppress pfn range output for zones without pages
-In-Reply-To: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002111406110.7201@router.home>
-References: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9829E6B0047
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 15:54:04 -0500 (EST)
+From: Andi Kleen <andi@firstfloor.org>
+Message-Id: <20100211953.850854588@firstfloor.org>
+Subject: [PATCH] [0/4] Update slab memory hotplug series
+Date: Thu, 11 Feb 2010 21:53:59 +0100 (CET)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Feb 2010, David Rientjes wrote:
 
-> The output is now suppressed for zones that do not have a valid pfn
-> range.
+Should address all earlier comments (except for the funny cpuset
+case which I chose to declare a don't do that)
 
-There is a difference between zone support not compiled into the kernel
-and the zone being empty. The output so far allows me to see that support
-for a zone was compiled into the kernel but it is empty.
+Also this time hopefully without missing patches.
+
+There are still some other issues with memory hotadd, but that's the 
+current slab set.
+
+The patches are against 2.6.32, but apply to mainline I believe.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
