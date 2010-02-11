@@ -1,51 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA1D620012
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:02:05 -0500 (EST)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o1BL21KO025520
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:02:01 -0800
-Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
-	by wpaz9.hot.corp.google.com with ESMTP id o1BKxdTe032511
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:01:59 -0800
-Received: by pzk37 with SMTP id 37so768373pzk.10
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:01:59 -0800 (PST)
-Date: Thu, 11 Feb 2010 13:01:56 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CF3A3620012
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:17:36 -0500 (EST)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id o1BLHXdP007526
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:17:33 -0800
+Received: from pzk39 (pzk39.prod.google.com [10.243.19.167])
+	by wpaz13.hot.corp.google.com with ESMTP id o1BLGjGi006535
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:17:32 -0800
+Received: by pzk39 with SMTP id 39so1995164pzk.15
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:17:32 -0800 (PST)
+Date: Thu, 11 Feb 2010 13:17:29 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 4/7 -mm] oom: badness heuristic rewrite
-In-Reply-To: <20100211150712.GA13140@emergent.ellipticsemi.com>
-Message-ID: <alpine.DEB.2.00.1002111257300.1461@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228540.8001@chino.kir.corp.google.com> <4B73833D.5070008@redhat.com> <alpine.DEB.2.00.1002102332200.22152@chino.kir.corp.google.com>
- <20100211150712.GA13140@emergent.ellipticsemi.com>
+Subject: Re: Improving OOM killer
+In-Reply-To: <201002111116.07211.l.lunak@suse.cz>
+Message-ID: <alpine.DEB.2.00.1002111303570.1461@chino.kir.corp.google.com>
+References: <201002012302.37380.l.lunak@suse.cz> <201002102154.39771.l.lunak@suse.cz> <alpine.DEB.2.00.1002101405530.29007@chino.kir.corp.google.com> <201002111116.07211.l.lunak@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Bowler <nbowler@elliptictech.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lubos Lunak <l.lunak@suse.cz>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Feb 2010, Nick Bowler wrote:
+On Thu, 11 Feb 2010, Lubos Lunak wrote:
 
-> > As mentioned in the changelog, we've exported these minimum and maximum 
-> > values via a kernel header file since at least 2006.  At what point do we 
-> > assume they are going to be used and not hardcoded into applications?  
-> > That was certainly the intention when making them user visible.
-> 
-> The thing is, even when the macros are used, their values are hardcoded
-> into programs once the code is run through a compiler.  That's why it's
-> called an ABI.
+>  I believe that with the algorithm no longer using VmSize and being careful 
+> not to count shared memory more than once this would not be an issue and 
+> kdeinit would be reasonably safe. KDE does not use _that_ much memory to 
+> score higher than something that caused OOM :).
 > 
 
-Right, that's the second point that I listed: since the semantics of the 
-tunable have radically changed from the bitshift to an actual unit 
-(proportion of available memory), those applications need to change how 
-they use oom_adj anyway.  The bitshift simply isn't extendable with any 
-sane heuristic that is predictable or works with any reasonable amount of 
-granularity, so this change seems inevitable in the long term.
+Your suggestion of summing up the memory of the parent and its children 
+would clearly bias kdeinit if it forks most of kde's threads as you 
+mentioned earlier in the thread.  Imagine it, or another server 
+application that Rik mentioned, if all children are first generation: then 
+it would always be selected if that it is the only task operating on the 
+system.  For a web server, for instance, where each query is handled by a 
+seperate thread, we'd obviously prefer to kill a child thread instead of 
+making the entire server unresponsive.  That type of algorithm in the oom 
+killer and to kill the parent instead is just a non-starter.
 
-We may be forced to abandon /proc/pid/oom_adj itself and introduce the 
-tunable with a different name: oom_score_adj, for example, to make it 
-clear that it's a different entity.
+>  Our definitions of 'forkbomb' then perhaps differ a bit. I 
+> consider 'make -j100' a kind of a forkbomb too, it will very likely overload 
+> the machine too as soon as the gcc instances use up all the memory. For that 
+> reason also using CPU time <1second will not work here, while using real time 
+> <1minute would.
+> 
+
+1 minute?  Unless you've got one of SGI's 4K cpu machines where these 1000 
+threads would actually get any runtime _at_all_ in such circumstances, 
+that threshold is unreasonable.
+
+A valid point that wasn't raised is although we can't always detect out of 
+control forking applications, we certainly should do some due diligence in 
+making sure other applications aren't unfairly penalized when you do 
+make -j100, for example.  That's not the job of the forkbomb detector in 
+my heuristic, however, it's the job of the baseline itself.  In such 
+scenarios (and when we can't allocate or free any memory), the baseline is 
+responsible for identifying these tasks and killing them itself because 
+they are using an excessive amount of memory.
+
+>  Your protection seems to cover only "for(;;) if(fork() == 0) break;" , while 
+> I believe mine could handle also "make -j100" or the bash forkbomb ":()
+> { :|:& };:" (i.e. "for(;;) fork();").
+> 
+
+Again, it's not protection against forkbombs: the oom killer is not the 
+place where you want to enforce any policy that prohibits that.  
+
+>  Why? It repeatedly causes OOM here (and in fact it is the only common OOM or 
+> forkbomb I ever encounter). If OOM killer is the right place to protect 
+> against a forkbomb that spawns a large number of 1st level children, then I 
+> don't see how this is different.
+> 
+
+We're not protecting against a large number of first-generation children, 
+we're simply penalizing them because the oom killer chooses to kill a 
+large memory-hogging task instead of the parent first.  This shouldn't be 
+described as "forkbomb detection" because thats outside the scope of the 
+oom killer or VM, for that matter.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
