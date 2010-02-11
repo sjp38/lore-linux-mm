@@ -1,56 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C6AC26B0078
-	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 23:01:27 -0500 (EST)
-From: Lubos Lunak <l.lunak@suse.cz>
-Subject: Re: Improving OOM killer
-Date: Wed, 10 Feb 2010 21:54:43 +0100
-References: <201002012302.37380.l.lunak@suse.cz> <4B6B4500.3010603@redhat.com> <alpine.DEB.2.00.1002041410300.16391@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1002041410300.16391@chino.kir.corp.google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id F3AE36B007E
+	for <linux-mm@kvack.org>; Wed, 10 Feb 2010 23:10:47 -0500 (EST)
+Message-ID: <4B73833D.5070008@redhat.com>
+Date: Wed, 10 Feb 2010 23:10:37 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [patch 4/7 -mm] oom: badness heuristic rewrite
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228540.8001@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002100228540.8001@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <201002102154.43231.l.lunak@suse.cz>
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 04 of February 2010, David Rientjes wrote:
-> On Thu, 4 Feb 2010, Rik van Riel wrote:
-> > The goal of the OOM killer is to kill some process, so the
-> > system can continue running and automatically become available
-> > again for whatever workload the system was running.
-> >
-> > Killing the parent process of one of the system daemons does
-> > not achieve that goal, because you now caused a service to no
-> > longer be available.
->
-> The system daemon wouldn't be killed, though.  You're right that this
-> heuristic would prefer the system daemon slightly more as a result of the
-> forkbomb penalty, but the oom killer always attempts to sacrifice a child
-> with a seperate mm before killing the selected task.  Since the forkbomb
-> heuristic only adds up those children with seperate mms, we're guaranteed
-> to not kill the daemon itself.
+On 02/10/2010 11:32 AM, David Rientjes wrote:
 
- Which however can mean that not killing this system daemon will be traded for 
-DoS-ing the whole system, if the daemon keeps spawning new children as soon 
-as the OOM killer frees up resources for them.
+> OOM_ADJUST_MIN and OOM_ADJUST_MAX have been exported to userspace since
+> 2006 via include/linux/oom.h.  This alters their values from -16 to -1000
+> and from +15 to +1000, respectively.
 
- This looks like wrong solution to me, it's like trying to save a target by 
-shooting all incoming bombs instead of shooting the bomber. If the OOM 
-situation is caused by one or a limited number of its children, or if the 
-system daemon is not reponsible for the forkbomb (e.g. it's only a subtree of 
-its children), then it won't be selected for killing anyway. If it is 
-responsible for the forkbomb, the OOM killer can trying killing the bombs 
-forever to no avail.
+That seems like a bad idea.  Google may have the luxury of
+being able to recompile all its in-house applications, but
+this will not be true for many other users of /proc/<pid>/oom_adj
+
+> +/*
+> + * Tasks that fork a very large number of children with seperate address spaces
+> + * may be the result of a bug, user error, or a malicious application.  The oom
+> + * killer assesses a penalty equaling
+
+It could also be the result of the system getting many client
+connections - think of overloaded mail, web or database servers.
 
 -- 
- Lubos Lunak
- openSUSE Boosters team, KDE developer
- l.lunak@suse.cz , l.lunak@kde.org
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
