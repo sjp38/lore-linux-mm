@@ -1,147 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7590A6B0071
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 04:50:47 -0500 (EST)
-From: Lubos Lunak <l.lunak@suse.cz>
-Subject: Re: Improving OOM killer
-Date: Thu, 11 Feb 2010 10:50:36 +0100
-References: <201002012302.37380.l.lunak@suse.cz> <4B7320BF.2020800@redhat.com> <20100210221847.5d7bb3cb@lxorguk.ukuu.org.uk>
-In-Reply-To: <20100210221847.5d7bb3cb@lxorguk.ukuu.org.uk>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CACE6B0071
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 05:15:32 -0500 (EST)
+From: Nikanth Karthikesan <knikanth@suse.de>
+Subject: [PATCH v2] Make VM_MAX_READAHEAD a kernel parameter
+Date: Thu, 11 Feb 2010 15:46:34 +0530
+References: <201002091659.27037.knikanth@suse.de> <20100211051341.GA13967@localhost> <201002111304.54742.knikanth@suse.de>
+In-Reply-To: <201002111304.54742.knikanth@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
+Content-Type: Text/Plain;
   charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <201002111050.36709.l.lunak@suse.cz>
+Content-Transfer-Encoding: 7bit
+Message-Id: <201002111546.35036.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Jens Axboe <jens.axboe@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 10 of February 2010, Alan Cox wrote:
-> > Killing the system daemon *is* a DoS.
-> >
-> > It would stop eg. the database or the web server, which is
-> > generally the main task of systems that run a database or
-> > a web server.
->
-> One of the problems with picking on tasks that fork a lot is that
-> describes apache perfectly. So a high loaded apache will get shot over a
-> rapid memory eating cgi script.
+[Changes since v1: Added null check for parameter without value]
 
- It will not. If it's only a single cgi script, that that child should be=20
-selected by badness(), not the parent.
+From: Nikanth Karthikesan <knikanth@suse.de>
 
- I personally consider the logic of trying to find the offender using=20
-badness() and then killing its child instead to be flawed. Already badness(=
-)=20
-itself should select what to kill and that should be killed. If it's a sing=
-le=20
-process that is the offender, it should be killed. If badness() decides it =
-is=20
-a whole subtree responsible for the situation, then the top of it needs to =
-be=20
-killed, otherwise the reason for the problem will remain.
+Add new kernel parameter "readahead", which would be used
+as the value of VM_MAX_READAHEAD.
 
- I expect the current logic of trying to kill children first is based on th=
-e=20
-system daemon logic, but if e.g. Apache master process itself causes OOM,=20
-then the kernel itself has to way to find out if it's an important process=
-=20
-that should be protected or if it's some random process causing a forkbomb.=
-=20
-=46rom the kernel point's of view, if the Apache master process caused the=
-=20
-problem, the the problem should be solved there. If the reason for the=20
-problem was actually e.g. a temporary high load on the server, then Apache =
-is=20
-probably misconfigured, and if it really should stay running no matter what=
-,=20
-then I guess that's the case to use oom_adj. But otherwise, from OOM killer=
-'s=20
-point of view, that is where the problem was.
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 
- Of course, the algorithm used in badness() should be careful not to propag=
-ate=20
-the excessive memory usage in that case to the innocent parent. This proble=
-m=20
-existed in the current code until it was fixed by the "/2" recently, and at=
-=20
-least my current proposal actually suffers from it too. But I envision=20
-something like this could handle it nicely (pseudocode):
+---
 
-int oom_children_memory_usage(task)
-    {
-    // Memory shared with the parent should not be counted again.
-    // Since it's expensive to find that out exactly, just assume
-    // that the amount of shared memory that is not shared with the parent
-    // is insignificant.
-    total =3D unshared_rss(task)+unshared_swap(task);
-    foreach_child(child,task)
-        total +=3D oom_children_memory_usage(child);
-    return total;
-    }
-int badness(task)
-    {
-    int total_memory =3D 0;
-    ...
-    int max_child_memory =3D 0; // memory used by that child
-    int max_child_memory_2 =3D 0; // the 2nd most memory used by a child
-    foreach_child(child,task)
-        {
-        if(sharing_the_same_memory(child,task))
-            continue;
-        if( real_time(child) > 1minute )
-            continue; // running long, not a forkbomb
-        int memory =3D oom_children_memory_usage(task);
-        total_memory +=3D memory;
-        if( memory > max_child_memory )
-            {
-            max_child_memory_2 =3D max_child_memory;
-            max_child_memory =3D memory;
-            }
-        else if( memory > max_child_memory_2 )
-            max_child_memory_2 =3D memory;
-        }
-    if( max_child_memory_2 !=3D 0 ) // there were at least two children
-        {
-        if( max_child_memory > max_child_memory_2 / 2 )
-            {
-// There is only a single child that contributes the majority of memory
-// used by all children. Do not add it to the total, so that if that process
-// is the biggest offender, the killer picks it instead of this parent.
-            total_memory -=3D max_child_memory;
-            }
-        }
-    ...
-    }
-
- The logic is simply that a process is responsible for its children only if=
-=20
-their cost is similar. If one of them stands out, it is responsible for=20
-itself and the parent is not. This is intentionally not done recursively in=
-=20
-oom_children_memory_usage() to cover also the case when e.g. parallel make=
-=20
-runs too many processes wrapped by shell, in that case making any of those=
-=20
-shell instances responsible for its child doesn't help anything, but making=
-=20
-make responsible for all of them helps.
-
- Alternatively, if somebody has a good use case where first going after a=20
-child may make sense, then it perhaps would help to=20
-add 'oom_recently_killed_children' to each task, and increasing it whenever=
- a=20
-child is killed instead of the responsible parent. As soon as the value=20
-within a reasonably short time is higher than let's say 5, then apparently=
-=20
-killing children does not help and the mastermind has to go.
-
-=2D-=20
- Lubos Lunak
- openSUSE Boosters team, KDE developer
- l.lunak@suse.cz , l.lunak@kde.org
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index 736d456..354e6f1 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -2148,6 +2148,8 @@ and is between 256 and 4096 characters. It is defined in the file
+ 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
+ 			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
+ 
++	readahead=	Default readahead value for block devices.
++
+ 	relax_domain_level=
+ 			[KNL, SMP] Set scheduler's default relax_domain_level.
+ 			See Documentation/cgroups/cpusets.txt.
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 718897e..02ed748 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -499,7 +499,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
+ 	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
+ 	q->backing_dev_info.unplug_io_data = q;
+ 	q->backing_dev_info.ra_pages =
+-			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
++			(vm_max_readahead_kb * 1024) / PAGE_CACHE_SIZE;
+ 	q->backing_dev_info.state = 0;
+ 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
+ 	q->backing_dev_info.name = "block";
+diff --git a/fs/fuse/inode.c b/fs/fuse/inode.c
+index 1a822ce..a593578 100644
+--- a/fs/fuse/inode.c
++++ b/fs/fuse/inode.c
+@@ -870,7 +870,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
+ 	int err;
+ 
+ 	fc->bdi.name = "fuse";
+-	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
++	fc->bdi.ra_pages = (vm_max_readahead_kb * 1024) / PAGE_CACHE_SIZE;
+ 	fc->bdi.unplug_io_fn = default_unplug_io_fn;
+ 	/* fuse does it's own writeback accounting */
+ 	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 60c467b..17825d7 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1188,9 +1188,11 @@ int write_one_page(struct page *page, int wait);
+ void task_dirty_inc(struct task_struct *tsk);
+ 
+ /* readahead.c */
+-#define VM_MAX_READAHEAD	128	/* kbytes */
++#define DEFAULT_VM_MAX_READAHEAD       128     /* kbytes */
+ #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
+ 
++extern unsigned long vm_max_readahead_kb;
++
+ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 			pgoff_t offset, unsigned long nr_to_read);
+ 
+diff --git a/init/main.c b/init/main.c
+index 4cb47a1..a801358 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -70,6 +70,7 @@
+ #include <linux/sfi.h>
+ #include <linux/shmem_fs.h>
+ #include <trace/boot.h>
++#include <linux/backing-dev.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -249,6 +250,18 @@ static int __init loglevel(char *str)
+ 
+ early_param("loglevel", loglevel);
+ 
++static int __init readahead(char *str)
++{
++	if (!str)
++		return -EINVAL;
++	vm_max_readahead_kb = memparse(str, &str) / 1024ULL;
++	default_backing_dev_info.ra_pages = vm_max_readahead_kb
++						* 1024 / PAGE_CACHE_SIZE;
++	return 0;
++}
++
++early_param("readahead", readahead);
++
+ /*
+  * Unknown boot options get handed to init, unless they look like
+  * unused parameters (modprobe will find them in /proc/cmdline).
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 0e8ca03..e33ff34 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -18,7 +18,7 @@ EXPORT_SYMBOL(default_unplug_io_fn);
+ 
+ struct backing_dev_info default_backing_dev_info = {
+ 	.name		= "default",
+-	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
++	.ra_pages	= DEFAULT_VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
+ 	.state		= 0,
+ 	.capabilities	= BDI_CAP_MAP_COPY,
+ 	.unplug_io_fn	= default_unplug_io_fn,
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 033bc13..516f8da 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -17,6 +17,8 @@
+ #include <linux/pagevec.h>
+ #include <linux/pagemap.h>
+ 
++unsigned long vm_max_readahead_kb = DEFAULT_VM_MAX_READAHEAD;
++
+ /*
+  * Initialise a struct file's readahead state.  Assumes that the caller has
+  * memset *ra to zero.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
