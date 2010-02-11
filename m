@@ -1,59 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3745D6B0071
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:52:10 -0500 (EST)
-Date: Thu, 11 Feb 2010 10:49:44 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 15214] New: Oops at __rmqueue+0x51/0x2b3
-In-Reply-To: <20100211182031.GA5707@csn.ul.ie>
-Message-ID: <alpine.LFD.2.00.1002111038070.7792@localhost.localdomain>
-References: <bug-15214-10286@http.bugzilla.kernel.org/> <20100208111852.a0ada2b4.akpm@linux-foundation.org> <20100209144537.GA5098@csn.ul.ie> <201002101217.34131.ajlill@ajlc.waterloo.on.ca> <20100211182031.GA5707@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 47CCE6B0071
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:55:24 -0500 (EST)
+Message-ID: <4B74524D.8080804@nortel.com>
+Date: Thu, 11 Feb 2010 12:54:05 -0600
+From: "Chris Friesen" <cfriesen@nortel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
+References: <4B71927D.6030607@nortel.com>	 <20100210093140.12D9.A69D9226@jp.fujitsu.com>	 <4B72E74C.9040001@nortel.com> <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>
+In-Reply-To: <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Tony Lill <ajlill@ajlc.waterloo.on.ca>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
+On 02/10/2010 06:45 PM, Minchan Kim wrote:
+> On Thu, Feb 11, 2010 at 2:05 AM, Chris Friesen <cfriesen@nortel.com> wrote:
 
-
-On Thu, 11 Feb 2010, Mel Gorman wrote:
+>> In those spreadsheets I notice that
+>> memfree+active+inactive+slab+pagetables is basically a constant.
+>> However, if I don't use active+inactive then I can't make the numbers
+>> add up.  And the difference between active+inactive and
+>> buffers+cached+anonpages+dirty+mapped+pagetables+vmallocused grows
+>> almost monotonically.
 > 
-> Tony posted the assember files (KCFLAGS=-save-temps) from
-> the broken and working compilers which a copy of is available at
-> http://www.csn.ul.ie/~mel/postings/bug-20100211/ . Have you any suggestions
-> on what the best way to go about finding where the badly generated code
-> might be so a warning can be added for gcc 4.1?  My strongest suspicion is
-> that the problem is in the assembler that looks up the struct page from a
-> PFN in sparsemem but I'm failing to prove it.
+> Such comparison is not right. That's because code pages of program account
+> with cached and mapped but they account just one in lru list(active +
+> inactive).
+> Also, if you use mmap on any file, above is applied.
 
-Try contacting the gcc people. They are (well, _some_ of them are) much 
-more used to walking through asm differences, and may have more of a clue 
-about where the difference is likely to be for those compiler versions.
+That just makes the comparison even worse...it means that there is more
+memory in active/inactive that isn't accounted for in any other category
+in /proc/meminfo.
 
-I'm personally very comfortable with x86 assembly, but having tried to 
-find compiler bugs in the past I can also say that despite my x86 comfort 
-I've almost always failed. The trivial stupid differences tend to always 
-just totally overwhelm the actual real difference that causes the bug.
 
-One thing to try is to see if the buggy compiler version can be itself 
-triggered to create a non-buggy asm listing by using some compiler flag. 
-That way the "trivial differences" tend to be smaller, and the bug stands 
-out more.
+> I can't find any clue with your attachment.
+> You said you used kernel with some modification and non-vanilla drivers.
+> So I suspect that. Maybe kernel memory leak?
 
-For example, that's how we found the problem with "-fwrapv" - testing the 
-same compiler version with different flags (see commit a137802ee83).
+Possibly.  Or it could be a use case issue, I know there have been
+memory leaks fixed since 2.6.27. :)
 
-Sometimes if the trivial differences are mostly register allocation, you 
-can get a "feel" for the differences by replacing all register names with 
-just the string "REG" (and "[0-9x](%e[sb]p)" with "STACKSLOT", and try to 
-do the diff that way. If everything else is roughly the same, you then see 
-the place where the code is _really_ different.
+> Now kernel don't account kernel memory allocations except SLAB.
 
-But when the compiler actually re-orders basic blocks etc, then diffs are 
-basically impossible to get anything sane out of.
+I don't think that's entirely accurate.  I think cached, buffers,
+pagetables, vmallocUsed are all kernel allocations.  Granted, they're
+generally on behalf of userspace.
 
-		Linus
+I've discovered that the generic page allocator (alloc_page, etc.) is
+not tracked at all in /proc/meminfo.  I seem to see the memory increase
+in the page cache (that is, active/inactive), so that would seem to rule
+out most direct allocations.
+
+> I think this patch can help you find the kernel memory leak.
+> (It isn't merged with mainline by somewhy but it is useful to you :)
+> 
+> http://marc.info/?l=linux-mm&m=123782029809850&w=2
+
+I have a modified version of that which I picked up as part of the
+kmemleak backport.  However, it doesn't help unless I can narrow down
+*which* pages I should care about.
+
+I tried using kmemleak directly, but it didn't find anything.  I've also
+tried checking for inactive pages which haven't been written to in 10
+minutes, and haven't had much luck there either.  But active/inactive
+keeps growing, and I don't know why.
+
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
