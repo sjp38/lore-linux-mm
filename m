@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CB7F6B0047
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 17:13:30 -0500 (EST)
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id o1BMDQDm021113
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 22:13:26 GMT
-Received: from pxi13 (pxi13.prod.google.com [10.243.27.13])
-	by spaceape11.eur.corp.google.com with ESMTP id o1BMDIuW013755
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 14:13:25 -0800
-Received: by pxi13 with SMTP id 13so1217928pxi.3
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2010 14:13:22 -0800 (PST)
-Date: Thu, 11 Feb 2010 14:13:19 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 72D7F6B0047
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 17:28:16 -0500 (EST)
+Date: Thu, 11 Feb 2010 14:27:34 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [patch] mm: suppress pfn range output for zones without pages
-In-Reply-To: <alpine.DEB.2.00.1002111406110.7201@router.home>
-Message-ID: <alpine.DEB.2.00.1002111405120.16763@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com> <alpine.DEB.2.00.1002111406110.7201@router.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20100211142734.24df7447.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1002111324280.5705@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com>
+	<20100211122507.GA32292@csn.ul.ie>
+	<alpine.DEB.2.00.1002111324280.5705@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Feb 2010, Christoph Lameter wrote:
+On Thu, 11 Feb 2010 13:26:37 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> > The output is now suppressed for zones that do not have a valid pfn
-> > range.
+> On Thu, 11 Feb 2010, Mel Gorman wrote:
 > 
-> There is a difference between zone support not compiled into the kernel
-> and the zone being empty. The output so far allows me to see that support
-> for a zone was compiled into the kernel but it is empty.
+> > > free_area_init_nodes() emits pfn ranges for all zones on the system.
+> > > There may be no pages on a higher zone, however, due to memory
+> > > limitations or the use of the mem= kernel parameter.  For example:
+> > > 
+> > > Zone PFN ranges:
+> > >   DMA      0x00000001 -> 0x00001000
+> > >   DMA32    0x00001000 -> 0x00100000
+> > >   Normal   0x00100000 -> 0x00100000
+> > > 
+> > > The implementation copies the previous zone's highest pfn, if any, as the
+> > > next zone's lowest pfn.  If its highest pfn is then greater than the
+> > > amount of addressable memory, the upper memory limit is used instead.
+> > > Thus, both the lowest and highest possible pfn for higher zones without
+> > > memory may be the same.
+> > > 
+> > > The output is now suppressed for zones that do not have a valid pfn
+> > > range.
+> > > 
+> > 
+> > I see no problem with the patch. Was it a major problem or just
+> > confusing?
+> > 
 > 
+> It was just confusing, I don't think anybody would be parsing the kernel 
+> log for this specifically to determine whether ZONE_NORMAL exists :)
+> 
+> > > Cc: Mel Gorman <mel@csn.ul.ie>
+> > > Signed-off-by: David Rientjes <rientjes@google.com>
+> > 
+> > Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+> > 
+> 
+> Thanks!
 
-So you want to parse this table of zone pfn ranges to determine, for 
-example, whether CONFIG_HIGHMEM was enabled for i386 kernels?  That 
-doesn't tell you whether its CONFIG_HIGHMEM4G or CONFIG_HIGHMEM64G, so 
-it's a pretty bad way to interpret the kernel config and decide whether 
-the pfn ranges are valid or not.  The only other use case would be to find 
-if the values are sane when we don't have CONFIG_ZONE_DMA or 
-CONFIG_ZONE_DMA32, but those typically aren't even disabled: I just sent a 
-patch to the x86 maintainers to get that configuration to compile on -rc7.  
-
-In other words, I don't think we need to be emitting kernel diagnostic 
-messages for zones that are empty and unused just because they are enabled 
-in the kernel config; no developer is going to care about parsing the 
-usecase I showed in the changelog since ZONE_NORMAL is always defined.
+I ducked this patch because Christoph's complaint sounded reasonable -
+by suppressing this output we're removing information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
