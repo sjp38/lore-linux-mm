@@ -1,48 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D42676B0047
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:55:11 -0500 (EST)
-Date: Thu, 11 Feb 2010 22:55:08 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [1/4] SLAB: Handle node-not-up case in
-	fallback_alloc() v2
-Message-ID: <20100211215508.GB18202@basil.fritz.box>
-References: <20100211953.850854588@firstfloor.org> <20100211205401.002CFB1978@basil.firstfloor.org> <alpine.DEB.2.00.1002111338090.8809@chino.kir.corp.google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CB7F6B0047
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 17:13:30 -0500 (EST)
+Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
+	by smtp-out.google.com with ESMTP id o1BMDQDm021113
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 22:13:26 GMT
+Received: from pxi13 (pxi13.prod.google.com [10.243.27.13])
+	by spaceape11.eur.corp.google.com with ESMTP id o1BMDIuW013755
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 14:13:25 -0800
+Received: by pxi13 with SMTP id 13so1217928pxi.3
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2010 14:13:22 -0800 (PST)
+Date: Thu, 11 Feb 2010 14:13:19 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: suppress pfn range output for zones without pages
+In-Reply-To: <alpine.DEB.2.00.1002111406110.7201@router.home>
+Message-ID: <alpine.DEB.2.00.1002111405120.16763@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com> <alpine.DEB.2.00.1002111406110.7201@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1002111338090.8809@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andi Kleen <andi@firstfloor.org>, penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 11, 2010 at 01:41:53PM -0800, David Rientjes wrote:
-> On Thu, 11 Feb 2010, Andi Kleen wrote:
+On Thu, 11 Feb 2010, Christoph Lameter wrote:
+
+> > The output is now suppressed for zones that do not have a valid pfn
+> > range.
 > 
-> > When fallback_alloc() runs the node of the CPU might not be initialized yet.
-> > Handle this case by allocating in another node.
-> > 
-> > v2: Try to allocate from all nodes (David Rientjes)
-> > 
+> There is a difference between zone support not compiled into the kernel
+> and the zone being empty. The output so far allows me to see that support
+> for a zone was compiled into the kernel but it is empty.
 > 
-> You don't need to specifically address the cpuset restriction in 
-> fallback_alloc() since kmem_getpages() will return NULL whenever a zone is 
-> tried from an unallowed node, I just thought it was a faster optimization 
-> considering you (i) would operate over a nodemask and not the entire 
-> zonelist, (ii) it would avoid the zone_to_nid() for all zones since you 
-> already did a zonelist iteration in this function, and (iii) it wouldn't 
-> needlessly call kmem_getpages() for unallowed nodes.
 
-Thanks for the review again.
+So you want to parse this table of zone pfn ranges to determine, for 
+example, whether CONFIG_HIGHMEM was enabled for i386 kernels?  That 
+doesn't tell you whether its CONFIG_HIGHMEM4G or CONFIG_HIGHMEM64G, so 
+it's a pretty bad way to interpret the kernel config and decide whether 
+the pfn ranges are valid or not.  The only other use case would be to find 
+if the values are sane when we don't have CONFIG_ZONE_DMA or 
+CONFIG_ZONE_DMA32, but those typically aren't even disabled: I just sent a 
+patch to the x86 maintainers to get that configuration to compile on -rc7.  
 
-I don't really care about performance at all for this, this is just for
-a few allocations during the memory hotadd path.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+In other words, I don't think we need to be emitting kernel diagnostic 
+messages for zones that are empty and unused just because they are enabled 
+in the kernel config; no developer is going to care about parsing the 
+usecase I showed in the changelog since ZONE_NORMAL is always defined.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
