@@ -1,170 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D19A06B0071
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 06:44:06 -0500 (EST)
-From: Nikanth Karthikesan <knikanth@suse.de>
-Subject: Re: [PATCH v2] Make VM_MAX_READAHEAD a kernel parameter
-Date: Thu, 11 Feb 2010 17:15:03 +0530
-References: <201002091659.27037.knikanth@suse.de> <201002111546.35036.knikanth@suse.de> <d24465cb1002110315x4af18888na55aa8d61478e094@mail.gmail.com>
-In-Reply-To: <d24465cb1002110315x4af18888na55aa8d61478e094@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 03A036B007B
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 07:25:22 -0500 (EST)
+Date: Thu, 11 Feb 2010 12:25:08 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] mm: suppress pfn range output for zones without pages
+Message-ID: <20100211122507.GA32292@csn.ul.ie>
+References: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201002111715.04411.knikanth@suse.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Ankit Jain <radical@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Jens Axboe <jens.axboe@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 11 February 2010 16:45:24 Ankit Jain wrote:
-> > +static int __init readahead(char *str)
-> > +{
-> > +       if (!str)
-> > +               return -EINVAL;
-> > +       vm_max_readahead_kb = memparse(str, &str) / 1024ULL;
+On Thu, Feb 11, 2010 at 01:29:58AM -0800, David Rientjes wrote:
+> free_area_init_nodes() emits pfn ranges for all zones on the system.
+> There may be no pages on a higher zone, however, due to memory
+> limitations or the use of the mem= kernel parameter.  For example:
 > 
-> Just wondering, shouldn't you check whether the str had a valid value
-> [memparse (str, &next); next > str ..] and if it didn't, then use the
-> DEFAULT_VM_MAX_READAHEAD ? Otherwise, incase of a invalid
-> value, the readahead value will become zero.
+> Zone PFN ranges:
+>   DMA      0x00000001 -> 0x00001000
+>   DMA32    0x00001000 -> 0x00100000
+>   Normal   0x00100000 -> 0x00100000
+> 
+> The implementation copies the previous zone's highest pfn, if any, as the
+> next zone's lowest pfn.  If its highest pfn is then greater than the
+> amount of addressable memory, the upper memory limit is used instead.
+> Thus, both the lowest and highest possible pfn for higher zones without
+> memory may be the same.
+> 
+> The output is now suppressed for zones that do not have a valid pfn
+> range.
 > 
 
-Thanks for the review. Here is the fixed patch that checks whether all of the
-parameters value is consumed.
+I see no problem with the patch. Was it a major problem or just
+confusing?
 
-Thanks
-Nikanth
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-From: Nikanth Karthikesan <knikanth@suse.de>
+Reviewed-by: Mel Gorman <mel@csn.ul.ie>
 
-Add new kernel parameter "readahead", which would be used instead of the
-value of VM_MAX_READAHEAD. If the parameter is not specified, the default
-of 128kb would be used.
+> ---
+>  mm/page_alloc.c       |    3 +++
+>  1 files changed, 3 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4377,6 +4377,9 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+>  	for (i = 0; i < MAX_NR_ZONES; i++) {
+>  		if (i == ZONE_MOVABLE)
+>  			continue;
+> +		if (arch_zone_lowest_possible_pfn[i] ==
+> +		    arch_zone_highest_possible_pfn[i])
+> +			continue;
+>  		printk("  %-8s %0#10lx -> %0#10lx\n",
+>  				zone_names[i],
+>  				arch_zone_lowest_possible_pfn[i],
+> 
 
-Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
-
----
-
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 736d456..354e6f1 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2148,6 +2148,8 @@ and is between 256 and 4096 characters. It is defined in the file
- 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
- 			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
- 
-+	readahead=	Default readahead value for block devices.
-+
- 	relax_domain_level=
- 			[KNL, SMP] Set scheduler's default relax_domain_level.
- 			See Documentation/cgroups/cpusets.txt.
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 718897e..02ed748 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -499,7 +499,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
- 	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
- 	q->backing_dev_info.unplug_io_data = q;
- 	q->backing_dev_info.ra_pages =
--			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-+			(vm_max_readahead_kb * 1024) / PAGE_CACHE_SIZE;
- 	q->backing_dev_info.state = 0;
- 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
- 	q->backing_dev_info.name = "block";
-diff --git a/fs/fuse/inode.c b/fs/fuse/inode.c
-index 1a822ce..a593578 100644
---- a/fs/fuse/inode.c
-+++ b/fs/fuse/inode.c
-@@ -870,7 +870,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
- 	int err;
- 
- 	fc->bdi.name = "fuse";
--	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-+	fc->bdi.ra_pages = (vm_max_readahead_kb * 1024) / PAGE_CACHE_SIZE;
- 	fc->bdi.unplug_io_fn = default_unplug_io_fn;
- 	/* fuse does it's own writeback accounting */
- 	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 60c467b..17825d7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1188,9 +1188,11 @@ int write_one_page(struct page *page, int wait);
- void task_dirty_inc(struct task_struct *tsk);
- 
- /* readahead.c */
--#define VM_MAX_READAHEAD	128	/* kbytes */
-+#define DEFAULT_VM_MAX_READAHEAD       128     /* kbytes */
- #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
- 
-+extern unsigned long vm_max_readahead_kb;
-+
- int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 			pgoff_t offset, unsigned long nr_to_read);
- 
-diff --git a/init/main.c b/init/main.c
-index 4cb47a1..6c451d2 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -70,6 +70,7 @@
- #include <linux/sfi.h>
- #include <linux/shmem_fs.h>
- #include <trace/boot.h>
-+#include <linux/backing-dev.h>
- 
- #include <asm/io.h>
- #include <asm/bugs.h>
-@@ -249,6 +250,24 @@ static int __init loglevel(char *str)
- 
- early_param("loglevel", loglevel);
- 
-+static int __init readahead(char *str)
-+{
-+	unsigned long readahead_kb;
-+
-+	if (!str)
-+		return -EINVAL;
-+	readahead_kb = memparse(str, &str) / 1024ULL;
-+	if (*str != '\0')
-+		return -EINVAL;
-+
-+	vm_max_readahead_kb = readahead_kb;
-+	default_backing_dev_info.ra_pages = vm_max_readahead_kb
-+						* 1024 / PAGE_CACHE_SIZE;
-+	return 0;
-+}
-+
-+early_param("readahead", readahead);
-+
- /*
-  * Unknown boot options get handed to init, unless they look like
-  * unused parameters (modprobe will find them in /proc/cmdline).
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 0e8ca03..e33ff34 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -18,7 +18,7 @@ EXPORT_SYMBOL(default_unplug_io_fn);
- 
- struct backing_dev_info default_backing_dev_info = {
- 	.name		= "default",
--	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
-+	.ra_pages	= DEFAULT_VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
- 	.state		= 0,
- 	.capabilities	= BDI_CAP_MAP_COPY,
- 	.unplug_io_fn	= default_unplug_io_fn,
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 033bc13..516f8da 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -17,6 +17,8 @@
- #include <linux/pagevec.h>
- #include <linux/pagemap.h>
- 
-+unsigned long vm_max_readahead_kb = DEFAULT_VM_MAX_READAHEAD;
-+
- /*
-  * Initialise a struct file's readahead state.  Assumes that the caller has
-  * memset *ra to zero.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
