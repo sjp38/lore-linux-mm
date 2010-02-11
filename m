@@ -1,63 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A01E86B0071
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 04:30:11 -0500 (EST)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id o1B9U6l5022426
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 09:30:07 GMT
-Received: from pzk29 (pzk29.prod.google.com [10.243.19.157])
-	by kpbe14.cbf.corp.google.com with ESMTP id o1B9TQSu018276
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 01:30:05 -0800
-Received: by pzk29 with SMTP id 29so1298525pzk.17
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2010 01:30:04 -0800 (PST)
-Date: Thu, 11 Feb 2010 01:29:58 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm: suppress pfn range output for zones without pages
-Message-ID: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7590A6B0071
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 04:50:47 -0500 (EST)
+From: Lubos Lunak <l.lunak@suse.cz>
+Subject: Re: Improving OOM killer
+Date: Thu, 11 Feb 2010 10:50:36 +0100
+References: <201002012302.37380.l.lunak@suse.cz> <4B7320BF.2020800@redhat.com> <20100210221847.5d7bb3cb@lxorguk.ukuu.org.uk>
+In-Reply-To: <20100210221847.5d7bb3cb@lxorguk.ukuu.org.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+Message-Id: <201002111050.36709.l.lunak@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jiri Kosina <jkosina@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-free_area_init_nodes() emits pfn ranges for all zones on the system.
-There may be no pages on a higher zone, however, due to memory
-limitations or the use of the mem= kernel parameter.  For example:
+On Wednesday 10 of February 2010, Alan Cox wrote:
+> > Killing the system daemon *is* a DoS.
+> >
+> > It would stop eg. the database or the web server, which is
+> > generally the main task of systems that run a database or
+> > a web server.
+>
+> One of the problems with picking on tasks that fork a lot is that
+> describes apache perfectly. So a high loaded apache will get shot over a
+> rapid memory eating cgi script.
 
-Zone PFN ranges:
-  DMA      0x00000001 -> 0x00001000
-  DMA32    0x00001000 -> 0x00100000
-  Normal   0x00100000 -> 0x00100000
+ It will not. If it's only a single cgi script, that that child should be=20
+selected by badness(), not the parent.
 
-The implementation copies the previous zone's highest pfn, if any, as the
-next zone's lowest pfn.  If its highest pfn is then greater than the
-amount of addressable memory, the upper memory limit is used instead.
-Thus, both the lowest and highest possible pfn for higher zones without
-memory may be the same.
+ I personally consider the logic of trying to find the offender using=20
+badness() and then killing its child instead to be flawed. Already badness(=
+)=20
+itself should select what to kill and that should be killed. If it's a sing=
+le=20
+process that is the offender, it should be killed. If badness() decides it =
+is=20
+a whole subtree responsible for the situation, then the top of it needs to =
+be=20
+killed, otherwise the reason for the problem will remain.
 
-The output is now suppressed for zones that do not have a valid pfn
-range.
+ I expect the current logic of trying to kill children first is based on th=
+e=20
+system daemon logic, but if e.g. Apache master process itself causes OOM,=20
+then the kernel itself has to way to find out if it's an important process=
+=20
+that should be protected or if it's some random process causing a forkbomb.=
+=20
+=46rom the kernel point's of view, if the Apache master process caused the=
+=20
+problem, the the problem should be solved there. If the reason for the=20
+problem was actually e.g. a temporary high load on the server, then Apache =
+is=20
+probably misconfigured, and if it really should stay running no matter what=
+,=20
+then I guess that's the case to use oom_adj. But otherwise, from OOM killer=
+'s=20
+point of view, that is where the problem was.
 
-Cc: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/page_alloc.c       |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+ Of course, the algorithm used in badness() should be careful not to propag=
+ate=20
+the excessive memory usage in that case to the innocent parent. This proble=
+m=20
+existed in the current code until it was fixed by the "/2" recently, and at=
+=20
+least my current proposal actually suffers from it too. But I envision=20
+something like this could handle it nicely (pseudocode):
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4377,6 +4377,9 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		if (i == ZONE_MOVABLE)
- 			continue;
-+		if (arch_zone_lowest_possible_pfn[i] ==
-+		    arch_zone_highest_possible_pfn[i])
-+			continue;
- 		printk("  %-8s %0#10lx -> %0#10lx\n",
- 				zone_names[i],
- 				arch_zone_lowest_possible_pfn[i],
+int oom_children_memory_usage(task)
+    {
+    // Memory shared with the parent should not be counted again.
+    // Since it's expensive to find that out exactly, just assume
+    // that the amount of shared memory that is not shared with the parent
+    // is insignificant.
+    total =3D unshared_rss(task)+unshared_swap(task);
+    foreach_child(child,task)
+        total +=3D oom_children_memory_usage(child);
+    return total;
+    }
+int badness(task)
+    {
+    int total_memory =3D 0;
+    ...
+    int max_child_memory =3D 0; // memory used by that child
+    int max_child_memory_2 =3D 0; // the 2nd most memory used by a child
+    foreach_child(child,task)
+        {
+        if(sharing_the_same_memory(child,task))
+            continue;
+        if( real_time(child) > 1minute )
+            continue; // running long, not a forkbomb
+        int memory =3D oom_children_memory_usage(task);
+        total_memory +=3D memory;
+        if( memory > max_child_memory )
+            {
+            max_child_memory_2 =3D max_child_memory;
+            max_child_memory =3D memory;
+            }
+        else if( memory > max_child_memory_2 )
+            max_child_memory_2 =3D memory;
+        }
+    if( max_child_memory_2 !=3D 0 ) // there were at least two children
+        {
+        if( max_child_memory > max_child_memory_2 / 2 )
+            {
+// There is only a single child that contributes the majority of memory
+// used by all children. Do not add it to the total, so that if that process
+// is the biggest offender, the killer picks it instead of this parent.
+            total_memory -=3D max_child_memory;
+            }
+        }
+    ...
+    }
+
+ The logic is simply that a process is responsible for its children only if=
+=20
+their cost is similar. If one of them stands out, it is responsible for=20
+itself and the parent is not. This is intentionally not done recursively in=
+=20
+oom_children_memory_usage() to cover also the case when e.g. parallel make=
+=20
+runs too many processes wrapped by shell, in that case making any of those=
+=20
+shell instances responsible for its child doesn't help anything, but making=
+=20
+make responsible for all of them helps.
+
+ Alternatively, if somebody has a good use case where first going after a=20
+child may make sense, then it perhaps would help to=20
+add 'oom_recently_killed_children' to each task, and increasing it whenever=
+ a=20
+child is killed instead of the responsible parent. As soon as the value=20
+within a reasonably short time is higher than let's say 5, then apparently=
+=20
+killing children does not help and the mastermind has to go.
+
+=2D-=20
+ Lubos Lunak
+ openSUSE Boosters team, KDE developer
+ l.lunak@suse.cz , l.lunak@kde.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
