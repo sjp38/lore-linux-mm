@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 03A036B007B
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 07:25:22 -0500 (EST)
-Date: Thu, 11 Feb 2010 12:25:08 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch] mm: suppress pfn range output for zones without pages
-Message-ID: <20100211122507.GA32292@csn.ul.ie>
-References: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E3F896B0071
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 09:09:09 -0500 (EST)
+Message-ID: <4B740F7A.5020702@redhat.com>
+Date: Thu, 11 Feb 2010 09:08:58 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com>
+Subject: Re: [patch 6/7 -mm] oom: avoid oom killer for lowmem allocations
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100229410.8001@chino.kir.corp.google.com> <4B7383D5.2080904@redhat.com> <alpine.DEB.2.00.1002102359460.22152@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002102359460.22152@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 11, 2010 at 01:29:58AM -0800, David Rientjes wrote:
-> free_area_init_nodes() emits pfn ranges for all zones on the system.
-> There may be no pages on a higher zone, however, due to memory
-> limitations or the use of the mem= kernel parameter.  For example:
-> 
-> Zone PFN ranges:
->   DMA      0x00000001 -> 0x00001000
->   DMA32    0x00001000 -> 0x00100000
->   Normal   0x00100000 -> 0x00100000
-> 
-> The implementation copies the previous zone's highest pfn, if any, as the
-> next zone's lowest pfn.  If its highest pfn is then greater than the
-> amount of addressable memory, the upper memory limit is used instead.
-> Thus, both the lowest and highest possible pfn for higher zones without
-> memory may be the same.
-> 
-> The output is now suppressed for zones that do not have a valid pfn
-> range.
-> 
+On 02/11/2010 04:19 AM, David Rientjes wrote:
+> On Wed, 10 Feb 2010, Rik van Riel wrote:
+>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -1914,6 +1914,9 @@ rebalance:
+>>>    	 * running out of options and have to consider going OOM
+>>>    	 */
+>>>    	if (!did_some_progress) {
+>>> +		/* The oom killer won't necessarily free lowmem */
+>>> +		if (high_zoneidx<   ZONE_NORMAL)
+>>> +			goto nopage;
+>>>    		if ((gfp_mask&   __GFP_FS)&&   !(gfp_mask&   __GFP_NORETRY)) {
+>>>    			if (oom_killer_disabled)
+>>>    				goto nopage;
+>>
+>> Are there architectures that only have one memory zone?
+>>
+>
+> It actually ends up not to matter because of how gfp_zone() is implemented
+> (and you can do it with mem= on architectures with larger ZONE_DMA zones
+> such as ia64).  ZONE_NORMAL is always guaranteed to be defined regardless
+> of architecture or configuration because it's the default zone for memory
+> allocation unless specified by a bit in GFP_ZONEMASK, it doesn't matter
+> whether it actually has memory or not.  high_zoneidx in this case is just
+> gfp_zone(gfp_flags) which always defaults to ZONE_NORMAL when one of the
+> GFP_ZONEMASK bits is not set.  Thus, the only way to for the conditional
+> in this patch to be true is when __GFP_DMA, or __GFP_DMA32 for x86_64, is
+> passed to the page allocator and CONFIG_ZONE_DMA or CONFIG_ZONE_DMA32 is
+> enabled, respectively.
 
-I see no problem with the patch. Was it a major problem or just
-confusing?
+Fair enough.
 
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Signed-off-by: David Rientjes <rientjes@google.com>
-
-Reviewed-by: Mel Gorman <mel@csn.ul.ie>
-
-> ---
->  mm/page_alloc.c       |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4377,6 +4377,9 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
->  	for (i = 0; i < MAX_NR_ZONES; i++) {
->  		if (i == ZONE_MOVABLE)
->  			continue;
-> +		if (arch_zone_lowest_possible_pfn[i] ==
-> +		    arch_zone_highest_possible_pfn[i])
-> +			continue;
->  		printk("  %-8s %0#10lx -> %0#10lx\n",
->  				zone_names[i],
->  				arch_zone_lowest_possible_pfn[i],
-> 
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
