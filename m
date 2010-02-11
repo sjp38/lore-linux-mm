@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E9376B0047
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 18:44:14 -0500 (EST)
-Date: Thu, 11 Feb 2010 23:42:49 +0000
-From: Jamie Lokier <jamie@shareable.org>
-Subject: Re: [PATCH 03/11] readahead: bump up the default readahead size
-Message-ID: <20100211234249.GE407@shareable.org>
-References: <20100207041013.891441102@intel.com> <20100207041043.147345346@intel.com> <4B6FBB3F.4010701@linux.vnet.ibm.com> <20100208134634.GA3024@localhost> <1265924254.15603.79.camel@calx>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1265924254.15603.79.camel@calx>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A12A56B0047
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 18:57:05 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1BNv30Z005506
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 12 Feb 2010 08:57:03 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C94945DE51
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 08:57:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ADA345DE4D
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 08:57:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DEEDE38002
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 08:57:03 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B16151DB803A
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 08:57:02 +0900 (JST)
+Date: Fri, 12 Feb 2010 08:52:59 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 1/7 -mm] oom: filter tasks not sharing the same cpuset
+Message-Id: <20100212085259.c9a19c31.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1002100227590.8001@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1002100227590.8001@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, David Woodhouse <dwmw2@infradead.org>, linux-embedded@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Matt Mackall wrote:
-> On Mon, 2010-02-08 at 21:46 +0800, Wu Fengguang wrote:
-> > Chris,
-> > 
-> > Firstly inform the linux-embedded maintainers :)
-> > 
-> > I think it's a good suggestion to add a config option
-> > (CONFIG_READAHEAD_SIZE). Will update the patch..
+On Wed, 10 Feb 2010 08:32:08 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
+
+> Tasks that do not share the same set of allowed nodes with the task that
+> triggered the oom should not be considered as candidates for oom kill.
 > 
-> I don't have a strong opinion here beyond the nagging feeling that we
-> should be using a per-bdev scaling window scheme rather than something
-> static.
+> Tasks in other cpusets with a disjoint set of mems would be unfairly
+> penalized otherwise because of oom conditions elsewhere; an extreme
+> example could unfairly kill all other applications on the system if a
+> single task in a user's cpuset sets itself to OOM_DISABLE and then uses
+> more memory than allowed.
+> 
+> Killing tasks outside of current's cpuset rarely would free memory for
+> current anyway.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-I agree with both.  100Mb/s isn't typical on little devices, even if a
-fast ATA disk is attached.  I've got something here where the ATA
-interface itself (on a SoC) gets about 10MB/s max when doing nothing
-else, or 4MB/s when talking to the network at the same time.
-It's not a modern design, but you know, it's junk we try to use :-)
-
-It sounds like a calculation based on throughput and seek time or IOP
-rate, and maybe clamped if memory is small, would be good.
-
-Is the window size something that could be meaningfully adjusted
-according to live measurements?
-
--- Jamie
-
-
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
