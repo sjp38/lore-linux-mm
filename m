@@ -1,38 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9E0E36B0047
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:37:44 -0500 (EST)
-Subject: Re: [PATCH 03/11] readahead: bump up the default readahead size
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20100208134634.GA3024@localhost>
-References: <20100207041013.891441102@intel.com>
-	 <20100207041043.147345346@intel.com> <4B6FBB3F.4010701@linux.vnet.ibm.com>
-	 <20100208134634.GA3024@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 11 Feb 2010 15:37:34 -0600
-Message-ID: <1265924254.15603.79.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DDF156B0047
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:42:06 -0500 (EST)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id o1BLfvHj002238
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 21:41:58 GMT
+Received: from pxi38 (pxi38.prod.google.com [10.243.27.38])
+	by kpbe16.cbf.corp.google.com with ESMTP id o1BLfZnn012082
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:41:56 -0800
+Received: by pxi38 with SMTP id 38so176283pxi.21
+        for <linux-mm@kvack.org>; Thu, 11 Feb 2010 13:41:56 -0800 (PST)
+Date: Thu, 11 Feb 2010 13:41:53 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] [1/4] SLAB: Handle node-not-up case in fallback_alloc()
+ v2
+In-Reply-To: <20100211205401.002CFB1978@basil.firstfloor.org>
+Message-ID: <alpine.DEB.2.00.1002111338090.8809@chino.kir.corp.google.com>
+References: <20100211953.850854588@firstfloor.org> <20100211205401.002CFB1978@basil.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, David Woodhouse <dwmw2@infradead.org>, linux-embedded@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-02-08 at 21:46 +0800, Wu Fengguang wrote:
-> Chris,
+On Thu, 11 Feb 2010, Andi Kleen wrote:
+
+> When fallback_alloc() runs the node of the CPU might not be initialized yet.
+> Handle this case by allocating in another node.
 > 
-> Firstly inform the linux-embedded maintainers :)
+> v2: Try to allocate from all nodes (David Rientjes)
 > 
-> I think it's a good suggestion to add a config option
-> (CONFIG_READAHEAD_SIZE). Will update the patch..
 
-I don't have a strong opinion here beyond the nagging feeling that we
-should be using a per-bdev scaling window scheme rather than something
-static.
+You don't need to specifically address the cpuset restriction in 
+fallback_alloc() since kmem_getpages() will return NULL whenever a zone is 
+tried from an unallowed node, I just thought it was a faster optimization 
+considering you (i) would operate over a nodemask and not the entire 
+zonelist, (ii) it would avoid the zone_to_nid() for all zones since you 
+already did a zonelist iteration in this function, and (iii) it wouldn't 
+needlessly call kmem_getpages() for unallowed nodes.
 
--- 
-http://selenic.com : development and support for Mercurial and Linux
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
+That said, I don't want to see this fix go unmerged since you already 
+declined to make that optimization once:
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
