@@ -1,73 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 28B616B0047
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 02:42:19 -0500 (EST)
-Message-ID: <4B7504D2.1040903@nortel.com>
-Date: Fri, 12 Feb 2010 01:35:46 -0600
-From: "Chris Friesen" <cfriesen@nortel.com>
-MIME-Version: 1.0
-Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
-References: <4B71927D.6030607@nortel.com>	 <20100210093140.12D9.A69D9226@jp.fujitsu.com>	 <4B72E74C.9040001@nortel.com>	 <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>	 <4B74524D.8080804@nortel.com> <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com>
-In-Reply-To: <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DCC356B0078
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 02:42:23 -0500 (EST)
+Date: Fri, 12 Feb 2010 16:33:11 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 1/2] memcg : update softlimit and threshold at commit.
+Message-Id: <20100212163311.7fe3d879.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100212154713.d8a9374d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100212154422.58bfdc4d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100212154713.d8a9374d.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On 02/11/2010 08:38 PM, Minchan Kim wrote:
-> On Fri, Feb 12, 2010 at 3:54 AM, Chris Friesen <cfriesen@nortel.com> wrote:
->> That just makes the comparison even worse...it means that there is more
->> memory in active/inactive that isn't accounted for in any other category
->> in /proc/meminfo.
+On Fri, 12 Feb 2010 15:47:13 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Now, move_task introduced "batched" precharge. Because res_counter or css's refcnt
+> are not-scalable jobs for memcg, charge()s should be done in batched manner
+> if allowed.
 > 
-> Hmm. It's very strange. It's impossible if your kernel and drivers is normal.
-> Could you grep sources who increases NR_ACTIVE/INACTIVE?
-> I doubt one of your driver does increase and miss decrease.
+> Now, softlimit and threshold check their event counter in try_charge, but
+> this charge() is not per-page event. And event counter is not updated at charge().
+> Moreover, precharge doesn't pass "page" to try_charge() and softlimit tree
+> will be never updated until uncharge() causes an event.
+> 
+> So, the best place to check the event counter is commit_charge(). This is 
+> per-page event by its nature. This patch move checks to there.
+> 
+I agree to this direction.
 
-I instrumented the page cache to track all additions/subtractions of
-pages to/from the LRU.  I also added some page flags to track pages
-counting towards NR_FILE_PAGES and NR_ANON_PAGES.  I then periodically
-scanned all of the pages on the LRU and if they weren't part of
-NR_FILE_PAGES or NR_ANON_PAGES I dumped the call chain of the code that
-added the page to the LRU.
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c |   23 ++++++++++++-----------
+>  1 file changed, 12 insertions(+), 11 deletions(-)
+> 
+> Index: mmotm-2.6.33-Feb10/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-2.6.33-Feb10.orig/mm/memcontrol.c
+> +++ mmotm-2.6.33-Feb10/mm/memcontrol.c
+> @@ -1463,7 +1463,7 @@ static int __mem_cgroup_try_charge(struc
+>  		unsigned long flags = 0;
+>  
+>  		if (consume_stock(mem))
+> -			goto charged;
+> +			goto done;
+>  
+>  		ret = res_counter_charge(&mem->res, csize, &fail_res);
+>  		if (likely(!ret)) {
+> @@ -1558,16 +1558,7 @@ static int __mem_cgroup_try_charge(struc
+>  	}
+>  	if (csize > PAGE_SIZE)
+>  		refill_stock(mem, csize - PAGE_SIZE);
+> -charged:
+> -	/*
+> -	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+> -	 * if they exceeds softlimit.
+> -	 */
+> -	if (page && mem_cgroup_soft_limit_check(mem))
+> -		mem_cgroup_update_tree(mem, page);
+>  done:
+> -	if (mem_cgroup_threshold_check(mem))
+> -		mem_cgroup_threshold(mem);
+>  	return 0;
+>  nomem:
+>  	css_put(&mem->css);
+After this change, @page can be removed from the arg of try_charge().
 
-After being up about 2.5 hrs, there were 4265 pages in the LRU that
-weren't part of file or anon.  These broke down into two separate call
-chains (there were actually three separate offsets within
-compat_do_execve, but the rest was identical):
 
+Thanks,
+Daisuke Nishimura.
 
-  backtrace:
-    [<ffffffff8061c162>] kmemleak_alloc_page+0x1eb/0x380
-    [<ffffffff80276ae8>] __pagevec_lru_add_active+0xb6/0x104
-    [<ffffffff80276b85>] lru_cache_add_active+0x4f/0x53
-    [<ffffffff8027d182>] do_wp_page+0x355/0x6f6
-    [<ffffffff8027eef1>] handle_mm_fault+0x62b/0x77c
-    [<ffffffff80632557>] do_page_fault+0x3c7/0xba0
-    [<ffffffff8062fb79>] error_exit+0x0/0x51
-    [<ffffffffffffffff>] 0xffffffffffffffff
-
-and
-
-  backtrace:
-    [<ffffffff8061c162>] kmemleak_alloc_page+0x1eb/0x380
-    [<ffffffff80276ae8>] __pagevec_lru_add_active+0xb6/0x104
-    [<ffffffff80276b85>] lru_cache_add_active+0x4f/0x53
-    [<ffffffff8027eddc>] handle_mm_fault+0x516/0x77c
-    [<ffffffff8027f180>] get_user_pages+0x13e/0x462
-    [<ffffffff802a2f65>] get_arg_page+0x6a/0xca
-    [<ffffffff802a30bf>] copy_strings+0xfa/0x1d4
-    [<ffffffff802a31c7>] copy_strings_kernel+0x2e/0x43
-    [<ffffffff802d33fb>] compat_do_execve+0x1fa/0x2fd
-    [<ffffffff8021e405>] sys32_execve+0x44/0x62
-    [<ffffffff8021def5>] ia32_ptregs_common+0x25/0x50
-    [<ffffffffffffffff>] 0xffffffffffffffff
-
-I'll dig into them further, but do either of these look like known issues?
-
-Chris
+> @@ -1691,6 +1682,16 @@ static void __mem_cgroup_commit_charge(s
+>  	mem_cgroup_charge_statistics(mem, pc, true);
+>  
+>  	unlock_page_cgroup(pc);
+> +	/*
+> +	 * "charge_statistics" updated event counter. Then, check it.
+> +	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+> +	 * if they exceeds softlimit.
+> +	 */
+> +	if (mem_cgroup_soft_limit_check(mem))
+> +		mem_cgroup_update_tree(mem, pc->page);
+> +	if (mem_cgroup_threshold_check(mem))
+> +		mem_cgroup_threshold(mem);
+> +
+>  }
+>  
+>  /**
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
