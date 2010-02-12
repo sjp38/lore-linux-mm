@@ -1,225 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D2F296B0047
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 06:46:04 -0500 (EST)
-Date: Fri, 12 Feb 2010 20:48:10 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [PATCH 2/2] memcg : share event counter rather than duplicate
- v2
-Message-Id: <20100212204810.704f90f0.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20100212180952.28b2f6c5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100212154422.58bfdc4d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100212180508.eb58a4d1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100212180952.28b2f6c5.kamezawa.hiroyu@jp.fujitsu.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C4A356B0047
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 07:01:00 -0500 (EST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 01/12] mm: Document /proc/pagetypeinfo
+Date: Fri, 12 Feb 2010 12:00:48 +0000
+Message-Id: <1265976059-7459-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1265976059-7459-1-git-send-email-mel@csn.ul.ie>
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Feb 2010 18:09:52 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+The memory compaction patches add details to pagetypeinfo that are not
+obvious and need to be documented. In preparation for this, document
+what is already in /proc/pagetypeinfo.
 
-> Memcg has 2 eventcountes which counts "the same" event. Just usages are
-> different from each other. This patch tries to reduce event counter.
-> 
-> Now logic uses "only increment, no reset" counter and masks for each
-> checks. Softlimit chesk was done per 1000 evetns. So, the similar check
-> can be done by !(new_counter & 0x3ff). Threshold check was done per 100
-> events. So, the similar check can be done by (!new_counter & 0x7f)
-> 
-> ALL event checks are done right after EVENT percpu counter is updated.
-> 
-> Changelog: 2010/02/12
->  - fixed to use "inc" rather than "dec"
->  - modified to be more unified style of counter handling.
->  - taking care of account-move.
-> 
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   86 ++++++++++++++++++++++++++------------------------------
->  1 file changed, 41 insertions(+), 45 deletions(-)
-> 
-> Index: mmotm-2.6.33-Feb10/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.33-Feb10.orig/mm/memcontrol.c
-> +++ mmotm-2.6.33-Feb10/mm/memcontrol.c
-> @@ -63,8 +63,15 @@ static int really_do_swap_account __init
->  #define do_swap_account		(0)
->  #endif
->  
-> -#define SOFTLIMIT_EVENTS_THRESH (1000)
-> -#define THRESHOLDS_EVENTS_THRESH (100)
-> +/*
-> + * Per memcg event counter is incremented at every pagein/pageout. This counter
-> + * is used for trigger some periodic events. This is straightforward and better
-> + * than using jiffies etc. to handle periodic memcg event.
-> + *
-> + * These values will be used as !((event) & ((1 <<(thresh)) - 1))
-> + */
-> +#define THRESHOLDS_EVENTS_THRESH (7) /* once in 128 */
-> +#define SOFTLIMIT_EVENTS_THRESH (10) /* once in 1024 */
->  
->  /*
->   * Statistics for memory cgroup.
-> @@ -79,10 +86,7 @@ enum mem_cgroup_stat_index {
->  	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
->  	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
->  	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
-> -	MEM_CGROUP_STAT_SOFTLIMIT, /* decrements on each page in/out.
-> -					used by soft limit implementation */
-> -	MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each page in/out.
-> -					used by threshold implementation */
-> +	MEM_CGROUP_EVENTS,	/* incremented at every  pagein/pageout */
->  
->  	MEM_CGROUP_STAT_NSTATS,
->  };
-> @@ -154,7 +158,6 @@ struct mem_cgroup_threshold_ary {
->  	struct mem_cgroup_threshold entries[0];
->  };
->  
-> -static bool mem_cgroup_threshold_check(struct mem_cgroup *mem);
->  static void mem_cgroup_threshold(struct mem_cgroup *mem);
->  
->  /*
-> @@ -392,19 +395,6 @@ mem_cgroup_remove_exceeded(struct mem_cg
->  	spin_unlock(&mctz->lock);
->  }
->  
-> -static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
-> -{
-> -	bool ret = false;
-> -	s64 val;
-> -
-> -	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
-> -	if (unlikely(val < 0)) {
-> -		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT],
-> -				SOFTLIMIT_EVENTS_THRESH);
-> -		ret = true;
-> -	}
-> -	return ret;
-> -}
->  
->  static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
->  {
-> @@ -542,8 +532,7 @@ static void mem_cgroup_charge_statistics
->  		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGIN_COUNT]);
->  	else
->  		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGOUT_COUNT]);
-> -	__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
-> -	__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
-> +	__this_cpu_inc(mem->stat->count[MEM_CGROUP_EVENTS]);
->  
->  	preempt_enable();
->  }
-> @@ -563,6 +552,29 @@ static unsigned long mem_cgroup_get_loca
->  	return total;
->  }
->  
-> +static bool __memcg_event_check(struct mem_cgroup *mem, int event_mask_shift)
-> +{
-> +	s64 val;
-> +
-> +	val = this_cpu_read(mem->stat->count[MEM_CGROUP_EVENTS]);
-> +
-> +	return !(val & ((1 << event_mask_shift) - 1));
-> +}
-> +
-> +/*
-> + * Check events in order.
-> + *
-> + */
-> +static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
-> +{
-> +	/* threshold event is triggered in finer grain than soft limit */
-> +	if (unlikely(__memcg_event_check(mem, THRESHOLDS_EVENTS_THRESH))) {
-> +		mem_cgroup_threshold(mem);
-> +		if (unlikely(__memcg_event_check(mem, SOFTLIMIT_EVENTS_THRESH)))
-> +			mem_cgroup_update_tree(mem, page);
-> +	}
-> +}
-> +
->  static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
->  {
->  	return container_of(cgroup_subsys_state(cont,
-> @@ -1686,11 +1698,7 @@ static void __mem_cgroup_commit_charge(s
->  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
->  	 * if they exceeds softlimit.
->  	 */
-> -	if (mem_cgroup_soft_limit_check(mem))
-> -		mem_cgroup_update_tree(mem, pc->page);
-> -	if (mem_cgroup_threshold_check(mem))
-> -		mem_cgroup_threshold(mem);
-> -
-> +	memcg_check_events(mem, pc->page);
->  }
->  
->  /**
-> @@ -1760,6 +1768,11 @@ static int mem_cgroup_move_account(struc
->  		ret = 0;
->  	}
->  	unlock_page_cgroup(pc);
-> +	/*
-> +	 * check events
-> +	 */
-> +	memcg_check_events(to, pc->page);
-> +	memcg_check_events(from, pc->page);
->  	return ret;
->  }
->  
-Strictly speaking, "if (!ret)" would be needed(it's not a big deal, though).
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ Documentation/filesystems/proc.txt |   45 +++++++++++++++++++++++++++++++++++-
+ 1 files changed, 44 insertions(+), 1 deletions(-)
 
-Thanks,
-Daisuke Nishimura.
-
-> @@ -2128,10 +2141,7 @@ __mem_cgroup_uncharge_common(struct page
->  	mz = page_cgroup_zoneinfo(pc);
->  	unlock_page_cgroup(pc);
->  
-> -	if (mem_cgroup_soft_limit_check(mem))
-> -		mem_cgroup_update_tree(mem, page);
-> -	if (mem_cgroup_threshold_check(mem))
-> -		mem_cgroup_threshold(mem);
-> +	memcg_check_events(mem, page);
->  	/* at swapout, this memcg will be accessed to record to swap */
->  	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
->  		css_put(&mem->css);
-> @@ -3207,20 +3217,6 @@ static int mem_cgroup_swappiness_write(s
->  	return 0;
->  }
->  
-> -static bool mem_cgroup_threshold_check(struct mem_cgroup *mem)
-> -{
-> -	bool ret = false;
-> -	s64 val;
-> -
-> -	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
-> -	if (unlikely(val < 0)) {
-> -		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS],
-> -				THRESHOLDS_EVENTS_THRESH);
-> -		ret = true;
-> -	}
-> -	return ret;
-> -}
-> -
->  static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
->  {
->  	struct mem_cgroup_threshold_ary *t;
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 0d07513..1829dfb 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -430,6 +430,7 @@ Table 1-5: Kernel info in /proc
+  modules     List of loaded modules                            
+  mounts      Mounted filesystems                               
+  net         Networking info (see text)                        
++ pagetypeinfo Additional page allocator information (see text)  (2.5)
+  partitions  Table of partitions known to the system           
+  pci	     Deprecated info of PCI bus (new way -> /proc/bus/pci/,
+              decoupled by lspci					(2.4)
+@@ -584,7 +585,7 @@ Node 0, zone      DMA      0      4      5      4      4      3 ...
+ Node 0, zone   Normal      1      0      0      1    101      8 ...
+ Node 0, zone  HighMem      2      0      0      1      1      0 ...
+ 
+-Memory fragmentation is a problem under some workloads, and buddyinfo is a 
++External fragmentation is a problem under some workloads, and buddyinfo is a
+ useful tool for helping diagnose these problems.  Buddyinfo will give you a 
+ clue as to how big an area you can safely allocate, or why a previous
+ allocation failed.
+@@ -594,6 +595,48 @@ available.  In this case, there are 0 chunks of 2^0*PAGE_SIZE available in
+ ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE 
+ available in ZONE_NORMAL, etc... 
+ 
++More information relevant to external fragmentation can be found in
++pagetypeinfo.
++
++> cat /proc/pagetypeinfo
++Page block order: 9
++Pages per block:  512
++
++Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
++Node    0, zone      DMA, type    Unmovable      0      0      0      1      1      1      1      1      1      1      0
++Node    0, zone      DMA, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
++Node    0, zone      DMA, type      Movable      1      1      2      1      2      1      1      0      1      0      2
++Node    0, zone      DMA, type      Reserve      0      0      0      0      0      0      0      0      0      1      0
++Node    0, zone      DMA, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
++Node    0, zone    DMA32, type    Unmovable    103     54     77      1      1      1     11      8      7      1      9
++Node    0, zone    DMA32, type  Reclaimable      0      0      2      1      0      0      0      0      1      0      0
++Node    0, zone    DMA32, type      Movable    169    152    113     91     77     54     39     13      6      1    452
++Node    0, zone    DMA32, type      Reserve      1      2      2      2      2      0      1      1      1      1      0
++Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
++
++Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate
++Node 0, zone      DMA            2            0            5            1            0
++Node 0, zone    DMA32           41            6          967            2            0
++
++Fragmentation avoidance in the kernel works by grouping pages of different
++migrate types into the same contiguous regions of memory called page blocks.
++A page block is typically the size of the default hugepage size e.g. 2MB on
++X86-64. By keeping pages grouped based on their ability to move, the kernel
++can reclaim pages within a page block to satisfy a high-order allocation.
++
++The pagetypinfo begins with information on the size of a page block. It
++then gives the same type of information as buddyinfo except broken down
++by migrate-type and finishes with details on how many page blocks of each
++type exist.
++
++If min_free_kbytes has been tuned correctly (recommendations made by hugeadm
++from libhugetlbfs http://sourceforge.net/projects/libhugetlbfs/), one can
++make an estimate of the likely number of huge pages that can be allocated
++at a given point in time. All the "Movable" blocks should be allocatable
++unless memory has been mlock()'d. Some of the Reclaimable blocks should
++also be allocatable although a lot of filesystem metadata may have to be
++reclaimed to achieve this.
++
+ ..............................................................................
+ 
+ meminfo:
+-- 
+1.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
