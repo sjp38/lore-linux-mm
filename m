@@ -1,80 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2B0536B0047
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 08:56:34 -0500 (EST)
-Received: by ywh9 with SMTP id 9so2428562ywh.19
-        for <linux-mm@kvack.org>; Fri, 12 Feb 2010 05:56:32 -0800 (PST)
-Subject: Re: [patch 4/7 -mm] oom: badness heuristic rewrite
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1002102332200.22152@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
-	 <alpine.DEB.2.00.1002100228540.8001@chino.kir.corp.google.com>
-	 <4B73833D.5070008@redhat.com>
-	 <alpine.DEB.2.00.1002102332200.22152@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 12 Feb 2010 22:56:24 +0900
-Message-ID: <1265982984.6207.29.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id BCC376B0047
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 09:01:07 -0500 (EST)
+Date: Fri, 12 Feb 2010 21:59:49 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 03/11] readahead: bump up the default readahead size
+Message-ID: <20100212135949.GA22686@localhost>
+References: <20100207041013.891441102@intel.com> <20100207041043.147345346@intel.com> <4B6FBB3F.4010701@linux.vnet.ibm.com> <20100208134634.GA3024@localhost> <1265924254.15603.79.camel@calx> <20100211234249.GE407@shareable.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100211234249.GE407@shareable.org>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Matt Mackall <mpm@selenic.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, David Woodhouse <dwmw2@infradead.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, David. 
-
-On Thu, 2010-02-11 at 01:14 -0800, David Rientjes wrote:
-> > > +/*
-> > > + * Tasks that fork a very large number of children with seperate address
-> > > spaces
-> > > + * may be the result of a bug, user error, or a malicious application.  The
-> > > oom
-> > > + * killer assesses a penalty equaling
+On Fri, Feb 12, 2010 at 07:42:49AM +0800, Jamie Lokier wrote:
+> Matt Mackall wrote:
+> > On Mon, 2010-02-08 at 21:46 +0800, Wu Fengguang wrote:
+> > > Chris,
+> > > 
+> > > Firstly inform the linux-embedded maintainers :)
+> > > 
+> > > I think it's a good suggestion to add a config option
+> > > (CONFIG_READAHEAD_SIZE). Will update the patch..
 > > 
-> > It could also be the result of the system getting many client
-> > connections - think of overloaded mail, web or database servers.
-> > 
+> > I don't have a strong opinion here beyond the nagging feeling that we
+> > should be using a per-bdev scaling window scheme rather than something
+> > static.
+
+It's good to do dynamic scaling -- in fact this patchset has code to do
+- scale down readahead size (per-bdev) for small devices
+- scale down readahead size (per-stream) to thrashing threshold
+
+At the same time, I'd prefer
+- to _only_ do scale down (below the default size) for low end
+- and have a uniform default readahead size for the mainstream
+
+IMHO scaling up automatically
+- would be risky
+- hurts to build one common expectation on Linux behavior
+  (not only developers, but also admins will run into the question:
+  "what on earth is the readahead size?")
+- and still not likely to please the high end guys ;)
+
+> I agree with both.  100Mb/s isn't typical on little devices, even if a
+> fast ATA disk is attached.  I've got something here where the ATA
+> interface itself (on a SoC) gets about 10MB/s max when doing nothing
+> else, or 4MB/s when talking to the network at the same time.
+> It's not a modern design, but you know, it's junk we try to use :-)
+
+Good to know this. I guess the same situation for some USB-capable
+wireless routers -- they typically don't have powerful hardware to
+exert the full 100MB/s disk speed.
+
+> It sounds like a calculation based on throughput and seek time or IOP
+> rate, and maybe clamped if memory is small, would be good.
 > 
-> True, that's a great example of why child tasks should be sacrificed for 
-> the parent: if the oom killer is being called then we are truly overloaded 
-> and there's no shame in killing excessive client connections to recover, 
-> otherwise we might find the entire server becoming unresponsive.  The user 
-> can easily tune to /proc/sys/vm/oom_forkbomb_thres to define what 
-> "excessive" is to assess the penalty, if any.  I'll add that to the 
-> comment if we require a second revision.
-> 
+> Is the window size something that could be meaningfully adjusted
+> according to live measurements?
 
-I am worried about opposite case.
+We currently have live adjustment for
+- small devices
+- thrashed read streams
 
-If forkbomb parent makes so many children in a short time(ex, 2000 per
-second) continuously and we kill a child continuously not parent, system
-is almost unresponsible, I think.  
-I suffered from that case in LTP and no swap system.
-It might be a corner case but might happen in real. 
+We could add new adjustments based on throughput (estimation is the
+problem) and memory size.
 
-I think we could have two types of forkbomb. 
+Note that it does not really hurt to have big _readahead_ size on low
+throughput or small memory conditions, because it's merely _max_
+readahead size, the actual readahead size scales up step-by-step, and
+scales down if thrashed, and the sequential readahead hit ratio is
+pretty high (so no memory/bandwidth is wasted).
 
-Normal forkbomb : apache, DB server and so on. 
-Buggy forkbomb: It's mistake of user. 
+What may hurt is to have big mmap _readaround_ size. The larger
+readaround size, the more readaround miss ratio (but still not
+disastrous), hence more memory pages and bandwidth wasted. It's not a
+big problem for mainstream, however embedded systems may be more
+sensitive.
 
-We can control normal forkbomb by oom_forkbomb_thres.
-But how about handling buggy forkbomb?
+I would guess most embedded systems put executables on MTD devices
+(anyone to confirm this?). And I wonder if MTDs have general
+characteristics that are suitable for smaller readahead/readaround
+size (the two sizes are bundled for simplicity)?
 
-If we make sure this task is buggy forkbomb, it would be better to kill
-it. But it's hard to make sure it's a buggy forkbomb.
-
-Could we solve this problem by following as?
-If OOM selects victim and then the one was selected victim right before
-and it's repeatable 5 times for example, then we kill the victim(buggy
-forkbom) itself not child of one. It is assumed normal forkbomb is
-controlled by admin who uses oom_forkbomb_thres well. So it doesn't
-happen selecting victim continuously above five time.
-
-
--- 
-Kind regards,
-Minchan Kim
-
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
