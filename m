@@ -1,221 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5BBEE6B007B
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 04:13:21 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1C9DIHW012027
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Feb 2010 18:13:18 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AC50745DE70
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:13:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A13545DE6E
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:13:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F5ECE1800E
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:13:17 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CA80CE18004
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:13:16 +0900 (JST)
-Date: Fri, 12 Feb 2010 18:09:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/2] memcg : share event counter rather than duplicate v2
-Message-Id: <20100212180952.28b2f6c5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100212180508.eb58a4d1.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100212154422.58bfdc4d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100212180508.eb58a4d1.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 211F26B0047
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 04:58:19 -0500 (EST)
+Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
+	by smtp-out.google.com with ESMTP id o1C9wF0k028046
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 01:58:15 -0800
+Received: from pxi14 (pxi14.prod.google.com [10.243.27.14])
+	by spaceape9.eur.corp.google.com with ESMTP id o1C9wDAD022963
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 01:58:14 -0800
+Received: by pxi14 with SMTP id 14so1509739pxi.20
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2010 01:58:12 -0800 (PST)
+Date: Fri, 12 Feb 2010 01:58:10 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 5/7 -mm] oom: replace sysctls with quick mode
+In-Reply-To: <20100212092634.60a76cf9.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1002120150380.22883@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100229250.8001@chino.kir.corp.google.com> <20100212092634.60a76cf9.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Memcg has 2 eventcountes which counts "the same" event. Just usages are
-different from each other. This patch tries to reduce event counter.
+On Fri, 12 Feb 2010, KAMEZAWA Hiroyuki wrote:
 
-Now logic uses "only increment, no reset" counter and masks for each
-checks. Softlimit chesk was done per 1000 evetns. So, the similar check
-can be done by !(new_counter & 0x3ff). Threshold check was done per 100
-events. So, the similar check can be done by (!new_counter & 0x7f)
+> > Two VM sysctls, oom dump_tasks and oom_kill_allocating_task, were
+> > implemented for very large systems to avoid excessively long tasklist
+> > scans.  The former suppresses helpful diagnostic messages that are
+> > emitted for each thread group leader that are candidates for oom kill
+> > including their pid, uid, vm size, rss, oom_adj value, and name; this
+> > information is very helpful to users in understanding why a particular
+> > task was chosen for kill over others.  The latter simply kills current,
+> > the task triggering the oom condition, instead of iterating through the
+> > tasklist looking for the worst offender.
+> > 
+> > Both of these sysctls are combined into one for use on the aforementioned
+> > large systems: oom_kill_quick.  This disables the now-default
+> > oom_dump_tasks and kills current whenever the oom killer is called.
+> > 
+> > The oom killer rewrite is the perfect opportunity to combine both sysctls
+> > into one instead of carrying around the others for years to come for
+> > nothing else than legacy purposes.
+> > 
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> 
+> seems reasonable..but how old these APIs are ? Replacement is ok ?
+> 
 
-ALL event checks are done right after EVENT percpu counter is updated.
+I'm not concerned about /proc/sys/vm/oom_dump_tasks because it was 
+disabled by default and is now enabled by default (unless the user sets 
+this new /proc/sys/vm/oom_kill_quick).  So existing users of 
+oom_dump_tasks will just have their write fail but identical behavior as 
+before.
 
-Changelog: 2010/02/12
- - fixed to use "inc" rather than "dec"
- - modified to be more unified style of counter handling.
- - taking care of account-move.
+/proc/sys/vm/oom_kill_allocating_task is different since it now requires 
+enabling /proc/sys/vm/oom_kill_quick, but I think there are such few users 
+(SGI originally requested it a couple years ago when we started scanning 
+the tasklist for CONSTRAINT_CPUSET in 2.6.24) and the side-effect of not 
+enabling it is minimal, it's just a long delay at oom kill time because 
+they must scan the tasklist.  Therefore, I don't see it as a major problem 
+that will cause large disruptions, instead I see it as a great opportunity 
+to get rid of one more sysctl without taking away functionality.
 
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   86 ++++++++++++++++++++++++++------------------------------
- 1 file changed, 41 insertions(+), 45 deletions(-)
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-Index: mmotm-2.6.33-Feb10/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.33-Feb10.orig/mm/memcontrol.c
-+++ mmotm-2.6.33-Feb10/mm/memcontrol.c
-@@ -63,8 +63,15 @@ static int really_do_swap_account __init
- #define do_swap_account		(0)
- #endif
- 
--#define SOFTLIMIT_EVENTS_THRESH (1000)
--#define THRESHOLDS_EVENTS_THRESH (100)
-+/*
-+ * Per memcg event counter is incremented at every pagein/pageout. This counter
-+ * is used for trigger some periodic events. This is straightforward and better
-+ * than using jiffies etc. to handle periodic memcg event.
-+ *
-+ * These values will be used as !((event) & ((1 <<(thresh)) - 1))
-+ */
-+#define THRESHOLDS_EVENTS_THRESH (7) /* once in 128 */
-+#define SOFTLIMIT_EVENTS_THRESH (10) /* once in 1024 */
- 
- /*
-  * Statistics for memory cgroup.
-@@ -79,10 +86,7 @@ enum mem_cgroup_stat_index {
- 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
- 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
- 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
--	MEM_CGROUP_STAT_SOFTLIMIT, /* decrements on each page in/out.
--					used by soft limit implementation */
--	MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each page in/out.
--					used by threshold implementation */
-+	MEM_CGROUP_EVENTS,	/* incremented at every  pagein/pageout */
- 
- 	MEM_CGROUP_STAT_NSTATS,
- };
-@@ -154,7 +158,6 @@ struct mem_cgroup_threshold_ary {
- 	struct mem_cgroup_threshold entries[0];
- };
- 
--static bool mem_cgroup_threshold_check(struct mem_cgroup *mem);
- static void mem_cgroup_threshold(struct mem_cgroup *mem);
- 
- /*
-@@ -392,19 +395,6 @@ mem_cgroup_remove_exceeded(struct mem_cg
- 	spin_unlock(&mctz->lock);
- }
- 
--static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
--{
--	bool ret = false;
--	s64 val;
--
--	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
--	if (unlikely(val < 0)) {
--		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT],
--				SOFTLIMIT_EVENTS_THRESH);
--		ret = true;
--	}
--	return ret;
--}
- 
- static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
- {
-@@ -542,8 +532,7 @@ static void mem_cgroup_charge_statistics
- 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGIN_COUNT]);
- 	else
- 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGOUT_COUNT]);
--	__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
--	__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
-+	__this_cpu_inc(mem->stat->count[MEM_CGROUP_EVENTS]);
- 
- 	preempt_enable();
- }
-@@ -563,6 +552,29 @@ static unsigned long mem_cgroup_get_loca
- 	return total;
- }
- 
-+static bool __memcg_event_check(struct mem_cgroup *mem, int event_mask_shift)
-+{
-+	s64 val;
-+
-+	val = this_cpu_read(mem->stat->count[MEM_CGROUP_EVENTS]);
-+
-+	return !(val & ((1 << event_mask_shift) - 1));
-+}
-+
-+/*
-+ * Check events in order.
-+ *
-+ */
-+static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
-+{
-+	/* threshold event is triggered in finer grain than soft limit */
-+	if (unlikely(__memcg_event_check(mem, THRESHOLDS_EVENTS_THRESH))) {
-+		mem_cgroup_threshold(mem);
-+		if (unlikely(__memcg_event_check(mem, SOFTLIMIT_EVENTS_THRESH)))
-+			mem_cgroup_update_tree(mem, page);
-+	}
-+}
-+
- static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
- {
- 	return container_of(cgroup_subsys_state(cont,
-@@ -1686,11 +1698,7 @@ static void __mem_cgroup_commit_charge(s
- 	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
- 	 * if they exceeds softlimit.
- 	 */
--	if (mem_cgroup_soft_limit_check(mem))
--		mem_cgroup_update_tree(mem, pc->page);
--	if (mem_cgroup_threshold_check(mem))
--		mem_cgroup_threshold(mem);
--
-+	memcg_check_events(mem, pc->page);
- }
- 
- /**
-@@ -1760,6 +1768,11 @@ static int mem_cgroup_move_account(struc
- 		ret = 0;
- 	}
- 	unlock_page_cgroup(pc);
-+	/*
-+	 * check events
-+	 */
-+	memcg_check_events(to, pc->page);
-+	memcg_check_events(from, pc->page);
- 	return ret;
- }
- 
-@@ -2128,10 +2141,7 @@ __mem_cgroup_uncharge_common(struct page
- 	mz = page_cgroup_zoneinfo(pc);
- 	unlock_page_cgroup(pc);
- 
--	if (mem_cgroup_soft_limit_check(mem))
--		mem_cgroup_update_tree(mem, page);
--	if (mem_cgroup_threshold_check(mem))
--		mem_cgroup_threshold(mem);
-+	memcg_check_events(mem, page);
- 	/* at swapout, this memcg will be accessed to record to swap */
- 	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
- 		css_put(&mem->css);
-@@ -3207,20 +3217,6 @@ static int mem_cgroup_swappiness_write(s
- 	return 0;
- }
- 
--static bool mem_cgroup_threshold_check(struct mem_cgroup *mem)
--{
--	bool ret = false;
--	s64 val;
--
--	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
--	if (unlikely(val < 0)) {
--		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS],
--				THRESHOLDS_EVENTS_THRESH);
--		ret = true;
--	}
--	return ret;
--}
--
- static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
- {
- 	struct mem_cgroup_threshold_ary *t;
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
