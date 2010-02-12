@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A6E0B6B007D
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 04:10:12 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1C9A9RK010661
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5BBEE6B007B
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 04:13:21 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1C9DIHW012027
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Feb 2010 18:10:10 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8204345DE55
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:10:09 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2751645DE50
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:10:09 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AF5E51DB803E
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:10:06 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F320E08002
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:10:06 +0900 (JST)
-Date: Fri, 12 Feb 2010 18:06:40 +0900
+	Fri, 12 Feb 2010 18:13:18 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AC50745DE70
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:13:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A13545DE6E
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:13:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F5ECE1800E
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:13:17 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CA80CE18004
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 18:13:16 +0900 (JST)
+Date: Fri, 12 Feb 2010 18:09:52 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/2] memcg: update threshold and softlimit at commit v2
-Message-Id: <20100212180640.39b242d5.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/2] memcg : share event counter rather than duplicate v2
+Message-Id: <20100212180952.28b2f6c5.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100212180508.eb58a4d1.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100212154422.58bfdc4d.kamezawa.hiroyu@jp.fujitsu.com>
 	<20100212180508.eb58a4d1.kamezawa.hiroyu@jp.fujitsu.com>
@@ -33,143 +33,189 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Now, move_task does "batched" precharge. Because res_counter or css's refcnt
-are not-scalable jobs for memcg, try_charge_().. tend to be done in batched
-manner if allowed.
+Memcg has 2 eventcountes which counts "the same" event. Just usages are
+different from each other. This patch tries to reduce event counter.
 
-Now, softlimit and threshold check their event counter in try_charge, but
-charge is not per-page event. And event counter is not updated at charge().
-Moreover, precharge doesn't pass "page" to try_charge() and softlimit tree
-will be never updated until uncharge() causes an event."
+Now logic uses "only increment, no reset" counter and masks for each
+checks. Softlimit chesk was done per 1000 evetns. So, the similar check
+can be done by !(new_counter & 0x3ff). Threshold check was done per 100
+events. So, the similar check can be done by (!new_counter & 0x7f)
 
-So, the best place to check the event counter is commit_charge(). This is 
-per-page event by its nature. This patch move checks to there.
+ALL event checks are done right after EVENT percpu counter is updated.
 
 Changelog: 2010/02/12
- removed an argument "page" from try_charge(). After this, try_charge()
- is independent from what the page is.
- (Maybe transparent hugepage or some needs to add some argument in future.)
+ - fixed to use "inc" rather than "dec"
+ - modified to be more unified style of counter handling.
+ - taking care of account-move.
 
 Cc: Kirill A. Shutemov <kirill@shutemov.name>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
 Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |   38 ++++++++++++++++++--------------------
- 1 file changed, 18 insertions(+), 20 deletions(-)
+ mm/memcontrol.c |   86 ++++++++++++++++++++++++++------------------------------
+ 1 file changed, 41 insertions(+), 45 deletions(-)
 
 Index: mmotm-2.6.33-Feb10/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.33-Feb10.orig/mm/memcontrol.c
 +++ mmotm-2.6.33-Feb10/mm/memcontrol.c
-@@ -1424,8 +1424,7 @@ static int __cpuinit memcg_stock_cpu_cal
-  * oom-killer can be invoked.
-  */
- static int __mem_cgroup_try_charge(struct mm_struct *mm,
--			gfp_t gfp_mask, struct mem_cgroup **memcg,
--			bool oom, struct page *page)
-+			gfp_t gfp_mask, struct mem_cgroup **memcg, bool oom)
+@@ -63,8 +63,15 @@ static int really_do_swap_account __init
+ #define do_swap_account		(0)
+ #endif
+ 
+-#define SOFTLIMIT_EVENTS_THRESH (1000)
+-#define THRESHOLDS_EVENTS_THRESH (100)
++/*
++ * Per memcg event counter is incremented at every pagein/pageout. This counter
++ * is used for trigger some periodic events. This is straightforward and better
++ * than using jiffies etc. to handle periodic memcg event.
++ *
++ * These values will be used as !((event) & ((1 <<(thresh)) - 1))
++ */
++#define THRESHOLDS_EVENTS_THRESH (7) /* once in 128 */
++#define SOFTLIMIT_EVENTS_THRESH (10) /* once in 1024 */
+ 
+ /*
+  * Statistics for memory cgroup.
+@@ -79,10 +86,7 @@ enum mem_cgroup_stat_index {
+ 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
+ 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
+ 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+-	MEM_CGROUP_STAT_SOFTLIMIT, /* decrements on each page in/out.
+-					used by soft limit implementation */
+-	MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each page in/out.
+-					used by threshold implementation */
++	MEM_CGROUP_EVENTS,	/* incremented at every  pagein/pageout */
+ 
+ 	MEM_CGROUP_STAT_NSTATS,
+ };
+@@ -154,7 +158,6 @@ struct mem_cgroup_threshold_ary {
+ 	struct mem_cgroup_threshold entries[0];
+ };
+ 
+-static bool mem_cgroup_threshold_check(struct mem_cgroup *mem);
+ static void mem_cgroup_threshold(struct mem_cgroup *mem);
+ 
+ /*
+@@ -392,19 +395,6 @@ mem_cgroup_remove_exceeded(struct mem_cg
+ 	spin_unlock(&mctz->lock);
+ }
+ 
+-static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
+-{
+-	bool ret = false;
+-	s64 val;
+-
+-	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
+-	if (unlikely(val < 0)) {
+-		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT],
+-				SOFTLIMIT_EVENTS_THRESH);
+-		ret = true;
+-	}
+-	return ret;
+-}
+ 
+ static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
  {
- 	struct mem_cgroup *mem, *mem_over_limit;
- 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-@@ -1463,7 +1462,7 @@ static int __mem_cgroup_try_charge(struc
- 		unsigned long flags = 0;
+@@ -542,8 +532,7 @@ static void mem_cgroup_charge_statistics
+ 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGIN_COUNT]);
+ 	else
+ 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGOUT_COUNT]);
+-	__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
+-	__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
++	__this_cpu_inc(mem->stat->count[MEM_CGROUP_EVENTS]);
  
- 		if (consume_stock(mem))
--			goto charged;
-+			goto done;
+ 	preempt_enable();
+ }
+@@ -563,6 +552,29 @@ static unsigned long mem_cgroup_get_loca
+ 	return total;
+ }
  
- 		ret = res_counter_charge(&mem->res, csize, &fail_res);
- 		if (likely(!ret)) {
-@@ -1558,16 +1557,7 @@ static int __mem_cgroup_try_charge(struc
- 	}
- 	if (csize > PAGE_SIZE)
- 		refill_stock(mem, csize - PAGE_SIZE);
--charged:
--	/*
--	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
--	 * if they exceeds softlimit.
--	 */
--	if (page && mem_cgroup_soft_limit_check(mem))
--		mem_cgroup_update_tree(mem, page);
- done:
++static bool __memcg_event_check(struct mem_cgroup *mem, int event_mask_shift)
++{
++	s64 val;
++
++	val = this_cpu_read(mem->stat->count[MEM_CGROUP_EVENTS]);
++
++	return !(val & ((1 << event_mask_shift) - 1));
++}
++
++/*
++ * Check events in order.
++ *
++ */
++static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
++{
++	/* threshold event is triggered in finer grain than soft limit */
++	if (unlikely(__memcg_event_check(mem, THRESHOLDS_EVENTS_THRESH))) {
++		mem_cgroup_threshold(mem);
++		if (unlikely(__memcg_event_check(mem, SOFTLIMIT_EVENTS_THRESH)))
++			mem_cgroup_update_tree(mem, page);
++	}
++}
++
+ static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
+ {
+ 	return container_of(cgroup_subsys_state(cont,
+@@ -1686,11 +1698,7 @@ static void __mem_cgroup_commit_charge(s
+ 	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+ 	 * if they exceeds softlimit.
+ 	 */
+-	if (mem_cgroup_soft_limit_check(mem))
+-		mem_cgroup_update_tree(mem, pc->page);
 -	if (mem_cgroup_threshold_check(mem))
 -		mem_cgroup_threshold(mem);
- 	return 0;
- nomem:
- 	css_put(&mem->css);
-@@ -1691,6 +1681,16 @@ static void __mem_cgroup_commit_charge(s
- 	mem_cgroup_charge_statistics(mem, pc, true);
- 
- 	unlock_page_cgroup(pc);
-+	/*
-+	 * "charge_statistics" updated event counter. Then, check it.
-+	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-+	 * if they exceeds softlimit.
-+	 */
-+	if (mem_cgroup_soft_limit_check(mem))
-+		mem_cgroup_update_tree(mem, pc->page);
-+	if (mem_cgroup_threshold_check(mem))
-+		mem_cgroup_threshold(mem);
-+
+-
++	memcg_check_events(mem, pc->page);
  }
  
  /**
-@@ -1788,7 +1788,7 @@ static int mem_cgroup_move_parent(struct
- 		goto put;
- 
- 	parent = mem_cgroup_from_cont(pcg);
--	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page);
-+	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false);
- 	if (ret || !parent)
- 		goto put_back;
- 
-@@ -1824,7 +1824,7 @@ static int mem_cgroup_charge_common(stru
- 	prefetchw(pc);
- 
- 	mem = memcg;
--	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page);
-+	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
- 	if (ret || !mem)
- 		return ret;
- 
-@@ -1944,14 +1944,14 @@ int mem_cgroup_try_charge_swapin(struct 
- 	if (!mem)
- 		goto charge_cur_mm;
- 	*ptr = mem;
--	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page);
-+	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true);
- 	/* drop extra refcnt from tryget */
- 	css_put(&mem->css);
+@@ -1760,6 +1768,11 @@ static int mem_cgroup_move_account(struc
+ 		ret = 0;
+ 	}
+ 	unlock_page_cgroup(pc);
++	/*
++	 * check events
++	 */
++	memcg_check_events(to, pc->page);
++	memcg_check_events(from, pc->page);
  	return ret;
- charge_cur_mm:
- 	if (unlikely(!mm))
- 		mm = &init_mm;
--	return __mem_cgroup_try_charge(mm, mask, ptr, true, page);
-+	return __mem_cgroup_try_charge(mm, mask, ptr, true);
  }
  
- static void
-@@ -2340,8 +2340,7 @@ int mem_cgroup_prepare_migration(struct 
+@@ -2128,10 +2141,7 @@ __mem_cgroup_uncharge_common(struct page
+ 	mz = page_cgroup_zoneinfo(pc);
  	unlock_page_cgroup(pc);
  
- 	if (mem) {
--		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false,
--						page);
-+		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
+-	if (mem_cgroup_soft_limit_check(mem))
+-		mem_cgroup_update_tree(mem, page);
+-	if (mem_cgroup_threshold_check(mem))
+-		mem_cgroup_threshold(mem);
++	memcg_check_events(mem, page);
+ 	/* at swapout, this memcg will be accessed to record to swap */
+ 	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
  		css_put(&mem->css);
- 	}
- 	*ptr = mem;
-@@ -3863,8 +3862,7 @@ one_by_one:
- 			batch_count = PRECHARGE_COUNT_AT_ONCE;
- 			cond_resched();
- 		}
--		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem,
--								false, NULL);
-+		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
- 		if (ret || !mem)
- 			/* mem_cgroup_clear_mc() will do uncharge later */
- 			return -ENOMEM;
+@@ -3207,20 +3217,6 @@ static int mem_cgroup_swappiness_write(s
+ 	return 0;
+ }
+ 
+-static bool mem_cgroup_threshold_check(struct mem_cgroup *mem)
+-{
+-	bool ret = false;
+-	s64 val;
+-
+-	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
+-	if (unlikely(val < 0)) {
+-		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS],
+-				THRESHOLDS_EVENTS_THRESH);
+-		ret = true;
+-	}
+-	return ret;
+-}
+-
+ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
+ {
+ 	struct mem_cgroup_threshold_ary *t;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
