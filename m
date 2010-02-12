@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A838F6B0047
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 12:50:40 -0500 (EST)
-Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
-References: <4B71927D.6030607@nortel.com>
-	<20100210093140.12D9.A69D9226@jp.fujitsu.com>
-	<4B72E74C.9040001@nortel.com>
-	<28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>
-	<4B74524D.8080804@nortel.com>
-	<28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com>
-From: Catalin Marinas <catalin.marinas@arm.com>
-Date: Fri, 12 Feb 2010 17:50:31 +0000
-In-Reply-To: <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com> (Minchan Kim's message of "Fri\, 12 Feb 2010 11\:38\:12 +0900")
-Message-ID: <tnxk4ui9wd4.fsf@pc1117.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 36AF06B0047
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 13:35:14 -0500 (EST)
+Subject: Re: [PATCH 06/12] Add /proc trigger for memory compaction
+In-Reply-To: Your message of "Fri, 12 Feb 2010 12:00:53 GMT."
+             <1265976059-7459-7-git-send-email-mel@csn.ul.ie>
+From: Valdis.Kletnieks@vt.edu
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie>
+            <1265976059-7459-7-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1265999680_4070P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 12 Feb 2010 13:34:40 -0500
+Message-ID: <7691.1265999680@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Chris Friesen <cfriesen@nortel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Fri, Feb 12, 2010 at 3:54 AM, Chris Friesen <cfriesen@nortel.com> wrot=
-e:
->> I have a modified version of that which I picked up as part of the
->> kmemleak backport. =C2=A0However, it doesn't help unless I can narrow do=
-wn
->> *which* pages I should care about.
->
-> kmemleak doesn't support page allocator and ioremap.
-> Above URL patch just can tell who requests page which is using(ie, not
-> free) now.
+--==_Exmh_1265999680_4070P
+Content-Type: text/plain; charset=us-ascii
 
-The ioremap can be easily tracked by kmemleak (it is on my to-do list
-but haven't managed to do it yet). That's not far from vmalloc.
+On Fri, 12 Feb 2010 12:00:53 GMT, Mel Gorman said:
+> This patch adds a proc file /proc/sys/vm/compact_memory. When an arbitrary
+> value is written to the file, all zones are compacted. The expected user
+> of such a trigger is a job scheduler that prepares the system before the
+> target application runs.
 
-The page allocator is a bit more difficult since it's used by the slab
-allocator as well and it may lead to some recursive calls into
-kmemleak. I'll have a think.
+Argh. A global trigger in /proc, and a per-node trigger in /sys too.  Can we
+get by with just one or the other?  Should the /proc one live in /sys too?
 
-Anyway, you can leak memory without this being detected by kmemleak -
-just add the allocated objects to a list and never remove them.
 
---=20
-Catalin
+--==_Exmh_1265999680_4070P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFLdZ9AcC3lWbTT17ARAuqMAJ9zE7Mlw+qy2dVG4qMLTgAviVaRlgCfTdBT
+MFUCALw++Nh/mf9587aU584=
+=J6gQ
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1265999680_4070P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
