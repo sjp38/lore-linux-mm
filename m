@@ -1,61 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 27D8D6B0078
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 19:15:28 -0500 (EST)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o1C0FP7W015697
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:15:25 -0800
-Received: from pzk7 (pzk7.prod.google.com [10.243.19.135])
-	by wpaz5.hot.corp.google.com with ESMTP id o1C0F98h002933
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:15:24 -0800
-Received: by pzk7 with SMTP id 7so2156138pzk.12
-        for <linux-mm@kvack.org>; Thu, 11 Feb 2010 16:15:23 -0800 (PST)
-Date: Thu, 11 Feb 2010 16:15:22 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 2/7 -mm] oom: sacrifice child with highest badness score
- for parent
-In-Reply-To: <20100212090009.3e5b8738.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1002111611520.11711@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228240.8001@chino.kir.corp.google.com> <20100212090009.3e5b8738.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BF3706B007B
+	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 19:16:09 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1C0G6ZL013464
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 12 Feb 2010 09:16:06 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 20CDB45DE4F
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 09:16:06 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 058B445DE4E
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 09:16:06 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D35561DB8037
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 09:16:05 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DE731DB803F
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 09:16:05 +0900 (JST)
+Date: Fri, 12 Feb 2010 09:12:37 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 7/7 -mm] oom: remove unnecessary code and cleanup
+Message-Id: <20100212091237.adb94384.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1002100230010.8001@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1002100230010.8001@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Feb 2010, KAMEZAWA Hiroyuki wrote:
+On Wed, 10 Feb 2010 08:32:24 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> Maybe better than current logic..but I'm not sure why we have to check children ;)
+> Remove the redundancy in __oom_kill_task() since:
 > 
-> BTW,
-> ==
->         list_for_each_entry(child, &p->children, sibling) {
->                 task_lock(child);
->                 if (child->mm != mm && child->mm)
->                         points += child->mm->total_vm/2 + 1;
->                 task_unlock(child);
->         }
-> ==
-> I wonder this part should be
-> 	points += (child->total_vm/2) >> child->signal->oom_adj + 1
+>  - init can never be passed to this function: it will never be PF_EXITING
+>    or selectable from select_bad_process(), and
 > 
-> If not, in following situation,
-> ==
-> 	parent (oom_adj = 0)
-> 	  -> child (oom_adj=-15, very big memory user)
-> ==
-> the child may be killd at first, anyway. Today, I have to explain customers
-> "When you set oom_adj to a process, please set the same value to all ancestors.
->  Otherwise, your oom_adj value will be ignored."
+>  - it will never be passed a task from oom_kill_task() without an ->mm
+>    and we're unconcerned about detachment from exiting tasks, there's no
+>    reason to protect them against SIGKILL or access to memory reserves.
 > 
+> Also moves the kernel log message to a higher level since the verbosity
+> is not always emitted here; we need not print an error message if an
+> exiting task is given a longer timeslice.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-This is a different change than the forkbomb detection which is rewritten 
-in the fourth patch in the series.  We must rely on badness() being able 
-to tell us how beneficial it will be to kill a task, so iterating through 
-the child list and picking the most beneficial is the goal of this patch.  
-It reduces the chances of needlessly killing a child using very little 
-memory for no benefit just because it was forked first.
+If you say "never", it's better to add BUG_ON() rather than 
+if (!p->mm)...
+
+But yes, this patch seesm to remove unnecessary codes.
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+
+> ---
+>  mm/oom_kill.c |   64 ++++++++++++++------------------------------------------
+>  1 files changed, 16 insertions(+), 48 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -400,67 +400,35 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+>  		dump_tasks(mem);
+>  }
+>  
+> -#define K(x) ((x) << (PAGE_SHIFT-10))
+> -
+>  /*
+> - * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
+> - * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
+> - * set.
+> + * Give the oom killed task high priority and access to memory reserves so that
+> + * it may quickly exit and free its memory.
+>   */
+> -static void __oom_kill_task(struct task_struct *p, int verbose)
+> +static void __oom_kill_task(struct task_struct *p)
+>  {
+> -	if (is_global_init(p)) {
+> -		WARN_ON(1);
+> -		printk(KERN_WARNING "tried to kill init!\n");
+> -		return;
+> -	}
+> -
+> -	task_lock(p);
+> -	if (!p->mm) {
+> -		WARN_ON(1);
+> -		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
+> -			task_pid_nr(p), p->comm);
+> -		task_unlock(p);
+> -		return;
+> -	}
+> -
+> -	if (verbose)
+> -		printk(KERN_ERR "Killed process %d (%s) "
+> -		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+> -		       task_pid_nr(p), p->comm,
+> -		       K(p->mm->total_vm),
+> -		       K(get_mm_counter(p->mm, MM_ANONPAGES)),
+> -		       K(get_mm_counter(p->mm, MM_FILEPAGES)));
+> -	task_unlock(p);
+> -
+> -	/*
+> -	 * We give our sacrificial lamb high priority and access to
+> -	 * all the memory it needs. That way it should be able to
+> -	 * exit() and clear out its resources quickly...
+> -	 */
+>  	p->rt.time_slice = HZ;
+>  	set_tsk_thread_flag(p, TIF_MEMDIE);
+> -
+>  	force_sig(SIGKILL, p);
+>  }
+>  
+> +#define K(x) ((x) << (PAGE_SHIFT-10))
+>  static int oom_kill_task(struct task_struct *p)
+>  {
+> -	/* WARNING: mm may not be dereferenced since we did not obtain its
+> -	 * value from get_task_mm(p).  This is OK since all we need to do is
+> -	 * compare mm to q->mm below.
+> -	 *
+> -	 * Furthermore, even if mm contains a non-NULL value, p->mm may
+> -	 * change to NULL at any time since we do not hold task_lock(p).
+> -	 * However, this is of no concern to us.
+> -	 */
+> -	if (!p->mm || p->signal->oom_adj == OOM_DISABLE)
+> +	task_lock(p);
+> +	if (!p->mm || p->signal->oom_adj == OOM_DISABLE) {
+> +		task_unlock(p);
+>  		return 1;
+> +	}
+> +	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+> +		task_pid_nr(p), p->comm, K(p->mm->total_vm),
+> +	       K(get_mm_counter(p->mm, MM_ANONPAGES)),
+> +	       K(get_mm_counter(p->mm, MM_FILEPAGES)));
+> +	task_unlock(p);
+>  
+> -	__oom_kill_task(p, 1);
+> -
+> +	__oom_kill_task(p);
+>  	return 0;
+>  }
+> +#undef K
+>  
+>  static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+>  			    unsigned int points, unsigned long totalpages,
+> @@ -479,7 +447,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+>  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+>  	 */
+>  	if (p->flags & PF_EXITING) {
+> -		__oom_kill_task(p, 0);
+> +		__oom_kill_task(p);
+>  		return 0;
+>  	}
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
