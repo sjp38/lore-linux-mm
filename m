@@ -1,84 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 361E96B0047
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 07:17:25 -0500 (EST)
-Date: Fri, 12 Feb 2010 12:17:10 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bugme-new] [Bug 15214] New: Oops at __rmqueue+0x51/0x2b3
-Message-ID: <20100212121709.GC5707@csn.ul.ie>
-References: <bug-15214-10286@http.bugzilla.kernel.org/> <20100208111852.a0ada2b4.akpm@linux-foundation.org> <20100209144537.GA5098@csn.ul.ie> <201002101217.34131.ajlill@ajlc.waterloo.on.ca> <20100211182031.GA5707@csn.ul.ie> <alpine.LFD.2.00.1002111038070.7792@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1002111038070.7792@localhost.localdomain>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2B0536B0047
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 08:56:34 -0500 (EST)
+Received: by ywh9 with SMTP id 9so2428562ywh.19
+        for <linux-mm@kvack.org>; Fri, 12 Feb 2010 05:56:32 -0800 (PST)
+Subject: Re: [patch 4/7 -mm] oom: badness heuristic rewrite
+From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1002102332200.22152@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
+	 <alpine.DEB.2.00.1002100228540.8001@chino.kir.corp.google.com>
+	 <4B73833D.5070008@redhat.com>
+	 <alpine.DEB.2.00.1002102332200.22152@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 12 Feb 2010 22:56:24 +0900
+Message-ID: <1265982984.6207.29.camel@barrios-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tony Lill <ajlill@ajlc.waterloo.on.ca>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 11, 2010 at 10:49:44AM -0800, Linus Torvalds wrote:
-> 
-> 
-> On Thu, 11 Feb 2010, Mel Gorman wrote:
+Hi, David. 
+
+On Thu, 2010-02-11 at 01:14 -0800, David Rientjes wrote:
+> > > +/*
+> > > + * Tasks that fork a very large number of children with seperate address
+> > > spaces
+> > > + * may be the result of a bug, user error, or a malicious application.  The
+> > > oom
+> > > + * killer assesses a penalty equaling
 > > 
-> > Tony posted the assember files (KCFLAGS=-save-temps) from
-> > the broken and working compilers which a copy of is available at
-> > http://www.csn.ul.ie/~mel/postings/bug-20100211/ . Have you any suggestions
-> > on what the best way to go about finding where the badly generated code
-> > might be so a warning can be added for gcc 4.1?  My strongest suspicion is
-> > that the problem is in the assembler that looks up the struct page from a
-> > PFN in sparsemem but I'm failing to prove it.
+> > It could also be the result of the system getting many client
+> > connections - think of overloaded mail, web or database servers.
+> > 
 > 
-> Try contacting the gcc people. They are (well, _some_ of them are) much 
-> more used to walking through asm differences, and may have more of a clue 
-> about where the difference is likely to be for those compiler versions.
-> 
-
-Ok, thanks. Will get on to them if the other suggestions don't work out.
-
-> I'm personally very comfortable with x86 assembly, but having tried to 
-> find compiler bugs in the past I can also say that despite my x86 comfort 
-> I've almost always failed. The trivial stupid differences tend to always 
-> just totally overwhelm the actual real difference that causes the bug.
+> True, that's a great example of why child tasks should be sacrificed for 
+> the parent: if the oom killer is being called then we are truly overloaded 
+> and there's no shame in killing excessive client connections to recover, 
+> otherwise we might find the entire server becoming unresponsive.  The user 
+> can easily tune to /proc/sys/vm/oom_forkbomb_thres to define what 
+> "excessive" is to assess the penalty, if any.  I'll add that to the 
+> comment if we require a second revision.
 > 
 
-I don't feel quite as bad then. I was hoping it would be "obvious" but
-was getting tripped up by reordering and slightly-different ways of
-achieving the same end result.
+I am worried about opposite case.
 
-> One thing to try is to see if the buggy compiler version can be itself 
-> triggered to create a non-buggy asm listing by using some compiler flag. 
-> That way the "trivial differences" tend to be smaller, and the bug stands 
-> out more.
-> 
-> For example, that's how we found the problem with "-fwrapv" - testing the 
-> same compiler version with different flags (see commit a137802ee83).
-> 
+If forkbomb parent makes so many children in a short time(ex, 2000 per
+second) continuously and we kill a child continuously not parent, system
+is almost unresponsible, I think.  
+I suffered from that case in LTP and no swap system.
+It might be a corner case but might happen in real. 
 
-The compiler of interest is still available so I should be able to reproduce
-the problem locally once I get an old distro installed.
+I think we could have two types of forkbomb. 
 
-> Sometimes if the trivial differences are mostly register allocation, you 
-> can get a "feel" for the differences by replacing all register names with 
-> just the string "REG" (and "[0-9x](%e[sb]p)" with "STACKSLOT", and try to 
-> do the diff that way. If everything else is roughly the same, you then see 
-> the place where the code is _really_ different.
-> 
+Normal forkbomb : apache, DB server and so on. 
+Buggy forkbomb: It's mistake of user. 
 
-Will try this first, then installing and old distro before resorting to
-the gcc people. There is a good chance their response will be "go away"
-once they realise it'd fixed in later compilers.
+We can control normal forkbomb by oom_forkbomb_thres.
+But how about handling buggy forkbomb?
 
-> But when the compiler actually re-orders basic blocks etc, then diffs are 
-> basically impossible to get anything sane out of.
-> 
+If we make sure this task is buggy forkbomb, it would be better to kill
+it. But it's hard to make sure it's a buggy forkbomb.
 
-Thanks for the suggestions.
+Could we solve this problem by following as?
+If OOM selects victim and then the one was selected victim right before
+and it's repeatable 5 times for example, then we kill the victim(buggy
+forkbom) itself not child of one. It is assumed normal forkbomb is
+controlled by admin who uses oom_forkbomb_thres well. So it doesn't
+happen selecting victim continuously above five time.
+
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Kind regards,
+Minchan Kim
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
