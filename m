@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BB4D26B0047
-	for <linux-mm@kvack.org>; Thu, 11 Feb 2010 21:45:11 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1C2j9Dr013232
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C30BD6B0047
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 01:47:56 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1C6lrYS016760
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Feb 2010 11:45:09 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E0AC645DE56
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 11:45:08 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EDDD745DE57
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 11:45:05 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B4C621DB8041
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 11:45:05 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 78B86E08002
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 11:45:00 +0900 (JST)
-Date: Fri, 12 Feb 2010 11:41:33 +0900
+	Fri, 12 Feb 2010 15:47:53 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 48FED45DE6E
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 15:47:53 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 119AA45DE4D
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 15:47:53 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DD8B61DB803E
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 15:47:52 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C10D1DB803B
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 15:47:49 +0900 (JST)
+Date: Fri, 12 Feb 2010 15:44:22 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: fix oom killing a child process in an
- other cgroup
-Message-Id: <20100212114133.57bb1141.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <28c262361002111839t291b8ac2xdb9b89b354a115e0@mail.gmail.com>
-References: <20100212105318.caf37133.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262361002111839t291b8ac2xdb9b89b354a115e0@mail.gmail.com>
+Subject: [PATCH 0/2] memcg patches around event counting...softlimit and
+ thresholds
+Message-Id: <20100212154422.58bfdc4d.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, stable@kernel.org, rientjes@google.com, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Feb 2010 11:39:35 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+These 2 patches are updates for memcg's event counter.
 
-> On Fri, Feb 12, 2010 at 10:53 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > This patch itself is againt mmotm-Feb10 but can be applied to 2.6.32.8
-> > without problem.
-> >
-> > ==
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >
-> > Now, oom-killer is memcg aware and it finds the worst process from
-> > processes under memcg(s) in oom. Then, it kills victim's child at first.
-> > It may kill a child in other cgroup and may not be any help for recovery.
-> > And it will break the assumption users have...
-> >
-> > This patch fixes it.
-> >
-> > CC: stable@kernel.org
-> > CC: Minchan Kim <minchan.kim@gmail.com>
-> > CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > Acked-by: David Rientjes <rientjes@google.com>
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> 
-> Sorry for noise, Kame.
-> 
-No problem. You give me a chance to consider other problems/dirtiness of codes.
-I continue review to make memcg cleaer.
+Memcg has 2 counters but they counts the same thing. Just usages are
+different from each other. This patch tries to combine them.
+
+Event counting is done per page but event check is done per charge.
+But, now, move_task at el. does charge() in batched manner. So, it's better
+to do event check per page (not per charge.)
+
+(*) There may be an opinion that threshold check should be done at charge().
+    But, at charge(), event counter is not incremented, anyway.
+    Then, some another idea is appreciated to check thresholds at charges.
+    In other view, checking threshold at "precharge" can cause miss-fire of 
+    event notifier. So, checking threshold at commit has some sense, I think.
+
+I wonder I should add RFC..but this patch clears my concerns since memcg-threshold
+was merged. So, I didn't.
+
+Any comment is welcome. (I'm sorry if my reply is delayed.)
 
 Thanks,
 -Kame
