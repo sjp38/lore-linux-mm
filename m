@@ -1,133 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 390B76B0047
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 02:49:42 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1C7ndBm010587
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Feb 2010 16:49:39 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8273345DE51
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 16:49:39 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D73445DE4E
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 16:49:39 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 480E11DB803E
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 16:49:39 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E488BE78003
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 16:49:38 +0900 (JST)
-Date: Fri, 12 Feb 2010 16:46:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] memcg: share event counter rather than duplicate
-Message-Id: <20100212164614.4fe18ac5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <cc557aab1002112346tc9a40a6x53ff9c8a8a8c6dc4@mail.gmail.com>
-References: <20100212154422.58bfdc4d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100212154857.f9d8f28e.kamezawa.hiroyu@jp.fujitsu.com>
-	<cc557aab1002112346tc9a40a6x53ff9c8a8a8c6dc4@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 589C36B0047
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 03:04:11 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1C848Oe016779
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 12 Feb 2010 17:04:09 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 70B7745DE70
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 17:04:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9230D45DE4D
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 17:04:07 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D300E18003
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 17:04:07 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 296631DB8037
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 17:04:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
+In-Reply-To: <4B7504D2.1040903@nortel.com>
+References: <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com> <4B7504D2.1040903@nortel.com>
+Message-Id: <20100212170248.73B8.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 12 Feb 2010 17:04:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Feb 2010 09:46:17 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+>   backtrace:
+>     [<ffffffff8061c162>] kmemleak_alloc_page+0x1eb/0x380
+>     [<ffffffff80276ae8>] __pagevec_lru_add_active+0xb6/0x104
+>     [<ffffffff80276b85>] lru_cache_add_active+0x4f/0x53
+>     [<ffffffff8027d182>] do_wp_page+0x355/0x6f6
+>     [<ffffffff8027eef1>] handle_mm_fault+0x62b/0x77c
+>     [<ffffffff80632557>] do_page_fault+0x3c7/0xba0
+>     [<ffffffff8062fb79>] error_exit+0x0/0x51
+>     [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> and
+> 
+>   backtrace:
+>     [<ffffffff8061c162>] kmemleak_alloc_page+0x1eb/0x380
+>     [<ffffffff80276ae8>] __pagevec_lru_add_active+0xb6/0x104
+>     [<ffffffff80276b85>] lru_cache_add_active+0x4f/0x53
+>     [<ffffffff8027eddc>] handle_mm_fault+0x516/0x77c
+>     [<ffffffff8027f180>] get_user_pages+0x13e/0x462
+>     [<ffffffff802a2f65>] get_arg_page+0x6a/0xca
+>     [<ffffffff802a30bf>] copy_strings+0xfa/0x1d4
+>     [<ffffffff802a31c7>] copy_strings_kernel+0x2e/0x43
+>     [<ffffffff802d33fb>] compat_do_execve+0x1fa/0x2fd
+>     [<ffffffff8021e405>] sys32_execve+0x44/0x62
+>     [<ffffffff8021def5>] ia32_ptregs_common+0x25/0x50
+>     [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> I'll dig into them further, but do either of these look like known issues?
 
-> On Fri, Feb 12, 2010 at 8:48 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > Memcg has 2 eventcountes which counts "the same" event. Just usages are
-> > different from each other. This patch tries to reduce event counter.
-> >
-> > This patch's logic uses "only increment, no reset" new_counter and masks for each
-> > checks. Softlimit chesk was done per 1000 events. So, the similar check
-> > can be done by !(new_counter & 0x3ff). Threshold check was done per 100
-> > events. So, the similar check can be done by (!new_counter & 0x7f)
-> >
-> > Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> > Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > ---
-> > A mm/memcontrol.c | A  36 ++++++++++++------------------------
-> > A 1 file changed, 12 insertions(+), 24 deletions(-)
-> >
-> > Index: mmotm-2.6.33-Feb10/mm/memcontrol.c
-> > ===================================================================
-> > --- mmotm-2.6.33-Feb10.orig/mm/memcontrol.c
-> > +++ mmotm-2.6.33-Feb10/mm/memcontrol.c
-> > @@ -63,8 +63,8 @@ static int really_do_swap_account __init
-> > A #define do_swap_account A  A  A  A  A  A  A  A (0)
-> > A #endif
-> >
-> > -#define SOFTLIMIT_EVENTS_THRESH (1000)
-> > -#define THRESHOLDS_EVENTS_THRESH (100)
-> > +#define SOFTLIMIT_EVENTS_THRESH (0x3ff) /* once in 1024 */
-> > +#define THRESHOLDS_EVENTS_THRESH (0x7f) /* once in 128 */
-> 
-> Probably, better to define it as power of two here. Like
-> 
-> #define SOFTLIMIT_EVENTS_THRESH (10) /* once in 1024 */
-> #define THRESHOLDS_EVENTS_THRESH (7) /* once in 128 */
-> 
-> And change logic of checks accordingly. What do you think?
-> 
-
-Okay, maybe it's cleaner. I'll try that.
-
-
-> > A /*
-> > A * Statistics for memory cgroup.
-> > @@ -79,10 +79,7 @@ enum mem_cgroup_stat_index {
-> > A  A  A  A MEM_CGROUP_STAT_PGPGIN_COUNT, A  /* # of pages paged in */
-> > A  A  A  A MEM_CGROUP_STAT_PGPGOUT_COUNT, A /* # of pages paged out */
-> > A  A  A  A MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
-> > - A  A  A  MEM_CGROUP_STAT_SOFTLIMIT, /* decrements on each page in/out.
-> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  used by soft limit implementation */
-> > - A  A  A  MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each page in/out.
-> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  used by threshold implementation */
-> > + A  A  A  MEM_CGROUP_EVENTS, A  A  A /* incremented by 1 at pagein/pageout */
-> >
-> > A  A  A  A MEM_CGROUP_STAT_NSTATS,
-> > A };
-> > @@ -394,16 +391,12 @@ mem_cgroup_remove_exceeded(struct mem_cg
-> >
-> > A static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
-> > A {
-> > - A  A  A  bool ret = false;
-> > A  A  A  A s64 val;
-> >
-> > - A  A  A  val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
-> > - A  A  A  if (unlikely(val < 0)) {
-> > - A  A  A  A  A  A  A  this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT],
-> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  SOFTLIMIT_EVENTS_THRESH);
-> > - A  A  A  A  A  A  A  ret = true;
-> > - A  A  A  }
-> > - A  A  A  return ret;
-> > + A  A  A  val = this_cpu_read(mem->stat->count[MEM_CGROUP_EVENTS]);
-> > + A  A  A  if (unlikely(!(val & SOFTLIMIT_EVENTS_THRESH)))
-> > + A  A  A  A  A  A  A  return true;
-> > + A  A  A  return false;
-> > A }
-> >
-> > A static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
-> > @@ -542,8 +535,7 @@ static void mem_cgroup_charge_statistics
-> > A  A  A  A  A  A  A  A __this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGIN_COUNT]);
-> > A  A  A  A else
-> > A  A  A  A  A  A  A  A __this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGOUT_COUNT]);
-> > - A  A  A  __this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
-> > - A  A  A  __this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
-> > + A  A  A  __this_cpu_dec(mem->stat->count[MEM_CGROUP_EVENTS]);
-> 
-> Decrement??
-> 
-my bug. I'll fix.
-
-Thanks,
--Kame
+no known issue.
+AFAIK, 2.6.27 - 2.6.33 don't have such problem.
 
 
 --
