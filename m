@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 531B76B0047
-	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 10:44:42 -0500 (EST)
-Date: Fri, 12 Feb 2010 09:44:14 -0600 (CST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 573E56B0047
+	for <linux-mm@kvack.org>; Fri, 12 Feb 2010 10:55:27 -0500 (EST)
+Date: Fri, 12 Feb 2010 09:54:48 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch v2] mm: suppress pfn range output for zones without
- pages
-In-Reply-To: <alpine.DEB.2.00.1002111459160.27917@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002120944020.31112@router.home>
-References: <alpine.DEB.2.00.1002110129280.3069@chino.kir.corp.google.com> <alpine.DEB.2.00.1002111406110.7201@router.home> <alpine.DEB.2.00.1002111405120.16763@chino.kir.corp.google.com> <alpine.DEB.2.00.1002111626440.7201@router.home>
- <alpine.DEB.2.00.1002111459160.27917@chino.kir.corp.google.com>
+Subject: Re: [PATCH 01/12] mm: Document /proc/pagetypeinfo
+In-Reply-To: <1265976059-7459-2-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1002120954360.31112@router.home>
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-2-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
