@@ -1,459 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CFEE6B007B
-	for <linux-mm@kvack.org>; Sat, 13 Feb 2010 08:30:03 -0500 (EST)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id o1DDTxmB013122
-	for <linux-mm@kvack.org>; Sun, 14 Feb 2010 00:29:59 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1DDOh6i1429546
-	for <linux-mm@kvack.org>; Sun, 14 Feb 2010 00:24:44 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o1DDTvak024382
-	for <linux-mm@kvack.org>; Sun, 14 Feb 2010 00:29:59 +1100
-Date: Sat, 13 Feb 2010 18:59:52 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH -tip 0/2 v3] pagecache tracepoints proposal
-Message-ID: <20100213132952.GG11364@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <4B6B7FBF.9090005@bx.jp.nec.com>
- <20100205072858.GC9320@elte.hu>
- <20100208155450.GA17055@localhost>
- <20100209162101.GA12840@localhost>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 27B656B007B
+	for <linux-mm@kvack.org>; Sat, 13 Feb 2010 22:57:13 -0500 (EST)
+Date: Sun, 14 Feb 2010 11:56:07 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 08/11] readahead: add tracing event
+Message-ID: <20100214035607.GB6423@localhost>
+References: <20100202152835.683907822@intel.com> <20100202153317.365099890@intel.com> <1265991545.24271.36.camel@gandalf.stny.rr.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100209162101.GA12840@localhost>
+In-Reply-To: <1265991545.24271.36.camel@gandalf.stny.rr.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Chris Frost <frost@cs.ucla.edu>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Keiichi KII <k-keiichi@bx.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Jason Baron <jbaron@redhat.com>, Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* Wu Fengguang <fengguang.wu@intel.com> [2010-02-10 00:21:01]:
+On Sat, Feb 13, 2010 at 12:19:05AM +0800, Steven Rostedt wrote:
+> On Tue, 2010-02-02 at 23:28 +0800, Wu Fengguang wrote:
+> > plain text document attachment (readahead-tracer.patch)
+> > Example output:
+> 
+> > +	TP_printk("readahead-%s(dev=%d:%d, ino=%lu, "
+> > +		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
+> > +			ra_pattern_names[__entry->pattern],
+> 
+> The above totally breaks any parsing by tools. We have already have a
+> way to map values to strings with __print_symbolic():
+> 
+> 		__print_symbolic(__entry->pattern,
+> 			{ RA_PATTERN_INITIAL, "initial" },
+> 			{ RA_PATTERN_SUBSEQUENT, "subsequent"},
+> 			{ RA_PATTERN_CONTEXT, "context"},
+> 			{ RA_PATTERN_THRASH, "thrash"},
+> 			{ RA_PATTERN_MMAP_AROUND, "around"},
+> 			{ RA_PATTERN_FADVISE, "fadvise" },
+> 			{ RA_PATTERN_RANDOM, "random"},
+> 			{ RA_PATTERN_ALL, "all" }),
+> 
+> see include/trace/irq.h for another example.
 
-> > Here is a scratch patch to exercise the "object collections" idea :)
-> > 
-> > Interestingly, the pagecache walk is pretty fast, while copying out the trace
-> > data takes more time:
-> > 
-> >         # time (echo / > walk-fs)
-> >         (; echo / > walk-fs; )  0.01s user 0.11s system 82% cpu 0.145 total
-> > 
-> >         # time wc /debug/tracing/trace
-> >         4570 45893 551282 /debug/tracing/trace
-> >         wc /debug/tracing/trace  0.75s user 0.55s system 88% cpu 1.470 total
-> 
-> Ah got it: it takes much time to "print" the raw trace data.
-> 
-> > TODO:
-> > 
-> > correctness
-> > - show file path name
-> >   XXX: can trace_seq_path() be called directly inside TRACE_EVENT()?
-> 
-> OK, finished with the file name with d_path(). I choose not to mangle
-> the possible '\n' in file names, and simply show "?" for such files,
-> for the sake of speed.
-> 
-> Thanks,
-> Fengguang
-> ---
-> tracing: pagecache object collections
-> 
-> This dumps
-> - all cached files of a mounted fs  (the inode-cache)
-> - all cached pages of a cached file (the page-cache)
-> 
-> Usage and Sample output:
-> 
-> # echo /dev > /debug/tracing/objects/mm/pages/walk-fs
-> # tail /debug/tracing/trace
->              zsh-2528  [000] 10429.172470: dump_inode: ino=889 size=0 cached=0 age=442 dirty=0 dev=0:18 file=/dev/console
->              zsh-2528  [000] 10429.172472: dump_inode: ino=888 size=0 cached=0 age=442 dirty=7 dev=0:18 file=/dev/null
->              zsh-2528  [000] 10429.172474: dump_inode: ino=887 size=40 cached=0 age=442 dirty=0 dev=0:18 file=/dev/shm
->              zsh-2528  [000] 10429.172477: dump_inode: ino=886 size=40 cached=0 age=442 dirty=0 dev=0:18 file=/dev/pts
->              zsh-2528  [000] 10429.172479: dump_inode: ino=885 size=11 cached=0 age=442 dirty=0 dev=0:18 file=/dev/core
->              zsh-2528  [000] 10429.172481: dump_inode: ino=884 size=15 cached=0 age=442 dirty=0 dev=0:18 file=/dev/stderr
->              zsh-2528  [000] 10429.172483: dump_inode: ino=883 size=15 cached=0 age=442 dirty=0 dev=0:18 file=/dev/stdout
->              zsh-2528  [000] 10429.172486: dump_inode: ino=882 size=15 cached=0 age=442 dirty=0 dev=0:18 file=/dev/stdin
->              zsh-2528  [000] 10429.172488: dump_inode: ino=881 size=13 cached=0 age=442 dirty=0 dev=0:18 file=/dev/fd
->              zsh-2528  [000] 10429.172491: dump_inode: ino=872 size=13360 cached=0 age=442 dirty=0 dev=0:18 file=/dev
-> 
-> Here "age" is either age from inode create time, or from last dirty time.
->
+Thank you! Updated patch as follows.
 
-It would be nice to see mapped/unmapped information as well.
+To avoid unnecessary dependency, EXTRACT_TRACE_SYMBOL() calls are
+leaved out for now.
+
+Thanks,
+Fengguang
+---
+readahead: add tracing event
+
+Example output:
+
+# echo 1 > /debug/tracing/events/readahead/enable
+# cp test-file /dev/null
+# cat /debug/tracing/trace  # trimmed output
+readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
+readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
+readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
+readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
+readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
+readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
+
+CC: Ingo Molnar <mingo@elte.hu> 
+CC: Jens Axboe <jens.axboe@oracle.com> 
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl> 
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/trace/events/readahead.h |   78 +++++++++++++++++++++++++++++
+ mm/readahead.c                   |   11 ++++
+ 2 files changed, 89 insertions(+)
+
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux/include/trace/events/readahead.h	2010-02-14 11:49:17.000000000 +0800
+@@ -0,0 +1,78 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM readahead
++
++#if !defined(_TRACE_READAHEAD_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_READAHEAD_H
++
++#include <linux/tracepoint.h>
++
++#define show_pattern_name(val)						   \
++	__print_symbolic(val,						   \
++			{ RA_PATTERN_INITIAL,		"initial"	}, \
++			{ RA_PATTERN_SUBSEQUENT,	"subsequent"	}, \
++			{ RA_PATTERN_CONTEXT,		"context"	}, \
++			{ RA_PATTERN_THRASH,		"thrash"	}, \
++			{ RA_PATTERN_MMAP_AROUND,	"around"	}, \
++			{ RA_PATTERN_FADVISE,		"fadvise"	}, \
++			{ RA_PATTERN_RANDOM,		"random"	}, \
++			{ RA_PATTERN_ALL,		"all"		})
++
++/*
++ * Tracepoint for guest mode entry.
++ */
++TRACE_EVENT(readahead,
++	TP_PROTO(struct address_space *mapping,
++		 pgoff_t offset,
++		 unsigned long req_size,
++		 unsigned int ra_flags,
++		 pgoff_t start,
++		 unsigned int size,
++		 unsigned int async_size,
++		 unsigned int actual),
++
++	TP_ARGS(mapping, offset, req_size,
++		ra_flags, start, size, async_size, actual),
++
++	TP_STRUCT__entry(
++		__field(	dev_t,		dev		)
++		__field(	ino_t,		ino		)
++		__field(	pgoff_t,	offset		)
++		__field(	unsigned long,	req_size	)
++		__field(	unsigned int,	pattern		)
++		__field(	pgoff_t,	start		)
++		__field(	unsigned int,	size		)
++		__field(	unsigned int,	async_size	)
++		__field(	unsigned int,	actual		)
++	),
++
++	TP_fast_assign(
++		__entry->dev		= mapping->host->i_sb->s_dev;
++		__entry->ino		= mapping->host->i_ino;
++		__entry->pattern	= ra_pattern(ra_flags);
++		__entry->offset		= offset;
++		__entry->req_size	= req_size;
++		__entry->start		= start;
++		__entry->size		= size;
++		__entry->async_size	= async_size;
++		__entry->actual		= actual;
++	),
++
++	TP_printk("readahead-%s(dev=%d:%d, ino=%lu, "
++		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
++			show_pattern_name(__entry->pattern),
++			MAJOR(__entry->dev),
++			MINOR(__entry->dev),
++			__entry->ino,
++			__entry->offset,
++			__entry->req_size,
++			__entry->start,
++			__entry->size,
++			__entry->async_size,
++			__entry->start > __entry->offset,
++			__entry->actual)
++);
++
++#endif /* _TRACE_READAHEAD_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+--- linux.orig/mm/readahead.c	2010-02-14 11:19:25.000000000 +0800
++++ linux/mm/readahead.c	2010-02-14 11:24:13.000000000 +0800
+@@ -19,6 +19,9 @@
+ #include <linux/pagevec.h>
+ #include <linux/pagemap.h>
  
-> TODO:
-> 
-> correctness
-> - reliably prevent ring buffer overflow,
->   by replacing cond_resched() with some wait function
->   (eg. wait until 2+ pages are free in ring buffer)
-> - use stable_page_flags() in recent kernel
-> 
-> output style
-> - use plain tracing output format (no fancy TASK-PID/.../FUNCTION fields)
-> - clear ring buffer before dumping the objects?
-> - output format: key=value pairs ==> header + tabbed values?
-> - add filtering options if necessary
-> 
-> CC: Ingo Molnar <mingo@elte.hu>
-> CC: Chris Frost <frost@cs.ucla.edu>
-> CC: Steven Rostedt <rostedt@goodmis.org>
-> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> CC: Frederic Weisbecker <fweisbec@gmail.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/inode.c                |    2 
->  include/trace/events/mm.h |   70 ++++++++++++
->  kernel/trace/trace_mm.c   |  204 ++++++++++++++++++++++++++++++++++++
->  3 files changed, 275 insertions(+), 1 deletion(-)
-> 
-> --- linux-mm.orig/include/trace/events/mm.h	2010-02-08 23:19:09.000000000 +0800
-> +++ linux-mm/include/trace/events/mm.h	2010-02-09 23:39:03.000000000 +0800
-> @@ -2,6 +2,7 @@
->  #define _TRACE_MM_H
-> 
->  #include <linux/tracepoint.h>
-> +#include <linux/pagemap.h>
->  #include <linux/mm.h>
-> 
->  #undef TRACE_SYSTEM
-> @@ -42,6 +43,75 @@ TRACE_EVENT(dump_pages,
->  		  __entry->mapcount, __entry->index)
->  );
-> 
-> +TRACE_EVENT(dump_pagecache_range,
-> +
-> +	TP_PROTO(struct page *page, unsigned long len),
-> +
-> +	TP_ARGS(page, len),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(	unsigned long,	index		)
-> +		__field(	unsigned long,	len		)
-> +		__field(	unsigned long,	flags		)
-> +		__field(	unsigned int,	count		)
-> +		__field(	unsigned int,	mapcount	)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->index		= page->index;
-> +		__entry->len		= len;
-> +		__entry->flags		= page->flags;
-> +		__entry->count		= atomic_read(&page->_count);
-> +		__entry->mapcount	= page_mapcount(page);
-> +	),
-> +
-> +	TP_printk("index=%lu len=%lu flags=%lx count=%u mapcount=%u",
-> +		  __entry->index,
-> +		  __entry->len,
-> +		  __entry->flags,
-> +		  __entry->count,
-> +		  __entry->mapcount)
-> +);
-> +
-> +TRACE_EVENT(dump_inode,
-> +
-> +	TP_PROTO(struct inode *inode, char *name, int len),
-> +
-> +	TP_ARGS(inode, name, len),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(	unsigned long,	ino		)
-> +		__field(	loff_t,		size		)
-> +		__field(	unsigned long,	nrpages		)
-> +		__field(	unsigned long,	age		)
-> +		__field(	unsigned long,	state		)
-> +		__field(	dev_t,		dev		)
-> +		__dynamic_array(char,		file,	len	)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->ino		= inode->i_ino;
-> +		__entry->size		= i_size_read(inode);
-> +		__entry->nrpages	= inode->i_mapping->nrpages;
-> +		__entry->age		= jiffies - inode->dirtied_when;
-> +		__entry->state		= inode->i_state;
-> +		__entry->dev		= inode->i_sb->s_dev;
-> +		memcpy(__get_str(file), name, len);
-> +	),
-> +
-> +	TP_printk("ino=%lu size=%llu cached=%lu age=%lu dirty=%lu "
-> +		  "dev=%u:%u file=%s",
-> +		  __entry->ino,
-> +		  __entry->size,
-> +		  __entry->nrpages << PAGE_CACHE_SHIFT,
-> +		  __entry->age / HZ,
-> +		  __entry->state & I_DIRTY,
-> +		  MAJOR(__entry->dev),
-> +		  MINOR(__entry->dev),
-> +		  strchr(__get_str(file), '\n') ? "?" : __get_str(file))
-> +);
-> +
-> +
->  #endif /*  _TRACE_MM_H */
-> 
->  /* This part must be outside protection */
-> --- linux-mm.orig/kernel/trace/trace_mm.c	2010-02-08 23:19:09.000000000 +0800
-> +++ linux-mm/kernel/trace/trace_mm.c	2010-02-10 00:04:47.000000000 +0800
-> @@ -9,6 +9,9 @@
->  #include <linux/bootmem.h>
->  #include <linux/debugfs.h>
->  #include <linux/uaccess.h>
-> +#include <linux/pagevec.h>
-> +#include <linux/writeback.h>
-> +#include <linux/file.h>
-> 
->  #include "trace_output.h"
-> 
-> @@ -95,6 +98,201 @@ static const struct file_operations trac
->  	.write		= trace_mm_dump_range_write,
->  };
-> 
-> +static unsigned long page_flags(struct page* page)
-> +{
-> +	return page->flags & ((1 << NR_PAGEFLAGS) - 1);
-> +}
-> +
-> +static int pages_similiar(struct page* page0, struct page* page)
-> +{
-> +	if (page_count(page0) != page_count(page))
-> +		return 0;
-> +
-> +	if (page_mapcount(page0) != page_mapcount(page))
-> +		return 0;
-> +
-> +	if (page_flags(page0) != page_flags(page))
-> +		return 0;
-> +
-> +	return 1;
-> +}
-> +
-
-OK, so pages_similar() is used to identify a range of pages in the
-cache?
-
-> +#define BATCH_LINES	100
-> +static void dump_pagecache(struct address_space *mapping)
-> +{
-> +	int i;
-> +	int lines = 0;
-> +	pgoff_t len = 0;
-> +	struct pagevec pvec;
-> +	struct page *page;
-> +	struct page *page0 = NULL;
-> +	unsigned long start = 0;
-> +
-> +	for (;;) {
-> +		pagevec_init(&pvec, 0);
-> +		pvec.nr = radix_tree_gang_lookup(&mapping->page_tree,
-> +				(void **)pvec.pages, start + len, PAGEVEC_SIZE);
-
-Is radix_tree_gang_lookup synchronized somewhere? Don't we need to
-call it under RCU or a lock (mapping) ?
-
-> +
-> +		if (pvec.nr == 0) {
-> +			if (len)
-> +				trace_dump_pagecache_range(page0, len);
-> +			break;
-> +		}
-> +
-> +		if (!page0)
-> +			page0 = pvec.pages[0];
-> +
-> +		for (i = 0; i < pvec.nr; i++) {
-> +			page = pvec.pages[i];
-> +
-> +			if (page->index == start + len &&
-> +					pages_similiar(page0, page))
-> +				len++;
-> +			else {
-> +				trace_dump_pagecache_range(page0, len);
-> +				page0 = page;
-> +				start = page->index;
-> +				len = 1;
-> +				if (++lines > BATCH_LINES) {
-> +					lines = 0;
-> +					cond_resched();
-> +				}
-> +			}
-> +		}
-> +	}
-> +}
-> +
-> +static void dump_inode(struct inode *inode,
-> +		       char *name_buf,
-> +		       struct vfsmount *mnt)
-> +{
-> +	struct path path = {
-> +		.mnt = mnt,
-> +		.dentry = d_find_alias(inode)
-> +	};
-> +	char *name;
-> +	int len;
-> +
-> +	if (!path.dentry) {
-> +		trace_dump_inode(inode, "?", 2);
-> +		return;
-> +	}
-> +
-> +	name = d_path(&path, name_buf, PAGE_SIZE);
-> +	if (IS_ERR(name)) {
-> +		name = "?";
-> +		len = 2;
-> +	} else
-> +		len = PAGE_SIZE + name_buf - name;
-> +
-> +	trace_dump_inode(inode, name, len);
-> +
-> +	if (path.dentry)
-> +		dput(path.dentry);
-> +}
-> +
-> +static void dump_fs_pagecache(struct super_block *sb, struct vfsmount *mnt)
-> +{
-> +	struct inode *inode;
-> +	struct inode *prev_inode = NULL;
-> +	char *name_buf;
-> +
-> +	name_buf = (char *)__get_free_page(GFP_TEMPORARY);
-> +	if (!name_buf)
-> +		return;
-> +
-> +	down_read(&sb->s_umount);
-> +	if (!sb->s_root)
-> +		goto out;
-> +
-> +	spin_lock(&inode_lock);
-> +	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-> +		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE|I_NEW))
-> +			continue;
-> +		__iget(inode);
-> +		spin_unlock(&inode_lock);
-> +		dump_inode(inode, name_buf, mnt);
-> +		if (inode->i_mapping->nrpages)
-> +			dump_pagecache(inode->i_mapping);
-> +		iput(prev_inode);
-> +		prev_inode = inode;
-> +		cond_resched();
-> +		spin_lock(&inode_lock);
-> +	}
-> +	spin_unlock(&inode_lock);
-> +	iput(prev_inode);
-> +out:
-> +	up_read(&sb->s_umount);
-> +	free_page((unsigned long)name_buf);
-> +}
-> +
-> +static ssize_t
-> +trace_pagecache_write(struct file *filp, const char __user *ubuf, size_t count,
-> +		      loff_t *ppos)
-> +{
-> +	struct file *file = NULL;
-> +	char *name;
-> +	int err = 0;
-> +
-
-Can't we use the trace_parser here?
-
-> +	if (count <= 1)
-> +		return -EINVAL;
-> +	if (count > PATH_MAX + 1)
-> +		return -ENAMETOOLONG;
-> +
-> +	name = kmalloc(count+1, GFP_KERNEL);
-> +	if (!name)
-> +		return -ENOMEM;
-> +
-> +	if (copy_from_user(name, ubuf, count)) {
-> +		err = -EFAULT;
-> +		goto out;
-> +	}
-> +
-> +	/* strip the newline added by `echo` */
-> +	if (name[count-1] != '\n')
-> +		return -EINVAL;
-
-Doesn't sound correct, what happens if we use echo -n?
-
-> +	name[count-1] = '\0';
-> +
-> +	file = filp_open(name, O_RDONLY|O_LARGEFILE, 0);
-> +	if (IS_ERR(file)) {
-> +		err = PTR_ERR(file);
-> +		file = NULL;
-> +		goto out;
-> +	}
-> +
-> +	if (tracing_update_buffers() < 0) {
-> +		err = -ENOMEM;
-> +		goto out;
-> +	}
-> +	if (trace_set_clr_event("mm", "dump_pagecache_range", 1)) {
-> +		err = -EINVAL;
-> +		goto out;
-> +	}
-> +	if (trace_set_clr_event("mm", "dump_inode", 1)) {
-> +		err = -EINVAL;
-> +		goto out;
-> +	}
-> +
-> +	if (filp->f_path.dentry->d_inode->i_private) {
-> +		dump_fs_pagecache(file->f_path.dentry->d_sb, file->f_path.mnt);
-> +	} else {
-> +		dump_pagecache(file->f_mapping);
-> +	}
-> +
-> +out:
-> +	if (file)
-> +		fput(file);
-> +	kfree(name);
-> +
-> +	return err ? err : count;
-> +}
-> +
-> +static const struct file_operations trace_pagecache_fops = {
-> +	.open		= tracing_open_generic,
-> +	.read		= trace_mm_dump_range_read,
-> +	.write		= trace_pagecache_write,
-> +};
-> +
->  /* move this into trace_objects.c when that file is created */
->  static struct dentry *trace_objects_dir(void)
->  {
-> @@ -167,6 +365,12 @@ static __init int trace_objects_mm_init(
->  	trace_create_file("dump_range", 0600, d_pages, NULL,
->  			  &trace_mm_fops);
-> 
-> +	trace_create_file("walk-file", 0600, d_pages, NULL,
-> +			  &trace_pagecache_fops);
-> +
-> +	trace_create_file("walk-fs", 0600, d_pages, (void *)1,
-> +			  &trace_pagecache_fops);
-> +
->  	return 0;
->  }
->  fs_initcall(trace_objects_mm_init);
-> --- linux-mm.orig/fs/inode.c	2010-02-08 23:19:12.000000000 +0800
-> +++ linux-mm/fs/inode.c	2010-02-08 23:19:22.000000000 +0800
-> @@ -149,7 +149,7 @@ struct inode *inode_init_always(struct s
->  	inode->i_bdev = NULL;
->  	inode->i_cdev = NULL;
->  	inode->i_rdev = 0;
-> -	inode->dirtied_when = 0;
-> +	inode->dirtied_when = jiffies;
->
-
-Hmmm... Is the inode really dirtied when initialized? I know the
-change is for tracing, but the code when read is confusing.
++#define CREATE_TRACE_POINTS
++#include <trace/events/readahead.h>
++
+ /*
+  * Set async size to 1/# of the thrashing threshold.
+  */
+@@ -274,6 +277,11 @@ int force_page_cache_readahead(struct ad
+ 		offset += this_chunk;
+ 		nr_to_read -= this_chunk;
+ 	}
++
++	trace_readahead(mapping, offset, nr_to_read,
++			RA_PATTERN_FADVISE << READAHEAD_PATTERN_SHIFT,
++			offset, nr_to_read, 0, ret);
++
+ 	return ret;
+ }
  
-
--- 
-	Three Cheers,
-	Balbir
+@@ -301,6 +309,9 @@ unsigned long ra_submit(struct file_ra_s
+ 	actual = __do_page_cache_readahead(mapping, filp,
+ 					ra->start, ra->size, ra->async_size);
+ 
++	trace_readahead(mapping, offset, req_size, ra->ra_flags,
++			ra->start, ra->size, ra->async_size, actual);
++
+ 	return actual;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
