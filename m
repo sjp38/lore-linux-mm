@@ -1,62 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1243A6B007B
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 11:08:41 -0500 (EST)
-Message-ID: <4B797005.6030308@nortel.com>
-Date: Mon, 15 Feb 2010 10:02:13 -0600
-From: "Chris Friesen" <cfriesen@nortel.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B6B3F6B007B
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 12:00:17 -0500 (EST)
+Message-ID: <4B797D93.5090307@redhat.com>
+Date: Mon, 15 Feb 2010 12:00:03 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
-References: <4B71927D.6030607@nortel.com> <20100210093140.12D9.A69D9226@jp.fujitsu.com> <4B72E74C.9040001@nortel.com> <20100213062905.GF11364@balbir.in.ibm.com>
-In-Reply-To: <20100213062905.GF11364@balbir.in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <4B71927D.6030607@nortel.com>	 <20100210093140.12D9.A69D9226@jp.fujitsu.com>	 <4B72E74C.9040001@nortel.com>	 <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>	 <4B74524D.8080804@nortel.com> <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com> <4B7504D2.1040903@nortel.com> <4B796D31.7030006@nortel.com>
+In-Reply-To: <4B796D31.7030006@nortel.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On 02/13/2010 12:29 AM, Balbir Singh wrote:
+On 02/15/2010 10:50 AM, Chris Friesen wrote:
 
-> OK, I did not find the OOM kill output, dmesg. Is the OOM killer doing
-> the right thing? If it kills the process we suspect is leaking memory,
-> then it is working correctly :) If the leak is in kernel space, we
-> need to examine the changes more closely.
+> Looking at the code, it looks like page_remove_rmap() clears the
+> Anonpage flag and removes it from NR_ANON_PAGES, and the caller is
+> responsible for removing it from the LRU.  Is that right?
 
-I didn't include the oom killer message because it didn't seem important
-in this case.  The oom killer took out the process with by far the
-largest memory consumption, but as far as I know that process was not
-the source of the leak.
+Nope.
 
-It appears that the leak is in kernel space, given the unexplained pages
-that are part of the active/inactive list but not in
-buffers/cache/anon/swapcached.
+> I'll keep digging in the code, but does anyone know where the removal
+> from the LRU is supposed to happen in the above code paths?
 
-> kernel modifications that we are unaware of make the problem harder to
-> debug, since we have no way of knowing if they are the source of the
-> problem.
+Removal from the LRU is done from the page freeing code, on
+the final free of the page.
 
-Yes, I realize this.  I'm not expecting miracles, just hoping for some
-guidance.
+It appears you have code somewhere that increments the reference
+count on user pages and then forgets to lower it afterwards.
 
-
->> Committed_AS	12666508	12745200	7700484
-> 
-> Comitted_AS shows a large change, does the process that gets killed
-> use a lot of virtual memory (total_vm)? Please see my first question
-> as well. Can you try to set
-> 
-> vm.overcommit_memory=2
-> 
-> and run the tests to see if you still get OOM killed.
-
-As mentioned above, the process that was killed did indeed consume a lot
-of memory.  I could try running with strict memory accounting, but would
-you agree that that given the gradual but constant increase in the
-unexplained pages described above, currently that looks like a more
-likely culprit?
-
-Chris
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
