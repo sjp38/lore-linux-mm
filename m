@@ -1,19 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8365B6B0083
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:19:56 -0500 (EST)
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id o1FMK20X003195
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 47A896B0083
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:19:59 -0500 (EST)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id o1FMK6ao015024
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:07 -0800
+Received: from pxi12 (pxi12.prod.google.com [10.243.27.12])
+	by kpbe15.cbf.corp.google.com with ESMTP id o1FMK3nx005945
 	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:03 -0800
-Received: from pzk41 (pzk41.prod.google.com [10.243.19.169])
-	by spaceape14.eur.corp.google.com with ESMTP id o1FMK0ke020029
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:00 -0800
-Received: by pzk41 with SMTP id 41so9919187pzk.0
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:19:59 -0800 (PST)
-Date: Mon, 15 Feb 2010 14:19:57 -0800 (PST)
+Received: by pxi12 with SMTP id 12so3587350pxi.33
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:03 -0800 (PST)
+Date: Mon, 15 Feb 2010 14:20:01 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 0/9 v2] oom killer rewrite
-Message-ID: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
+Subject: [patch -mm 1/9 v2] oom: filter tasks not sharing the same cpuset
+In-Reply-To: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002151417330.26927@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -21,66 +23,61 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patchset is a rewrite of the out of memory killer to address several
-issues that have been raised recently.  The most notable change is a
-complete rewrite of the badness heuristic that determines which task is
-killed; the goal was to make it as simple and predictable as possible
-while still addressing issues that plague the VM.
+Tasks that do not share the same set of allowed nodes with the task that
+triggered the oom should not be considered as candidates for oom kill.
 
-Changes from version 1:
+Tasks in other cpusets with a disjoint set of mems would be unfairly
+penalized otherwise because of oom conditions elsewhere; an extreme
+example could unfairly kill all other applications on the system if a
+single task in a user's cpuset sets itself to OOM_DISABLE and then uses
+more memory than allowed.
 
- - updated to mmotm-2010-02-11-21-55
+Killing tasks outside of current's cpuset rarely would free memory for
+current anyway.
 
- - when iterating the tasklist for mempolicy-constrained oom conditions,
-   the node of the cpu that a MPOL_F_LOCAL task is running on is now
-   intersected with the page allocator's nodemask to determine whether it
-   should be a candidate for oom kill.
-
- - added: [patch 4/9] oom: remove compulsory panic_on_oom mode
-
- - /proc/pid/oom_score_adj was added to prevent ABI breakage for
-   applications using /proc/pid/oom_adj.  /proc/pid/oom_adj may still be
-   used with the old range but it is then scaled to oom_score_adj units
-   for a rough linear approximation.  There is no loss in functionality
-   from the old interface.
-
- - added: [patch 6/9] oom: deprecate oom_adj tunable
-
-This patchset is based on mmotm-2010-02-11-21-55 because of the following
-dependencies:
-
-	[patch 5/9] oom: badness heuristic rewrite:
-		mm-count-swap-usage.patch
-
-	[patch 7/9] oom: replace sysctls with quick mode:
-		sysctl-clean-up-vm-related-variable-delcarations.patch
-
-To apply to mainline, download 2.6.33-rc8 and apply
-
-	mm-clean-up-mm_counter.patch
-	mm-avoid-false-sharing-of-mm_counter.patch
-	mm-avoid-false_sharing-of-mm_counter-checkpatch-fixes.patch
-	mm-count-swap-usage.patch
-	mm-count-swap-usage-checkpatch-fixes.patch
-	mm-introduce-dump_page-and-print-symbolic-flag-names.patch
-	sysctl-clean-up-vm-related-variable-declarations.patch
-	sysctl-clean-up-vm-related-variable-declarations-fix.patch
-
-from http://userweb.kernel.org/~akpm/mmotm/broken-out.tar.gz first.
+Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/feature-removal-schedule.txt |   30 +
- Documentation/filesystems/proc.txt         |  100 +++---
- Documentation/sysctl/vm.txt                |   71 +---
- fs/proc/base.c                             |  106 ++++++
- include/linux/mempolicy.h                  |   13 
- include/linux/oom.h                        |   24 +
- include/linux/sched.h                      |    3 
- kernel/fork.c                              |    1 
- kernel/sysctl.c                            |   15 
- mm/mempolicy.c                             |   39 ++
- mm/oom_kill.c                              |  479 ++++++++++++++---------------
- mm/page_alloc.c                            |    3 
- 12 files changed, 553 insertions(+), 331 deletions(-)
+ mm/oom_kill.c |   12 +++---------
+ 1 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -35,7 +35,7 @@ static DEFINE_SPINLOCK(zone_scan_lock);
+ /* #define DEBUG */
+ 
+ /*
+- * Is all threads of the target process nodes overlap ours?
++ * Do all threads of the target process overlap our allowed nodes?
+  */
+ static int has_intersects_mems_allowed(struct task_struct *tsk)
+ {
+@@ -167,14 +167,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+ 		points /= 4;
+ 
+ 	/*
+-	 * If p's nodes don't overlap ours, it may still help to kill p
+-	 * because p may have allocated or otherwise mapped memory on
+-	 * this node before. However it will be less likely.
+-	 */
+-	if (!has_intersects_mems_allowed(p))
+-		points /= 8;
+-
+-	/*
+ 	 * Adjust the score by oom_adj.
+ 	 */
+ 	if (oom_adj) {
+@@ -266,6 +258,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+ 			continue;
+ 		if (mem && !task_in_mem_cgroup(p, mem))
+ 			continue;
++		if (!has_intersects_mems_allowed(p))
++			continue;
+ 
+ 		/*
+ 		 * This task already has access to memory reserves and is
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
