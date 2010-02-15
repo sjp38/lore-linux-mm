@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6963F6B0085
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:20:07 -0500 (EST)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o1FMKDFj031021
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 22:20:13 GMT
-Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
-	by wpaz37.hot.corp.google.com with ESMTP id o1FMK9Ql012111
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:12 -0800
-Received: by pxi5 with SMTP id 5so3411124pxi.12
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:12 -0800 (PST)
-Date: Mon, 15 Feb 2010 14:20:09 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7913E6B0089
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:20:11 -0500 (EST)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id o1FMKJfG015287
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:20 -0800
+Received: from pvc7 (pvc7.prod.google.com [10.241.209.135])
+	by kpbe13.cbf.corp.google.com with ESMTP id o1FMKIJY018521
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 16:20:18 -0600
+Received: by pvc7 with SMTP id 7so858pvc.41
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:18 -0800 (PST)
+Date: Mon, 15 Feb 2010 14:20:16 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 4/9 v2] oom: remove compulsory panic_on_oom mode
+Subject: [patch -mm 6/9 v2] oom: deprecate oom_adj tunable
 In-Reply-To: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002151418190.26927@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002151418560.26927@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -23,71 +23,105 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If /proc/sys/vm/panic_on_oom is set to 2, the kernel will panic
-regardless of whether the memory allocation is constrained by either a
-mempolicy or cpuset.
+/proc/pid/oom_adj is now deprecated so that that it may eventually be
+removed.  The target date for removal is December 2011.
 
-Since mempolicy-constrained out of memory conditions now iterate through
-the tasklist and select a task to kill, it is possible to panic the
-machine if all tasks sharing the same mempolicy nodes (including those
-with default policy, they may allocate anywhere) or cpuset mems have
-/proc/pid/oom_adj values of OOM_DISABLE.  This is functionally equivalent
-to the compulsory panic_on_oom setting of 2, so the mode is removed.
+A warning will be printed to the kernel log if a task attempts to use
+this interface.  Future warning will be suppressed until the kernel is
+rebooted to prevent spamming the kernel log.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/sysctl/vm.txt |   20 ++++----------------
- mm/oom_kill.c               |    5 -----
- 2 files changed, 4 insertions(+), 21 deletions(-)
+ Documentation/feature-removal-schedule.txt |   30 ++++++++++++++++++++++++++++
+ Documentation/filesystems/proc.txt         |    3 ++
+ fs/proc/base.c                             |    8 +++++++
+ include/linux/oom.h                        |    3 ++
+ 4 files changed, 44 insertions(+), 0 deletions(-)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -559,25 +559,13 @@ swap-intensive.
+diff --git a/Documentation/feature-removal-schedule.txt b/Documentation/feature-removal-schedule.txt
+--- a/Documentation/feature-removal-schedule.txt
++++ b/Documentation/feature-removal-schedule.txt
+@@ -168,6 +168,36 @@ Who:	Eric Biederman <ebiederm@xmission.com>
  
- panic_on_oom
+ ---------------------------
  
--This enables or disables panic on out-of-memory feature.
-+If this is set to zero, the oom killer will be invoked when the kernel is out of
-+memory and direct reclaim cannot free any pages.  It will select a memory-
-+hogging task that frees up a large amount of memory to kill.
++What:	/proc/<pid>/oom_adj
++When:	December 2011
++Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
++	badness heuristic used to determine which task to kill when the kernel
++	is out of memory.
++
++	The badness heuristic has since been rewritten since the introduction of
++	this tunable such that its meaning is deprecated.  The value was
++	implemented as a bitshift on a score generated by the badness()
++	function that did not have any precise units of measure.  With the
++	rewrite, the score is given as a proportion of available memory to the
++	task allocating pages, so using a bitshift which grows the score
++	exponentially is, thus, impossible to tune with fine granularity.
++
++	A much more powerful interface, /proc/<pid>/oom_score_adj, was
++	introduced with the oom killer rewrite that allows users to increase or
++	decrease the badness() score linearly.  This interface will replace
++	/proc/<pid>/oom_adj.
++
++	See Documentation/filesystems/proc.txt for information on how to use the
++	new tunable.
++
++	A warning will be emitted to the kernel log if an application uses this
++	deprecated interface.  After it is printed once, future warning will be
++	suppressed until the kernel is rebooted.
++
++Who:	David Rientjes <rientjes@google.com>
++
++---------------------------
++
+ What:	remove EXPORT_SYMBOL(kernel_thread)
+ When:	August 2006
+ Files:	arch/*/kernel/*_ksyms.c
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -1247,6 +1247,9 @@ scaled linearly with /proc/<pid>/oom_score_adj.
+ Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
+ other with its scaled value.
  
--If this is set to 0, the kernel will kill some rogue process,
--called oom_killer.  Usually, oom_killer can kill rogue processes and
--system will survive.
--
--If this is set to 1, the kernel panics when out-of-memory happens.
--However, if a process limits using nodes by mempolicy/cpusets,
--and those nodes become memory exhaustion status, one process
--may be killed by oom-killer. No panic occurs in this case.
--Because other nodes' memory may be free. This means system total status
--may be not fatal yet.
--
--If this is set to 2, the kernel panics compulsorily even on the
--above-mentioned.
-+If this is set to non-zero, the machine will panic when out of memory.
++NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
++Documentation/feature-removal-schedule.txt.
++
+ Caveat: when a parent task is selected, the oom killer will sacrifice any first
+ generation children with seperate address spaces instead, if possible.  This
+ avoids servers and important system daemons from being killed and loses the
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -1157,6 +1157,14 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
+ 		return -EACCES;
+ 	}
  
- The default value is 0.
--1 and 2 are for failover of clustering. Please select either
--according to your policy of failover.
- 
- =============================================================
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -672,11 +672,6 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 		/* Got some memory back in the last second. */
- 		return;
- 
--	if (sysctl_panic_on_oom == 2) {
--		dump_header(NULL, gfp_mask, order, NULL);
--		panic("out of memory. Compulsory panic_on_oom is selected.\n");
--	}
--
++	/*
++	 * Warn that /proc/pid/oom_adj is deprecated, see
++	 * Documentation/feature-removal-schedule.txt.
++	 */
++	printk_once(KERN_WARNING "%s (%d): /proc/%d/oom_adj is deprecated, "
++			"please use /proc/%d/oom_score_adj instead.\n",
++			current->comm, task_pid_nr(current),
++			task_pid_nr(task), task_pid_nr(task));
+ 	task->signal->oom_adj = oom_adjust;
  	/*
- 	 * Check if there were limitations on the allocation (only relevant for
- 	 * NUMA) that may require different handling.
+ 	 * Scale /proc/pid/oom_score_adj appropriately ensuring that a maximum
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -2,6 +2,9 @@
+ #define __INCLUDE_LINUX_OOM_H
+ 
+ /*
++ * /proc/<pid>/oom_adj is deprecated, see
++ * Documentation/feature-removal-schedule.txt.
++ *
+  * /proc/<pid>/oom_adj set to -17 protects from the oom-killer
+  */
+ #define OOM_DISABLE (-17)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
