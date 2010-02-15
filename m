@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 47A896B0083
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:19:59 -0500 (EST)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id o1FMK6ao015024
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 327F86B0083
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:20:00 -0500 (EST)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o1FMK7LB015040
 	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:07 -0800
-Received: from pxi12 (pxi12.prod.google.com [10.243.27.12])
-	by kpbe15.cbf.corp.google.com with ESMTP id o1FMK3nx005945
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:03 -0800
-Received: by pxi12 with SMTP id 12so3587350pxi.33
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:03 -0800 (PST)
-Date: Mon, 15 Feb 2010 14:20:01 -0800 (PST)
+Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
+	by kpbe12.cbf.corp.google.com with ESMTP id o1FMK62Z018026
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:06 -0800
+Received: by pzk35 with SMTP id 35so707920pzk.33
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:06 -0800 (PST)
+Date: Mon, 15 Feb 2010 14:20:03 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 1/9 v2] oom: filter tasks not sharing the same cpuset
+Subject: [patch -mm 2/9 v2] oom: sacrifice child with highest badness score
+ for parent
 In-Reply-To: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002151417330.26927@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002151417480.26927@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -23,61 +24,83 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Tasks that do not share the same set of allowed nodes with the task that
-triggered the oom should not be considered as candidates for oom kill.
+When a task is chosen for oom kill, the oom killer first attempts to
+sacrifice a child not sharing its parent's memory instead.
+Unfortunately, this often kills in a seemingly random fashion based on
+the ordering of the selected task's child list.  Additionally, it is not
+guaranteed at all to free a large amount of memory that we need to
+prevent additional oom killing in the very near future.
 
-Tasks in other cpusets with a disjoint set of mems would be unfairly
-penalized otherwise because of oom conditions elsewhere; an extreme
-example could unfairly kill all other applications on the system if a
-single task in a user's cpuset sets itself to OOM_DISABLE and then uses
-more memory than allowed.
+Instead, we now only attempt to sacrifice the worst child not sharing its
+parent's memory, if one exists.  The worst child is indicated with the
+highest badness() score.  This serves two advantages: we kill a
+memory-hogging task more often, and we allow the configurable
+/proc/pid/oom_adj value to be considered as a factor in which child to
+kill.
 
-Killing tasks outside of current's cpuset rarely would free memory for
-current anyway.
+Reviewers may observe that the previous implementation would iterate
+through the children and attempt to kill each until one was successful
+and then the parent if none were found while the new code simply kills
+the most memory-hogging task or the parent.  Note that the only time
+oom_kill_task() fails, however, is when a child does not have an mm or
+has a /proc/pid/oom_adj of OOM_DISABLE.  badness() returns 0 for both
+cases, so the final oom_kill_task() will always succeed.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   12 +++---------
- 1 files changed, 3 insertions(+), 9 deletions(-)
+ mm/oom_kill.c |   23 +++++++++++++++++------
+ 1 files changed, 17 insertions(+), 6 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -35,7 +35,7 @@ static DEFINE_SPINLOCK(zone_scan_lock);
- /* #define DEBUG */
- 
- /*
-- * Is all threads of the target process nodes overlap ours?
-+ * Do all threads of the target process overlap our allowed nodes?
-  */
- static int has_intersects_mems_allowed(struct task_struct *tsk)
+@@ -432,7 +432,10 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 			    unsigned long points, struct mem_cgroup *mem,
+ 			    const char *message)
  {
-@@ -167,14 +167,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
- 		points /= 4;
++	struct task_struct *victim = p;
+ 	struct task_struct *c;
++	unsigned long victim_points = 0;
++	struct timespec uptime;
  
- 	/*
--	 * If p's nodes don't overlap ours, it may still help to kill p
--	 * because p may have allocated or otherwise mapped memory on
--	 * this node before. However it will be less likely.
--	 */
--	if (!has_intersects_mems_allowed(p))
--		points /= 8;
--
--	/*
- 	 * Adjust the score by oom_adj.
- 	 */
- 	if (oom_adj) {
-@@ -266,6 +258,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
- 			continue;
- 		if (mem && !task_in_mem_cgroup(p, mem))
- 			continue;
-+		if (!has_intersects_mems_allowed(p))
-+			continue;
+ 	if (printk_ratelimit())
+ 		dump_header(p, gfp_mask, order, mem);
+@@ -446,17 +449,25 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		return 0;
+ 	}
  
- 		/*
- 		 * This task already has access to memory reserves and is
+-	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
+-					message, task_pid_nr(p), p->comm, points);
++	pr_err("%s: Kill process %d (%s) with score %lu or sacrifice child\n",
++		message, task_pid_nr(p), p->comm, points);
+ 
+-	/* Try to kill a child first */
++	/* Try to sacrifice the worst child first */
++	do_posix_clock_monotonic_gettime(&uptime);
+ 	list_for_each_entry(c, &p->children, sibling) {
++		unsigned long cpoints;
++
+ 		if (c->mm == p->mm)
+ 			continue;
+-		if (!oom_kill_task(c))
+-			return 0;
++
++		/* badness() returns 0 if the thread is unkillable */
++		cpoints = badness(c, uptime.tv_sec);
++		if (cpoints > victim_points) {
++			victim = c;
++			victim_points = cpoints;
++		}
+ 	}
+-	return oom_kill_task(p);
++	return oom_kill_task(victim);
+ }
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
