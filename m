@@ -1,113 +1,314 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BECC96B007D
-	for <linux-mm@kvack.org>; Sun, 14 Feb 2010 23:35:41 -0500 (EST)
-From: Nikanth Karthikesan <knikanth@suse.de>
-Subject: Re: [PATCH v2] Make VM_MAX_READAHEAD a kernel parameter
-Date: Mon, 15 Feb 2010 10:06:37 +0530
-References: <201002091659.27037.knikanth@suse.de> <201002111715.04411.knikanth@suse.de> <20100214213724.GA28392@discord.disaster>
-In-Reply-To: <20100214213724.GA28392@discord.disaster>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id DD0DE6B007B
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 00:03:11 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1F5381w001383
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 15 Feb 2010 14:03:09 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B69F45DE7B
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:03:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 53F4245DE6E
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:03:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A7CB1DB804A
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:03:08 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C30F01DB8046
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:03:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 3/7 -mm] oom: select task from tasklist for mempolicy ooms
+In-Reply-To: <alpine.DEB.2.00.1002100228370.8001@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228370.8001@chino.kir.corp.google.com>
+Message-Id: <20100215120924.7281.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201002151006.37294.knikanth@suse.de>
+Date: Mon, 15 Feb 2010 14:03:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>
-Cc: Ankit Jain <radical@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Jens Axboe <jens.axboe@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 15 February 2010 03:07:24 Dave Chinner wrote:
-> On Thu, Feb 11, 2010 at 05:15:03PM +0530, Nikanth Karthikesan wrote:
-> > On Thursday 11 February 2010 16:45:24 Ankit Jain wrote:
-> > > > +static int __init readahead(char *str)
-> > > > +{
-> > > > +       if (!str)
-> > > > +               return -EINVAL;
-> > > > +       vm_max_readahead_kb = memparse(str, &str) / 1024ULL;
-> > >
-> > > Just wondering, shouldn't you check whether the str had a valid value
-> > > [memparse (str, &next); next > str ..] and if it didn't, then use the
-> > > DEFAULT_VM_MAX_READAHEAD ? Otherwise, incase of a invalid
-> > > value, the readahead value will become zero.
-> >
-> > Thanks for the review. Here is the fixed patch that checks whether all of
-> > the parameters value is consumed.
-> >
-> > Thanks
-> > Nikanth
-> >
-> > From: Nikanth Karthikesan <knikanth@suse.de>
-> >
-> > Add new kernel parameter "readahead", which would be used instead of the
-> > value of VM_MAX_READAHEAD. If the parameter is not specified, the default
-> > of 128kb would be used.
-> >
-> > Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
-> >
-> > ---
-> >
-> > diff --git a/Documentation/kernel-parameters.txt
-> > b/Documentation/kernel-parameters.txt index 736d456..354e6f1 100644
-> > --- a/Documentation/kernel-parameters.txt
-> > +++ b/Documentation/kernel-parameters.txt
-> > @@ -2148,6 +2148,8 @@ and is between 256 and 4096 characters. It is
-> > defined in the file Format: <reboot_mode>[,<reboot_mode2>[,...]]
-> >  			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
-> >
-> > +	readahead=	Default readahead value for block devices.
-> > +
+> The oom killer presently kills current whenever there is no more memory
+> free or reclaimable on its mempolicy's nodes.  There is no guarantee that
+> current is a memory-hogging task or that killing it will free any
+> substantial amount of memory, however.
 > 
-> I think the description should define the units (kb) and valid value
-> ranges e.g. page size to something not excessive - say 65536kb.  The
-> above description is, IMO, useless without refering to the source to
-> find out this information....
+> In such situations, it is better to scan the tasklist for nodes that are
+> allowed to allocate on current's set of nodes and kill the task with the
+> highest badness() score.  This ensures that the most memory-hogging task,
+> or the one configured by the user with /proc/pid/oom_adj, is always
+> selected in such scenarios.
 > 
-
-The parameter can be specified with/without any suffix(k/m/g) that memparse() 
-helper function can accept. So it can take 1M, 1024k, 1050620. I checked other 
-parameters that use memparse() to get similar values and they didn't document 
-it. May be this should be described here.
-
-> [snip]
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  include/linux/mempolicy.h |   13 +++++++-
+>  mm/mempolicy.c            |   39 +++++++++++++++++++++++
+>  mm/oom_kill.c             |   77 +++++++++++++++++++++++++++-----------------
+>  3 files changed, 98 insertions(+), 31 deletions(-)
 > 
-> > @@ -249,6 +250,24 @@ static int __init loglevel(char *str)
-> >
-> >  early_param("loglevel", loglevel);
-> >
-> > +static int __init readahead(char *str)
-> > +{
-> > +	unsigned long readahead_kb;
-> > +
-> > +	if (!str)
-> > +		return -EINVAL;
-> > +	readahead_kb = memparse(str, &str) / 1024ULL;
-> > +	if (*str != '\0')
-> > +		return -EINVAL;
->  		
-> And readahead_kb needs to be validated against the range of
-> valid values here.
+> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+> --- a/include/linux/mempolicy.h
+> +++ b/include/linux/mempolicy.h
+> @@ -202,6 +202,8 @@ extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+>  				unsigned long addr, gfp_t gfp_flags,
+>  				struct mempolicy **mpol, nodemask_t **nodemask);
+>  extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
+> +extern bool mempolicy_nodemask_intersects(struct task_struct *tsk,
+> +				const nodemask_t *mask);
+>  extern unsigned slab_node(struct mempolicy *policy);
+>  
+>  extern enum zone_type policy_zone;
+> @@ -329,7 +331,16 @@ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+>  	return node_zonelist(0, gfp_flags);
+>  }
+>  
+> -static inline bool init_nodemask_of_mempolicy(nodemask_t *m) { return false; }
+> +static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
+> +{
+> +	return false;
+> +}
+> +
+> +static inline bool mempolicy_nodemask_intersects(struct task_struct *tsk,
+> +			const nodemask_t *mask)
+> +{
+> +	return false;
+> +}
+>  
+>  static inline int do_migrate_pages(struct mm_struct *mm,
+>  			const nodemask_t *from_nodes,
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1638,6 +1638,45 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
+>  }
+>  #endif
+>  
+> +/*
+> + * mempolicy_nodemask_intersects
+> + *
+> + * If tsk's mempolicy is "default" [NULL], return 'true' to indicate default
+> + * policy.  Otherwise, check for intersection between mask and the policy
+> + * nodemask for 'bind' or 'interleave' policy, or mask to contain the single
+> + * node for 'preferred' or 'local' policy.
+> + */
+> +bool mempolicy_nodemask_intersects(struct task_struct *tsk,
+> +					const nodemask_t *mask)
+> +{
+> +	struct mempolicy *mempolicy;
+> +	bool ret = true;
+> +
+> +	mempolicy = tsk->mempolicy;
+> +	mpol_get(mempolicy);
+
+Why is this refcount increment necessary? mempolicy is grabbed by tsk,
+IOW it never be freed in this function.
+
+
+> +	if (!mask || !mempolicy)
+> +		goto out;
+> +
+> +	switch (mempolicy->mode) {
+> +	case MPOL_PREFERRED:
+> +		if (mempolicy->flags & MPOL_F_LOCAL)
+> +			ret = node_isset(numa_node_id(), *mask);
+
+Um? Is this good heuristic?
+The task can migrate various cpus, then "node_isset(numa_node_id(), *mask) == 0"
+doesn't mean the task doesn't consume *mask's memory.
+
+
+> +		else
+> +			ret = node_isset(mempolicy->v.preferred_node,
+> +					 *mask);
+> +		break;
+> +	case MPOL_BIND:
+> +	case MPOL_INTERLEAVE:
+> +		ret = nodes_intersects(mempolicy->v.nodes, *mask);
+> +		break;
+> +	default:
+> +		BUG();
+> +	}
+> +out:
+> +	mpol_put(mempolicy);
+> +	return ret;
+> +}
+> +
+>  /* Allocate a page in interleaved policy.
+>     Own path because it needs to do special accounting. */
+>  static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -26,6 +26,7 @@
+>  #include <linux/module.h>
+>  #include <linux/notifier.h>
+>  #include <linux/memcontrol.h>
+> +#include <linux/mempolicy.h>
+>  #include <linux/security.h>
+>  
+>  int sysctl_panic_on_oom;
+> @@ -36,19 +37,35 @@ static DEFINE_SPINLOCK(zone_scan_lock);
+>  
+>  /*
+>   * Do all threads of the target process overlap our allowed nodes?
+> + * @tsk: task struct of which task to consider
+> + * @mask: nodemask passed to page allocator for mempolicy ooms
+>   */
+> -static int has_intersects_mems_allowed(struct task_struct *tsk)
+> +static bool has_intersects_mems_allowed(struct task_struct *tsk,
+> +						const nodemask_t *mask)
+>  {
+> -	struct task_struct *t;
+> +	struct task_struct *start = tsk;
+>  
+> -	t = tsk;
+>  	do {
+> -		if (cpuset_mems_allowed_intersects(current, t))
+> -			return 1;
+> -		t = next_thread(t);
+> -	} while (t != tsk);
+> -
+> -	return 0;
+> +		if (mask) {
+> +			/*
+> +			 * If this is a mempolicy constrained oom, tsk's
+> +			 * cpuset is irrelevant.  Only return true if its
+> +			 * mempolicy intersects current, otherwise it may be
+> +			 * needlessly killed.
+> +			 */
+> +			if (mempolicy_nodemask_intersects(tsk, mask))
+> +				return true;
+> +		} else {
+> +			/*
+> +			 * This is not a mempolicy constrained oom, so only
+> +			 * check the mems of tsk's cpuset.
+> +			 */
+> +			if (cpuset_mems_allowed_intersects(current, tsk))
+> +				return true;
+> +		}
+> +		tsk = next_thread(tsk);
+> +	} while (tsk != start);
+> +	return false;
+>  }
+>  
+>  /**
+> @@ -236,7 +253,8 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+>   * (not docbooked, we don't want this one cluttering up the manual)
+>   */
+>  static struct task_struct *select_bad_process(unsigned long *ppoints,
+> -						struct mem_cgroup *mem)
+> +		struct mem_cgroup *mem, enum oom_constraint constraint,
+> +		const nodemask_t *mask)
+>  {
+>  	struct task_struct *p;
+>  	struct task_struct *chosen = NULL;
+> @@ -258,7 +276,9 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+>  			continue;
+>  		if (mem && !task_in_mem_cgroup(p, mem))
+>  			continue;
+> -		if (!has_intersects_mems_allowed(p))
+> +		if (!has_intersects_mems_allowed(p,
+> +				constraint == CONSTRAINT_MEMORY_POLICY ? mask :
+> +									 NULL))
+>  			continue;
+>  
+>  		/*
+> @@ -478,7 +498,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+>  
+>  	read_lock(&tasklist_lock);
+>  retry:
+> -	p = select_bad_process(&points, mem);
+> +	p = select_bad_process(&points, mem, CONSTRAINT_NONE, NULL);
+>  	if (PTR_ERR(p) == -1UL)
+>  		goto out;
+>  
+> @@ -560,7 +580,8 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
+>  /*
+>   * Must be called with tasklist_lock held for read.
+>   */
+> -static void __out_of_memory(gfp_t gfp_mask, int order)
+> +static void __out_of_memory(gfp_t gfp_mask, int order,
+> +			enum oom_constraint constraint, const nodemask_t *mask)
+>  {
+>  	struct task_struct *p;
+>  	unsigned long points;
+> @@ -574,7 +595,7 @@ retry:
+>  	 * Rambo mode: Shoot down a process and hope it solves whatever
+>  	 * issues we may have.
+>  	 */
+> -	p = select_bad_process(&points, NULL);
+> +	p = select_bad_process(&points, NULL, constraint, mask);
+>  
+>  	if (PTR_ERR(p) == -1UL)
+>  		return;
+> @@ -615,7 +636,8 @@ void pagefault_out_of_memory(void)
+>  		panic("out of memory from page fault. panic_on_oom is selected.\n");
+>  
+>  	read_lock(&tasklist_lock);
+> -	__out_of_memory(0, 0); /* unknown gfp_mask and order */
+> +	/* unknown gfp_mask and order */
+> +	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
+>  	read_unlock(&tasklist_lock);
+>  
+>  	/*
+> @@ -632,6 +654,7 @@ rest_and_return:
+>   * @zonelist: zonelist pointer
+>   * @gfp_mask: memory allocation flags
+>   * @order: amount of memory being requested as a power of 2
+> + * @nodemask: nodemask passed to page allocator
+>   *
+>   * If we run out of memory, we have the choice between either
+>   * killing a random task (bad), letting the system crash (worse)
+> @@ -660,24 +683,18 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>  	 */
+>  	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
+>  	read_lock(&tasklist_lock);
+> -
+> -	switch (constraint) {
+> -	case CONSTRAINT_MEMORY_POLICY:
+> -		oom_kill_process(current, gfp_mask, order, 0, NULL,
+> -				"No available memory (MPOL_BIND)");
+> -		break;
+> -
+> -	case CONSTRAINT_NONE:
+> -		if (sysctl_panic_on_oom) {
+> +	if (unlikely(sysctl_panic_on_oom)) {
+> +		/*
+> +		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
+> +		 * should not panic for cpuset or mempolicy induced memory
+> +		 * failures.
+> +		 */
+> +		if (constraint == CONSTRAINT_NONE) {
+>  			dump_header(NULL, gfp_mask, order, NULL);
+> -			panic("out of memory. panic_on_oom is selected\n");
+> +			panic("Out of memory: panic_on_oom is enabled\n");
+
+enabled? Its feature is enabled at boot time. triggered? or fired?
+
+
+>  		}
+> -		/* Fall-through */
+> -	case CONSTRAINT_CPUSET:
+> -		__out_of_memory(gfp_mask, order);
+> -		break;
+>  	}
+> -
+> +	__out_of_memory(gfp_mask, order, constraint, nodemask);
+>  	read_unlock(&tasklist_lock);
+>  
+>  	/*
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-I didn't want to impose artificial restrictions. I think Wu's patch set would 
-be adding some restrictions, like minimum readahead. He could fix it when he 
-modifies the patch to include in his patch set.
 
-> > +
-> > +	vm_max_readahead_kb = readahead_kb;
-> > +	default_backing_dev_info.ra_pages = vm_max_readahead_kb
-> > +						* 1024 / PAGE_CACHE_SIZE;
-> > +	return 0;
-> > +}
-> > +
-> > +early_param("readahead", readahead);
-> > +
-> 
-
-Thanks for reviewing.
-
-Thanks
-Nikanth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
