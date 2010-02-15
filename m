@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 327F86B0083
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:20:00 -0500 (EST)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id o1FMK7LB015040
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:07 -0800
-Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
-	by kpbe12.cbf.corp.google.com with ESMTP id o1FMK62Z018026
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:06 -0800
-Received: by pzk35 with SMTP id 35so707920pzk.33
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:06 -0800 (PST)
-Date: Mon, 15 Feb 2010 14:20:03 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8993F6B0085
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:20:02 -0500 (EST)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id o1FMKALK003320
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:10 -0800
+Received: from pxi8 (pxi8.prod.google.com [10.243.27.8])
+	by kpbe19.cbf.corp.google.com with ESMTP id o1FMK9OJ010223
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:09 -0800
+Received: by pxi8 with SMTP id 8so3534370pxi.19
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:20:09 -0800 (PST)
+Date: Mon, 15 Feb 2010 14:20:06 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 2/9 v2] oom: sacrifice child with highest badness score
- for parent
+Subject: [patch -mm 3/9 v2] oom: select task from tasklist for mempolicy
+ ooms
 In-Reply-To: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002151417480.26927@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002151418030.26927@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,83 +24,260 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a task is chosen for oom kill, the oom killer first attempts to
-sacrifice a child not sharing its parent's memory instead.
-Unfortunately, this often kills in a seemingly random fashion based on
-the ordering of the selected task's child list.  Additionally, it is not
-guaranteed at all to free a large amount of memory that we need to
-prevent additional oom killing in the very near future.
+The oom killer presently kills current whenever there is no more memory
+free or reclaimable on its mempolicy's nodes.  There is no guarantee that
+current is a memory-hogging task or that killing it will free any
+substantial amount of memory, however.
 
-Instead, we now only attempt to sacrifice the worst child not sharing its
-parent's memory, if one exists.  The worst child is indicated with the
-highest badness() score.  This serves two advantages: we kill a
-memory-hogging task more often, and we allow the configurable
-/proc/pid/oom_adj value to be considered as a factor in which child to
-kill.
+In such situations, it is better to scan the tasklist for nodes that are
+allowed to allocate on current's set of nodes and kill the task with the
+highest badness() score.  This ensures that the most memory-hogging task,
+or the one configured by the user with /proc/pid/oom_adj, is always
+selected in such scenarios.
 
-Reviewers may observe that the previous implementation would iterate
-through the children and attempt to kill each until one was successful
-and then the parent if none were found while the new code simply kills
-the most memory-hogging task or the parent.  Note that the only time
-oom_kill_task() fails, however, is when a child does not have an mm or
-has a /proc/pid/oom_adj of OOM_DISABLE.  badness() returns 0 for both
-cases, so the final oom_kill_task() will always succeed.
-
-Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   23 +++++++++++++++++------
- 1 files changed, 17 insertions(+), 6 deletions(-)
+ include/linux/mempolicy.h |   13 +++++++-
+ mm/mempolicy.c            |   39 +++++++++++++++++++++++
+ mm/oom_kill.c             |   77 +++++++++++++++++++++++++++-----------------
+ 3 files changed, 98 insertions(+), 31 deletions(-)
 
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -202,6 +202,8 @@ extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+ 				unsigned long addr, gfp_t gfp_flags,
+ 				struct mempolicy **mpol, nodemask_t **nodemask);
+ extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
++extern bool mempolicy_nodemask_intersects(struct task_struct *tsk,
++				const nodemask_t *mask);
+ extern unsigned slab_node(struct mempolicy *policy);
+ 
+ extern enum zone_type policy_zone;
+@@ -329,7 +331,16 @@ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+ 	return node_zonelist(0, gfp_flags);
+ }
+ 
+-static inline bool init_nodemask_of_mempolicy(nodemask_t *m) { return false; }
++static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
++{
++	return false;
++}
++
++static inline bool mempolicy_nodemask_intersects(struct task_struct *tsk,
++			const nodemask_t *mask)
++{
++	return false;
++}
+ 
+ static inline int do_migrate_pages(struct mm_struct *mm,
+ 			const nodemask_t *from_nodes,
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1638,6 +1638,45 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
+ }
+ #endif
+ 
++/*
++ * mempolicy_nodemask_intersects
++ *
++ * If tsk's mempolicy is "default" [NULL], return 'true' to indicate default
++ * policy.  Otherwise, check for intersection between mask and the policy
++ * nodemask for 'bind' or 'interleave' policy, or mask to contain the single
++ * node for 'preferred' or 'local' policy.
++ */
++bool mempolicy_nodemask_intersects(struct task_struct *tsk,
++					const nodemask_t *mask)
++{
++	struct mempolicy *mempolicy;
++	bool ret = true;
++
++	mempolicy = tsk->mempolicy;
++	mpol_get(mempolicy);
++	if (!mask || !mempolicy)
++		goto out;
++
++	switch (mempolicy->mode) {
++	case MPOL_PREFERRED:
++		if (mempolicy->flags & MPOL_F_LOCAL)
++			ret = node_isset(cpu_to_node(task_cpu(tsk)), *mask);
++		else
++			ret = node_isset(mempolicy->v.preferred_node,
++					 *mask);
++		break;
++	case MPOL_BIND:
++	case MPOL_INTERLEAVE:
++		ret = nodes_intersects(mempolicy->v.nodes, *mask);
++		break;
++	default:
++		BUG();
++	}
++out:
++	mpol_put(mempolicy);
++	return ret;
++}
++
+ /* Allocate a page in interleaved policy.
+    Own path because it needs to do special accounting. */
+ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -432,7 +432,10 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			    unsigned long points, struct mem_cgroup *mem,
- 			    const char *message)
+@@ -26,6 +26,7 @@
+ #include <linux/module.h>
+ #include <linux/notifier.h>
+ #include <linux/memcontrol.h>
++#include <linux/mempolicy.h>
+ #include <linux/security.h>
+ 
+ int sysctl_panic_on_oom;
+@@ -36,19 +37,35 @@ static DEFINE_SPINLOCK(zone_scan_lock);
+ 
+ /*
+  * Do all threads of the target process overlap our allowed nodes?
++ * @tsk: task struct of which task to consider
++ * @mask: nodemask passed to page allocator for mempolicy ooms
+  */
+-static int has_intersects_mems_allowed(struct task_struct *tsk)
++static bool has_intersects_mems_allowed(struct task_struct *tsk,
++						const nodemask_t *mask)
  {
-+	struct task_struct *victim = p;
- 	struct task_struct *c;
-+	unsigned long victim_points = 0;
-+	struct timespec uptime;
+-	struct task_struct *t;
++	struct task_struct *start = tsk;
  
- 	if (printk_ratelimit())
- 		dump_header(p, gfp_mask, order, mem);
-@@ -446,17 +449,25 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		return 0;
- 	}
- 
--	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
--					message, task_pid_nr(p), p->comm, points);
-+	pr_err("%s: Kill process %d (%s) with score %lu or sacrifice child\n",
-+		message, task_pid_nr(p), p->comm, points);
- 
--	/* Try to kill a child first */
-+	/* Try to sacrifice the worst child first */
-+	do_posix_clock_monotonic_gettime(&uptime);
- 	list_for_each_entry(c, &p->children, sibling) {
-+		unsigned long cpoints;
-+
- 		if (c->mm == p->mm)
- 			continue;
--		if (!oom_kill_task(c))
--			return 0;
-+
-+		/* badness() returns 0 if the thread is unkillable */
-+		cpoints = badness(c, uptime.tv_sec);
-+		if (cpoints > victim_points) {
-+			victim = c;
-+			victim_points = cpoints;
+-	t = tsk;
+ 	do {
+-		if (cpuset_mems_allowed_intersects(current, t))
+-			return 1;
+-		t = next_thread(t);
+-	} while (t != tsk);
+-
+-	return 0;
++		if (mask) {
++			/*
++			 * If this is a mempolicy constrained oom, tsk's
++			 * cpuset is irrelevant.  Only return true if its
++			 * mempolicy intersects current, otherwise it may be
++			 * needlessly killed.
++			 */
++			if (mempolicy_nodemask_intersects(tsk, mask))
++				return true;
++		} else {
++			/*
++			 * This is not a mempolicy constrained oom, so only
++			 * check the mems of tsk's cpuset.
++			 */
++			if (cpuset_mems_allowed_intersects(current, tsk))
++				return true;
 +		}
- 	}
--	return oom_kill_task(p);
-+	return oom_kill_task(victim);
++		tsk = next_thread(tsk);
++	} while (tsk != start);
++	return false;
  }
  
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+ /**
+@@ -236,7 +253,8 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+  * (not docbooked, we don't want this one cluttering up the manual)
+  */
+ static struct task_struct *select_bad_process(unsigned long *ppoints,
+-						struct mem_cgroup *mem)
++		struct mem_cgroup *mem, enum oom_constraint constraint,
++		const nodemask_t *mask)
+ {
+ 	struct task_struct *p;
+ 	struct task_struct *chosen = NULL;
+@@ -258,7 +276,9 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+ 			continue;
+ 		if (mem && !task_in_mem_cgroup(p, mem))
+ 			continue;
+-		if (!has_intersects_mems_allowed(p))
++		if (!has_intersects_mems_allowed(p,
++				constraint == CONSTRAINT_MEMORY_POLICY ? mask :
++									 NULL))
+ 			continue;
+ 
+ 		/*
+@@ -478,7 +498,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+ 
+ 	read_lock(&tasklist_lock);
+ retry:
+-	p = select_bad_process(&points, mem);
++	p = select_bad_process(&points, mem, CONSTRAINT_NONE, NULL);
+ 	if (PTR_ERR(p) == -1UL)
+ 		goto out;
+ 
+@@ -560,7 +580,8 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
+ /*
+  * Must be called with tasklist_lock held for read.
+  */
+-static void __out_of_memory(gfp_t gfp_mask, int order)
++static void __out_of_memory(gfp_t gfp_mask, int order,
++			enum oom_constraint constraint, const nodemask_t *mask)
+ {
+ 	struct task_struct *p;
+ 	unsigned long points;
+@@ -574,7 +595,7 @@ retry:
+ 	 * Rambo mode: Shoot down a process and hope it solves whatever
+ 	 * issues we may have.
+ 	 */
+-	p = select_bad_process(&points, NULL);
++	p = select_bad_process(&points, NULL, constraint, mask);
+ 
+ 	if (PTR_ERR(p) == -1UL)
+ 		return;
+@@ -615,7 +636,8 @@ void pagefault_out_of_memory(void)
+ 		panic("out of memory from page fault. panic_on_oom is selected.\n");
+ 
+ 	read_lock(&tasklist_lock);
+-	__out_of_memory(0, 0); /* unknown gfp_mask and order */
++	/* unknown gfp_mask and order */
++	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
+ 	read_unlock(&tasklist_lock);
+ 
+ 	/*
+@@ -632,6 +654,7 @@ rest_and_return:
+  * @zonelist: zonelist pointer
+  * @gfp_mask: memory allocation flags
+  * @order: amount of memory being requested as a power of 2
++ * @nodemask: nodemask passed to page allocator
+  *
+  * If we run out of memory, we have the choice between either
+  * killing a random task (bad), letting the system crash (worse)
+@@ -660,24 +683,18 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	 */
+ 	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
+ 	read_lock(&tasklist_lock);
+-
+-	switch (constraint) {
+-	case CONSTRAINT_MEMORY_POLICY:
+-		oom_kill_process(current, gfp_mask, order, 0, NULL,
+-				"No available memory (MPOL_BIND)");
+-		break;
+-
+-	case CONSTRAINT_NONE:
+-		if (sysctl_panic_on_oom) {
++	if (unlikely(sysctl_panic_on_oom)) {
++		/*
++		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
++		 * should not panic for cpuset or mempolicy induced memory
++		 * failures.
++		 */
++		if (constraint == CONSTRAINT_NONE) {
+ 			dump_header(NULL, gfp_mask, order, NULL);
+-			panic("out of memory. panic_on_oom is selected\n");
++			panic("Out of memory: panic_on_oom is enabled\n");
+ 		}
+-		/* Fall-through */
+-	case CONSTRAINT_CPUSET:
+-		__out_of_memory(gfp_mask, order);
+-		break;
+ 	}
+-
++	__out_of_memory(gfp_mask, order, constraint, nodemask);
+ 	read_unlock(&tasklist_lock);
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
