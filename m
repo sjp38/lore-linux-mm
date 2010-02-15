@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DE1346B007E
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:06:51 -0500 (EST)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id o1FM6sQK031100
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:06:54 -0800
-Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
-	by kpbe19.cbf.corp.google.com with ESMTP id o1FM6rTT031693
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:06:53 -0800
-Received: by pwi5 with SMTP id 5so522637pwi.34
-        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:06:53 -0800 (PST)
-Date: Mon, 15 Feb 2010 14:06:50 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 21DA66B0083
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 17:11:45 -0500 (EST)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id o1FMBl0k024515
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:11:48 -0800
+Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
+	by kpbe11.cbf.corp.google.com with ESMTP id o1FMBkxa010189
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 16:11:46 -0600
+Received: by pzk36 with SMTP id 36so6361250pzk.23
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 14:11:46 -0800 (PST)
+Date: Mon, 15 Feb 2010 14:11:44 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/7 -mm] oom: filter tasks not sharing the same cpuset
-In-Reply-To: <20100215115154.727B.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1002151401280.26927@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100227590.8001@chino.kir.corp.google.com> <20100215115154.727B.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 3/7 -mm] oom: select task from tasklist for mempolicy
+ ooms
+In-Reply-To: <20100215120924.7281.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1002151407000.26927@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com> <alpine.DEB.2.00.1002100228370.8001@chino.kir.corp.google.com> <20100215120924.7281.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,43 +26,92 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 15 Feb 2010, KOSAKI Motohiro wrote:
 
-> > Tasks that do not share the same set of allowed nodes with the task that
-> > triggered the oom should not be considered as candidates for oom kill.
-> > 
-> > Tasks in other cpusets with a disjoint set of mems would be unfairly
-> > penalized otherwise because of oom conditions elsewhere; an extreme
-> > example could unfairly kill all other applications on the system if a
-> > single task in a user's cpuset sets itself to OOM_DISABLE and then uses
-> > more memory than allowed.
-> > 
-> > Killing tasks outside of current's cpuset rarely would free memory for
-> > current anyway.
-> > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -1638,6 +1638,45 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
+> >  }
+> >  #endif
+> >  
+> > +/*
+> > + * mempolicy_nodemask_intersects
+> > + *
+> > + * If tsk's mempolicy is "default" [NULL], return 'true' to indicate default
+> > + * policy.  Otherwise, check for intersection between mask and the policy
+> > + * nodemask for 'bind' or 'interleave' policy, or mask to contain the single
+> > + * node for 'preferred' or 'local' policy.
+> > + */
+> > +bool mempolicy_nodemask_intersects(struct task_struct *tsk,
+> > +					const nodemask_t *mask)
+> > +{
+> > +	struct mempolicy *mempolicy;
+> > +	bool ret = true;
+> > +
+> > +	mempolicy = tsk->mempolicy;
+> > +	mpol_get(mempolicy);
 > 
-> This patch does right thing and looks promissing. but unfortunately
-> I have to NAK this patch temporary.
-> 
-> This patch is nearly just revert of the commit 7887a3da75. We have to
-> dig archaeology mail log and find why this reverting don't cause
-> the old pain again.
+> Why is this refcount increment necessary? mempolicy is grabbed by tsk,
+> IOW it never be freed in this function.
 > 
 
-Nick is probably wondering why I cc'd him on this patchset, and this is it 
-:)
+We need to get a refcount on the mempolicy to ensure it doesn't get freed 
+from under us, tsk is not necessarily current.
 
-We now determine whether an allocation is constrained by a cpuset by 
-iterating through the zonelist and checking 
-cpuset_zone_allowed_softwall().  This checks for the necessary cpuset 
-restrictions that we need to validate (the GFP_ATOMIC exception is 
-irrelevant, we don't call into the oom killer for those).  We don't need 
-to kill outside of its cpuset because we're not guaranteed to find any 
-memory on those nodes, in fact it allows for needless oom killing if a 
-task sets all of its threads to have OOM_DISABLE in its own cpuset and 
-then runs out of memory.  The oom killer would have killed every other 
-user task on the system even though the offending application can't 
-allocate there.  That's certainly an undesired result and needs to be 
-fixed in this manner.
+> 
+> > +	if (!mask || !mempolicy)
+> > +		goto out;
+> > +
+> > +	switch (mempolicy->mode) {
+> > +	case MPOL_PREFERRED:
+> > +		if (mempolicy->flags & MPOL_F_LOCAL)
+> > +			ret = node_isset(numa_node_id(), *mask);
+> 
+> Um? Is this good heuristic?
+> The task can migrate various cpus, then "node_isset(numa_node_id(), *mask) == 0"
+> doesn't mean the task doesn't consume *mask's memory.
+> 
+
+For MPOL_F_LOCAL, we need to check whether the task's cpu is on a node 
+that is allowed by the zonelist passed to the page allocator.  In the 
+second revision of this patchset, this was changed to
+
+	node_isset(cpu_to_node(task_cpu(tsk)), *mask)
+
+to check.  It would be possible for no memory to have been allocated on 
+that node and it just happens that the tsk is running on it momentarily, 
+but it's the best indication we have given the mempolicy of whether 
+killing a task may lead to future memory freeing.
+
+> > @@ -660,24 +683,18 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> >  	 */
+> >  	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
+> >  	read_lock(&tasklist_lock);
+> > -
+> > -	switch (constraint) {
+> > -	case CONSTRAINT_MEMORY_POLICY:
+> > -		oom_kill_process(current, gfp_mask, order, 0, NULL,
+> > -				"No available memory (MPOL_BIND)");
+> > -		break;
+> > -
+> > -	case CONSTRAINT_NONE:
+> > -		if (sysctl_panic_on_oom) {
+> > +	if (unlikely(sysctl_panic_on_oom)) {
+> > +		/*
+> > +		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
+> > +		 * should not panic for cpuset or mempolicy induced memory
+> > +		 * failures.
+> > +		 */
+> > +		if (constraint == CONSTRAINT_NONE) {
+> >  			dump_header(NULL, gfp_mask, order, NULL);
+> > -			panic("out of memory. panic_on_oom is selected\n");
+> > +			panic("Out of memory: panic_on_oom is enabled\n");
+> 
+> enabled? Its feature is enabled at boot time. triggered? or fired?
+> 
+
+The panic_on_oom sysctl is "enabled" if it is set to non-zero; that's the 
+word used throughout Documentation/sysctl/vm.txt to describe when a sysctl 
+is being used or not.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
