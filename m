@@ -1,32 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 243E06B007B
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:15:22 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EBBA96B007D
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:25:40 -0500 (EST)
 Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G5FICv000506
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G5PcTn019975
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 16 Feb 2010 14:15:19 +0900
+	Tue, 16 Feb 2010 14:25:38 +0900
 Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 91A1045DE57
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:15:18 +0900 (JST)
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 206B745DE53
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:25:38 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 49F4145DE54
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:15:18 +0900 (JST)
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E3DC545DE52
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:25:37 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 02189E18004
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:15:18 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 86F661DB803F
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:15:17 +0900 (JST)
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id BA3EDE38002
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:25:37 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 69BCF1DB803C
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:25:37 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 3/7 -mm] oom: select task from tasklist for mempolicy ooms
-In-Reply-To: <alpine.DEB.2.00.1002151407000.26927@chino.kir.corp.google.com>
-References: <20100215120924.7281.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1002151407000.26927@chino.kir.corp.google.com>
-Message-Id: <20100216135240.72EC.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 5/7 -mm] oom: replace sysctls with quick mode
+In-Reply-To: <alpine.DEB.2.00.1002151411530.26927@chino.kir.corp.google.com>
+References: <20100215170634.729E.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1002151411530.26927@chino.kir.corp.google.com>
+Message-Id: <20100216141539.72EF.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 16 Feb 2010 14:15:16 +0900 (JST)
+Date: Tue, 16 Feb 2010 14:25:36 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
 Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
@@ -34,120 +34,59 @@ List-ID: <linux-mm.kvack.org>
 
 > On Mon, 15 Feb 2010, KOSAKI Motohiro wrote:
 > 
-> > > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > > --- a/mm/mempolicy.c
-> > > +++ b/mm/mempolicy.c
-> > > @@ -1638,6 +1638,45 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
-> > >  }
-> > >  #endif
-> > >  
-> > > +/*
-> > > + * mempolicy_nodemask_intersects
-> > > + *
-> > > + * If tsk's mempolicy is "default" [NULL], return 'true' to indicate default
-> > > + * policy.  Otherwise, check for intersection between mask and the policy
-> > > + * nodemask for 'bind' or 'interleave' policy, or mask to contain the single
-> > > + * node for 'preferred' or 'local' policy.
-> > > + */
-> > > +bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-> > > +					const nodemask_t *mask)
-> > > +{
-> > > +	struct mempolicy *mempolicy;
-> > > +	bool ret = true;
-> > > +
-> > > +	mempolicy = tsk->mempolicy;
-> > > +	mpol_get(mempolicy);
+> > > Two VM sysctls, oom dump_tasks and oom_kill_allocating_task, were
+> > > implemented for very large systems to avoid excessively long tasklist
+> > > scans.  The former suppresses helpful diagnostic messages that are
+> > > emitted for each thread group leader that are candidates for oom kill
+> > > including their pid, uid, vm size, rss, oom_adj value, and name; this
+> > > information is very helpful to users in understanding why a particular
+> > > task was chosen for kill over others.  The latter simply kills current,
+> > > the task triggering the oom condition, instead of iterating through the
+> > > tasklist looking for the worst offender.
+> > > 
+> > > Both of these sysctls are combined into one for use on the aforementioned
+> > > large systems: oom_kill_quick.  This disables the now-default
+> > > oom_dump_tasks and kills current whenever the oom killer is called.
+> > > 
+> > > The oom killer rewrite is the perfect opportunity to combine both sysctls
+> > > into one instead of carrying around the others for years to come for
+> > > nothing else than legacy purposes.
 > > 
-> > Why is this refcount increment necessary? mempolicy is grabbed by tsk,
-> > IOW it never be freed in this function.
+> > "_quick" is always bad sysctl name.
 > 
-> We need to get a refcount on the mempolicy to ensure it doesn't get freed 
-> from under us, tsk is not necessarily current.
+> Why?  It does exactly what it says: it kills current without doing an 
+> expensive tasklist scan and suppresses the possibly long tasklist dump.  
+> That's the oom killer's "quick mode."
 
-Hm.
-if you explanation is correct, I think your patch have following race.
-
-
- CPU0                            CPU1
-----------------------------------------------
-mempolicy_nodemask_intersects()
-mempolicy = tsk->mempolicy;
-                                 do_exit()
-                                 mpol_put(tsk_mempolicy)
-mpol_get(mempolicy);
+Because, an administrator think "_quick" implies "please use it always".
+plus, "quick" doesn't describe clealy meanings. oom_dump_tasks does.
 
 
 
-
-> > > +	if (!mask || !mempolicy)
-> > > +		goto out;
-> > > +
-> > > +	switch (mempolicy->mode) {
-> > > +	case MPOL_PREFERRED:
-> > > +		if (mempolicy->flags & MPOL_F_LOCAL)
-> > > +			ret = node_isset(numa_node_id(), *mask);
-> > 
-> > Um? Is this good heuristic?
-> > The task can migrate various cpus, then "node_isset(numa_node_id(), *mask) == 0"
-> > doesn't mean the task doesn't consume *mask's memory.
+> > instead, turnning oom_dump_tasks on
+> > by default is better.
 > > 
 > 
-> For MPOL_F_LOCAL, we need to check whether the task's cpu is on a node 
-> that is allowed by the zonelist passed to the page allocator.  In the 
-> second revision of this patchset, this was changed to
+> It's now on by default and can be disabled by enabling oom_kill_quick.
 > 
-> 	node_isset(cpu_to_node(task_cpu(tsk)), *mask)
-> 
-> to check.  It would be possible for no memory to have been allocated on 
-> that node and it just happens that the tsk is running on it momentarily, 
-> but it's the best indication we have given the mempolicy of whether 
-> killing a task may lead to future memory freeing.
-
-This calculation is still broken. In general, running cpu and allocation node
-is not bound.
-We can't know such task use which node memory because MPOL_PREFERRED doesn't
-bind allocation node. it only provide allocation hint.
-
-	case MPOL_PREFERRED:
-		ret = true;
-		break;
-
-is better. (probably we can make some bonus to oom_badness, but it's irrelevant thing).
-
-
-> 
-> > > @@ -660,24 +683,18 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-> > >  	 */
-> > >  	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
-> > >  	read_lock(&tasklist_lock);
-> > > -
-> > > -	switch (constraint) {
-> > > -	case CONSTRAINT_MEMORY_POLICY:
-> > > -		oom_kill_process(current, gfp_mask, order, 0, NULL,
-> > > -				"No available memory (MPOL_BIND)");
-> > > -		break;
-> > > -
-> > > -	case CONSTRAINT_NONE:
-> > > -		if (sysctl_panic_on_oom) {
-> > > +	if (unlikely(sysctl_panic_on_oom)) {
-> > > +		/*
-> > > +		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
-> > > +		 * should not panic for cpuset or mempolicy induced memory
-> > > +		 * failures.
-> > > +		 */
-> > > +		if (constraint == CONSTRAINT_NONE) {
-> > >  			dump_header(NULL, gfp_mask, order, NULL);
-> > > -			panic("out of memory. panic_on_oom is selected\n");
-> > > +			panic("Out of memory: panic_on_oom is enabled\n");
+> > plus, this patch makes unnecessary compatibility issue.
 > > 
-> > enabled? Its feature is enabled at boot time. triggered? or fired?
 > 
-> The panic_on_oom sysctl is "enabled" if it is set to non-zero; that's the 
-> word used throughout Documentation/sysctl/vm.txt to describe when a sysctl 
-> is being used or not.
+> It's the perfect opportunity when totally rewriting the oom killer to 
+> combine two sysctls with the exact same users into one.  Users will notice 
+> that the tasklist is always dumped now (we're defaulting oom_dump_tasks 
+> to be enabled), so there is no reason why we can't remove oom_dump_tasks, 
+> we're just giving them a new way to disable it.  oom_kill_allocating_task 
+> no longer always means what it once did: with the mempolicy-constrained 
+> oom rewrite, we now iterate the tasklist for such cases to kill a task.  
+> So users need to reassess whether this should be set if all tasks on the 
+> system are constrained by mempolicies, a typical configuration for 
+> extremely large systems.  
 
-Probably, you changed message meanings. I think the original one doesn't
-intend to describe enable or disable. but it isn't big matter. I can accept it.
+No.
+Your explanation doesn't answer why this change don't cause any comatibility
+issue to _all_ user. Merely "opportunity" doesn't allow we ignore real world user.
+I had made some incompatibility patch too, but all one have unavoidable reason. 
 
 
 
