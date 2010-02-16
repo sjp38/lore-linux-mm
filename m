@@ -1,71 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A51F06B004D
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:03:21 -0500 (EST)
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id o1GM3ECM002393
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 22:03:14 GMT
-Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
-	by spaceape11.eur.corp.google.com with ESMTP id o1GM3Ccs021024
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:03:13 -0800
-Received: by pxi10 with SMTP id 10so480520pxi.13
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 14:03:12 -0800 (PST)
-Date: Tue, 16 Feb 2010 14:03:10 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm] Kill existing current task quickly
-In-Reply-To: <1266335957.1709.67.camel@barrios-desktop>
-Message-ID: <alpine.DEB.2.00.1002161357170.23037@chino.kir.corp.google.com>
-References: <1266335957.1709.67.camel@barrios-desktop>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 08F956B007B
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:22:41 -0500 (EST)
+Message-ID: <4B7B1AA9.9040609@redhat.com>
+Date: Tue, 16 Feb 2010 17:22:33 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
+References: <4B71927D.6030607@nortel.com>	 <20100210093140.12D9.A69D9226@jp.fujitsu.com>	 <4B72E74C.9040001@nortel.com>	 <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>	 <4B74524D.8080804@nortel.com> <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com> <4B7504D2.1040903@nortel.com> <4B796D31.7030006@nortel.com> <4B797D93.5090307@redhat.com> <4B7ACD4A.10101@nortel.com> <4B7AD207.20604@redhat.com> <4B7B0D75.50808@nortel.com>
+In-Reply-To: <4B7B0D75.50808@nortel.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Feb 2010, Minchan Kim wrote:
+On 02/16/2010 04:26 PM, Chris Friesen wrote:
 
-> If we found current task is existing but didn't set TIF_MEMDIE
-> during OOM victim selection, let's stop unnecessary looping for
-> getting high badness score task and go ahead for killing current.
-> 
-> This patch would make side effect skip OOM_DISABLE test.
-> But It's okay since the task is existing and oom_kill_process
-> doesn't show any killing message since __oom_kill_task will
-> interrupt it in oom_kill_process.
-> 
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> Cc: Nick Piggin <npiggin@suse.de>
-> ---
->  mm/oom_kill.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 3618be3..5c21398 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -295,6 +295,7 @@ static struct task_struct
-> *select_bad_process(unsigned long *ppoints,
->  
->  			chosen = p;
->  			*ppoints = ULONG_MAX;
-> +			break;
->  		}
->  
->  		if (p->signal->oom_adj == OOM_DISABLE)
+> For the backtrace scenario I posted it seems like it might actually be
+> release_pages().  There seems to be a plausible call chain:
+>
+> __ClearPageLRU
+> release_pages
+> free_pages_and_swap_cache
+> tlb_flush_mmu
+> tlb_remove_page
+> zap_pte_range
+>
+> Does that seem right?  In this case, tlb_remove_page() is called right
+> after page_remove_rmap() which ultimately results in clearing the
+> PageAnon bit.
 
-No, we don't want to break because there may be other candidate tasks that 
-have TIF_MEMDIE set that will be detected if we keep scanning.  Returning 
-ERR_PTR(-1UL) from select_bad_process() has a special meaning: it means we 
-return to the page allocator without doing anything.  We don't want more 
-than one candidate task to ever have TIF_MEMDIE at a time, otherwise they 
-can deplete all memory reserves and not make any forward progress.  So we 
-always have to iterate the entire tasklist unless we find an already oom 
-killed task with access to memory reserves (to prevent needlessly killing 
-additional tasks before the first had a chance to exit and free its 
-memory) or a different candidate task is exiting so we'll be freeing 
-memory shortly (or it will be invoking the oom killer itself as current 
-and then get chosen as the victim).
+That is right - and pinpoints the fault for the memory leak
+on some third party code that fails to release a refcount on
+memory pages.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
