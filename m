@@ -1,67 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C41C66B007E
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 10:59:26 -0500 (EST)
-Received: by gxk3 with SMTP id 3so58451gxk.6
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 07:59:23 -0800 (PST)
-Subject: [PATCH -mm] Kill existing current task quickly
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 17 Feb 2010 00:59:17 +0900
-Message-ID: <1266335957.1709.67.camel@barrios-desktop>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 93CFF6B0087
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 11:59:08 -0500 (EST)
+Message-ID: <4B7ACD4A.10101@nortel.com>
+Date: Tue, 16 Feb 2010 10:52:26 -0600
+From: "Chris Friesen" <cfriesen@nortel.com>
+MIME-Version: 1.0
+Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
+References: <4B71927D.6030607@nortel.com>	 <20100210093140.12D9.A69D9226@jp.fujitsu.com>	 <4B72E74C.9040001@nortel.com>	 <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>	 <4B74524D.8080804@nortel.com> <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com> <4B7504D2.1040903@nortel.com> <4B796D31.7030006@nortel.com> <4B797D93.5090307@redhat.com>
+In-Reply-To: <4B797D93.5090307@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-I am not sure why didn't we break the loop until now. 
-As looking git log, I found it is removed by Nick at b78483a.
-He mentioned "introduced a problem". If I miss something, 
-pz, correct me. 
+On 02/15/2010 11:00 AM, Rik van Riel wrote:
+> On 02/15/2010 10:50 AM, Chris Friesen wrote:
+> 
+>> Looking at the code, it looks like page_remove_rmap() clears the
+>> Anonpage flag and removes it from NR_ANON_PAGES, and the caller is
+>> responsible for removing it from the LRU.  Is that right?
+> 
+> Nope.
+> 
+>> I'll keep digging in the code, but does anyone know where the removal
+>> from the LRU is supposed to happen in the above code paths?
+> 
+> Removal from the LRU is done from the page freeing code, on
+> the final free of the page.
+> 
+> It appears you have code somewhere that increments the reference
+> count on user pages and then forgets to lower it afterwards.
 
-== CUT_HERE ==
+Okay, that makes sense.
 
-[PATCH -mm] Kill existing current task quickly
-
-If we found current task is existing but didn't set TIF_MEMDIE
-during OOM victim selection, let's stop unnecessary looping for
-getting high badness score task and go ahead for killing current.
-
-This patch would make side effect skip OOM_DISABLE test.
-But It's okay since the task is existing and oom_kill_process
-doesn't show any killing message since __oom_kill_task will
-interrupt it in oom_kill_process.
-
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>
----
- mm/oom_kill.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 3618be3..5c21398 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -295,6 +295,7 @@ static struct task_struct
-*select_bad_process(unsigned long *ppoints,
- 
- 			chosen = p;
- 			*ppoints = ULONG_MAX;
-+			break;
- 		}
- 
- 		if (p->signal->oom_adj == OOM_DISABLE)
--- 
-1.6.5
+I'm still trying to get a handle on the LRU removal though.  The code
+path that I saw most which resulted in clearing the anon bit but leaving
+the page on the LRU was the following:
 
 
+    [<ffffffff8029c951>] kmemleak_clear_anon+0x7f/0xbe
+    [<ffffffff802864c7>] page_remove_rmap+0x45/0x146
+    [<ffffffff8027dc7e>] unmap_vmas+0x41c/0x948
+    [<ffffffff80282405>] exit_mmap+0x7b/0x108
+    [<ffffffff8022f441>] mmput+0x33/0x110
+    [<ffffffff80233b05>] exit_mm+0x103/0x130
+    [<ffffffff802355b5>] do_exit+0x17b/0x91f
+    [<ffffffff80235d95>] do_group_exit+0x3c/0x9c
+    [<ffffffff80235e07>] sys_exit+0x0/0x12
+    [<ffffffff8021ddb5>] ia32_syscall_done+0x0/0xa
 
--- 
-Kind regards,
-Minchan Kim
+There are a bunch of inline functions involved, but I think the chain
+from page_remove_rmap() back up to unmap_vmas() looks like this:
 
+page_remove_rmap
+zap_pte_range
+zap_pmd_range
+zap_pud_range
+unmap_page_range
+unmap_vmas
+
+So in this scenario, where do the pages actually get removed from the
+LRU list (assuming that they're not in use by anyone else)?
+
+Thanks,
+
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
