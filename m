@@ -1,44 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 184706B0082
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 04:04:51 -0500 (EST)
-Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
-	by smtp-out.google.com with ESMTP id o1G94nFu021528
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 01:04:49 -0800
-Received: from pzk15 (pzk15.prod.google.com [10.243.19.143])
-	by kpbe18.cbf.corp.google.com with ESMTP id o1G94l9W029343
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 01:04:48 -0800
-Received: by pzk15 with SMTP id 15so5650116pzk.11
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 01:04:47 -0800 (PST)
-Date: Tue, 16 Feb 2010 01:04:44 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 581226B007D
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 04:10:54 -0500 (EST)
+Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
+	by smtp-out.google.com with ESMTP id o1G9AoMZ020231
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:10:50 GMT
+Received: from pzk17 (pzk17.prod.google.com [10.243.19.145])
+	by spaceape9.eur.corp.google.com with ESMTP id o1G9Am2Z007819
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 01:10:49 -0800
+Received: by pzk17 with SMTP id 17so4845253pzk.4
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 01:10:48 -0800 (PST)
+Date: Tue, 16 Feb 2010 01:10:44 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 5/7 -mm] oom: replace sysctls with quick mode
-In-Reply-To: <20100216141539.72EF.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1002160102480.17122@chino.kir.corp.google.com>
-References: <20100215170634.729E.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1002151411530.26927@chino.kir.corp.google.com> <20100216141539.72EF.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 1/7 -mm] oom: filter tasks not sharing the same cpuset
+In-Reply-To: <20100216090408.GL5723@laptop>
+Message-ID: <alpine.DEB.2.00.1002160105320.17122@chino.kir.corp.google.com>
+References: <20100215115154.727B.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1002151401280.26927@chino.kir.corp.google.com> <20100216110859.72C6.A69D9226@jp.fujitsu.com> <20100216070344.GF5723@laptop> <alpine.DEB.2.00.1002160047340.17122@chino.kir.corp.google.com>
+ <20100216090408.GL5723@laptop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Feb 2010, KOSAKI Motohiro wrote:
+On Tue, 16 Feb 2010, Nick Piggin wrote:
 
-> > > "_quick" is always bad sysctl name.
-> > 
-> > Why?  It does exactly what it says: it kills current without doing an 
-> > expensive tasklist scan and suppresses the possibly long tasklist dump.  
-> > That's the oom killer's "quick mode."
-> 
-> Because, an administrator think "_quick" implies "please use it always".
-> plus, "quick" doesn't describe clealy meanings. oom_dump_tasks does.
+> I don't really agree with your black and white view. We equally
+> can't tell a lot of cases about who is pinning memory where. The
+> fact is that any task can be pinning memory and the heuristic
+> was specifically catering for that.
 > 
 
-The audience for both of these tunables (now that oom_dump_tasks is 
-default to enabled) is users with extremely long tasklists that want to 
-avoid those scans, so oom_kill_quick implies that it won't waste any time 
-and will act how it's documented: simply kill current and move on.
+That's a main source of criticism of the current heuristic: it needlessly 
+kills tasks.  There is only one thing we know for certain: current is 
+trying to allocate memory on its nodes.  We can either kill a task that 
+is allowed that same set or current itself; there's no evidence that 
+killing anything else will lead to memory freeing that will allow the 
+allocation to succeed.  The heuristic will never perfectly select the task 
+that it should kill 100% of the time when playing around with mempolicy 
+nodes or cpuset mems, but relying on their current placement is a good 
+indicator of what is more likely than not to free memory of interest.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
