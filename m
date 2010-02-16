@@ -1,41 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id BA06D6B007E
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 12:12:47 -0500 (EST)
-Message-ID: <4B7AD207.20604@redhat.com>
-Date: Tue, 16 Feb 2010 12:12:39 -0500
+	by kanga.kvack.org (Postfix) with SMTP id 4F8D86B007E
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 12:43:42 -0500 (EST)
+Message-ID: <4B7AD92C.6050802@redhat.com>
+Date: Tue, 16 Feb 2010 12:43:08 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
-References: <4B71927D.6030607@nortel.com>	 <20100210093140.12D9.A69D9226@jp.fujitsu.com>	 <4B72E74C.9040001@nortel.com>	 <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>	 <4B74524D.8080804@nortel.com> <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com> <4B7504D2.1040903@nortel.com> <4B796D31.7030006@nortel.com> <4B797D93.5090307@redhat.com> <4B7ACD4A.10101@nortel.com>
-In-Reply-To: <4B7ACD4A.10101@nortel.com>
+Subject: Re: [PATCH 02/12] Allow CONFIG_MIGRATION to be set without CONFIG_NUMA
+ or memory hot-remove
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-3-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1265976059-7459-3-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Friesen <cfriesen@nortel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 02/16/2010 11:52 AM, Chris Friesen wrote:
-> On 02/15/2010 11:00 AM, Rik van Riel wrote:
-
->> Removal from the LRU is done from the page freeing code, on
->> the final free of the page.
-
-> There are a bunch of inline functions involved, but I think the chain
-> from page_remove_rmap() back up to unmap_vmas() looks like this:
+On 02/12/2010 07:00 AM, Mel Gorman wrote:
+> CONFIG_MIGRATION currently depends on CONFIG_NUMA or on the architecture
+> being able to hot-remove memory. The main users of page migration such as
+> sys_move_pages(), sys_migrate_pages() and cpuset process migration are
+> only beneficial on NUMA so it makes sense.
 >
-> page_remove_rmap
-> zap_pte_range
-> zap_pmd_range
-> zap_pud_range
-> unmap_page_range
-> unmap_vmas
+> As memory compaction will operate within a zone and is useful on both NUMA
+> and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
+> user selects CONFIG_COMPACTION as an option.
 >
-> So in this scenario, where do the pages actually get removed from the
-> LRU list (assuming that they're not in use by anyone else)?
+> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
+> Reviewed-by: Christoph Lameter<cl@linux-foundation.org>
 
-__page_cache_release
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed.
