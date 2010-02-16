@@ -1,102 +1,453 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 901B16B007B
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 20:29:59 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G1TuP8008524
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 16 Feb 2010 10:29:56 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E759445DE5B
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 10:29:55 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B335145DE57
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 10:29:55 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 59A821DB803F
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 10:29:55 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D62E8EF8003
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 10:29:54 +0900 (JST)
-Date: Tue, 16 Feb 2010 10:26:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] mm: add comment about deprecation of __GFP_NOFAIL
-Message-Id: <20100216102626.5f6f0e11.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1002151712290.23480@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1002151419260.26927@chino.kir.corp.google.com>
-	<20100216085706.c7af93e1.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1002151606320.14484@chino.kir.corp.google.com>
-	<20100216092147.85ef7619.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1002151712290.23480@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3D8836B007B
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 22:22:56 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G3MqxF019062
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 16 Feb 2010 12:22:53 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 90C5A45DE4C
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 12:22:52 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 70A9145DE4F
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 12:22:52 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 14A7B1DB8040
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 12:22:52 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 475DB1DB8041
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 12:22:51 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC PATCH -tip 0/2 v3] pagecache tracepoints proposal
+In-Reply-To: <20100209162101.GA12840@localhost>
+References: <20100208155450.GA17055@localhost> <20100209162101.GA12840@localhost>
+Message-Id: <20100216122225.72E7.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 16 Feb 2010 12:22:50 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Ingo Molnar <mingo@elte.hu>, Chris Frost <frost@cs.ucla.edu>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Keiichi KII <k-keiichi@bx.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Jason Baron <jbaron@redhat.com>, Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Feb 2010 17:13:57 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Tue, 16 Feb 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > > As I already explained when you first brought this up, the possibility of 
-> > > not invoking the oom killer is not unique to GFP_DMA, it is also possible 
-> > > for GFP_NOFS.  Since __GFP_NOFAIL is deprecated and there are no current 
-> > > users of GFP_DMA | __GFP_NOFAIL, that warning is completely unnecessary.  
-> > > We're not adding any additional __GFP_NOFAIL allocations.
-> > >
+> > Here is a scratch patch to exercise the "object collections" idea :)
 > > 
-> > Please add documentation about that to gfp.h before doing this.
-> > Doing this without writing any documenation is laziness.
-> > (WARNING is a style of documentation.)
+> > Interestingly, the pagecache walk is pretty fast, while copying out the trace
+> > data takes more time:
 > > 
+> >         # time (echo / > walk-fs)
+> >         (; echo / > walk-fs; )  0.01s user 0.11s system 82% cpu 0.145 total
+> > 
+> >         # time wc /debug/tracing/trace
+> >         4570 45893 551282 /debug/tracing/trace
+> >         wc /debug/tracing/trace  0.75s user 0.55s system 88% cpu 1.470 total
 > 
-> This is already documented in the page allocator, but I guess doing it in 
-> include/linux/gfp.h as well doesn't hurt.
+> Ah got it: it takes much time to "print" the raw trace data.
 > 
-I want warning when someone uses OBSOLETE interface but...
+> > TODO:
+> > 
+> > correctness
+> > - show file path name
+> >   XXX: can trace_seq_path() be called directly inside TRACE_EVENT()?
+> 
+> OK, finished with the file name with d_path(). I choose not to mangle
+> the possible '\n' in file names, and simply show "?" for such files,
+> for the sake of speed.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I hope no 3rd vendor (proprietary) driver uses __GFP_NOFAIL, they tend to
-believe API is trustable and unchanged.
+This patch is nicer than KII-san's one. I plan to test it on
+my local test environment awhile.
+
+thanks.
+
 
 > 
-> 
-> mm: add comment about deprecation of __GFP_NOFAIL
-> 
-> __GFP_NOFAIL was deprecated in dab48dab, so add a comment that no new 
-> users should be added.
-> 
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Thanks,
+> Fengguang
 > ---
->  include/linux/gfp.h |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
+> tracing: pagecache object collections
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -30,7 +30,8 @@ struct vm_area_struct;
->   * _might_ fail.  This depends upon the particular VM implementation.
->   *
->   * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
-> - * cannot handle allocation failures.
-> + * cannot handle allocation failures.  This modifier is deprecated and no new
-> + * users should be added.
->   *
->   * __GFP_NORETRY: The VM implementation must not retry indefinitely.
->   *
+> This dumps
+> - all cached files of a mounted fs  (the inode-cache)
+> - all cached pages of a cached file (the page-cache)
+> 
+> Usage and Sample output:
+> 
+> # echo /dev > /debug/tracing/objects/mm/pages/walk-fs
+> # tail /debug/tracing/trace
+>              zsh-2528  [000] 10429.172470: dump_inode: ino=889 size=0 cached=0 age=442 dirty=0 dev=0:18 file=/dev/console
+>              zsh-2528  [000] 10429.172472: dump_inode: ino=888 size=0 cached=0 age=442 dirty=7 dev=0:18 file=/dev/null
+>              zsh-2528  [000] 10429.172474: dump_inode: ino=887 size=40 cached=0 age=442 dirty=0 dev=0:18 file=/dev/shm
+>              zsh-2528  [000] 10429.172477: dump_inode: ino=886 size=40 cached=0 age=442 dirty=0 dev=0:18 file=/dev/pts
+>              zsh-2528  [000] 10429.172479: dump_inode: ino=885 size=11 cached=0 age=442 dirty=0 dev=0:18 file=/dev/core
+>              zsh-2528  [000] 10429.172481: dump_inode: ino=884 size=15 cached=0 age=442 dirty=0 dev=0:18 file=/dev/stderr
+>              zsh-2528  [000] 10429.172483: dump_inode: ino=883 size=15 cached=0 age=442 dirty=0 dev=0:18 file=/dev/stdout
+>              zsh-2528  [000] 10429.172486: dump_inode: ino=882 size=15 cached=0 age=442 dirty=0 dev=0:18 file=/dev/stdin
+>              zsh-2528  [000] 10429.172488: dump_inode: ino=881 size=13 cached=0 age=442 dirty=0 dev=0:18 file=/dev/fd
+>              zsh-2528  [000] 10429.172491: dump_inode: ino=872 size=13360 cached=0 age=442 dirty=0 dev=0:18 file=/dev
+> 
+> Here "age" is either age from inode create time, or from last dirty time.
+> 
+> TODO:
+> 
+> correctness
+> - reliably prevent ring buffer overflow,
+>   by replacing cond_resched() with some wait function
+>   (eg. wait until 2+ pages are free in ring buffer)
+> - use stable_page_flags() in recent kernel
+> 
+> output style
+> - use plain tracing output format (no fancy TASK-PID/.../FUNCTION fields)
+> - clear ring buffer before dumping the objects?
+> - output format: key=value pairs ==> header + tabbed values?
+> - add filtering options if necessary
+> 
+> CC: Ingo Molnar <mingo@elte.hu>
+> CC: Chris Frost <frost@cs.ucla.edu>
+> CC: Steven Rostedt <rostedt@goodmis.org>
+> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> CC: Frederic Weisbecker <fweisbec@gmail.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/inode.c                |    2 
+>  include/trace/events/mm.h |   70 ++++++++++++
+>  kernel/trace/trace_mm.c   |  204 ++++++++++++++++++++++++++++++++++++
+>  3 files changed, 275 insertions(+), 1 deletion(-)
+> 
+> --- linux-mm.orig/include/trace/events/mm.h	2010-02-08 23:19:09.000000000 +0800
+> +++ linux-mm/include/trace/events/mm.h	2010-02-09 23:39:03.000000000 +0800
+> @@ -2,6 +2,7 @@
+>  #define _TRACE_MM_H
+>  
+>  #include <linux/tracepoint.h>
+> +#include <linux/pagemap.h>
+>  #include <linux/mm.h>
+>  
+>  #undef TRACE_SYSTEM
+> @@ -42,6 +43,75 @@ TRACE_EVENT(dump_pages,
+>  		  __entry->mapcount, __entry->index)
+>  );
+>  
+> +TRACE_EVENT(dump_pagecache_range,
+> +
+> +	TP_PROTO(struct page *page, unsigned long len),
+> +
+> +	TP_ARGS(page, len),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	unsigned long,	index		)
+> +		__field(	unsigned long,	len		)
+> +		__field(	unsigned long,	flags		)
+> +		__field(	unsigned int,	count		)
+> +		__field(	unsigned int,	mapcount	)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->index		= page->index;
+> +		__entry->len		= len;
+> +		__entry->flags		= page->flags;
+> +		__entry->count		= atomic_read(&page->_count);
+> +		__entry->mapcount	= page_mapcount(page);
+> +	),
+> +
+> +	TP_printk("index=%lu len=%lu flags=%lx count=%u mapcount=%u",
+> +		  __entry->index,
+> +		  __entry->len,
+> +		  __entry->flags,
+> +		  __entry->count,
+> +		  __entry->mapcount)
+> +);
+> +
+> +TRACE_EVENT(dump_inode,
+> +
+> +	TP_PROTO(struct inode *inode, char *name, int len),
+> +
+> +	TP_ARGS(inode, name, len),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	unsigned long,	ino		)
+> +		__field(	loff_t,		size		)
+> +		__field(	unsigned long,	nrpages		)
+> +		__field(	unsigned long,	age		)
+> +		__field(	unsigned long,	state		)
+> +		__field(	dev_t,		dev		)
+> +		__dynamic_array(char,		file,	len	)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->ino		= inode->i_ino;
+> +		__entry->size		= i_size_read(inode);
+> +		__entry->nrpages	= inode->i_mapping->nrpages;
+> +		__entry->age		= jiffies - inode->dirtied_when;
+> +		__entry->state		= inode->i_state;
+> +		__entry->dev		= inode->i_sb->s_dev;
+> +		memcpy(__get_str(file), name, len);
+> +	),
+> +
+> +	TP_printk("ino=%lu size=%llu cached=%lu age=%lu dirty=%lu "
+> +		  "dev=%u:%u file=%s",
+> +		  __entry->ino,
+> +		  __entry->size,
+> +		  __entry->nrpages << PAGE_CACHE_SHIFT,
+> +		  __entry->age / HZ,
+> +		  __entry->state & I_DIRTY,
+> +		  MAJOR(__entry->dev),
+> +		  MINOR(__entry->dev),
+> +		  strchr(__get_str(file), '\n') ? "?" : __get_str(file))
+> +);
+> +
+> +
+>  #endif /*  _TRACE_MM_H */
+>  
+>  /* This part must be outside protection */
+> --- linux-mm.orig/kernel/trace/trace_mm.c	2010-02-08 23:19:09.000000000 +0800
+> +++ linux-mm/kernel/trace/trace_mm.c	2010-02-10 00:04:47.000000000 +0800
+> @@ -9,6 +9,9 @@
+>  #include <linux/bootmem.h>
+>  #include <linux/debugfs.h>
+>  #include <linux/uaccess.h>
+> +#include <linux/pagevec.h>
+> +#include <linux/writeback.h>
+> +#include <linux/file.h>
+>  
+>  #include "trace_output.h"
+>  
+> @@ -95,6 +98,201 @@ static const struct file_operations trac
+>  	.write		= trace_mm_dump_range_write,
+>  };
+>  
+> +static unsigned long page_flags(struct page* page)
+> +{
+> +	return page->flags & ((1 << NR_PAGEFLAGS) - 1);
+> +}
+> +
+> +static int pages_similiar(struct page* page0, struct page* page)
+> +{
+> +	if (page_count(page0) != page_count(page))
+> +		return 0;
+> +
+> +	if (page_mapcount(page0) != page_mapcount(page))
+> +		return 0;
+> +
+> +	if (page_flags(page0) != page_flags(page))
+> +		return 0;
+> +
+> +	return 1;
+> +}
+> +
+> +#define BATCH_LINES	100
+> +static void dump_pagecache(struct address_space *mapping)
+> +{
+> +	int i;
+> +	int lines = 0;
+> +	pgoff_t len = 0;
+> +	struct pagevec pvec;
+> +	struct page *page;
+> +	struct page *page0 = NULL;
+> +	unsigned long start = 0;
+> +
+> +	for (;;) {
+> +		pagevec_init(&pvec, 0);
+> +		pvec.nr = radix_tree_gang_lookup(&mapping->page_tree,
+> +				(void **)pvec.pages, start + len, PAGEVEC_SIZE);
+> +
+> +		if (pvec.nr == 0) {
+> +			if (len)
+> +				trace_dump_pagecache_range(page0, len);
+> +			break;
+> +		}
+> +
+> +		if (!page0)
+> +			page0 = pvec.pages[0];
+> +
+> +		for (i = 0; i < pvec.nr; i++) {
+> +			page = pvec.pages[i];
+> +
+> +			if (page->index == start + len &&
+> +					pages_similiar(page0, page))
+> +				len++;
+> +			else {
+> +				trace_dump_pagecache_range(page0, len);
+> +				page0 = page;
+> +				start = page->index;
+> +				len = 1;
+> +				if (++lines > BATCH_LINES) {
+> +					lines = 0;
+> +					cond_resched();
+> +				}
+> +			}
+> +		}
+> +	}
+> +}
+> +
+> +static void dump_inode(struct inode *inode,
+> +		       char *name_buf,
+> +		       struct vfsmount *mnt)
+> +{
+> +	struct path path = {
+> +		.mnt = mnt,
+> +		.dentry = d_find_alias(inode)
+> +	};
+> +	char *name;
+> +	int len;
+> +
+> +	if (!path.dentry) {
+> +		trace_dump_inode(inode, "?", 2);
+> +		return;
+> +	}
+> +
+> +	name = d_path(&path, name_buf, PAGE_SIZE);
+> +	if (IS_ERR(name)) {
+> +		name = "?";
+> +		len = 2;
+> +	} else
+> +		len = PAGE_SIZE + name_buf - name;
+> +
+> +	trace_dump_inode(inode, name, len);
+> +
+> +	if (path.dentry)
+> +		dput(path.dentry);
+> +}
+> +
+> +static void dump_fs_pagecache(struct super_block *sb, struct vfsmount *mnt)
+> +{
+> +	struct inode *inode;
+> +	struct inode *prev_inode = NULL;
+> +	char *name_buf;
+> +
+> +	name_buf = (char *)__get_free_page(GFP_TEMPORARY);
+> +	if (!name_buf)
+> +		return;
+> +
+> +	down_read(&sb->s_umount);
+> +	if (!sb->s_root)
+> +		goto out;
+> +
+> +	spin_lock(&inode_lock);
+> +	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+> +		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE|I_NEW))
+> +			continue;
+> +		__iget(inode);
+> +		spin_unlock(&inode_lock);
+> +		dump_inode(inode, name_buf, mnt);
+> +		if (inode->i_mapping->nrpages)
+> +			dump_pagecache(inode->i_mapping);
+> +		iput(prev_inode);
+> +		prev_inode = inode;
+> +		cond_resched();
+> +		spin_lock(&inode_lock);
+> +	}
+> +	spin_unlock(&inode_lock);
+> +	iput(prev_inode);
+> +out:
+> +	up_read(&sb->s_umount);
+> +	free_page((unsigned long)name_buf);
+> +}
+> +
+> +static ssize_t
+> +trace_pagecache_write(struct file *filp, const char __user *ubuf, size_t count,
+> +		      loff_t *ppos)
+> +{
+> +	struct file *file = NULL;
+> +	char *name;
+> +	int err = 0;
+> +
+> +	if (count <= 1)
+> +		return -EINVAL;
+> +	if (count > PATH_MAX + 1)
+> +		return -ENAMETOOLONG;
+> +
+> +	name = kmalloc(count+1, GFP_KERNEL);
+> +	if (!name)
+> +		return -ENOMEM;
+> +
+> +	if (copy_from_user(name, ubuf, count)) {
+> +		err = -EFAULT;
+> +		goto out;
+> +	}
+> +
+> +	/* strip the newline added by `echo` */
+> +	if (name[count-1] != '\n')
+> +		return -EINVAL;
+> +	name[count-1] = '\0';
+> +
+> +	file = filp_open(name, O_RDONLY|O_LARGEFILE, 0);
+> +	if (IS_ERR(file)) {
+> +		err = PTR_ERR(file);
+> +		file = NULL;
+> +		goto out;
+> +	}
+> +
+> +	if (tracing_update_buffers() < 0) {
+> +		err = -ENOMEM;
+> +		goto out;
+> +	}
+> +	if (trace_set_clr_event("mm", "dump_pagecache_range", 1)) {
+> +		err = -EINVAL;
+> +		goto out;
+> +	}
+> +	if (trace_set_clr_event("mm", "dump_inode", 1)) {
+> +		err = -EINVAL;
+> +		goto out;
+> +	}
+> +
+> +	if (filp->f_path.dentry->d_inode->i_private) {
+> +		dump_fs_pagecache(file->f_path.dentry->d_sb, file->f_path.mnt);
+> +	} else {
+> +		dump_pagecache(file->f_mapping);
+> +	}
+> +
+> +out:
+> +	if (file)
+> +		fput(file);
+> +	kfree(name);
+> +
+> +	return err ? err : count;
+> +}
+> +
+> +static const struct file_operations trace_pagecache_fops = {
+> +	.open		= tracing_open_generic,
+> +	.read		= trace_mm_dump_range_read,
+> +	.write		= trace_pagecache_write,
+> +};
+> +
+>  /* move this into trace_objects.c when that file is created */
+>  static struct dentry *trace_objects_dir(void)
+>  {
+> @@ -167,6 +365,12 @@ static __init int trace_objects_mm_init(
+>  	trace_create_file("dump_range", 0600, d_pages, NULL,
+>  			  &trace_mm_fops);
+>  
+> +	trace_create_file("walk-file", 0600, d_pages, NULL,
+> +			  &trace_pagecache_fops);
+> +
+> +	trace_create_file("walk-fs", 0600, d_pages, (void *)1,
+> +			  &trace_pagecache_fops);
+> +
+>  	return 0;
+>  }
+>  fs_initcall(trace_objects_mm_init);
+> --- linux-mm.orig/fs/inode.c	2010-02-08 23:19:12.000000000 +0800
+> +++ linux-mm/fs/inode.c	2010-02-08 23:19:22.000000000 +0800
+> @@ -149,7 +149,7 @@ struct inode *inode_init_always(struct s
+>  	inode->i_bdev = NULL;
+>  	inode->i_cdev = NULL;
+>  	inode->i_rdev = 0;
+> -	inode->dirtied_when = 0;
+> +	inode->dirtied_when = jiffies;
+>  
+>  	if (security_inode_alloc(inode))
+>  		goto out_free_inode;
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
