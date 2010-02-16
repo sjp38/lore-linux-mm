@@ -1,607 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id AD49A6B007D
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:32:05 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G8W2jj016748
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 16 Feb 2010 17:32:02 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 94B8F45DE54
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:32:01 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 426BE45DE4F
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:32:01 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D069FF8003
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:32:01 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BD7F1DB803F
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:32:00 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 05/12] Memory compaction core
-In-Reply-To: <1265976059-7459-6-git-send-email-mel@csn.ul.ie>
-References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-6-git-send-email-mel@csn.ul.ie>
-Message-Id: <20100216170014.7309.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CB5FE6B0082
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:36:29 -0500 (EST)
+Date: Tue, 16 Feb 2010 08:36:12 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 03/12] Export unusable free space index via
+	/proc/pagetypeinfo
+Message-ID: <20100216083612.GA26086@csn.ul.ie>
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-4-git-send-email-mel@csn.ul.ie> <20100216152106.72FA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 16 Feb 2010 17:31:59 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100216152106.72FA.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> This patch is the core of a mechanism which compacts memory in a zone by
-> relocating movable pages towards the end of the zone.
+On Tue, Feb 16, 2010 at 04:03:29PM +0900, KOSAKI Motohiro wrote:
+> > Unusuable free space index is a measure of external fragmentation that
+> > takes the allocation size into account. For the most part, the huge page
+> > size will be the size of interest but not necessarily so it is exported
+> > on a per-order and per-zone basis via /proc/pagetypeinfo.
 > 
-> A single compaction run involves a migration scanner and a free scanner.
-> Both scanners operate on pageblock-sized areas in the zone. The migration
-> scanner starts at the bottom of the zone and searches for all movable pages
-> within each area, isolating them onto a private list called migratelist.
-> The free scanner starts at the top of the zone and searches for suitable
-> areas and consumes the free pages within making them available for the
-> migration scanner. The pages isolated for migration are then migrated to
-> the newly isolated free pages.
+> Hmmm..
+> /proc/pagetype have a machine unfriendly format. perhaps, some user have own ugly
+> /proc/pagetype parser. It have a little risk to break userland ABI.
 > 
 
-Dumb question. This patch makes only in-zone comaction. why can't we support
-inter zone compaction? usually DMA zone is rare resource rather than NORMAL
-zone.
+It's very low risk. I doubt there are machine parsers of
+/proc/pagetypeinfo because there are very few machine-orientated actions
+that can be taken based on the information. It's more informational for
+a user if they were investigating fragmentation problems.
 
-
-
-
-
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  include/linux/compaction.h |    8 +
->  include/linux/mm.h         |    1 +
->  include/linux/swap.h       |    5 +
->  include/linux/vmstat.h     |    1 +
->  mm/Makefile                |    1 +
->  mm/compaction.c            |  341 ++++++++++++++++++++++++++++++++++++++++++++
->  mm/page_alloc.c            |   37 +++++
->  mm/vmscan.c                |    5 -
->  mm/vmstat.c                |    5 +
->  scripts/kconfig/conf.c     |    1 -
->  10 files changed, 399 insertions(+), 6 deletions(-)
->  create mode 100644 include/linux/compaction.h
->  create mode 100644 mm/compaction.c
-> 
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> new file mode 100644
-> index 0000000..6201371
-> --- /dev/null
-> +++ b/include/linux/compaction.h
-> @@ -0,0 +1,8 @@
-> +#ifndef _LINUX_COMPACTION_H
-> +#define _LINUX_COMPACTION_H
-> +
-> +/* Return values for compact_zone() */
-> +#define COMPACT_INCOMPLETE	0
-> +#define COMPACT_COMPLETE	1
-> +
-> +#endif /* _LINUX_COMPACTION_H */
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 60c467b..c2a2ede 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -332,6 +332,7 @@ void put_page(struct page *page);
->  void put_pages_list(struct list_head *pages);
->  
->  void split_page(struct page *page, unsigned int order);
-> +int split_free_page(struct page *page);
->  
->  /*
->   * Compound pages have a destructor function.  Provide a
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index a2602a8..7e7181b 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -238,6 +238,11 @@ static inline void lru_cache_add_active_file(struct page *page)
->  	__lru_cache_add(page, LRU_ACTIVE_FILE);
->  }
->  
-> +/* LRU Isolation modes. */
-> +#define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
-> +#define ISOLATE_ACTIVE 1	/* Isolate active pages. */
-> +#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
-> +
->  /* linux/mm/vmscan.c */
->  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  					gfp_t gfp_mask, nodemask_t *mask);
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index ee03bba..d7f7236 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -43,6 +43,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
->  		KSWAPD_SKIP_CONGESTION_WAIT,
->  		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-> +		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
->  #ifdef CONFIG_HUGETLB_PAGE
->  		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
->  #endif
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 7a68d2a..ccb1f72 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -33,6 +33,7 @@ obj-$(CONFIG_FAILSLAB) += failslab.o
->  obj-$(CONFIG_MEMORY_HOTPLUG) += memory_hotplug.o
->  obj-$(CONFIG_FS_XIP) += filemap_xip.o
->  obj-$(CONFIG_MIGRATION) += migrate.o
-> +obj-$(CONFIG_COMPACTION) += compaction.o
->  obj-$(CONFIG_SMP) += percpu.o
->  obj-$(CONFIG_QUICKLIST) += quicklist.o
->  obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> new file mode 100644
-> index 0000000..51ec864
-> --- /dev/null
-> +++ b/mm/compaction.c
-> @@ -0,0 +1,341 @@
-> +/*
-> + * linux/mm/compaction.c
-> + *
-> + * Memory compaction for the reduction of external fragmentation. Note that
-> + * this heavily depends upon page migration to do all the real heavy
-> + * lifting
-> + *
-> + * Copyright IBM Corp. 2009 Mel Gorman <mel@csn.ul.ie>
-
-if my remember is correct, now is 2010 :)
-
-
-> + */
-> +#include <linux/swap.h>
-> +#include <linux/migrate.h>
-> +#include <linux/compaction.h>
-> +#include <linux/mm_inline.h>
-> +#include "internal.h"
-> +
-> +/*
-> + * compact_control is used to track pages being migrated and the free pages
-> + * they are being migrated to during memory compaction. The free_pfn starts
-> + * at the end of a zone and migrate_pfn begins at the start. Movable pages
-> + * are moved to the end of a zone during a compaction run and the run
-> + * completes when free_pfn <= migrate_pfn
-> + */
-> +struct compact_control {
-> +	struct list_head freepages;	/* List of free pages to migrate to */
-> +	struct list_head migratepages;	/* List of pages being migrated */
-> +	unsigned long nr_freepages;	/* Number of isolated free pages */
-> +	unsigned long nr_migratepages;	/* Number of pages to migrate */
-> +	unsigned long free_pfn;		/* isolate_freepages search base */
-> +	unsigned long migrate_pfn;	/* isolate_migratepages search base */
-> +	struct zone *zone;
-> +};
-> +
-> +static int release_freepages(struct zone *zone, struct list_head *freelist)
-> +{
-> +	struct page *page, *next;
-> +	int count = 0;
-> +
-> +	list_for_each_entry_safe(page, next, freelist, lru) {
-> +		list_del(&page->lru);
-> +		__free_page(page);
-> +		count++;
-> +	}
-> +
-> +	return count;
-> +}
-> +
-> +/* Isolate free pages onto a private freelist. Must hold zone->lock */
-> +static int isolate_freepages_block(struct zone *zone,
-> +				unsigned long blockpfn,
-> +				struct list_head *freelist)
-> +{
-> +	unsigned long zone_end_pfn, end_pfn;
-> +	int total_isolated = 0;
-> +
-> +	/* Get the last PFN we should scan for free pages at */
-> +	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
-> +	end_pfn = blockpfn + pageblock_nr_pages;
-> +	if (end_pfn > zone_end_pfn)
-> +		end_pfn = zone_end_pfn;
-> +
-> +	/* Isolate free pages. This assumes the block is valid */
-> +	for (; blockpfn < end_pfn; blockpfn++) {
-> +		struct page *page;
-> +		int isolated, i;
-> +
-> +		if (!pfn_valid_within(blockpfn))
-> +			continue;
-> +
-> +		page = pfn_to_page(blockpfn);
-> +		if (!PageBuddy(page))
-> +			continue;
-> +
-> +		/* Found a free page, break it into order-0 pages */
-> +		isolated = split_free_page(page);
-> +		total_isolated += isolated;
-> +		for (i = 0; i < isolated; i++) {
-> +			list_add(&page->lru, freelist);
-> +			page++;
-> +		}
-> +		blockpfn += isolated - 1;
-> +	}
-> +
-> +	return total_isolated;
-> +}
-> +
-> +/* Returns 1 if the page is within a block suitable for migration to */
-> +static int suitable_migration_target(struct page *page)
-> +{
-> +	/* If the page is a large free page, then allow migration */
-> +	if (PageBuddy(page) && page_order(page) >= pageblock_order)
-> +		return 1;
-> +
-> +	/* If the block is MIGRATE_MOVABLE, allow migration */
-> +	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE)
-> +		return 1;
-> +
-> +	/* Otherwise skip the block */
-> +	return 0;
-> +}
-> +
-> +/*
-> + * Based on information in the current compact_control, find blocks
-> + * suitable for isolating free pages from
-> + */
-> +static void isolate_freepages(struct zone *zone,
-> +				struct compact_control *cc)
-> +{
-> +	struct page *page;
-> +	unsigned long high_pfn, low_pfn, pfn;
-> +	unsigned long flags;
-> +	int nr_freepages = cc->nr_freepages;
-> +	struct list_head *freelist = &cc->freepages;
-> +
-> +	pfn = cc->free_pfn;
-> +	low_pfn = cc->migrate_pfn + pageblock_nr_pages;
-> +	high_pfn = low_pfn;
-> +
-> +	/*
-> +	 * Isolate free pages until enough are available to migrate the
-> +	 * pages on cc->migratepages. We stop searching if the migrate
-> +	 * and free page scanners meet or enough free pages are isolated.
-> +	 */
-> +	spin_lock_irqsave(&zone->lock, flags);
-> +	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
-> +					pfn -= pageblock_nr_pages) {
-> +		int isolated;
-> +
-> +		if (!pfn_valid(pfn))
-> +			continue;
-> +
-> +		/* Check for overlapping nodes/zones */
-> +		page = pfn_to_page(pfn);
-> +		if (page_zone(page) != zone)
-> +			continue;
-> +
-> +		/* Check the block is suitable for migration */
-> +		if (!suitable_migration_target(page))
-> +			continue;
-> +
-> +		/* Found a block suitable for isolating free pages from */
-> +		isolated = isolate_freepages_block(zone, pfn, freelist);
-> +		nr_freepages += isolated;
-> +
-> +		/*
-> +		 * Record the highest PFN we isolated pages from. When next
-> +		 * looking for free pages, the search will restart here as
-> +		 * page migration may have returned some pages to the allocator
-> +		 */
-> +		if (isolated)
-> +			high_pfn = max(high_pfn, pfn);
-> +	}
-> +	spin_unlock_irqrestore(&zone->lock, flags);
-> +
-> +	cc->free_pfn = high_pfn;
-> +	cc->nr_freepages = nr_freepages;
-> +}
-> +
-> +/*
-> + * Isolate all pages that can be migrated from the block pointed to by
-> + * the migrate scanner within compact_control.
-> + */
-> +static unsigned long isolate_migratepages(struct zone *zone,
-> +					struct compact_control *cc)
-> +{
-> +	unsigned long low_pfn, end_pfn;
-> +	struct list_head *migratelist;
-> +	enum lru_list lru_src;
-> +
-> +	low_pfn = ALIGN(cc->migrate_pfn, pageblock_nr_pages);
-> +	migratelist = &cc->migratepages;
-> +
-> +	/* Do not scan outside zone boundaries */
-> +	if (low_pfn < zone->zone_start_pfn)
-> +		low_pfn = zone->zone_start_pfn;
-> +
-> +	/* Setup to scan one block but not past where we are migrating to */
-> +	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
-> +	cc->migrate_pfn = end_pfn;
-> +	VM_BUG_ON(end_pfn > cc->free_pfn);
-> +
-> +	if (!pfn_valid(low_pfn))
-> +		return 0;
-> +
-> +	migrate_prep();
-> +
-> +	/* Time to isolate some pages for migration */
-> +	spin_lock_irq(&zone->lru_lock);
-> +	for (; low_pfn < end_pfn; low_pfn++) {
-
-pageblock_nr_pages seems too long spin lock holding. why can't we
-release spinlock more frequently?
-
-plus, we need prevent too many concurrent compaction. otherwise too
-many isolation makes strange oom killer.
-
-
-> +		struct page *page;
-> +		if (!pfn_valid_within(low_pfn))
-> +			continue;
-> +
-> +		/* Get the page and skip if free */
-> +		page = pfn_to_page(low_pfn);
-> +		if (PageBuddy(page)) {
-> +			low_pfn += (1 << page_order(page)) - 1;
-> +			continue;
-> +		}
-> +
-> +		if (!PageLRU(page) || PageUnevictable(page))
-> +			continue;
-> +
-> +		/* Try isolate the page */
-> +		lru_src = page_lru(page);
-> +		switch (__isolate_lru_page(page, ISOLATE_BOTH, 0)) {
-
-I don't think __isolate_lru_page() is suitable. because it can't isolate
-unevictable pages. unevictable pages mean it's undroppable but it can be
-migrated.
-
-This is significantly difference between lumpy reclaim and migrate based
-compaction. please consider it.
-
-plus, can you please change NR_ISOLATED_FILE/ANON stat in this place. it
-help to prevent strange oom issue.
-
-
-> +		case 0:
-> +			list_move(&page->lru, migratelist);
-> +			mem_cgroup_del_lru(page);
-> +			cc->nr_migratepages++;
-> +			break;
-> +
-> +		case -EBUSY:
-> +			/*
-> +			 * else it is being freed elsewhere. The
-> +			 * problem is that we are not really sure where
-> +			 * it came from in the first place
-> +			 * XXX: Verify the putback logic is ok. This was
-> +			 *       all written before LRU lists were split
-> +			 */
-> +			list_move(&page->lru, &zone->lru[lru_src].list);
-> +			mem_cgroup_rotate_lru_list(page, page_lru(page));
-> +			continue;
-
-we don't need this rotation. probaby you copied it from isolate_lru_pages().
-then, I'd like to explain why isolate_lru_pages() need such rotation.
-isolate_lru_pages() isolate page by lru order, then if it put back the page
-to lru front, next isolate_lru_pages() found the same page. it's obviously
-cpu wasting. then we put back the page to lru tail.
-
-but this function isolate pages by pfn order, we don't need such trick imho.
-
-
-
-> +
-> +		default:
-> +			BUG();
-> +		}
-> +	}
-> +	spin_unlock_irq(&zone->lru_lock);
-> +
-> +	return cc->nr_migratepages;
-> +}
-> +
-> +/*
-> + * This is a migrate-callback that "allocates" freepages by taking pages
-> + * from the isolated freelists in the block we are migrating to.
-> + */
-> +static struct page *compaction_alloc(struct page *migratepage,
-> +					unsigned long data,
-> +					int **result)
-> +{
-> +	struct compact_control *cc = (struct compact_control *)data;
-> +	struct page *freepage;
-> +
-> +	VM_BUG_ON(cc == NULL);
-> +
-> +	/* Isolate free pages if necessary */
-> +	if (list_empty(&cc->freepages)) {
-> +		isolate_freepages(cc->zone, cc);
-> +
-> +		if (list_empty(&cc->freepages))
-> +			return NULL;
-> +	}
-> +
-> +	freepage = list_entry(cc->freepages.next, struct page, lru);
-> +	list_del(&freepage->lru);
-> +	cc->nr_freepages--;
-> +
-> +	return freepage;
-> +}
-> +
-> +/*
-> + * We cannot control nr_migratepages and nr_freepages fully when migration is
-> + * running as migrate_pages() has no knowledge of compact_control. When
-> + * migration is complete, we count the number of pages on the lists by hand.
-> + */
-> +static void update_nr_listpages(struct compact_control *cc)
-> +{
-> +	int nr_migratepages = 0;
-> +	int nr_freepages = 0;
-> +	struct page *page;
-> +	list_for_each_entry(page, &cc->migratepages, lru)
-> +		nr_migratepages++;
-> +	list_for_each_entry(page, &cc->freepages, lru)
-> +		nr_freepages++;
-> +
-> +	cc->nr_migratepages = nr_migratepages;
-> +	cc->nr_freepages = nr_freepages;
-> +}
-> +
-> +static inline int compact_finished(struct zone *zone,
-> +						struct compact_control *cc)
-> +{
-> +	/* Compaction run completes if the migrate and free scanner meet */
-> +	if (cc->free_pfn <= cc->migrate_pfn)
-> +		return COMPACT_COMPLETE;
-> +
-> +	return COMPACT_INCOMPLETE;
-> +}
-> +
-> +static int compact_zone(struct zone *zone, struct compact_control *cc)
-> +{
-> +	int ret = COMPACT_INCOMPLETE;
-> +
-> +	/*
-> +	 * Setup to move all movable pages to the end of the zone
-> +	 * XXX: This could be improved upon. In the event compaction
-> +	 *	is being successful quickly but called often, there
-> +	 *	is a likelihood of scanning the same blocks as sources
-> +	 *	and targets frequently. Might be worth caching the
-> +	 *	last migrate_pfn to reduce scan times.
-> +	 */
-> +	cc->migrate_pfn = zone->zone_start_pfn;
-> +	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
-> +	cc->free_pfn &= ~(pageblock_nr_pages-1);
-> +
-> +	for (; ret == COMPACT_INCOMPLETE; ret = compact_finished(zone, cc)) {
-> +		unsigned long nr_migrate, nr_remaining;
-> +		if (!isolate_migratepages(zone, cc))
-> +			continue;
-> +
-> +		nr_migrate = cc->nr_migratepages;
-> +		migrate_pages(&cc->migratepages, compaction_alloc,
-> +						(unsigned long)cc, 0);
-> +		update_nr_listpages(cc);
-> +		nr_remaining = cc->nr_migratepages;
-> +
-> +		count_vm_event(COMPACTBLOCKS);
-> +		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
-> +		if (nr_remaining)
-> +			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
-> +	}
-> +
-> +	/* Release free pages and check accounting */
-> +	cc->nr_freepages -= release_freepages(zone, &cc->freepages);
-> +	VM_BUG_ON(cc->nr_freepages != 0);
-> +
-> +	/*
-> +	 * Release LRU pages not migrated
-> +	 * XXX: Page migration at this point tries fairly hard to move
-> +	 *	pages as it is but if migration fails, pages are left
-> +	 *	on cc->migratepages for more passes. This might cause
-> +	 *	multiple useless failures. Watch compact_pagemigrate_failed
-> +	 *	in /proc/vmstat. If it grows a lot, then putback should
-> +	 *	happen after each failed migration
-> +	 */
-> +	if (!list_empty(&cc->migratepages))
-> +		putback_lru_pages(&cc->migratepages);
-> +
-> +	return ret;
-> +}
-> +
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8deb9d0..6d57154 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1168,6 +1168,43 @@ void split_page(struct page *page, unsigned int order)
->  		set_page_refcounted(page + i);
->  }
->  
-> +/* Similar to split_page except the page is already free */
-> +int split_free_page(struct page *page)
-> +{
-> +	unsigned int order;
-> +	unsigned long watermark;
-> +	struct zone *zone;
-> +
-> +	BUG_ON(!PageBuddy(page));
-> +
-> +	zone = page_zone(page);
-> +	order = page_order(page);
-> +
-> +	/* Obey watermarks or the system could deadlock */
-> +	watermark = low_wmark_pages(zone) + (1 << order);
-> +	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-> +		return 0;
-> +
-> +	/* Remove page from free list */
-> +	list_del(&page->lru);
-> +	zone->free_area[order].nr_free--;
-> +	rmv_page_order(page);
-> +	__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
-> +
-> +	/* Split into individual pages */
-> +	set_page_refcounted(page);
-> +	split_page(page, order);
-> +
-> +	/* Set the migratetype on the assumption it's for migration */
-> +	if (order >= pageblock_order - 1) {
-> +		struct page *endpage = page + (1 << order) - 1;
-> +		for (; page < endpage; page += pageblock_nr_pages)
-> +			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-> +	}
-> +
-> +	return 1 << order;
-> +}
-> +
->  /*
->   * Really, prep_compound_page() should be called from __rmqueue_bulk().  But
->   * we cheat by calling it from here, in the order > 0 path.  Saves a branch
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c26986c..47de19b 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -803,11 +803,6 @@ keep:
->  	return nr_reclaimed;
->  }
->  
-> -/* LRU Isolation modes. */
-> -#define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
-> -#define ISOLATE_ACTIVE 1	/* Isolate active pages. */
-> -#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
-> -
->  /*
->   * Attempt to remove the specified page from its LRU.  Only take this page
->   * if it is of the appropriate PageActive status.  Pages which are being
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index e2d0cc1..f0930ae 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -852,6 +852,11 @@ static const char * const vmstat_text[] = {
->  	"allocstall",
->  
->  	"pgrotated",
-> +
-> +	"compact_blocks_moved",
-> +	"compact_pages_moved",
-> +	"compact_pagemigrate_failed",
-> +
->  #ifdef CONFIG_HUGETLB_PAGE
->  	"htlb_buddy_alloc_success",
->  	"htlb_buddy_alloc_fail",
-> -- 
-> 1.6.5
+> I have dumb question. Why can't we use another file?
 > 
 
+I could. What do you suggest?
 
+> 
+> > The index is normally calculated as a value between 0 and 1 which is
+> > obviously unsuitable within the kernel. Instead, the first three decimal
+> > places are used as a value between 0 and 1000 for an integer approximation.
+> 
+> I think we can treat separately internal representaion and /proc displaing
+> style. example, load-average have fixed point internal representaion. but
+> /proc/loadavg hide it.
+> 
+> So, I personally like to keep this internal representation and change external
+> representaion to 0.000-1.000 or 0.0%-100.0% range.
+> 
+
+I don't want to use a percentage for this value as there are two
+indices, one of which can be expressed as a percentage and the other
+not. I can represent it has a value between 0 and 1 if you prefer.
+
+> 
+> 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  Documentation/filesystems/proc.txt |   10 ++++
+> >  mm/vmstat.c                        |   99 ++++++++++++++++++++++++++++++++++++
+> >  2 files changed, 109 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> > index 1829dfb..0968a81 100644
+> > --- a/Documentation/filesystems/proc.txt
+> > +++ b/Documentation/filesystems/proc.txt
+> > @@ -614,6 +614,10 @@ Node    0, zone    DMA32, type      Movable    169    152    113     91     77
+> >  Node    0, zone    DMA32, type      Reserve      1      2      2      2      2      0      1      1      1      1      0
+> >  Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+> >  
+> > +Unusable free space index at order
+> > +Node    0, zone      DMA                         0      0      0      2      6     18     34     67     99    227    485
+> > +Node    0, zone    DMA32                         0      0      1      2      4      7     10     17     23     31     34
+> > +
+> >  Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate
+> >  Node 0, zone      DMA            2            0            5            1            0
+> >  Node 0, zone    DMA32           41            6          967            2            0
+> > @@ -629,6 +633,12 @@ then gives the same type of information as buddyinfo except broken down
+> >  by migrate-type and finishes with details on how many page blocks of each
+> >  type exist.
+> >  
+> > +The unusable free space index measures how much of the available free
+> > +memory cannot be used to satisfy an allocation of a given size and is a
+> > +value between 0 and 1000. The higher the value, the more of free memory is
+> > +unusable and by implication, the worse the external fragmentation is. The
+> > +percentage of unusable free memory can be found by dividing this value by 10.
+> > +
+> >  If min_free_kbytes has been tuned correctly (recommendations made by hugeadm
+> >  from libhugetlbfs http://sourceforge.net/projects/libhugetlbfs/), one can
+> >  make an estimate of the likely number of huge pages that can be allocated
+> > diff --git a/mm/vmstat.c b/mm/vmstat.c
+> > index 6051fba..d05d610 100644
+> > --- a/mm/vmstat.c
+> > +++ b/mm/vmstat.c
+> > @@ -451,6 +451,104 @@ static int frag_show(struct seq_file *m, void *arg)
+> >  	return 0;
+> >  }
+> >  
+> > +
+> > +struct contig_page_info {
+> > +	unsigned long free_pages;
+> > +	unsigned long free_blocks_total;
+> > +	unsigned long free_blocks_suitable;
+> > +};
+> > +
+> > +/*
+> > + * Calculate the number of free pages in a zone, how many contiguous
+> > + * pages are free and how many are large enough to satisfy an allocation of
+> > + * the target size. Note that this function makes to attempt to estimate
+> > + * how many suitable free blocks there *might* be if MOVABLE pages were
+> > + * migrated. Calculating that is possible, but expensive and can be
+> > + * figured out from userspace
+> > + */
+> > +static void fill_contig_page_info(struct zone *zone,
+> > +				unsigned int suitable_order,
+> > +				struct contig_page_info *info)
+> > +{
+> > +	unsigned int order;
+> > +
+> > +	info->free_pages = 0;
+> > +	info->free_blocks_total = 0;
+> > +	info->free_blocks_suitable = 0;
+> > +
+> > +	for (order = 0; order < MAX_ORDER; order++) {
+> > +		unsigned long blocks;
+> > +
+> > +		/* Count number of free blocks */
+> > +		blocks = zone->free_area[order].nr_free;
+> > +		info->free_blocks_total += blocks;
+> > +
+> > +		/* Count free base pages */
+> > +		info->free_pages += blocks << order;
+> > +
+> > +		/* Count the suitable free blocks */
+> > +		if (order >= suitable_order)
+> > +			info->free_blocks_suitable += blocks <<
+> > +						(order - suitable_order);
+> > +	}
+> > +}
+> > +
+> > +/*
+> > + * Return an index indicating how much of the available free memory is
+> > + * unusable for an allocation of the requested size.
+> > + */
+> > +static int unusable_free_index(struct zone *zone,
+> > +				unsigned int order,
+> > +				struct contig_page_info *info)
+> > +{
+> > +	/* No free memory is interpreted as all free memory is unusable */
+> > +	if (info->free_pages == 0)
+> > +		return 1000;
+> > +
+> > +	/*
+> > +	 * Index should be a value between 0 and 1. Return a value to 3
+> > +	 * decimal places.
+> > +	 *
+> > +	 * 0 => no fragmentation
+> > +	 * 1 => high fragmentation
+> > +	 */
+> 
+> I leraned math by japanese. probably then I couldn't understand what mean
+> "3 decimal places" awhile.
+> Simply can't we write "Index should be a value between 0 and 1000"?
+> 
+
+I can do either that or make it really display between 0 and 1. I'd
+prefer displaying between 0 and 1 myself.
+
+> 
+> > +	return ((info->free_pages - (info->free_blocks_suitable << order)) * 1000) / info->free_pages;
+> > +
+> > +}
+> > +
+> > +static void pagetypeinfo_showunusable_print(struct seq_file *m,
+> > +					pg_data_t *pgdat, struct zone *zone)
+> > +{
+> > +	unsigned int order;
+> > +
+> > +	/* Alloc on stack as interrupts are disabled for zone walk */
+> > +	struct contig_page_info info;
+> > +
+> > +	seq_printf(m, "Node %4d, zone %8s %19s",
+> > +				pgdat->node_id,
+> > +				zone->name, " ");
+> > +	for (order = 0; order < MAX_ORDER; ++order) {
+> > +		fill_contig_page_info(zone, order, &info);
+> > +		seq_printf(m, "%6d ", unusable_free_index(zone, order, &info));
+> > +	}
+> > +
+> > +	seq_putc(m, '\n');
+> > +}
+> > +
+> > +/*
+> > + * Display unusable free space index
+> > + * XXX: Could be a lot more efficient, but it's not a critical path
+> > + */
+> > +static int pagetypeinfo_showunusable(struct seq_file *m, void *arg)
+> > +{
+> > +	pg_data_t *pgdat = (pg_data_t *)arg;
+> > +
+> > +	seq_printf(m, "\nUnusable free space index at order\n");
+> > +	walk_zones_in_node(m, pgdat, pagetypeinfo_showunusable_print);
+> > +
+> > +	return 0;
+> > +}
+> > +
+> >  static void pagetypeinfo_showfree_print(struct seq_file *m,
+> >  					pg_data_t *pgdat, struct zone *zone)
+> >  {
+> > @@ -558,6 +656,7 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
+> >  	seq_printf(m, "Pages per block:  %lu\n", pageblock_nr_pages);
+> >  	seq_putc(m, '\n');
+> >  	pagetypeinfo_showfree(m, pgdat);
+> > +	pagetypeinfo_showunusable(m, pgdat);
+> >  	pagetypeinfo_showblockcount(m, pgdat);
+> >  
+> >  	return 0;
+> > -- 
+> > 1.6.5
+> > 
+> 
+> 
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
