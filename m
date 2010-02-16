@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 828416B0098
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:51:14 -0500 (EST)
-Date: Tue, 16 Feb 2010 08:50:59 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 03/12] Export unusable free space index via
-	/proc/pagetypeinfo
-Message-ID: <20100216085058.GD26086@csn.ul.ie>
-References: <20100216152106.72FA.A69D9226@jp.fujitsu.com> <20100216083612.GA26086@csn.ul.ie> <20100216173832.730F.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 198646B007B
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:58:18 -0500 (EST)
+Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
+	by smtp-out.google.com with ESMTP id o1G8wE0b032741
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 08:58:14 GMT
+Received: from pxi28 (pxi28.prod.google.com [10.243.27.28])
+	by spaceape10.eur.corp.google.com with ESMTP id o1G8wBvA013556
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:58:13 -0800
+Received: by pxi28 with SMTP id 28so3910073pxi.7
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:58:11 -0800 (PST)
+Date: Tue, 16 Feb 2010 00:58:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 7/9 v2] oom: replace sysctls with quick mode
+In-Reply-To: <20100216062833.GB5723@laptop>
+Message-ID: <alpine.DEB.2.00.1002160052010.17122@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com> <alpine.DEB.2.00.1002151419120.26927@chino.kir.corp.google.com> <20100216062833.GB5723@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100216173832.730F.A69D9226@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 16, 2010 at 05:41:39PM +0900, KOSAKI Motohiro wrote:
-> > On Tue, Feb 16, 2010 at 04:03:29PM +0900, KOSAKI Motohiro wrote:
-> > > > Unusuable free space index is a measure of external fragmentation that
-> > > > takes the allocation size into account. For the most part, the huge page
-> > > > size will be the size of interest but not necessarily so it is exported
-> > > > on a per-order and per-zone basis via /proc/pagetypeinfo.
-> > > 
-> > > Hmmm..
-> > > /proc/pagetype have a machine unfriendly format. perhaps, some user have own ugly
-> > > /proc/pagetype parser. It have a little risk to break userland ABI.
-> > > 
+On Tue, 16 Feb 2010, Nick Piggin wrote:
+
+> > Two VM sysctls, oom dump_tasks and oom_kill_allocating_task, were
+> > implemented for very large systems to avoid excessively long tasklist
+> > scans.  The former suppresses helpful diagnostic messages that are
+> > emitted for each thread group leader that are candidates for oom kill
+> > including their pid, uid, vm size, rss, oom_adj value, and name; this
+> > information is very helpful to users in understanding why a particular
+> > task was chosen for kill over others.  The latter simply kills current,
+> > the task triggering the oom condition, instead of iterating through the
+> > tasklist looking for the worst offender.
 > > 
-> > It's very low risk. I doubt there are machine parsers of
-> > /proc/pagetypeinfo because there are very few machine-orientated actions
-> > that can be taken based on the information. It's more informational for
-> > a user if they were investigating fragmentation problems.
+> > Both of these sysctls are combined into one for use on the aforementioned
+> > large systems: oom_kill_quick.  This disables the now-default
+> > oom_dump_tasks and kills current whenever the oom killer is called.
 > > 
-> > > I have dumb question. Why can't we use another file?
-> > 
-> > I could. What do you suggest?
+> > The oom killer rewrite is the perfect opportunity to combine both sysctls
+> > into one instead of carrying around the others for years to come for
+> > nothing else than legacy purposes.
 > 
-> I agree it's low risk. but personally I hope fragmentation ABI keep very stable because
-> I expect some person makes userland compaction daemon. (read fragmentation index
-> from /proc and write /proc/compact_memory if necessary).
-> then, if possible, I hope fragmentation info have individual /proc file.
+> I just don't understand this either. There appears to be simply no
+> performance or maintainability reason to change this.
 > 
 
-I'd be somewhat surprised if there was an active userland compaction daemon
-because I'd expect them to be depending on direct compaction.  Userspace
-compaction is more likely to be an all-or-nothing affair and confined to
-NUMA nodes if they are being used as containers. If a compaction daemon was
-to exist, I'd have expected it to be in-kernel because the triggers from
-userspace are so coarse.
+When oom_dump_tasks() is always emitted for out of memory conditions as my 
+patch does, then these two tunables have the exact same audience: users 
+with large systems that have extremely long tasklists.  They want to avoid 
+tasklist scanning (either to select a bad process to kill or dump their 
+information) in oom conditions and simply kill the allocating task.  I 
+chose to combine the two: we're not concerned about breaking the 
+oom_dump_tasks ABI since it's now the default behavior and since we scan 
+the tasklist for mempolicy-constrained ooms, users may now choose to 
+enable oom_kill_allocating_task when they previously wouldn't have.  To do 
+that, they can either use the old sysctl or convert to this new sysctl 
+with the benefit that we've removed one unnecessary sysctl from 
+/proc/sys/vm.
 
-Still, I can break out the indices into separate files to cover all the
-bases.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+As far as I know, oom_kill_allocating_task is only used by SGI, anyway, 
+since they are the ones who asked for it when I implemented cpuset 
+tasklist scanning.  It's certainly not widely used and since the semantics 
+for mempolicies have changed, oom_kill_quick may find more users.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
