@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 481D66B0098
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:49:24 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G8nMMj011766
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 16 Feb 2010 17:49:22 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D5D9345DE54
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:49:21 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B526945DE51
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:49:21 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 986601DB803A
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:49:21 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E10CE08004
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:49:21 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 04/12] Export fragmentation index via /proc/pagetypeinfo
-In-Reply-To: <20100216084113.GB26086@csn.ul.ie>
-References: <20100216160518.7303.A69D9226@jp.fujitsu.com> <20100216084113.GB26086@csn.ul.ie>
-Message-Id: <20100216174749.7312.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 828416B0098
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:51:14 -0500 (EST)
+Date: Tue, 16 Feb 2010 08:50:59 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 03/12] Export unusable free space index via
+	/proc/pagetypeinfo
+Message-ID: <20100216085058.GD26086@csn.ul.ie>
+References: <20100216152106.72FA.A69D9226@jp.fujitsu.com> <20100216083612.GA26086@csn.ul.ie> <20100216173832.730F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 16 Feb 2010 17:49:20 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100216173832.730F.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > Dumb question. I haven't understand why this calculation represent
-> > fragmentation index. Do this have theorical background? if yes, can you
-> > please tell me the pointer?
+On Tue, Feb 16, 2010 at 05:41:39PM +0900, KOSAKI Motohiro wrote:
+> > On Tue, Feb 16, 2010 at 04:03:29PM +0900, KOSAKI Motohiro wrote:
+> > > > Unusuable free space index is a measure of external fragmentation that
+> > > > takes the allocation size into account. For the most part, the huge page
+> > > > size will be the size of interest but not necessarily so it is exported
+> > > > on a per-order and per-zone basis via /proc/pagetypeinfo.
+> > > 
+> > > Hmmm..
+> > > /proc/pagetype have a machine unfriendly format. perhaps, some user have own ugly
+> > > /proc/pagetype parser. It have a little risk to break userland ABI.
+> > > 
 > > 
+> > It's very low risk. I doubt there are machine parsers of
+> > /proc/pagetypeinfo because there are very few machine-orientated actions
+> > that can be taken based on the information. It's more informational for
+> > a user if they were investigating fragmentation problems.
+> > 
+> > > I have dumb question. Why can't we use another file?
+> > 
+> > I could. What do you suggest?
 > 
-> Yes, there is a theoritical background. It's mostly described in
+> I agree it's low risk. but personally I hope fragmentation ABI keep very stable because
+> I expect some person makes userland compaction daemon. (read fragmentation index
+> from /proc and write /proc/compact_memory if necessary).
+> then, if possible, I hope fragmentation info have individual /proc file.
 > 
-> http://portal.acm.org/citation.cfm?id=1375634.1375641
-> 
-> I have a more updated version but it's not published unfortunately.
 
-ok, thanks. I stop to rush dumb question and read it first. I'll resume rest reviewing
-few days after.
+I'd be somewhat surprised if there was an active userland compaction daemon
+because I'd expect them to be depending on direct compaction.  Userspace
+compaction is more likely to be an all-or-nothing affair and confined to
+NUMA nodes if they are being used as containers. If a compaction daemon was
+to exist, I'd have expected it to be in-kernel because the triggers from
+userspace are so coarse.
 
-thanks.
+Still, I can break out the indices into separate files to cover all the
+bases.
 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
