@@ -1,63 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7906E6B0089
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:41:43 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G8ffr2020924
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 16 Feb 2010 17:41:41 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E2D0345DE51
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:41:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BBED545DE4E
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:41:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A0F31DB803C
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:41:40 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 080051DB8038
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:41:40 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 03/12] Export unusable free space index via /proc/pagetypeinfo
-In-Reply-To: <20100216083612.GA26086@csn.ul.ie>
-References: <20100216152106.72FA.A69D9226@jp.fujitsu.com> <20100216083612.GA26086@csn.ul.ie>
-Message-Id: <20100216173832.730F.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F4F36B008A
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:43:02 -0500 (EST)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id o1G8gw7d020972
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 08:42:58 GMT
+Received: from pxi32 (pxi32.prod.google.com [10.243.27.32])
+	by wpaz21.hot.corp.google.com with ESMTP id o1G8gsV8014282
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:42:55 -0800
+Received: by pxi32 with SMTP id 32so1451198pxi.3
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:42:54 -0800 (PST)
+Date: Tue, 16 Feb 2010 00:42:50 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 4/9 v2] oom: remove compulsory panic_on_oom mode
+In-Reply-To: <20100216080817.GK5723@laptop>
+Message-ID: <alpine.DEB.2.00.1002160035100.17122@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com> <alpine.DEB.2.00.1002151418190.26927@chino.kir.corp.google.com> <20100216062035.GA5723@laptop> <alpine.DEB.2.00.1002152252310.2745@chino.kir.corp.google.com> <20100216072047.GH5723@laptop>
+ <alpine.DEB.2.00.1002152342120.7470@chino.kir.corp.google.com> <20100216080817.GK5723@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 16 Feb 2010 17:41:39 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Feb 16, 2010 at 04:03:29PM +0900, KOSAKI Motohiro wrote:
-> > > Unusuable free space index is a measure of external fragmentation that
-> > > takes the allocation size into account. For the most part, the huge page
-> > > size will be the size of interest but not necessarily so it is exported
-> > > on a per-order and per-zone basis via /proc/pagetypeinfo.
+On Tue, 16 Feb 2010, Nick Piggin wrote:
+
+> > > > Because it is inconsistent at the user's expense, it has never panicked 
+> > > > the machine for memory controller ooms, so why is a cpuset or mempolicy 
+> > > > constrained oom conditions any different?
+> > > 
+> > > Well memory controller was added later, wasn't it? So if you think
+> > > that's a bug then a fix to panic on memory controller ooms might
+> > > be in order.
+> > > 
 > > 
-> > Hmmm..
-> > /proc/pagetype have a machine unfriendly format. perhaps, some user have own ugly
-> > /proc/pagetype parser. It have a little risk to break userland ABI.
-> > 
+> > But what about the existing memcg users who set panic_on_oom == 2 and 
+> > don't expect the memory controller to be influenced by that?
 > 
-> It's very low risk. I doubt there are machine parsers of
-> /proc/pagetypeinfo because there are very few machine-orientated actions
-> that can be taken based on the information. It's more informational for
-> a user if they were investigating fragmentation problems.
+> But that was a bug in the addition of the memory controller. Either the
+> documentation should be fixed, or the implementation should be fixed.
 > 
-> > I have dumb question. Why can't we use another file?
+
+The memory controller behavior seems intentional because it prevents 
+panicking in two places: mem_cgroup_out_of_memory() never considers it and 
+sysctl_panic_on_oom is preempted in pagefault_out_of_memory() if current's 
+memcg is oom.
+
+The documentation is currently right because it only mentions an 
+application to cpusets and mempolicies.
+
+That's the reason why I think we should eliminate it: it is completely 
+bogus as it stands because it allows tasks to be killed in memory 
+controller environments if their hard limit is reached unless they are set 
+to OOM_DISABLE.  That doesn't have fail-stop behavior and trying to make 
+exceptions to the rule is not true "fail-stop" that we need to preserve 
+with this interface.
+
+> > Because the oom killer was never called for VM_FAULT_OOM before, we simply 
+> > sent a SIGKILL to current, i.e. the original panic_on_oom semantics were 
+> > not even enforced.
 > 
-> I could. What do you suggest?
+> No but now they are. I don't know what your point is here because there
+> is no way the users of this interface can be expected to know about
+> VM_FAULT_OOM versus pagefault_out_of_memory let alone do anything useful
+> with that.
+> 
 
-I agree it's low risk. but personally I hope fragmentation ABI keep very stable because
-I expect some person makes userland compaction daemon. (read fragmentation index
-from /proc and write /proc/compact_memory if necessary).
-then, if possible, I hope fragmentation info have individual /proc file.
+I think VM_FAULT_OOM should panic the machine for panic_on_oom == 1 as it 
+presently does, it needs no special handling otherwise.  But this is an 
+example of where semantics of panic_on_oom have changed in the past where 
+OOM_DISABLE would remove any ambiguity.  Instead of redefining the 
+sysctl's semantics everytime we add another usecase for the oom killer, 
+why can't we just use a single interface that has been around for years 
+when a certain task shouldn't be killed?
 
+> Let's fix the memory controller case.
+> 
 
+I doubt you'll find much support from the memory controller folks on that 
+since they probably won't agree this is fail-stop behavior and killing a 
+task when constrained by a memcg is appropriate because the user asked for 
+a hard limit.
+
+Again, OOM_DISABLE would remove all ambiguity and we wouldn't need to 
+concern ourselves of what the semantics of a poorly chosen interface such 
+as panic_on_oom == 2 is whenever we change the oom killer.
+
+> I assume it is reasonable to want to panic on any OOM if you're after
+> fail-stop kind of behaviour. I guess that is why it was added. I see
+> more use for that case than panic_on_oom==1 case myself.
+> 
+
+panic_on_oom == 1 is reasonable since no system task can make forward 
+progress in allocating memory, that isn't necessarily true of cpuset or 
+mempolicy (or memcg) constrained applications.  Other cpusets, for 
+instance, can continue to do work uninterrupted and without threat of 
+having one of their tasks being oom killed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
