@@ -1,86 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C5FD76B007E
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 01:44:08 -0500 (EST)
-Date: Tue, 16 Feb 2010 17:44:02 +1100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch -mm 8/9 v2] oom: avoid oom killer for lowmem allocations
-Message-ID: <20100216064402.GC5723@laptop>
-References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1002151419260.26927@chino.kir.corp.google.com>
- <20100216085706.c7af93e1.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.1002151606320.14484@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AEBF6B007E
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 01:59:38 -0500 (EST)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o1G6xZkZ004098
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 22:59:35 -0800
+Received: from pwj7 (pwj7.prod.google.com [10.241.219.71])
+	by kpbe12.cbf.corp.google.com with ESMTP id o1G6xAuo019728
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 22:59:34 -0800
+Received: by pwj7 with SMTP id 7so767611pwj.13
+        for <linux-mm@kvack.org>; Mon, 15 Feb 2010 22:59:32 -0800 (PST)
+Date: Mon, 15 Feb 2010 22:59:26 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 4/9 v2] oom: remove compulsory panic_on_oom mode
+In-Reply-To: <20100216062035.GA5723@laptop>
+Message-ID: <alpine.DEB.2.00.1002152252310.2745@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com> <alpine.DEB.2.00.1002151418190.26927@chino.kir.corp.google.com> <20100216062035.GA5723@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1002151606320.14484@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 15, 2010 at 04:10:15PM -0800, David Rientjes wrote:
-> On Tue, 16 Feb 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > > If memory has been depleted in lowmem zones even with the protection
-> > > afforded to it by /proc/sys/vm/lowmem_reserve_ratio, it is unlikely that
-> > > killing current users will help.  The memory is either reclaimable (or
-> > > migratable) already, in which case we should not invoke the oom killer at
-> > > all, or it is pinned by an application for I/O.  Killing such an
-> > > application may leave the hardware in an unspecified state and there is
-> > > no guarantee that it will be able to make a timely exit.
-> > > 
-> > > Lowmem allocations are now failed in oom conditions so that the task can
-> > > perhaps recover or try again later.  Killing current is an unnecessary
-> > > result for simply making a GFP_DMA or GFP_DMA32 page allocation and no
-> > > lowmem allocations use the now-deprecated __GFP_NOFAIL bit so retrying is
-> > > unnecessary.
-> > > 
-> > > Previously, the heuristic provided some protection for those tasks with 
-> > > CAP_SYS_RAWIO, but this is no longer necessary since we will not be
-> > > killing tasks for the purposes of ISA allocations.
-> > > 
-> > > high_zoneidx is gfp_zone(gfp_flags), meaning that ZONE_NORMAL will be the
-> > > default for all allocations that are not __GFP_DMA, __GFP_DMA32,
-> > > __GFP_HIGHMEM, and __GFP_MOVABLE on kernels configured to support those
-> > > flags.  Testing for high_zoneidx being less than ZONE_NORMAL will only
-> > > return true for allocations that have either __GFP_DMA or __GFP_DMA32.
-> > > 
-> > > Acked-by: Rik van Riel <riel@redhat.com>
-> > > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > Signed-off-by: David Rientjes <rientjes@google.com>
-> > > ---
-> > >  mm/page_alloc.c |    3 +++
-> > >  1 files changed, 3 insertions(+), 0 deletions(-)
-> > > 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -1914,6 +1914,9 @@ rebalance:
-> > >  	 * running out of options and have to consider going OOM
-> > >  	 */
-> > >  	if (!did_some_progress) {
-> > > +		/* The oom killer won't necessarily free lowmem */
-> > > +		if (high_zoneidx < ZONE_NORMAL)
-> > > +			goto nopage;
-> > >  		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
-> > >  			if (oom_killer_disabled)
-> > >  				goto nopage;
-> > 
-> > WARN_ON((high_zoneidx < ZONE_NORMAL) && (gfp_mask & __GFP_NOFAIL))
-> > plz.
-> > 
-> 
-> As I already explained when you first brought this up, the possibility of 
-> not invoking the oom killer is not unique to GFP_DMA, it is also possible 
-> for GFP_NOFS.  Since __GFP_NOFAIL is deprecated and there are no current 
-> users of GFP_DMA | __GFP_NOFAIL, that warning is completely unnecessary.  
-> We're not adding any additional __GFP_NOFAIL allocations.
+On Tue, 16 Feb 2010, Nick Piggin wrote:
 
-Completely agree with this request. Actually, I think even better you
-should just add && !(gfp_mask & __GFP_NOFAIL). Deprecated doesn't mean
-it is OK to break the API (callers *will* oops or corrupt memory if
-__GFP_NOFAIL returns NULL).
+> What is the point of removing it, though? If it doesn't significantly
+> help some future patch, just leave it in. It's not worth breaking the
+> user/kernel interface just to remove 3 trivial lines of code.
+> 
+
+Because it is inconsistent at the user's expense, it has never panicked 
+the machine for memory controller ooms, so why is a cpuset or mempolicy 
+constrained oom conditions any different?  It also panics the machine even 
+on VM_FAULT_OOM which is ridiculous, the tunable is certainly not being 
+used how it was documented and so given the fact that mempolicy 
+constrained ooms are now much smarter with my rewrite and we never simply 
+kill current unless oom_kill_quick is enabled anymore, the compulsory 
+panic_on_oom == 2 mode is no longer required.  Simply set all tasks 
+attached to a cpuset or bound to a specific mempolicy to be OOM_DISABLE, 
+the kernel need not provide confusing alternative modes to sysctls for 
+this behavior.  Before panic_on_oom == 2 was introduced, it would have 
+only panicked the machine if panic_on_oom was set to a non-zero integer, 
+defining it be something different for '2' after it has held the same 
+semantics for years is inappropriate.  There is just no concrete example 
+that anyone can give where they want a cpuset-constrained oom to panic the 
+machine when other tasks on a disjoint set of mems can continue to do 
+work and the cpuset of interest cannot have its tasks set to OOM_DISABLE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
