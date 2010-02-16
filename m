@@ -1,51 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 069016B007B
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:05:15 -0500 (EST)
-Date: Wed, 17 Feb 2010 01:04:47 +1100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [3/4] SLAB: Set up the l3 lists for the memory of
- freshly added memory v2
-Message-ID: <20100216140447.GN5723@laptop>
-References: <20100211953.850854588@firstfloor.org>
- <20100211205403.05A8EB1978@basil.firstfloor.org>
- <alpine.DEB.2.00.1002111344130.8809@chino.kir.corp.google.com>
- <20100215060655.GH5723@laptop>
- <alpine.DEB.2.00.1002151344020.26927@chino.kir.corp.google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 87C486B007B
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:56:21 -0500 (EST)
+Date: Tue, 16 Feb 2010 08:55:46 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 05/12] Memory compaction core
+In-Reply-To: <20100216084800.GC26086@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1002160849460.18275@router.home>
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-6-git-send-email-mel@csn.ul.ie> <20100216170014.7309.A69D9226@jp.fujitsu.com> <20100216084800.GC26086@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1002151344020.26927@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 15, 2010 at 01:47:29PM -0800, David Rientjes wrote:
-> On Mon, 15 Feb 2010, Nick Piggin wrote:
-> 
-> > > > @@ -1577,6 +1595,8 @@ void __init kmem_cache_init_late(void)
-> > > >  	 */
-> > > >  	register_cpu_notifier(&cpucache_notifier);
-> > > >  
-> > > > +	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
-> > > > +
-> > > 
-> > > Only needed for CONFIG_NUMA, but there's no side-effects for UMA kernels 
-> > > since status_change_nid will always be -1.
-> > 
-> > Compiler doesn't know that, though.
-> > 
-> 
-> Right, setting up a memory hotplug callback for UMA kernels here isn't 
-> necessary although slab_node_prepare() would have to be defined 
-> unconditionally.  I made this suggestion in my review of the patchset's 
-> initial version but it was left unchanged, so I'd rather see it included 
-> than otherwise stall out.  This could always be enclosed in
-> #ifdef CONFIG_NUMA later just like the callback in slub does.
+On Tue, 16 Feb 2010, Mel Gorman wrote:
 
-It's not such a big burden to annotate critical core code with such
-things. Otherwise someone else ends up eventually doing it.
+> Because how do I tell in advance that the data I am migrating from DMA can
+> be safely relocated to the NORMAL zone? We don't save GFP flags. Granted,
+> for DMA, that will not matter as pages that must be in DMA will also not by
+> migratable. However, buffer pages should not get relocated to HIGHMEM for
+> example which is more likely to happen. It could be special cased but
+> I'm not aware of ZONE_DMA-related pressure problems that would make this
+> worthwhile and if so, it should be handled as a separate patch series.
+
+Oh there are numerous ZONE_DMA pressure issues if you have ancient /
+screwed up hardware that can only operate on DMA or DMA32 memory.
+
+Moving page cache pages out of the DMA zone would be good. A
+write request will cause the page to bounce back to the DMA zone if the
+device requires the page there.
+
+But I also think that the patchset should be as simple as possible so that
+it can be merged soon.
+
+> Ah, it was 2009 when I last kicked this around heavily :) I'll update
+> it.
+
+But it was authored in 2009. May be important if patent or other
+copyright claims arise. 2009-2010?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
