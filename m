@@ -1,47 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 42AAB6B007B
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 15:45:57 -0500 (EST)
-Message-ID: <4B7B03E8.40903@cs.helsinki.fi>
-Date: Tue, 16 Feb 2010 22:45:28 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5136B007B
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 16:32:24 -0500 (EST)
+Message-ID: <4B7B0D75.50808@nortel.com>
+Date: Tue, 16 Feb 2010 15:26:13 -0600
+From: "Chris Friesen" <cfriesen@nortel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] [3/4] SLAB: Set up the l3 lists for the memory of freshly
- added memory v2
-References: <20100211953.850854588@firstfloor.org> <20100211205403.05A8EB1978@basil.firstfloor.org> <alpine.DEB.2.00.1002111344130.8809@chino.kir.corp.google.com> <20100215060655.GH5723@laptop> <alpine.DEB.2.00.1002151344020.26927@chino.kir.corp.google.com> <20100216140447.GN5723@laptop>
-In-Reply-To: <20100216140447.GN5723@laptop>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
+References: <4B71927D.6030607@nortel.com>	 <20100210093140.12D9.A69D9226@jp.fujitsu.com>	 <4B72E74C.9040001@nortel.com>	 <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>	 <4B74524D.8080804@nortel.com> <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com> <4B7504D2.1040903@nortel.com> <4B796D31.7030006@nortel.com> <4B797D93.5090307@redhat.com> <4B7ACD4A.10101@nortel.com> <4B7AD207.20604@redhat.com>
+In-Reply-To: <4B7AD207.20604@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> On Mon, Feb 15, 2010 at 01:47:29PM -0800, David Rientjes wrote:
->> On Mon, 15 Feb 2010, Nick Piggin wrote:
->>
->>>>> @@ -1577,6 +1595,8 @@ void __init kmem_cache_init_late(void)
->>>>>  	 */
->>>>>  	register_cpu_notifier(&cpucache_notifier);
->>>>>  
->>>>> +	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
->>>>> +
->>>> Only needed for CONFIG_NUMA, but there's no side-effects for UMA kernels 
->>>> since status_change_nid will always be -1.
->>> Compiler doesn't know that, though.
->>>
->> Right, setting up a memory hotplug callback for UMA kernels here isn't 
->> necessary although slab_node_prepare() would have to be defined 
->> unconditionally.  I made this suggestion in my review of the patchset's 
->> initial version but it was left unchanged, so I'd rather see it included 
->> than otherwise stall out.  This could always be enclosed in
->> #ifdef CONFIG_NUMA later just like the callback in slub does.
+On 02/16/2010 11:12 AM, Rik van Riel wrote:
+> On 02/16/2010 11:52 AM, Chris Friesen wrote:
+>> On 02/15/2010 11:00 AM, Rik van Riel wrote:
 > 
-> It's not such a big burden to annotate critical core code with such
-> things. Otherwise someone else ends up eventually doing it.
+>>> Removal from the LRU is done from the page freeing code, on
+>>> the final free of the page.
+> 
+>> There are a bunch of inline functions involved, but I think the chain
+>> from page_remove_rmap() back up to unmap_vmas() looks like this:
+>>
+>> page_remove_rmap
+>> zap_pte_range
+>> zap_pmd_range
+>> zap_pud_range
+>> unmap_page_range
+>> unmap_vmas
+>>
+>> So in this scenario, where do the pages actually get removed from the
+>> LRU list (assuming that they're not in use by anyone else)?
+> 
+> __page_cache_release
 
-Yes, please.
+
+For the backtrace scenario I posted it seems like it might actually be
+release_pages().  There seems to be a plausible call chain:
+
+__ClearPageLRU
+release_pages
+free_pages_and_swap_cache
+tlb_flush_mmu
+tlb_remove_page
+zap_pte_range
+
+Does that seem right?  In this case, tlb_remove_page() is called right
+after page_remove_rmap() which ultimately results in clearing the
+PageAnon bit.
+
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
