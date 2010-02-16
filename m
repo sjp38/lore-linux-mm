@@ -1,62 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 851296B007B
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 10:00:01 -0500 (EST)
-Date: Tue, 16 Feb 2010 14:59:44 +0000
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 16BEC6B007B
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 10:45:23 -0500 (EST)
+Date: Tue, 16 Feb 2010 15:45:05 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 05/12] Memory compaction core
-Message-ID: <20100216145943.GA997@csn.ul.ie>
-References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-6-git-send-email-mel@csn.ul.ie> <20100216170014.7309.A69D9226@jp.fujitsu.com> <20100216084800.GC26086@csn.ul.ie> <alpine.DEB.2.00.1002160849460.18275@router.home>
+Subject: [PATCH] mm: Document /proc/pagetypeinfo
+Message-ID: <20100216154505.GB997@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1002160849460.18275@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 16, 2010 at 08:55:46AM -0600, Christoph Lameter wrote:
-> On Tue, 16 Feb 2010, Mel Gorman wrote:
-> 
-> > Because how do I tell in advance that the data I am migrating from DMA can
-> > be safely relocated to the NORMAL zone? We don't save GFP flags. Granted,
-> > for DMA, that will not matter as pages that must be in DMA will also not by
-> > migratable. However, buffer pages should not get relocated to HIGHMEM for
-> > example which is more likely to happen. It could be special cased but
-> > I'm not aware of ZONE_DMA-related pressure problems that would make this
-> > worthwhile and if so, it should be handled as a separate patch series.
-> 
-> Oh there are numerous ZONE_DMA pressure issues if you have ancient /
-> screwed up hardware that can only operate on DMA or DMA32 memory.
-> 
+This patch adds documentation for /proc/pagetypeinfo.
 
-I've never ran into the issue. I was under the impression that the only
-device that might care these days are floopy disks.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ Documentation/filesystems/proc.txt |   45 +++++++++++++++++++++++++++++++++++-
+ 1 files changed, 44 insertions(+), 1 deletions(-)
 
-> Moving page cache pages out of the DMA zone would be good. A
-> write request will cause the page to bounce back to the DMA zone if the
-> device requires the page there.
-> 
-> But I also think that the patchset should be as simple as possible so that
-> it can be merged soon.
-> 
-
-Agreed.
-
-> > Ah, it was 2009 when I last kicked this around heavily :) I'll update
-> > it.
-> 
-> But it was authored in 2009. May be important if patent or other
-> copyright claims arise. 2009-2010?
-> 
-
-2007-2010 in that case because 2007 was when I first prototyped this.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 0d07513..1829dfb 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -430,6 +430,7 @@ Table 1-5: Kernel info in /proc
+  modules     List of loaded modules                            
+  mounts      Mounted filesystems                               
+  net         Networking info (see text)                        
++ pagetypeinfo Additional page allocator information (see text)  (2.5)
+  partitions  Table of partitions known to the system           
+  pci	     Deprecated info of PCI bus (new way -> /proc/bus/pci/,
+              decoupled by lspci					(2.4)
+@@ -584,7 +585,7 @@ Node 0, zone      DMA      0      4      5      4      4      3 ...
+ Node 0, zone   Normal      1      0      0      1    101      8 ...
+ Node 0, zone  HighMem      2      0      0      1      1      0 ...
+ 
+-Memory fragmentation is a problem under some workloads, and buddyinfo is a 
++External fragmentation is a problem under some workloads, and buddyinfo is a
+ useful tool for helping diagnose these problems.  Buddyinfo will give you a 
+ clue as to how big an area you can safely allocate, or why a previous
+ allocation failed.
+@@ -594,6 +595,48 @@ available.  In this case, there are 0 chunks of 2^0*PAGE_SIZE available in
+ ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE 
+ available in ZONE_NORMAL, etc... 
+ 
++More information relevant to external fragmentation can be found in
++pagetypeinfo.
++
++> cat /proc/pagetypeinfo
++Page block order: 9
++Pages per block:  512
++
++Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10
++Node    0, zone      DMA, type    Unmovable      0      0      0      1      1      1      1      1      1      1      0
++Node    0, zone      DMA, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0
++Node    0, zone      DMA, type      Movable      1      1      2      1      2      1      1      0      1      0      2
++Node    0, zone      DMA, type      Reserve      0      0      0      0      0      0      0      0      0      1      0
++Node    0, zone      DMA, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
++Node    0, zone    DMA32, type    Unmovable    103     54     77      1      1      1     11      8      7      1      9
++Node    0, zone    DMA32, type  Reclaimable      0      0      2      1      0      0      0      0      1      0      0
++Node    0, zone    DMA32, type      Movable    169    152    113     91     77     54     39     13      6      1    452
++Node    0, zone    DMA32, type      Reserve      1      2      2      2      2      0      1      1      1      1      0
++Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
++
++Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate
++Node 0, zone      DMA            2            0            5            1            0
++Node 0, zone    DMA32           41            6          967            2            0
++
++Fragmentation avoidance in the kernel works by grouping pages of different
++migrate types into the same contiguous regions of memory called page blocks.
++A page block is typically the size of the default hugepage size e.g. 2MB on
++X86-64. By keeping pages grouped based on their ability to move, the kernel
++can reclaim pages within a page block to satisfy a high-order allocation.
++
++The pagetypinfo begins with information on the size of a page block. It
++then gives the same type of information as buddyinfo except broken down
++by migrate-type and finishes with details on how many page blocks of each
++type exist.
++
++If min_free_kbytes has been tuned correctly (recommendations made by hugeadm
++from libhugetlbfs http://sourceforge.net/projects/libhugetlbfs/), one can
++make an estimate of the likely number of huge pages that can be allocated
++at a given point in time. All the "Movable" blocks should be allocatable
++unless memory has been mlock()'d. Some of the Reclaimable blocks should
++also be allocatable although a lot of filesystem metadata may have to be
++reclaimed to achieve this.
++
+ ..............................................................................
+ 
+ meminfo:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
