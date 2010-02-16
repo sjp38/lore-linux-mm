@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id F3A306B007B
-	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 19:00:44 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G00Zx7009114
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B5D736B007E
+	for <linux-mm@kvack.org>; Mon, 15 Feb 2010 19:03:34 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G03Wov001499
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 16 Feb 2010 09:00:35 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AF1645DE58
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:00:35 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BEC2645DE4F
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:00:34 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 844CE1DB8040
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:00:34 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B2351DB8043
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:00:34 +0900 (JST)
-Date: Tue, 16 Feb 2010 08:57:06 +0900
+	Tue, 16 Feb 2010 09:03:32 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BEA645DE7A
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:03:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D113445DE6E
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:03:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C9591DB8048
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:03:31 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A59D1DB803B
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 09:03:31 +0900 (JST)
+Date: Tue, 16 Feb 2010 09:00:05 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm 8/9 v2] oom: avoid oom killer for lowmem allocations
-Message-Id: <20100216085706.c7af93e1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1002151419260.26927@chino.kir.corp.google.com>
+Subject: Re: [patch -mm 4/9 v2] oom: remove compulsory panic_on_oom mode
+Message-Id: <20100216090005.f362f869.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1002151418190.26927@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1002151419260.26927@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1002151418190.26927@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,56 +33,24 @@ To: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Feb 2010 14:20:21 -0800 (PST)
+On Mon, 15 Feb 2010 14:20:09 -0800 (PST)
 David Rientjes <rientjes@google.com> wrote:
 
-> If memory has been depleted in lowmem zones even with the protection
-> afforded to it by /proc/sys/vm/lowmem_reserve_ratio, it is unlikely that
-> killing current users will help.  The memory is either reclaimable (or
-> migratable) already, in which case we should not invoke the oom killer at
-> all, or it is pinned by an application for I/O.  Killing such an
-> application may leave the hardware in an unspecified state and there is
-> no guarantee that it will be able to make a timely exit.
+> If /proc/sys/vm/panic_on_oom is set to 2, the kernel will panic
+> regardless of whether the memory allocation is constrained by either a
+> mempolicy or cpuset.
 > 
-> Lowmem allocations are now failed in oom conditions so that the task can
-> perhaps recover or try again later.  Killing current is an unnecessary
-> result for simply making a GFP_DMA or GFP_DMA32 page allocation and no
-> lowmem allocations use the now-deprecated __GFP_NOFAIL bit so retrying is
-> unnecessary.
+> Since mempolicy-constrained out of memory conditions now iterate through
+> the tasklist and select a task to kill, it is possible to panic the
+> machine if all tasks sharing the same mempolicy nodes (including those
+> with default policy, they may allocate anywhere) or cpuset mems have
+> /proc/pid/oom_adj values of OOM_DISABLE.  This is functionally equivalent
+> to the compulsory panic_on_oom setting of 2, so the mode is removed.
 > 
-> Previously, the heuristic provided some protection for those tasks with 
-> CAP_SYS_RAWIO, but this is no longer necessary since we will not be
-> killing tasks for the purposes of ISA allocations.
-> 
-> high_zoneidx is gfp_zone(gfp_flags), meaning that ZONE_NORMAL will be the
-> default for all allocations that are not __GFP_DMA, __GFP_DMA32,
-> __GFP_HIGHMEM, and __GFP_MOVABLE on kernels configured to support those
-> flags.  Testing for high_zoneidx being less than ZONE_NORMAL will only
-> return true for allocations that have either __GFP_DMA or __GFP_DMA32.
-> 
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/page_alloc.c |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1914,6 +1914,9 @@ rebalance:
->  	 * running out of options and have to consider going OOM
->  	 */
->  	if (!did_some_progress) {
-> +		/* The oom killer won't necessarily free lowmem */
-> +		if (high_zoneidx < ZONE_NORMAL)
-> +			goto nopage;
->  		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
->  			if (oom_killer_disabled)
->  				goto nopage;
 
-WARN_ON((high_zoneidx < ZONE_NORMAL) && (gfp_mask & __GFP_NOFAIL))
-plz.
+NACK. In an enviroment which depends on cluster-fail-over, this is useful
+even if in such situation.
 
 Thanks,
 -Kame
