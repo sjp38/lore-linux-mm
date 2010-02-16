@@ -1,56 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B0746B0093
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:49:20 -0500 (EST)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id o1G8nImZ020005
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:49:18 -0800
-Received: from pxi35 (pxi35.prod.google.com [10.243.27.35])
-	by wpaz13.hot.corp.google.com with ESMTP id o1G8nHth016663
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:49:17 -0800
-Received: by pxi35 with SMTP id 35so896516pxi.16
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 00:49:16 -0800 (PST)
-Date: Tue, 16 Feb 2010 00:49:14 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/7 -mm] oom: filter tasks not sharing the same cpuset
-In-Reply-To: <20100216070344.GF5723@laptop>
-Message-ID: <alpine.DEB.2.00.1002160047340.17122@chino.kir.corp.google.com>
-References: <20100215115154.727B.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1002151401280.26927@chino.kir.corp.google.com> <20100216110859.72C6.A69D9226@jp.fujitsu.com> <20100216070344.GF5723@laptop>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 481D66B0098
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 03:49:24 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1G8nMMj011766
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 16 Feb 2010 17:49:22 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D5D9345DE54
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:49:21 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B526945DE51
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:49:21 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 986601DB803A
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:49:21 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E10CE08004
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 17:49:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 04/12] Export fragmentation index via /proc/pagetypeinfo
+In-Reply-To: <20100216084113.GB26086@csn.ul.ie>
+References: <20100216160518.7303.A69D9226@jp.fujitsu.com> <20100216084113.GB26086@csn.ul.ie>
+Message-Id: <20100216174749.7312.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 16 Feb 2010 17:49:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Feb 2010, Nick Piggin wrote:
+> > Dumb question. I haven't understand why this calculation represent
+> > fragmentation index. Do this have theorical background? if yes, can you
+> > please tell me the pointer?
+> > 
+> 
+> Yes, there is a theoritical background. It's mostly described in
+> 
+> http://portal.acm.org/citation.cfm?id=1375634.1375641
+> 
+> I have a more updated version but it's not published unfortunately.
 
-> Yes we do need to explain the downside of the patch. It is a
-> heuristic and we can't call either approach perfect.
-> 
-> The fact is that even if 2 tasks are on completely disjoint
-> memory policies and never _allocate_ from one another's nodes,
-> you can still have one task pinning memory of the other task's
-> node.
-> 
-> Most shared and userspace-pinnable resources (pagecache, vfs
-> caches and fds files sockes etc) are allocated by first-touch
-> basically.
-> 
-> I don't see much usage of cpusets and oom killer first hand in
-> my experience, so I am happy to defer to others when it comes
-> to heuristics. Just so long as we are all aware of the full
-> story :)
-> 
+ok, thanks. I stop to rush dumb question and read it first. I'll resume rest reviewing
+few days after.
 
-Unless you can present a heuristic that will determine how much memory 
-usage a given task has allocated on nodes in current's zonelist, we must 
-exclude tasks from cpusets with a disjoint set of nodes, otherwise we 
-cannot determine the optimal task to kill.  There's a strong possibility 
-that killing a task on a disjoint set of mems will never free memory for 
-current, making it a needless kill.  That's a much more serious 
-consequence than not having the patch, in my opinion, than rather simply 
-killing current.
+thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
