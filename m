@@ -1,133 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 815E96B004D
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 19:20:40 -0500 (EST)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id o1H0LH8G029038
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 16:21:17 -0800
-Received: from pwi4 (pwi4.prod.google.com [10.241.219.4])
-	by kpbe19.cbf.corp.google.com with ESMTP id o1H0KrMg024277
-	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 16:21:16 -0800
-Received: by pwi4 with SMTP id 4so879105pwi.4
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 16:21:16 -0800 (PST)
-Date: Tue, 16 Feb 2010 16:21:11 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 31FED6B004D
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 19:31:07 -0500 (EST)
+Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
+	by smtp-out.google.com with ESMTP id o1H0VhJb018397
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 00:31:43 GMT
+Received: from pxi41 (pxi41.prod.google.com [10.243.27.41])
+	by spaceape13.eur.corp.google.com with ESMTP id o1H0VWBv022330
+	for <linux-mm@kvack.org>; Tue, 16 Feb 2010 16:31:42 -0800
+Received: by pxi41 with SMTP id 41so678435pxi.8
+        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 16:31:42 -0800 (PST)
+Date: Tue, 16 Feb 2010 16:31:39 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 8/9 v2] oom: avoid oom killer for lowmem
- allocations
-In-Reply-To: <20100217090303.6bd64209.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1002161609200.11952@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com> <alpine.DEB.2.00.1002151419260.26927@chino.kir.corp.google.com> <20100216085706.c7af93e1.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002151606320.14484@chino.kir.corp.google.com>
- <20100216064402.GC5723@laptop> <alpine.DEB.2.00.1002152334260.7470@chino.kir.corp.google.com> <20100216075330.GJ5723@laptop> <alpine.DEB.2.00.1002160024370.15201@chino.kir.corp.google.com> <20100217084858.fd72ec4f.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.1002161555170.11952@chino.kir.corp.google.com> <20100217090303.6bd64209.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch -mm 4/9 v2] oom: remove compulsory panic_on_oom mode
+In-Reply-To: <20100217090124.398769d5.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1002161623190.11952@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com> <alpine.DEB.2.00.1002151418190.26927@chino.kir.corp.google.com> <20100216090005.f362f869.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002151610380.14484@chino.kir.corp.google.com>
+ <20100216092311.86bceb0c.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002160058470.17122@chino.kir.corp.google.com> <20100217084239.265c65ea.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002161550550.11952@chino.kir.corp.google.com>
+ <20100217090124.398769d5.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 17 Feb 2010, KAMEZAWA Hiroyuki wrote:
 
-> > On Wed, 17 Feb 2010, KAMEZAWA Hiroyuki wrote:
-> > 
-> > > > > > I'll add this check to __alloc_pages_may_oom() for the !(gfp_mask & 
-> > > > > > __GFP_NOFAIL) path since we're all content with endlessly looping.
-> > > > > 
-> > > > > Thanks. Yes endlessly looping is far preferable to randomly oopsing
-> > > > > or corrupting memory.
-> > > > > 
-> > > > 
-> > > > Here's the new patch for your consideration.
-> > > > 
-> > > 
-> > > Then, can we take kdump in this endlessly looping situaton ?
-> > > 
-> > > panic_on_oom=always + kdump can do that. 
-> > > 
-> > 
-> > The endless loop is only helpful if something is going to free memory 
-> > external to the current page allocation: either another task with 
-> > __GFP_WAIT | __GFP_FS that invokes the oom killer, a task that frees 
-> > memory, or a task that exits.
-> > 
-> > The most notable endless loop in the page allocator is the one when a task 
-> > has been oom killed, gets access to memory reserves, and then cannot find 
-> > a page for a __GFP_NOFAIL allocation:
-> > 
-> > 	do {
-> > 		page = get_page_from_freelist(gfp_mask, nodemask, order,
-> > 			zonelist, high_zoneidx, ALLOC_NO_WATERMARKS,
-> > 			preferred_zone, migratetype);
-> > 
-> > 		if (!page && gfp_mask & __GFP_NOFAIL)
-> > 			congestion_wait(BLK_RW_ASYNC, HZ/50);
-> > 	} while (!page && (gfp_mask & __GFP_NOFAIL));
-> > 
-> > We don't expect any such allocations to happen during the exit path, but 
-> > we could probably find some in the fs layer.
-> > 
-> > I don't want to check sysctl_panic_on_oom in the page allocator because it 
-> > would start panicking the machine unnecessarily for the integrity 
-> > metadata GFP_NOIO | __GFP_NOFAIL allocation, for any 
-> > order > PAGE_ALLOC_COSTLY_ORDER, or for users who can't lock the zonelist 
-> > for oom kill that wouldn't have panicked before.
-> > 
+> Hmm, I have a few reason to add special behavior to memcg rather than panic.
 > 
-> Then, why don't you check higzone_idx in oom_kill.c
+>  - freeze_at_oom is enough.
+>    If OOM can be notified, the management daemon can do useful jobs. Shutdown
+>    all other cgroups or migrate them to other host and do kdump.
 > 
 
-out_of_memory() doesn't return a value to specify whether the page 
-allocator should retry the allocation or just return NULL, all that policy 
-is kept in mm/page_alloc.c.  For highzone_idx < ZONE_NORMAL, we want to 
-fail the allocation when !(gfp_mask & __GFP_NOFAIL) and call the oom 
-killer when it's __GFP_NOFAIL.
----
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1696,6 +1696,9 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 		/* The OOM killer will not help higher order allocs */
- 		if (order > PAGE_ALLOC_COSTLY_ORDER)
- 			goto out;
-+		/* The OOM killer does not needlessly kill tasks for lowmem */
-+		if (high_zoneidx < ZONE_NORMAL)
-+			goto out;
- 		/*
- 		 * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
- 		 * Sanity check for bare calls of __GFP_THISNODE, not real OOM.
-@@ -1924,15 +1927,23 @@ rebalance:
- 			if (page)
- 				goto got_pg;
- 
--			/*
--			 * The OOM killer does not trigger for high-order
--			 * ~__GFP_NOFAIL allocations so if no progress is being
--			 * made, there are no other options and retrying is
--			 * unlikely to help.
--			 */
--			if (order > PAGE_ALLOC_COSTLY_ORDER &&
--						!(gfp_mask & __GFP_NOFAIL))
--				goto nopage;
-+			if (!(gfp_mask & __GFP_NOFAIL)) {
-+				/*
-+				 * The oom killer is not called for high-order
-+				 * allocations that may fail, so if no progress
-+				 * is being made, there are no other options and
-+				 * retrying is unlikely to help.
-+				 */
-+				if (order > PAGE_ALLOC_COSTLY_ORDER)
-+					goto nopage;
-+				/*
-+				 * The oom killer is not called for lowmem
-+				 * allocations to prevent needlessly killing
-+				 * innocent tasks.
-+				 */
-+				if (high_zoneidx < ZONE_NORMAL)
-+					goto nopage;
-+			}
- 
- 			goto restart;
- 		}
+The same could be said for cpusets if users use that for memory isolation.
+
+> But, Hmm...I'd like to go this way.
+> 
+>  1. At first, support panic_on_oom=2 in memcg.
+> 
+
+This should panic in mem_cgroup_out_of_memory() and the documentation 
+should be added to Documentation/sysctl/vm.txt.
+
+The memory controller also has some protection in the pagefault oom 
+handler that seems like it could be made more general: instead of checking 
+for mem_cgroup_oom_called(), I'd rather do a tasklist scan to check for 
+already oom killed task (checking for the TIF_MEMDIE bit) and check all 
+zones for ZONE_OOM_LOCKED.  If no oom killed tasks are found and no zones 
+are locked, we can check sysctl_panic_on_oom and invoke the system-wide 
+oom.
+
+>  2. Second, I'll add OOM-notifier and freeze_at_oom to memcg.
+>     and don't call memcg_out_of_memory in oom_kill.c in this case. Because
+>     we don't kill anything. Taking coredumps of all procs in memcg is not
+>     very difficult.
+> 
+
+The oom notifier would be at a higher level than the oom killer, the oom 
+killer's job is simply to kill a task when it is called.  So for these 
+particular cases, you would never even call into out_of_memory() to panic 
+the machine in the first place.  Hopefully, the oom notifier can be made 
+to be more generic as its own cgroup rather than only being used by memcg, 
+but if such a userspace notifier would defer to the kernel oom killer, it 
+should panic when panic_on_oom == 2 is selected regardless of whether it 
+is constrained or not.  Thus, we can keep the sysctl_panic_on_oom logic in 
+the oom killer (both in out_of_memory() and mem_cgroup_out_of_memory()) 
+without risk of unnecessarily panic whenever an oom notifier or 
+freeze_at_oom setting intercepts the condition.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
