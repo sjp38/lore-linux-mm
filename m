@@ -1,175 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8D1636B0078
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 02:41:15 -0500 (EST)
-Received: by pxi6 with SMTP id 6so5704666pxi.14
-        for <linux-mm@kvack.org>; Tue, 16 Feb 2010 23:41:14 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B31496B0078
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 03:45:37 -0500 (EST)
+Date: Wed, 17 Feb 2010 19:45:26 +1100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] memcg: handle panic_on_oom=always case
+Message-ID: <20100217084526.GP5723@laptop>
+References: <20100217150445.1a40201d.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1002161323450.23037@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002100224210.8001@chino.kir.corp.google.com>
-	 <alpine.DEB.2.00.1002100228540.8001@chino.kir.corp.google.com>
-	 <4B73833D.5070008@redhat.com>
-	 <alpine.DEB.2.00.1002102332200.22152@chino.kir.corp.google.com>
-	 <1265982984.6207.29.camel@barrios-desktop>
-	 <alpine.DEB.2.00.1002121251130.7972@chino.kir.corp.google.com>
-	 <28c262361002121845w459d0fa0l55a58552c3a6081e@mail.gmail.com>
-	 <alpine.DEB.2.00.1002151347470.26927@chino.kir.corp.google.com>
-	 <1266326086.1709.50.camel@barrios-desktop>
-	 <alpine.DEB.2.00.1002161323450.23037@chino.kir.corp.google.com>
-Date: Wed, 17 Feb 2010 16:41:13 +0900
-Message-ID: <28c262361002162341m1d77509dv37d7d13b4ccd0ef9@mail.gmail.com>
-Subject: Re: [patch 4/7 -mm] oom: badness heuristic rewrite
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100217150445.1a40201d.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, rientjes@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 17, 2010 at 6:41 AM, David Rientjes <rientjes@google.com> wrote=
-:
-> On Tue, 16 Feb 2010, Minchan Kim wrote:
->
->> > Again, I'd encourage you to look at this as only a slight penalization
->> > rather than a policy that strictly needs to be enforced. =C2=A0If it w=
-ere
->> > strictly enforced, it would be a prerequisite for selection if such a =
-task
->> > were to exist; in my implementation, it is part of the heuristic.
->>
->> Okay. I can think it of slight penalization in this patch.
->> But in current OOM logic, we try to kill child instead of forkbomb
->> itself. My concern was that.
->
-> We still do with my rewrite, that is handled in oom_kill_process(). =C2=
-=A0The
-> forkbomb penalization takes place in badness().
+On Wed, Feb 17, 2010 at 03:04:45PM +0900, KAMEZAWA Hiroyuki wrote:
+> tested on mmotm-Feb11.
+> 
+> Balbir-san, Nishimura-san, I want review from both of you.
+> 
+> ==
+> 
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Now, if panic_on_oom=2, the whole system panics even if the oom happend
+> in some special situation (as cpuset, mempolicy....).
+> Then, panic_on_oom=2 means painc_on_oom_always.
+> 
+> Now, memcg doesn't check panic_on_oom flag. This patch adds a check.
+> 
+> Maybe someone doubts how it's useful. kdump+panic_on_oom=2 is the
+> last tool to investigate what happens in oom-ed system. If a task is killed,
+> the sysytem recovers and used memory were freed, there will be few hint
+> to know what happnes. In mission critical system, oom should never happen.
+> Then, investigation after OOM is very important.
+> Then, panic_on_oom=2+kdump is useful to avoid next OOM by knowing
+> precise information via snapshot.
+
+No I don't doubt it is useful, and I think this probably is the simplest
+and most useful semantic. So thanks for doing this.
+
+I hate to pick nits in a trivial patch but I will anyway:
 
 
-I thought this patch is closely related to [patch  2/7].
-I can move this discussion to [patch 2/7] if you want.
-Another guys already pointed out why we care child.
+> TODO:
+>  - For memcg, it's for isolate system's memory usage, oom-notiifer and
+>    freeze_at_oom (or rest_at_oom) should be implemented. Then, management
+>    daemon can do similar jobs (as kdump) in safer way or taking snapshot
+>    per cgroup.
+> 
+> CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+> CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> CC: David Rientjes <rientjes@google.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  Documentation/cgroups/memory.txt |    2 ++
+>  Documentation/sysctl/vm.txt      |    5 ++++-
+>  mm/oom_kill.c                    |    2 ++
+>  3 files changed, 8 insertions(+), 1 deletion(-)
+> 
+> Index: mmotm-2.6.33-Feb11/Documentation/cgroups/memory.txt
+> ===================================================================
+> --- mmotm-2.6.33-Feb11.orig/Documentation/cgroups/memory.txt
+> +++ mmotm-2.6.33-Feb11/Documentation/cgroups/memory.txt
+> @@ -182,6 +182,8 @@ list.
+>  NOTE: Reclaim does not work for the root cgroup, since we cannot set any
+>  limits on the root cgroup.
+>  
+> +Note2: When panic_on_oom is set to "2", the whole system will panic.
+> +
 
->
->> 1. Forkbomb A task makes 2000 children in a second.
->> 2. 2000 children has almost same memory usage. I know another factors
->> affect oom_score. but in here, I assume all of children have almost same
->> badness score.
->> 3. Your heuristic penalizes A task so it would be detected as forkbomb.
->> 4. So OOM killer select A task as bad task.
->> 5. oom_kill_process kills high badness one of children, _NOT_ task A
->> itself. Unfortunately high badness child doesn't has big memory usage
->> compared to sibling. It means sooner or later we would need OOM again.
->>
->
-> Couple points: killing a task with a comparatively small rss and swap
-> usage to the parent does not imply that we need the call the oom killer
-> again later, killing the child will allow for future memory freeing that
-> may be all that is necessary. =C2=A0If the parent continues to fork, that=
- will
-> continue to be an issue, but the constant killing of its children should
-> allow the user to intervene without bring the system to a grinding halt.
+Maybe:
 
-I said this scenario is BUGGY forkbomb process. It will fork + exec continu=
-ously
-if it isn't killed. How does user intervene to fix the system?
-System was almost hang due to unresponsive.
+NOTE2: When panic_on_oom is set to "2", the whole system will panic in
+case of an oom event in any cgroup.
 
-For extreme example,
-User is writing some important document by OpenOffice and
-he decided to execute hackbench 1000000 process 1000000.
+>  2. Locking
+>  
+>  The memory controller uses the following hierarchy
+> Index: mmotm-2.6.33-Feb11/Documentation/sysctl/vm.txt
+> ===================================================================
+> --- mmotm-2.6.33-Feb11.orig/Documentation/sysctl/vm.txt
+> +++ mmotm-2.6.33-Feb11/Documentation/sysctl/vm.txt
+> @@ -573,11 +573,14 @@ Because other nodes' memory may be free.
+>  may be not fatal yet.
+>  
+>  If this is set to 2, the kernel panics compulsorily even on the
+> -above-mentioned.
+> +above-mentioned. Even oom happens under memoyr cgroup, the whole
+> +system panics.
+                                           memory
 
-Could user save his important office data without halt if we kill
-child continuously?
-I think this scenario can be happened enough if the user didn't know
-parameter of hackbench.
+>  
+>  The default value is 0.
+>  1 and 2 are for failover of clustering. Please select either
+>  according to your policy of failover.
+> +2 seems too strong but panic_on_oom=2+kdump gives you very strong
+> +tool to investigate a system which should never cause OOM.
 
-> I'd strongly prefer to kill a child from a forkbombing task, however, tha=
-n
-> an innocent application that has been running for days or weeks only to
-> find that the forkbombing parent will consume its memory as well and then
-> need have its children killed. =C2=A0Secondly, the forkbomb detection doe=
-s not
+I don't think you need say 2 seems too strong because as you rightfully
+say, it has real uses. The hint about using it to investigate OOM
+conditions is good though.
 
-Okay.
-consider my argue related to  2/7, pz.
-
-> simply require 2000 children to be forked in a second, it requires
-> oom_forkbomb_thres children that have called execve(), i.e. they have
-> seperate address spaces, to have a runtime of less than one second.
->
->> My point was 5.
->>
->> 1. oom_kill_process have to take a long time to scan tasklist for
->> selecting just one high badness task. Okay. It's right since OOM system
->> hang is much bad and it would be better to kill just first task(ie,
->> random one) in tasklist.
->>
->> 2. But in above scenario, sibling have almost same memory. So we would
->> need OOM again sooner or later and OOM logic could do above scenario
->> repeatably.
->>
->
-> In Rik's web server example, this is the preferred outcome: kill a thread
-> handling a single client connection rather than kill a "legitimate"
-> forkbombing server to make the entire service unresponsive.
->
->> I said _BUGGY_ forkbomb task. That's because Rik's example isn't buggy
->> task. Administrator already knows apache can make many task in a second.
->> So he can handle it by your oom_forkbomb_thres knob. It's goal of your
->> knob.
->>
->
-> We can't force all web servers to tune oom_forkbomb_thres.
->
->> So my suggestion is following as.
->>
->> I assume normal forkbomb tasks are handled well by admin who use your
->> oom_forkbom_thres. The remained problem is just BUGGY forkbomb process.
->> So if your logic selects same victim task as forkbomb by your heuristic
->> and it's 5th time continuously in 10 second, let's kill forkbomb instead
->> of child.
->>
->> tsk =3D select_victim_task(&cause);
->> if (tsk =3D=3D last_victim_tsk && cause =3D=3D BUGGY_FORKBOMB)
->> =C2=A0 =C2=A0 =C2=A0 if (++count =3D=3D 5 && time_since_first_detect_for=
-kbomb <=3D 10*HZ)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 kill(tsk);
->> else {
->> =C2=A0 =C2=A0last_victim_tsk =3D NULL; count =3D 0; time_since... =3D 0;
->> =C2=A0 =C2=A0kill(tsk's child);
->> }
->>
->> It's just example of my concern. It might never good solution.
->> What I mean is just whether we have to care this.
->>
->
-> This unfairly penalizes tasks that have a large number of execve()
-> children, we can't possibly know how to define BUGGY_FORKBOMB. =C2=A0In o=
-ther
-> words, a system-wide forkbombing policy in the oom killer will always hav=
-e
-> a chance of killing a legitimate task, such as a web server, that will be
-> an undesired result. =C2=A0Setting the parent to OOM_DISABLE isn't really=
- an
-> option in this case since that value is inherited by children and would
-> need to explicitly be cleared by each thread prior to execve(); this is
-> one of the reasons why I proposed /proc/pid/oom_adj_child a few months
-> ago, but it wasn't well received.
->
-
-I don't want to annoy you if others guys don't have any complain.
-If it has a problem in future, at that time we could discuss further
-in detail with
-real example.
-I hope we don't received any complain report. :)
-
-Thanks for good discussion, David.
-
---=20
-Kind regards,
-Minchan Kim
+>  
+>  =============================================================
+>  
+> Index: mmotm-2.6.33-Feb11/mm/oom_kill.c
+> ===================================================================
+> --- mmotm-2.6.33-Feb11.orig/mm/oom_kill.c
+> +++ mmotm-2.6.33-Feb11/mm/oom_kill.c
+> @@ -471,6 +471,8 @@ void mem_cgroup_out_of_memory(struct mem
+>  	unsigned long points = 0;
+>  	struct task_struct *p;
+>  
+> +	if (sysctl_panic_on_oom == 2)
+> +		panic("out of memory(memcg). panic_on_oom is selected.\n");
+>  	read_lock(&tasklist_lock);
+>  retry:
+>  	p = select_bad_process(&points, mem);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
