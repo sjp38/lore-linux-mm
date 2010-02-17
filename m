@@ -1,131 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 638196B0078
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 04:07:37 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1H97Y2w029416
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 17 Feb 2010 18:07:34 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EAC245DE79
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 18:07:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B48545DE6F
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 18:07:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DC68C1DB8049
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 18:07:33 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A5031DB8041
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 18:07:33 +0900 (JST)
-Date: Wed, 17 Feb 2010 18:04:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memcg: handle panic_on_oom=always case v2
-Message-Id: <20100217180405.fae00f46.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100217150445.1a40201d.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100217150445.1a40201d.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B14EC6B0078
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 04:11:41 -0500 (EST)
+Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
+	by smtp-out.google.com with ESMTP id o1H9BbRU014820
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 09:11:37 GMT
+Received: from pzk42 (pzk42.prod.google.com [10.243.19.170])
+	by spaceape11.eur.corp.google.com with ESMTP id o1H9As7P026219
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 01:11:36 -0800
+Received: by pzk42 with SMTP id 42so5367149pzk.8
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2010 01:11:34 -0800 (PST)
+Date: Wed, 17 Feb 2010 01:11:30 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 4/9 v2] oom: remove compulsory panic_on_oom mode
+In-Reply-To: <20100217122106.31e12398.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1002170052410.30931@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com> <20100216092311.86bceb0c.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002160058470.17122@chino.kir.corp.google.com> <20100217084239.265c65ea.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1002161550550.11952@chino.kir.corp.google.com> <20100217090124.398769d5.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002161623190.11952@chino.kir.corp.google.com> <20100217094137.a0d26fbb.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1002161648570.31753@chino.kir.corp.google.com> <alpine.DEB.2.00.1002161756100.15079@chino.kir.corp.google.com> <20100217111319.d342f10e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002161825280.2768@chino.kir.corp.google.com>
+ <20100217113430.9528438d.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002161850540.3106@chino.kir.corp.google.com> <20100217122106.31e12398.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, rientjes@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, npiggin@suse.de
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 17 Feb 2010, KAMEZAWA Hiroyuki wrote:
 
-Documenation is updated.
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > The hugetlb case seems to be the only misuse of VM_FAULT_OOM where it 
+> > doesn't mean we simply don't have the memory to handle the page fault, 
+> > i.e. your earlier "memory is exhausted" definition.  That was handled well 
+> > before calling out_of_memory() by simply killing current since we know it 
+> > is faulting hugetlb pages and its resource is limited.
+> > 
+> > We could pass the vma to pagefault_out_of_memory() and simply kill current 
+> > if its killable and is_vm_hugetlb_page(vma).
+> > 
+> 
+> No. hugepage is not only case.
+> You may not read but we annoyed i915's driver bug recently and it was clearly
+> misuse of VM_FAULT_OOM. Then, we got many reports of OOM killer in these months.
+> (thanks to Kosaki about this.)
+> 
 
-Now, if panic_on_oom=2, the whole system panics even if the oom happend
-in some special situation (as cpuset, mempolicy....).
-Then, panic_on_oom=2 means painc_on_oom_always.
+That's been fixed, right?
 
-Now, memcg doesn't check panic_on_oom flag. This patch adds a check.
+> quick glance around core codes...
+>  - HUGEPAGE at el. should return some VM_FAULT_NO_RESOUECE rather than VM_FAULT_OOM.
 
-BTW, how it's useful ?
+We can detect this with is_vm_hugetlb_page() if we pass the vma into 
+pagefault_out_of_memory() without adding another VM_FAULT flag.
 
-kdump+panic_on_oom=2 is the last tool to investigate what happens in oom-ed
-system. When a task is killed, the sysytem recovers and there will be few hint
-to know what happnes. In mission critical system, oom should never happen.
-Then, panic_on_oom=2+kdump is useful to avoid next OOM by knowing
-precise information via snapshot.
+>  - filemap.c's VM_FAULT_OOM shoudn't call page_fault_oom_kill because it has already
+>    called oom_killer if it can. 
 
-TODO:
- - For memcg, it's for isolate system's memory usage, oom-notiifer and
-   freeze_at_oom (or rest_at_oom) should be implemented. Then, management
-   daemon can do similar jobs (as kdump) or taking snapshot per cgroup.
+See below.
 
-Changelg:
- - rewrote documentations.
+>  - about relayfs, is VM_FAULT_OOM should be BUG_ON()...
 
-CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-CC: David Rientjes <rientjes@google.com>
-CC: Nick Piggin <npiggin@suse.de>
-Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- Documentation/cgroups/memory.txt |    5 ++++-
- Documentation/sysctl/vm.txt      |    5 ++++-
- mm/oom_kill.c                    |    2 ++
- 3 files changed, 10 insertions(+), 2 deletions(-)
+That looks appropriate at first glance.
 
-Index: mmotm-2.6.33-Feb11/Documentation/cgroups/memory.txt
-===================================================================
---- mmotm-2.6.33-Feb11.orig/Documentation/cgroups/memory.txt
-+++ mmotm-2.6.33-Feb11/Documentation/cgroups/memory.txt
-@@ -182,6 +182,8 @@ list.
- NOTE: Reclaim does not work for the root cgroup, since we cannot set any
- limits on the root cgroup.
- 
-+Note2: When panic_on_oom is set to "2", the whole system will panic.
-+
- 2. Locking
- 
- The memory controller uses the following hierarchy
-@@ -379,7 +381,8 @@ The feature can be disabled by
- NOTE1: Enabling/disabling will fail if the cgroup already has other
- cgroups created below it.
- 
--NOTE2: This feature can be enabled/disabled per subtree.
-+NOTE2: When panic_on_oom is set to "2", the whole system will panic in
-+case of an oom event in any cgroup.
- 
- 7. Soft limits
- 
-Index: mmotm-2.6.33-Feb11/Documentation/sysctl/vm.txt
-===================================================================
---- mmotm-2.6.33-Feb11.orig/Documentation/sysctl/vm.txt
-+++ mmotm-2.6.33-Feb11/Documentation/sysctl/vm.txt
-@@ -573,11 +573,14 @@ Because other nodes' memory may be free.
- may be not fatal yet.
- 
- If this is set to 2, the kernel panics compulsorily even on the
--above-mentioned.
-+above-mentioned. Even oom happens under memory cgroup, the whole
-+system panics.
- 
- The default value is 0.
- 1 and 2 are for failover of clustering. Please select either
- according to your policy of failover.
-+panic_on_oom=2+kdump gives you very strong tool to investigate
-+why oom happens. You can get snapshot.
- 
- =============================================================
- 
-Index: mmotm-2.6.33-Feb11/mm/oom_kill.c
-===================================================================
---- mmotm-2.6.33-Feb11.orig/mm/oom_kill.c
-+++ mmotm-2.6.33-Feb11/mm/oom_kill.c
-@@ -471,6 +471,8 @@ void mem_cgroup_out_of_memory(struct mem
- 	unsigned long points = 0;
- 	struct task_struct *p;
- 
-+	if (sysctl_panic_on_oom == 2)
-+		panic("out of memory(memcg). panic_on_oom is selected.\n");
- 	read_lock(&tasklist_lock);
- retry:
- 	p = select_bad_process(&points, mem);
+>  - filemap_xip.c return VM_FAULT_OOM....but it doesn't seem to be OOM..
+>    just like VM_FAULT_NO_VALID_PAGE_FOUND. (But I'm not familiar with this area.)
+>  - fs/buffer.c 's VM_FAULT_OOM is returned oom-killer is called.
+>  - shmem.c's VM_FAULT_OOM is retuned oom-killer is called.
+> 
+
+The filemap, shmem, and block_prepare_write() cases will call the oom 
+killer but, depending on the gfp mask, they will retry their allocations 
+after the oom killer is called so we should never return VM_FAULT_OOM 
+because they return -ENOMEM.  They fail from either small objsize slab 
+allocations or with orders less than PAGE_ALLOC_COSTLY_ORDER which by 
+default continues to retry even if direct reclaim fails.  If we're 
+returning with VM_FAULT_OOM from these handlers, it should only be because 
+of GFP_NOFS | __GFP_NORETRY or current has been oom killed and still can't 
+find memory (so we don't care if the oom killer is called again since it 
+won't kill anything else).
+
+So like I said, I don't really see a need where VM_FAULT_NO_RESOURCE would 
+be helpful in any case other than hugetlb which we can already detect by 
+passing the vma into the pagefault oom handler.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
