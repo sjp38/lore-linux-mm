@@ -1,166 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 871856B0082
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 13:23:07 -0500 (EST)
-Date: Wed, 17 Feb 2010 18:22:47 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 10/12] mm: Check for an empty VMA list in rmap_walk_anon
-Message-ID: <20100217182247.GA15943@csn.ul.ie>
-References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-11-git-send-email-mel@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1687A6B0083
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 17:04:51 -0500 (EST)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o1HM4ldx016814
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 22:04:47 GMT
+Received: from pxi14 (pxi14.prod.google.com [10.243.27.14])
+	by kpbe12.cbf.corp.google.com with ESMTP id o1HM4heh004406
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 14:04:45 -0800
+Received: by pxi14 with SMTP id 14so2899752pxi.15
+        for <linux-mm@kvack.org>; Wed, 17 Feb 2010 14:04:43 -0800 (PST)
+Date: Wed, 17 Feb 2010 14:04:40 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 4/9 v2] oom: remove compulsory panic_on_oom mode
+In-Reply-To: <20100217095221.GQ5723@laptop>
+Message-ID: <alpine.DEB.2.00.1002171345330.6217@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002161623190.11952@chino.kir.corp.google.com> <20100217094137.a0d26fbb.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002161648570.31753@chino.kir.corp.google.com> <alpine.DEB.2.00.1002161756100.15079@chino.kir.corp.google.com>
+ <20100217111319.d342f10e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002161825280.2768@chino.kir.corp.google.com> <20100217113430.9528438d.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002161850540.3106@chino.kir.corp.google.com>
+ <20100217122106.31e12398.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002170052410.30931@chino.kir.corp.google.com> <20100217095221.GQ5723@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1265976059-7459-11-git-send-email-mel@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 12, 2010 at 12:00:57PM +0000, Mel Gorman wrote:
-> There appears to be a race in rmap_walk_anon() that can be triggered by using
-> page migration under heavy load on pages that do not belong to the process
-> doing the migration - e.g. during memory compaction. The bug triggered is
-> a NULL pointer deference in list_for_each_entry().
+On Wed, 17 Feb 2010, Nick Piggin wrote:
+
+> > > quick glance around core codes...
+> > >  - HUGEPAGE at el. should return some VM_FAULT_NO_RESOUECE rather than VM_FAULT_OOM.
+> > 
+> > We can detect this with is_vm_hugetlb_page() if we pass the vma into 
+> > pagefault_out_of_memory() without adding another VM_FAULT flag.
+> 
+> The real question is, what to do when returning to userspace. I don't
+> think there's a lot of options. SIGBUS is traditionally used for "no
+> resource".
 > 
 
-Incidentally, I hate patches 10-12 with the last one in particular being
-outright flaky. I'm looking at copying the KSM approach instead and have
-started tests using the following patch. Any comments on this approach
-for ensuring the anon_vma exists for as long as it's needed? Obviously,
-the refcounts for KSM and migrate can be collapsed to save space but this
-is clearer to review.
+For is_vm_hugetlb_page() in the pagefault oom handler, I think it should 
+default to killing current as we did previously until that's worked out 
+(and as some architectures like ia64 and powerpc still do).  In fact, 
+pagefault ooms should probably always default to killing current if its 
+killable.
 
-=== CUT HERE ====
-mm,migration: Take a reference to the anon_vma before migrating
+> > The filemap, shmem, and block_prepare_write() cases will call the oom 
+> > killer but, depending on the gfp mask, they will retry their allocations 
+> > after the oom killer is called so we should never return VM_FAULT_OOM 
+> > because they return -ENOMEM.  They fail from either small objsize slab 
+> > allocations or with orders less than PAGE_ALLOC_COSTLY_ORDER which by 
+> > default continues to retry even if direct reclaim fails.  If we're 
+> > returning with VM_FAULT_OOM from these handlers, it should only be because 
+> > of GFP_NOFS | __GFP_NORETRY or current has been oom killed and still can't 
+> > find memory (so we don't care if the oom killer is called again since it 
+> > won't kill anything else).
+> 
+> Yep. And yes you are right that we prefer to do the oom killing at the
+> allocation point where we know all the context, however the fact is that
+> VM_FAULT_OOM is an allowed part of the fault API so we have to handle it
+> somehow.
+> 
+> It can theoretically be called for valid reasons say if a driver or
+> arch page table has a high order allocation, or if the page allocator
+> implementation were to be changed.
+> 
+> We can't rightly just kill the task at this point, even if it has
+> invoked the oom killer, because it could have been marked as unkillable.
+> 
 
-rmap_walk_anon() does not use page_lock_anon_vma() for looking up and
-locking an anon_vma and it does not appear to have sufficient locking to
-ensure the anon_vma does not disappear from under it.
+That's easy to test in the oom handler, we can default to killing current 
+but then kill another task if it is unkillable:
 
-This patch copies an approach used by KSM to take a reference on the
-anon_vma while pages are being migrated. This should prevent rmap_walk()
-running into nasty surprises later because anon_vma has been freed.
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/rmap.h |   23 +++++++++++++++++++++++
- mm/migrate.c         |   12 ++++++++++++
- mm/rmap.c            |   10 +++++-----
- 3 files changed, 40 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index b019ae6..6b5a1a9 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -29,6 +29,9 @@ struct anon_vma {
- #ifdef CONFIG_KSM
- 	atomic_t ksm_refcount;
- #endif
-+#ifdef CONFIG_MIGRATION
-+	atomic_t migrate_refcount;
-+#endif
- 	/*
- 	 * NOTE: the LSB of the head.next is set by
- 	 * mm_take_all_locks() _after_ taking the above lock. So the
-@@ -61,6 +64,26 @@ static inline int ksm_refcount(struct anon_vma *anon_vma)
- 	return 0;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -696,15 +696,23 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
  }
- #endif /* CONFIG_KSM */
-+#ifdef CONFIG_MIGRATION
-+static inline void migrate_refcount_init(struct anon_vma *anon_vma)
-+{
-+	atomic_set(&anon_vma->migrate_refcount, 0);
-+}
-+
-+static inline int migrate_refcount(struct anon_vma *anon_vma)
-+{
-+	return atomic_read(&anon_vma->migrate_refcount);
-+}
-+#else
-+static inline void migrate_refcount_init(struct anon_vma *anon_vma)
-+{
-+}
-+
-+static inline int migrate_refcount(struct anon_vma *anon_vma)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_MIGRATE */
  
- static inline struct anon_vma *page_anon_vma(struct page *page)
+ /*
+- * The pagefault handler calls here because it is out of memory, so kill a
+- * memory-hogging task.  If a populated zone has ZONE_OOM_LOCKED set, a parallel
+- * oom killing is already in progress so do nothing.  If a task is found with
+- * TIF_MEMDIE set, it has been killed so do nothing and allow it to exit.
++ * The pagefault handler calls here because it is out of memory, so kill current
++ * by default.  If it's unkillable, then fallback to killing a memory-hogging
++ * task.  If a populated zone has ZONE_OOM_LOCKED set, a parallel oom killing is
++ * already in progress so do nothing.  If a task is found with TIF_MEMDIE set,
++ * it has been killed so do nothing and allow it to exit.
+  */
+ void pagefault_out_of_memory(void)
  {
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 9a0db5b..63addfa 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -551,6 +551,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 	int rcu_locked = 0;
- 	int charge = 0;
- 	struct mem_cgroup *mem = NULL;
-+	struct anon_vma *anon_vma = NULL;
- 
- 	if (!newpage)
- 		return -ENOMEM;
-@@ -607,6 +608,8 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 	if (PageAnon(page)) {
- 		rcu_read_lock();
- 		rcu_locked = 1;
-+		anon_vma = page_anon_vma(page);
-+		atomic_inc(&anon_vma->migrate_refcount);
- 	}
- 
- 	/*
-@@ -646,6 +649,15 @@ skip_unmap:
- 	if (rc)
- 		remove_migration_ptes(page, page);
- rcu_unlock:
++	unsigned long totalpages;
++	int err;
 +
-+	/* Drop an anon_vma reference if we took one */
-+	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
-+		int empty = list_empty(&anon_vma->head);
-+		spin_unlock(&anon_vma->lock);
-+		if (empty)
-+			anon_vma_free(anon_vma);
-+	}
-+
- 	if (rcu_locked)
- 		rcu_read_unlock();
- uncharge:
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 278cd27..11ba74a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -172,7 +172,8 @@ void anon_vma_unlink(struct vm_area_struct *vma)
- 	list_del(&vma->anon_vma_node);
- 
- 	/* We must garbage collect the anon_vma if it's empty */
--	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma);
-+	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma) &&
-+					!migrate_refcount(anon_vma);
- 	spin_unlock(&anon_vma->lock);
- 
- 	if (empty)
-@@ -185,6 +186,7 @@ static void anon_vma_ctor(void *data)
- 
- 	spin_lock_init(&anon_vma->lock);
- 	ksm_refcount_init(anon_vma);
-+	migrate_refcount_init(anon_vma);
- 	INIT_LIST_HEAD(&anon_vma->head);
+ 	if (!try_set_system_oom())
+ 		return;
+-	out_of_memory(NULL, 0, 0, NULL);
++	constrained_alloc(NULL, 0, NULL, &totalpages);
++	err = oom_kill_process(current, 0, 0, 0, totalpages, NULL,
++				"Out of memory (pagefault)"))
++	if (err)
++		out_of_memory(NULL, 0, 0, NULL);
+ 	clear_system_oom();
  }
- 
-@@ -1228,10 +1230,8 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
- 	/*
- 	 * Note: remove_migration_ptes() cannot use page_lock_anon_vma()
- 	 * because that depends on page_mapped(); but not all its usages
--	 * are holding mmap_sem, which also gave the necessary guarantee
--	 * (that this anon_vma's slab has not already been destroyed).
--	 * This needs to be reviewed later: avoiding page_lock_anon_vma()
--	 * is risky, and currently limits the usefulness of rmap_walk().
-+	 * are holding mmap_sem. Users without mmap_sem are required to
-+	 * take a reference count to prevent the anon_vma disappearing
- 	 */
- 	anon_vma = page_anon_vma(page);
- 	if (!anon_vma)
+
+We'll need to convert the architectures that still only issue a SIGKILL to 
+current to use pagefault_out_of_memory() before OOM_DISABLE is fully 
+respected across the kernel, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
