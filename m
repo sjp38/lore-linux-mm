@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A4C346B004D
-	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 22:58:18 -0500 (EST)
-Message-ID: <4B7CBAB4.2010003@redhat.com>
-Date: Wed, 17 Feb 2010 22:57:40 -0500
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7E5916B004D
+	for <linux-mm@kvack.org>; Wed, 17 Feb 2010 23:09:53 -0500 (EST)
+Message-ID: <4B7CBD71.2040709@redhat.com>
+Date: Wed, 17 Feb 2010 23:09:21 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/12] Direct compact when a high-order allocation fails
-References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-9-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1265976059-7459-9-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 09/12] Do not compact within a preferred zone after a
+ compaction failure
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-10-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1265976059-7459-10-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,17 +18,18 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundati
 List-ID: <linux-mm.kvack.org>
 
 On 02/12/2010 07:00 AM, Mel Gorman wrote:
-> Ordinarily when a high-order allocation fails, direct reclaim is entered to
-> free pages to satisfy the allocation.  With this patch, it is determined if
-> an allocation failed due to external fragmentation instead of low memory
-> and if so, the calling process will compact until a suitable page is
-> freed. Compaction by moving pages in memory is considerably cheaper than
-> paging out to disk and works where there are locked pages or no swap. If
-> compaction fails to free a page of a suitable size, then reclaim will
-> still occur.
+> The fragmentation index may indicate that a failure it due to external
+> fragmentation, a compaction run complete and an allocation failure still
+> fail. There are two obvious reasons as to why
 >
-> Direct compaction returns as soon as possible. As each block is compacted,
-> it is checked if a suitable page has been freed and if so, it returns.
+>    o Page migration cannot move all pages so fragmentation remains
+>    o A suitable page may exist but watermarks are not met
+>
+> In the event of compaction and allocation failure, this patch prevents
+> compaction happening for a short interval. It's only recorded on the
+> preferred zone but that should be enough coverage. This could have been
+> implemented similar to the zonelist_cache but the increased size of the
+> zonelist did not appear to be justified.
 >
 > Signed-off-by: Mel Gorman<mel@csn.ul.ie>
 
