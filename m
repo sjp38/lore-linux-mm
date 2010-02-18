@@ -1,96 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1C8796B007B
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 10:38:06 -0500 (EST)
-Received: by pwj7 with SMTP id 7so1302669pwj.14
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2010 07:38:04 -0800 (PST)
-Subject: Re: [PATCH 04/12] Export fragmentation index via /proc/pagetypeinfo
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <1265976059-7459-5-git-send-email-mel@csn.ul.ie>
-References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie>
-	 <1265976059-7459-5-git-send-email-mel@csn.ul.ie>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 19 Feb 2010 00:37:57 +0900
-Message-ID: <1266507477.1709.225.camel@barrios-desktop>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 33E8A6B0082
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 10:46:04 -0500 (EST)
+Message-ID: <4B7D5F35.7060700@nortel.com>
+Date: Thu, 18 Feb 2010 09:39:33 -0600
+From: "Chris Friesen" <cfriesen@nortel.com>
+MIME-Version: 1.0
+Subject: Re: tracking memory usage/leak in "inactive" field in /proc/meminfo?
+ -- solved
+References: <4B71927D.6030607@nortel.com>	 <20100210093140.12D9.A69D9226@jp.fujitsu.com>	 <4B72E74C.9040001@nortel.com>	 <28c262361002101645g3fd08cc7t6a72d27b1f94db62@mail.gmail.com>	 <4B74524D.8080804@nortel.com> <28c262361002111838q7db763feh851a9bea4fdd9096@mail.gmail.com> <4B7504D2.1040903@nortel.com> <4B796D31.7030006@nortel.com> <4B797D93.5090307@redhat.com> <4B7ACD4A.10101@nortel.com> <4B7AD207.20604@redhat.com> <4B7B0D75.50808@nortel.com> <4B7B1AA9.9040609@redhat.com>
+In-Reply-To: <4B7B1AA9.9040609@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-02-12 at 12:00 +0000, Mel Gorman wrote:
-> Fragmentation index is a value that makes sense when an allocation of a
-> given size would fail. The index indicates whether an allocation failure is
-> due to a lack of memory (values towards 0) or due to external fragmentation
-> (value towards 1).  For the most part, the huge page size will be the size
-> of interest but not necessarily so it is exported on a per-order and per-zone
-> basis via /proc/pagetypeinfo.
+On 02/16/2010 04:22 PM, Rik van Riel wrote:
+> On 02/16/2010 04:26 PM, Chris Friesen wrote:
 > 
-> The index is normally calculated as a value between 0 and 1 which is
-> obviously unsuitable within the kernel. Instead, the first three decimal
-> places are used as a value between 0 and 1000 for an integer approximation.
+>> For the backtrace scenario I posted it seems like it might actually be
+>> release_pages().  There seems to be a plausible call chain:
+>>
+>> __ClearPageLRU
+>> release_pages
+>> free_pages_and_swap_cache
+>> tlb_flush_mmu
+>> tlb_remove_page
+>> zap_pte_range
+>>
+>> Does that seem right?  In this case, tlb_remove_page() is called right
+>> after page_remove_rmap() which ultimately results in clearing the
+>> PageAnon bit.
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> That is right - and pinpoints the fault for the memory leak
+> on some third party code that fails to release a refcount on
+> memory pages.
 
-> ---
->  Documentation/filesystems/proc.txt |   11 ++++++
->  mm/vmstat.c                        |   63 ++++++++++++++++++++++++++++++++++++
->  2 files changed, 74 insertions(+), 0 deletions(-)
-> 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index 0968a81..06bf53c 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -618,6 +618,10 @@ Unusable free space index at order
->  Node    0, zone      DMA                         0      0      0      2      6     18     34     67     99    227    485
->  Node    0, zone    DMA32                         0      0      1      2      4      7     10     17     23     31     34
->  
-> +Fragmentation index at order
-> +Node    0, zone      DMA                        -1     -1     -1     -1     -1     -1     -1     -1     -1     -1     -1
-> +Node    0, zone    DMA32                        -1     -1     -1     -1     -1     -1     -1     -1     -1     -1     -1
-> +
->  Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate
->  Node 0, zone      DMA            2            0            5            1            0
->  Node 0, zone    DMA32           41            6          967            2            0
-> @@ -639,6 +643,13 @@ value between 0 and 1000. The higher the value, the more of free memory is
->  unusable and by implication, the worse the external fragmentation is. The
->  percentage of unusable free memory can be found by dividing this value by 10.
->  
-> +The fragmentation index, is only meaningful if an allocation would fail and
-> +indicates what the failure is due to. A value of -1 such as in the example
-> +states that the allocation would succeed. If it would fail, the value is
-> +between 0 and 1000. A value tending towards 0 implies the allocation failed
-> +due to a lack of memory. A value tending towards 1000 implies it failed
-> +due to external fragmentation.
-> +
->  If min_free_kbytes has been tuned correctly (recommendations made by hugeadm
->  from libhugetlbfs http://sourceforge.net/projects/libhugetlbfs/), one can
->  make an estimate of the likely number of huge pages that can be allocated
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index d05d610..e2d0cc1 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -494,6 +494,35 @@ static void fill_contig_page_info(struct zone *zone,
->  }
->  
->  /*
-> + * A fragmentation index only makes sense if an allocation of a requested
-> + * size would fail. If that is true, the fragmentation index indicates
-> + * whether external fragmentation or a lack of memory was the problem.
-> + * The value can be used to determine if page reclaim or compaction
-> + * should be used
-> + */
-> +int fragmentation_index(struct zone *zone,
+I think I've tracked down the source of the problem.  Turns out one of
+our vendors had misapplied a patch which ended up bumping the page count
+an extra time.
 
-Like previous [3/12], why do you remain "zone" argument?
-If you will use it in future, I don't care. It's just trivial. 
+Thanks to everyone that helped out.
 
--- 
-Kind regards,
-Minchan Kim
-
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
