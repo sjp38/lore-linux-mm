@@ -1,96 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3F7306B0047
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 08:49:28 -0500 (EST)
-Date: Fri, 19 Feb 2010 00:49:21 +1100
-From: Nick Piggin <npiggin@suse.de>
-Subject: [regression] cpuset,mm: update tasks' mems_allowed in time
- (58568d2)
-Message-ID: <20100218134921.GF9738@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B0F976B0047
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 10:24:08 -0500 (EST)
+Received: by pzk15 with SMTP id 15so8749656pzk.11
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2010 07:24:06 -0800 (PST)
+Subject: Re: [PATCH 03/12] Export unusable free space index via
+ /proc/pagetypeinfo
+From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <1265976059-7459-4-git-send-email-mel@csn.ul.ie>
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie>
+	 <1265976059-7459-4-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 19 Feb 2010 00:23:59 +0900
+Message-ID: <1266506639.1709.216.camel@barrios-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Miao Xie <miaox@cn.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, 2010-02-12 at 12:00 +0000, Mel Gorman wrote:
+> Unusuable free space index is a measure of external fragmentation that
+> takes the allocation size into account. For the most part, the huge page
+> size will be the size of interest but not necessarily so it is exported
+> on a per-order and per-zone basis via /proc/pagetypeinfo.
+> 
+> The index is normally calculated as a value between 0 and 1 which is
+> obviously unsuitable within the kernel. Instead, the first three decimal
+> places are used as a value between 0 and 1000 for an integer approximation.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-The patch cpuset,mm: update tasks' mems_allowed in time (58568d2) causes
-a regression uncovered by SGI. Basically it is allowing possible but not
-online nodes in the task_struct.mems_allowed nodemask (which is contrary
-to several comments still in kernel/cpuset.c), and that causes
-cpuset_mem_spread_node() to return an offline node to slab, causing an
-oops.
+There are comments at below. 
+It's very trivial so I don't care. 
 
-Easy to reproduce if you have a machine with !online nodes.
+> ---
+>  Documentation/filesystems/proc.txt |   10 ++++
+>  mm/vmstat.c                        |   99 ++++++++++++++++++++++++++++++++++++
+>  2 files changed, 109 insertions(+), 0 deletions(-)
+> 
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index 1829dfb..0968a81 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -614,6 +614,10 @@ Node    0, zone    DMA32, type      Movable    169    152    113     91     77
+>  Node    0, zone    DMA32, type      Reserve      1      2      2      2      2      0      1      1      1      1      0
+>  Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0
+>  
+> +Unusable free space index at order
+> +Node    0, zone      DMA                         0      0      0      2      6     18     34     67     99    227    485
+> +Node    0, zone    DMA32                         0      0      1      2      4      7     10     17     23     31     34
+> +
+>  Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate
+>  Node 0, zone      DMA            2            0            5            1            0
+>  Node 0, zone    DMA32           41            6          967            2            0
+> @@ -629,6 +633,12 @@ then gives the same type of information as buddyinfo except broken down
+>  by migrate-type and finishes with details on how many page blocks of each
+>  type exist.
+>  
+> +The unusable free space index measures how much of the available free
+> +memory cannot be used to satisfy an allocation of a given size and is a
+> +value between 0 and 1000. The higher the value, the more of free memory is
+> +unusable and by implication, the worse the external fragmentation is. The
+> +percentage of unusable free memory can be found by dividing this value by 10.
+> +
+>  If min_free_kbytes has been tuned correctly (recommendations made by hugeadm
+>  from libhugetlbfs http://sourceforge.net/projects/libhugetlbfs/), one can
+>  make an estimate of the likely number of huge pages that can be allocated
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 6051fba..d05d610 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -451,6 +451,104 @@ static int frag_show(struct seq_file *m, void *arg)
+>  	return 0;
+>  }
+>  
+> +
+> +struct contig_page_info {
+> +	unsigned long free_pages;
+> +	unsigned long free_blocks_total;
+> +	unsigned long free_blocks_suitable;
+> +};
+> +
+> +/*
+> + * Calculate the number of free pages in a zone, how many contiguous
+> + * pages are free and how many are large enough to satisfy an allocation of
+> + * the target size. Note that this function makes to attempt to estimate
+> + * how many suitable free blocks there *might* be if MOVABLE pages were
+> + * migrated. Calculating that is possible, but expensive and can be
+> + * figured out from userspace
+> + */
+> +static void fill_contig_page_info(struct zone *zone,
+> +				unsigned int suitable_order,
+> +				struct contig_page_info *info)
+> +{
+> +	unsigned int order;
+> +
+> +	info->free_pages = 0;
+> +	info->free_blocks_total = 0;
+> +	info->free_blocks_suitable = 0;
+> +
+> +	for (order = 0; order < MAX_ORDER; order++) {
+> +		unsigned long blocks;
+> +
+> +		/* Count number of free blocks */
+> +		blocks = zone->free_area[order].nr_free;
+> +		info->free_blocks_total += blocks;
+> +
+> +		/* Count free base pages */
+> +		info->free_pages += blocks << order;
+> +
+> +		/* Count the suitable free blocks */
+> +		if (order >= suitable_order)
+> +			info->free_blocks_suitable += blocks <<
+> +						(order - suitable_order);
+> +	}
+> +}
+> +
+> +/*
+> + * Return an index indicating how much of the available free memory is
+> + * unusable for an allocation of the requested size.
+> + */
+> +static int unusable_free_index(struct zone *zone,
 
-        - mkdir /dev/cpuset
-        - mount cpuset -t cpuset /dev/cpuset
-        - echo 1 > /dev/cpuset/memory_spread_slab
+Did you remain "zone" argument for later?
+Anyway, It's trivial.
 
-kernel BUG at
-/usr/src/packages/BUILD/kernel-default-2.6.32/linux-2.6.32/mm/slab.c:3271!
-bash[6885]: bugcheck! 0 [1]
-Pid: 6885, CPU 5, comm:                 bash
-psr : 00001010095a2010 ifs : 800000000000038b ip  : [<a00000010020cf00>]
-Tainted: G        W    (2.6.32-0.6.8-default)
-ip is at ____cache_alloc_node+0x440/0x500
+> +				unsigned int order,
+> +				struct contig_page_info *info)
+> +{
+> +	/* No free memory is interpreted as all free memory is unusable */
+> +	if (info->free_pages == 0)
+> +		return 1000;
+> +
+> +	/*
+> +	 * Index should be a value between 0 and 1. Return a value to 3
+> +	 * decimal places.
+> +	 *
+> +	 * 0 => no fragmentation
+> +	 * 1 => high fragmentation
+> +	 */
+> +	return ((info->free_pages - (info->free_blocks_suitable << order)) * 1000) / info->free_pages;
+> +
+> +}
+> +
+> +static void pagetypeinfo_showunusable_print(struct seq_file *m,
+> +					pg_data_t *pgdat, struct zone *zone)
+> +{
+> +	unsigned int order;
+> +
+> +	/* Alloc on stack as interrupts are disabled for zone walk */
 
-unat: 0000000000000000 pfs : 000000000000038b rsc : 0000000000000003
-rnat: 0000000000283d85 bsps: 0000000000000001 pr  : 99596aaa69aa6999
-ldrs: 0000000000000000 ccv : 0000000000000018 fpsr: 0009804c0270033f
-csd : 0000000000000000 ssd : 0000000000000000
-b0  : a00000010020cf00 b6  : a0000001004962c0 b7  : a000000100493240
-f6  : 000000000000000000000 f7  : 000000000000000000000
-f8  : 000000000000000000000 f9  : 000000000000000000000
-f10 : 000000000000000000000 f11 : 000000000000000000000
-r1  : a0000001015c6fc0 r2  : 000000000000e662 r3  : 000000000000fffe
-r8  : 000000000000005c r9  : 0000000000000000 r10 : 0000000000004000
-r11 : 0000000000000000 r12 : e000003c3904fcc0 r13 : e000003c39040000
-r14 : 000000000000e662 r15 : a00000010138ed88 r16 : ffffffffffff65c8
-r17 : a00000010138ed80 r18 : a0000001013c7ad0 r19 : a0000001013d3b60
-r20 : e00001b03afdfe18 r21 : 0000000000000001 r22 : e0000130030365c8
-r23 : e000013003040000 r24 : ffffffffffff0400 r25 : 00000000000068ef
-r26 : 00000000000068ef r27 : a0000001029621d0 r28 : 00000000000068f0
-r29 : 00000000000068f0 r30 : 00000000000068f0 r31 : 000000000000000a
+contig_page_info would be larger than now?
+I think it's small data now. I don't know why you comment it.
+It's just out of curiosity. :)
 
-Call Trace:
-[<a000000100017a80>] show_stack+0x80/0xa0
-[<a0000001000180e0>] show_regs+0x640/0x920
-[<a000000100029a90>] die+0x190/0x2e0
-[<a000000100029c30>] die_if_kernel+0x50/0x80
-[<a000000100904af0>] ia64_bad_break+0x470/0x760
-[<a00000010000cb60>] ia64_native_leave_kernel+0x0/0x270
-[<a00000010020cf00>] ____cache_alloc_node+0x440/0x500
-[<a00000010020ffa0>] kmem_cache_alloc+0x360/0x660
 
-A simple bandaid is to skip !online nodes in cpuset_mem_spread_node().
-However I'm a bit worried about 58568d2.
+> +	struct contig_page_info info;
+> +
+> +	seq_printf(m, "Node %4d, zone %8s %19s",
+> +				pgdat->node_id,
+> +				zone->name, " ");
+> +	for (order = 0; order < MAX_ORDER; ++order) {
+> +		fill_contig_page_info(zone, order, &info);
+> +		seq_printf(m, "%6d ", unusable_free_index(zone, order, &info));
+> +	}
+> +
+> +	seq_putc(m, '\n');
+> +}
+> +
+> +/*
+> + * Display unusable free space index
+> + * XXX: Could be a lot more efficient, but it's not a critical path
+> + */
+> +static int pagetypeinfo_showunusable(struct seq_file *m, void *arg)
+> +{
+> +	pg_data_t *pgdat = (pg_data_t *)arg;
+> +
+> +	seq_printf(m, "\nUnusable free space index at order\n");
+> +	walk_zones_in_node(m, pgdat, pagetypeinfo_showunusable_print);
+> +
+> +	return 0;
+> +}
+> +
+>  static void pagetypeinfo_showfree_print(struct seq_file *m,
+>  					pg_data_t *pgdat, struct zone *zone)
+>  {
+> @@ -558,6 +656,7 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
+>  	seq_printf(m, "Pages per block:  %lu\n", pageblock_nr_pages);
+>  	seq_putc(m, '\n');
+>  	pagetypeinfo_showfree(m, pgdat);
+> +	pagetypeinfo_showunusable(m, pgdat);
+>  	pagetypeinfo_showblockcount(m, pgdat);
+>  
+>  	return 0;
 
-It is doing a lot of stuff. It is removing the callback_mutex from
-around several seemingly unrelated places (eg. from around
-guarnatee_online_cpus, which explicitly asks to be called with that
-lock held), and other places, so I don't know how it is not racy
-with hotplug.
 
-Then it also says that the fastpath doesn't use any locking, so the
-update-path first adds the newly allowed nodes, then removes the
-newly prohibited nodes. Unfortunately there are no barriers apparent
-(and none added), and cpumask/nodemask can be larger than one word,
-so it seems there could be races.
+-- 
+Kind regards,
+Minchan Kim
 
-It also seems like the exported cpuset_mems_allowed and
-cpuset_cpus_allowed APIs are just broken wrt hotplug because the
-hotplug lock is dropped before returning.
-
-I'd just like to get opinions or comments from people who know the
-code better before wading in too far myself. I'd be really keen on
-making the locking simpler, using seqlocks for fastpaths, etc.
-
-Thanks,
-Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
