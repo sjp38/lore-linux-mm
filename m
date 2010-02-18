@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E1C9B6B0078
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 13:02:49 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4F46B0078
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 13:02:52 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 05/12] Allow CONFIG_MIGRATION to be set without CONFIG_NUMA or memory hot-remove
-Date: Thu, 18 Feb 2010 18:02:35 +0000
-Message-Id: <1266516162-14154-6-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 07/12] Export fragmentation index via /proc/pagetypeinfo
+Date: Thu, 18 Feb 2010 18:02:37 +0000
+Message-Id: <1266516162-14154-8-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1266516162-14154-1-git-send-email-mel@csn.ul.ie>
 References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,60 +13,164 @@ To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CONFIG_MIGRATION currently depends on CONFIG_NUMA or on the architecture
-being able to hot-remove memory. The main users of page migration such as
-sys_move_pages(), sys_migrate_pages() and cpuset process migration are
-only beneficial on NUMA so it makes sense.
-
-As memory compaction will operate within a zone and is useful on both NUMA
-and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
-user selects CONFIG_COMPACTION as an option.
+Fragmentation index is a value that makes sense when an allocation of a
+given size would fail. The index indicates whether an allocation failure is
+due to a lack of memory (values towards 0) or due to external fragmentation
+(value towards 1).  For the most part, the huge page size will be the size
+of interest but not necessarily so it is exported on a per-order and per-zone
+basis via /proc/pagetypeinfo.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- mm/Kconfig |   20 ++++++++++++++++----
- 1 files changed, 16 insertions(+), 4 deletions(-)
+ Documentation/filesystems/proc.txt |   14 ++++++-
+ mm/vmstat.c                        |   81 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 94 insertions(+), 1 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 17b8947..b1c2781 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -168,17 +168,29 @@ config SPLIT_PTLOCK_CPUS
- 	default "4"
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 57869d0..24396ab 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -412,6 +412,7 @@ Table 1-5: Kernel info in /proc
+  filesystems Supported filesystems                             
+  driver	     Various drivers grouped here, currently rtc (2.4)
+  execdomains Execdomains, related to security			(2.4)
++ extfrag_index Additional page allocator information (see text) (2.5)
+  fb	     Frame Buffer devices				(2.4)
+  fs	     File system parameters, currently nfs/exports	(2.4)
+  ide         Directory containing info about the IDE subsystem 
+@@ -597,7 +598,7 @@ ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE
+ available in ZONE_NORMAL, etc... 
  
- #
-+# support for memory compaction
-+config COMPACTION
-+	bool "Allow for memory compaction"
-+	def_bool y
-+	select MIGRATION
-+	depends on EXPERIMENTAL && HUGETLBFS
-+	help
-+	  Allows the compaction of memory for the allocation of huge pages.
+ More information relevant to external fragmentation can be found in
+-pagetypeinfo and unusable_index
++pagetypeinfo, unusable_index and extfrag_index.
+ 
+ > cat /proc/pagetypeinfo
+ Page block order: 9
+@@ -648,6 +649,17 @@ value between 0 and 1. The higher the value, the more of free memory is
+ unusable and by implication, the worse the external fragmentation is. This
+ can be expressed as a percentage by multiplying by 100.
+ 
++> cat /proc/extfrag_index
++Node 0, zone      DMA -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.00
++Node 0, zone   Normal -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.954
 +
-+#
- # support for page migration
- #
- config MIGRATION
- 	bool "Page migration"
- 	def_bool y
--	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
-+	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
- 	help
- 	  Allows the migration of the physical location of pages of processes
--	  while the virtual addresses are not changed. This is useful for
--	  example on NUMA systems to put pages nearer to the processors accessing
--	  the page.
-+	  while the virtual addresses are not changed. This is useful in
-+	  two situations. The first is on NUMA systems to put pages nearer
-+	  to the processors accessing. The second is when allocating huge
-+	  pages as migration can relocate pages to satisfy a huge page
-+	  allocation instead of reclaiming.
++The external fragmentation index, is only meaningful if an allocation
++would fail and indicates what the failure is due to. A value of -1 such as
++in many of the examples above states that the allocation would succeed.
++If it would fail, the value is between 0 and 1. A value tending towards
++0 implies the allocation failed due to a lack of memory. A value tending
++towards 1 implies it failed due to external fragmentation.
++
+ ..............................................................................
  
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+ meminfo:
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 23f217e..fa5975c 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -551,6 +551,67 @@ static int unusable_show(struct seq_file *m, void *arg)
+ 	return 0;
+ }
+ 
++/*
++ * A fragmentation index only makes sense if an allocation of a requested
++ * size would fail. If that is true, the fragmentation index indicates
++ * whether external fragmentation or a lack of memory was the problem.
++ * The value can be used to determine if page reclaim or compaction
++ * should be used
++ */
++int fragmentation_index(unsigned int order, struct contig_page_info *info)
++{
++	unsigned long requested = 1UL << order;
++
++	if (!info->free_blocks_total)
++		return 0;
++
++	/* Fragmentation index only makes sense when a request would fail */
++	if (info->free_blocks_suitable)
++		return -1000;
++
++	/*
++	 * Index is between 0 and 1 so return within 3 decimal places
++	 *
++	 * 0 => allocation would fail due to lack of memory
++	 * 1 => allocation would fail due to fragmentation
++	 */
++	return 1000 - ( (1000+(info->free_pages * 1000 / requested)) / info->free_blocks_total);
++}
++
++
++static void extfrag_show_print(struct seq_file *m,
++					pg_data_t *pgdat, struct zone *zone)
++{
++	unsigned int order;
++	int index;
++
++	/* Alloc on stack as interrupts are disabled for zone walk */
++	struct contig_page_info info;
++
++	seq_printf(m, "Node %d, zone %8s ",
++				pgdat->node_id,
++				zone->name);
++	for (order = 0; order < MAX_ORDER; ++order) {
++		fill_contig_page_info(zone, order, &info);
++		index = fragmentation_index(order, &info);
++		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
++	}
++
++	seq_putc(m, '\n');
++}
++
++/*
++ * Display fragmentation index for orders that allocations would fail for
++ */
++static int extfrag_show(struct seq_file *m, void *arg)
++{
++	pg_data_t *pgdat = (pg_data_t *)arg;
++
++	walk_zones_in_node(m, pgdat, extfrag_show_print);
++
++	return 0;
++}
++
+ static void pagetypeinfo_showfree_print(struct seq_file *m,
+ 					pg_data_t *pgdat, struct zone *zone)
+ {
+@@ -720,6 +781,25 @@ static const struct file_operations unusable_file_ops = {
+ 	.release	= seq_release,
+ };
+ 
++static const struct seq_operations extfrag_op = {
++	.start	= frag_start,
++	.next	= frag_next,
++	.stop	= frag_stop,
++	.show	= extfrag_show,
++};
++
++static int extfrag_open(struct inode *inode, struct file *file)
++{
++	return seq_open(file, &extfrag_op);
++}
++
++static const struct file_operations extfrag_file_ops = {
++	.open		= extfrag_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= seq_release,
++};
++
+ #ifdef CONFIG_ZONE_DMA
+ #define TEXT_FOR_DMA(xx) xx "_dma",
+ #else
+@@ -1064,6 +1144,7 @@ static int __init setup_vmstat(void)
+ 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+ 	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
+ 	proc_create("unusable_index", S_IRUGO, NULL, &unusable_file_ops);
++	proc_create("extfrag_index", S_IRUGO, NULL, &extfrag_file_ops);
+ 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+ 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+ #endif
 -- 
 1.6.5
 
