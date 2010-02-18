@@ -1,52 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CF1E06B0099
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 13:03:26 -0500 (EST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 02/12] mm,migration: Do not try to migrate unmapped anonymous pages
-Date: Thu, 18 Feb 2010 18:02:32 +0000
-Message-Id: <1266516162-14154-3-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1266516162-14154-1-git-send-email-mel@csn.ul.ie>
-References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 7A3906B0078
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 14:38:16 -0500 (EST)
+Date: Thu, 18 Feb 2010 13:37:35 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 05/12] Memory compaction core
+In-Reply-To: <20100216145943.GA997@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1002181335270.7351@router.home>
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie> <1265976059-7459-6-git-send-email-mel@csn.ul.ie> <20100216170014.7309.A69D9226@jp.fujitsu.com> <20100216084800.GC26086@csn.ul.ie> <alpine.DEB.2.00.1002160849460.18275@router.home>
+ <20100216145943.GA997@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-rmap_walk_anon() was triggering errors in memory compaction that looks like
-use-after-free errors in anon_vma. The problem appears to be that between
-the page being isolated from the LRU and rcu_read_lock() being taken, the
-mapcount of the page dropped to 0 and the anon_vma was freed. This patch
-skips the migration of anon pages that are not mapped by anyone.
+On Tue, 16 Feb 2010, Mel Gorman wrote:
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/migrate.c |   10 ++++++++++
- 1 files changed, 10 insertions(+), 0 deletions(-)
+> > Oh there are numerous ZONE_DMA pressure issues if you have ancient /
+> > screwed up hardware that can only operate on DMA or DMA32 memory.
+> >
+>
+> I've never ran into the issue. I was under the impression that the only
+> device that might care these days are floopy disks.
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 63addfa..1ce6a2f 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -606,6 +606,16 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 	 * just care Anon page here.
- 	 */
- 	if (PageAnon(page)) {
-+		/*
-+		 * If the page has no mappings any more, just bail. An
-+		 * unmapped anon page is likely to be freed soon but worse,
-+		 * it's possible its anon_vma disappeared between when
-+		 * the page was isolated and when we reached here while
-+		 * the RCU lock was not held
-+		 */
-+		if (!page_mapcount(page))
-+			goto uncharge;
-+
- 		rcu_read_lock();
- 		rcu_locked = 1;
- 		anon_vma = page_anon_vma(page);
--- 
-1.6.5
+Kame-san had an issue a year or so ago.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
