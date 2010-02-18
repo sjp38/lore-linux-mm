@@ -1,209 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AF7286B0078
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 05:04:50 -0500 (EST)
-Date: Thu, 18 Feb 2010 10:04:32 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Kernel panic due to page migration accessing memory holes
-Message-ID: <20100218100432.GA32626@csn.ul.ie>
-References: <4B7C8DC2.3060004@codeaurora.org> <20100218100324.5e9e8f8c.kamezawa.hiroyu@jp.fujitsu.com> <4B7CF8C0.4050105@codeaurora.org> <20100218183604.95ee8c77.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3F7306B0047
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 08:49:28 -0500 (EST)
+Date: Fri, 19 Feb 2010 00:49:21 +1100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [regression] cpuset,mm: update tasks' mems_allowed in time
+ (58568d2)
+Message-ID: <20100218134921.GF9738@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100218183604.95ee8c77.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michael Bohan <mbohan@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Miao Xie <miaox@cn.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 18, 2010 at 06:36:04PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 18 Feb 2010 00:22:24 -0800
-> Michael Bohan <mbohan@codeaurora.org> wrote:
-> 
-> > On 2/17/2010 5:03 PM, KAMEZAWA Hiroyuki wrote:
-> > > On Wed, 17 Feb 2010 16:45:54 -0800
-> > > Michael Bohan<mbohan@codeaurora.org>  wrote:
-> > >> As a temporary fix, I added some code to move_freepages_block() that
-> > >> inspects whether the range exceeds our first memory bank -- returning 0
-> > >> if it does.  This is not a clean solution, since it requires exporting
-> > >> the ARM specific meminfo structure to extract the bank information.
-> > >>
-> > >>      
-> > > Hmm, my first impression is...
-> > >
-> > > - Using FLATMEM, memmap is created for the number of pages and memmap should
-> > >    not have aligned size.
-> > > - Using SPARSEMEM, memmap is created for aligned number of pages.
-> > >
-> > > Then, the range [zone->start_pfn ... zone->start_pfn + zone->spanned_pages]
-> > > should be checked always.
-> > >
-> > >
-> > >   803 static int move_freepages_block(struct zone *zone, struct page *page,
-> > >   804                                 int migratetype)
-> > >   805 {
-> > >   816         if (start_pfn<  zone->zone_start_pfn)
-> > >   817                 start_page = page;
-> > >   818         if (end_pfn>= zone->zone_start_pfn + zone->spanned_pages)
-> > >   819                 return 0;
-> > >   820
-> > >   821         return move_freepages(zone, start_page, end_page, migratetype);
-> > >   822 }
-> > >
-> > > "(end_pfn>= zone->zone_start_pfn + zone->spanned_pages)" is checked.
-> > > What zone->spanned_pages is set ? The zone's range is
-> > > [zone->start_pfn ... zone->start_pfn+zone->spanned_pages], so this
-> > > area should have initialized memmap. I wonder zone->spanned_pages is too big.
-> > >    
-> > 
-> > In the block of code above running on my target, the zone_start_pfn is 
-> > is 0x200 and the spanned_pages is 0x44100.  This is consistent with the 
-> > values shown from the zoneinfo file below.  It is also consistent with 
-> > my memory map:
-> > 
-> > bank0:
-> >      start: 0x00200000
-> >      size:  0x07B00000
-> > 
-> > bank1:
-> >      start: 0x40000000
-> >      size:  0x04300000
-> > 
-> > Thus, spanned_pages here is the highest address reached minus the start 
-> > address of the lowest bank (eg. 0x40000000 + 0x04300000 - 0x00200000).
-> > 
-> > Both of these banks exist in the same zone.  This means that the check 
-> > in move_freepages_block() will never be satisfied for cases that overlap 
-> > with the prohibited pfns, since the zone spans invalid pfns.  Should 
-> > each bank be associated with its own zone?
-> > 
-> 
-> Hmm. okay then..(CCing Mel.)
-> 
->  [Fact]
->  - There are 2 banks of memory and a memory hole on your machine.
->    As
->          0x00200000 - 0x07D00000
->          0x40000000 - 0x43000000
-> 
->  - Each bancks are in the same zone.
->  - You use FLATMEM.
->  - You see panic in move_freepages().
->  - Your host's MAX_ORDER=11....buddy allocator's alignment is 0x400000
->    Then, it seems 1st bank is not algined.
+Hi,
 
-It's not and assumptions are made about it being aligned.
+The patch cpuset,mm: update tasks' mems_allowed in time (58568d2) causes
+a regression uncovered by SGI. Basically it is allowing possible but not
+online nodes in the task_struct.mems_allowed nodemask (which is contrary
+to several comments still in kernel/cpuset.c), and that causes
+cpuset_mem_spread_node() to return an offline node to slab, causing an
+oops.
 
->  - You see panic in move_freepages().
->  - When you added special range check for bank0 in move_freepages(), no panic.
->    So, it seems the kernel see somehing bad at accessing memmap for a memory 
->    hole between bank0 and bank1.
-> 
-> 
-> When you use FLATMEM, memmap/migrate-type-bitmap should be allocated for
-> the whole range of [start_pfn....max_pfn) regardless of memory holes. 
-> Then, I think you have memmap even for a memory hole [0x07D00000...0x40000000)
-> 
+Easy to reproduce if you have a machine with !online nodes.
 
-It would have at the start but then ....
+        - mkdir /dev/cpuset
+        - mount cpuset -t cpuset /dev/cpuset
+        - echo 1 > /dev/cpuset/memory_spread_slab
 
+kernel BUG at
+/usr/src/packages/BUILD/kernel-default-2.6.32/linux-2.6.32/mm/slab.c:3271!
+bash[6885]: bugcheck! 0 [1]
+Pid: 6885, CPU 5, comm:                 bash
+psr : 00001010095a2010 ifs : 800000000000038b ip  : [<a00000010020cf00>]
+Tainted: G        W    (2.6.32-0.6.8-default)
+ip is at ____cache_alloc_node+0x440/0x500
 
-> Then, the question is why move_freepages() panic at accessing *unused* memmaps
-> for memory hole. All memmap(struct page) are initialized in 
->   memmap_init()
-> 	-> memmap_init_zone()
-> 		-> ....
->   Here, all page structs are initialized (page->flags, page->lru are initialized.)
-> 
+unat: 0000000000000000 pfs : 000000000000038b rsc : 0000000000000003
+rnat: 0000000000283d85 bsps: 0000000000000001 pr  : 99596aaa69aa6999
+ldrs: 0000000000000000 ccv : 0000000000000018 fpsr: 0009804c0270033f
+csd : 0000000000000000 ssd : 0000000000000000
+b0  : a00000010020cf00 b6  : a0000001004962c0 b7  : a000000100493240
+f6  : 000000000000000000000 f7  : 000000000000000000000
+f8  : 000000000000000000000 f9  : 000000000000000000000
+f10 : 000000000000000000000 f11 : 000000000000000000000
+r1  : a0000001015c6fc0 r2  : 000000000000e662 r3  : 000000000000fffe
+r8  : 000000000000005c r9  : 0000000000000000 r10 : 0000000000004000
+r11 : 0000000000000000 r12 : e000003c3904fcc0 r13 : e000003c39040000
+r14 : 000000000000e662 r15 : a00000010138ed88 r16 : ffffffffffff65c8
+r17 : a00000010138ed80 r18 : a0000001013c7ad0 r19 : a0000001013d3b60
+r20 : e00001b03afdfe18 r21 : 0000000000000001 r22 : e0000130030365c8
+r23 : e000013003040000 r24 : ffffffffffff0400 r25 : 00000000000068ef
+r26 : 00000000000068ef r27 : a0000001029621d0 r28 : 00000000000068f0
+r29 : 00000000000068f0 r30 : 00000000000068f0 r31 : 000000000000000a
 
-ARM frees unused portions of memmap to save memory. It's why memmap_valid_within()
-exists when CONFIG_ARCH_HAS_HOLES_MEMORYMODEL although previously only
-reading /proc/pagetypeinfo cared.
+Call Trace:
+[<a000000100017a80>] show_stack+0x80/0xa0
+[<a0000001000180e0>] show_regs+0x640/0x920
+[<a000000100029a90>] die+0x190/0x2e0
+[<a000000100029c30>] die_if_kernel+0x50/0x80
+[<a000000100904af0>] ia64_bad_break+0x470/0x760
+[<a00000010000cb60>] ia64_native_leave_kernel+0x0/0x270
+[<a00000010020cf00>] ____cache_alloc_node+0x440/0x500
+[<a00000010020ffa0>] kmem_cache_alloc+0x360/0x660
 
-In that case, the FLATMEM memory map had unexpected holes which "never"
-happens and that was the workaround. The problem here is that there are
-unaligned zones but no pfn_valid() implementation that can identify
-them as you'd have with SPARSEMEM. My expectation is that you are using
-the pfn_valid() implementation from asm-generic
+A simple bandaid is to skip !online nodes in cpuset_mem_spread_node().
+However I'm a bit worried about 58568d2.
 
-#define pfn_valid(pfn)          ((pfn) < max_mapnr)
+It is doing a lot of stuff. It is removing the callback_mutex from
+around several seemingly unrelated places (eg. from around
+guarnatee_online_cpus, which explicitly asks to be called with that
+lock held), and other places, so I don't know how it is not racy
+with hotplug.
 
-which is insufficient in your case.
+Then it also says that the fastpath doesn't use any locking, so the
+update-path first adds the newly allowed nodes, then removes the
+newly prohibited nodes. Unfortunately there are no barriers apparent
+(and none added), and cpumask/nodemask can be larger than one word,
+so it seems there could be races.
 
-> Then, looking back into move_freepages().
->  ==
->  778         for (page = start_page; page <= end_page;) {
->  779                 /* Make sure we are not inadvertently changing nodes */
->  780                 VM_BUG_ON(page_to_nid(page) != zone_to_nid(zone));
->  781 
->  782                 if (!pfn_valid_within(page_to_pfn(page))) {
->  783                         page++;
->  784                         continue;
->  785                 }
->  786 
->  787                 if (!PageBuddy(page)) {
->  788                         page++;
->  789                         continue;
->  790                 }
->  791 
->  792                 order = page_order(page);
->  793                 list_del(&page->lru);
->  794                 list_add(&page->lru,
->  795                         &zone->free_area[order].free_list[migratetype]);
->  796                 page += 1 << order;
->  797                 pages_moved += 1 << order;
->  798         }
->  ==
-> Assume an access to page struct itself doesn't cause panic.
-> Touching page struct's member of page->lru at el to cause panic,
-> So, PageBuddy should be set.
-> 
-> Then, there are 2 chances.
->   1. page_to_nid(page) != zone_to_nid(zone).
->   2. PageBuddy() is set by mistake.
->      (PG_reserved page never be set PG_buddy.)
-> 
-> For both, something corrupted in unused memmap area.
-> There are 2 possibility.
->  (1) memmap for memory hole was not initialized correctly.
->  (2) something wrong currupt memmap. (by overwrite.)
-> 
-> I doubt (2) rather than (1).
-> 
+It also seems like the exported cpuset_mems_allowed and
+cpuset_cpus_allowed APIs are just broken wrt hotplug because the
+hotplug lock is dropped before returning.
 
-I think it's more likely the at the memmap he is accessing has been
-freed and is effectively random data.
+I'd just like to get opinions or comments from people who know the
+code better before wading in too far myself. I'd be really keen on
+making the locking simpler, using seqlocks for fastpaths, etc.
 
-> One of difficulty here is that your kernel is 2.6.29. Can't you try 2.6.32 and
-> reproduce trouble ? Or could you check page flags for memory holes ?
-> For holes, nid should be zero and PG_buddy shouldn't be set and PG_reserved
-> should be set...
-> 
-> And checking memmap initialization of memory holes in memmap_init_zone() 
-> may be good start point for debug, I guess.
-> 
-> Off topic:
-> BTW, memory hole seems huge for your size of memory....using SPARSEMEM
-> is a choice.
-> 
-
-SPARSEMEM would give you an implementation of pfn_valid() that you could
-use here. The choices that spring to mind are;
-
-1. reduce MAX_ORDER so they are aligned (easiest)
-2. use SPARSEMEM (easy, but not necessary what you want to do, might
-	waste memory unless you drop MAX_ORDER as well)
-3. implement a pfn_valid() that can handle the holes and set
-	CONFIG_HOLES_IN_ZONE so it's called in move_freepages() to
-	deal with the holes (should pass this by someone more familiar
-	with ARM than I)
-4. Call memmap_valid_within in move_freepages (very very ugly, not
-	suitable for upstream merging)
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
