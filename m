@@ -1,60 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 89C796B007D
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:58:44 -0500 (EST)
-Date: Fri, 19 Feb 2010 21:58:26 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 03/12] mm: Share the anon_vma ref counts between KSM
-	and page migration
-Message-ID: <20100219215826.GF1445@csn.ul.ie>
-References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie> <1266516162-14154-4-git-send-email-mel@csn.ul.ie> <4B7F05BA.4080903@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4B7F05BA.4080903@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7496A6B0047
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 17:28:36 -0500 (EST)
+Received: by fxm22 with SMTP id 22so684283fxm.6
+        for <linux-mm@kvack.org>; Fri, 19 Feb 2010 14:28:31 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH -mmotm 1/4] cgroups: Fix race between userspace and kernelspace
+Date: Sat, 20 Feb 2010 00:28:16 +0200
+Message-Id: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: containers@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 19, 2010 at 04:42:18PM -0500, Rik van Riel wrote:
-> On 02/18/2010 01:02 PM, Mel Gorman wrote:
->
->>   struct anon_vma {
->>   	spinlock_t lock;	/* Serialize access to vma list */
->> -#ifdef CONFIG_KSM
->> -	atomic_t ksm_refcount;
->> -#endif
->> -#ifdef CONFIG_MIGRATION
->> -	atomic_t migrate_refcount;
->> +#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
->> +
->> +	/*
->> +	 * The refcount is taken by either KSM or page migration
->> +	 * to take a reference to an anon_vma when there is no
->> +	 * guarantee that the vma of page tables will exist for
->> +	 * the duration of the operation. A caller that takes
->> +	 * the reference is responsible for clearing up the
->> +	 * anon_vma if they are the last user on release
->> +	 */
->> +	atomic_t refcount;
->
-> Calling it just refcount is probably confusing, since
-> the anon_vma is also referenced by being on the chain
-> with others.
->
-> Maybe "other_refcount" because it is refcounts taken
-> by things other than VMAs?  I am sure there is a better
-> name possible...
->
+Notify userspace about cgroup removing only after rmdir of cgroup
+directory to avoid race between userspace and kernelspace.
 
-external_refcount is about as good as I can think of to explain what's
-going on :/
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+---
+ kernel/cgroup.c |   32 +++++++++++++++++---------------
+ 1 files changed, 17 insertions(+), 15 deletions(-)
 
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index ce9008f..46903cb 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -780,28 +780,15 @@ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
+ static int cgroup_call_pre_destroy(struct cgroup *cgrp)
+ {
+ 	struct cgroup_subsys *ss;
+-	struct cgroup_event *event, *tmp;
+ 	int ret = 0;
+ 
+ 	for_each_subsys(cgrp->root, ss)
+ 		if (ss->pre_destroy) {
+ 			ret = ss->pre_destroy(ss, cgrp);
+ 			if (ret)
+-				goto out;
++				break;
+ 		}
+ 
+-	/*
+-	 * Unregister events and notify userspace.
+-	 */
+-	spin_lock(&cgrp->event_list_lock);
+-	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
+-		list_del(&event->list);
+-		eventfd_signal(event->eventfd, 1);
+-		schedule_work(&event->remove);
+-	}
+-	spin_unlock(&cgrp->event_list_lock);
+-
+-out:
+ 	return ret;
+ }
+ 
+@@ -2991,7 +2978,6 @@ static void cgroup_event_remove(struct work_struct *work)
+ 	event->cft->unregister_event(cgrp, event->cft, event->eventfd);
+ 
+ 	eventfd_ctx_put(event->eventfd);
+-	remove_wait_queue(event->wqh, &event->wait);
+ 	kfree(event);
+ }
+ 
+@@ -3009,6 +2995,7 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
+ 	unsigned long flags = (unsigned long)key;
+ 
+ 	if (flags & POLLHUP) {
++		remove_wait_queue_locked(event->wqh, &event->wait);
+ 		spin_lock(&cgrp->event_list_lock);
+ 		list_del(&event->list);
+ 		spin_unlock(&cgrp->event_list_lock);
+@@ -3457,6 +3444,7 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
+ 	struct dentry *d;
+ 	struct cgroup *parent;
+ 	DEFINE_WAIT(wait);
++	struct cgroup_event *event, *tmp;
+ 	int ret;
+ 
+ 	/* the vfs holds both inode->i_mutex already */
+@@ -3540,6 +3528,20 @@ again:
+ 	set_bit(CGRP_RELEASABLE, &parent->flags);
+ 	check_for_release(parent);
+ 
++	/*
++	 * Unregister events and notify userspace.
++	 * Notify userspace about cgroup removing only after rmdir of cgroup
++	 * directory to avoid race between userspace and kernelspace
++	 */
++	spin_lock(&cgrp->event_list_lock);
++	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
++		list_del(&event->list);
++		remove_wait_queue(event->wqh, &event->wait);
++		eventfd_signal(event->eventfd, 1);
++		schedule_work(&event->remove);
++	}
++	spin_unlock(&cgrp->event_list_lock);
++
+ 	mutex_unlock(&cgroup_mutex);
+ 	return 0;
+ }
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.6.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
