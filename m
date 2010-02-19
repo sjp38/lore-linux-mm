@@ -1,36 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB9306B0047
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 02:51:08 -0500 (EST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 170226B0047
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 02:59:33 -0500 (EST)
 Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1J7p6rN007410
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 19 Feb 2010 16:51:06 +0900
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1J7xVMx011113
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 19 Feb 2010 16:59:31 +0900
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 443DF45DE51
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:51:06 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EB3445DE51
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:59:31 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 22F1C45DE4E
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:51:06 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F09CC45DE4F
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:59:30 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D2C01DB803B
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:51:06 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D980A1DB803A
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:59:30 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AAD6F1DB803A
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:51:05 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [regression] cpuset,mm: update tasks' mems_allowed in time (58568d2)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 72A2DE78001
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:59:27 +0900 (JST)
+Date: Fri, 19 Feb 2010 16:56:02 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [regression] cpuset,mm: update tasks' mems_allowed in time
+ (58568d2)
+Message-Id: <20100219165602.5e9edfdb.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100218134921.GF9738@laptop>
 References: <20100218134921.GF9738@laptop>
-Message-Id: <20100219164754.A1C3.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Fri, 19 Feb 2010 16:51:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@suse.de>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Miao Xie <miaox@cn.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Miao Xie <miaox@cn.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
+
+On Fri, 19 Feb 2010 00:49:21 +1100
+Nick Piggin <npiggin@suse.de> wrote:
 
 > Hi,
 > 
@@ -84,22 +88,23 @@ List-ID: <linux-mm.kvack.org>
 > [<a00000010020ffa0>] kmem_cache_alloc+0x360/0x660
 > 
 > A simple bandaid is to skip !online nodes in cpuset_mem_spread_node().
+
+I think that's good.
+
+
 > However I'm a bit worried about 58568d2.
-
-Personally, I like just revert at once than bandaid. 58568d2 didn't
-introduce any new feature, then we can revet it without abi breakage.
-
-This test result seems patch author didn't test his own patch enough much.
-
-thanks.
-
-
 > 
 > It is doing a lot of stuff. It is removing the callback_mutex from
 > around several seemingly unrelated places (eg. from around
 > guarnatee_online_cpus, which explicitly asks to be called with that
 > lock held), and other places, so I don't know how it is not racy
 > with hotplug.
+
+Because removing pgdat is not archieved yet. It was verrrry difficult..
+So, once node become online, it never turns to be offline.
+But all pages on the node are removed. Just zonelists are rebuilded.
+(zonelist rebuild uses stop_machine_run.
+
 > 
 > Then it also says that the fastpath doesn't use any locking, so the
 > update-path first adds the newly allowed nodes, then removes the
@@ -107,24 +112,29 @@ thanks.
 > (and none added), and cpumask/nodemask can be larger than one word,
 > so it seems there could be races.
 > 
+Maybe. IMHO, "newly allowed node" and "newly prohobited node" come from
+user's command. We don't need to guarantee correctness.
+
+So, our concerns is only "don't access offlined node". Right ?
+But as I wrote, a node once onlined will never be offlined.
+So, I think it's difficult to cause panic.
+My concern is zonelist rather than bitmap. But I hear no panic report
+about update of it until now. (Maybe because "struct zone" is never
+freed.)
+
 > It also seems like the exported cpuset_mems_allowed and
 > cpuset_cpus_allowed APIs are just broken wrt hotplug because the
 > hotplug lock is dropped before returning.
 > 
+About cpu, it can disappear...then, it should be fixed.
+
 > I'd just like to get opinions or comments from people who know the
 > code better before wading in too far myself. I'd be really keen on
 > making the locking simpler, using seqlocks for fastpaths, etc.
 > 
-> Thanks,
-> Nick
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
