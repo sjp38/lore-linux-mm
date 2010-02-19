@@ -1,37 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 818EF6B007D
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:46:47 -0500 (EST)
-Message-ID: <4B7F06A7.2030505@redhat.com>
-Date: Fri, 19 Feb 2010 16:46:15 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C796B007D
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:58:44 -0500 (EST)
+Date: Fri, 19 Feb 2010 21:58:26 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 03/12] mm: Share the anon_vma ref counts between KSM
+	and page migration
+Message-ID: <20100219215826.GF1445@csn.ul.ie>
+References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie> <1266516162-14154-4-git-send-email-mel@csn.ul.ie> <4B7F05BA.4080903@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/12] Export unusable free space index via /proc/pagetypeinfo
-References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie> <1266516162-14154-7-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1266516162-14154-7-git-send-email-mel@csn.ul.ie>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4B7F05BA.4080903@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
+To: Rik van Riel <riel@redhat.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 02/18/2010 01:02 PM, Mel Gorman wrote:
-> Unusuable free space index is a measure of external fragmentation that
-> takes the allocation size into account. For the most part, the huge page
-> size will be the size of interest but not necessarily so it is exported
-> on a per-order and per-zone basis via /proc/unusable_index.
+On Fri, Feb 19, 2010 at 04:42:18PM -0500, Rik van Riel wrote:
+> On 02/18/2010 01:02 PM, Mel Gorman wrote:
 >
-> The index is a value between 0 and 1. It can be expressed as a
-> percentage by multiplying by 100 as documented in
-> Documentation/filesystems/proc.txt.
+>>   struct anon_vma {
+>>   	spinlock_t lock;	/* Serialize access to vma list */
+>> -#ifdef CONFIG_KSM
+>> -	atomic_t ksm_refcount;
+>> -#endif
+>> -#ifdef CONFIG_MIGRATION
+>> -	atomic_t migrate_refcount;
+>> +#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
+>> +
+>> +	/*
+>> +	 * The refcount is taken by either KSM or page migration
+>> +	 * to take a reference to an anon_vma when there is no
+>> +	 * guarantee that the vma of page tables will exist for
+>> +	 * the duration of the operation. A caller that takes
+>> +	 * the reference is responsible for clearing up the
+>> +	 * anon_vma if they are the last user on release
+>> +	 */
+>> +	atomic_t refcount;
 >
-> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
+> Calling it just refcount is probably confusing, since
+> the anon_vma is also referenced by being on the chain
+> with others.
+>
+> Maybe "other_refcount" because it is refcounts taken
+> by things other than VMAs?  I am sure there is a better
+> name possible...
+>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+external_refcount is about as good as I can think of to explain what's
+going on :/
 
 -- 
-All rights reversed.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
