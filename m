@@ -1,105 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7496A6B0047
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 17:28:36 -0500 (EST)
-Received: by fxm22 with SMTP id 22so684283fxm.6
-        for <linux-mm@kvack.org>; Fri, 19 Feb 2010 14:28:31 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9B40F6B0047
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 17:28:37 -0500 (EST)
+Received: by fxm22 with SMTP id 22so684331fxm.6
+        for <linux-mm@kvack.org>; Fri, 19 Feb 2010 14:28:35 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH -mmotm 1/4] cgroups: Fix race between userspace and kernelspace
-Date: Sat, 20 Feb 2010 00:28:16 +0200
-Message-Id: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name>
+Subject: [PATCH -mmotm 3/4] cgroups: Add simple listener of cgroup events to documentation
+Date: Sat, 20 Feb 2010 00:28:18 +0200
+Message-Id: <6afbe14e8bb2480d88377c14cb15d96edd2d18f6.1266618391.git.kirill@shutemov.name>
+In-Reply-To: <a2717b1f5e0b49db7b6ecd1a5a41e65c1dc6b50a.1266618391.git.kirill@shutemov.name>
+References: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name>
+ <a2717b1f5e0b49db7b6ecd1a5a41e65c1dc6b50a.1266618391.git.kirill@shutemov.name>
+In-Reply-To: <a2717b1f5e0b49db7b6ecd1a5a41e65c1dc6b50a.1266618391.git.kirill@shutemov.name>
+References: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name> <a2717b1f5e0b49db7b6ecd1a5a41e65c1dc6b50a.1266618391.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 To: containers@lists.linux-foundation.org, linux-mm@kvack.org
 Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-Notify userspace about cgroup removing only after rmdir of cgroup
-directory to avoid race between userspace and kernelspace.
-
 Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 ---
- kernel/cgroup.c |   32 +++++++++++++++++---------------
- 1 files changed, 17 insertions(+), 15 deletions(-)
+ Documentation/cgroups/cgroup_event_listener.c |  102 +++++++++++++++++++++++++
+ 1 files changed, 102 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/cgroups/cgroup_event_listener.c
 
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index ce9008f..46903cb 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -780,28 +780,15 @@ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
- static int cgroup_call_pre_destroy(struct cgroup *cgrp)
- {
- 	struct cgroup_subsys *ss;
--	struct cgroup_event *event, *tmp;
- 	int ret = 0;
- 
- 	for_each_subsys(cgrp->root, ss)
- 		if (ss->pre_destroy) {
- 			ret = ss->pre_destroy(ss, cgrp);
- 			if (ret)
--				goto out;
-+				break;
- 		}
- 
--	/*
--	 * Unregister events and notify userspace.
--	 */
--	spin_lock(&cgrp->event_list_lock);
--	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
--		list_del(&event->list);
--		eventfd_signal(event->eventfd, 1);
--		schedule_work(&event->remove);
--	}
--	spin_unlock(&cgrp->event_list_lock);
--
--out:
- 	return ret;
- }
- 
-@@ -2991,7 +2978,6 @@ static void cgroup_event_remove(struct work_struct *work)
- 	event->cft->unregister_event(cgrp, event->cft, event->eventfd);
- 
- 	eventfd_ctx_put(event->eventfd);
--	remove_wait_queue(event->wqh, &event->wait);
- 	kfree(event);
- }
- 
-@@ -3009,6 +2995,7 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
- 	unsigned long flags = (unsigned long)key;
- 
- 	if (flags & POLLHUP) {
-+		remove_wait_queue_locked(event->wqh, &event->wait);
- 		spin_lock(&cgrp->event_list_lock);
- 		list_del(&event->list);
- 		spin_unlock(&cgrp->event_list_lock);
-@@ -3457,6 +3444,7 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
- 	struct dentry *d;
- 	struct cgroup *parent;
- 	DEFINE_WAIT(wait);
-+	struct cgroup_event *event, *tmp;
- 	int ret;
- 
- 	/* the vfs holds both inode->i_mutex already */
-@@ -3540,6 +3528,20 @@ again:
- 	set_bit(CGRP_RELEASABLE, &parent->flags);
- 	check_for_release(parent);
- 
-+	/*
-+	 * Unregister events and notify userspace.
-+	 * Notify userspace about cgroup removing only after rmdir of cgroup
-+	 * directory to avoid race between userspace and kernelspace
-+	 */
-+	spin_lock(&cgrp->event_list_lock);
-+	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
-+		list_del(&event->list);
-+		remove_wait_queue(event->wqh, &event->wait);
-+		eventfd_signal(event->eventfd, 1);
-+		schedule_work(&event->remove);
-+	}
-+	spin_unlock(&cgrp->event_list_lock);
+diff --git a/Documentation/cgroups/cgroup_event_listener.c b/Documentation/cgroups/cgroup_event_listener.c
+new file mode 100644
+index 0000000..a8277b2
+--- /dev/null
++++ b/Documentation/cgroups/cgroup_event_listener.c
+@@ -0,0 +1,102 @@
++/*
++ * cgroup_event_listener.c - Simple listener of cgroup events
++ *
++ * Copyright (C) Kirill A. Shutemov <kirill@shutemov.name>
++ */
 +
- 	mutex_unlock(&cgroup_mutex);
- 	return 0;
- }
++#include <assert.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <libgen.h>
++#include <limits.h>
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++
++#include <sys/eventfd.h>
++
++#define USAGE_STR "Usage: cgroup_event_listener <path-to-control-file> <args>\n"
++
++int main(int argc, char **argv)
++{
++	int efd = -1;
++	int cfd = -1;
++	int event_control = -1;
++	char event_control_path[PATH_MAX];
++	int ret;
++
++	if (argc != 3) {
++		fputs(USAGE_STR, stderr);
++		return 1;
++	}
++
++	cfd = open(argv[1], O_RDONLY);
++	if (cfd == -1) {
++		fprintf(stderr, "Cannot open %s: %s\n", argv[1],
++				strerror(errno));
++		goto out;
++	}
++
++	ret = snprintf(event_control_path, PATH_MAX, "%s/cgroup.event_control",
++			dirname(argv[1]));
++	if (ret > PATH_MAX) {
++		fputs("Path to cgroup.event_control is too long\n", stderr);
++		goto out;
++	}
++
++	event_control = open(event_control_path, O_WRONLY);
++	if (event_control == -1) {
++		fprintf(stderr, "Cannot open %s: %s\n", event_control_path,
++				strerror(errno));
++		goto out;
++	}
++
++	efd = eventfd(0, 0);
++	if (efd == -1) {
++		perror("eventfd() failed");
++		goto out;
++	}
++
++	ret = dprintf(event_control, "%d %d %s", efd, cfd, argv[2]);
++	if (ret == -1) {
++		perror("Cannot write to cgroup.event_control");
++		goto out;
++	}
++
++	while (1) {
++		uint64_t result;
++
++		ret = read(efd, &result, sizeof(result));
++		if (ret == -1) {
++			if (errno == EINTR)
++				continue;
++			perror("Cannot read from eventfd");
++			break;
++		}
++		assert (ret == sizeof(result));
++
++		ret = access(event_control_path, W_OK);
++		if ((ret == -1) && (errno == ENOENT)) {
++				puts("The cgroup seems to have removed.");
++				ret = 0;
++				break;
++		}
++
++		if (ret == -1) {
++			perror("cgroup.event_control is not accessable any more");
++			break;
++		}
++
++		printf("%s %s: crossed\n", argv[1], argv[2]);
++	}
++
++out:
++	if (efd >= 0)
++		close(efd);
++	if (event_control >= 0)
++		close(event_control);
++	if (cfd >= 0)
++		close(cfd);
++
++	return (ret != 0);
++}
 -- 
 1.6.6.2
 
