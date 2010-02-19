@@ -1,113 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 756226B007B
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 16:38:26 -0500 (EST)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o1ILcInd000984
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 13:38:18 -0800
-Received: from pxi3 (pxi3.prod.google.com [10.243.27.3])
-	by wpaz5.hot.corp.google.com with ESMTP id o1ILc3U1002177
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 13:38:17 -0800
-Received: by pxi3 with SMTP id 3so4524958pxi.28
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2010 13:38:16 -0800 (PST)
-Date: Thu, 18 Feb 2010 13:38:11 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [regression] cpuset,mm: update tasks' mems_allowed in time
- (58568d2)
-In-Reply-To: <20100218134921.GF9738@laptop>
-Message-ID: <alpine.DEB.2.00.1002181302430.13707@chino.kir.corp.google.com>
-References: <20100218134921.GF9738@laptop>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 72D796B0047
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 19:07:49 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1J07cZX026358
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 19 Feb 2010 09:07:38 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 165A645DE4E
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:07:38 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D80DA45DE4C
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:07:37 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D03BE08001
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:07:37 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53424E78004
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:07:37 +0900 (JST)
+Date: Fri, 19 Feb 2010 09:04:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 05/12] Memory compaction core
+Message-Id: <20100219090406.d3903e05.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1002181335270.7351@router.home>
+References: <1265976059-7459-1-git-send-email-mel@csn.ul.ie>
+	<1265976059-7459-6-git-send-email-mel@csn.ul.ie>
+	<20100216170014.7309.A69D9226@jp.fujitsu.com>
+	<20100216084800.GC26086@csn.ul.ie>
+	<alpine.DEB.2.00.1002160849460.18275@router.home>
+	<20100216145943.GA997@csn.ul.ie>
+	<alpine.DEB.2.00.1002181335270.7351@router.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Miao Xie <miaox@cn.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Feb 2010, Nick Piggin wrote:
+On Thu, 18 Feb 2010 13:37:35 -0600 (CST)
+Christoph Lameter <cl@linux-foundation.org> wrote:
 
-> Hi,
+> On Tue, 16 Feb 2010, Mel Gorman wrote:
 > 
-> The patch cpuset,mm: update tasks' mems_allowed in time (58568d2) causes
-> a regression uncovered by SGI. Basically it is allowing possible but not
-> online nodes in the task_struct.mems_allowed nodemask (which is contrary
-> to several comments still in kernel/cpuset.c), and that causes
-> cpuset_mem_spread_node() to return an offline node to slab, causing an
-> oops.
+> > > Oh there are numerous ZONE_DMA pressure issues if you have ancient /
+> > > screwed up hardware that can only operate on DMA or DMA32 memory.
+> > >
+> >
+> > I've never ran into the issue. I was under the impression that the only
+> > device that might care these days are floopy disks.
 > 
-> Easy to reproduce if you have a machine with !online nodes.
+> Kame-san had an issue a year or so ago.
 > 
->         - mkdir /dev/cpuset
->         - mount cpuset -t cpuset /dev/cpuset
->         - echo 1 > /dev/cpuset/memory_spread_slab
-> 
-> kernel BUG at
-> /usr/src/packages/BUILD/kernel-default-2.6.32/linux-2.6.32/mm/slab.c:3271!
-> bash[6885]: bugcheck! 0 [1]
-> Pid: 6885, CPU 5, comm:                 bash
-> psr : 00001010095a2010 ifs : 800000000000038b ip  : [<a00000010020cf00>]
-> Tainted: G        W    (2.6.32-0.6.8-default)
-> ip is at ____cache_alloc_node+0x440/0x500
+Yes. But my customer doesn't use the newest things...
+In server area, recent hardware(64bit) and drivers tend not to cause the issue.
+I'm not sure there are some driver which still set their DMA mask wrong and
+require bounce buffer. But I guess that I'll have to see DMA-zone issue in
+customer support still in (early) RHEL6.
 
-It seems like current->mems_allowed is not properly initialized, although 
-task_cs(current)->mems_allowed is to node_states[N_HIGH_MEMORY].  See 
-below.
+Considering other area, I hear OOM-issue from notebook/desktop users, they don't
+equip swap. I think some of devices are still 32bit if 64bit isn't required for them.
+I wonder problems on lower-zone still exists for 32bit devices users.
+In the view point as kernels for x86-32 still support ZONE_DMA
+for ISA bus...we shouldn't assume there are no legacy. 
 
-> A simple bandaid is to skip !online nodes in cpuset_mem_spread_node().
-> However I'm a bit worried about 58568d2.
-> 
-> It is doing a lot of stuff. It is removing the callback_mutex from
-> around several seemingly unrelated places (eg. from around
-> guarnatee_online_cpus, which explicitly asks to be called with that
-> lock held), and other places, so I don't know how it is not racy
-> with hotplug.
-> 
+But yes, it may not be very important to implement inter-zone moving. It's not
+for compaction, but just for memory-reclaim. And it has some complication.
 
-guarantee_online_cpus() truly does require callback_mutex, the 
-cgroup_scan_tasks() iterator locking can protect changes in the cgroup 
-hierarchy but it doesn't protect a store to cs->cpus_allowed or for 
-hotplug.
 
-top_cpuset.cpus_allowed will always need to track cpu_active_map since 
-those are the schedulable cpus, it looks like that's initialized for SMP 
-and the cpu hotplug notifier does that correctly.
-
-I'm not sure what the logic is doing in cpuset_attach() where cs is the 
-cpuset to attach to:
-
-	if (cs == &top_cpuset) {
-		cpumask_copy(cpus_attach, cpu_possible_mask);
-		to = node_possible_map;
-	}
-
-cpus_attach is properly protected by cgroup_lock, but using 
-node_possible_map here will set task->mems_allowed to node_possible_map 
-when the cpuset does not have memory_migrate enabled.  This is the source 
-of your oops, I think.
-
-> Then it also says that the fastpath doesn't use any locking, so the
-> update-path first adds the newly allowed nodes, then removes the
-> newly prohibited nodes. Unfortunately there are no barriers apparent
-> (and none added), and cpumask/nodemask can be larger than one word,
-> so it seems there could be races.
-> 
-
-We can remove the store to tsk->mems_allowed in cpuset_migrate_mm() 
-because cpuset_change_task_nodemask() already does it under 
-task_lock(tsk).
-
-cpuset_migrate_mm() looks to be subsequently updating the cpuset_attach() 
-nodemask when moving to top_cpuset so it doesn't get stuck with 
-node_possible_map, but that's not called unless memory_migrate is enabled.
-
-> It also seems like the exported cpuset_mems_allowed and
-> cpuset_cpus_allowed APIs are just broken wrt hotplug because the
-> hotplug lock is dropped before returning.
-> 
-
-The usage of cpuset_cpus_allowed_locked() looks wrong in the scheduler, as 
-well: it can't hold callback_mutex since it is only declared at file scope 
-in the cpuset code.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
