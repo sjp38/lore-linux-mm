@@ -1,100 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1884E6B004D
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 17:28:38 -0500 (EST)
-Received: by mail-fx0-f222.google.com with SMTP id 22so684283fxm.6
-        for <linux-mm@kvack.org>; Fri, 19 Feb 2010 14:28:34 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id DB1CD6B007B
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 17:28:39 -0500 (EST)
+Received: by fxm22 with SMTP id 22so684353fxm.6
+        for <linux-mm@kvack.org>; Fri, 19 Feb 2010 14:28:37 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH -mmotm 2/4] cgroups: remove events before destroying subsystem state objects
-Date: Sat, 20 Feb 2010 00:28:17 +0200
-Message-Id: <a2717b1f5e0b49db7b6ecd1a5a41e65c1dc6b50a.1266618391.git.kirill@shutemov.name>
-In-Reply-To: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name>
+Subject: [PATCH -mmotm 4/4] memcg: Update memcg_test.txt to describe memory thresholds
+Date: Sat, 20 Feb 2010 00:28:19 +0200
+Message-Id: <fe8b000f9eb2cd469f21d92dcd87a6b3feb5efd7.1266618391.git.kirill@shutemov.name>
+In-Reply-To: <6afbe14e8bb2480d88377c14cb15d96edd2d18f6.1266618391.git.kirill@shutemov.name>
 References: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name>
-In-Reply-To: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name>
-References: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name>
+ <a2717b1f5e0b49db7b6ecd1a5a41e65c1dc6b50a.1266618391.git.kirill@shutemov.name>
+ <6afbe14e8bb2480d88377c14cb15d96edd2d18f6.1266618391.git.kirill@shutemov.name>
+In-Reply-To: <6afbe14e8bb2480d88377c14cb15d96edd2d18f6.1266618391.git.kirill@shutemov.name>
+References: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name> <a2717b1f5e0b49db7b6ecd1a5a41e65c1dc6b50a.1266618391.git.kirill@shutemov.name> <6afbe14e8bb2480d88377c14cb15d96edd2d18f6.1266618391.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 To: containers@lists.linux-foundation.org, linux-mm@kvack.org
 Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-Events should be removed after rmdir of cgroup directory, but before
-destroying subsystem state objects. Let's take reference to cgroup
-directory dentry to do that.
-
 Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 ---
- include/linux/cgroup.h |    3 ---
- kernel/cgroup.c        |    8 ++++++++
- mm/memcontrol.c        |    9 ---------
- 3 files changed, 8 insertions(+), 12 deletions(-)
+ Documentation/cgroups/memcg_test.txt |   21 +++++++++++++++++++++
+ 1 files changed, 21 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 64cebfe..1719c75 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -395,9 +395,6 @@ struct cftype {
- 	 * closes the eventfd or on cgroup removing.
- 	 * This callback must be implemented, if you want provide
- 	 * notification functionality.
--	 *
--	 * Be careful. It can be called after destroy(), so you have
--	 * to keep all nesessary data, until all events are removed.
- 	 */
- 	int (*unregister_event)(struct cgroup *cgrp, struct cftype *cft,
- 			struct eventfd_ctx *eventfd);
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 46903cb..d142524 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -2979,6 +2979,7 @@ static void cgroup_event_remove(struct work_struct *work)
- 
- 	eventfd_ctx_put(event->eventfd);
- 	kfree(event);
-+	dput(cgrp->dentry);
- }
- 
- /*
-@@ -3099,6 +3100,13 @@ static int cgroup_write_event_control(struct cgroup *cgrp, struct cftype *cft,
- 		goto fail;
- 	}
- 
-+	/*
-+	 * Events should be removed after rmdir of cgroup directory, but before
-+	 * destroying subsystem state objects. Let's take reference to cgroup
-+	 * directory dentry to do that.
-+	 */
-+	dget(cgrp->dentry);
+diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
+index e011488..4d32e0e 100644
+--- a/Documentation/cgroups/memcg_test.txt
++++ b/Documentation/cgroups/memcg_test.txt
+@@ -396,3 +396,24 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
+ 	memory.stat of both A and B.
+ 	See 8.2 of Documentation/cgroups/memory.txt to see what value should be
+ 	written to move_charge_at_immigrate.
 +
- 	spin_lock(&cgrp->event_list_lock);
- 	list_add(&event->list, &cgrp->event_list);
- 	spin_unlock(&cgrp->event_list_lock);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a443c30..8fe6e7f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3358,12 +3358,6 @@ static int mem_cgroup_register_event(struct cgroup *cgrp, struct cftype *cft,
- 		}
- 	}
- 
--	/*
--	 * We need to increment refcnt to be sure that all thresholds
--	 * will be unregistered before calling __mem_cgroup_free()
--	 */
--	mem_cgroup_get(memcg);
--
- 	if (type == _MEM)
- 		rcu_assign_pointer(memcg->thresholds, thresholds_new);
- 	else
-@@ -3457,9 +3451,6 @@ assign:
- 	/* To be sure that nobody uses thresholds before freeing it */
- 	synchronize_rcu();
- 
--	for (i = 0; i < thresholds->size - size; i++)
--		mem_cgroup_put(memcg);
--
- 	kfree(thresholds);
- unlock:
- 	mutex_unlock(&memcg->thresholds_lock);
++ 9.10 Memory thresholds
++	Memory controler implements memory thresholds using cgroups notification
++	API. You can use Documentation/cgroups/cgroup_event_listener.c to test
++	it.
++
++	(Shell-A) Create cgroup and run event listener
++	# mkdir /cgroup/A
++	# ./cgroup_event_listener /cgroup/A/memory.usage_in_bytes 5M
++
++	(Shell-B) Add task to cgroup and try to allocate and free memory
++	# echo $$ >/cgroup/A/tasks
++	# a="$(dd if=/dev/zero bs=1M count=10)"
++	# a=
++
++	You will see message from cgroup_event_listener every time you cross
++	the thresholds.
++
++	Use /cgroup/A/memory.memsw.usage_in_bytes to test memsw thresholds.
++
++	It's good idea to test root cgroup as well.
 -- 
 1.6.6.2
 
