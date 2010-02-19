@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9F0096B0047
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 20:35:40 -0500 (EST)
-Received: by pxi31 with SMTP id 31so4423075pxi.26
-        for <linux-mm@kvack.org>; Thu, 18 Feb 2010 17:35:39 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 827AF6B004D
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 20:36:45 -0500 (EST)
+Received: by pzk36 with SMTP id 36so10368336pzk.23
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2010 17:36:44 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1266516162-14154-7-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1266516162-14154-5-git-send-email-mel@csn.ul.ie>
 References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie>
-	 <1266516162-14154-7-git-send-email-mel@csn.ul.ie>
-Date: Fri, 19 Feb 2010 10:35:38 +0900
-Message-ID: <28c262361002181735w56ea868fmf778d3421bbecb31@mail.gmail.com>
-Subject: Re: [PATCH 06/12] Export unusable free space index via
-	/proc/pagetypeinfo
+	 <1266516162-14154-5-git-send-email-mel@csn.ul.ie>
+Date: Fri, 19 Feb 2010 10:36:43 +0900
+Message-ID: <28c262361002181736p2b845319yc48844421fd9315@mail.gmail.com>
+Subject: Re: [PATCH 04/12] mm: Document /proc/pagetypeinfo
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -20,17 +19,13 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundati
 List-ID: <linux-mm.kvack.org>
 
 On Fri, Feb 19, 2010 at 3:02 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> Unusuable free space index is a measure of external fragmentation that
-> takes the allocation size into account. For the most part, the huge page
-> size will be the size of interest but not necessarily so it is exported
-> on a per-order and per-zone basis via /proc/unusable_index.
->
-> The index is a value between 0 and 1. It can be expressed as a
-> percentage by multiplying by 100 as documented in
-> Documentation/filesystems/proc.txt.
+> This patch adds documentation for /proc/pagetypeinfo.
 >
 > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+
 
 -- 
 Kind regards,
