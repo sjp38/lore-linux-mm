@@ -1,58 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DA43A6B0047
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 22:58:55 -0500 (EST)
-Date: Fri, 19 Feb 2010 04:58:54 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/1] mm: invalidate_mapping_pages checks boundaries when lock fails
-Message-ID: <20100219035854.GA11856@cmpxchg.org>
-References: <1266542537-5040-1-git-send-email-yehuda@hq.newdream.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1266542537-5040-1-git-send-email-yehuda@hq.newdream.net>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id BA5C76B0047
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 00:09:36 -0500 (EST)
+Received: by pzk36 with SMTP id 36so10525163pzk.23
+        for <linux-mm@kvack.org>; Thu, 18 Feb 2010 21:09:35 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1266516162-14154-4-git-send-email-mel@csn.ul.ie>
+References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie>
+	 <1266516162-14154-4-git-send-email-mel@csn.ul.ie>
+Date: Fri, 19 Feb 2010 14:09:35 +0900
+Message-ID: <28c262361002182109p67f7d221m9385b56e52b33f50@mail.gmail.com>
+Subject: Re: [PATCH 03/12] mm: Share the anon_vma ref counts between KSM and
+	page migration
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Yehuda Sadeh <yehuda@hq.newdream.net>
-Cc: linux-mm@kvack.org, linux-btrfs@vger.kernel.org, sage@newdream.net
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, Feb 19, 2010 at 3:02 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> For clarity of review, KSM and page migration have separate refcounts on
+> the anon_vma. While clear, this is a waste of memory. This patch gets
+> KSM and page migration to share their toys in a spirit of harmony.
+>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-On Thu, Feb 18, 2010 at 05:22:17PM -0800, Yehuda Sadeh wrote:
-> Not sure that I'm not missing something obvious. When invalidate_mapping_pages
-> fails to lock the page, we continue to the next iteration, skipping the
-> next > end check. This can lead to a case where we invalidate a page that is
-> beyond the requested boundaries. Currently there are two callers that might be
-> affected, one is btrfs and the second one is the fadvice syscall.
-> Does that look right, or am I just missing something?
+When I reviewed your patch [1/12], I thought like this.
+Looks good to me.
 
-This can already happen with the first page being at an index above end
-as the check only happens after we invalidated the page.
-
-The damage is losing one cache-only (clean, unmapped) page.  It is a bit
-ugly but not a huge problem I suppose.
-
-How about checking page->index against end, like in the truncation case,
-before the invalidation?  That should take care of both cases.
-
-We already rely on a page->index when the page is pinned but locked by
-somebody else.  And I think that's fine.
-
-Can we not just make that the default?  That could simplify the inner
-loop to something like
-
-	index = page->index;
-	if (index > end)
-		break;
-	next = max(index, next) + 1;
-	if (!trylock_page(page))
-		continue;
-	ret += invalidate_inode_page(page);
-	unlock_page(page);
-
-or something.
-
-	Hannes
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
