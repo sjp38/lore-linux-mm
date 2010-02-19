@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 769A06B004D
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:43:17 -0500 (EST)
-Message-ID: <4B7F05D7.8030109@redhat.com>
-Date: Fri, 19 Feb 2010 16:42:47 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 818EF6B007D
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 16:46:47 -0500 (EST)
+Message-ID: <4B7F06A7.2030505@redhat.com>
+Date: Fri, 19 Feb 2010 16:46:15 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/12] mm: Document /proc/pagetypeinfo
-References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie> <1266516162-14154-5-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1266516162-14154-5-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 06/12] Export unusable free space index via /proc/pagetypeinfo
+References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie> <1266516162-14154-7-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1266516162-14154-7-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,11 +17,16 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundati
 List-ID: <linux-mm.kvack.org>
 
 On 02/18/2010 01:02 PM, Mel Gorman wrote:
-> This patch adds documentation for /proc/pagetypeinfo.
+> Unusuable free space index is a measure of external fragmentation that
+> takes the allocation size into account. For the most part, the huge page
+> size will be the size of interest but not necessarily so it is exported
+> on a per-order and per-zone basis via /proc/unusable_index.
+>
+> The index is a value between 0 and 1. It can be expressed as a
+> percentage by multiplying by 100 as documented in
+> Documentation/filesystems/proc.txt.
 >
 > Signed-off-by: Mel Gorman<mel@csn.ul.ie>
-> Reviewed-by: Christoph Lameter<cl@linux-foundation.org>
-> Reviewed-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
