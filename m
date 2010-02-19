@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D0E016B0047
-	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 19:16:17 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1J0GHAN028890
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 071116B0047
+	for <linux-mm@kvack.org>; Thu, 18 Feb 2010 19:22:30 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1J0MSR3031713
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 19 Feb 2010 09:16:17 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AAADB45DE4E
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:16:16 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6374045DE56
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:16:16 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B1B2DE08004
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:16:15 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 21DEBE7800C
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:16:15 +0900 (JST)
-Date: Fri, 19 Feb 2010 09:12:44 +0900
+	Fri, 19 Feb 2010 09:22:28 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A16145DE67
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:22:28 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B331C45DE51
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:22:27 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 65E771DB8047
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:22:27 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D6FB11DB803C
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 09:22:26 +0900 (JST)
+Date: Fri, 19 Feb 2010 09:18:59 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 01/12] mm,migration: Take a reference to the anon_vma
- before migrating
-Message-Id: <20100219091244.2116db73.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1266516162-14154-2-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 03/12] mm: Share the anon_vma ref counts between KSM and
+ page migration
+Message-Id: <20100219091859.195d922c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1266516162-14154-4-git-send-email-mel@csn.ul.ie>
 References: <1266516162-14154-1-git-send-email-mel@csn.ul.ie>
-	<1266516162-14154-2-git-send-email-mel@csn.ul.ie>
+	<1266516162-14154-4-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -34,155 +34,189 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Feb 2010 18:02:31 +0000
+On Thu, 18 Feb 2010 18:02:33 +0000
 Mel Gorman <mel@csn.ul.ie> wrote:
 
-> rmap_walk_anon() does not use page_lock_anon_vma() for looking up and
-> locking an anon_vma and it does not appear to have sufficient locking to
-> ensure the anon_vma does not disappear from under it.
-> 
-> This patch copies an approach used by KSM to take a reference on the
-> anon_vma while pages are being migrated. This should prevent rmap_walk()
-> running into nasty surprises later because anon_vma has been freed.
+> For clarity of review, KSM and page migration have separate refcounts on
+> the anon_vma. While clear, this is a waste of memory. This patch gets
+> KSM and page migration to share their toys in a spirit of harmony.
 > 
 > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-I have no objection to this direction. But after this patch, you can remove
-rcu_read_lock()/unlock() in unmap_and_move().
-ruc_read_lock() is for guarding against anon_vma replacement.
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Nitpick:
+I think this refcnt has something different characteristics than other
+usual refcnts. Even when refcnt goes down to 0, anon_vma will not be freed.
+So, I think some kind of name as temporal_reference_count is better than
+simple "refcnt". Then, it will be clearer what this refcnt is for.
 
 Thanks,
 -Kame
 
-
-
 > ---
->  include/linux/rmap.h |   23 +++++++++++++++++++++++
->  mm/migrate.c         |   12 ++++++++++++
->  mm/rmap.c            |   10 +++++-----
->  3 files changed, 40 insertions(+), 5 deletions(-)
+>  include/linux/rmap.h |   50 ++++++++++++++++++--------------------------------
+>  mm/ksm.c             |    4 ++--
+>  mm/migrate.c         |    4 ++--
+>  mm/rmap.c            |    6 ++----
+>  4 files changed, 24 insertions(+), 40 deletions(-)
 > 
 > diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> index b019ae6..6b5a1a9 100644
+> index 6b5a1a9..55c0e9e 100644
 > --- a/include/linux/rmap.h
 > +++ b/include/linux/rmap.h
-> @@ -29,6 +29,9 @@ struct anon_vma {
->  #ifdef CONFIG_KSM
->  	atomic_t ksm_refcount;
+> @@ -26,11 +26,17 @@
+>   */
+>  struct anon_vma {
+>  	spinlock_t lock;	/* Serialize access to vma list */
+> -#ifdef CONFIG_KSM
+> -	atomic_t ksm_refcount;
+> -#endif
+> -#ifdef CONFIG_MIGRATION
+> -	atomic_t migrate_refcount;
+> +#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
+> +
+> +	/*
+> +	 * The refcount is taken by either KSM or page migration
+> +	 * to take a reference to an anon_vma when there is no
+> +	 * guarantee that the vma of page tables will exist for
+> +	 * the duration of the operation. A caller that takes
+> +	 * the reference is responsible for clearing up the
+> +	 * anon_vma if they are the last user on release
+> +	 */
+> +	atomic_t refcount;
 >  #endif
-> +#ifdef CONFIG_MIGRATION
-> +	atomic_t migrate_refcount;
-> +#endif
 >  	/*
 >  	 * NOTE: the LSB of the head.next is set by
->  	 * mm_take_all_locks() _after_ taking the above lock. So the
-> @@ -61,6 +64,26 @@ static inline int ksm_refcount(struct anon_vma *anon_vma)
+> @@ -44,46 +50,26 @@ struct anon_vma {
+>  };
+>  
+>  #ifdef CONFIG_MMU
+> -#ifdef CONFIG_KSM
+> -static inline void ksm_refcount_init(struct anon_vma *anon_vma)
+> +#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
+> +static inline void anonvma_refcount_init(struct anon_vma *anon_vma)
+>  {
+> -	atomic_set(&anon_vma->ksm_refcount, 0);
+> +	atomic_set(&anon_vma->refcount, 0);
+>  }
+>  
+> -static inline int ksm_refcount(struct anon_vma *anon_vma)
+> +static inline int anonvma_refcount(struct anon_vma *anon_vma)
+>  {
+> -	return atomic_read(&anon_vma->ksm_refcount);
+> +	return atomic_read(&anon_vma->refcount);
+>  }
+>  #else
+> -static inline void ksm_refcount_init(struct anon_vma *anon_vma)
+> +static inline void anonvma_refcount_init(struct anon_vma *anon_vma)
+>  {
+>  }
+>  
+> -static inline int ksm_refcount(struct anon_vma *anon_vma)
+> +static inline int anonvma_refcount(struct anon_vma *anon_vma)
+>  {
 >  	return 0;
 >  }
 >  #endif /* CONFIG_KSM */
-> +#ifdef CONFIG_MIGRATION
-> +static inline void migrate_refcount_init(struct anon_vma *anon_vma)
-> +{
-> +	atomic_set(&anon_vma->migrate_refcount, 0);
-> +}
-> +
-> +static inline int migrate_refcount(struct anon_vma *anon_vma)
-> +{
-> +	return atomic_read(&anon_vma->migrate_refcount);
-> +}
-> +#else
-> +static inline void migrate_refcount_init(struct anon_vma *anon_vma)
-> +{
-> +}
-> +
-> +static inline int migrate_refcount(struct anon_vma *anon_vma)
-> +{
-> +	return 0;
-> +}
-> +#endif /* CONFIG_MIGRATE */
+> -#ifdef CONFIG_MIGRATION
+> -static inline void migrate_refcount_init(struct anon_vma *anon_vma)
+> -{
+> -	atomic_set(&anon_vma->migrate_refcount, 0);
+> -}
+> -
+> -static inline int migrate_refcount(struct anon_vma *anon_vma)
+> -{
+> -	return atomic_read(&anon_vma->migrate_refcount);
+> -}
+> -#else
+> -static inline void migrate_refcount_init(struct anon_vma *anon_vma)
+> -{
+> -}
+> -
+> -static inline int migrate_refcount(struct anon_vma *anon_vma)
+> -{
+> -	return 0;
+> -}
+> -#endif /* CONFIG_MIGRATE */
 >  
 >  static inline struct anon_vma *page_anon_vma(struct page *page)
 >  {
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 56a0da1..7decf73 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -318,14 +318,14 @@ static void hold_anon_vma(struct rmap_item *rmap_item,
+>  			  struct anon_vma *anon_vma)
+>  {
+>  	rmap_item->anon_vma = anon_vma;
+> -	atomic_inc(&anon_vma->ksm_refcount);
+> +	atomic_inc(&anon_vma->refcount);
+>  }
+>  
+>  static void drop_anon_vma(struct rmap_item *rmap_item)
+>  {
+>  	struct anon_vma *anon_vma = rmap_item->anon_vma;
+>  
+> -	if (atomic_dec_and_lock(&anon_vma->ksm_refcount, &anon_vma->lock)) {
+> +	if (atomic_dec_and_lock(&anon_vma->refcount, &anon_vma->lock)) {
+>  		int empty = list_empty(&anon_vma->head);
+>  		spin_unlock(&anon_vma->lock);
+>  		if (empty)
 > diff --git a/mm/migrate.c b/mm/migrate.c
-> index 9a0db5b..63addfa 100644
+> index 1ce6a2f..00777b0 100644
 > --- a/mm/migrate.c
 > +++ b/mm/migrate.c
-> @@ -551,6 +551,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	int rcu_locked = 0;
->  	int charge = 0;
->  	struct mem_cgroup *mem = NULL;
-> +	struct anon_vma *anon_vma = NULL;
->  
->  	if (!newpage)
->  		return -ENOMEM;
-> @@ -607,6 +608,8 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	if (PageAnon(page)) {
+> @@ -619,7 +619,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 >  		rcu_read_lock();
 >  		rcu_locked = 1;
-> +		anon_vma = page_anon_vma(page);
-> +		atomic_inc(&anon_vma->migrate_refcount);
+>  		anon_vma = page_anon_vma(page);
+> -		atomic_inc(&anon_vma->migrate_refcount);
+> +		atomic_inc(&anon_vma->refcount);
 >  	}
 >  
 >  	/*
-> @@ -646,6 +649,15 @@ skip_unmap:
->  	if (rc)
->  		remove_migration_ptes(page, page);
+> @@ -661,7 +661,7 @@ skip_unmap:
 >  rcu_unlock:
-> +
-> +	/* Drop an anon_vma reference if we took one */
-> +	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
-> +		int empty = list_empty(&anon_vma->head);
-> +		spin_unlock(&anon_vma->lock);
-> +		if (empty)
-> +			anon_vma_free(anon_vma);
-> +	}
-> +
->  	if (rcu_locked)
->  		rcu_read_unlock();
->  uncharge:
+>  
+>  	/* Drop an anon_vma reference if we took one */
+> -	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
+> +	if (anon_vma && atomic_dec_and_lock(&anon_vma->refcount, &anon_vma->lock)) {
+>  		int empty = list_empty(&anon_vma->head);
+>  		spin_unlock(&anon_vma->lock);
+>  		if (empty)
 > diff --git a/mm/rmap.c b/mm/rmap.c
-> index 278cd27..11ba74a 100644
+> index 11ba74a..96b5905 100644
 > --- a/mm/rmap.c
 > +++ b/mm/rmap.c
-> @@ -172,7 +172,8 @@ void anon_vma_unlink(struct vm_area_struct *vma)
+> @@ -172,8 +172,7 @@ void anon_vma_unlink(struct vm_area_struct *vma)
 >  	list_del(&vma->anon_vma_node);
 >  
 >  	/* We must garbage collect the anon_vma if it's empty */
-> -	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma);
-> +	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma) &&
-> +					!migrate_refcount(anon_vma);
+> -	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma) &&
+> -					!migrate_refcount(anon_vma);
+> +	empty = list_empty(&anon_vma->head) && !anonvma_refcount(anon_vma);
 >  	spin_unlock(&anon_vma->lock);
 >  
 >  	if (empty)
-> @@ -185,6 +186,7 @@ static void anon_vma_ctor(void *data)
+> @@ -185,8 +184,7 @@ static void anon_vma_ctor(void *data)
+>  	struct anon_vma *anon_vma = data;
 >  
 >  	spin_lock_init(&anon_vma->lock);
->  	ksm_refcount_init(anon_vma);
-> +	migrate_refcount_init(anon_vma);
+> -	ksm_refcount_init(anon_vma);
+> -	migrate_refcount_init(anon_vma);
+> +	anonvma_refcount_init(anon_vma);
 >  	INIT_LIST_HEAD(&anon_vma->head);
 >  }
 >  
-> @@ -1228,10 +1230,8 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
->  	/*
->  	 * Note: remove_migration_ptes() cannot use page_lock_anon_vma()
->  	 * because that depends on page_mapped(); but not all its usages
-> -	 * are holding mmap_sem, which also gave the necessary guarantee
-> -	 * (that this anon_vma's slab has not already been destroyed).
-> -	 * This needs to be reviewed later: avoiding page_lock_anon_vma()
-> -	 * is risky, and currently limits the usefulness of rmap_walk().
-> +	 * are holding mmap_sem. Users without mmap_sem are required to
-> +	 * take a reference count to prevent the anon_vma disappearing
->  	 */
->  	anon_vma = page_anon_vma(page);
->  	if (!anon_vma)
 > -- 
 > 1.6.5
 > 
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
 
 --
