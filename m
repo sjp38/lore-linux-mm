@@ -1,32 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id DAFD96B0047
-	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 23:28:25 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0DB506B0047
+	for <linux-mm@kvack.org>; Fri, 19 Feb 2010 23:29:38 -0500 (EST)
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1K4SN1n020814
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1K4TaKD006347
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 20 Feb 2010 13:28:23 +0900
+	Sat, 20 Feb 2010 13:29:36 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4573B45DE50
-	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 13:28:23 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2569E45DE4D
+	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 13:29:36 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B0C645DE4E
-	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 13:28:23 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 03FF045DE50
+	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 13:29:36 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ECA3C1DB8038
-	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 13:28:22 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A06281DB8037
-	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 13:28:22 +0900 (JST)
-Date: Sat, 20 Feb 2010 13:24:50 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D66E01DB8041
+	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 13:29:35 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C03F1DB8038
+	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 13:29:35 +0900 (JST)
+Date: Sat, 20 Feb 2010 13:26:04 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 3/4] cgroups: Add simple listener of cgroup
- events to documentation
-Message-Id: <20100220132450.c9f63f06.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <6afbe14e8bb2480d88377c14cb15d96edd2d18f6.1266618391.git.kirill@shutemov.name>
+Subject: Re: [PATCH -mmotm 4/4] memcg: Update memcg_test.txt to describe
+ memory thresholds
+Message-Id: <20100220132604.0609db47.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <fe8b000f9eb2cd469f21d92dcd87a6b3feb5efd7.1266618391.git.kirill@shutemov.name>
 References: <05f582d6cdc85fbb96bfadc344572924c0776730.1266618391.git.kirill@shutemov.name>
 	<a2717b1f5e0b49db7b6ecd1a5a41e65c1dc6b50a.1266618391.git.kirill@shutemov.name>
 	<6afbe14e8bb2480d88377c14cb15d96edd2d18f6.1266618391.git.kirill@shutemov.name>
+	<fe8b000f9eb2cd469f21d92dcd87a6b3feb5efd7.1266618391.git.kirill@shutemov.name>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -35,131 +36,48 @@ To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 20 Feb 2010 00:28:18 +0200
+On Sat, 20 Feb 2010 00:28:19 +0200
 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
 > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 
-
-Nice. but please add one-line patch description, at least.
-(Because it helps we see merge log rather than patch dump.)
-
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Thank you.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
 > ---
->  Documentation/cgroups/cgroup_event_listener.c |  102 +++++++++++++++++++++++++
->  1 files changed, 102 insertions(+), 0 deletions(-)
->  create mode 100644 Documentation/cgroups/cgroup_event_listener.c
+>  Documentation/cgroups/memcg_test.txt |   21 +++++++++++++++++++++
+>  1 files changed, 21 insertions(+), 0 deletions(-)
 > 
-> diff --git a/Documentation/cgroups/cgroup_event_listener.c b/Documentation/cgroups/cgroup_event_listener.c
-> new file mode 100644
-> index 0000000..a8277b2
-> --- /dev/null
-> +++ b/Documentation/cgroups/cgroup_event_listener.c
-> @@ -0,0 +1,102 @@
-> +/*
-> + * cgroup_event_listener.c - Simple listener of cgroup events
-> + *
-> + * Copyright (C) Kirill A. Shutemov <kirill@shutemov.name>
-> + */
+> diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
+> index e011488..4d32e0e 100644
+> --- a/Documentation/cgroups/memcg_test.txt
+> +++ b/Documentation/cgroups/memcg_test.txt
+> @@ -396,3 +396,24 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
+>  	memory.stat of both A and B.
+>  	See 8.2 of Documentation/cgroups/memory.txt to see what value should be
+>  	written to move_charge_at_immigrate.
 > +
-> +#include <assert.h>
-> +#include <errno.h>
-> +#include <fcntl.h>
-> +#include <libgen.h>
-> +#include <limits.h>
-> +#include <stdio.h>
-> +#include <string.h>
-> +#include <unistd.h>
+> + 9.10 Memory thresholds
+> +	Memory controler implements memory thresholds using cgroups notification
+> +	API. You can use Documentation/cgroups/cgroup_event_listener.c to test
+> +	it.
 > +
-> +#include <sys/eventfd.h>
+> +	(Shell-A) Create cgroup and run event listener
+> +	# mkdir /cgroup/A
+> +	# ./cgroup_event_listener /cgroup/A/memory.usage_in_bytes 5M
 > +
-> +#define USAGE_STR "Usage: cgroup_event_listener <path-to-control-file> <args>\n"
+> +	(Shell-B) Add task to cgroup and try to allocate and free memory
+> +	# echo $$ >/cgroup/A/tasks
+> +	# a="$(dd if=/dev/zero bs=1M count=10)"
+> +	# a=
 > +
-> +int main(int argc, char **argv)
-> +{
-> +	int efd = -1;
-> +	int cfd = -1;
-> +	int event_control = -1;
-> +	char event_control_path[PATH_MAX];
-> +	int ret;
+> +	You will see message from cgroup_event_listener every time you cross
+> +	the thresholds.
 > +
-> +	if (argc != 3) {
-> +		fputs(USAGE_STR, stderr);
-> +		return 1;
-> +	}
+> +	Use /cgroup/A/memory.memsw.usage_in_bytes to test memsw thresholds.
 > +
-> +	cfd = open(argv[1], O_RDONLY);
-> +	if (cfd == -1) {
-> +		fprintf(stderr, "Cannot open %s: %s\n", argv[1],
-> +				strerror(errno));
-> +		goto out;
-> +	}
-> +
-> +	ret = snprintf(event_control_path, PATH_MAX, "%s/cgroup.event_control",
-> +			dirname(argv[1]));
-> +	if (ret > PATH_MAX) {
-> +		fputs("Path to cgroup.event_control is too long\n", stderr);
-> +		goto out;
-> +	}
-> +
-> +	event_control = open(event_control_path, O_WRONLY);
-> +	if (event_control == -1) {
-> +		fprintf(stderr, "Cannot open %s: %s\n", event_control_path,
-> +				strerror(errno));
-> +		goto out;
-> +	}
-> +
-> +	efd = eventfd(0, 0);
-> +	if (efd == -1) {
-> +		perror("eventfd() failed");
-> +		goto out;
-> +	}
-> +
-> +	ret = dprintf(event_control, "%d %d %s", efd, cfd, argv[2]);
-> +	if (ret == -1) {
-> +		perror("Cannot write to cgroup.event_control");
-> +		goto out;
-> +	}
-> +
-> +	while (1) {
-> +		uint64_t result;
-> +
-> +		ret = read(efd, &result, sizeof(result));
-> +		if (ret == -1) {
-> +			if (errno == EINTR)
-> +				continue;
-> +			perror("Cannot read from eventfd");
-> +			break;
-> +		}
-> +		assert (ret == sizeof(result));
-> +
-> +		ret = access(event_control_path, W_OK);
-> +		if ((ret == -1) && (errno == ENOENT)) {
-> +				puts("The cgroup seems to have removed.");
-> +				ret = 0;
-> +				break;
-> +		}
-> +
-> +		if (ret == -1) {
-> +			perror("cgroup.event_control is not accessable any more");
-> +			break;
-> +		}
-> +
-> +		printf("%s %s: crossed\n", argv[1], argv[2]);
-> +	}
-> +
-> +out:
-> +	if (efd >= 0)
-> +		close(efd);
-> +	if (event_control >= 0)
-> +		close(event_control);
-> +	if (cfd >= 0)
-> +		close(cfd);
-> +
-> +	return (ret != 0);
-> +}
+> +	It's good idea to test root cgroup as well.
 > -- 
 > 1.6.6.2
 > 
