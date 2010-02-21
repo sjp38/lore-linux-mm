@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 116106B0092
-	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:43 -0500 (EST)
-Message-Id: <20100221141756.772875923@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:34 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2A5056B009B
+	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:44 -0500 (EST)
+Message-Id: <20100221141757.736486734@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:40 +0100
 From: aarcange@redhat.com
-Subject: [patch 25/36] _GFP_NO_KSWAPD
+Subject: [patch 31/36] madvise(MADV_HUGEPAGE)
 References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=gfp_no_kswapd
+Content-Disposition: inline; filename=madv_hugepage
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,54 +15,85 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Transparent hugepage allocations must be allowed not to invoke kswapd or any
-other kind of indirect reclaim (especially when the defrag sysfs is control
-disabled). It's unacceptable to swap out anonymous pages (potentially
-anonymous transparent hugepages) in order to create new transparent hugepages.
-This is true for the MADV_HUGEPAGE areas too (swapping out a kvm virtual
-machine and so having it suffer an unbearable slowdown, so another one with
-guest physical memory marked MADV_HUGEPAGE can run 30% faster if it is running
-memory intensive workloads, makes no sense). If a transparent hugepage
-allocation fails the slowdown is minor and there is total fallback, so kswapd
-should never be asked to swapout memory to allow the high order allocation to
-succeed.
+Add madvise MADV_HUGEPAGE to mark regions that are important to be hugepage
+backed. Return -EINVAL if the vma is not of an anonymous type, or the feature
+isn't built into the kernel. Never silently return success.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -59,13 +59,15 @@ struct vm_area_struct;
- #define __GFP_NOTRACK	((__force gfp_t)0)
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -103,6 +103,7 @@ extern int split_huge_page(struct page *
  #endif
  
-+#define __GFP_NO_KSWAPD	((__force gfp_t)0x400000u)
+ extern unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
++extern int hugepage_madvise(unsigned long *vm_flags);
+ static inline int PageTransHuge(struct page *page)
+ {
+ 	VM_BUG_ON(PageTail(page));
+@@ -127,6 +128,11 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++static inline int hugepage_madvise(unsigned long *vm_flags)
++{
++	BUG_ON(0);
++	return 0;
++}
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+ #endif /* _LINUX_HUGE_MM_H */
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -854,3 +854,19 @@ out_unlock:
+ out:
+ 	return ret;
+ }
 +
- /*
-  * This may seem redundant, but it's a way of annotating false positives vs.
-  * allocations that simply cannot be supported (e.g. page tables).
-  */
- #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
++int hugepage_madvise(unsigned long *vm_flags)
++{
++	/*
++	 * Be somewhat over-protective like KSM for now!
++	 */
++	if (*vm_flags & (VM_HUGEPAGE | VM_SHARED  | VM_MAYSHARE   |
++			 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
++			 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
++			 VM_MIXEDMAP | VM_SAO))
++		return -EINVAL;
++
++	*vm_flags |= VM_HUGEPAGE;
++
++	return 0;
++}
+diff --git a/mm/madvise.c b/mm/madvise.c
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -71,6 +71,11 @@ static long madvise_behavior(struct vm_a
+ 		if (error)
+ 			goto out;
+ 		break;
++	case MADV_HUGEPAGE:
++		error = hugepage_madvise(&new_flags);
++		if (error)
++			goto out;
++		break;
+ 	}
  
--#define __GFP_BITS_SHIFT 22	/* Room for 22 __GFP_FOO bits */
-+#define __GFP_BITS_SHIFT 23	/* Room for 23 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+ 	if (new_flags == vma->vm_flags) {
+@@ -283,6 +288,9 @@ madvise_behavior_valid(int behavior)
+ 	case MADV_MERGEABLE:
+ 	case MADV_UNMERGEABLE:
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	case MADV_HUGEPAGE:
++#endif
+ 		return 1;
  
- /* This equals 0, but use constants in case they ever change */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1829,7 +1829,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, u
- 		goto nopage;
- 
- restart:
--	wake_all_kswapd(order, zonelist, high_zoneidx);
-+	if (!(gfp_mask & __GFP_NO_KSWAPD))
-+		wake_all_kswapd(order, zonelist, high_zoneidx);
- 
- 	/*
- 	 * OK, we're below the kswapd watermark and have kicked background
+ 	default:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
