@@ -1,62 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0AED56B0047
-	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 06:50:32 -0500 (EST)
-Date: Sun, 21 Feb 2010 20:50:02 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: Document /sys/devices/system/node/nodeX
-In-Reply-To: <20100220094109.GJ1445@csn.ul.ie>
-References: <20100220094109.GJ1445@csn.ul.ie>
-Message-Id: <20100221204641.B810.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 34CD46B0047
+	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:43 -0500 (EST)
+Message-Id: <20100221141753.852489550@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:16 +0100
+From: aarcange@redhat.com
+Subject: [patch 07/36] add native_set_pmd_at
+References: <20100221141009.581909647@redhat.com>
+Content-Disposition: inline; filename=native_set_pmd_at
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, Greg KH <greg@kroah.com>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> Add a bare description of what /sys/devices/system/node/nodeX is. Others
-> will follow in time but right now, none of that tree is documented. The
-> existence of this file might at least encourage people to document new entries.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Sure. 
-/sys/devices/system/node/nodeX have many frequently used knob and stat and
-it live in for long time. It is obviously ABI.
+Used by paravirt and not paravirt set_pmd_at.
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+---
 
-
-> ---
->  Documentation/ABI/stable/sysfs-devices-node |    7 +++++++
->  1 files changed, 7 insertions(+), 0 deletions(-)
->  create mode 100644 Documentation/ABI/stable/sysfs-devices-node
-> 
-> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
-> new file mode 100644
-> index 0000000..49b82ca
-> --- /dev/null
-> +++ b/Documentation/ABI/stable/sysfs-devices-node
-> @@ -0,0 +1,7 @@
-> +What:		/sys/devices/system/node/nodeX
-> +Date:		October 2002
-> +Contact:	Linux Memory Management list <linux-mm@kvack.org>
-> +Description:
-> +		When CONFIG_NUMA is enabled, this is a directory containing
-> +		information on node X such as what CPUs are local to the
-> +		node.
-> -- 
-> 1.6.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
+ 	native_set_pte(ptep, pte);
+ }
+ 
++static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
++				     pmd_t *pmdp , pmd_t pmd)
++{
++	native_set_pmd(pmdp, pmd);
++}
++
+ #ifndef CONFIG_PARAVIRT
+ /*
+  * Rules for using pte_update - it must be called after any PTE update which
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
