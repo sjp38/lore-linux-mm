@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id EAAAE6B007D
-	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:48 -0500 (EST)
-Message-Id: <20100221141753.297910660@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:13 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3AA566004A6
+	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:49 -0500 (EST)
+Message-Id: <20100221141757.596542955@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:39 +0100
 From: aarcange@redhat.com
-Subject: [patch 04/36] update futex compound knowledge
+Subject: [patch 30/36] verify pmd_trans_huge isnt leaking
 References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=compound_futex
+Content-Disposition: inline; filename=debug_pte_trans_huge
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,135 +15,51 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Futex code is smarter than most other gup_fast O_DIRECT code and knows about
-the compound internals. However now doing a put_page(head_page) will not
-release the pin on the tail page taken by gup-fast, leading to all sort of
-refcounting bugchecks. Getting a stable head_page is a little tricky.
-
-page_head = page is there because if this is not a tail page it's also the
-page_head. Only in case this is a tail page, compound_head is called, otherwise
-it's guaranteed unnecessary. And if it's a tail page compound_head has to run
-atomically inside irq disabled section __get_user_pages_fast before returning.
-Otherwise ->first_page won't be a stable pointer.
-
-Disableing irq before __get_user_page_fast and releasing irq after running
-compound_head is needed because if __get_user_page_fast returns == 1, it means
-the huge pmd is established and cannot go away from under us.
-pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
-for local_irq_enable before the IPI delivery can return. This means
-__split_huge_page_refcount can't be running from under us, and in turn when we
-run compound_head(page) we're not reading a dangling pointer from
-tailpage->first_page. Then after we get to stable head page, we are always safe
-to call compound_lock and after taking the compound lock on head page we can
-finally re-check if the page returned by gup-fast is still a tail page. in
-which case we're set and we didn't need to split the hugepage in order to take
-a futex on it.
+pte_trans_huge must not leak in certain vmas like the mmio special pfn or
+filebacked mappings.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/kernel/futex.c b/kernel/futex.c
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
- {
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
--	struct page *page;
-+	struct page *page, *page_head;
- 	int err;
- 
- 	/*
-@@ -250,10 +250,53 @@ again:
- 	if (err < 0)
- 		return err;
- 
--	page = compound_head(page);
--	lock_page(page);
--	if (!page->mapping) {
--		unlock_page(page);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	page_head = page;
-+	if (unlikely(PageTail(page))) {
-+		put_page(page);
-+		/* serialize against __split_huge_page_splitting() */
-+		local_irq_disable();
-+		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
-+			page_head = compound_head(page);
-+			/*
-+			 * page_head is valid pointer but we must pin
-+			 * it before taking the PG_lock and/or
-+			 * PG_compound_lock. The moment we re-enable
-+			 * irqs __split_huge_page_splitting() can
-+			 * return and the head page can be freed from
-+			 * under us. We can't take the PG_lock and/or
-+			 * PG_compound_lock on a page that could be
-+			 * freed from under us.
-+			 */
-+			if (page != page_head)
-+				get_page(page_head);
-+			local_irq_enable();
-+		} else {
-+			local_irq_enable();
-+			goto again;
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1333,6 +1333,7 @@ int __get_user_pages(struct task_struct 
+ 			pmd = pmd_offset(pud, pg);
+ 			if (pmd_none(*pmd))
+ 				return i ? : -EFAULT;
++			VM_BUG_ON(pmd_trans_huge(*pmd));
+ 			pte = pte_offset_map(pmd, pg);
+ 			if (pte_none(*pte)) {
+ 				pte_unmap(pte);
+@@ -1534,8 +1535,10 @@ pte_t *get_locked_pte(struct mm_struct *
+ 	pud_t * pud = pud_alloc(mm, pgd, addr);
+ 	if (pud) {
+ 		pmd_t * pmd = pmd_alloc(mm, pud, addr);
+-		if (pmd)
++		if (pmd) {
++			VM_BUG_ON(pmd_trans_huge(*pmd));
+ 			return pte_alloc_map_lock(mm, pmd, addr, ptl);
 +		}
-+	}
-+#else
-+	page_head = compound_head(page);
-+	if (page != page_head)
-+		get_page(page_head);
-+#endif
-+
-+	lock_page(page_head);
-+	if (unlikely(page_head != page)) {
-+		compound_lock(page_head);
-+		if (unlikely(!PageTail(page))) {
-+			compound_unlock(page_head);
-+			unlock_page(page_head);
-+			put_page(page_head);
-+			put_page(page);
-+			goto again;
-+		}
-+	}
-+	if (!page_head->mapping) {
-+		unlock_page(page_head);
-+		if (page_head != page)
-+			put_page(page_head);
- 		put_page(page);
- 		goto again;
  	}
-@@ -265,19 +308,25 @@ again:
- 	 * it's a read-only handle, it's expected that futexes attach to
- 	 * the object not the particular process.
- 	 */
--	if (PageAnon(page)) {
-+	if (PageAnon(page_head)) {
- 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
- 		key->private.mm = mm;
- 		key->private.address = address;
- 	} else {
- 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
--		key->shared.inode = page->mapping->host;
--		key->shared.pgoff = page->index;
-+		key->shared.inode = page_head->mapping->host;
-+		key->shared.pgoff = page_head->index;
- 	}
- 
- 	get_futex_key_refs(key);
- 
--	unlock_page(page);
-+	unlock_page(page_head);
-+	if (page != page_head) {
-+		VM_BUG_ON(!PageTail(page));
-+		/* releasing compound_lock after page_lock won't matter */
-+		compound_unlock(page_head);
-+		put_page(page_head);
-+	}
- 	put_page(page);
- 	return 0;
+ 	return NULL;
  }
+@@ -1756,6 +1759,7 @@ static inline int remap_pmd_range(struct
+ 	pmd = pmd_alloc(mm, pud, addr);
+ 	if (!pmd)
+ 		return -ENOMEM;
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+ 		if (remap_pte_range(mm, pmd, addr, next,
+@@ -3221,6 +3225,7 @@ static int follow_pte(struct mm_struct *
+ 		goto out;
+ 
+ 	pmd = pmd_offset(pud, address);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+ 		goto out;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
