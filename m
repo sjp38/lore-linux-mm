@@ -1,95 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id AF65A6B007B
-	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:50 -0500 (EST)
-Message-Id: <20100221141752.959975165@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:11 +0100
-From: aarcange@redhat.com
-Subject: [patch 02/36] compound_lock
-References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=compound_lock
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A3DFF6B0078
+	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:23:36 -0500 (EST)
+Received: by gwaa18 with SMTP id a18so217921gwa.14
+        for <linux-mm@kvack.org>; Sun, 21 Feb 2010 06:23:35 -0800 (PST)
+Date: Sun, 21 Feb 2010 22:23:25 +0800
+From: Dave Young <hidave.darkstar@gmail.com>
+Subject: [PATCH -mm 05/17] sysctl extern cleanup - mm
+Message-ID: <20100221142325.GA3006@darkstar>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, James Morris <jmorris@namei.org>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+Extern declarations in sysctl.c should be move to their own head file,
+and then include them in relavant .c files.
 
-Add a new compound_lock() needed to serialize put_page against
-__split_huge_page_refcount().
+Move min_free_kbytes extern declaration to linux/mmzone.h
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
 ---
+ include/linux/mmzone.h |    1 +
+ kernel/sysctl.c        |    1 -
+ 2 files changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -12,6 +12,7 @@
- #include <linux/prio_tree.h>
- #include <linux/debug_locks.h>
- #include <linux/mm_types.h>
-+#include <linux/bit_spinlock.h>
+--- linux-2.6.32.orig/include/linux/mmzone.h	2010-02-21 09:50:34.007270577 +0800
++++ linux-2.6.32/include/linux/mmzone.h	2010-02-21 09:52:21.259760505 +0800
+@@ -744,6 +744,7 @@ static inline int is_dma(struct zone *zo
+ struct ctl_table;
+ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
+ 					void __user *, size_t *, loff_t *);
++extern int min_free_kbytes; /* for sysctl */
+ extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
+ 					void __user *, size_t *, loff_t *);
+--- linux-2.6.32.orig/kernel/sysctl.c	2010-02-21 09:48:06.843951983 +0800
++++ linux-2.6.32/kernel/sysctl.c	2010-02-21 09:52:58.139756932 +0800
+@@ -72,7 +72,6 @@
  
- struct mempolicy;
- struct anon_vma;
-@@ -294,6 +295,20 @@ static inline int is_vmalloc_or_module_a
- }
- #endif
- 
-+static inline void compound_lock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_lock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
-+static inline void compound_unlock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_unlock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
- static inline struct page *compound_head(struct page *page)
- {
- 	if (unlikely(PageTail(page)))
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -108,6 +108,9 @@ enum pageflags {
- #ifdef CONFIG_MEMORY_FAILURE
- 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	PG_compound_lock,
-+#endif
- 	__NR_PAGEFLAGS,
- 
- 	/* Filesystems */
-@@ -399,6 +402,12 @@ static inline void __ClearPageTail(struc
- #define __PG_MLOCKED		0
- #endif
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
-+#else
-+#define __PG_COMPOUND_LOCK		0
-+#endif
-+
- /*
-  * Flags checked when a page is freed.  Pages being freed should not have
-  * these flags set.  It they are, there is a problem.
-@@ -408,7 +417,8 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
-+	 __PG_COMPOUND_LOCK)
- 
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
+ /* External variables not in a header file. */
+ extern int max_threads;
+-extern int min_free_kbytes;
+ extern int compat_log;
+ extern int latencytop_enabled;
+ extern int sysctl_nr_open_min, sysctl_nr_open_max;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
