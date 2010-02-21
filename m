@@ -1,101 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 67F4D6B0078
-	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 22:09:30 -0500 (EST)
-Date: Sun, 21 Feb 2010 11:09:12 +0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 303276B0047
+	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 22:25:39 -0500 (EST)
+Date: Sun, 21 Feb 2010 11:25:33 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC PATCH -tip 0/2 v3] pagecache tracepoints proposal
-Message-ID: <20100221030912.GA14056@localhost>
-References: <4B6B7FBF.9090005@bx.jp.nec.com> <20100205072858.GC9320@elte.hu> <20100208155450.GA17055@localhost> <20100218143429.ddea9bb2.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] fs: add fincore(2) (mincore(2) for file descriptors)
+Message-ID: <20100221032533.GB14056@localhost>
+References: <20100216181312.GA9700@frostnet.net> <20100221030238.GA26511@hexapodia.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100218143429.ddea9bb2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100221030238.GA26511@hexapodia.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Chris Frost <frost@cs.ucla.edu>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Keiichi KII <k-keiichi@bx.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Jason Baron <jbaron@redhat.com>, Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+To: Andy Isaacson <adi@hexapodia.org>
+Cc: Chris Frost <chris@frostnet.net>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Benny Halevy <bhalevy@panasas.com>, "Andrew@firstfloor.org" <Andrew@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Kame,
+Andy and Chris,
 
-On Thu, Feb 18, 2010 at 01:34:29PM +0800, KAMEZAWA Hiroyuki wrote:
-
-> Can we dump page's cgroup ? If so, I'm happy.
-
-Good idea. page_cgroup is extended mem_map anyway.
-
-> Maybe
-> ==
->   struct page_cgroup *pc = lookup_page_cgroup(page);
->   struct mem_cgroup *mem = pc->mem_cgroup;
->   shodt mem_cgroup_id = mem->css.css_id;
+On Sun, Feb 21, 2010 at 11:02:38AM +0800, Andy Isaacson wrote:
+> On Tue, Feb 16, 2010 at 10:13:12AM -0800, Chris Frost wrote:
+> > Add the fincore() system call. fincore() is mincore() for file descriptors.
+> > 
+> > The functionality of fincore() can be emulated with an mmap(), mincore(),
+> > and munmap(), but this emulation requires more system calls and requires
+> > page table modifications. fincore() can provide a significant performance
+> > improvement for non-sequential in-core queries.
 > 
->   And statistics can be counted per css_id.
+> In addition to being expensive, mmap/mincore/munmap perturb the VM's
+> eviction algorithm -- a page is less likely to be evicted if it's
+> mmapped when being considered for eviction.
 > 
-> And then, some output like
+> I frequently see this happen when using mincore(1) from
+> http://bitbucket.org/radii/mincore/ -- "watch mincore -v *.big" while
+> *.big are being sequentially read results in a significant number of
+> pages remaining in-core, whereas if I only run mincore after the
+> sequential read is complete, the large files will be nearly-completely
+> out of core (except for the tail of the last file, of course).
 > 
-> dump_pagecache_range: index=0 len=1 flags=10000000000002c count=1 mapcount=0 file=XXX memcg=group_A:x,group_B:y
+> It's very interesting to watch
+> % watch --interval=.5 mincore -v *
+> 
+> while an IO-intensive process is happening, such as mke2fs on a
+> filesystem image.
+> 
+> So, I support the addition of fincore(2) and would use it if it were
+> merged.
 
-Is it possible for a page to be owned by two cgroups?
-For hierarchical cgroups, it would be easier to report only the bottom level cgroup.
+I'd like to advocate the "pagecache object collections", a ftrace
+based alternative:
 
-> Is it okay to add a new field after your work finish ?
+        http://lkml.org/lkml/2010/2/9/156
 
-Sure.
-
-> If so, I'll think about some infrastructure to get above based on your patch.
-
-Then you may want to include this patch (with modification),
-if recording the css id as raw tracing data.
+Which will provide much more information than fincore(). I'd really
+appreciate it if you can join and use the general "pagecache object
+collections" facility.
 
 Thanks,
 Fengguang
----
-memcg: show memory.id in cgroupfs
-
-The hwpoison test suite need to selectively inject hwpoison to some
-targeted task pages, and must not kill important system processes
-such as init.
-
-The memory cgroup serves this purpose well. We can put the target
-processes under the control of a memory cgroup, tell the hwpoison
-injection code the id of that memory cgroup so that it will only
-poison pages associated with it.
-
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/memcontrol.c |   13 +++++++++++++
- 1 file changed, 13 insertions(+)
-
---- linux-mm.orig/mm/memcontrol.c	2009-09-07 16:01:02.000000000 +0800
-+++ linux-mm/mm/memcontrol.c	2009-09-11 18:20:55.000000000 +0800
-@@ -2510,6 +2510,13 @@ mem_cgroup_get_recursive_idx_stat(struct
- 	*val = d.val;
- }
- 
-+#ifdef CONFIG_HWPOISON_INJECT
-+static u64 mem_cgroup_id_read(struct cgroup *cont, struct cftype *cft)
-+{
-+	return css_id(cgroup_subsys_state(cont, mem_cgroup_subsys_id));
-+}
-+#endif
-+
- static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
- {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-@@ -2841,6 +2848,12 @@ static int mem_cgroup_swappiness_write(s
- 
- 
- static struct cftype mem_cgroup_files[] = {
-+#ifdef CONFIG_HWPOISON_INJECT /* for now, only user is hwpoison testing */
-+	{
-+		.name = "id",
-+		.read_u64 = mem_cgroup_id_read,
-+	},
-+#endif
- 	{
- 		.name = "usage_in_bytes",
- 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
