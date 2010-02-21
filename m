@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B46CC6B0082
+	by kanga.kvack.org (Postfix) with SMTP id DC1526B008C
 	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:43 -0500 (EST)
-Message-Id: <20100221141755.657969039@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:27 +0100
+Message-Id: <20100221141756.149128731@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:30 +0100
 From: aarcange@redhat.com
-Subject: [patch 18/36] add pmd mmu_notifier helpers
+Subject: [patch 21/36] split_huge_page_mm/vma
 References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=pmd_mmu_notifier
+Content-Disposition: inline; filename=split_huge_page_mm_vma
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,77 +15,81 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add mmu notifier helpers to handle pmd huge operations.
+split_huge_page_mm/vma compat code. Each one of those would need to be expanded
+to hundred of lines of complex code without a fully reliable
+split_huge_page_mm/vma functionality.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -243,6 +243,32 @@ static inline void mmu_notifier_mm_destr
- 	__pte;								\
- })
+diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
+--- a/arch/x86/kernel/vm86_32.c
++++ b/arch/x86/kernel/vm86_32.c
+@@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm
+ 	if (pud_none_or_clear_bad(pud))
+ 		goto out;
+ 	pmd = pmd_offset(pud, 0xA0000);
++	split_huge_page_mm(mm, 0xA0000, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		goto out;
+ 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -446,6 +446,7 @@ static inline int check_pmd_range(struct
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_vma(vma, pmd);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		if (check_pte_range(vma, pmd, addr, next, nodes,
+diff --git a/mm/mincore.c b/mm/mincore.c
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -132,6 +132,7 @@ static long do_mincore(unsigned long add
+ 	if (pud_none_or_clear_bad(pud))
+ 		goto none_mapped;
+ 	pmd = pmd_offset(pud, addr);
++	split_huge_page_vma(vma, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		goto none_mapped;
  
-+#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
-+({									\
-+	pmd_t __pmd;							\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
-+	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
-+					    (__address)+HPAGE_PMD_SIZE);\
-+	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
-+	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
-+					  (__address)+HPAGE_PMD_SIZE);	\
-+	__pmd;								\
-+})
-+
-+#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
-+({									\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
-+	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
-+					    (__address)+HPAGE_PMD_SIZE);\
-+	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
-+	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
-+					  (__address)+HPAGE_PMD_SIZE);	\
-+})
-+
- #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
- ({									\
- 	int __young;							\
-@@ -254,6 +280,17 @@ static inline void mmu_notifier_mm_destr
- 	__young;							\
- })
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -89,6 +89,7 @@ static inline void change_pmd_range(stru
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_mm(mm, addr, pmd);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
+diff --git a/mm/mremap.c b/mm/mremap.c
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -42,6 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
+ 		return NULL;
  
-+#define pmdp_clear_flush_young_notify(__vma, __address, __pmdp)		\
-+({									\
-+	int __young;							\
-+	struct vm_area_struct *___vma = __vma;				\
-+	unsigned long ___address = __address;				\
-+	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
-+	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
-+						  ___address);		\
-+	__young;							\
-+})
-+
- #define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
- ({									\
- 	struct mm_struct *___mm = __mm;					\
-@@ -305,7 +342,10 @@ static inline void mmu_notifier_mm_destr
- }
+ 	pmd = pmd_offset(pud, addr);
++	split_huge_page_mm(mm, addr, pmd);
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		return NULL;
  
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
-+#define pmdp_clear_flush_young_notify pmdp_clear_flush_young
- #define ptep_clear_flush_notify ptep_clear_flush
-+#define pmdp_clear_flush_notify pmdp_clear_flush
-+#define pmdp_splitting_flush_notify pmdp_splitting_flush
- #define set_pte_at_notify set_pte_at
- 
- #endif /* CONFIG_MMU_NOTIFIER */
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -34,6 +34,7 @@ static int walk_pmd_range(pud_t *pud, un
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		split_huge_page_mm(walk->mm, addr, pmd);
+ 		if (pmd_none_or_clear_bad(pmd)) {
+ 			if (walk->pte_hole)
+ 				err = walk->pte_hole(addr, next, walk);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
