@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 303276B0047
-	for <linux-mm@kvack.org>; Sat, 20 Feb 2010 22:25:39 -0500 (EST)
-Date: Sun, 21 Feb 2010 11:25:33 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] fs: add fincore(2) (mincore(2) for file descriptors)
-Message-ID: <20100221032533.GB14056@localhost>
-References: <20100216181312.GA9700@frostnet.net> <20100221030238.GA26511@hexapodia.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0AED56B0047
+	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 06:50:32 -0500 (EST)
+Date: Sun, 21 Feb 2010 20:50:02 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: Document /sys/devices/system/node/nodeX
+In-Reply-To: <20100220094109.GJ1445@csn.ul.ie>
+References: <20100220094109.GJ1445@csn.ul.ie>
+Message-Id: <20100221204641.B810.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100221030238.GA26511@hexapodia.org>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andy Isaacson <adi@hexapodia.org>
-Cc: Chris Frost <chris@frostnet.net>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Benny Halevy <bhalevy@panasas.com>, "Andrew@firstfloor.org" <Andrew@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, Greg KH <greg@kroah.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andy and Chris,
-
-On Sun, Feb 21, 2010 at 11:02:38AM +0800, Andy Isaacson wrote:
-> On Tue, Feb 16, 2010 at 10:13:12AM -0800, Chris Frost wrote:
-> > Add the fincore() system call. fincore() is mincore() for file descriptors.
-> > 
-> > The functionality of fincore() can be emulated with an mmap(), mincore(),
-> > and munmap(), but this emulation requires more system calls and requires
-> > page table modifications. fincore() can provide a significant performance
-> > improvement for non-sequential in-core queries.
+> Add a bare description of what /sys/devices/system/node/nodeX is. Others
+> will follow in time but right now, none of that tree is documented. The
+> existence of this file might at least encourage people to document new entries.
 > 
-> In addition to being expensive, mmap/mincore/munmap perturb the VM's
-> eviction algorithm -- a page is less likely to be evicted if it's
-> mmapped when being considered for eviction.
-> 
-> I frequently see this happen when using mincore(1) from
-> http://bitbucket.org/radii/mincore/ -- "watch mincore -v *.big" while
-> *.big are being sequentially read results in a significant number of
-> pages remaining in-core, whereas if I only run mincore after the
-> sequential read is complete, the large files will be nearly-completely
-> out of core (except for the tail of the last file, of course).
-> 
-> It's very interesting to watch
-> % watch --interval=.5 mincore -v *
-> 
-> while an IO-intensive process is happening, such as mke2fs on a
-> filesystem image.
-> 
-> So, I support the addition of fincore(2) and would use it if it were
-> merged.
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-I'd like to advocate the "pagecache object collections", a ftrace
-based alternative:
+Sure. 
+/sys/devices/system/node/nodeX have many frequently used knob and stat and
+it live in for long time. It is obviously ABI.
 
-        http://lkml.org/lkml/2010/2/9/156
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Which will provide much more information than fincore(). I'd really
-appreciate it if you can join and use the general "pagecache object
-collections" facility.
 
-Thanks,
-Fengguang
+> ---
+>  Documentation/ABI/stable/sysfs-devices-node |    7 +++++++
+>  1 files changed, 7 insertions(+), 0 deletions(-)
+>  create mode 100644 Documentation/ABI/stable/sysfs-devices-node
+> 
+> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> new file mode 100644
+> index 0000000..49b82ca
+> --- /dev/null
+> +++ b/Documentation/ABI/stable/sysfs-devices-node
+> @@ -0,0 +1,7 @@
+> +What:		/sys/devices/system/node/nodeX
+> +Date:		October 2002
+> +Contact:	Linux Memory Management list <linux-mm@kvack.org>
+> +Description:
+> +		When CONFIG_NUMA is enabled, this is a directory containing
+> +		information on node X such as what CPUs are local to the
+> +		node.
+> -- 
+> 1.6.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
