@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A3CD26B007B
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AD2576B007E
 	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:43 -0500 (EST)
-Message-Id: <20100221141754.017432804@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:17 +0100
+Message-Id: <20100221141758.290002126@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:43 +0100
 From: aarcange@redhat.com
-Subject: [patch 08/36] add pmd paravirt ops
+Subject: [patch 34/36] memcg huge memory
 References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=pmd_paravirt_ops
+Content-Disposition: inline; filename=memcg_huge_memory
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,98 +15,94 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Paravirt ops pmd_update/pmd_update_defer/pmd_set_at. Not all might be necessary
-(vmware needs pmd_update, Xen needs set_pmd_at, nobody needs pmd_update_defer),
-but this is to keep full simmetry with pte paravirt ops, which looks cleaner
-and simpler from a common code POV.
+Add memcg charge/uncharge to hugepage faults in huge_memory.c.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -449,6 +449,11 @@ static inline void pte_update(struct mm_
- {
- 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -224,6 +224,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	VM_BUG_ON(!PageCompound(page));
+ 	pgtable = pte_alloc_one(mm, haddr);
+ 	if (unlikely(!pgtable)) {
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		return VM_FAULT_OOM;
+ 	}
+@@ -234,6 +235,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_none(*pmd))) {
+ 		spin_unlock(&mm->page_table_lock);
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		pte_free(mm, pgtable);
+ 	} else {
+@@ -278,6 +280,10 @@ int do_huge_pmd_anonymous_page(struct mm
+ 		page = alloc_hugepage();
+ 		if (unlikely(!page))
+ 			goto out;
++		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
++			put_page(page);
++			goto out;
++		}
+ 
+ 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
+ 	}
+@@ -377,9 +383,15 @@ static int do_huge_pmd_wp_page_fallback(
+ 	for (i = 0; i < HPAGE_PMD_NR; i++) {
+ 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+ 					  vma, address);
+-		if (unlikely(!pages[i])) {
+-			while (--i >= 0)
++		if (unlikely(!pages[i] ||
++			     mem_cgroup_newpage_charge(pages[i], mm,
++						       GFP_KERNEL))) {
++			if (pages[i])
+ 				put_page(pages[i]);
++			while (--i >= 0) {
++				mem_cgroup_uncharge_page(pages[i]);
++				put_page(pages[i]);
++			}
+ 			kfree(pages);
+ 			ret |= VM_FAULT_OOM;
+ 			goto out;
+@@ -438,8 +450,10 @@ out:
+ 
+ out_free_pages:
+ 	spin_unlock(&mm->page_table_lock);
+-	for (i = 0; i < HPAGE_PMD_NR; i++)
++	for (i = 0; i < HPAGE_PMD_NR; i++) {
++		mem_cgroup_uncharge_page(pages[i]);
+ 		put_page(pages[i]);
++	}
+ 	kfree(pages);
+ 	goto out;
  }
-+static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
-+			      pmd_t *pmdp)
-+{
-+	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
-+}
+@@ -481,13 +495,19 @@ int do_huge_pmd_wp_page(struct mm_struct
+ 		goto out;
+ 	}
  
- static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
- 				    pte_t *ptep)
-@@ -456,6 +461,12 @@ static inline void pte_update_defer(stru
- 	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
- }
++	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
++		put_page(new_page);
++		ret |= VM_FAULT_OOM;
++		goto out;
++	}
+ 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
  
-+static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
-+				    pmd_t *pmdp)
-+{
-+	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
-+}
-+
- static inline pte_t __pte(pteval_t val)
- {
- 	pteval_t ret;
-@@ -557,6 +568,18 @@ static inline void set_pte_at(struct mm_
- 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+			      pmd_t *pmdp, pmd_t pmd)
-+{
-+	if (sizeof(pmdval_t) > sizeof(long))
-+		/* 5 arg words */
-+		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
-+	else
-+		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp, pmd.pmd);
-+}
-+#endif
-+
- static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
- {
- 	pmdval_t val = native_pmd_val(pmd);
-diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
---- a/arch/x86/include/asm/paravirt_types.h
-+++ b/arch/x86/include/asm/paravirt_types.h
-@@ -266,10 +266,16 @@ struct pv_mmu_ops {
- 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
- 			   pte_t *ptep, pte_t pteval);
- 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
-+	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
-+			   pmd_t *pmdp, pmd_t pmdval);
- 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
- 			   pte_t *ptep);
- 	void (*pte_update_defer)(struct mm_struct *mm,
- 				 unsigned long addr, pte_t *ptep);
-+	void (*pmd_update)(struct mm_struct *mm, unsigned long addr,
-+			   pmd_t *pmdp);
-+	void (*pmd_update_defer)(struct mm_struct *mm,
-+				 unsigned long addr, pmd_t *pmdp);
- 
- 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
- 					pte_t *ptep);
-diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
---- a/arch/x86/kernel/paravirt.c
-+++ b/arch/x86/kernel/paravirt.c
-@@ -422,8 +422,11 @@ struct pv_mmu_ops pv_mmu_ops = {
- 	.set_pte = native_set_pte,
- 	.set_pte_at = native_set_pte_at,
- 	.set_pmd = native_set_pmd,
-+	.set_pmd_at = native_set_pmd_at,
- 	.pte_update = paravirt_nop,
- 	.pte_update_defer = paravirt_nop,
-+	.pmd_update = paravirt_nop,
-+	.pmd_update_defer = paravirt_nop,
- 
- 	.ptep_modify_prot_start = __ptep_modify_prot_start,
- 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
+ 	spin_lock(&mm->page_table_lock);
+-	if (unlikely(!pmd_same(*pmd, orig_pmd)))
++	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
++		mem_cgroup_uncharge_page(new_page);
+ 		put_page(new_page);
+-	else {
++	} else {
+ 		pmd_t entry;
+ 		entry = mk_pmd(new_page, vma->vm_page_prot);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
