@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 96BB96B009F
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A96AC6004A5
 	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:47 -0500 (EST)
-Message-Id: <20100221141756.473556156@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:32 +0100
+Message-Id: <20100221141753.125831915@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:12 +0100
 From: aarcange@redhat.com
-Subject: [patch 23/36] clear_copy_huge_page
+Subject: [patch 03/36] alter compound get_page/put_page
 References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=clear_copy_huge_page
+Content-Disposition: inline; filename=compound_get_put
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,205 +15,192 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Move the copy/clear_huge_page functions to common code to share between
-hugetlb.c and huge_memory.c.
+Alter compound get_page/put_page to keep references on subpages too, in order
+to allow __split_huge_page_refcount to split an hugepage even while subpages
+have been pinned by one of the get_user_pages() variants.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
----
- include/linux/mm.h |    9 ++++++
- mm/hugetlb.c       |   69 ++--------------------------------------------------
- mm/memory.c        |   70 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 82 insertions(+), 66 deletions(-)
-
+--- a/arch/powerpc/mm/gup.c
++++ b/arch/powerpc/mm/gup.c
+@@ -16,6 +16,16 @@
+ 
+ #ifdef __HAVE_ARCH_PTE_SPECIAL
+ 
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
++
+ /*
+  * The performance critical leaf functions are made noinline otherwise gcc
+  * inlines everything into a single function which results in too much
+@@ -47,6 +57,8 @@ static noinline int gup_pte_range(pmd_t 
+ 			put_page(page);
+ 			return 0;
+ 		}
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		pages[*nr] = page;
+ 		(*nr)++;
+ 
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -105,6 +105,16 @@ static inline void get_head_page_multipl
+ 	atomic_add(nr, &page->_count);
+ }
+ 
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
++
+ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+@@ -128,6 +138,8 @@ static noinline int gup_huge_pmd(pmd_t p
+ 	do {
+ 		VM_BUG_ON(compound_head(page) != head);
+ 		pages[*nr] = page;
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		(*nr)++;
+ 		page++;
+ 		refs++;
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1496,5 +1496,14 @@ extern void dump_page(struct page *page)
- extern int sysctl_nr_trim_pages;
- #endif
+@@ -325,9 +325,17 @@ static inline int page_count(struct page
  
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+extern void clear_huge_page(struct page *page,
-+			    unsigned long addr,
-+			    unsigned int pages_per_huge_page);
-+extern void copy_huge_page(struct page *dst, struct page *src,
-+			   unsigned long addr, struct vm_area_struct *vma,
-+			   unsigned int pages_per_huge_page);
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -385,70 +385,6 @@ static int vma_has_reserves(struct vm_ar
- 	return 0;
- }
- 
--static void clear_gigantic_page(struct page *page,
--			unsigned long addr, unsigned long sz)
--{
--	int i;
--	struct page *p = page;
--
--	might_sleep();
--	for (i = 0; i < sz/PAGE_SIZE; i++, p = mem_map_next(p, page, i)) {
--		cond_resched();
--		clear_user_highpage(p, addr + i * PAGE_SIZE);
--	}
--}
--static void clear_huge_page(struct page *page,
--			unsigned long addr, unsigned long sz)
--{
--	int i;
--
--	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
--		clear_gigantic_page(page, addr, sz);
--		return;
--	}
--
--	might_sleep();
--	for (i = 0; i < sz/PAGE_SIZE; i++) {
--		cond_resched();
--		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
--	}
--}
--
--static void copy_gigantic_page(struct page *dst, struct page *src,
--			   unsigned long addr, struct vm_area_struct *vma)
--{
--	int i;
--	struct hstate *h = hstate_vma(vma);
--	struct page *dst_base = dst;
--	struct page *src_base = src;
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page(h); ) {
--		cond_resched();
--		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
--
--		i++;
--		dst = mem_map_next(dst, dst_base, i);
--		src = mem_map_next(src, src_base, i);
--	}
--}
--static void copy_huge_page(struct page *dst, struct page *src,
--			   unsigned long addr, struct vm_area_struct *vma)
--{
--	int i;
--	struct hstate *h = hstate_vma(vma);
--
--	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
--		copy_gigantic_page(dst, src, addr, vma);
--		return;
--	}
--
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page(h); i++) {
--		cond_resched();
--		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
--	}
--}
--
- static void enqueue_huge_page(struct hstate *h, struct page *page)
+ static inline void get_page(struct page *page)
  {
- 	int nid = page_to_nid(page);
-@@ -2333,7 +2269,8 @@ retry_avoidcopy:
- 		return -PTR_ERR(new_page);
- 	}
- 
--	copy_huge_page(new_page, old_page, address, vma);
-+	copy_huge_page(new_page, old_page, address, vma,
-+		       pages_per_huge_page(h));
- 	__SetPageUptodate(new_page);
- 
- 	/*
-@@ -2429,7 +2366,7 @@ retry:
- 			ret = -PTR_ERR(page);
- 			goto out;
- 		}
--		clear_huge_page(page, address, huge_page_size(h));
-+		clear_huge_page(page, address, pages_per_huge_page(h));
- 		__SetPageUptodate(page);
- 
- 		if (vma->vm_flags & VM_MAYSHARE) {
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3511,3 +3511,73 @@ void might_fault(void)
+-	page = compound_head(page);
+-	VM_BUG_ON(atomic_read(&page->_count) == 0);
++	VM_BUG_ON(atomic_read(&page->_count) < !PageTail(page));
+ 	atomic_inc(&page->_count);
++	if (unlikely(PageTail(page))) {
++		/*
++		 * This is safe only because
++		 * __split_huge_page_refcount can't run under
++		 * get_page().
++		 */
++		VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
++		atomic_inc(&page->first_page->_count);
++	}
  }
- EXPORT_SYMBOL(might_fault);
- #endif
-+
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+static void clear_gigantic_page(struct page *page,
-+				unsigned long addr,
-+				unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	struct page *p = page;
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page;
-+	     i++, p = mem_map_next(p, page, i)) {
-+		cond_resched();
-+		clear_user_highpage(p, addr + i * PAGE_SIZE);
-+	}
-+}
-+void clear_huge_page(struct page *page,
-+		     unsigned long addr, unsigned int pages_per_huge_page)
-+{
-+	int i;
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		clear_gigantic_page(page, addr, pages_per_huge_page);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; i++) {
-+		cond_resched();
-+		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-+	}
+ 
+ static inline struct page *virt_to_head_page(const void *x)
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -55,17 +55,82 @@ static void __page_cache_release(struct 
+ 		del_page_from_lru(zone, page);
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
 +}
 +
-+static void copy_gigantic_page(struct page *dst, struct page *src,
-+			       unsigned long addr,
-+			       struct vm_area_struct *vma,
-+			       unsigned int pages_per_huge_page)
++static void __put_single_page(struct page *page)
 +{
-+	int i;
-+	struct page *dst_base = dst;
-+	struct page *src_base = src;
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; ) {
-+		cond_resched();
-+		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
++	__page_cache_release(page);
+ 	free_hot_cold_page(page, 0);
+ }
+ 
+-static void put_compound_page(struct page *page)
++static void __put_compound_page(struct page *page)
+ {
+-	page = compound_head(page);
+-	if (put_page_testzero(page)) {
+-		compound_page_dtor *dtor;
++	compound_page_dtor *dtor;
 +
-+		i++;
-+		dst = mem_map_next(dst, dst_base, i);
-+		src = mem_map_next(src, src_base, i);
-+	}
++	__page_cache_release(page);
++	dtor = get_compound_page_dtor(page);
++	(*dtor)(page);
 +}
-+void copy_huge_page(struct page *dst, struct page *src,
-+		    unsigned long addr, struct vm_area_struct *vma,
-+		    unsigned int pages_per_huge_page)
+ 
+-		dtor = get_compound_page_dtor(page);
+-		(*dtor)(page);
++static void put_compound_page(struct page *page)
 +{
-+	int i;
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		copy_gigantic_page(dst, src, addr, vma, pages_per_huge_page);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; i++) {
-+		cond_resched();
-+		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE,
-+				   vma);
-+	}
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
++	if (unlikely(PageTail(page))) {
++		/* __split_huge_page_refcount can run under us */
++		struct page *page_head = page->first_page;
++		smp_rmb();
++		if (likely(PageTail(page) && get_page_unless_zero(page_head))) {
++			if (unlikely(!PageHead(page_head))) {
++				/* PageHead is cleared after PageTail */
++				smp_rmb();
++				VM_BUG_ON(PageTail(page));
++				goto out_put_head;
++			}
++			/*
++			 * Only run compound_lock on a valid PageHead,
++			 * after having it pinned with
++			 * get_page_unless_zero() above.
++			 */
++			smp_mb();
++			/* page_head wasn't a dangling pointer */
++			compound_lock(page_head);
++			if (unlikely(!PageTail(page))) {
++				/* __split_huge_page_refcount run before us */
++				compound_unlock(page_head);
++				VM_BUG_ON(PageHead(page_head));
++			out_put_head:
++				if (put_page_testzero(page_head))
++					__put_single_page(page_head);
++			out_put_single:
++				if (put_page_testzero(page))
++					__put_single_page(page);
++				return;
++			}
++			VM_BUG_ON(page_head != page->first_page);
++			/*
++			 * We can release the refcount taken by
++			 * get_page_unless_zero now that
++			 * split_huge_page_refcount is blocked on the
++			 * compound_lock.
++			 */
++			if (put_page_testzero(page_head))
++				VM_BUG_ON(1);
++			/* __split_huge_page_refcount will wait now */
++			VM_BUG_ON(atomic_read(&page->_count) <= 0);
++			atomic_dec(&page->_count);
++			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
++			compound_unlock(page_head);
++			if (put_page_testzero(page_head))
++				__put_compound_page(page_head);
++		} else {
++			/* page_head is a dangling pointer */
++			VM_BUG_ON(PageTail(page));
++			goto out_put_single;
++		}
++	} else if (put_page_testzero(page)) {
++		if (PageHead(page))
++			__put_compound_page(page);
++		else
++			__put_single_page(page);
+ 	}
+ }
+ 
+@@ -74,7 +139,7 @@ void put_page(struct page *page)
+ 	if (unlikely(PageCompound(page)))
+ 		put_compound_page(page);
+ 	else if (put_page_testzero(page))
+-		__page_cache_release(page);
++		__put_single_page(page);
+ }
+ EXPORT_SYMBOL(put_page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
