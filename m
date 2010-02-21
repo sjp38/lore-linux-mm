@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AD2576B007E
+	by kanga.kvack.org (Postfix) with SMTP id B46CC6B0082
 	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:43 -0500 (EST)
-Message-Id: <20100221141758.290002126@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:43 +0100
+Message-Id: <20100221141755.657969039@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:27 +0100
 From: aarcange@redhat.com
-Subject: [patch 34/36] memcg huge memory
+Subject: [patch 18/36] add pmd mmu_notifier helpers
 References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=memcg_huge_memory
+Content-Disposition: inline; filename=pmd_mmu_notifier
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,94 +15,77 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add memcg charge/uncharge to hugepage faults in huge_memory.c.
+Add mmu notifier helpers to handle pmd huge operations.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -224,6 +224,7 @@ static int __do_huge_pmd_anonymous_page(
- 	VM_BUG_ON(!PageCompound(page));
- 	pgtable = pte_alloc_one(mm, haddr);
- 	if (unlikely(!pgtable)) {
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		return VM_FAULT_OOM;
- 	}
-@@ -234,6 +235,7 @@ static int __do_huge_pmd_anonymous_page(
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_none(*pmd))) {
- 		spin_unlock(&mm->page_table_lock);
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		pte_free(mm, pgtable);
- 	} else {
-@@ -278,6 +280,10 @@ int do_huge_pmd_anonymous_page(struct mm
- 		page = alloc_hugepage();
- 		if (unlikely(!page))
- 			goto out;
-+		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+			put_page(page);
-+			goto out;
-+		}
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -243,6 +243,32 @@ static inline void mmu_notifier_mm_destr
+ 	__pte;								\
+ })
  
- 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
- 	}
-@@ -377,9 +383,15 @@ static int do_huge_pmd_wp_page_fallback(
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
- 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
- 					  vma, address);
--		if (unlikely(!pages[i])) {
--			while (--i >= 0)
-+		if (unlikely(!pages[i] ||
-+			     mem_cgroup_newpage_charge(pages[i], mm,
-+						       GFP_KERNEL))) {
-+			if (pages[i])
- 				put_page(pages[i]);
-+			while (--i >= 0) {
-+				mem_cgroup_uncharge_page(pages[i]);
-+				put_page(pages[i]);
-+			}
- 			kfree(pages);
- 			ret |= VM_FAULT_OOM;
- 			goto out;
-@@ -438,8 +450,10 @@ out:
++#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
++({									\
++	pmd_t __pmd;							\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
++	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
++					    (__address)+HPAGE_PMD_SIZE);\
++	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
++	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
++					  (__address)+HPAGE_PMD_SIZE);	\
++	__pmd;								\
++})
++
++#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
++({									\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
++	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
++					    (__address)+HPAGE_PMD_SIZE);\
++	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
++	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
++					  (__address)+HPAGE_PMD_SIZE);	\
++})
++
+ #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
+ ({									\
+ 	int __young;							\
+@@ -254,6 +280,17 @@ static inline void mmu_notifier_mm_destr
+ 	__young;							\
+ })
  
- out_free_pages:
- 	spin_unlock(&mm->page_table_lock);
--	for (i = 0; i < HPAGE_PMD_NR; i++)
-+	for (i = 0; i < HPAGE_PMD_NR; i++) {
-+		mem_cgroup_uncharge_page(pages[i]);
- 		put_page(pages[i]);
-+	}
- 	kfree(pages);
- 	goto out;
++#define pmdp_clear_flush_young_notify(__vma, __address, __pmdp)		\
++({									\
++	int __young;							\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
++	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
++						  ___address);		\
++	__young;							\
++})
++
+ #define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
+ ({									\
+ 	struct mm_struct *___mm = __mm;					\
+@@ -305,7 +342,10 @@ static inline void mmu_notifier_mm_destr
  }
-@@ -481,13 +495,19 @@ int do_huge_pmd_wp_page(struct mm_struct
- 		goto out;
- 	}
  
-+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-+		put_page(new_page);
-+		ret |= VM_FAULT_OOM;
-+		goto out;
-+	}
- 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
+ #define ptep_clear_flush_young_notify ptep_clear_flush_young
++#define pmdp_clear_flush_young_notify pmdp_clear_flush_young
+ #define ptep_clear_flush_notify ptep_clear_flush
++#define pmdp_clear_flush_notify pmdp_clear_flush
++#define pmdp_splitting_flush_notify pmdp_splitting_flush
+ #define set_pte_at_notify set_pte_at
  
- 	spin_lock(&mm->page_table_lock);
--	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-+	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-+		mem_cgroup_uncharge_page(new_page);
- 		put_page(new_page);
--	else {
-+	} else {
- 		pmd_t entry;
- 		entry = mk_pmd(new_page, vma->vm_page_prot);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ #endif /* CONFIG_MMU_NOTIFIER */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
