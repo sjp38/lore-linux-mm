@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 57DFC6B004D
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 748066B009E
 	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:47 -0500 (EST)
-Message-Id: <20100221141757.257019845@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:37 +0100
+Message-Id: <20100221141756.340404634@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:31 +0100
 From: aarcange@redhat.com
-Subject: [patch 28/36] adapt to mm_counter in -mm
+Subject: [patch 22/36] split_huge_page paging
 References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=mm-rss
+Content-Disposition: inline; filename=split_huge_page_unmap_swap
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,40 +15,76 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-The interface changed slightly.
+Paging logic that splits the page before it is unmapped and added to swap to
+ensure backwards compatibility with the legacy swap code. Eventually swap
+should natively pageout the hugepages to increase performance and decrease
+seeking and fragmentation of swap space. swapoff can just skip over huge pmd as
+they cannot be part of swap yet. In add_to_swap be careful to split the page
+only if we got a valid swap entry so we don't split hugepages with a full swap.
+
+In theory we could split pages before isolating them during the lru scan, but
+for khugepaged to be safe, I'm relying on either mmap_sem write mode, or
+PG_lock taken, so split_huge_page has to run either with mmap_sem read/write
+mode or PG_lock taken. Calling it from isolate_lru_page would make locking more
+complicated, in addition to that split_huge_page would deadlock if called by
+__isolate_lru_page because it has to take the lru lock to add the tail pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -249,7 +249,7 @@ static int __do_huge_pmd_anonymous_page(
- 		page_add_new_anon_rmap(page, vma, haddr);
- 		set_pmd_at(mm, haddr, pmd, entry);
- 		prepare_pmd_huge_pte(pgtable, mm);
--		add_mm_counter(mm, anon_rss, HPAGE_PMD_NR);
-+		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
- 		spin_unlock(&mm->page_table_lock);
- 	}
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -378,6 +378,8 @@ static void collect_procs_anon(struct pa
+ 	struct task_struct *tsk;
+ 	struct anon_vma *av;
  
-@@ -320,7 +320,7 @@ int copy_huge_pmd(struct mm_struct *dst_
- 	VM_BUG_ON(!PageHead(src_page));
- 	get_page(src_page);
- 	page_dup_rmap(src_page);
--	add_mm_counter(dst_mm, anon_rss, HPAGE_PMD_NR);
-+	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
++	if (unlikely(split_huge_page(page)))
++		return;
+ 	read_lock(&tasklist_lock);
+ 	av = page_lock_anon_vma(page);
+ 	if (av == NULL)	/* Not actually mapped anymore */
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1174,6 +1174,7 @@ int try_to_unmap(struct page *page, enum
+ 	int ret;
  
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
-@@ -561,7 +561,7 @@ int zap_huge_pmd(struct mmu_gather *tlb,
- 			pmd_clear(pmd);
- 			page_remove_rmap(page);
- 			VM_BUG_ON(page_mapcount(page) < 0);
--			add_mm_counter(tlb->mm, anon_rss, -HPAGE_PMD_NR);
-+			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
- 			spin_unlock(&tlb->mm->page_table_lock);
- 			VM_BUG_ON(!PageHead(page));
- 			tlb_remove_page(tlb, page);
+ 	BUG_ON(!PageLocked(page));
++	BUG_ON(PageTransHuge(page));
+ 
+ 	if (unlikely(PageKsm(page)))
+ 		ret = try_to_unmap_ksm(page, flags);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -156,6 +156,12 @@ int add_to_swap(struct page *page)
+ 	if (!entry.val)
+ 		return 0;
+ 
++	if (unlikely(PageTransHuge(page)))
++		if (unlikely(split_huge_page(page))) {
++			swapcache_free(entry, NULL);
++			return 0;
++		}
++
+ 	/*
+ 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
+ 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -905,6 +905,8 @@ static inline int unuse_pmd_range(struct
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		if (unlikely(pmd_trans_huge(*pmd)))
++			continue;
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
