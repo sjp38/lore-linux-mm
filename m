@@ -1,43 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 34CD46B0047
+	by kanga.kvack.org (Postfix) with SMTP id 75B576B004D
 	for <linux-mm@kvack.org>; Sun, 21 Feb 2010 09:18:43 -0500 (EST)
-Message-Id: <20100221141753.852489550@redhat.com>
-Date: Sun, 21 Feb 2010 15:10:16 +0100
+Message-Id: <20100221141756.628886432@redhat.com>
+Date: Sun, 21 Feb 2010 15:10:33 +0100
 From: aarcange@redhat.com
-Subject: [patch 07/36] add native_set_pmd_at
+Subject: [patch 24/36] kvm mmu transparent hugepage support
 References: <20100221141009.581909647@redhat.com>
-Content-Disposition: inline; filename=native_set_pmd_at
+Content-Disposition: inline; filename=kvm_transparent_hugepage
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+From: Marcelo Tosatti <mtosatti@redhat.com>
 
-Used by paravirt and not paravirt set_pmd_at.
+This should work for both hugetlbfs and transparent hugepages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
- 	native_set_pte(ptep, pte);
- }
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -489,6 +489,15 @@ static int host_mapping_level(struct kvm
+ out:
+ 	up_read(&current->mm->mmap_sem);
  
-+static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+				     pmd_t *pmdp , pmd_t pmd)
-+{
-+	native_set_pmd(pmdp, pmd);
-+}
++	/* check for transparent hugepages */
++	if (page_size == PAGE_SIZE) {
++		struct page *page = gfn_to_page(kvm, gfn);
 +
- #ifndef CONFIG_PARAVIRT
- /*
-  * Rules for using pte_update - it must be called after any PTE update which
++		if (!is_error_page(page) && PageHead(page))
++			page_size = KVM_HPAGE_SIZE(2);
++		kvm_release_page_clean(page);
++	}
++
+ 	for (i = PT_PAGE_TABLE_LEVEL;
+ 	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
+ 		if (page_size >= KVM_HPAGE_SIZE(i))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
