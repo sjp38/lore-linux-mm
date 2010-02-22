@@ -1,49 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DD3EF6B004D
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 15:20:24 -0500 (EST)
-Date: Mon, 22 Feb 2010 21:20:19 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-Message-ID: <20100222202019.GD15778@basil.fritz.box>
-References: <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <4B826227.9010101@cs.helsinki.fi> <20100222143111.GA15778@basil.fritz.box> <4B82AC97.6000901@cs.helsinki.fi>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DAAB16B004D
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 15:27:50 -0500 (EST)
+Message-ID: <4B82E8B7.4050100@redhat.com>
+Date: Mon, 22 Feb 2010 15:27:35 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B82AC97.6000901@cs.helsinki.fi>
+Subject: Re: [patch 1/3] vmscan: factor out page reference checks
+References: <1266868150-25984-1-git-send-email-hannes@cmpxchg.org> <1266868150-25984-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1266868150-25984-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 22, 2010 at 06:11:03PM +0200, Pekka Enberg wrote:
-> Andi Kleen wrote:
->> On Mon, Feb 22, 2010 at 12:53:27PM +0200, Pekka Enberg wrote:
->>> Andi Kleen kirjoitti:
->>>> On Fri, Feb 19, 2010 at 12:22:58PM -0600, Christoph Lameter wrote:
->>>>> On Mon, 15 Feb 2010, Nick Piggin wrote:
->>>>>
->>>>>> I'm just worried there is still an underlying problem here.
->>>>> So am I. What caused the breakage that requires this patchset?
->>>> Memory hotadd with a new node being onlined.
->>> So can you post the oops, please? Right now I am looking at zapping the 
->>
->> I can't post the oops from a pre-release system.
->>
->>> series from slab.git due to NAKs from both Christoph and Nick.
->>
->> Huh? They just complained about the patch, not the whole series.
->> I don't understand how that could prompt you to drop the whole series.
+On 02/22/2010 02:49 PM, Johannes Weiner wrote:
+> Moving the big conditional into its own predicate function makes the
+> code a bit easier to read and allows for better commenting on the
+> checks one-by-one.
 >
-> Yeah, I meant the non-ACK'd patches. Sorry for the confusion.
+> This is just cleaning up, no semantics should have been changed.
+>
+> Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
 
-Ok it's fine for me to drop that patch for now. I'll try to reproduce
-that oops and if I can't then it might be just not needed.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
