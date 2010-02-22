@@ -1,59 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 37A736B0047
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 03:16:57 -0500 (EST)
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate3.uk.ibm.com (8.13.1/8.13.1) with ESMTP id o1M8Gs8S001204
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 08:16:54 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1M8Gr9m852172
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 08:16:53 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o1M8Grtx032377
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 08:16:53 GMT
-Message-ID: <4B823D70.80800@linux.vnet.ibm.com>
-Date: Mon, 22 Feb 2010 09:16:48 +0100
-From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7BDF46B0047
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 05:23:40 -0500 (EST)
+Date: Mon, 22 Feb 2010 11:22:23 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch 00/36] Transparent Hugepage support #11
+Message-ID: <20100222102223.GD11504@random.random>
+References: <20100221141009.581909647@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] Make VM_MAX_READAHEAD a kernel parameter
-References: <201002091659.27037.knikanth@suse.de> <201002111715.04411.knikanth@suse.de> <20100214213724.GA28392@discord.disaster> <201002151006.37294.knikanth@suse.de> <20100221142600.GA10036@localhost>
-In-Reply-To: <20100221142600.GA10036@localhost>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100221141009.581909647@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Nikanth Karthikesan <knikanth@suse.de>, Dave Chinner <david@fromorbit.com>, Ankit Jain <radical@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Jens Axboe <jens.axboe@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
+Hello everyone,
 
-
-Wu Fengguang wrote:
-> Nikanth,
+On Sun, Feb 21, 2010 at 03:10:09PM +0100, aarcange@redhat.com wrote:
+> This is a port of the latest version of transparent hugepage to
+> git://zen-kernel.org/kernel/mmotm.git
 > 
->> I didn't want to impose artificial restrictions. I think Wu's patch set would 
->> be adding some restrictions, like minimum readahead. He could fix it when he 
->> modifies the patch to include in his patch set.
+> The relevant changes are the addition of the page_anon_vma patch, the patch to
+> adapt the rss accounting to -mm, and a one liner fix in the
+> clear_copy_huge_page cleanup patch (that was crashing hugetlbfs).
 > 
-> OK, I imposed a larger bound -- 128MB.
-> And values 1-4095 (more exactly: PAGE_CACHE_SIZE) are prohibited mainly to 
-> catch "readahead=128" where the user really means to do 128 _KB_ readahead.
-> 
-> Christian, with this patch and more patches to scale down readahead
-> size on small memory/device size, I guess it's no longer necessary to
-> introduce a CONFIG_READAHEAD_SIZE?
+> 	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.33-rc7-mm1+/transparent_hugepage-11/
 
-Yes as I mentioned before a kernel parameter supersedes a config symbol 
-in my opinion too.
--> agreed
+somebody asked a single patch to test on top of
+git://zen-kernel.org/kernel/mmotm.git so here it is:
 
-> Thanks,
-> Fengguang
-> ---
-
--- 
-
-Grusse / regards, Christian Ehrhardt
-IBM Linux Technology Center, System z Linux Performance
+http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.33-rc7-mm1+/transparent_hugepage-11.gz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
