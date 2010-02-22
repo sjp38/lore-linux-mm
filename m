@@ -1,40 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A1C236B0078
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 11:11:34 -0500 (EST)
-Message-ID: <4B82AC97.6000901@cs.helsinki.fi>
-Date: Mon, 22 Feb 2010 18:11:03 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 463346001DA
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 12:53:55 -0500 (EST)
+Message-ID: <4B82C487.9020407@redhat.com>
+Date: Mon, 22 Feb 2010 12:53:11 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <4B826227.9010101@cs.helsinki.fi> <20100222143111.GA15778@basil.fritz.box>
-In-Reply-To: <20100222143111.GA15778@basil.fritz.box>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [patch 25/36] _GFP_NO_KSWAPD
+References: <20100221141009.581909647@redhat.com> <20100221141756.772875923@redhat.com>
+In-Reply-To: <20100221141756.772875923@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com
+To: aarcange@redhat.com
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> On Mon, Feb 22, 2010 at 12:53:27PM +0200, Pekka Enberg wrote:
->> Andi Kleen kirjoitti:
->>> On Fri, Feb 19, 2010 at 12:22:58PM -0600, Christoph Lameter wrote:
->>>> On Mon, 15 Feb 2010, Nick Piggin wrote:
->>>>
->>>>> I'm just worried there is still an underlying problem here.
->>>> So am I. What caused the breakage that requires this patchset?
->>> Memory hotadd with a new node being onlined.
->> So can you post the oops, please? Right now I am looking at zapping the 
-> 
-> I can't post the oops from a pre-release system.
-> 
->> series from slab.git due to NAKs from both Christoph and Nick.
-> 
-> Huh? They just complained about the patch, not the whole series.
-> I don't understand how that could prompt you to drop the whole series.
+On 02/21/2010 09:10 AM, aarcange@redhat.com wrote:
+> From: Andrea Arcangeli<aarcange@redhat.com>
+>
+> Transparent hugepage allocations must be allowed not to invoke kswapd or any
+> other kind of indirect reclaim (especially when the defrag sysfs is control
+> disabled). It's unacceptable to swap out anonymous pages (potentially
+> anonymous transparent hugepages) in order to create new transparent hugepages.
+> This is true for the MADV_HUGEPAGE areas too (swapping out a kvm virtual
+> machine and so having it suffer an unbearable slowdown, so another one with
+> guest physical memory marked MADV_HUGEPAGE can run 30% faster if it is running
+> memory intensive workloads, makes no sense). If a transparent hugepage
+> allocation fails the slowdown is minor and there is total fallback, so kswapd
+> should never be asked to swapout memory to allow the high order allocation to
+> succeed.
+>
+> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
-Yeah, I meant the non-ACK'd patches. Sorry for the confusion.
+Acked-by: Rik van Riel <riel@redhat.com>
+
+Once Mel's defragmentation code is in, we can kick off
+that code instead when a hugepage allocation fails.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
