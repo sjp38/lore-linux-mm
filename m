@@ -1,101 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 816FB62001B
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 10:43:57 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 839EC62001B
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 10:44:05 -0500 (EST)
 Received: by mail-fx0-f222.google.com with SMTP id 22so2837093fxm.6
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2010 07:43:55 -0800 (PST)
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2010 07:43:57 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH v2 -mmotm 2/4] cgroups: remove events before destroying subsystem state objects
-Date: Mon, 22 Feb 2010 17:43:40 +0200
-Message-Id: <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
-In-Reply-To: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name>
+Subject: [PATCH v2 -mmotm 3/4] cgroups: Add simple listener of cgroup events to documentation
+Date: Mon, 22 Feb 2010 17:43:41 +0200
+Message-Id: <458c3169608cb333f390b2cb732565fec9fec67e.1266853234.git.kirill@shutemov.name>
+In-Reply-To: <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
 References: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name>
-In-Reply-To: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name>
-References: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name>
+ <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
+In-Reply-To: <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
+References: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name> <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 To: containers@lists.linux-foundation.org, linux-mm@kvack.org
 Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-Events should be removed after rmdir of cgroup directory, but before
-destroying subsystem state objects. Let's take reference to cgroup
-directory dentry to do that.
+An example of cgroup notification API usage.
 
 Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/cgroup.h |    3 ---
- kernel/cgroup.c        |    8 ++++++++
- mm/memcontrol.c        |    9 ---------
- 3 files changed, 8 insertions(+), 12 deletions(-)
+ Documentation/cgroups/cgroup_event_listener.c |  103 +++++++++++++++++++++++++
+ 1 files changed, 103 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/cgroups/cgroup_event_listener.c
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 64cebfe..1719c75 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -395,9 +395,6 @@ struct cftype {
- 	 * closes the eventfd or on cgroup removing.
- 	 * This callback must be implemented, if you want provide
- 	 * notification functionality.
--	 *
--	 * Be careful. It can be called after destroy(), so you have
--	 * to keep all nesessary data, until all events are removed.
- 	 */
- 	int (*unregister_event)(struct cgroup *cgrp, struct cftype *cft,
- 			struct eventfd_ctx *eventfd);
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 46903cb..d142524 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -2979,6 +2979,7 @@ static void cgroup_event_remove(struct work_struct *work)
- 
- 	eventfd_ctx_put(event->eventfd);
- 	kfree(event);
-+	dput(cgrp->dentry);
- }
- 
- /*
-@@ -3099,6 +3100,13 @@ static int cgroup_write_event_control(struct cgroup *cgrp, struct cftype *cft,
- 		goto fail;
- 	}
- 
-+	/*
-+	 * Events should be removed after rmdir of cgroup directory, but before
-+	 * destroying subsystem state objects. Let's take reference to cgroup
-+	 * directory dentry to do that.
-+	 */
-+	dget(cgrp->dentry);
+diff --git a/Documentation/cgroups/cgroup_event_listener.c b/Documentation/cgroups/cgroup_event_listener.c
+new file mode 100644
+index 0000000..8c2d7aa
+--- /dev/null
++++ b/Documentation/cgroups/cgroup_event_listener.c
+@@ -0,0 +1,103 @@
++/*
++ * cgroup_event_listener.c - Simple listener of cgroup events
++ *
++ * Copyright (C) Kirill A. Shutemov <kirill@shutemov.name>
++ */
 +
- 	spin_lock(&cgrp->event_list_lock);
- 	list_add(&event->list, &cgrp->event_list);
- 	spin_unlock(&cgrp->event_list_lock);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a443c30..8fe6e7f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3358,12 +3358,6 @@ static int mem_cgroup_register_event(struct cgroup *cgrp, struct cftype *cft,
- 		}
- 	}
- 
--	/*
--	 * We need to increment refcnt to be sure that all thresholds
--	 * will be unregistered before calling __mem_cgroup_free()
--	 */
--	mem_cgroup_get(memcg);
--
- 	if (type == _MEM)
- 		rcu_assign_pointer(memcg->thresholds, thresholds_new);
- 	else
-@@ -3457,9 +3451,6 @@ assign:
- 	/* To be sure that nobody uses thresholds before freeing it */
- 	synchronize_rcu();
- 
--	for (i = 0; i < thresholds->size - size; i++)
--		mem_cgroup_put(memcg);
--
- 	kfree(thresholds);
- unlock:
- 	mutex_unlock(&memcg->thresholds_lock);
++#include <assert.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <libgen.h>
++#include <limits.h>
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++
++#include <sys/eventfd.h>
++
++#define USAGE_STR "Usage: cgroup_event_listener <path-to-control-file> <args>\n"
++
++int main(int argc, char **argv)
++{
++	int efd = -1;
++	int cfd = -1;
++	int event_control = -1;
++	char event_control_path[PATH_MAX];
++	int ret;
++
++	if (argc != 3) {
++		fputs(USAGE_STR, stderr);
++		return 1;
++	}
++
++	cfd = open(argv[1], O_RDONLY);
++	if (cfd == -1) {
++		fprintf(stderr, "Cannot open %s: %s\n", argv[1],
++				strerror(errno));
++		goto out;
++	}
++
++	ret = snprintf(event_control_path, PATH_MAX, "%s/cgroup.event_control",
++			dirname(argv[1]));
++	if (ret > PATH_MAX) {
++		fputs("Path to cgroup.event_control is too long\n", stderr);
++		goto out;
++	}
++
++	event_control = open(event_control_path, O_WRONLY);
++	if (event_control == -1) {
++		fprintf(stderr, "Cannot open %s: %s\n", event_control_path,
++				strerror(errno));
++		goto out;
++	}
++
++	efd = eventfd(0, 0);
++	if (efd == -1) {
++		perror("eventfd() failed");
++		goto out;
++	}
++
++	ret = dprintf(event_control, "%d %d %s", efd, cfd, argv[2]);
++	if (ret == -1) {
++		perror("Cannot write to cgroup.event_control");
++		goto out;
++	}
++
++	while (1) {
++		uint64_t result;
++
++		ret = read(efd, &result, sizeof(result));
++		if (ret == -1) {
++			if (errno == EINTR)
++				continue;
++			perror("Cannot read from eventfd");
++			break;
++		}
++		assert(ret == sizeof(result));
++
++		ret = access(event_control_path, W_OK);
++		if ((ret == -1) && (errno == ENOENT)) {
++				puts("The cgroup seems to have removed.");
++				ret = 0;
++				break;
++		}
++
++		if (ret == -1) {
++			perror("cgroup.event_control "
++					"is not accessable any more");
++			break;
++		}
++
++		printf("%s %s: crossed\n", argv[1], argv[2]);
++	}
++
++out:
++	if (efd >= 0)
++		close(efd);
++	if (event_control >= 0)
++		close(event_control);
++	if (cfd >= 0)
++		close(cfd);
++
++	return (ret != 0);
++}
 -- 
 1.6.6.2
 
