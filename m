@@ -1,47 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E696B0078
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 09:31:21 -0500 (EST)
-Date: Mon, 22 Feb 2010 15:31:11 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-Message-ID: <20100222143111.GA15778@basil.fritz.box>
-References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <4B826227.9010101@cs.helsinki.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B826227.9010101@cs.helsinki.fi>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 11EA96B0078
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 10:43:56 -0500 (EST)
+Received: by fxm22 with SMTP id 22so2837093fxm.6
+        for <linux-mm@kvack.org>; Mon, 22 Feb 2010 07:43:53 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH v2 -mmotm 1/4] cgroups: Fix race between userspace and kernelspace
+Date: Mon, 22 Feb 2010 17:43:39 +0200
+Message-Id: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com
+To: containers@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 22, 2010 at 12:53:27PM +0200, Pekka Enberg wrote:
-> Andi Kleen kirjoitti:
->> On Fri, Feb 19, 2010 at 12:22:58PM -0600, Christoph Lameter wrote:
->>> On Mon, 15 Feb 2010, Nick Piggin wrote:
->>>
->>>> I'm just worried there is still an underlying problem here.
->>> So am I. What caused the breakage that requires this patchset?
->>
->> Memory hotadd with a new node being onlined.
->
-> So can you post the oops, please? Right now I am looking at zapping the 
+eventfd are used to notify about two types of event:
+ - control file-specific, like crossing memory threshold;
+ - cgroup removing.
 
-I can't post the oops from a pre-release system.
+To understand what really happen, userspace can check if the cgroup
+still exists. To avoid race beetween userspace and kernelspace we have
+to notify userspace about cgroup removing only after rmdir of cgroup
+directory.
 
-> series from slab.git due to NAKs from both Christoph and Nick.
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ kernel/cgroup.c |   32 +++++++++++++++++---------------
+ 1 files changed, 17 insertions(+), 15 deletions(-)
 
-Huh? They just complained about the patch, not the whole series.
-I don't understand how that could prompt you to drop the whole series.
-
-As far as I know nobody said the patch is wrong so far, just
-that they wanted to have more analysis.
-
--Andi
-
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index ce9008f..46903cb 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -780,28 +780,15 @@ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
+ static int cgroup_call_pre_destroy(struct cgroup *cgrp)
+ {
+ 	struct cgroup_subsys *ss;
+-	struct cgroup_event *event, *tmp;
+ 	int ret = 0;
+ 
+ 	for_each_subsys(cgrp->root, ss)
+ 		if (ss->pre_destroy) {
+ 			ret = ss->pre_destroy(ss, cgrp);
+ 			if (ret)
+-				goto out;
++				break;
+ 		}
+ 
+-	/*
+-	 * Unregister events and notify userspace.
+-	 */
+-	spin_lock(&cgrp->event_list_lock);
+-	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
+-		list_del(&event->list);
+-		eventfd_signal(event->eventfd, 1);
+-		schedule_work(&event->remove);
+-	}
+-	spin_unlock(&cgrp->event_list_lock);
+-
+-out:
+ 	return ret;
+ }
+ 
+@@ -2991,7 +2978,6 @@ static void cgroup_event_remove(struct work_struct *work)
+ 	event->cft->unregister_event(cgrp, event->cft, event->eventfd);
+ 
+ 	eventfd_ctx_put(event->eventfd);
+-	remove_wait_queue(event->wqh, &event->wait);
+ 	kfree(event);
+ }
+ 
+@@ -3009,6 +2995,7 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
+ 	unsigned long flags = (unsigned long)key;
+ 
+ 	if (flags & POLLHUP) {
++		remove_wait_queue_locked(event->wqh, &event->wait);
+ 		spin_lock(&cgrp->event_list_lock);
+ 		list_del(&event->list);
+ 		spin_unlock(&cgrp->event_list_lock);
+@@ -3457,6 +3444,7 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
+ 	struct dentry *d;
+ 	struct cgroup *parent;
+ 	DEFINE_WAIT(wait);
++	struct cgroup_event *event, *tmp;
+ 	int ret;
+ 
+ 	/* the vfs holds both inode->i_mutex already */
+@@ -3540,6 +3528,20 @@ again:
+ 	set_bit(CGRP_RELEASABLE, &parent->flags);
+ 	check_for_release(parent);
+ 
++	/*
++	 * Unregister events and notify userspace.
++	 * Notify userspace about cgroup removing only after rmdir of cgroup
++	 * directory to avoid race between userspace and kernelspace
++	 */
++	spin_lock(&cgrp->event_list_lock);
++	list_for_each_entry_safe(event, tmp, &cgrp->event_list, list) {
++		list_del(&event->list);
++		remove_wait_queue(event->wqh, &event->wait);
++		eventfd_signal(event->eventfd, 1);
++		schedule_work(&event->remove);
++	}
++	spin_unlock(&cgrp->event_list_lock);
++
+ 	mutex_unlock(&cgroup_mutex);
+ 	return 0;
+ }
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+1.6.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
