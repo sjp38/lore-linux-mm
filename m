@@ -1,34 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 938226B0047
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 05:53:31 -0500 (EST)
-Message-ID: <4B826227.9010101@cs.helsinki.fi>
-Date: Mon, 22 Feb 2010 12:53:27 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B3D8F6B0078
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 05:57:15 -0500 (EST)
+Message-ID: <4B826307.8030805@cs.helsinki.fi>
+Date: Mon, 22 Feb 2010 12:57:11 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
 Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box>
-In-Reply-To: <20100220090154.GB11287@basil.fritz.box>
+References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <alpine.DEB.2.00.1002191221110.26567@router.home>
+In-Reply-To: <alpine.DEB.2.00.1002191221110.26567@router.home>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen kirjoitti:
-> On Fri, Feb 19, 2010 at 12:22:58PM -0600, Christoph Lameter wrote:
->> On Mon, 15 Feb 2010, Nick Piggin wrote:
->>
->>> I'm just worried there is still an underlying problem here.
->> So am I. What caused the breakage that requires this patchset?
+Christoph Lameter kirjoitti:
+> On Mon, 15 Feb 2010, Andi Kleen wrote:
 > 
-> Memory hotadd with a new node being onlined.
+>>> How, may I ask? cpuup_prepare in the hotplug notifier should always
+>>> run before start_cpu_timer.
+>> I'm not fully sure, but I have the oops to prove it :)
+> 
+> I still suspect that this has something to do with Pekka's changing the
+> boot order for allocator bootstrap. Can we clarify why these problems
+> exist before we try band aid?
 
-So can you post the oops, please? Right now I am looking at zapping the 
-series from slab.git due to NAKs from both Christoph and Nick.
+I don't see how my changes broke things but maybe I'm not looking hard 
+enough. Cache reaping is still setup from cpucache_init() which is an 
+initcall which is not affected by my changes AFAICT and from 
+cpuup_callback() which shoulda also not be affected.
 
-			Pekka
+				Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
