@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A17F56001DA
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 12:54:33 -0500 (EST)
-Message-ID: <4B82C4B9.60402@redhat.com>
-Date: Mon, 22 Feb 2010 12:54:01 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 240886001DA
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 12:55:20 -0500 (EST)
+Message-ID: <4B82C4E3.2040404@redhat.com>
+Date: Mon, 22 Feb 2010 12:54:43 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 26/36] dont alloc harder for gfp nomemalloc even if nowait
-References: <20100221141009.581909647@redhat.com> <20100221141756.929160492@redhat.com>
-In-Reply-To: <20100221141756.929160492@redhat.com>
+Subject: Re: [patch 28/36] adapt to mm_counter in -mm
+References: <20100221141009.581909647@redhat.com> <20100221141757.257019845@redhat.com>
+In-Reply-To: <20100221141757.257019845@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,9 +19,7 @@ List-ID: <linux-mm.kvack.org>
 On 02/21/2010 09:10 AM, aarcange@redhat.com wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Not worth throwing away the precious reserved free memory pool for allocations
-> that can fail gracefully (either through mempool or because they're transhuge
-> allocations later falling back to 4k allocations).
+> The interface changed slightly.
 >
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
