@@ -1,63 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1357762001B
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 10:44:05 -0500 (EST)
-Received: by mail-fx0-f222.google.com with SMTP id 22so2837093fxm.6
-        for <linux-mm@kvack.org>; Mon, 22 Feb 2010 07:43:59 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH v2 -mmotm 4/4] memcg: Update memcg_test.txt to describe memory thresholds
-Date: Mon, 22 Feb 2010 17:43:42 +0200
-Message-Id: <31d1e8b43222486d8bb1873007b5cde1b5067f28.1266853234.git.kirill@shutemov.name>
-In-Reply-To: <458c3169608cb333f390b2cb732565fec9fec67e.1266853234.git.kirill@shutemov.name>
-References: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name>
- <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
- <458c3169608cb333f390b2cb732565fec9fec67e.1266853234.git.kirill@shutemov.name>
-In-Reply-To: <458c3169608cb333f390b2cb732565fec9fec67e.1266853234.git.kirill@shutemov.name>
-References: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name> <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name> <458c3169608cb333f390b2cb732565fec9fec67e.1266853234.git.kirill@shutemov.name>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A1C236B0078
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 11:11:34 -0500 (EST)
+Message-ID: <4B82AC97.6000901@cs.helsinki.fi>
+Date: Mon, 22 Feb 2010 18:11:03 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
+References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <4B826227.9010101@cs.helsinki.fi> <20100222143111.GA15778@basil.fritz.box>
+In-Reply-To: <20100222143111.GA15778@basil.fritz.box>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: containers@lists.linux-foundation.org, linux-mm@kvack.org
-Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-Decription of sanity check for memory thresholds.
+Andi Kleen wrote:
+> On Mon, Feb 22, 2010 at 12:53:27PM +0200, Pekka Enberg wrote:
+>> Andi Kleen kirjoitti:
+>>> On Fri, Feb 19, 2010 at 12:22:58PM -0600, Christoph Lameter wrote:
+>>>> On Mon, 15 Feb 2010, Nick Piggin wrote:
+>>>>
+>>>>> I'm just worried there is still an underlying problem here.
+>>>> So am I. What caused the breakage that requires this patchset?
+>>> Memory hotadd with a new node being onlined.
+>> So can you post the oops, please? Right now I am looking at zapping the 
+> 
+> I can't post the oops from a pre-release system.
+> 
+>> series from slab.git due to NAKs from both Christoph and Nick.
+> 
+> Huh? They just complained about the patch, not the whole series.
+> I don't understand how that could prompt you to drop the whole series.
 
-Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- Documentation/cgroups/memcg_test.txt |   21 +++++++++++++++++++++
- 1 files changed, 21 insertions(+), 0 deletions(-)
-
-diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
-index e011488..4d32e0e 100644
---- a/Documentation/cgroups/memcg_test.txt
-+++ b/Documentation/cgroups/memcg_test.txt
-@@ -396,3 +396,24 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
- 	memory.stat of both A and B.
- 	See 8.2 of Documentation/cgroups/memory.txt to see what value should be
- 	written to move_charge_at_immigrate.
-+
-+ 9.10 Memory thresholds
-+	Memory controler implements memory thresholds using cgroups notification
-+	API. You can use Documentation/cgroups/cgroup_event_listener.c to test
-+	it.
-+
-+	(Shell-A) Create cgroup and run event listener
-+	# mkdir /cgroup/A
-+	# ./cgroup_event_listener /cgroup/A/memory.usage_in_bytes 5M
-+
-+	(Shell-B) Add task to cgroup and try to allocate and free memory
-+	# echo $$ >/cgroup/A/tasks
-+	# a="$(dd if=/dev/zero bs=1M count=10)"
-+	# a=
-+
-+	You will see message from cgroup_event_listener every time you cross
-+	the thresholds.
-+
-+	Use /cgroup/A/memory.memsw.usage_in_bytes to test memsw thresholds.
-+
-+	It's good idea to test root cgroup as well.
--- 
-1.6.6.2
+Yeah, I meant the non-ACK'd patches. Sorry for the confusion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
