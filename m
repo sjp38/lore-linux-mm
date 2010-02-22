@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AE0F6B007B
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 62F7F6B0078
 	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 14:49:42 -0500 (EST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/3] vmscan: drop page_mapping_inuse()
-Date: Mon, 22 Feb 2010 20:49:09 +0100
-Message-Id: <1266868150-25984-3-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 3/3] vmscan: detect mapped file pages used only once
+Date: Mon, 22 Feb 2010 20:49:10 +0100
+Message-Id: <1266868150-25984-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1266868150-25984-1-git-send-email-hannes@cmpxchg.org>
 References: <1266868150-25984-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,82 +13,150 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-page_mapping_inuse() is a historic predicate function for pages that
-are about to be reclaimed or deactivated.
+The VM currently assumes that an inactive, mapped and referenced file
+page is in use and promotes it to the active list.
 
-According to it, a page is in use when it is mapped into page tables
-OR part of swap cache OR backing an mmapped file.
+However, every mapped file page starts out like this and thus a problem
+arises when workloads create a stream of such pages that are used only
+for a short time.  By flooding the active list with those pages, the VM
+quickly gets into trouble finding eligible reclaim canditates.  The
+result is long allocation latencies and eviction of the wrong pages.
 
-This function is used in combination with page_referenced(), which
-checks for young bits in ptes and the page descriptor itself for the
-PG_referenced bit.  Thus, checking for unmapped swap cache pages is
-meaningless as PG_referenced is not set for anonymous pages and
-unmapped pages do not have young ptes.  The test makes no difference.
+This patch reuses the PG_referenced page flag (used for unmapped file
+pages) to implement a usage detection that scales with the speed of
+LRU list cycling (i.e. memory pressure).
 
-Protecting file pages that are not by themselves mapped but are part
-of a mapped file is also a historic leftover for short-lived things
-like the exec() code in libc.  However, the VM now does reference
-accounting and activation of pages at unmap time and thus the special
-treatment on reclaim is obsolete.
+If the scanner encounters those pages, the flag is set and the page
+cycled again on the inactive list.  Only if it returns with another
+page table reference it is activated.  Otherwise it is reclaimed as
+'not recently used cache'.
 
-This patch drops page_mapping_inuse() and switches the two callsites
-to use page_mapped() directly.
+This effectively changes the minimum lifetime of a used-once mapped
+file page from a full memory cycle to an inactive list cycle, which
+allows it to occur in linear streams without affecting the stable
+working set of the system.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmscan.c |   25 ++-----------------------
- 1 files changed, 2 insertions(+), 23 deletions(-)
+ include/linux/rmap.h |    2 +-
+ mm/rmap.c            |    3 ---
+ mm/vmscan.c          |   45 +++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 36 insertions(+), 14 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c2db55b..a8e4cbe 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -262,27 +262,6 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
- 	return ret;
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index b019ae6..f4accb5 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -181,7 +181,7 @@ static inline int page_referenced(struct page *page, int is_locked,
+ 				  unsigned long *vm_flags)
+ {
+ 	*vm_flags = 0;
+-	return TestClearPageReferenced(page);
++	return 0;
  }
  
--/* Called without lock on whether page is mapped, so answer is unstable */
--static inline int page_mapping_inuse(struct page *page)
--{
--	struct address_space *mapping;
+ #define try_to_unmap(page, refs) SWAP_FAIL
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 278cd27..5a48bda 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -511,9 +511,6 @@ int page_referenced(struct page *page,
+ 	int referenced = 0;
+ 	int we_locked = 0;
+ 
+-	if (TestClearPageReferenced(page))
+-		referenced++;
 -
--	/* Page is in somebody's page tables. */
--	if (page_mapped(page))
--		return 1;
--
--	/* Be more reluctant to reclaim swapcache than pagecache */
--	if (PageSwapCache(page))
--		return 1;
--
--	mapping = page_mapping(page);
--	if (!mapping)
--		return 0;
--
--	/* File is mmap'd by somebody? */
--	return mapping_mapped(mapping);
--}
--
- static inline int is_page_cache_freeable(struct page *page)
+ 	*vm_flags = 0;
+ 	if (page_mapped(page) && page_rmapping(page)) {
+ 		if (!is_locked && (!PageAnon(page) || PageKsm(page))) {
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a8e4cbe..674a78b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -561,18 +561,18 @@ redo:
+ enum page_references {
+ 	PAGEREF_RECLAIM,
+ 	PAGEREF_RECLAIM_CLEAN,
++	PAGEREF_KEEP,
+ 	PAGEREF_ACTIVATE,
+ };
+ 
+ static enum page_references page_check_references(struct page *page,
+ 						  struct scan_control *sc)
  {
- 	/*
-@@ -603,7 +582,7 @@ static enum page_references page_check_references(struct page *page,
++	int referenced_ptes, referenced_page;
+ 	unsigned long vm_flags;
+-	int referenced;
+ 
+-	referenced = page_referenced(page, 1, sc->mem_cgroup, &vm_flags);
+-	if (!referenced)
+-		return PAGEREF_RECLAIM;
++	referenced_ptes = page_referenced(page, 1, sc->mem_cgroup, &vm_flags);
++	referenced_page = TestClearPageReferenced(page);
+ 
+ 	/* Lumpy reclaim - ignore references */
+ 	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+@@ -582,11 +582,36 @@ static enum page_references page_check_references(struct page *page,
  	if (vm_flags & VM_LOCKED)
  		return PAGEREF_RECLAIM;
  
--	if (page_mapping_inuse(page))
-+	if (page_mapped(page))
- 		return PAGEREF_ACTIVATE;
+-	if (page_mapped(page))
+-		return PAGEREF_ACTIVATE;
++	if (referenced_ptes) {
++		if (PageAnon(page))
++			return PAGEREF_ACTIVATE;
++		/*
++		 * All mapped pages start out with page table
++		 * references from the instantiating fault, so we need
++		 * to look twice if a mapped file page is used more
++		 * than once.
++		 *
++		 * Mark it and spare it for another trip around the
++		 * inactive list.  Another page table reference will
++		 * lead to its activation.
++		 *
++		 * Note: the mark is set for activated pages as well
++		 * so that recently deactivated but used pages are
++		 * quickly recovered.
++		 */
++		SetPageReferenced(page);
++
++		if (referenced_page)
++			return PAGEREF_ACTIVATE;
++
++		return PAGEREF_KEEP;
++	}
  
  	/* Reclaim if clean, defer dirty pages to writeback */
-@@ -1378,7 +1357,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+-	return PAGEREF_RECLAIM_CLEAN;
++	if (referenced_page)
++		return PAGEREF_RECLAIM_CLEAN;
++
++	return PAGEREF_RECLAIM;
+ }
+ 
+ /*
+@@ -654,6 +679,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		switch (references) {
+ 		case PAGEREF_ACTIVATE:
+ 			goto activate_locked;
++		case PAGEREF_KEEP:
++			goto keep_locked;
+ 		case PAGEREF_RECLAIM:
+ 		case PAGEREF_RECLAIM_CLEAN:
+ 			; /* try to reclaim the page below */
+@@ -1356,9 +1383,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 			continue;
  		}
  
- 		/* page_referenced clears PageReferenced */
--		if (page_mapping_inuse(page) &&
-+		if (page_mapped(page) &&
- 		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
+-		/* page_referenced clears PageReferenced */
+-		if (page_mapped(page) &&
+-		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
++		if (page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
  			nr_rotated++;
  			/*
+ 			 * Identify referenced, file-backed active pages and
 -- 
 1.6.6.1
 
