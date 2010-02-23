@@ -1,196 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3F49B6001DA
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 01:30:24 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1N6ULTY027129
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 23 Feb 2010 15:30:21 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1342045DE5B
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 15:30:21 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id BC2B445DE56
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 15:30:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 388F21DB8043
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 15:30:18 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D3EF81DB805A
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 15:30:15 +0900 (JST)
-Date: Tue, 23 Feb 2010 15:26:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] memcg: page fault oom improvement v2
-Message-Id: <20100223152650.e8fc275d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100223152116.327a777e.nishimura@mxp.nes.nec.co.jp>
-References: <20100223120315.0da4d792.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100223140218.0ab8ee29.nishimura@mxp.nes.nec.co.jp>
-	<20100223152116.327a777e.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DB5B46B004D
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 01:31:35 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp02.in.ibm.com (8.14.3/8.13.1) with ESMTP id o1N6VUkr002746
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 12:01:30 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1N6VUqQ3055800
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 12:01:30 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o1N6VUJN016161
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 17:31:30 +1100
+Date: Tue, 23 Feb 2010 12:01:29 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [patch -mm 3/9 v2] oom: select task from tasklist for mempolicy
+ ooms
+Message-ID: <20100223063129.GI3063@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1002151418030.26927@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1002151418030.26927@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Feb 2010 15:21:16 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+* David Rientjes <rientjes@google.com> [2010-02-15 14:20:06]:
 
-> On Tue, 23 Feb 2010 14:02:18 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > On Tue, 23 Feb 2010 12:03:15 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > Nishimura-san, could you review and test your extreme test case with this ?
-> > > 
-> > Thank you for your patch.
-> > I don't know why, but the problem seems not so easy to cause in mmotm as in 2.6.32.8,
-> > but I'll try more anyway.
-> > 
-> I can triggered the problem in mmotm.
+> The oom killer presently kills current whenever there is no more memory
+> free or reclaimable on its mempolicy's nodes.  There is no guarantee that
+> current is a memory-hogging task or that killing it will free any
+> substantial amount of memory, however.
 > 
-> I'll continue my test with your patch applied.
+> In such situations, it is better to scan the tasklist for nodes that are
+> allowed to allocate on current's set of nodes and kill the task with the
+> highest badness() score.  This ensures that the most memory-hogging task,
+> or the one configured by the user with /proc/pid/oom_adj, is always
+> selected in such scenarios.
 > 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Thank you. Updated one here.
-
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Now, because of page_fault_oom_kill, returning VM_FAULT_OOM means
-random oom-killer should be called. Considering memcg, it handles
-OOM-kill in its own logic, there was a problem as "oom-killer called
-twice" problem.
-
-By commit a636b327f731143ccc544b966cfd8de6cb6d72c6, I added a check
-in pagefault_oom_killer shouldn't kill some (random) task if
-memcg's oom-killer already killed someone.
-That was done by comapring current jiffies and last oom jiffies of memcg.
-
-I thought that easy fix was enough, but Nishimura could write a test case
-where checking jiffies is not enough. This is a fix of above commit.
-
-This new one does this.
- * memcg's try_charge() never returns -ENOMEM if oom-killer is allowed.
- * If someone is calling oom-killer, wait for it in try_charge().
- * If TIF_MEMDIE is set as a result of try_charge(), return 0 and
-   allow process to make progress (and die.) 
- * removed hook in pagefault_out_of_memory.
-
-By this, pagefult_out_of_memory will be never called if memcg's oom-killer
-is called.
-
-TODO:
- If __GFP_WAIT is not specified in gfp_mask flag, VM_FAULT_OOM will return
- anyway. We need to investigate it whether there is a case.
-
-Changelog: 2010/02/23
- * fixed MEMDIE condition check.
- * making internal symbols to be static.
-
-Cc: David Rientjes <rientjes@google.com>
-Cc: Balbir Singh <balbir@in.ibm.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   41 +++++++++++++++++++++++------------------
- mm/oom_kill.c   |   11 +++--------
- 2 files changed, 26 insertions(+), 26 deletions(-)
-
-Index: mmotm-2.6.33-Feb11/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.33-Feb11.orig/mm/memcontrol.c
-+++ mmotm-2.6.33-Feb11/mm/memcontrol.c
-@@ -1234,21 +1234,12 @@ static int mem_cgroup_hierarchical_recla
- 	return total;
- }
- 
--bool mem_cgroup_oom_called(struct task_struct *task)
-+static DEFINE_MUTEX(memcg_oom_mutex);
-+static bool mem_cgroup_oom_called(struct mem_cgroup *mem)
- {
--	bool ret = false;
--	struct mem_cgroup *mem;
--	struct mm_struct *mm;
--
--	rcu_read_lock();
--	mm = task->mm;
--	if (!mm)
--		mm = &init_mm;
--	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
--	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
--		ret = true;
--	rcu_read_unlock();
--	return ret;
-+	if (time_before(jiffies, mem->last_oom_jiffies + HZ/10))
-+		return true;
-+	return false;
- }
- 
- static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
-@@ -1549,11 +1540,25 @@ static int __mem_cgroup_try_charge(struc
- 		}
- 
- 		if (!nr_retries--) {
--			if (oom) {
--				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
-+			int oom_kill_called;
-+			if (!oom)
-+				goto nomem;
-+			mutex_lock(&memcg_oom_mutex);
-+			oom_kill_called = mem_cgroup_oom_called(mem_over_limit);
-+			if (!oom_kill_called)
- 				record_last_oom(mem_over_limit);
--			}
--			goto nomem;
-+			mutex_unlock(&memcg_oom_mutex);
-+			if (!oom_kill_called)
-+				mem_cgroup_out_of_memory(mem_over_limit,
-+				gfp_mask);
-+			else /* give a chance to die for other tasks */
-+				schedule_timeout(1);
-+			nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+			/* Killed myself ? */
-+			if (!test_thread_flag(TIF_MEMDIE))
-+				continue;
-+			/* For smooth oom-kill of current, return 0 */
-+			return 0;
- 		}
- 	}
- 	if (csize > PAGE_SIZE)
-Index: mmotm-2.6.33-Feb11/mm/oom_kill.c
-===================================================================
---- mmotm-2.6.33-Feb11.orig/mm/oom_kill.c
-+++ mmotm-2.6.33-Feb11/mm/oom_kill.c
-@@ -487,6 +487,9 @@ retry:
- 		goto retry;
- out:
- 	read_unlock(&tasklist_lock);
-+	/* give a chance to die for selected process */
-+	if (!test_thread_flag(TIF_MEMDIE))
-+		schedule_timeout_uninterruptible(1);
- }
- #endif
- 
-@@ -601,13 +604,6 @@ void pagefault_out_of_memory(void)
- 		/* Got some memory back in the last second. */
- 		return;
- 
--	/*
--	 * If this is from memcg, oom-killer is already invoked.
--	 * and not worth to go system-wide-oom.
--	 */
--	if (mem_cgroup_oom_called(current))
--		goto rest_and_return;
--
- 	if (sysctl_panic_on_oom)
- 		panic("out of memory from page fault. panic_on_oom is selected.\n");
- 
-@@ -619,7 +615,6 @@ void pagefault_out_of_memory(void)
- 	 * Give "p" a good chance of killing itself before we
- 	 * retry to allocate memory.
- 	 */
--rest_and_return:
- 	if (!test_thread_flag(TIF_MEMDIE))
- 		schedule_timeout_uninterruptible(1);
- }
+Seems reasonable, but I think it will require lots of testing.
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
