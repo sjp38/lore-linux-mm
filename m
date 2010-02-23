@@ -1,89 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 414E66B0047
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 11:39:30 -0500 (EST)
-Date: Tue, 23 Feb 2010 08:39:26 -0800
-From: Andy Isaacson <adi@hexapodia.org>
-Subject: Re: [PATCH] fs: add fincore(2) (mincore(2) for file descriptors)
-Message-ID: <20100223163926.GC18096@hexapodia.org>
-References: <20100216181312.GA9700@frostnet.net> <20100221030238.GA26511@hexapodia.org> <20100221032533.GB14056@localhost>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 54BB86B0047
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 12:54:12 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id e12so1401fga.8
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2010 09:54:10 -0800 (PST)
+Date: Tue, 23 Feb 2010 18:54:06 +0100
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [RFC PATCH -tip 2/2 v2] add a scripts for pagecache usage per
+	process
+Message-ID: <20100223175402.GE5357@nowhere>
+References: <4B5A3D00.8080901@bx.jp.nec.com> <4B5A3E19.6060502@bx.jp.nec.com> <1264234865.6595.75.camel@tropicana> <4B5E1855.4090809@bx.jp.nec.com> <1265012255.6526.18.camel@tropicana>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100221032533.GB14056@localhost>
+In-Reply-To: <1265012255.6526.18.camel@tropicana>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Chris Frost <chris@frostnet.net>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Benny Halevy <bhalevy@panasas.com>, "Andrew@firstfloor.org" <Andrew@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Steve VanDeBogart <vandebo-lkml@nerdbox.net>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+To: Tom Zanussi <tzanussi@gmail.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@redhat.com>
+Cc: Keiichi KII <k-keiichi@bx.jp.nec.com>, linux-kernel@vger.kernel.org, lwoodman@redhat.com, linux-mm@kvack.org, riel@redhat.com, rostedt@goodmis.org, akpm@linux-foundation.org, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 21, 2010 at 11:25:33AM +0800, Wu Fengguang wrote:
-> Andy and Chris,
-> On Sun, Feb 21, 2010 at 11:02:38AM +0800, Andy Isaacson wrote:
-> > On Tue, Feb 16, 2010 at 10:13:12AM -0800, Chris Frost wrote:
-> > > Add the fincore() system call. fincore() is mincore() for file descriptors.
-> > > 
-> > > The functionality of fincore() can be emulated with an mmap(), mincore(),
-> > > and munmap(), but this emulation requires more system calls and requires
-> > > page table modifications. fincore() can provide a significant performance
-> > > improvement for non-sequential in-core queries.
-> > 
-> > In addition to being expensive, mmap/mincore/munmap perturb the VM's
-> > eviction algorithm -- a page is less likely to be evicted if it's
-> > mmapped when being considered for eviction.
-> > 
-> > I frequently see this happen when using mincore(1) from
-> > http://bitbucket.org/radii/mincore/ -- "watch mincore -v *.big" while
-> > *.big are being sequentially read results in a significant number of
-> > pages remaining in-core, whereas if I only run mincore after the
-> > sequential read is complete, the large files will be nearly-completely
-> > out of core (except for the tail of the last file, of course).
-> > 
-> > It's very interesting to watch
-> > % watch --interval=.5 mincore -v *
-> > 
-> > while an IO-intensive process is happening, such as mke2fs on a
-> > filesystem image.
-> > 
-> > So, I support the addition of fincore(2) and would use it if it were
-> > merged.
+On Mon, Feb 01, 2010 at 02:17:35AM -0600, Tom Zanussi wrote:
+> Here's one way, using the tracepoint filters - it does make a big
+> difference in this case.
 > 
-> I'd like to advocate the "pagecache object collections", a ftrace
-> based alternative:
+> Before (using the new -P option, which includes perf in the trace
+> data):  
 > 
->         http://lkml.org/lkml/2010/2/9/156
+> root@tropicana:~# perf record -c 1 -f -a -M -R -e filemap:add_to_page_cache -e filemap:find_get_page -e filemap:remove_from_page_cache -P sleep 5
+> [ perf record: Woken up 0 times to write data ]
+> [ perf record: Captured and wrote 71.201 MB perf.data (~3110815 samples) ]
 > 
-> Which will provide much more information than fincore(). I'd really
-> appreciate it if you can join and use the general "pagecache object
-> collections" facility.
+> After (filters out events generated by perf):
+> 
+> root@tropicana:~# perf record -c 1 -f -a -M -R -e filemap:add_to_page_cache -e filemap:find_get_page -e filemap:remove_from_page_cache sleep 5
+> [ perf record: Woken up 1 times to write data ]
+> [ perf record: Captured and wrote 0.309 MB perf.data (~13479 samples) ]
+> 
+> Tom
+> 
+> [PATCH] perf record: filter out perf process tracepoint events
+> 
+> The perf process itself can generate a lot of trace data, which most
+> of the time isn't of any interest.  This patch adds a predicate to the
+> kernel tracepoint filter of each recorded event type which effectively
+> screens out any event generated by perf.
+> 
+> Assuming the common case would be to ignore perf, this makes it the
+> default; the old behavior can be selected by using 'perf record -P'.
 
-1. The ftrace alternative appears to require root.  That's a complete
-   non-starter for my use case.
 
-2. I can imagine advocating that other UNIXes adopt fincore.  It's
-   unrealistic to pretend that other UNIXes will adopt our trace/
-   infrastructure.  (If anything we should have adopted DTrace.)
+I think filtering out perf from the instrumentation is a very
+desirable features.
 
-3. It appears to expose a significantly more complicated userland API.
-   (But this doesn't matter until (1) is addressed.)  Also, it looks
-   like it'll be a lot more expensive for high-frequency queries.  Note
-   that in the library-helper use case, the library implementation may
-   be limited by its exposed API from leaving filedescriptors open
-   across calls.  Does ftrace really require the kernel to format data
-   to ASCII so that it can be fscanf()ed by userland?  I hope that's
-   just a convenience and there's a binary output path.
+But I see two drawbacks with this patch.
+First of all, we want to keep perf as a part of the instrumentation
+as a default behaviour I think, as it is a true part of the system
+wide load. So I would rather suggest to keep it as a default and
+have an exclude_perf option instead of include_perf.
 
-4. How committed is the ftrace API and ABI?  Is it guaranteed to
-   continue to be supported for the next 2 decades?
+The other downside is that this filtering only applies to ftrace events
+and not to other perf events. I would expect an exclude_perf option
+to apply to every events, not just a family of them.
 
-I'd much rather have the simple, supportible, explainable, performant
-API that fits in well to the standard UNIX paradigm than to add
-dependencies on Linux-specific APIs that appear to be in extreme flux.
+This is not that easy though. It's trivial for a process bound
+instrumentation as we only need to use enable_on_exec for that
+(assuming we create the targeted process from perf).
 
-My apologies if I've missed anything in the above, please let me know if
-I'm wrong.
+Otherwise we need the cpu events to filter out a given context, which
+needs to be done from the kernel, on events scheduling time.
+It's just an idea, I'm adding more interested parties in Cc.
 
-Thanks,
--andy
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
