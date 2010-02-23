@@ -1,111 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3F7C46B0047
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 09:06:13 -0500 (EST)
-Date: Tue, 23 Feb 2010 22:04:35 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC PATCH -tip 0/2 v3] pagecache tracepoints proposal
-Message-ID: <20100223140435.GA31131@localhost>
-References: <4B6B7FBF.9090005@bx.jp.nec.com> <20100205072858.GC9320@elte.hu> <20100208155450.GA17055@localhost> <20100218143429.ddea9bb2.kamezawa.hiroyu@jp.fujitsu.com> <20100218095850.GR5612@balbir.in.ibm.com>
-MIME-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 486736B0047
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 09:22:28 -0500 (EST)
+Date: Tue, 23 Feb 2010 15:21:58 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] vmscan: factor out page reference checks
+Message-ID: <20100223142158.GA29762@cmpxchg.org>
+References: <1266868150-25984-1-git-send-email-hannes@cmpxchg.org> <1266868150-25984-2-git-send-email-hannes@cmpxchg.org> <1266932303.2723.13.camel@barrios-desktop>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100218095850.GR5612@balbir.in.ibm.com>
+In-Reply-To: <1266932303.2723.13.camel@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Chris Frost <frost@cs.ucla.edu>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Keiichi KII <k-keiichi@bx.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Jason Baron <jbaron@redhat.com>, Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 18, 2010 at 05:58:50PM +0800, Balbir Singh wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-02-18 14:34:29]:
-> > Can we dump page's cgroup ? If so, I'm happy.
-> > Maybe
-> > ==
-> >   struct page_cgroup *pc = lookup_page_cgroup(page);
-> >   struct mem_cgroup *mem = pc->mem_cgroup;
-> >   shodt mem_cgroup_id = mem->css.css_id;
-> > 
-> >   And statistics can be counted per css_id.
-> >
+Hello Minchan,
+
+On Tue, Feb 23, 2010 at 10:38:23PM +0900, Minchan Kim wrote:
+> Hi, Hannes. 
 > 
-> Good idea, all of this needs to happen with a check to see if memcg is
-> enabled/disabled at boot as well. pc can be NULL if
-> CONFIG_CGROUP_MEM_RES_CTLR is not enabled.
+> On Mon, 2010-02-22 at 20:49 +0100, Johannes Weiner wrote:
+> > Moving the big conditional into its own predicate function makes the
+> > code a bit easier to read and allows for better commenting on the
+> > checks one-by-one.
+> > 
+> > This is just cleaning up, no semantics should have been changed.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> >  mm/vmscan.c |   53 ++++++++++++++++++++++++++++++++++++++++-------------
+> >  1 files changed, 40 insertions(+), 13 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index c26986c..c2db55b 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -579,6 +579,37 @@ redo:
+> >  	put_page(page);		/* drop ref from isolate */
+> >  }
+> >  
+> > +enum page_references {
+> > +	PAGEREF_RECLAIM,
+> > +	PAGEREF_RECLAIM_CLEAN,
+> > +	PAGEREF_ACTIVATE,
+> > +};
+> > +
+> > +static enum page_references page_check_references(struct page *page,
+> > +						  struct scan_control *sc)
+> > +{
+> > +	unsigned long vm_flags;
+> > +	int referenced;
+> > +
+> > +	referenced = page_referenced(page, 1, sc->mem_cgroup, &vm_flags);
+> > +	if (!referenced)
+> > +		return PAGEREF_RECLAIM;
+> > +
+> > +	/* Lumpy reclaim - ignore references */
+> > +	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+> > +		return PAGEREF_RECLAIM;
+> > +
+> > +	/* Mlock lost isolation race - let try_to_unmap() handle it */
+> 
+> How doest try_to_unamp handle it?
+> 
+> /* Page which PG_mlocked lost isolation race - let try_to_unmap() move
+> the page to unevitable list */
+> 
+> The point is to move the page into unevictable list in case of race. 
+> Let's write down comment more clearly. 
+> As it was, it was clear, I think. :)
 
-Not sure if this is the one in your mind, but I defined a function in
-memcontrol.c for the trace code. Compile tested.
+Okay, I do not feel strongly about it.  I just figured it would be enough
+at this point to say 'page is special, pass it on to try_to_unmap(), it
+knows how to handle it.  We do not care.'.  But maybe you are right.
 
-It'll be used like this:
+I attached an incremental patch below.
 
-        TP_fast_assign(
-                        __entry->memcg          = page_memcg_id(page);
-                      )
+> > +	if (vm_flags & VM_LOCKED)
+> > +		return PAGEREF_RECLAIM;
+> > +
+> > +	if (page_mapping_inuse(page))
+> > +		return PAGEREF_ACTIVATE;
+> > +
+> > +	/* Reclaim if clean, defer dirty pages to writeback */
+> > +	return PAGEREF_RECLAIM_CLEAN;
+> > +}
+> > +
+> >  /*
+> >   * shrink_page_list() returns the number of reclaimed pages
+> >   */
+> > @@ -590,16 +621,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  	struct pagevec freed_pvec;
+> >  	int pgactivate = 0;
+> >  	unsigned long nr_reclaimed = 0;
+> > -	unsigned long vm_flags;
+> >  
+> >  	cond_resched();
+> >  
+> >  	pagevec_init(&freed_pvec, 1);
+> >  	while (!list_empty(page_list)) {
+> > +		enum page_references references;
+> >  		struct address_space *mapping;
+> >  		struct page *page;
+> >  		int may_enter_fs;
+> > -		int referenced;
+> >  
+> >  		cond_resched();
+> >  
+> > @@ -641,17 +671,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  				goto keep_locked;
+> >  		}
+> >  
+> > -		referenced = page_referenced(page, 1,
+> > -						sc->mem_cgroup, &vm_flags);
+> > -		/*
+> > -		 * In active use or really unfreeable?  Activate it.
+> > -		 * If page which have PG_mlocked lost isoltation race,
+> > -		 * try_to_unmap moves it to unevictable list
+> > -		 */
+> > -		if (sc->order <= PAGE_ALLOC_COSTLY_ORDER &&
+> > -					referenced && page_mapping_inuse(page)
+> > -					&& !(vm_flags & VM_LOCKED))
+> > +		references = page_check_references(page, sc);
+> > +		switch (references) {
+> > +		case PAGEREF_ACTIVATE:
+> >  			goto activate_locked;
+> > +		case PAGEREF_RECLAIM:
+> > +		case PAGEREF_RECLAIM_CLEAN:
+> > +			; /* try to reclaim the page below */
+> > +		}
+> >  
+> >  		/*
+> >  		 * Anonymous process memory has backing store?
+> > @@ -685,7 +712,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		}
+> >  
+> >  		if (PageDirty(page)) {
+> > -			if (sc->order <= PAGE_ALLOC_COSTLY_ORDER && referenced)
+> > +			if (references == PAGEREF_RECLAIM_CLEAN)
+> 
+> How equal PAGEREF_RECLAIM_CLEAN and sc->order <= PAGE_ALLOC_COSTLY_ORDER
+> && referenced by semantic?
 
-        TP_printk("index=%lu len=%lu flags=%lx count=%u mapcount=%u memcg=%d",
+It is encoded in page_check_references().  When
+	sc->order <= PAGE_ALLOC_COSTLY_ORDER && referenced
+it returns PAGEREF_RECLAIM_CLEAN.
 
-Thanks,
-Fengguang
+So
 
+	- PageDirty() && order < COSTLY && referenced
+	+ PageDirty() && references == PAGEREF_RECLAIM_CLEAN
+
+is an equivalent transformation.  Does this answer your question?
+
+	Hannes
+	
 ---
-memcg: introduce page_memcg_id()
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: vmscan: improve comment on mlocked page in reclaim
 
-This will be used to dump the memcg id associated with a pagecache page.
-
-CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/memcontrol.h |    6 ++++++
- mm/memcontrol.c            |   16 ++++++++++++++++
- 2 files changed, 22 insertions(+)
 
---- linux-mm.orig/include/linux/memcontrol.h	2010-02-23 21:49:39.000000000 +0800
-+++ linux-mm/include/linux/memcontrol.h	2010-02-23 21:50:14.000000000 +0800
-@@ -69,6 +69,7 @@ extern void mem_cgroup_out_of_memory(str
- int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 674a78b..819fff7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -578,7 +578,10 @@ static enum page_references page_check_references(struct page *page,
+ 	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+ 		return PAGEREF_RECLAIM;
  
- extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
-+extern unsigned short page_memcg_id(struct page *page);
- extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+-	/* Mlock lost isolation race - let try_to_unmap() handle it */
++	/*
++	 * Mlock lost the isolation race with us.  Let try_to_unmap()
++	 * move the page to the unevictable list.
++	 */
+ 	if (vm_flags & VM_LOCKED)
+ 		return PAGEREF_RECLAIM;
  
- static inline
-@@ -142,6 +143,11 @@ static inline int mem_cgroup_try_charge_
- 	return 0;
- }
- 
-+static inline unsigned short page_memcg_id(struct page *page)
-+{
-+	return 0;
-+}
-+
- static inline void mem_cgroup_commit_charge_swapin(struct page *page,
- 					  struct mem_cgroup *ptr)
- {
---- linux-mm.orig/mm/memcontrol.c	2010-02-23 21:48:23.000000000 +0800
-+++ linux-mm/mm/memcontrol.c	2010-02-23 21:49:33.000000000 +0800
-@@ -324,6 +324,22 @@ static struct mem_cgroup *try_get_mem_cg
- 	return mem;
- }
- 
-+unsigned short page_memcg_id(struct page *page)
-+{
-+	struct mem_cgroup *mem;
-+	struct cgroup_subsys_state *css;
-+	unsigned short id = 0;
-+
-+	mem = try_get_mem_cgroup_from_page(page);
-+	if (mem) {
-+		css = mem_cgroup_css(mem);
-+		id = css_id(css);
-+		css_put(css);
-+	}
-+
-+	return id;
-+}
-+
- /*
-  * Call callback function against all cgroup under hierarchy tree.
-  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
