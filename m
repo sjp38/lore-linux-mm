@@ -1,30 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C8BE56B0047
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 00:07:16 -0500 (EST)
-Date: Tue, 23 Feb 2010 14:02:18 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CE6606B0078
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 01:10:27 -0500 (EST)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id o1N6AOIw032248
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 17:10:24 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1N6AMiE1261804
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 17:10:23 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o1N6AMG3031805
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 17:10:22 +1100
+Date: Tue, 23 Feb 2010 11:40:20 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [RFC][PATCH] memcg: page fault oom improvement
-Message-Id: <20100223140218.0ab8ee29.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100223120315.0da4d792.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <20100223061020.GH3063@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <20100223120315.0da4d792.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100223120315.0da4d792.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, rientjes@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Feb 2010 12:03:15 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-02-23 12:03:15]:
+
 > Nishimura-san, could you review and test your extreme test case with this ?
 > 
-Thank you for your patch.
-I don't know why, but the problem seems not so easy to cause in mmotm as in 2.6.32.8,
-but I'll try more anyway.
-
-A few comments are inlined.
-
 > ==
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
@@ -60,117 +65,12 @@ A few comments are inlined.
 > Cc: Balbir Singh <balbir@in.ibm.com>
 > Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   41 +++++++++++++++++++++++------------------
->  mm/oom_kill.c   |   11 +++--------
->  2 files changed, 26 insertions(+), 26 deletions(-)
-> 
-> Index: mmotm-2.6.33-Feb11/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.33-Feb11.orig/mm/memcontrol.c
-> +++ mmotm-2.6.33-Feb11/mm/memcontrol.c
-> @@ -1234,21 +1234,12 @@ static int mem_cgroup_hierarchical_recla
->  	return total;
->  }
->  
-> -bool mem_cgroup_oom_called(struct task_struct *task)
-> +DEFINE_MUTEX(memcg_oom_mutex);
-it can be static.
 
-> +bool mem_cgroup_oom_called(struct mem_cgroup *mem)
->  {
-> -	bool ret = false;
-> -	struct mem_cgroup *mem;
-> -	struct mm_struct *mm;
-> -
-> -	rcu_read_lock();
-> -	mm = task->mm;
-> -	if (!mm)
-> -		mm = &init_mm;
-> -	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
-> -	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
-> -		ret = true;
-> -	rcu_read_unlock();
-> -	return ret;
-> +	if (time_before(jiffies, mem->last_oom_jiffies + HZ/10))
-> +		return true;
-> +	return false;
->  }
->  
->  static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
-> @@ -1549,11 +1540,25 @@ static int __mem_cgroup_try_charge(struc
->  		}
->  
->  		if (!nr_retries--) {
-> -			if (oom) {
-> -				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
-> +			int oom_kill_called;
-> +			if (!oom)
-> +				goto nomem;
-> +			mutex_lock(&memcg_oom_mutex);
-> +			oom_kill_called = mem_cgroup_oom_called(mem_over_limit);
-> +			if (!oom_kill_called)
->  				record_last_oom(mem_over_limit);
-> -			}
-> -			goto nomem;
-> +			mutex_unlock(&memcg_oom_mutex);
-> +			if (!oom_kill_called)
-> +				mem_cgroup_out_of_memory(mem_over_limit,
-> +				gfp_mask);
-> +			else /* give a chance to die for other tasks */
-> +				schedule_timeout(1);
-> +			nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> +			/* Killed myself ? */
-> +			if (!test_thread_flag(TIF_MEMDIE))
-> +				continue;
-> +			/* For smooth oom-kill of current, return 0 */
-> +			return 0;
->  		}
->  	}
->  	if (csize > PAGE_SIZE)
-> Index: mmotm-2.6.33-Feb11/mm/oom_kill.c
-> ===================================================================
-> --- mmotm-2.6.33-Feb11.orig/mm/oom_kill.c
-> +++ mmotm-2.6.33-Feb11/mm/oom_kill.c
-> @@ -487,6 +487,9 @@ retry:
->  		goto retry;
->  out:
->  	read_unlock(&tasklist_lock);
-> +	/* give a chance to die for selected process */
-> +	if (test_thread_flag(TIF_MEMDIE))
-> +		schedule_timeout_uninterruptible(1);
->  }
->  #endif
->  
-I think it should be "if (!test_thread_flag(TIF_MEMDIE))".
-
-
-Thanks,
-Daisuke Nishimura.
-
-> @@ -601,13 +604,6 @@ void pagefault_out_of_memory(void)
->  		/* Got some memory back in the last second. */
->  		return;
->  
-> -	/*
-> -	 * If this is from memcg, oom-killer is already invoked.
-> -	 * and not worth to go system-wide-oom.
-> -	 */
-> -	if (mem_cgroup_oom_called(current))
-> -		goto rest_and_return;
-> -
->  	if (sysctl_panic_on_oom)
->  		panic("out of memory from page fault. panic_on_oom is selected.\n");
->  
-> @@ -619,7 +615,6 @@ void pagefault_out_of_memory(void)
->  	 * Give "p" a good chance of killing itself before we
->  	 * retry to allocate memory.
->  	 */
-> -rest_and_return:
->  	if (!test_thread_flag(TIF_MEMDIE))
->  		schedule_timeout_uninterruptible(1);
->  }
-> 
+I've not reviewed David's latest OOM killer changes. Are these changes based on top of
+what is going to come in with David's proposal?
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
