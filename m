@@ -1,153 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D0E496001DA
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 06:24:39 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp03.in.ibm.com (8.14.3/8.13.1) with ESMTP id o1NBOWpx024258
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 16:54:32 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1NBOWwR2924758
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 16:54:32 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o1NBOWfE029533
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 22:24:32 +1100
-Date: Tue, 23 Feb 2010 16:54:31 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [patch -mm 8/9 v2] oom: avoid oom killer for lowmem allocations
-Message-ID: <20100223112431.GA8871@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100216085706.c7af93e1.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.1002151606320.14484@chino.kir.corp.google.com>
- <20100216064402.GC5723@laptop>
- <alpine.DEB.2.00.1002152334260.7470@chino.kir.corp.google.com>
- <20100216075330.GJ5723@laptop>
- <alpine.DEB.2.00.1002160024370.15201@chino.kir.corp.google.com>
- <20100217084858.fd72ec4f.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.1002161555170.11952@chino.kir.corp.google.com>
- <20100217090303.6bd64209.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.1002161609200.11952@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1002161609200.11952@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A80C66B0047
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 08:38:38 -0500 (EST)
+Received: by fxm22 with SMTP id 22so4104650fxm.6
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2010 05:38:35 -0800 (PST)
+Subject: Re: [patch 1/3] vmscan: factor out page reference checks
+From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <1266868150-25984-2-git-send-email-hannes@cmpxchg.org>
+References: <1266868150-25984-1-git-send-email-hannes@cmpxchg.org>
+	 <1266868150-25984-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 23 Feb 2010 22:38:23 +0900
+Message-ID: <1266932303.2723.13.camel@barrios-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* David Rientjes <rientjes@google.com> [2010-02-16 16:21:11]:
+Hi, Hannes. 
 
-> On Wed, 17 Feb 2010, KAMEZAWA Hiroyuki wrote:
+On Mon, 2010-02-22 at 20:49 +0100, Johannes Weiner wrote:
+> Moving the big conditional into its own predicate function makes the
+> code a bit easier to read and allows for better commenting on the
+> checks one-by-one.
 > 
-> > > On Wed, 17 Feb 2010, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > > > > > > I'll add this check to __alloc_pages_may_oom() for the !(gfp_mask & 
-> > > > > > > __GFP_NOFAIL) path since we're all content with endlessly looping.
-> > > > > > 
-> > > > > > Thanks. Yes endlessly looping is far preferable to randomly oopsing
-> > > > > > or corrupting memory.
-> > > > > > 
-> > > > > 
-> > > > > Here's the new patch for your consideration.
-> > > > > 
-> > > > 
-> > > > Then, can we take kdump in this endlessly looping situaton ?
-> > > > 
-> > > > panic_on_oom=always + kdump can do that. 
-> > > > 
-> > > 
-> > > The endless loop is only helpful if something is going to free memory 
-> > > external to the current page allocation: either another task with 
-> > > __GFP_WAIT | __GFP_FS that invokes the oom killer, a task that frees 
-> > > memory, or a task that exits.
-> > > 
-> > > The most notable endless loop in the page allocator is the one when a task 
-> > > has been oom killed, gets access to memory reserves, and then cannot find 
-> > > a page for a __GFP_NOFAIL allocation:
-> > > 
-> > > 	do {
-> > > 		page = get_page_from_freelist(gfp_mask, nodemask, order,
-> > > 			zonelist, high_zoneidx, ALLOC_NO_WATERMARKS,
-> > > 			preferred_zone, migratetype);
-> > > 
-> > > 		if (!page && gfp_mask & __GFP_NOFAIL)
-> > > 			congestion_wait(BLK_RW_ASYNC, HZ/50);
-> > > 	} while (!page && (gfp_mask & __GFP_NOFAIL));
-> > > 
-> > > We don't expect any such allocations to happen during the exit path, but 
-> > > we could probably find some in the fs layer.
-> > > 
-> > > I don't want to check sysctl_panic_on_oom in the page allocator because it 
-> > > would start panicking the machine unnecessarily for the integrity 
-> > > metadata GFP_NOIO | __GFP_NOFAIL allocation, for any 
-> > > order > PAGE_ALLOC_COSTLY_ORDER, or for users who can't lock the zonelist 
-> > > for oom kill that wouldn't have panicked before.
-> > > 
-> > 
-> > Then, why don't you check higzone_idx in oom_kill.c
-> > 
+> This is just cleaning up, no semantics should have been changed.
 > 
-> out_of_memory() doesn't return a value to specify whether the page 
-> allocator should retry the allocation or just return NULL, all that policy 
-> is kept in mm/page_alloc.c.  For highzone_idx < ZONE_NORMAL, we want to 
-> fail the allocation when !(gfp_mask & __GFP_NOFAIL) and call the oom 
-> killer when it's __GFP_NOFAIL.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > ---
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1696,6 +1696,9 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  		/* The OOM killer will not help higher order allocs */
->  		if (order > PAGE_ALLOC_COSTLY_ORDER)
->  			goto out;
-> +		/* The OOM killer does not needlessly kill tasks for lowmem */
-> +		if (high_zoneidx < ZONE_NORMAL)
-> +			goto out;
-
-I am not sure if this is a good idea, ZONE_DMA could have a lot of
-memory on some architectures. IIUC, we return NULL for allocations
-from ZONE_DMA? What is the reason for the heuristic?
-
->  		/*
->  		 * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
->  		 * Sanity check for bare calls of __GFP_THISNODE, not real OOM.
-> @@ -1924,15 +1927,23 @@ rebalance:
->  			if (page)
->  				goto got_pg;
+>  mm/vmscan.c |   53 ++++++++++++++++++++++++++++++++++++++++-------------
+>  1 files changed, 40 insertions(+), 13 deletions(-)
 > 
-> -			/*
-> -			 * The OOM killer does not trigger for high-order
-> -			 * ~__GFP_NOFAIL allocations so if no progress is being
-> -			 * made, there are no other options and retrying is
-> -			 * unlikely to help.
-> -			 */
-> -			if (order > PAGE_ALLOC_COSTLY_ORDER &&
-> -						!(gfp_mask & __GFP_NOFAIL))
-> -				goto nopage;
-> +			if (!(gfp_mask & __GFP_NOFAIL)) {
-> +				/*
-> +				 * The oom killer is not called for high-order
-> +				 * allocations that may fail, so if no progress
-> +				 * is being made, there are no other options and
-> +				 * retrying is unlikely to help.
-> +				 */
-> +				if (order > PAGE_ALLOC_COSTLY_ORDER)
-> +					goto nopage;
-> +				/*
-> +				 * The oom killer is not called for lowmem
-> +				 * allocations to prevent needlessly killing
-> +				 * innocent tasks.
-> +				 */
-> +				if (high_zoneidx < ZONE_NORMAL)
-> +					goto nopage;
-> +			}
-> 
->  			goto restart;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c26986c..c2db55b 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -579,6 +579,37 @@ redo:
+>  	put_page(page);		/* drop ref from isolate */
+>  }
+>  
+> +enum page_references {
+> +	PAGEREF_RECLAIM,
+> +	PAGEREF_RECLAIM_CLEAN,
+> +	PAGEREF_ACTIVATE,
+> +};
+> +
+> +static enum page_references page_check_references(struct page *page,
+> +						  struct scan_control *sc)
+> +{
+> +	unsigned long vm_flags;
+> +	int referenced;
+> +
+> +	referenced = page_referenced(page, 1, sc->mem_cgroup, &vm_flags);
+> +	if (!referenced)
+> +		return PAGEREF_RECLAIM;
+> +
+> +	/* Lumpy reclaim - ignore references */
+> +	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+> +		return PAGEREF_RECLAIM;
+> +
+> +	/* Mlock lost isolation race - let try_to_unmap() handle it */
+
+How doest try_to_unamp handle it?
+
+/* Page which PG_mlocked lost isolation race - let try_to_unmap() move
+the page to unevitable list */
+
+The point is to move the page into unevictable list in case of race. 
+Let's write down comment more clearly. 
+As it was, it was clear, I think. :)
+
+> +	if (vm_flags & VM_LOCKED)
+> +		return PAGEREF_RECLAIM;
+> +
+> +	if (page_mapping_inuse(page))
+> +		return PAGEREF_ACTIVATE;
+> +
+> +	/* Reclaim if clean, defer dirty pages to writeback */
+> +	return PAGEREF_RECLAIM_CLEAN;
+> +}
+> +
+>  /*
+>   * shrink_page_list() returns the number of reclaimed pages
+>   */
+> @@ -590,16 +621,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  	struct pagevec freed_pvec;
+>  	int pgactivate = 0;
+>  	unsigned long nr_reclaimed = 0;
+> -	unsigned long vm_flags;
+>  
+>  	cond_resched();
+>  
+>  	pagevec_init(&freed_pvec, 1);
+>  	while (!list_empty(page_list)) {
+> +		enum page_references references;
+>  		struct address_space *mapping;
+>  		struct page *page;
+>  		int may_enter_fs;
+> -		int referenced;
+>  
+>  		cond_resched();
+>  
+> @@ -641,17 +671,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				goto keep_locked;
 >  		}
+>  
+> -		referenced = page_referenced(page, 1,
+> -						sc->mem_cgroup, &vm_flags);
+> -		/*
+> -		 * In active use or really unfreeable?  Activate it.
+> -		 * If page which have PG_mlocked lost isoltation race,
+> -		 * try_to_unmap moves it to unevictable list
+> -		 */
+> -		if (sc->order <= PAGE_ALLOC_COSTLY_ORDER &&
+> -					referenced && page_mapping_inuse(page)
+> -					&& !(vm_flags & VM_LOCKED))
+> +		references = page_check_references(page, sc);
+> +		switch (references) {
+> +		case PAGEREF_ACTIVATE:
+>  			goto activate_locked;
+> +		case PAGEREF_RECLAIM:
+> +		case PAGEREF_RECLAIM_CLEAN:
+> +			; /* try to reclaim the page below */
+> +		}
+>  
+>  		/*
+>  		 * Anonymous process memory has backing store?
+> @@ -685,7 +712,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		}
+>  
+>  		if (PageDirty(page)) {
+> -			if (sc->order <= PAGE_ALLOC_COSTLY_ORDER && referenced)
+> +			if (references == PAGEREF_RECLAIM_CLEAN)
+
+How equal PAGEREF_RECLAIM_CLEAN and sc->order <= PAGE_ALLOC_COSTLY_ORDER
+&& referenced by semantic? 
+Dirtyness test is already done above line by PageDirty. 
+So I think PAGEREF_RECLAIM_CLEAN isn't proper in there. 
+What's your intention I don't catch? 
+
+
+>  				goto keep_locked;
+>  			if (!may_enter_fs)
+>  				goto keep_locked;
+
 
 -- 
-	Three Cheers,
-	Balbir
+Kind regards,
+Minchan Kim
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
