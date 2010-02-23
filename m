@@ -1,126 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 332506B0047
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 09:03:38 -0500 (EST)
-Received: by fxm22 with SMTP id 22so4133394fxm.6
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2010 06:03:32 -0800 (PST)
-Subject: Re: [patch 2/3] vmscan: drop page_mapping_inuse()
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <1266868150-25984-3-git-send-email-hannes@cmpxchg.org>
-References: <1266868150-25984-1-git-send-email-hannes@cmpxchg.org>
-	 <1266868150-25984-3-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 23 Feb 2010 23:03:20 +0900
-Message-ID: <1266933800.2723.24.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3F7C46B0047
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 09:06:13 -0500 (EST)
+Date: Tue, 23 Feb 2010 22:04:35 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC PATCH -tip 0/2 v3] pagecache tracepoints proposal
+Message-ID: <20100223140435.GA31131@localhost>
+References: <4B6B7FBF.9090005@bx.jp.nec.com> <20100205072858.GC9320@elte.hu> <20100208155450.GA17055@localhost> <20100218143429.ddea9bb2.kamezawa.hiroyu@jp.fujitsu.com> <20100218095850.GR5612@balbir.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100218095850.GR5612@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Chris Frost <frost@cs.ucla.edu>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Keiichi KII <k-keiichi@bx.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Jason Baron <jbaron@redhat.com>, Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-02-22 at 20:49 +0100, Johannes Weiner wrote:
-> page_mapping_inuse() is a historic predicate function for pages that
-> are about to be reclaimed or deactivated.
+On Thu, Feb 18, 2010 at 05:58:50PM +0800, Balbir Singh wrote:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-02-18 14:34:29]:
+> > Can we dump page's cgroup ? If so, I'm happy.
+> > Maybe
+> > ==
+> >   struct page_cgroup *pc = lookup_page_cgroup(page);
+> >   struct mem_cgroup *mem = pc->mem_cgroup;
+> >   shodt mem_cgroup_id = mem->css.css_id;
+> > 
+> >   And statistics can be counted per css_id.
+> >
 > 
-> According to it, a page is in use when it is mapped into page tables
-> OR part of swap cache OR backing an mmapped file.
-> 
-> This function is used in combination with page_referenced(), which
-> checks for young bits in ptes and the page descriptor itself for the
-> PG_referenced bit.  Thus, checking for unmapped swap cache pages is
-> meaningless as PG_referenced is not set for anonymous pages and
-> unmapped pages do not have young ptes.  The test makes no difference.
+> Good idea, all of this needs to happen with a check to see if memcg is
+> enabled/disabled at boot as well. pc can be NULL if
+> CONFIG_CGROUP_MEM_RES_CTLR is not enabled.
 
-Nice catch!
+Not sure if this is the one in your mind, but I defined a function in
+memcontrol.c for the trace code. Compile tested.
 
-> 
-> Protecting file pages that are not by themselves mapped but are part
-> of a mapped file is also a historic leftover for short-lived things
+It'll be used like this:
 
+        TP_fast_assign(
+                        __entry->memcg          = page_memcg_id(page);
+                      )
 
-I have been a question in the part.
-You seem to solve my long question. :)
-But I want to make sure it by any log.
-Could you tell me where I find the discussion mail thread or git log at
-that time?
+        TP_printk("index=%lu len=%lu flags=%lx count=%u mapcount=%u memcg=%d",
 
-Just out of curiosity. 
+Thanks,
+Fengguang
 
-> like the exec() code in libc.  However, the VM now does reference
-> accounting and activation of pages at unmap time and thus the special
-> treatment on reclaim is obsolete.
+---
+memcg: introduce page_memcg_id()
 
-It does make sense. 
+This will be used to dump the memcg id associated with a pagecache page.
 
-> 
-> This patch drops page_mapping_inuse() and switches the two callsites
-> to use page_mapped() directly.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/vmscan.c |   25 ++-----------------------
->  1 files changed, 2 insertions(+), 23 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c2db55b..a8e4cbe 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -262,27 +262,6 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
->  	return ret;
->  }
->  
-> -/* Called without lock on whether page is mapped, so answer is unstable */
-> -static inline int page_mapping_inuse(struct page *page)
-> -{
-> -	struct address_space *mapping;
-> -
-> -	/* Page is in somebody's page tables. */
-> -	if (page_mapped(page))
-> -		return 1;
-> -
-> -	/* Be more reluctant to reclaim swapcache than pagecache */
-> -	if (PageSwapCache(page))
-> -		return 1;
-> -
-> -	mapping = page_mapping(page);
-> -	if (!mapping)
-> -		return 0;
-> -
-> -	/* File is mmap'd by somebody? */
-> -	return mapping_mapped(mapping);
-> -}
-> -
->  static inline int is_page_cache_freeable(struct page *page)
->  {
->  	/*
-> @@ -603,7 +582,7 @@ static enum page_references page_check_references(struct page *page,
->  	if (vm_flags & VM_LOCKED)
->  		return PAGEREF_RECLAIM;
->  
-> -	if (page_mapping_inuse(page))
-> +	if (page_mapped(page))
->  		return PAGEREF_ACTIVATE;
->  
->  	/* Reclaim if clean, defer dirty pages to writeback */
-> @@ -1378,7 +1357,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  		}
->  
->  		/* page_referenced clears PageReferenced */
-> -		if (page_mapping_inuse(page) &&
-> +		if (page_mapped(page) &&
->  		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
->  			nr_rotated++;
->  			/*
+CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/memcontrol.h |    6 ++++++
+ mm/memcontrol.c            |   16 ++++++++++++++++
+ 2 files changed, 22 insertions(+)
 
-It's good to me.
-But page_referenced already have been checked page_mapped. 
-How about folding alone page_mapped check into page_referenced's inner?
-
--- 
-Kind regards,
-Minchan Kim
-
+--- linux-mm.orig/include/linux/memcontrol.h	2010-02-23 21:49:39.000000000 +0800
++++ linux-mm/include/linux/memcontrol.h	2010-02-23 21:50:14.000000000 +0800
+@@ -69,6 +69,7 @@ extern void mem_cgroup_out_of_memory(str
+ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+ 
+ extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
++extern unsigned short page_memcg_id(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+ 
+ static inline
+@@ -142,6 +143,11 @@ static inline int mem_cgroup_try_charge_
+ 	return 0;
+ }
+ 
++static inline unsigned short page_memcg_id(struct page *page)
++{
++	return 0;
++}
++
+ static inline void mem_cgroup_commit_charge_swapin(struct page *page,
+ 					  struct mem_cgroup *ptr)
+ {
+--- linux-mm.orig/mm/memcontrol.c	2010-02-23 21:48:23.000000000 +0800
++++ linux-mm/mm/memcontrol.c	2010-02-23 21:49:33.000000000 +0800
+@@ -324,6 +324,22 @@ static struct mem_cgroup *try_get_mem_cg
+ 	return mem;
+ }
+ 
++unsigned short page_memcg_id(struct page *page)
++{
++	struct mem_cgroup *mem;
++	struct cgroup_subsys_state *css;
++	unsigned short id = 0;
++
++	mem = try_get_mem_cgroup_from_page(page);
++	if (mem) {
++		css = mem_cgroup_css(mem);
++		id = css_id(css);
++		css_put(css);
++	}
++
++	return id;
++}
++
+ /*
+  * Call callback function against all cgroup under hierarchy tree.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
