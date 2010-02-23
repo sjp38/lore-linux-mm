@@ -1,53 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A56196B0047
-	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 21:25:40 -0500 (EST)
-Date: Tue, 23 Feb 2010 13:25:27 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2] Make VM_MAX_READAHEAD a kernel parameter
-Message-ID: <20100223022527.GB22370@discord.disaster>
-References: <201002091659.27037.knikanth@suse.de> <201002111715.04411.knikanth@suse.de> <20100214213724.GA28392@discord.disaster> <201002151006.37294.knikanth@suse.de> <20100221142600.GA10036@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20100221142600.GA10036@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CC4336B0047
+	for <linux-mm@kvack.org>; Mon, 22 Feb 2010 22:06:46 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1N36hev019146
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 23 Feb 2010 12:06:43 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B04145DE70
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 12:06:43 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F269145DE6E
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 12:06:42 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D7AFFE18002
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 12:06:42 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 81FDCE18005
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 12:06:42 +0900 (JST)
+Date: Tue, 23 Feb 2010 12:03:15 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] memcg: page fault oom improvement
+Message-Id: <20100223120315.0da4d792.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Nikanth Karthikesan <knikanth@suse.de>, Ankit Jain <radical@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Jens Axboe <jens.axboe@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+To: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 21, 2010 at 10:26:00PM +0800, Wu Fengguang wrote:
-> Nikanth,
-> 
-> > > > +	readahead=	Default readahead value for block devices.
-> > > > +
-> > > 
-> > > I think the description should define the units (kb) and valid value
-> > > ranges e.g. page size to something not excessive - say 65536kb.  The
-> > > above description is, IMO, useless without refering to the source to
-> > > find out this information....
-> > > 
-> > 
-> > The parameter can be specified with/without any suffix(k/m/g) that memparse() 
-> > helper function can accept. So it can take 1M, 1024k, 1050620. I checked other 
-> > parameters that use memparse() to get similar values and they didn't document 
-> > it. May be this should be described here.
-> 
-> Hope this helps clarify things to user:
-> 
-> +       readahead=nn[KM]
-> +                       Default max readahead size for block devices.
-> +                       Range: 0; 4k - 128m
+Nishimura-san, could you review and test your extreme test case with this ?
 
-Yes, that is exactly what I was thinA,ing of. Thanks.
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Cheers,
+Now, because of page_fault_oom_kill, returning VM_FAULT_OOM means
+random oom-killer should be called. Considering memcg, it handles
+OOM-kill in its own logic, there was a problem as "oom-killer called
+twice" problem.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+By commit a636b327f731143ccc544b966cfd8de6cb6d72c6, I added a check
+in pagefault_oom_killer shouldn't kill some (random) task if
+memcg's oom-killer already killed anyone.
+That was done by comapring current jiffies and last oom jiffies of memcg.
+
+I thought that easy fix was enough, but Nishimura could write a test case
+where checking jiffies is not enough. So, my fix was not enough.
+This is a fix of above commit.
+
+This new one does this.
+ * memcg's try_charge() never returns -ENOMEM if oom-killer is allowed.
+ * If someone is calling oom-killer, wait for it in try_charge().
+ * If TIF_MEMDIE is set as a result of try_charge(), return 0 and
+   allow process to make progress (and die.) 
+ * removed hook in pagefault_out_of_memory.
+
+By this, pagefult_out_of_memory will be never called if memcg's oom-killer
+is called and scattered codes are now in memcg's charge logic again.
+
+TODO:
+ If __GFP_WAIT is not specified in gfp_mask flag, VM_FAULT_OOM will return
+ anyway. We need to investigate it whether there is a case.
+
+Cc: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@in.ibm.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   41 +++++++++++++++++++++++------------------
+ mm/oom_kill.c   |   11 +++--------
+ 2 files changed, 26 insertions(+), 26 deletions(-)
+
+Index: mmotm-2.6.33-Feb11/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.33-Feb11.orig/mm/memcontrol.c
++++ mmotm-2.6.33-Feb11/mm/memcontrol.c
+@@ -1234,21 +1234,12 @@ static int mem_cgroup_hierarchical_recla
+ 	return total;
+ }
+ 
+-bool mem_cgroup_oom_called(struct task_struct *task)
++DEFINE_MUTEX(memcg_oom_mutex);
++bool mem_cgroup_oom_called(struct mem_cgroup *mem)
+ {
+-	bool ret = false;
+-	struct mem_cgroup *mem;
+-	struct mm_struct *mm;
+-
+-	rcu_read_lock();
+-	mm = task->mm;
+-	if (!mm)
+-		mm = &init_mm;
+-	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+-	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
+-		ret = true;
+-	rcu_read_unlock();
+-	return ret;
++	if (time_before(jiffies, mem->last_oom_jiffies + HZ/10))
++		return true;
++	return false;
+ }
+ 
+ static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
+@@ -1549,11 +1540,25 @@ static int __mem_cgroup_try_charge(struc
+ 		}
+ 
+ 		if (!nr_retries--) {
+-			if (oom) {
+-				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
++			int oom_kill_called;
++			if (!oom)
++				goto nomem;
++			mutex_lock(&memcg_oom_mutex);
++			oom_kill_called = mem_cgroup_oom_called(mem_over_limit);
++			if (!oom_kill_called)
+ 				record_last_oom(mem_over_limit);
+-			}
+-			goto nomem;
++			mutex_unlock(&memcg_oom_mutex);
++			if (!oom_kill_called)
++				mem_cgroup_out_of_memory(mem_over_limit,
++				gfp_mask);
++			else /* give a chance to die for other tasks */
++				schedule_timeout(1);
++			nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
++			/* Killed myself ? */
++			if (!test_thread_flag(TIF_MEMDIE))
++				continue;
++			/* For smooth oom-kill of current, return 0 */
++			return 0;
+ 		}
+ 	}
+ 	if (csize > PAGE_SIZE)
+Index: mmotm-2.6.33-Feb11/mm/oom_kill.c
+===================================================================
+--- mmotm-2.6.33-Feb11.orig/mm/oom_kill.c
++++ mmotm-2.6.33-Feb11/mm/oom_kill.c
+@@ -487,6 +487,9 @@ retry:
+ 		goto retry;
+ out:
+ 	read_unlock(&tasklist_lock);
++	/* give a chance to die for selected process */
++	if (test_thread_flag(TIF_MEMDIE))
++		schedule_timeout_uninterruptible(1);
+ }
+ #endif
+ 
+@@ -601,13 +604,6 @@ void pagefault_out_of_memory(void)
+ 		/* Got some memory back in the last second. */
+ 		return;
+ 
+-	/*
+-	 * If this is from memcg, oom-killer is already invoked.
+-	 * and not worth to go system-wide-oom.
+-	 */
+-	if (mem_cgroup_oom_called(current))
+-		goto rest_and_return;
+-
+ 	if (sysctl_panic_on_oom)
+ 		panic("out of memory from page fault. panic_on_oom is selected.\n");
+ 
+@@ -619,7 +615,6 @@ void pagefault_out_of_memory(void)
+ 	 * Give "p" a good chance of killing itself before we
+ 	 * retry to allocate memory.
+ 	 */
+-rest_and_return:
+ 	if (!test_thread_flag(TIF_MEMDIE))
+ 		schedule_timeout_uninterruptible(1);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
