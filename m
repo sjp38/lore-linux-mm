@@ -1,51 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2153E6B0099
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 03:17:39 -0500 (EST)
-Received: from spaceape23.eur.corp.google.com (spaceape23.eur.corp.google.com [172.28.16.75])
-	by smtp-out.google.com with ESMTP id o1N8HXFX017358
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 08:17:33 GMT
-Received: from gwb20 (gwb20.prod.google.com [10.200.2.20])
-	by spaceape23.eur.corp.google.com with ESMTP id o1N8HWnl007349
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 00:17:32 -0800
-Received: by gwb20 with SMTP id 20so354774gwb.9
-        for <linux-mm@kvack.org>; Tue, 23 Feb 2010 00:17:31 -0800 (PST)
-Date: Tue, 23 Feb 2010 00:17:26 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 3/9 v2] oom: select task from tasklist for mempolicy
- ooms
-In-Reply-To: <20100223063129.GI3063@balbir.in.ibm.com>
-Message-ID: <alpine.DEB.2.00.1002230014570.5842@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002151416470.26927@chino.kir.corp.google.com> <alpine.DEB.2.00.1002151418030.26927@chino.kir.corp.google.com> <20100223063129.GI3063@balbir.in.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id 4F5916001DA
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 03:26:09 -0500 (EST)
+Message-ID: <4B839103.2060901@cn.fujitsu.com>
+Date: Tue, 23 Feb 2010 16:25:39 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [regression] cpuset,mm: update tasks' mems_allowed in time (58568d2)
+References: <20100218134921.GF9738@laptop> <alpine.DEB.2.00.1002181302430.13707@chino.kir.corp.google.com> <20100219033126.GI9738@laptop> <alpine.DEB.2.00.1002190143040.6293@chino.kir.corp.google.com> <20100222121222.GV9738@laptop> <alpine.DEB.2.00.1002221400060.23881@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002221400060.23881@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Lubos Lunak <l.lunak@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Feb 2010, Balbir Singh wrote:
-
-> > The oom killer presently kills current whenever there is no more memory
-> > free or reclaimable on its mempolicy's nodes.  There is no guarantee that
-> > current is a memory-hogging task or that killing it will free any
-> > substantial amount of memory, however.
-> > 
-> > In such situations, it is better to scan the tasklist for nodes that are
-> > allowed to allocate on current's set of nodes and kill the task with the
-> > highest badness() score.  This ensures that the most memory-hogging task,
-> > or the one configured by the user with /proc/pid/oom_adj, is always
-> > selected in such scenarios.
-> > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
+on 2010-2-23 6:00, David Rientjes wrote:
+> On Mon, 22 Feb 2010, Nick Piggin wrote:
 > 
-> Seems reasonable, but I think it will require lots of testing.
+>> If you have a concurrent reader without any synchronisation, then what
+>> stops it from loading a word of the mask before stores to add the new
+>> nodes and then loading another word of the mask after the stores to
+>> remove the old nodes? (which can give an empty mask).
+>>
+> 
+> Currently nothing, so we'll need a variant for configurations where the 
+> size of nodemask_t is larger than we can atomically store.
+> 
 
-I already tested it by checking that tasks with very elevated oom_adj 
-values don't get killed when they do not share the same MPOL_BIND nodes as 
-a memory-hogging task.
+Sorry, Could you explain what you advised?
+I think it is hard to fix this problem by adding a variant, because it is
+hard to avoid loading a word of the mask before
 
-What additional testing did you have in mind?
+	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+
+and then loading another word of the mask after
+
+	tsk->mems_allowed = *newmems;
+
+unless we use lock.
+
+Maybe we need a rw-lock to protect task->mems_allowed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
