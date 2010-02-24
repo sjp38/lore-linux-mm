@@ -1,48 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AD6CE6B0047
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 03:40:15 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp08.in.ibm.com (8.14.3/8.13.1) with ESMTP id o1O7vqaQ017739
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 13:27:52 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1O8e9Qf3133692
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 14:10:10 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o1O8e8pJ014948
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 19:40:09 +1100
-Date: Wed, 24 Feb 2010 14:10:05 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 -mmotm 2/4] cgroups: remove events before destroying
- subsystem state objects
-Message-ID: <20100224084005.GC2310@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name>
- <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2EF1E6B0047
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 04:36:25 -0500 (EST)
+Message-ID: <4B84F2FD.6030605@cn.fujitsu.com>
+Date: Wed, 24 Feb 2010 17:35:57 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
+Subject: Re: [regression] cpuset,mm: update tasks' mems_allowed in time (58568d2)
+References: <20100218134921.GF9738@laptop> <alpine.DEB.2.00.1002181302430.13707@chino.kir.corp.google.com> <20100219033126.GI9738@laptop> <alpine.DEB.2.00.1002190143040.6293@chino.kir.corp.google.com> <4B827043.3060305@cn.fujitsu.com> <alpine.DEB.2.00.1002221339160.14426@chino.kir.corp.google.com> <4B838490.1050908@cn.fujitsu.com> <alpine.DEB.2.00.1002230046160.12015@chino.kir.corp.google.com> <4B839E9D.8020604@cn.fujitsu.com> <alpine.DEB.2.00.1002231427190.8693@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1002231427190.8693@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: David Rientjes <rientjes@google.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-* Kirill A. Shutemov <kirill@shutemov.name> [2010-02-22 17:43:40]:
-
-> Events should be removed after rmdir of cgroup directory, but before
-> destroying subsystem state objects. Let's take reference to cgroup
-> directory dentry to do that.
+on 2010-2-24 6:31, David Rientjes wrote:
+> On Tue, 23 Feb 2010, Miao Xie wrote:
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
+>>> Cpu hotplug sets top_cpuset's cpus_allowed to cpu_active_mask by default, 
+>>> regardless of what was onlined or offlined.  cpus_attach in the context of 
+>>> your patch (in cpuset_attach()) passes cpu_possible_mask to 
+>>> set_cpus_allowed_ptr() if the task is being attached to top_cpuset, my 
+>>> question was why don't we pass cpu_active_mask instead?  In other words, I 
+>>> think we should do
+>>>
+>>> 	cpumask_copy(cpus_attach, cpu_active_mask);
+>>>
+>>> when attached to top_cpuset like my patch did.
+>>
+>> If we pass cpu_active_mask to set_cpus_allowed_ptr(), task->cpus_allowed just contains
+>> the online cpus. In this way, if we do cpu hotplug(such as: online some cpu), we must
+>> update cpus_allowed of all tasks in the top cpuset.
+>>
+>> But if we pass cpu_possible_mask, we needn't update cpus_allowed of all tasks in the
+>> top cpuset. And when the kernel looks for a cpu for task to run, the kernel will use
+>> cpu_active_mask to filter out offline cpus in task->cpus_allowed. Thus, it is safe.
+>>
+> 
+> That is terribly inconsistent between top_cpuset and all descendants; all 
+> other cpusets require that task->cpus_allowed be a subset of 
+> cpu_online_mask, including those descendants that allow all cpus (and all 
+> mems).
+ 
+I think it is not a big deal because it is safe and doesn't cause any problem.
+Beside that, task->cpus_allowed is initialized to cpu_possible_mask on the no-cpuset
+kernel, so using cpu_possible_mask to initialize task->cpus_allowed is reasonable.
+(top cpuset is a special cpuset, isn't it?)
+ 
 
-Looks good, but remember the mem_cgroup data structure will can
-disappear after the rmdir
-
--- 
-	Three Cheers,
-	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
