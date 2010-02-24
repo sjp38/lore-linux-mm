@@ -1,58 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 782C26B007B
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 21:02:04 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1O1uf5A031594
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 24 Feb 2010 10:56:41 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EA50845DE50
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:56:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C6FFE45DE4D
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:56:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B32311DB8047
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:56:40 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1722B1DB8044
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:56:37 +0900 (JST)
-Date: Wed, 24 Feb 2010 10:53:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: way to allocate memory within a range ?
-Message-Id: <20100224105312.12847047.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <17cb70ee1002231646m508f6483mcb667d4e67d9807f@mail.gmail.com>
-References: <17cb70ee1002231646m508f6483mcb667d4e67d9807f@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 767A06B007B
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 21:26:32 -0500 (EST)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id o1O2QSBd012386
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 02:26:28 GMT
+Received: from fxm2 (fxm2.prod.google.com [10.184.13.2])
+	by kpbe15.cbf.corp.google.com with ESMTP id o1O2QPo1002353
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 18:26:26 -0800
+Received: by fxm2 with SMTP id 2so22438fxm.36
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2010 18:26:25 -0800 (PST)
+Date: Tue, 23 Feb 2010 18:26:17 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH] memcg: page fault oom improvement v2
+In-Reply-To: <20100224104839.6547ab78.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1002231818540.9613@chino.kir.corp.google.com>
+References: <20100223120315.0da4d792.kamezawa.hiroyu@jp.fujitsu.com> <20100223140218.0ab8ee29.nishimura@mxp.nes.nec.co.jp> <20100223152116.327a777e.nishimura@mxp.nes.nec.co.jp> <20100223152650.e8fc275d.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100223155543.796138fc.nishimura@mxp.nes.nec.co.jp> <20100223160714.72520b48.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002231443410.8693@chino.kir.corp.google.com> <20100224090836.ba86a4a6.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1002231738070.3435@chino.kir.corp.google.com> <20100224104839.6547ab78.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Auguste Mome <augustmome@gmail.com>
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Feb 2010 01:46:49 +0100
-Auguste Mome <augustmome@gmail.com> wrote:
+On Wed, 24 Feb 2010, KAMEZAWA Hiroyuki wrote:
 
-> Hello,
-> I'd like to use kmem_cache() system, but need the memory taken from a
-> specific range if requested, outside the range otherwise.
-> I think about adding new zone and define new GFP flag to either select or
-> ignore the zone. Does it sound possible? Then I welcome any hint if you know
-> where to add the appropriated test in allocator, how to attach the
-> region to the new zone id).
+> > > > This allows us to hijack the TIF_MEMDIE bit to detect when there is a 
+> > > > parallel pagefault oom killing when the oom killer hasn't necessarily been 
+> > > > invoked to kill a system-wide task (it's simply killing current, by 
+> > > > default, and giving it access to memory reserves).  Then, we can change 
+> > > > out_of_memory(), which also now handles memcg oom conditions, to always 
+> > > > scan the tasklist first (including for mempolicy and cpuset constrained 
+> > > > ooms), check for any candidates that have TIF_MEMDIE, and return 
+> > > > ERR_PTR(-1UL) if so.  That catches the parallel pagefault oom conditions 
+> > > > from needlessly killing memcg tasks.  panic_on_oom would only panic after 
+> > > > the tasklist scan has completed and returned != ERR_PTR(-1UL), meaning 
+> > > > pagefault ooms are exempt from that sysctl.
+> > > > 
+> > > Sorry, I see your concern but I'd like not to do clean-up and bug-fix at
+> > > the same time.  
+> > > 
+> > > I think clean up after fix is easy in this case.
+> > > 
+> > 
+> > If you develop on top of my oom killer rewrite, pagefault ooms already 
+> > attempt to kill current first and then defer back to killing another task 
+> > if current is unkillable.  
 > 
-> Or slab/slub system is not designed for this, I should forget it and
-> opt for another system?
+> After my fix, page_fault_out_of_memory is never called. (because memcg doesn't
+> return needless failure.)
 > 
-I think you can find adding a new zone is very hard.
-please forget.
 
-But for what purpose you want to specifiy phyiscal address of memory ?
+Of course it's called, it's called from the pagefault handler whenever we 
+return VM_FAULT_OOM.  Whenever that happens, we'd needlessly panic the 
+machine for panic_on_oom if we didn't do the tasklist scan and check for 
+eligible tasks with TIF_MEMDIE set because it prefers to kill current 
+first in pagefault conditions without consideration given to the sysctl.  
+pagefault_out_of_memory() has changed radically with my rewrite, so I'd 
+encourage you to develop on top of that where I've completely removed 
+mem_cgroup_oom_called() and memcg->last_oom_jiffies already because 
+they're nonsense.
 
-Thanks,
--Kame
+My patches are available from 
+http://www.kernel.org/pub/linux/kernel/people/rientjes/oom-killer-rewrite
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
