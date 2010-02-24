@@ -1,68 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2036B6B007B
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 20:24:14 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1O1OBCg018148
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 24 Feb 2010 10:24:11 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 23E5B45DE4F
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:24:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 041C045DE57
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:24:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CC3D8E38007
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:24:10 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EBDDE38008
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:24:10 +0900 (JST)
-Date: Wed, 24 Feb 2010 10:20:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: s2disk hang update
-Message-Id: <20100224102037.2cca4f83.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <201002232213.56455.rjw@sisk.pl>
-References: <9b2b86521001020703v23152d0cy3ba2c08df88c0a79@mail.gmail.com>
-	<201002222017.55588.rjw@sisk.pl>
-	<9b2b86521002230624g20661564mc35093ee0423ff77@mail.gmail.com>
-	<201002232213.56455.rjw@sisk.pl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1C66B0093
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 20:42:51 -0500 (EST)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o1O1glQV028313
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 01:42:47 GMT
+Received: from fxm4 (fxm4.prod.google.com [10.184.13.4])
+	by wpaz5.hot.corp.google.com with ESMTP id o1O1gj9o002589
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 17:42:45 -0800
+Received: by fxm4 with SMTP id 4so4408965fxm.0
+        for <linux-mm@kvack.org>; Tue, 23 Feb 2010 17:42:45 -0800 (PST)
+Date: Tue, 23 Feb 2010 17:42:33 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH] memcg: page fault oom improvement v2
+In-Reply-To: <20100224090836.ba86a4a6.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1002231738070.3435@chino.kir.corp.google.com>
+References: <20100223120315.0da4d792.kamezawa.hiroyu@jp.fujitsu.com> <20100223140218.0ab8ee29.nishimura@mxp.nes.nec.co.jp> <20100223152116.327a777e.nishimura@mxp.nes.nec.co.jp> <20100223152650.e8fc275d.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100223155543.796138fc.nishimura@mxp.nes.nec.co.jp> <20100223160714.72520b48.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1002231443410.8693@chino.kir.corp.google.com> <20100224090836.ba86a4a6.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Alan Jenkins <sourcejedi.lkml@googlemail.com>, Mel Gorman <mel@csn.ul.ie>, hugh.dickins@tiscali.co.uk, Pavel Machek <pavel@ucw.cz>, pm list <linux-pm@lists.linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Feb 2010 22:13:56 +0100
-"Rafael J. Wysocki" <rjw@sisk.pl> wrote:
+On Wed, 24 Feb 2010, KAMEZAWA Hiroyuki wrote:
 
-> Well, it still looks like we're waiting for create_workqueue_thread() to
-> return, which probably is trying to allocate memory for the thread
-> structure.
+> > I think it would be better to just remove mem_cgroup_out_of_memory() and 
+> > make it go through out_of_memory() by specifying a non-NULL pointer to a 
+> > struct mem_cgroup.  We don't need the duplication in code that these two 
+> > functions have and then we can begin to have some consistency with how to 
+> > deal with panic_on_oom.
+> > 
+> > It would be much better to prefer killing current in pagefault oom 
+> > conditions, as the final patch in my oom killer rewrite does, if it is 
+> > killable.  If not, we scan the tasklist and find another suitable 
+> > candidate.  If current is bound to a memcg, we pass that to 
+> > select_bad_process() so that we only kill other tasks from the same 
+> > cgroup.
+> Adding new argument to out_of_memory ?
 > 
-> My guess is that the preallocated memory pages freed by
-> free_unnecessary_pages() go into a place from where they cannot be taken for
-> subsequent NOIO allocations.  I have no idea why that happens though.
+
+Right, the pointer to pass into select_bad_process() to filter by memcg.
+
+> > 
+> > This allows us to hijack the TIF_MEMDIE bit to detect when there is a 
+> > parallel pagefault oom killing when the oom killer hasn't necessarily been 
+> > invoked to kill a system-wide task (it's simply killing current, by 
+> > default, and giving it access to memory reserves).  Then, we can change 
+> > out_of_memory(), which also now handles memcg oom conditions, to always 
+> > scan the tasklist first (including for mempolicy and cpuset constrained 
+> > ooms), check for any candidates that have TIF_MEMDIE, and return 
+> > ERR_PTR(-1UL) if so.  That catches the parallel pagefault oom conditions 
+> > from needlessly killing memcg tasks.  panic_on_oom would only panic after 
+> > the tasklist scan has completed and returned != ERR_PTR(-1UL), meaning 
+> > pagefault ooms are exempt from that sysctl.
+> > 
+> Sorry, I see your concern but I'd like not to do clean-up and bug-fix at
+> the same time.  
 > 
-> To test that theory you can try to change GFP_IOFS to GFP_KERNEL in the
-> calls to clear_gfp_allowed_mask() in kernel/power/hibernate.c (and in
-> kernel/power/suspend.c for completness).
+> I think clean up after fix is easy in this case.
 > 
 
-If allocation of kernel threads for stop_machine_run() is the problem,
-
-What happens when
-1. use CONIFG_4KSTACK
-or
-2. make use of stop_machine_create(), stop_machine_destroy().
-   A new interface added by this commit.
-  http://git.kernel.org/?p=linux/kernel/git/torvalds/  linux-2.6.git;a=commit;h=9ea09af3bd3090e8349ca2899ca2011bd94cda85
-   You can do no-fail stop_machine_run().
-
-Thanks,
--Kame
+If you develop on top of my oom killer rewrite, pagefault ooms already 
+attempt to kill current first and then defer back to killing another task 
+if current is unkillable.  That means that panic_on_oom must be redefined: 
+we _must_ now scan the entire tasklist looking for eligible tasks with the 
+TIF_MEMDIE bit set before panicking in _all_ oom conditions.  Otherwise, 
+it is possible to needlessly panic when the result of a pagefault oom 
+(killing current) would lead to future memory freeing.  The previous 
+VM_FAULT_OOM behavior before we used the oom killer was to kill current, 
+there was no consideration given to panic_on_oom for those cases.  So 
+pagefault_out_of_memory() must now try to kill current first and then 
+leave panic_on_oom to be dealt with in out_of_memory() if the tasklist 
+scan doesn't show any pagefault oom victims.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
