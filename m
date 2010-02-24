@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EED9B6B0047
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 07:17:23 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id o1OCHGYm028718
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 17:47:16 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1OCHGEp2785320
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 17:47:16 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o1OCHFlo030193
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 23:17:16 +1100
-Date: Wed, 24 Feb 2010 17:47:11 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 -mmotm 2/4] cgroups: remove events before destroying
- subsystem state objects
-Message-ID: <20100224121711.GD2310@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name>
- <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name>
- <20100224084005.GC2310@balbir.in.ibm.com>
- <cc557aab1002240342u1b0223a4td8269d727b004621@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5CF746B0047
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 09:34:39 -0500 (EST)
+Date: Wed, 24 Feb 2010 15:34:42 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: [LSF/VM TOPIC] Dynamic sizing of dirty_limit
+Message-ID: <20100224143442.GF3687@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cc557aab1002240342u1b0223a4td8269d727b004621@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: lsf10-pc@lists.linuxfoundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Kirill A. Shutemov <kirill@shutemov.name> [2010-02-24 13:42:15]:
+  Hi,
 
-> On Wed, Feb 24, 2010 at 10:40 AM, Balbir Singh
-> <balbir@linux.vnet.ibm.com> wrote:
-> > * Kirill A. Shutemov <kirill@shutemov.name> [2010-02-22 17:43:40]:
-> >
-> >> Events should be removed after rmdir of cgroup directory, but before
-> >> destroying subsystem state objects. Let's take reference to cgroup
-> >> directory dentry to do that.
-> >>
-> >> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> >> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hioryu@jp.fujitsu.com>
-> >
-> > Looks good, but remember the mem_cgroup data structure will can
-> > disappear after the rmdir
-> 
-> IIUC, struct mem_cgroup can be freed only after ->destroy(), which can
-> be called only if there is no references to cgroup directory dentry.
->
+  one more suggestion for discussion:
+Currently, the amount of dirtiable memory is fixed - either to a percentage
+of ram (dirty_limit) or to a fix number of megabytes. The problem with this
+is that if you have application doing random writes on a file (like some
+simple databases do), you'll get a big performance improvement if you
+increase the amount of dirtiable memory (because you safe quite some
+rewrites and also get larger chunks of sequential IO) (*)
+On the other hand for sequential IO increasing dirtiable memory (beyond
+certain level) does not really help - you end up doing the same IO.  So for
+a machine is doing sequential IO, having 10% of memory dirtiable is just
+fine (and you probably don't want much more because the memory is better
+used for something else), when a machine does random rewrites, going to 40%
+might be well worth it. So I'd like to discuss how we could measure that
+increasing amount of dirtiable memory helps so that we could implement
+dynamic sizing of it.
 
-No.. You've got it right, it disappears after the last dput(). 
+(*) We ended up increasing dirty_limit in SLES 11 to 40% as it used to be
+with old kernels because customers running e.g. LDAP (using BerkelyDB
+heavily) were complaining about performance problems.
 
+								Honza
 -- 
-	Three Cheers,
-	Balbir
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
