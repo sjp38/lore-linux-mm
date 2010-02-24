@@ -1,33 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3A4686B0047
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 10:49:42 -0500 (EST)
-Date: Wed, 24 Feb 2010 09:49:24 -0600 (CST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id EA47F6B0047
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 11:10:05 -0500 (EST)
+Date: Wed, 24 Feb 2010 10:10:03 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-In-Reply-To: <20100220090154.GB11287@basil.fritz.box>
-Message-ID: <alpine.DEB.2.00.1002240949140.26771@router.home>
-References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org>
- <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box>
+Subject: Re: [LSF/VM TOPIC] Dynamic sizing of dirty_limit
+In-Reply-To: <20100224143442.GF3687@quack.suse.cz>
+Message-ID: <alpine.DEB.2.00.1002241007220.27592@router.home>
+References: <20100224143442.GF3687@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com
+To: Jan Kara <jack@suse.cz>
+Cc: lsf10-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 20 Feb 2010, Andi Kleen wrote:
+On Wed, 24 Feb 2010, Jan Kara wrote:
 
-> On Fri, Feb 19, 2010 at 12:22:58PM -0600, Christoph Lameter wrote:
-> > On Mon, 15 Feb 2010, Nick Piggin wrote:
-> >
-> > > I'm just worried there is still an underlying problem here.
-> >
-> > So am I. What caused the breakage that requires this patchset?
->
-> Memory hotadd with a new node being onlined.
+> fine (and you probably don't want much more because the memory is better
+> used for something else), when a machine does random rewrites, going to 40%
+> might be well worth it. So I'd like to discuss how we could measure that
+> increasing amount of dirtiable memory helps so that we could implement
+> dynamic sizing of it.
 
-That used to work fine.
+Another issue around dirty limits is that they are global. If you are
+running multiple jobs on the same box (memcg or cpusets or you set
+affinities to separate the box) then every job may need different dirty
+limits. One idea that I had in the past was to set dirty limits based on
+nodes or cpusets. But that will not cover the other cases that I have
+listed above.
+
+The best solution would be an algorithm that can accomodate multiple loads
+and manage the amount of dirty memory automatically.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
