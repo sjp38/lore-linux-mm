@@ -1,40 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9B6606B007B
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 22:30:15 -0500 (EST)
-Message-ID: <4B849D4C.2090800@cn.fujitsu.com>
-Date: Wed, 24 Feb 2010 11:30:20 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BF1176B0047
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 23:18:26 -0500 (EST)
+Date: Wed, 24 Feb 2010 12:18:22 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC] nfs: use 2*rsize readahead size
+Message-ID: <20100224041822.GB27459@localhost>
+References: <20100224024100.GA17048@localhost> <20100224032934.GF16175@discord.disaster>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 -mmotm 3/4] cgroups: Add simple listener of cgroup
- events to documentation
-References: <1f8bd63acb6485c88f8539e009459a28fb6ad55b.1266853233.git.kirill@shutemov.name> <690745ebd257c74a1c47d552fec7fbb0b5efb7d0.1266853233.git.kirill@shutemov.name> <458c3169608cb333f390b2cb732565fec9fec67e.1266853234.git.kirill@shutemov.name>
-In-Reply-To: <458c3169608cb333f390b2cb732565fec9fec67e.1266853234.git.kirill@shutemov.name>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100224032934.GF16175@discord.disaster>
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: containers@lists.linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Dan Malek <dan@embeddedalley.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> +	ret = dprintf(event_control, "%d %d %s", efd, cfd, argv[2]);
+On Wed, Feb 24, 2010 at 11:29:34AM +0800, Dave Chinner wrote:
+> On Wed, Feb 24, 2010 at 10:41:01AM +0800, Wu Fengguang wrote:
+> > With default rsize=512k and NFS_MAX_READAHEAD=15, the current NFS
+> > readahead size 512k*15=7680k is too large than necessary for typical
+> > clients.
+> > 
+> > On a e1000e--e1000e connection, I got the following numbers
+> > 
+> > 	readahead size		throughput
+> > 		   16k           35.5 MB/s
+> > 		   32k           54.3 MB/s
+> > 		   64k           64.1 MB/s
+> > 		  128k           70.5 MB/s
+> > 		  256k           74.6 MB/s
+> > rsize ==>	  512k           77.4 MB/s
+> > 		 1024k           85.5 MB/s
+> > 		 2048k           86.8 MB/s
+> > 		 4096k           87.9 MB/s
+> > 		 8192k           89.0 MB/s
+> > 		16384k           87.7 MB/s
+> > 
+> > So it seems that readahead_size=2*rsize (ie. keep two RPC requests in flight)
+> > can already get near full NFS bandwidth.
+> > 
+> > The test script is:
+> > 
+> > #!/bin/sh
+> > 
+> > file=/mnt/sparse
+> > BDI=0:15
+> > 
+> > for rasize in 16 32 64 128 256 512 1024 2048 4096 8192 16384
+> > do
+> > 	echo 3 > /proc/sys/vm/drop_caches
+> > 	echo $rasize > /sys/devices/virtual/bdi/$BDI/read_ahead_kb
+> > 	echo readahead_size=${rasize}k
+> > 	dd if=$file of=/dev/null bs=4k count=1024000
+> > done
+> 
+> That's doing a cached read out of the server cache, right? You
 
-I found it won't return negative value for invalid input, though
-errno is set properly.
+It does not involve disk IO at least. (The sparse file dataset is
+larger than server cache.)
 
-try:
-# ./cgroup_event_listner /cgroup/cgroup.procs abc
+> might find the results are different if the server has to read the
+> file from disk. I would expect reads from the server cache not
+> to require much readahead as there is no IO latency on the server
+> side for the readahead to hide....
 
-while strace shows write() does return -1:
+Sure the result will be different when disk IO is involved.
+In this case I would expect the server admin to setup the optimal
+readahead size for the disk(s).
 
-# strace ./cgroup_event_listner /cgroup/cgroup.procs abc
-...
-write(6, "7 5 abc"..., 7)               = -1 EINVAL (Invalid argument)
+It sounds silly to have
 
-> +	if (ret == -1) {
-> +		perror("Cannot write to cgroup.event_control");
-> +		goto out;
-> +	}
+        client_readahead_size > server_readahead_size
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
