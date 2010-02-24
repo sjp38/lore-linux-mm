@@ -1,99 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4215F6B007B
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 21:28:47 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1O2SiIe012408
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 24 Feb 2010 11:28:44 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 535B345DE6F
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 11:28:44 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E524845DE4D
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 11:28:43 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CA3AE18001
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 11:28:43 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EFE9A1DB8037
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 11:28:41 +0900 (JST)
-Date: Wed, 24 Feb 2010 11:25:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] memcg: page fault oom improvement v2
-Message-Id: <20100224112513.3d3e385b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1002231818540.9613@chino.kir.corp.google.com>
-References: <20100223120315.0da4d792.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100223140218.0ab8ee29.nishimura@mxp.nes.nec.co.jp>
-	<20100223152116.327a777e.nishimura@mxp.nes.nec.co.jp>
-	<20100223152650.e8fc275d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100223155543.796138fc.nishimura@mxp.nes.nec.co.jp>
-	<20100223160714.72520b48.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1002231443410.8693@chino.kir.corp.google.com>
-	<20100224090836.ba86a4a6.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1002231738070.3435@chino.kir.corp.google.com>
-	<20100224104839.6547ab78.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1002231818540.9613@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 382DE6B007B
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 21:41:06 -0500 (EST)
+Date: Wed, 24 Feb 2010 10:41:01 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [RFC] nfs: use 2*rsize readahead size
+Message-ID: <20100224024100.GA17048@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Feb 2010 18:26:17 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+With default rsize=512k and NFS_MAX_READAHEAD=15, the current NFS
+readahead size 512k*15=7680k is too large than necessary for typical
+clients.
 
-> On Wed, 24 Feb 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > > > > This allows us to hijack the TIF_MEMDIE bit to detect when there is a 
-> > > > > parallel pagefault oom killing when the oom killer hasn't necessarily been 
-> > > > > invoked to kill a system-wide task (it's simply killing current, by 
-> > > > > default, and giving it access to memory reserves).  Then, we can change 
-> > > > > out_of_memory(), which also now handles memcg oom conditions, to always 
-> > > > > scan the tasklist first (including for mempolicy and cpuset constrained 
-> > > > > ooms), check for any candidates that have TIF_MEMDIE, and return 
-> > > > > ERR_PTR(-1UL) if so.  That catches the parallel pagefault oom conditions 
-> > > > > from needlessly killing memcg tasks.  panic_on_oom would only panic after 
-> > > > > the tasklist scan has completed and returned != ERR_PTR(-1UL), meaning 
-> > > > > pagefault ooms are exempt from that sysctl.
-> > > > > 
-> > > > Sorry, I see your concern but I'd like not to do clean-up and bug-fix at
-> > > > the same time.  
-> > > > 
-> > > > I think clean up after fix is easy in this case.
-> > > > 
-> > > 
-> > > If you develop on top of my oom killer rewrite, pagefault ooms already 
-> > > attempt to kill current first and then defer back to killing another task 
-> > > if current is unkillable.  
-> > 
-> > After my fix, page_fault_out_of_memory is never called. (because memcg doesn't
-> > return needless failure.)
-> > 
-> 
-> Of course it's called, it's called from the pagefault handler whenever we 
-> return VM_FAULT_OOM.  Whenever that happens, we'd needlessly panic the 
-> machine for panic_on_oom if we didn't do the tasklist scan and check for 
-> eligible tasks with TIF_MEMDIE set because it prefers to kill current 
-> first in pagefault conditions without consideration given to the sysctl.  
-> pagefault_out_of_memory() has changed radically with my rewrite, so I'd 
-> encourage you to develop on top of that where I've completely removed 
-> mem_cgroup_oom_called() and memcg->last_oom_jiffies already because 
-> they're nonsense.
-> 
-> My patches are available from 
-> http://www.kernel.org/pub/linux/kernel/people/rientjes/oom-killer-rewrite
-> 
+On a e1000e--e1000e connection, I got the following numbers
 
-I do by myself.
+	readahead size		throughput
+		   16k           35.5 MB/s
+		   32k           54.3 MB/s
+		   64k           64.1 MB/s
+		  128k           70.5 MB/s
+		  256k           74.6 MB/s
+rsize ==>	  512k           77.4 MB/s
+		 1024k           85.5 MB/s
+		 2048k           86.8 MB/s
+		 4096k           87.9 MB/s
+		 8192k           89.0 MB/s
+		16384k           87.7 MB/s
 
-Bye.
--Kame
+So it seems that readahead_size=2*rsize (ie. keep two RPC requests in flight)
+can already get near full NFS bandwidth.
 
-> Thanks.
-> 
+The test script is:
+
+#!/bin/sh
+
+file=/mnt/sparse
+BDI=0:15
+
+for rasize in 16 32 64 128 256 512 1024 2048 4096 8192 16384
+do
+	echo 3 > /proc/sys/vm/drop_caches
+	echo $rasize > /sys/devices/virtual/bdi/$BDI/read_ahead_kb
+	echo readahead_size=${rasize}k
+	dd if=$file of=/dev/null bs=4k count=1024000
+done
+
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/nfs/client.c   |    4 +++-
+ fs/nfs/internal.h |    8 --------
+ 2 files changed, 3 insertions(+), 9 deletions(-)
+
+--- linux.orig/fs/nfs/client.c	2010-02-23 11:15:44.000000000 +0800
++++ linux/fs/nfs/client.c	2010-02-24 10:16:00.000000000 +0800
+@@ -889,7 +889,9 @@ static void nfs_server_set_fsinfo(struct
+ 	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+ 
+ 	server->backing_dev_info.name = "nfs";
+-	server->backing_dev_info.ra_pages = server->rpages * NFS_MAX_READAHEAD;
++	server->backing_dev_info.ra_pages = max_t(unsigned long,
++					      default_backing_dev_info.ra_pages,
++					      2 * server->rpages);
+ 	server->backing_dev_info.capabilities |= BDI_CAP_ACCT_UNSTABLE;
+ 
+ 	if (server->wsize > max_rpc_payload)
+--- linux.orig/fs/nfs/internal.h	2010-02-23 11:15:44.000000000 +0800
++++ linux/fs/nfs/internal.h	2010-02-23 13:26:00.000000000 +0800
+@@ -10,14 +10,6 @@
+ 
+ struct nfs_string;
+ 
+-/* Maximum number of readahead requests
+- * FIXME: this should really be a sysctl so that users may tune it to suit
+- *        their needs. People that do NFS over a slow network, might for
+- *        instance want to reduce it to something closer to 1 for improved
+- *        interactive response.
+- */
+-#define NFS_MAX_READAHEAD	(RPC_DEF_SLOT_TABLE - 1)
+-
+ /*
+  * Determine if sessions are in use.
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
