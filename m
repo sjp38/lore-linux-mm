@@ -1,82 +1,161 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 00/15] 512K readahead size with thrashing safe readahead v2
-Date: Wed, 24 Feb 2010 11:10:01 +0800
-Message-ID: <20100224031001.026464755@intel.com>
+Subject: [PATCH 09/15] readahead: add tracing event
+Date: Wed, 24 Feb 2010 11:10:10 +0800
+Message-ID: <20100224031054.876156496@intel.com>
+References: <20100224031001.026464755@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Nk7gR-0006Ub-T6
-	for glkm-linux-mm-2@m.gmane.org; Wed, 24 Feb 2010 04:13:08 +0100
+	id 1Nk7gV-0006XS-5r
+	for glkm-linux-mm-2@m.gmane.org; Wed, 24 Feb 2010 04:13:11 +0100
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 36F286B0085
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 22:13:06 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 402E36B0089
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 22:13:09 -0500 (EST)
+Content-Disposition: inline; filename=readahead-tracer.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Andrew,
+Example output:
 
-This enlarges the default readahead size from 128K to 512K.
-To avoid possible regressions, also do
-- scale down readahead size on small device and small memory
-- thrashing safe context readahead
-- add readahead tracing/stats support to help expose possible problems
+# echo 1 > /debug/tracing/events/readahead/enable
+# cp test-file /dev/null
+# cat /debug/tracing/trace  # trimmed output
+readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
+readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
+readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
+readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
+readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
+readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
 
-Besides, the patchset also includes several algorithm updates:
-- no start-of-file readahead after lseek
-- faster radix_tree_next_hole()/radix_tree_prev_hole()
-- pagecache context based mmap read-around
+CC: Ingo Molnar <mingo@elte.hu> 
+CC: Jens Axboe <jens.axboe@oracle.com> 
+CC: Steven Rostedt <rostedt@goodmis.org>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl> 
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/trace/events/readahead.h |   78 +++++++++++++++++++++++++++++
+ mm/readahead.c                   |   11 ++++
+ 2 files changed, 89 insertions(+)
 
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux/include/trace/events/readahead.h	2010-02-24 10:44:46.000000000 +0800
+@@ -0,0 +1,78 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM readahead
++
++#if !defined(_TRACE_READAHEAD_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_READAHEAD_H
++
++#include <linux/tracepoint.h>
++
++#define show_pattern_name(val)						   \
++	__print_symbolic(val,						   \
++			{ RA_PATTERN_INITIAL,		"initial"	}, \
++			{ RA_PATTERN_SUBSEQUENT,	"subsequent"	}, \
++			{ RA_PATTERN_CONTEXT,		"context"	}, \
++			{ RA_PATTERN_THRASH,		"thrash"	}, \
++			{ RA_PATTERN_MMAP_AROUND,	"around"	}, \
++			{ RA_PATTERN_FADVISE,		"fadvise"	}, \
++			{ RA_PATTERN_RANDOM,		"random"	}, \
++			{ RA_PATTERN_ALL,		"all"		})
++
++/*
++ * Tracepoint for guest mode entry.
++ */
++TRACE_EVENT(readahead,
++	TP_PROTO(struct address_space *mapping,
++		 pgoff_t offset,
++		 unsigned long req_size,
++		 unsigned int ra_flags,
++		 pgoff_t start,
++		 unsigned int size,
++		 unsigned int async_size,
++		 unsigned int actual),
++
++	TP_ARGS(mapping, offset, req_size,
++		ra_flags, start, size, async_size, actual),
++
++	TP_STRUCT__entry(
++		__field(	dev_t,		dev		)
++		__field(	ino_t,		ino		)
++		__field(	pgoff_t,	offset		)
++		__field(	unsigned long,	req_size	)
++		__field(	unsigned int,	pattern		)
++		__field(	pgoff_t,	start		)
++		__field(	unsigned int,	size		)
++		__field(	unsigned int,	async_size	)
++		__field(	unsigned int,	actual		)
++	),
++
++	TP_fast_assign(
++		__entry->dev		= mapping->host->i_sb->s_dev;
++		__entry->ino		= mapping->host->i_ino;
++		__entry->pattern	= ra_pattern(ra_flags);
++		__entry->offset		= offset;
++		__entry->req_size	= req_size;
++		__entry->start		= start;
++		__entry->size		= size;
++		__entry->async_size	= async_size;
++		__entry->actual		= actual;
++	),
++
++	TP_printk("readahead-%s(dev=%d:%d, ino=%lu, "
++		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
++			show_pattern_name(__entry->pattern),
++			MAJOR(__entry->dev),
++			MINOR(__entry->dev),
++			__entry->ino,
++			__entry->offset,
++			__entry->req_size,
++			__entry->start,
++			__entry->size,
++			__entry->async_size,
++			__entry->start > __entry->offset,
++			__entry->actual)
++);
++
++#endif /* _TRACE_READAHEAD_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+--- linux.orig/mm/readahead.c	2010-02-24 10:44:45.000000000 +0800
++++ linux/mm/readahead.c	2010-02-24 10:44:46.000000000 +0800
+@@ -19,6 +19,9 @@
+ #include <linux/pagevec.h>
+ #include <linux/pagemap.h>
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/readahead.h>
++
+ #define MIN_READAHEAD_PAGES DIV_ROUND_UP(VM_MIN_READAHEAD*1024, PAGE_CACHE_SIZE)
+ 
+ static int __initdata user_defined_readahead_size;
+@@ -322,6 +325,11 @@ int force_page_cache_readahead(struct ad
+ 		offset += this_chunk;
+ 		nr_to_read -= this_chunk;
+ 	}
++
++	trace_readahead(mapping, offset, nr_to_read,
++			RA_PATTERN_FADVISE << READAHEAD_PATTERN_SHIFT,
++			offset, nr_to_read, 0, ret);
++
+ 	return ret;
+ }
+ 
+@@ -349,6 +357,9 @@ unsigned long ra_submit(struct file_ra_s
+ 	actual = __do_page_cache_readahead(mapping, filp,
+ 					ra->start, ra->size, ra->async_size);
+ 
++	trace_readahead(mapping, offset, req_size, ra->ra_flags,
++			ra->start, ra->size, ra->async_size, actual);
++
+ 	return actual;
+ }
+ 
 
-Changes since v1:
-- update mmap read-around heuristics (Thanks to Nick Piggin)
-- radix_tree_lookup_leaf_node() for the pagecache based mmap read-around
-- use __print_symbolic() to show readahead pattern names
-  (Thanks to Steven Rostedt)
-- scale down readahead size proportional to system memory
-  (Thanks to Matt Mackall)
-- add readahead size kernel parameter (by Nikanth Karthikesan)
-- add comments from Christian Ehrhardt
-
-Changes since RFC:
-- move the lenthy intro text to individual patch changelogs
-- treat get_capacity()==0 as uninitilized value (Thanks to Vivek Goyal)
-- increase readahead size limit for small devices (Thanks to Jens Axboe)
-- add fio test results by Vivek Goyal
-
-
-[PATCH 01/15] readahead: limit readahead size for small devices
-[PATCH 02/15] readahead: retain inactive lru pages to be accessed soon
-[PATCH 03/15] readahead: bump up the default readahead size
-[PATCH 04/15] readahead: make default readahead size a kernel parameter
-[PATCH 05/15] readahead: limit readahead size for small memory systems
-[PATCH 06/15] readahead: replace ra->mmap_miss with ra->ra_flags
-[PATCH 07/15] readahead: thrashing safe context readahead
-[PATCH 08/15] readahead: record readahead patterns
-[PATCH 09/15] readahead: add tracing event
-[PATCH 10/15] readahead: add /debug/readahead/stats
-[PATCH 11/15] readahead: dont do start-of-file readahead after lseek()
-[PATCH 12/15] radixtree: introduce radix_tree_lookup_leaf_node()
-[PATCH 13/15] radixtree: speed up the search for hole
-[PATCH 14/15] readahead: reduce MMAP_LOTSAMISS for mmap read-around
-[PATCH 15/15] readahead: pagecache context based mmap read-around
-
- Documentation/kernel-parameters.txt |    4 
- block/blk-core.c                    |    3 
- block/genhd.c                       |   24 +
- fs/fuse/inode.c                     |    2 
- fs/read_write.c                     |    3 
- include/linux/fs.h                  |   64 +++
- include/linux/mm.h                  |    8 
- include/linux/radix-tree.h          |    2 
- include/trace/events/readahead.h    |   78 ++++
- lib/radix-tree.c                    |   94 ++++-
- mm/Kconfig                          |   13 
- mm/filemap.c                        |   30 +
- mm/readahead.c                      |  459 ++++++++++++++++++++++----
- 13 files changed, 680 insertions(+), 104 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
