@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id BF1176B0047
-	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 23:18:26 -0500 (EST)
-Date: Wed, 24 Feb 2010 12:18:22 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 576346B0047
+	for <linux-mm@kvack.org>; Tue, 23 Feb 2010 23:24:23 -0500 (EST)
+Date: Wed, 24 Feb 2010 15:24:14 +1100
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [RFC] nfs: use 2*rsize readahead size
-Message-ID: <20100224041822.GB27459@localhost>
+Message-ID: <20100224042414.GG16175@discord.disaster>
 References: <20100224024100.GA17048@localhost> <20100224032934.GF16175@discord.disaster>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20100224032934.GF16175@discord.disaster>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 24, 2010 at 11:29:34AM +0800, Dave Chinner wrote:
+On Wed, Feb 24, 2010 at 02:29:34PM +1100, Dave Chinner wrote:
 > On Wed, Feb 24, 2010 at 10:41:01AM +0800, Wu Fengguang wrote:
 > > With default rsize=512k and NFS_MAX_READAHEAD=15, the current NFS
 > > readahead size 512k*15=7680k is too large than necessary for typical
@@ -56,25 +56,21 @@ On Wed, Feb 24, 2010 at 11:29:34AM +0800, Dave Chinner wrote:
 > > done
 > 
 > That's doing a cached read out of the server cache, right? You
-
-It does not involve disk IO at least. (The sparse file dataset is
-larger than server cache.)
-
 > might find the results are different if the server has to read the
 > file from disk. I would expect reads from the server cache not
 > to require much readahead as there is no IO latency on the server
 > side for the readahead to hide....
 
-Sure the result will be different when disk IO is involved.
-In this case I would expect the server admin to setup the optimal
-readahead size for the disk(s).
+FWIW, if you mount the client with "-o rsize=32k" or the server only
+supports rsize <= 32k then this will probably hurt throughput a lot
+because then readahead will be capped at 64k instead of 480k....
 
-It sounds silly to have
+Cheers,
 
-        client_readahead_size > server_readahead_size
-
-Thanks,
-Fengguang
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
