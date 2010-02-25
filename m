@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8259E6B0047
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 03:01:47 -0500 (EST)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id o1P81hvl016880
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 08:01:44 GMT
-Received: from pzk15 (pzk15.prod.google.com [10.243.19.143])
-	by wpaz13.hot.corp.google.com with ESMTP id o1P81gfk006452
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 00:01:42 -0800
-Received: by pzk15 with SMTP id 15so716709pzk.20
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2010 00:01:42 -0800 (PST)
-Date: Thu, 25 Feb 2010 00:01:30 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-In-Reply-To: <4B862623.5090608@cs.helsinki.fi>
-Message-ID: <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com>
-References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org>
- <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8A4336B0047
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 07:27:53 -0500 (EST)
+Date: Thu, 25 Feb 2010 20:27:26 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 02/15] readahead: retain inactive lru pages to be
+	accessed soon
+Message-ID: <20100225122726.GA9077@localhost>
+References: <20100224031001.026464755@intel.com> <20100224031053.886603916@intel.com> <4B85EBD5.2050006@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B85EBD5.2050006@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Frost <frost@cs.ucla.edu>, Steve VanDeBogart <vandebo@cs.ucla.edu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Feb 2010, Pekka Enberg wrote:
-
-> > > > > I'm just worried there is still an underlying problem here.
-> > > > So am I. What caused the breakage that requires this patchset?
-> > > Memory hotadd with a new node being onlined.
-> > 
-> > That used to work fine.
+On Thu, Feb 25, 2010 at 11:17:41AM +0800, Rik van Riel wrote:
+> On 02/23/2010 10:10 PM, Wu Fengguang wrote:
+> > From: Chris Frost<frost@cs.ucla.edu>
+> >
+> > Ensure that cached pages in the inactive list are not prematurely evicted;
+> > move such pages to lru head when they are covered by
+> > - in-kernel heuristic readahead
+> > - an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
 > 
-> OK, can we get this issue resolved? The merge window is open and Christoph
-> seems to be unhappy with the whole patch queue. I'd hate this bug fix to miss
-> .34...
+> > Signed-off-by: Chris Frost<frost@cs.ucla.edu>
+> > Signed-off-by: Steve VanDeBogart<vandebo@cs.ucla.edu>
+> > Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> > Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
 > 
+> Acked-by: Rik van Riel <riel@redhat.com>
+> 
+> When we get into the situation where readahead thrashing
+> would occur, we will end up evicting other stuff more
+> quickly from the inactive file list.  However, that will
+> be the case either with or without this code...
 
-I don't see how memory hotadd with a new node being onlined could have 
-worked fine before since slab lacked any memory hotplug notifier until 
-Andi just added it.
+Thanks. I'm actually not afraid of it adding memory pressure to the
+readahead thrashing case.  The context readahead (patch 07) can
+adaptively control the memory pressure with or without this patch.
 
-That said, I think the first and fourth patch in this series may be 
-unnecessary if slab's notifier were to call slab_node_prepare() on 
-MEM_GOING_ONLINE instead of MEM_ONLINE.  Otherwise, kswapd is already 
-running, the zonelists for the new pgdat have been initialized, and the 
-bit has been set in node_states[N_HIGH_MEMORY] without allocated 
-cachep->nodelists[node] memory.
+It does add memory pressure to mmap read-around. A typical read-around
+request would cover some cached pages (whether or not they are
+memory-mapped), and all those pages would be moved to LRU head by
+this patch.
+
+This somehow implicitly adds LRU lifetime to executable/lib pages.
+
+Hopefully this won't behave too bad. And will be limited by
+smaller readahead size in small memory systems (patch 05).
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
