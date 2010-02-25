@@ -1,56 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8A4336B0047
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 07:27:53 -0500 (EST)
-Date: Thu, 25 Feb 2010 20:27:26 +0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 10B936B0078
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 07:38:05 -0500 (EST)
+Date: Thu, 25 Feb 2010 20:37:55 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 02/15] readahead: retain inactive lru pages to be
-	accessed soon
-Message-ID: <20100225122726.GA9077@localhost>
-References: <20100224031001.026464755@intel.com> <20100224031053.886603916@intel.com> <4B85EBD5.2050006@redhat.com>
+Subject: Re: [RFC] nfs: use 2*rsize readahead size
+Message-ID: <20100225123755.GB9077@localhost>
+References: <20100224024100.GA17048@localhost> <20100224032934.GF16175@discord.disaster> <20100224041822.GB27459@localhost> <20100224052215.GH16175@discord.disaster> <e48344781002240318u6e6545bdt97712dca4efceb9f@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <4B85EBD5.2050006@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <e48344781002240318u6e6545bdt97712dca4efceb9f@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Frost <frost@cs.ucla.edu>, Steve VanDeBogart <vandebo@cs.ucla.edu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Akshat Aranya <aaranya+fsdevel@gmail.com>
+Cc: Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 25, 2010 at 11:17:41AM +0800, Rik van Riel wrote:
-> On 02/23/2010 10:10 PM, Wu Fengguang wrote:
-> > From: Chris Frost<frost@cs.ucla.edu>
+On Wed, Feb 24, 2010 at 07:18:26PM +0800, Akshat Aranya wrote:
+> On Wed, Feb 24, 2010 at 12:22 AM, Dave Chinner <david@fromorbit.com> wrote:
+> 
 > >
-> > Ensure that cached pages in the inactive list are not prematurely evicted;
-> > move such pages to lru head when they are covered by
-> > - in-kernel heuristic readahead
-> > - an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
+> >> It sounds silly to have
+> >>
+> >> A  A  A  A  client_readahead_size > server_readahead_size
+> >
+> > I don't think it is A - the client readahead has to take into account
+> > the network latency as well as the server latency. e.g. a network
+> > with a high bandwidth but high latency is going to need much more
+> > client side readahead than a high bandwidth, low latency network to
+> > get the same throughput. Hence it is not uncommon to see larger
+> > readahead windows on network clients than for local disk access.
+> >
+> > Also, the NFS server may not even be able to detect sequential IO
+> > patterns because of the combined access patterns from the clients,
+> > and so the only effective readahead might be what the clients
+> > issue....
+> >
 > 
-> > Signed-off-by: Chris Frost<frost@cs.ucla.edu>
-> > Signed-off-by: Steve VanDeBogart<vandebo@cs.ucla.edu>
-> > Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> > Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
-> 
-> Acked-by: Rik van Riel <riel@redhat.com>
-> 
-> When we get into the situation where readahead thrashing
-> would occur, we will end up evicting other stuff more
-> quickly from the inactive file list.  However, that will
-> be the case either with or without this code...
+> In my experiments, I have observed that the server-side readahead
+> shuts off rather quickly even with a single client because the client
+> readahead causes multiple pending read RPCs on the server which are
+> then serviced in random order and the pattern observed by the
+> underlying file system is non-sequential.  In our file system, we had
+> to override what the VFS thought was a random workload and continue to
+> do readahead anyway.
 
-Thanks. I'm actually not afraid of it adding memory pressure to the
-readahead thrashing case.  The context readahead (patch 07) can
-adaptively control the memory pressure with or without this patch.
+What's the server side kernel version, plus client/server side
+readahead size? I'd expect the context readahead to handle it well.
 
-It does add memory pressure to mmap read-around. A typical read-around
-request would cover some cached pages (whether or not they are
-memory-mapped), and all those pages would be moved to LRU head by
-this patch.
+With the patchset in <http://lkml.org/lkml/2010/2/23/376>, you can
+actually see the readahead details:
 
-This somehow implicitly adds LRU lifetime to executable/lib pages.
+        # echo 1 > /debug/tracing/events/readahead/enable
+        # cp test-file /dev/null
+        # cat /debug/tracing/trace  # trimmed output
+        readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
+        readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
+        readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
+        readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
+        readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
+        readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
 
-Hopefully this won't behave too bad. And will be limited by
-smaller readahead size in small memory systems (patch 05).
+And I've actually verified the NFS case with the help of such traces
+long ago.  When client_readahead_size <= server_readahead_size, the
+readahead requests may look a bit random at first, and then will
+quickly turn into a perfect series of sequential context readaheads.
 
 Thanks,
 Fengguang
