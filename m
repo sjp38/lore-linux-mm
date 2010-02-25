@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C79EC6B0047
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 22:11:14 -0500 (EST)
-Message-ID: <4B85EA46.5090607@redhat.com>
-Date: Wed, 24 Feb 2010 22:11:02 -0500
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 75FE56B004D
+	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 22:17:54 -0500 (EST)
+Message-ID: <4B85EBD5.2050006@redhat.com>
+Date: Wed, 24 Feb 2010 22:17:41 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/15] readahead: limit readahead size for small devices
-References: <20100224031001.026464755@intel.com> <20100224031053.737437080@intel.com>
-In-Reply-To: <20100224031053.737437080@intel.com>
+Subject: Re: [PATCH 02/15] readahead: retain inactive lru pages to be accessed
+ soon
+References: <20100224031001.026464755@intel.com> <20100224031053.886603916@intel.com>
+In-Reply-To: <20100224031053.886603916@intel.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Li Shaohua <shaohua.li@intel.com>, Clemens Ladisch <clemens@ladisch.de>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Frost <frost@cs.ucla.edu>, Steve VanDeBogart <vandebo@cs.ucla.edu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 On 02/23/2010 10:10 PM, Wu Fengguang wrote:
-> Linus reports a _really_ small&  slow (505kB, 15kB/s) USB device,
-> on which blkid runs unpleasantly slow. He manages to optimize the blkid
-> reads down to 1kB+16kB, but still kernel read-ahead turns it into 48kB.
+> From: Chris Frost<frost@cs.ucla.edu>
+>
+> Ensure that cached pages in the inactive list are not prematurely evicted;
+> move such pages to lru head when they are covered by
+> - in-kernel heuristic readahead
+> - an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
 
-> CC: Li Shaohua<shaohua.li@intel.com>
-> CC: Clemens Ladisch<clemens@ladisch.de>
-> Acked-by: Jens Axboe<jens.axboe@oracle.com>
-> Tested-by: Vivek Goyal<vgoyal@redhat.com>
-> Tested-by: Linus Torvalds<torvalds@linux-foundation.org>
+> Signed-off-by: Chris Frost<frost@cs.ucla.edu>
+> Signed-off-by: Steve VanDeBogart<vandebo@cs.ucla.edu>
+> Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
 > Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
 
 Acked-by: Rik van Riel <riel@redhat.com>
+
+When we get into the situation where readahead thrashing
+would occur, we will end up evicting other stuff more
+quickly from the inactive file list.  However, that will
+be the case either with or without this code...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
