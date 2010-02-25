@@ -1,29 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 133856B0047
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 11:24:48 -0500 (EST)
-Message-ID: <4B86A445.5000807@redhat.com>
-Date: Thu, 25 Feb 2010 11:24:37 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 607056B0047
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 13:34:13 -0500 (EST)
+Date: Thu, 25 Feb 2010 12:30:26 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
+In-Reply-To: <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002251228140.18861@router.home>
+References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org>
+ <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi>
+ <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/15] readahead: thrashing safe context readahead
-References: <20100224031001.026464755@intel.com> <20100224031054.588144188@intel.com>
-In-Reply-To: <20100224031054.588144188@intel.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 02/23/2010 10:10 PM, Wu Fengguang wrote:
-> Introduce a more complete version of context readahead, which is a
-> full-fledged readahead algorithm by itself. It replaces some of the
-> existing cases.
+On Thu, 25 Feb 2010, David Rientjes wrote:
 
-> Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
+> I don't see how memory hotadd with a new node being onlined could have
+> worked fine before since slab lacked any memory hotplug notifier until
+> Andi just added it.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+AFAICR The cpu notifier took on that role in the past.
+
+If what you say is true then memory hotplug has never worked before.
+Kamesan?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
