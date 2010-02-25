@@ -1,58 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A0F826B0047
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 15:40:13 -0500 (EST)
-Received: from list by lo.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1NkkGe-000852-Dk
-	for linux-mm@kvack.org; Thu, 25 Feb 2010 21:25:04 +0100
-Received: from 85-222-76-212.home.aster.pl ([85.222.76.212])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2010 21:25:04 +0100
-Received: from zenblu by 85-222-76-212.home.aster.pl with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2010 21:25:04 +0100
-From: Zenek <zenblu@wp.pl>
-Subject: vmapping user pages - feasible?
-Date: Thu, 25 Feb 2010 20:05:14 +0000 (UTC)
-Message-ID: <hm6l5q$rqp$1@dough.gmane.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 95AA66B0047
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 15:58:55 -0500 (EST)
+Date: Thu, 25 Feb 2010 14:58:52 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: vmapping user pages - feasible?
+In-Reply-To: <hm6l5q$rqp$1@dough.gmane.org>
+Message-ID: <alpine.DEB.2.00.1002251455550.18861@router.home>
+References: <hm6l5q$rqp$1@dough.gmane.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Zenek <zenblu@wp.pl>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, 25 Feb 2010, Zenek wrote:
 
-my kernel driver gets a userspace pointer to a memory area (virtually 
-contiguous), allocated by userspace. I would like to use that memory in a 
-vmalloc-like manner, i.e. I want it to be:
+> my kernel driver gets a userspace pointer to a memory area (virtually
+> contiguous), allocated by userspace. I would like to use that memory in a
+> vmalloc-like manner, i.e. I want it to be:
 
-- accessible from kernel
-- contiguous in virtual address space
-- I may need access from interrupt context as well.
+Its already virtually mapped for the process. The kernel can access the
+data.
 
-I will be writing to it using the CPU only, in kernel mode.
+> I will be writing to it using the CPU only, in kernel mode.
 
-I understand that:
-- no page pinning is required (as only the CPU will be writing to that 
-area)
-- I would be able to use that memory even directly without vmapping, but 
-only if I didn't want to access it from interrupt context and as long as 
-it'd be mapped below highmem?
+Thats possible already.
 
-There will be no multithreaded access to that memory.
+> I understand that:
+> - no page pinning is required (as only the CPU will be writing to that
+> area)
 
-If the userspace free()s the memory, I still have the pages unless I 
-vunmap() them, right?
+Page pinning is required if the access from the kernel is asynchrononous
+to user space.
 
-How should I go about it? Get the user's vm_area_struct, go through all 
-the pages, construct an array of struct *page and vmap it?
+> There will be no multithreaded access to that memory.
 
-Thank you!
-Zenek Blus
+The kernel and userspace are not concurrently accessing the memory?
+
+> If the userspace free()s the memory, I still have the pages unless I
+> vunmap() them, right?
+
+If you increase the page count then you still have the pages. The virtual
+mapping goes away with the process.
+
+> How should I go about it? Get the user's vm_area_struct, go through all
+> the pages, construct an array of struct *page and vmap it?
+
+Do a get_user_pages() on the range?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
