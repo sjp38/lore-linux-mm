@@ -1,37 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 03BA36B004D
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 17:39:03 -0500 (EST)
-Message-ID: <4B86FBE7.9050304@redhat.com>
-Date: Thu, 25 Feb 2010 17:38:31 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 625126B0047
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 17:40:52 -0500 (EST)
+Message-ID: <4B86FC51.80903@redhat.com>
+Date: Thu, 25 Feb 2010 17:40:17 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/15] readahead: add tracing event
-References: <20100224031001.026464755@intel.com> <20100224031054.876156496@intel.com>
-In-Reply-To: <20100224031054.876156496@intel.com>
+Subject: Re: [PATCH 10/15] readahead: add /debug/readahead/stats
+References: <20100224031001.026464755@intel.com> <20100224031055.024165020@intel.com>
+In-Reply-To: <20100224031055.024165020@intel.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Chris Mason <chris.mason@oracle.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Chris Mason <chris.mason@oracle.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 On 02/23/2010 10:10 PM, Wu Fengguang wrote:
-> Example output:
+> Collect readahead stats when CONFIG_READAHEAD_STATS=y.
 >
-> # echo 1>  /debug/tracing/events/readahead/enable
-> # cp test-file /dev/null
-> # cat /debug/tracing/trace  # trimmed output
-> readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
-> readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
-> readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
-> readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
-> readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
-> readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
+> This is enabled by default because the added overheads are trivial:
+> two readahead_stats() calls per readahead.
+>
+> Example output:
+> (taken from a fresh booted NFS-ROOT box with rsize=16k)
+>
+> $ cat /debug/readahead/stats
+> pattern     readahead    eof_hit  cache_hit         io    sync_io    mmap_io       size async_size    io_size
+> initial           524        216         26        498        498         18          7          4          4
+> subsequent        181         80          1        130         13         60         25         25         24
+> context            94         28          3         85         64          8          7          2          5
+> thrash              0          0          0          0          0          0          0          0          0
+> around            162        121         33        162        162        162         60          0         21
+> fadvise             0          0          0          0          0          0          0          0          0
+> random            137          0          0        137        137          0          1          0          1
+> all              1098        445         63       1012        874          0         17          6          9
+>
+> The two most important columns are
+> - io		number of readahead IO
+> - io_size	average readahead IO size
 >
 > CC: Ingo Molnar<mingo@elte.hu>
 > CC: Jens Axboe<jens.axboe@oracle.com>
-> CC: Steven Rostedt<rostedt@goodmis.org>
 > CC: Peter Zijlstra<a.p.zijlstra@chello.nl>
 > Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
 
