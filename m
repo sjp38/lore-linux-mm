@@ -1,40 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 72FBD6B0047
-	for <linux-mm@kvack.org>; Wed, 24 Feb 2010 23:02:37 -0500 (EST)
-Message-ID: <4B85F648.1080607@redhat.com>
-Date: Wed, 24 Feb 2010 23:02:16 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 03/15] readahead: bump up the default readahead size
-References: <20100224031001.026464755@intel.com> <20100224031054.032435626@intel.com>
-In-Reply-To: <20100224031054.032435626@intel.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 438AC6B0047
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 01:21:45 -0500 (EST)
+Received: by bwz19 with SMTP id 19so4679518bwz.6
+        for <linux-mm@kvack.org>; Wed, 24 Feb 2010 22:21:45 -0800 (PST)
+From: Dmitry Monakhov <dmonakhov@openvz.org>
+Subject: [PATCH 1/2] slab: fix kmem_cache definition
+Date: Thu, 25 Feb 2010 09:21:39 +0300
+Message-Id: <1267078900-4626-1-git-send-email-dmonakhov@openvz.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Matt Mackall <mpm@selenic.com>, David Woodhouse <dwmw2@infradead.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: akinobu.mita@gmail.com, rientjes@google.com, Dmitry Monakhov <dmonakhov@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On 02/23/2010 10:10 PM, Wu Fengguang wrote:
-> Use 512kb max readahead size, and 32kb min readahead size.
->
-> The former helps io performance for common workloads.
-> The latter will be used in the thrashing safe context readahead.
+SLAB_XXX flags in slab.h has defined as unsigned long.
+This definition is in sync with kmem_cache->flag in slub and slob
+But slab defines kmem_cache->flag as "unsigned int".
 
-> CC: Jens Axboe<jens.axboe@oracle.com>
-> CC: Chris Mason<chris.mason@oracle.com>
-> CC: Peter Zijlstra<a.p.zijlstra@chello.nl>
-> CC: Martin Schwidefsky<schwidefsky@de.ibm.com>
-> CC: Paul Gortmaker<paul.gortmaker@windriver.com>
-> CC: Matt Mackall<mpm@selenic.com>
-> CC: David Woodhouse<dwmw2@infradead.org>
-> Tested-by: Vivek Goyal<vgoyal@redhat.com>
-> Tested-by: Christian Ehrhardt<ehrhardt@linux.vnet.ibm.com>
-> Acked-by:  Christian Ehrhardt<ehrhardt@linux.vnet.ibm.com>
-> Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
+Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
+---
+ include/linux/slab_def.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Acked-by: Rik van Riel <riel@redhat.com>
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index ca6b2b3..49bb71f 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -34,7 +34,7 @@ struct kmem_cache {
+ 	u32 reciprocal_buffer_size;
+ /* 3) touched by every alloc & free from the backend */
+ 
+-	unsigned int flags;		/* constant flags */
++	unsigned long flags;		/* constant flags */
+ 	unsigned int num;		/* # of objs per slab */
+ 
+ /* 4) cache_grow/shrink */
+-- 
+1.6.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
