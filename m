@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8FE436B0047
-	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 18:13:26 -0500 (EST)
-Message-ID: <4B87040A.1020904@redhat.com>
-Date: Thu, 25 Feb 2010 18:13:14 -0500
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A4BB16B0047
+	for <linux-mm@kvack.org>; Thu, 25 Feb 2010 18:37:43 -0500 (EST)
+Message-ID: <4B8709BA.8090500@redhat.com>
+Date: Thu, 25 Feb 2010 18:37:30 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 12/15] radixtree: introduce radix_tree_lookup_leaf_node()
-References: <20100224031001.026464755@intel.com> <20100224031055.316558127@intel.com>
-In-Reply-To: <20100224031055.316558127@intel.com>
+Subject: Re: [PATCH 13/15] radixtree: speed up the search for hole
+References: <20100224031001.026464755@intel.com> <20100224031055.460494682@intel.com>
+In-Reply-To: <20100224031055.460494682@intel.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,10 +17,9 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com
 List-ID: <linux-mm.kvack.org>
 
 On 02/23/2010 10:10 PM, Wu Fengguang wrote:
-> This will be used by the pagecache context based read-ahead/read-around
-> heuristic to quickly check one pagecache range:
-> - if there is any hole
-> - if there is any pages
+> Replace the hole scan functions with more fast versions:
+> 	- radix_tree_next_hole(root, index, max_scan)
+> 	- radix_tree_prev_hole(root, index, max_scan)
 >
 > Cc: Nick Piggin<nickpiggin@yahoo.com.au>
 > Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
