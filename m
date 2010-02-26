@@ -1,280 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 531306B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 02:21:24 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1Q7LMBT026915
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 26 Feb 2010 16:21:22 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D4CB045DE51
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:21:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AA2C745DE4F
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:21:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 88B3FE38005
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:21:21 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2EA491DB803C
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:21:21 +0900 (JST)
-Date: Fri, 26 Feb 2010 16:17:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/2] memcg: oom kill handling improvement
-Message-Id: <20100226161752.32e5350d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100226144752.19734ff0.nishimura@mxp.nes.nec.co.jp>
-References: <20100224165921.cb091a4f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100226131552.07475f9c.nishimura@mxp.nes.nec.co.jp>
-	<20100226142339.7a67f1a8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100226144752.19734ff0.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id BE9D06B0078
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 02:23:50 -0500 (EST)
+Received: from d06nrmr1707.portsmouth.uk.ibm.com (d06nrmr1707.portsmouth.uk.ibm.com [9.149.39.225])
+	by mtagate5.uk.ibm.com (8.13.1/8.13.1) with ESMTP id o1Q7NmBC013585
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 07:23:48 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by d06nrmr1707.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o1Q7Nm7W1327252
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 07:23:48 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o1Q7NlOj018439
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 07:23:48 GMT
+Message-ID: <4B8776FC.30409@linux.vnet.ibm.com>
+Date: Fri, 26 Feb 2010 08:23:40 +0100
+From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 05/15] readahead: limit readahead size for small memory
+ systems
+References: <20100224031001.026464755@intel.com> <20100224031054.307027163@intel.com> <4B869682.9010709@linux.vnet.ibm.com> <20100226022907.GA22226@localhost>
+In-Reply-To: <20100226022907.GA22226@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Matt Mackall <mpm@selenic.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Feb 2010 14:47:52 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Unfortunately without a chance to measure this atm, this patch now looks 
+really good to me.
+Thanks for adapting it to a read-ahead only per mem limit.
+Acked-by: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 
-> On Fri, 26 Feb 2010 14:23:39 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> > > > 1st patch is for better handling oom-kill under memcg.
-> > > It's bigger than I expected, but it basically looks good to me.
-> > > 
-> > 
-> > BTW, do you think we need quick fix ? I can't think of a very easy/small fix
-> > which is very correct...
-> To be honest, yes.
+Wu Fengguang wrote:
+> On Thu, Feb 25, 2010 at 11:25:54PM +0800, Christian Ehrhardt wrote:
+>>
+>> Wu Fengguang wrote:
+>>  > When lifting the default readahead size from 128KB to 512KB,
+>>  > make sure it won't add memory pressure to small memory systems.
+>>  >
+>>  > For read-ahead, the memory pressure is mainly readahead buffers consumed
+>>  > by too many concurrent streams. The context readahead can adapt
+>>  > readahead size to thrashing threshold well.  So in principle we don't
+>>  > need to adapt the default _max_ read-ahead size to memory pressure.
+>>  >
+>>  > For read-around, the memory pressure is mainly read-around misses on
+>>  > executables/libraries. Which could be reduced by scaling down
+>>  > read-around size on fast "reclaim passes".
+>>  >
+>>  > This patch presents a straightforward solution: to limit default
+>>  > readahead size proportional to available system memory, ie.
+>>  >                 512MB mem => 512KB readahead size
+>>  >                 128MB mem => 128KB readahead size
+>>  >                  32MB mem =>  32KB readahead size (minimal)
+>>  >
+>>  > Strictly speaking, only read-around size has to be limited.  However we
+>>  > don't bother to seperate read-around size from read-ahead size for now.
+>>  >
+>>  > CC: Matt Mackall <mpm@selenic.com>
+>>  > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+>>
+>> What I state here is for read ahead in a "multi iozone sequential" 
+>> setup, I can't speak for real "read around" workloads.
+>> So probably your table is fine to cover read-around+read-ahead in one 
+>> number.
+> 
+> OK.
+> 
+>> I have tested 256MB mem systems with 512kb readahead quite a lot.
+>> On those 512kb is still by far superior to smaller readaheads and I 
+>> didn't see major trashing or memory pressure impact.
+> 
+> In fact I'd expect a 64MB box to also benefit from 512kb readahead :)
+> 
+>> Therefore I would recommend a table like:
+>>                 >=256MB mem => 512KB readahead size
+>>                   128MB mem => 128KB readahead size
+>>                    32MB mem =>  32KB readahead size (minimal)
+> 
+> So, I'm fed up with compromising the read-ahead size with read-around
+> size.
+> 
+> There is no good to introduce a read-around size to confuse the user
+> though.  Instead, I'll introduce a read-around size limit _on top of_
+> the readahead size. This will allow power users to adjust
+> read-ahead/read-around size at the same time, while saving the low end
+> from unnecessary memory pressure :) I made the assumption that low end
+> users have no need to request a large read-around size.
+> 
+> Thanks,
+> Fengguang
+> ---
+> readahead: limit read-ahead size for small memory systems
+> 
+> When lifting the default readahead size from 128KB to 512KB,
+> make sure it won't add memory pressure to small memory systems.
+> 
+> For read-ahead, the memory pressure is mainly readahead buffers consumed
+> by too many concurrent streams. The context readahead can adapt
+> readahead size to thrashing threshold well.  So in principle we don't
+> need to adapt the default _max_ read-ahead size to memory pressure.
+> 
+> For read-around, the memory pressure is mainly read-around misses on
+> executables/libraries. Which could be reduced by scaling down
+> read-around size on fast "reclaim passes".
+> 
+> This patch presents a straightforward solution: to limit default
+> read-ahead size proportional to available system memory, ie.
+>                 512MB mem => 512KB readahead size
+>                 128MB mem => 128KB readahead size
+>                  32MB mem =>  32KB readahead size
+> 
+> CC: Matt Mackall <mpm@selenic.com>
+> CC: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/filemap.c   |    2 +-
+>  mm/readahead.c |   22 ++++++++++++++++++++++
+>  2 files changed, 23 insertions(+), 1 deletion(-)
+> 
+> --- linux.orig/mm/filemap.c	2010-02-26 10:04:28.000000000 +0800
+> +++ linux/mm/filemap.c	2010-02-26 10:08:33.000000000 +0800
+> @@ -1431,7 +1431,7 @@ static void do_sync_mmap_readahead(struc
+>  	/*
+>  	 * mmap read-around
+>  	 */
+> -	ra_pages = max_sane_readahead(ra->ra_pages);
+> +	ra_pages = min(ra->ra_pages, roundup_pow_of_two(totalram_pages / 1024));
+>  	if (ra_pages) {
+>  		ra->start = max_t(long, 0, offset - ra_pages/2);
+>  		ra->size = ra_pages;
 
-Okay. following is a candidate we can have. This will be incomplete until
-we have oom notifier for memcg but may be better than miss-firing
-page_fault_out_of_memory. Nishimura-san, how do you think this ?
-(Added Andrew to CC.)
+-- 
 
-==
-
-From: KAMEZAWA Hiroyuk <kamezawa.hiroyu@jp.fujitsu.com>
-
-In current page-fault code,
-
-	handle_mm_fault()
-		-> ...
-		-> mem_cgroup_charge()
-		-> map page or handle error.
-	-> check return code.
-
-If page fault's return code is VM_FAULT_OOM, page_fault_out_of_memory()
-is called. But if it's caused by memcg, OOM should have been already
-invoked.
-Then, I added a patch: a636b327f731143ccc544b966cfd8de6cb6d72c6
-
-That patch records last_oom_jiffies for memcg's sub-hierarchy and
-prevents page_fault_out_of_memory from being invoked in near future.
-
-But Nishimura-san reported that check by jiffies is not enough
-when the system is terribly heavy. 
-
-This patch changes memcg's oom logic as.
- * If memcg causes OOM-kill, continue to retry.
- * memcg hangs when there are no task to be killed.
- * remove jiffies check which is used now.
-
-TODO:
- * add oom notifier for informing management daemon.
- * more clever sleep logic for avoiding to use much CPU.
-
-Signed-off-by: KAMEZAWA Hiroyuk <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/memcontrol.h |    6 ----
- mm/memcontrol.c            |   56 ++++++++++++++++-----------------------------
- mm/oom_kill.c              |   28 ++++++++++++----------
- 3 files changed, 37 insertions(+), 53 deletions(-)
-
-Index: mmotm-2.6.33-Feb11/include/linux/memcontrol.h
-===================================================================
---- mmotm-2.6.33-Feb11.orig/include/linux/memcontrol.h
-+++ mmotm-2.6.33-Feb11/include/linux/memcontrol.h
-@@ -124,7 +124,6 @@ static inline bool mem_cgroup_disabled(v
- 	return false;
- }
- 
--extern bool mem_cgroup_oom_called(struct task_struct *task);
- void mem_cgroup_update_file_mapped(struct page *page, int val);
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask, int nid,
-@@ -258,11 +257,6 @@ static inline bool mem_cgroup_disabled(v
- 	return true;
- }
- 
--static inline bool mem_cgroup_oom_called(struct task_struct *task)
--{
--	return false;
--}
--
- static inline int
- mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
- {
-Index: mmotm-2.6.33-Feb11/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.33-Feb11.orig/mm/memcontrol.c
-+++ mmotm-2.6.33-Feb11/mm/memcontrol.c
-@@ -200,7 +200,6 @@ struct mem_cgroup {
- 	 * Should the accounting and control be hierarchical, per subtree?
- 	 */
- 	bool use_hierarchy;
--	unsigned long	last_oom_jiffies;
- 	atomic_t	refcnt;
- 
- 	unsigned int	swappiness;
-@@ -1234,34 +1233,6 @@ static int mem_cgroup_hierarchical_recla
- 	return total;
- }
- 
--bool mem_cgroup_oom_called(struct task_struct *task)
--{
--	bool ret = false;
--	struct mem_cgroup *mem;
--	struct mm_struct *mm;
--
--	rcu_read_lock();
--	mm = task->mm;
--	if (!mm)
--		mm = &init_mm;
--	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
--	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
--		ret = true;
--	rcu_read_unlock();
--	return ret;
--}
--
--static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
--{
--	mem->last_oom_jiffies = jiffies;
--	return 0;
--}
--
--static void record_last_oom(struct mem_cgroup *mem)
--{
--	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
--}
--
- /*
-  * Currently used to update mapped file statistics, but the routine can be
-  * generalized to update other statistics as well.
-@@ -1549,11 +1520,27 @@ static int __mem_cgroup_try_charge(struc
- 		}
- 
- 		if (!nr_retries--) {
--			if (oom) {
--				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
--				record_last_oom(mem_over_limit);
-+			if (!oom)
-+				goto nomem;
-+			mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
-+			/*
-+			 * If killed someone, we can retry. If killed myself,
-+			 * allow to go ahead in force.
-+			 *
-+			 * Note: There may be a case we can never kill any
-+			 * processes under us.(by OOM_DISABLE) But, in that
-+			 * case, if we return -ENOMEM, pagefault_out_of_memory
-+			 * will kill someone innocent, out of this memcg.
-+			 * So, what we can do is just try harder..
-+			 */
-+			if (test_thread_flag(TIF_MEMDIE)) {
-+				css_put(&mem->css);
-+				*memcg = NULL;
-+				return 0;
- 			}
--			goto nomem;
-+			/* give chance to run */
-+			schedule_timeout(1);
-+			nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 		}
- 	}
- 	if (csize > PAGE_SIZE)
-@@ -2408,8 +2395,7 @@ void mem_cgroup_end_migration(struct mem
- 
- /*
-  * A call to try to shrink memory usage on charge failure at shmem's swapin.
-- * Calling hierarchical_reclaim is not enough because we should update
-- * last_oom_jiffies to prevent pagefault_out_of_memory from invoking global OOM.
-+ * Calling hierarchical_reclaim is not enough. We may have to call OOM.
-  * Moreover considering hierarchy, we should reclaim from the mem_over_limit,
-  * not from the memcg which this page would be charged to.
-  * try_charge_swapin does all of these works properly.
-Index: mmotm-2.6.33-Feb11/mm/oom_kill.c
-===================================================================
---- mmotm-2.6.33-Feb11.orig/mm/oom_kill.c
-+++ mmotm-2.6.33-Feb11/mm/oom_kill.c
-@@ -466,27 +466,39 @@ static int oom_kill_process(struct task_
- }
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+/*
-+ * When select_bad_process() can't find proper process and we failed to
-+ * kill current, returns 0 as faiulre of OOM-kill. Otherwise, returns 1.
-+ */
- void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
- {
- 	unsigned long points = 0;
- 	struct task_struct *p;
-+	int not_found = 0;
- 
- 	if (sysctl_panic_on_oom == 2)
- 		panic("out of memory(memcg). panic_on_oom is selected.\n");
- 	read_lock(&tasklist_lock);
- retry:
-+	not_found = 0;
- 	p = select_bad_process(&points, mem);
- 	if (PTR_ERR(p) == -1UL)
- 		goto out;
--
--	if (!p)
-+	if (!p) {
-+		not_found = 1;
- 		p = current;
-+		printk(KERN_ERR "It seems there are no killable processes "
-+			"under memcg in OOM. Try to kill current\n");
-+	}
- 
- 	if (oom_kill_process(p, gfp_mask, 0, points, mem,
--				"Memory cgroup out of memory"))
--		goto retry;
-+				"Memory cgroup out of memory")) {
-+		if (!not_found) /* some race with OOM_DISABLE etc ? */
-+			goto retry;
-+	}
- out:
- 	read_unlock(&tasklist_lock);
-+	/* Even if we don't kill any, give chance to try to recalim more */
- }
- #endif
- 
-@@ -601,13 +613,6 @@ void pagefault_out_of_memory(void)
- 		/* Got some memory back in the last second. */
- 		return;
- 
--	/*
--	 * If this is from memcg, oom-killer is already invoked.
--	 * and not worth to go system-wide-oom.
--	 */
--	if (mem_cgroup_oom_called(current))
--		goto rest_and_return;
--
- 	if (sysctl_panic_on_oom)
- 		panic("out of memory from page fault. panic_on_oom is selected.\n");
- 
-@@ -619,7 +624,6 @@ void pagefault_out_of_memory(void)
- 	 * Give "p" a good chance of killing itself before we
- 	 * retry to allocate memory.
- 	 */
--rest_and_return:
- 	if (!test_thread_flag(TIF_MEMDIE))
- 		schedule_timeout_uninterruptible(1);
- }
+Grusse / regards, Christian Ehrhardt
+IBM Linux Technology Center, System z Linux Performance
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
