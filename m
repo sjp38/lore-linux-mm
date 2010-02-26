@@ -1,38 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 036B26B0078
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 12:31:19 -0500 (EST)
-Date: Fri, 26 Feb 2010 18:31:15 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-Message-ID: <20100226173115.GG16335@basil.fritz.box>
-References: <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box> <alpine.DEB.2.00.1002260904311.6641@router.home> <20100226155755.GE16335@basil.fritz.box> <alpine.DEB.2.00.1002261123520.7719@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1002261123520.7719@router.home>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E475D6B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:01 -0500 (EST)
+Received: from int-mx04.intmail.prod.int.phx2.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.17])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK90hD027988
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:00 -0500
+Received: from random.random (ovpn01.gateway.prod.ext.phx2.redhat.com [10.5.9.1])
+	by int-mx04.intmail.prod.int.phx2.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK8xxC032003
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:00 -0500
+Message-Id: <20100226200433.516502198@redhat.com>
+Date: Fri, 26 Feb 2010 21:04:33 +0100
+From: aarcange@redhat.com
+Subject: [patch 00/35] Transparent Hugepage support #12
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 26, 2010 at 11:24:50AM -0600, Christoph Lameter wrote:
-> On Fri, 26 Feb 2010, Andi Kleen wrote:
-> 
-> > > > Memory hotplug with node add never quite worked on x86 before,
-> > > > for various reasons not related to slab.
-> > >
-> > > Ok but why did things break in such a big way?
-> >
-> > 1) numa memory hotadd never worked
-> 
-> Well Kamesan indicated that this worked if a cpu became online.
+This adds more commentary to khugepaged and it adds two defrag sysfs knobs:
 
-I mean in the general case. There were tons of problems all over.
+find /sys/ -name defrag
+/sys/kernel/mm/transparent_hugepage/defrag
+/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+find /sys/ -name defrag -exec cat {} \;
+always [madvise] never
+[yes] no
+
+This should also fix memcg khugepaged accounting (thanks Kame).
+
+I folded the page_anon_vma patch into transparent_hugepage. It was however good
+idea to keep it separated first time around IMHO to make reviewing of the
+changes feasible (it's still there to review on the list in the #11 submit if
+others wants to review).
+
+Let me know if something else is needed to merge into -mm.
+
+After that we can start to call memory compaction in alloc_hugepage(int defrag)
+if defrag == 1.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
