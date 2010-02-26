@@ -1,52 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 36FAB6B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 00:54:09 -0500 (EST)
-Date: Fri, 26 Feb 2010 14:47:52 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH 1/2] memcg: oom kill handling improvement
-Message-Id: <20100226144752.19734ff0.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100226142339.7a67f1a8.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100224165921.cb091a4f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100226131552.07475f9c.nishimura@mxp.nes.nec.co.jp>
-	<20100226142339.7a67f1a8.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 847076B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 01:36:20 -0500 (EST)
+Received: by bwz19 with SMTP id 19so5785768bwz.6
+        for <linux-mm@kvack.org>; Thu, 25 Feb 2010 22:36:18 -0800 (PST)
+From: Dmitry Monakhov <dmonakhov@openvz.org>
+Subject: [PATCH] failslab: add ability to filter slab caches [v3]
+Date: Fri, 26 Feb 2010 09:36:12 +0300
+Message-Id: <1267166172-14059-1-git-send-email-dmonakhov@openvz.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, nishimura@mxp.nes.nec.co.jp
+To: linux-mm@kvack.org
+Cc: penberg@cs.helsinki.fi, cl@linux-foundation.org, rientjes@google.com, Dmitry Monakhov <dmonakhov@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Feb 2010 14:23:39 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 26 Feb 2010 13:15:52 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > On Wed, 24 Feb 2010 16:59:21 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > These are dump of patches just for showing concept, what I want to do.
-> > > But not tested. please see if you have free time. (you can ignore ;)
-> > > 
-> > > Anyway, this will HUNK to the latest mmotm, Kirill's work is merged.
-> > > 
-> > > This is not related to David's work. I don't hesitate to rebase mine
-> > > to the mmotm if his one is merged, it's easy.
-> > > But I'm not sure his one goes to mm soon. 
-> > > 
-> > > 1st patch is for better handling oom-kill under memcg.
-> > It's bigger than I expected, but it basically looks good to me.
-> > 
-> 
-> BTW, do you think we need quick fix ? I can't think of a very easy/small fix
-> which is very correct...
-To be honest, yes.
-IMHO, casing global oom because of memcg's oom is a very bad behavior
-in the sence of resource isolation. But I agree it's hard to fix in simple way,
-so leave it as it is for now..
-hmm.. I must admit that I've not done enough oom test under very high pressure.
+This patch allow to inject faults only for specific slabs.
+In order to preserve default behavior cache filter is off by
+default (all caches are faulty).
 
+One may define specific set of slabs like this:
+# mark skbuff_head_cache as faulty
+echo 1 > /sys/kernel/slab/skbuff_head_cache/failslab
+# Turn on cache filter (off by default)
+echo 1 > /sys/kernel/debug/failslab/cache-filter
+# Turn on fault injection
+echo 1 > /sys/kernel/debug/failslab/times
+echo 1 > /sys/kernel/debug/failslab/probability
 
-Thanks,
-Daisuke Nishimura.
+Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
+---
+ Documentation/vm/slub.txt    |    1 +
+ include/linux/fault-inject.h |    5 +++--
+ include/linux/slab.h         |    5 +++++
+ mm/failslab.c                |   18 +++++++++++++++---
+ mm/slab.c                    |    2 +-
+ mm/slub.c                    |   29 +++++++++++++++++++++++++++--
+ 6 files changed, 52 insertions(+), 8 deletions(-)
+
+diff --git a/Documentation/vm/slub.txt b/Documentation/vm/slub.txt
+index b37300e..07375e7 100644
+--- a/Documentation/vm/slub.txt
++++ b/Documentation/vm/slub.txt
+@@ -41,6 +41,7 @@ Possible debug options are
+ 	P		Poisoning (object and padding)
+ 	U		User tracking (free and alloc)
+ 	T		Trace (please only use on single slabs)
++	A		Toggle failslab filter mark for the cache
+ 	O		Switch debugging off for caches that would have
+ 			caused higher minimum slab orders
+ 	-		Switch all debugging off (useful if the kernel is
+diff --git a/include/linux/fault-inject.h b/include/linux/fault-inject.h
+index 06ca9b2..7b64ad4 100644
+--- a/include/linux/fault-inject.h
++++ b/include/linux/fault-inject.h
+@@ -82,9 +82,10 @@ static inline void cleanup_fault_attr_dentries(struct fault_attr *attr)
+ #endif /* CONFIG_FAULT_INJECTION */
+ 
+ #ifdef CONFIG_FAILSLAB
+-extern bool should_failslab(size_t size, gfp_t gfpflags);
++extern bool should_failslab(size_t size, gfp_t gfpflags, unsigned long flags);
+ #else
+-static inline bool should_failslab(size_t size, gfp_t gfpflags)
++static inline bool should_failslab(size_t size, gfp_t gfpflags,
++				unsigned long flags)
+ {
+ 	return false;
+ }
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 2da8372..4884462 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -70,6 +70,11 @@
+ #else
+ # define SLAB_NOTRACK		0x00000000UL
+ #endif
++#ifdef CONFIG_FAILSLAB
++# define SLAB_FAILSLAB		0x02000000UL	/* Fault injection mark */
++#else
++# define SLAB_FAILSLAB		0x00000000UL
++#endif
+ 
+ /* The following flags affect the page allocator grouping pages by mobility */
+ #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
+diff --git a/mm/failslab.c b/mm/failslab.c
+index 9339de5..bb41f98 100644
+--- a/mm/failslab.c
++++ b/mm/failslab.c
+@@ -1,18 +1,22 @@
+ #include <linux/fault-inject.h>
+ #include <linux/gfp.h>
++#include <linux/slab.h>
+ 
+ static struct {
+ 	struct fault_attr attr;
+ 	u32 ignore_gfp_wait;
++	int cache_filter;
+ #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+ 	struct dentry *ignore_gfp_wait_file;
++	struct dentry *cache_filter_file;
+ #endif
+ } failslab = {
+ 	.attr = FAULT_ATTR_INITIALIZER,
+ 	.ignore_gfp_wait = 1,
++	.cache_filter = 0,
+ };
+ 
+-bool should_failslab(size_t size, gfp_t gfpflags)
++bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)
+ {
+ 	if (gfpflags & __GFP_NOFAIL)
+ 		return false;
+@@ -20,6 +24,9 @@ bool should_failslab(size_t size, gfp_t gfpflags)
+         if (failslab.ignore_gfp_wait && (gfpflags & __GFP_WAIT))
+ 		return false;
+ 
++	if (failslab.cache_filter && !(cache_flags & SLAB_FAILSLAB))
++		return false;
++
+ 	return should_fail(&failslab.attr, size);
+ }
+ 
+@@ -30,7 +37,6 @@ static int __init setup_failslab(char *str)
+ __setup("failslab=", setup_failslab);
+ 
+ #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+-
+ static int __init failslab_debugfs_init(void)
+ {
+ 	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+@@ -46,8 +52,14 @@ static int __init failslab_debugfs_init(void)
+ 		debugfs_create_bool("ignore-gfp-wait", mode, dir,
+ 				      &failslab.ignore_gfp_wait);
+ 
+-	if (!failslab.ignore_gfp_wait_file) {
++	failslab.cache_filter_file =
++		debugfs_create_bool("cache-filter", mode, dir,
++				      &failslab.cache_filter);
++
++	if (!failslab.ignore_gfp_wait_file ||
++	    !failslab.cache_filter_file) {
+ 		err = -ENOMEM;
++		debugfs_remove(failslab.cache_filter_file);
+ 		debugfs_remove(failslab.ignore_gfp_wait_file);
+ 		cleanup_fault_attr_dentries(&failslab.attr);
+ 	}
+diff --git a/mm/slab.c b/mm/slab.c
+index 7451bda..33496b7 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3101,7 +3101,7 @@ static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
+ 	if (cachep == &cache_cache)
+ 		return false;
+ 
+-	return should_failslab(obj_size(cachep), flags);
++	return should_failslab(obj_size(cachep), flags, cachep->flags);
+ }
+ 
+ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+diff --git a/mm/slub.c b/mm/slub.c
+index 8d71aaf..cab5288 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -151,7 +151,8 @@
+  * Set of flags that will prevent slab merging
+  */
+ #define SLUB_NEVER_MERGE (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
+-		SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOLEAKTRACE)
++		SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOLEAKTRACE | \
++		SLAB_FAILSLAB)
+ 
+ #define SLUB_MERGE_SAME (SLAB_DEBUG_FREE | SLAB_RECLAIM_ACCOUNT | \
+ 		SLAB_CACHE_DMA | SLAB_NOTRACK)
+@@ -1020,6 +1021,9 @@ static int __init setup_slub_debug(char *str)
+ 		case 't':
+ 			slub_debug |= SLAB_TRACE;
+ 			break;
++		case 'a':
++			slub_debug |= SLAB_FAILSLAB;
++			break;
+ 		default:
+ 			printk(KERN_ERR "slub_debug option '%c' "
+ 				"unknown. skipped\n", *str);
+@@ -1718,7 +1722,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
+ 	lockdep_trace_alloc(gfpflags);
+ 	might_sleep_if(gfpflags & __GFP_WAIT);
+ 
+-	if (should_failslab(s->objsize, gfpflags))
++	if (should_failslab(s->objsize, gfpflags, s->flags))
+ 		return NULL;
+ 
+ 	local_irq_save(flags);
+@@ -4171,6 +4175,23 @@ static ssize_t trace_store(struct kmem_cache *s, const char *buf,
+ }
+ SLAB_ATTR(trace);
+ 
++#ifdef CONFIG_FAILSLAB
++static ssize_t failslab_show(struct kmem_cache *s, char *buf)
++{
++	return sprintf(buf, "%d\n", !!(s->flags & SLAB_FAILSLAB));
++}
++
++static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
++							size_t length)
++{
++	s->flags &= ~SLAB_FAILSLAB;
++	if (buf[0] == '1')
++		s->flags |= SLAB_FAILSLAB;
++	return length;
++}
++SLAB_ATTR(failslab);
++#endif
++
+ static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
+ {
+ 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_RECLAIM_ACCOUNT));
+@@ -4467,6 +4488,10 @@ static struct attribute *slab_attrs[] = {
+ 	&deactivate_remote_frees_attr.attr,
+ 	&order_fallback_attr.attr,
+ #endif
++#ifdef CONFIG_FAILSLAB
++	&failslab_attr.attr,
++#endif
++
+ 	NULL
+ };
+ 
+-- 
+1.6.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
