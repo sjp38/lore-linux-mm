@@ -1,28 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E0EDB6B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 07:24:09 -0500 (EST)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: Memory management woes - order 1 allocation failures
-Date: Fri, 26 Feb 2010 13:24:07 +0100
-References: <201002261232.28686.elendil@planet.nl>
-In-Reply-To: <201002261232.28686.elendil@planet.nl>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <201002261324.08078.elendil@planet.nl>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 00B786B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 08:39:00 -0500 (EST)
+Received: by fxm22 with SMTP id 22so92743fxm.6
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2010 05:39:31 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH] memcg: fix typos in memcg_test.txt
+Date: Fri, 26 Feb 2010 15:39:16 +0200
+Message-Id: <1267191557-23444-1-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 26 February 2010, Frans Pop wrote:
-> As can be seen from the attached munin graph [1] the system has only 256
-> MB memory, but that's quite normal for a simple NAS system.
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+---
+ Documentation/cgroups/memcg_test.txt |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-Oops. Make that "only 128 MB".
+diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
+index 4d32e0e..f7f68b2 100644
+--- a/Documentation/cgroups/memcg_test.txt
++++ b/Documentation/cgroups/memcg_test.txt
+@@ -337,7 +337,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
+ 	race and lock dependency with other cgroup subsystems.
+ 
+ 	example)
+-	# mount -t cgroup none /cgroup -t cpuset,memory,cpu,devices
++	# mount -t cgroup none /cgroup -o cpuset,memory,cpu,devices
+ 
+ 	and do task move, mkdir, rmdir etc...under this.
+ 
+@@ -348,7 +348,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
+ 
+ 	For example, test like following is good.
+ 	(Shell-A)
+-	# mount -t cgroup none /cgroup -t memory
++	# mount -t cgroup none /cgroup -o memory
+ 	# mkdir /cgroup/test
+ 	# echo 40M > /cgroup/test/memory.limit_in_bytes
+ 	# echo 0 > /cgroup/test/tasks
+-- 
+1.6.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
