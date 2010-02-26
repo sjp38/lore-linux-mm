@@ -1,232 +1,280 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 847076B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 01:36:20 -0500 (EST)
-Received: by bwz19 with SMTP id 19so5785768bwz.6
-        for <linux-mm@kvack.org>; Thu, 25 Feb 2010 22:36:18 -0800 (PST)
-From: Dmitry Monakhov <dmonakhov@openvz.org>
-Subject: [PATCH] failslab: add ability to filter slab caches [v3]
-Date: Fri, 26 Feb 2010 09:36:12 +0300
-Message-Id: <1267166172-14059-1-git-send-email-dmonakhov@openvz.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 531306B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 02:21:24 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o1Q7LMBT026915
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 26 Feb 2010 16:21:22 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D4CB045DE51
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:21:21 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AA2C745DE4F
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:21:21 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 88B3FE38005
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:21:21 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2EA491DB803C
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:21:21 +0900 (JST)
+Date: Fri, 26 Feb 2010 16:17:52 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/2] memcg: oom kill handling improvement
+Message-Id: <20100226161752.32e5350d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100226144752.19734ff0.nishimura@mxp.nes.nec.co.jp>
+References: <20100224165921.cb091a4f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100226131552.07475f9c.nishimura@mxp.nes.nec.co.jp>
+	<20100226142339.7a67f1a8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100226144752.19734ff0.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: penberg@cs.helsinki.fi, cl@linux-foundation.org, rientjes@google.com, Dmitry Monakhov <dmonakhov@openvz.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch allow to inject faults only for specific slabs.
-In order to preserve default behavior cache filter is off by
-default (all caches are faulty).
+On Fri, 26 Feb 2010 14:47:52 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-One may define specific set of slabs like this:
-# mark skbuff_head_cache as faulty
-echo 1 > /sys/kernel/slab/skbuff_head_cache/failslab
-# Turn on cache filter (off by default)
-echo 1 > /sys/kernel/debug/failslab/cache-filter
-# Turn on fault injection
-echo 1 > /sys/kernel/debug/failslab/times
-echo 1 > /sys/kernel/debug/failslab/probability
+> On Fri, 26 Feb 2010 14:23:39 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Acked-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
+> > > > 1st patch is for better handling oom-kill under memcg.
+> > > It's bigger than I expected, but it basically looks good to me.
+> > > 
+> > 
+> > BTW, do you think we need quick fix ? I can't think of a very easy/small fix
+> > which is very correct...
+> To be honest, yes.
+
+Okay. following is a candidate we can have. This will be incomplete until
+we have oom notifier for memcg but may be better than miss-firing
+page_fault_out_of_memory. Nishimura-san, how do you think this ?
+(Added Andrew to CC.)
+
+==
+
+From: KAMEZAWA Hiroyuk <kamezawa.hiroyu@jp.fujitsu.com>
+
+In current page-fault code,
+
+	handle_mm_fault()
+		-> ...
+		-> mem_cgroup_charge()
+		-> map page or handle error.
+	-> check return code.
+
+If page fault's return code is VM_FAULT_OOM, page_fault_out_of_memory()
+is called. But if it's caused by memcg, OOM should have been already
+invoked.
+Then, I added a patch: a636b327f731143ccc544b966cfd8de6cb6d72c6
+
+That patch records last_oom_jiffies for memcg's sub-hierarchy and
+prevents page_fault_out_of_memory from being invoked in near future.
+
+But Nishimura-san reported that check by jiffies is not enough
+when the system is terribly heavy. 
+
+This patch changes memcg's oom logic as.
+ * If memcg causes OOM-kill, continue to retry.
+ * memcg hangs when there are no task to be killed.
+ * remove jiffies check which is used now.
+
+TODO:
+ * add oom notifier for informing management daemon.
+ * more clever sleep logic for avoiding to use much CPU.
+
+Signed-off-by: KAMEZAWA Hiroyuk <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- Documentation/vm/slub.txt    |    1 +
- include/linux/fault-inject.h |    5 +++--
- include/linux/slab.h         |    5 +++++
- mm/failslab.c                |   18 +++++++++++++++---
- mm/slab.c                    |    2 +-
- mm/slub.c                    |   29 +++++++++++++++++++++++++++--
- 6 files changed, 52 insertions(+), 8 deletions(-)
+ include/linux/memcontrol.h |    6 ----
+ mm/memcontrol.c            |   56 ++++++++++++++++-----------------------------
+ mm/oom_kill.c              |   28 ++++++++++++----------
+ 3 files changed, 37 insertions(+), 53 deletions(-)
 
-diff --git a/Documentation/vm/slub.txt b/Documentation/vm/slub.txt
-index b37300e..07375e7 100644
---- a/Documentation/vm/slub.txt
-+++ b/Documentation/vm/slub.txt
-@@ -41,6 +41,7 @@ Possible debug options are
- 	P		Poisoning (object and padding)
- 	U		User tracking (free and alloc)
- 	T		Trace (please only use on single slabs)
-+	A		Toggle failslab filter mark for the cache
- 	O		Switch debugging off for caches that would have
- 			caused higher minimum slab orders
- 	-		Switch all debugging off (useful if the kernel is
-diff --git a/include/linux/fault-inject.h b/include/linux/fault-inject.h
-index 06ca9b2..7b64ad4 100644
---- a/include/linux/fault-inject.h
-+++ b/include/linux/fault-inject.h
-@@ -82,9 +82,10 @@ static inline void cleanup_fault_attr_dentries(struct fault_attr *attr)
- #endif /* CONFIG_FAULT_INJECTION */
- 
- #ifdef CONFIG_FAILSLAB
--extern bool should_failslab(size_t size, gfp_t gfpflags);
-+extern bool should_failslab(size_t size, gfp_t gfpflags, unsigned long flags);
- #else
--static inline bool should_failslab(size_t size, gfp_t gfpflags)
-+static inline bool should_failslab(size_t size, gfp_t gfpflags,
-+				unsigned long flags)
- {
+Index: mmotm-2.6.33-Feb11/include/linux/memcontrol.h
+===================================================================
+--- mmotm-2.6.33-Feb11.orig/include/linux/memcontrol.h
++++ mmotm-2.6.33-Feb11/include/linux/memcontrol.h
+@@ -124,7 +124,6 @@ static inline bool mem_cgroup_disabled(v
  	return false;
  }
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 2da8372..4884462 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -70,6 +70,11 @@
- #else
- # define SLAB_NOTRACK		0x00000000UL
- #endif
-+#ifdef CONFIG_FAILSLAB
-+# define SLAB_FAILSLAB		0x02000000UL	/* Fault injection mark */
-+#else
-+# define SLAB_FAILSLAB		0x00000000UL
-+#endif
  
- /* The following flags affect the page allocator grouping pages by mobility */
- #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
-diff --git a/mm/failslab.c b/mm/failslab.c
-index 9339de5..bb41f98 100644
---- a/mm/failslab.c
-+++ b/mm/failslab.c
-@@ -1,18 +1,22 @@
- #include <linux/fault-inject.h>
- #include <linux/gfp.h>
-+#include <linux/slab.h>
- 
- static struct {
- 	struct fault_attr attr;
- 	u32 ignore_gfp_wait;
-+	int cache_filter;
- #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
- 	struct dentry *ignore_gfp_wait_file;
-+	struct dentry *cache_filter_file;
- #endif
- } failslab = {
- 	.attr = FAULT_ATTR_INITIALIZER,
- 	.ignore_gfp_wait = 1,
-+	.cache_filter = 0,
- };
- 
--bool should_failslab(size_t size, gfp_t gfpflags)
-+bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)
- {
- 	if (gfpflags & __GFP_NOFAIL)
- 		return false;
-@@ -20,6 +24,9 @@ bool should_failslab(size_t size, gfp_t gfpflags)
-         if (failslab.ignore_gfp_wait && (gfpflags & __GFP_WAIT))
- 		return false;
- 
-+	if (failslab.cache_filter && !(cache_flags & SLAB_FAILSLAB))
-+		return false;
-+
- 	return should_fail(&failslab.attr, size);
+-extern bool mem_cgroup_oom_called(struct task_struct *task);
+ void mem_cgroup_update_file_mapped(struct page *page, int val);
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 						gfp_t gfp_mask, int nid,
+@@ -258,11 +257,6 @@ static inline bool mem_cgroup_disabled(v
+ 	return true;
  }
  
-@@ -30,7 +37,6 @@ static int __init setup_failslab(char *str)
- __setup("failslab=", setup_failslab);
- 
- #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+-static inline bool mem_cgroup_oom_called(struct task_struct *task)
+-{
+-	return false;
+-}
 -
- static int __init failslab_debugfs_init(void)
+ static inline int
+ mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
  {
- 	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
-@@ -46,8 +52,14 @@ static int __init failslab_debugfs_init(void)
- 		debugfs_create_bool("ignore-gfp-wait", mode, dir,
- 				      &failslab.ignore_gfp_wait);
+Index: mmotm-2.6.33-Feb11/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.33-Feb11.orig/mm/memcontrol.c
++++ mmotm-2.6.33-Feb11/mm/memcontrol.c
+@@ -200,7 +200,6 @@ struct mem_cgroup {
+ 	 * Should the accounting and control be hierarchical, per subtree?
+ 	 */
+ 	bool use_hierarchy;
+-	unsigned long	last_oom_jiffies;
+ 	atomic_t	refcnt;
  
--	if (!failslab.ignore_gfp_wait_file) {
-+	failslab.cache_filter_file =
-+		debugfs_create_bool("cache-filter", mode, dir,
-+				      &failslab.cache_filter);
-+
-+	if (!failslab.ignore_gfp_wait_file ||
-+	    !failslab.cache_filter_file) {
- 		err = -ENOMEM;
-+		debugfs_remove(failslab.cache_filter_file);
- 		debugfs_remove(failslab.ignore_gfp_wait_file);
- 		cleanup_fault_attr_dentries(&failslab.attr);
+ 	unsigned int	swappiness;
+@@ -1234,34 +1233,6 @@ static int mem_cgroup_hierarchical_recla
+ 	return total;
+ }
+ 
+-bool mem_cgroup_oom_called(struct task_struct *task)
+-{
+-	bool ret = false;
+-	struct mem_cgroup *mem;
+-	struct mm_struct *mm;
+-
+-	rcu_read_lock();
+-	mm = task->mm;
+-	if (!mm)
+-		mm = &init_mm;
+-	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+-	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
+-		ret = true;
+-	rcu_read_unlock();
+-	return ret;
+-}
+-
+-static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
+-{
+-	mem->last_oom_jiffies = jiffies;
+-	return 0;
+-}
+-
+-static void record_last_oom(struct mem_cgroup *mem)
+-{
+-	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
+-}
+-
+ /*
+  * Currently used to update mapped file statistics, but the routine can be
+  * generalized to update other statistics as well.
+@@ -1549,11 +1520,27 @@ static int __mem_cgroup_try_charge(struc
+ 		}
+ 
+ 		if (!nr_retries--) {
+-			if (oom) {
+-				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
+-				record_last_oom(mem_over_limit);
++			if (!oom)
++				goto nomem;
++			mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
++			/*
++			 * If killed someone, we can retry. If killed myself,
++			 * allow to go ahead in force.
++			 *
++			 * Note: There may be a case we can never kill any
++			 * processes under us.(by OOM_DISABLE) But, in that
++			 * case, if we return -ENOMEM, pagefault_out_of_memory
++			 * will kill someone innocent, out of this memcg.
++			 * So, what we can do is just try harder..
++			 */
++			if (test_thread_flag(TIF_MEMDIE)) {
++				css_put(&mem->css);
++				*memcg = NULL;
++				return 0;
+ 			}
+-			goto nomem;
++			/* give chance to run */
++			schedule_timeout(1);
++			nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 		}
  	}
-diff --git a/mm/slab.c b/mm/slab.c
-index 7451bda..33496b7 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3101,7 +3101,7 @@ static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
- 	if (cachep == &cache_cache)
- 		return false;
+ 	if (csize > PAGE_SIZE)
+@@ -2408,8 +2395,7 @@ void mem_cgroup_end_migration(struct mem
  
--	return should_failslab(obj_size(cachep), flags);
-+	return should_failslab(obj_size(cachep), flags, cachep->flags);
+ /*
+  * A call to try to shrink memory usage on charge failure at shmem's swapin.
+- * Calling hierarchical_reclaim is not enough because we should update
+- * last_oom_jiffies to prevent pagefault_out_of_memory from invoking global OOM.
++ * Calling hierarchical_reclaim is not enough. We may have to call OOM.
+  * Moreover considering hierarchy, we should reclaim from the mem_over_limit,
+  * not from the memcg which this page would be charged to.
+  * try_charge_swapin does all of these works properly.
+Index: mmotm-2.6.33-Feb11/mm/oom_kill.c
+===================================================================
+--- mmotm-2.6.33-Feb11.orig/mm/oom_kill.c
++++ mmotm-2.6.33-Feb11/mm/oom_kill.c
+@@ -466,27 +466,39 @@ static int oom_kill_process(struct task_
  }
  
- static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
-diff --git a/mm/slub.c b/mm/slub.c
-index 8d71aaf..cab5288 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -151,7 +151,8 @@
-  * Set of flags that will prevent slab merging
-  */
- #define SLUB_NEVER_MERGE (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
--		SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOLEAKTRACE)
-+		SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOLEAKTRACE | \
-+		SLAB_FAILSLAB)
- 
- #define SLUB_MERGE_SAME (SLAB_DEBUG_FREE | SLAB_RECLAIM_ACCOUNT | \
- 		SLAB_CACHE_DMA | SLAB_NOTRACK)
-@@ -1020,6 +1021,9 @@ static int __init setup_slub_debug(char *str)
- 		case 't':
- 			slub_debug |= SLAB_TRACE;
- 			break;
-+		case 'a':
-+			slub_debug |= SLAB_FAILSLAB;
-+			break;
- 		default:
- 			printk(KERN_ERR "slub_debug option '%c' "
- 				"unknown. skipped\n", *str);
-@@ -1718,7 +1722,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
- 	lockdep_trace_alloc(gfpflags);
- 	might_sleep_if(gfpflags & __GFP_WAIT);
- 
--	if (should_failslab(s->objsize, gfpflags))
-+	if (should_failslab(s->objsize, gfpflags, s->flags))
- 		return NULL;
- 
- 	local_irq_save(flags);
-@@ -4171,6 +4175,23 @@ static ssize_t trace_store(struct kmem_cache *s, const char *buf,
- }
- SLAB_ATTR(trace);
- 
-+#ifdef CONFIG_FAILSLAB
-+static ssize_t failslab_show(struct kmem_cache *s, char *buf)
-+{
-+	return sprintf(buf, "%d\n", !!(s->flags & SLAB_FAILSLAB));
-+}
-+
-+static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
-+							size_t length)
-+{
-+	s->flags &= ~SLAB_FAILSLAB;
-+	if (buf[0] == '1')
-+		s->flags |= SLAB_FAILSLAB;
-+	return length;
-+}
-+SLAB_ATTR(failslab);
-+#endif
-+
- static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
++/*
++ * When select_bad_process() can't find proper process and we failed to
++ * kill current, returns 0 as faiulre of OOM-kill. Otherwise, returns 1.
++ */
+ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
  {
- 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_RECLAIM_ACCOUNT));
-@@ -4467,6 +4488,10 @@ static struct attribute *slab_attrs[] = {
- 	&deactivate_remote_frees_attr.attr,
- 	&order_fallback_attr.attr,
- #endif
-+#ifdef CONFIG_FAILSLAB
-+	&failslab_attr.attr,
-+#endif
-+
- 	NULL
- };
+ 	unsigned long points = 0;
+ 	struct task_struct *p;
++	int not_found = 0;
  
--- 
-1.6.6
+ 	if (sysctl_panic_on_oom == 2)
+ 		panic("out of memory(memcg). panic_on_oom is selected.\n");
+ 	read_lock(&tasklist_lock);
+ retry:
++	not_found = 0;
+ 	p = select_bad_process(&points, mem);
+ 	if (PTR_ERR(p) == -1UL)
+ 		goto out;
+-
+-	if (!p)
++	if (!p) {
++		not_found = 1;
+ 		p = current;
++		printk(KERN_ERR "It seems there are no killable processes "
++			"under memcg in OOM. Try to kill current\n");
++	}
+ 
+ 	if (oom_kill_process(p, gfp_mask, 0, points, mem,
+-				"Memory cgroup out of memory"))
+-		goto retry;
++				"Memory cgroup out of memory")) {
++		if (!not_found) /* some race with OOM_DISABLE etc ? */
++			goto retry;
++	}
+ out:
+ 	read_unlock(&tasklist_lock);
++	/* Even if we don't kill any, give chance to try to recalim more */
+ }
+ #endif
+ 
+@@ -601,13 +613,6 @@ void pagefault_out_of_memory(void)
+ 		/* Got some memory back in the last second. */
+ 		return;
+ 
+-	/*
+-	 * If this is from memcg, oom-killer is already invoked.
+-	 * and not worth to go system-wide-oom.
+-	 */
+-	if (mem_cgroup_oom_called(current))
+-		goto rest_and_return;
+-
+ 	if (sysctl_panic_on_oom)
+ 		panic("out of memory from page fault. panic_on_oom is selected.\n");
+ 
+@@ -619,7 +624,6 @@ void pagefault_out_of_memory(void)
+ 	 * Give "p" a good chance of killing itself before we
+ 	 * retry to allocate memory.
+ 	 */
+-rest_and_return:
+ 	if (!test_thread_flag(TIF_MEMDIE))
+ 		schedule_timeout_uninterruptible(1);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
