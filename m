@@ -1,55 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 402C76B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 04:26:44 -0500 (EST)
-Received: by bwz19 with SMTP id 19so5872568bwz.6
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2010 01:26:41 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 98D436B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 05:45:07 -0500 (EST)
+Message-ID: <4B87A62E.5030307@cs.helsinki.fi>
+Date: Fri, 26 Feb 2010 12:45:02 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-In-Reply-To: <201002252104.51187.rjw@sisk.pl>
-References: <9b2b86521001020703v23152d0cy3ba2c08df88c0a79@mail.gmail.com>
-	 <201002242152.55408.rjw@sisk.pl>
-	 <9b2b86521002250510m75c8b314o37388a04b53a2b67@mail.gmail.com>
-	 <201002252104.51187.rjw@sisk.pl>
-Date: Fri, 26 Feb 2010 09:26:37 +0000
-Message-ID: <9b2b86521002260126g5acabb79uae961dd8668b3c09@mail.gmail.com>
-Subject: Re: s2disk hang update
-From: Alan Jenkins <sourcejedi.lkml@googlemail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
+References: <20100211953.850854588@firstfloor.org> <20100211205404.085FEB1978@basil.firstfloor.org> <20100215061535.GI5723@laptop> <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <alpine.DEB.2.00.1002251315010.3501@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251627040.18861@router.home>
+In-Reply-To: <alpine.DEB.2.00.1002251627040.18861@router.home>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Mel Gorman <mel@csn.ul.ie>, hugh.dickins@tiscali.co.uk, Pavel Machek <pavel@ucw.cz>, pm list <linux-pm@lists.linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux MM <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 2/25/10, Rafael J. Wysocki <rjw@sisk.pl> wrote:
-> On Thursday 25 February 2010, Alan Jenkins wrote:
->> On 2/24/10, Rafael J. Wysocki <rjw@sisk.pl> wrote:
->> > On Wednesday 24 February 2010, Alan Jenkins wrote:
-> ...
->>
->> > -	while (to_free_normal > 0 && to_free_highmem > 0) {
->> > +	while (to_free_normal > 0 || to_free_highmem > 0) {
->>
->> Yes, that seems to do it.  No more hangs so far (and I can still
->> reproduce the hang with too many applications if I un-apply the
->> patch).
->
-> OK, great.  Is this with or without the NOIO-enforcing patch?
+Christoph Lameter kirjoitti:
+>> kmalloc_node() in generic kernel code.  All that is done under
+>> MEM_GOING_ONLINE and not MEM_ONLINE, which is why I suggest the first and
+>> fourth patch in this series may not be necessary if we prevent setting the
+>> bit in the nodemask or building the zonelists until the slab nodelists are
+>> ready.
+> 
+> That sounds good.
 
-With.
-
->> I did see a non-fatal allocation failure though, so I'm still not sure
->> that the current implementation is strictly correct.
->>
->> This is without the patch to increase "to_free_normal".  If I get the
->> allocation failure again, should I try testing the "free 20% extra"
->> patch?
->
-> Either that or try to increase SPARE_PAGES.  That should actually work with
-> the last patch applied. :-)
->
-> Rafael
-
-<grin>, OK.
+Andi?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
