@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BF9756B0083
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E8A726B0098
 	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:07 -0500 (EST)
-Received: from int-mx08.intmail.prod.int.phx2.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.21])
-	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK96vj001281
+Received: from int-mx05.intmail.prod.int.phx2.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.18])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK966V023189
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
 	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:06 -0500
-Message-Id: <20100226200904.477141458@redhat.com>
-Date: Fri, 26 Feb 2010 21:05:07 +0100
+Message-Id: <20100226200904.059763859@redhat.com>
+Date: Fri, 26 Feb 2010 21:05:05 +0100
 From: aarcange@redhat.com
-Subject: [patch 34/35] transparent hugepage vmstat
+Subject: [patch 32/35] memcg compound
 References: <20100226200433.516502198@redhat.com>
-Content-Disposition: inline; filename=transparent_hugepage_vmstat
+Content-Disposition: inline; filename=memcg_compound
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
@@ -19,118 +19,300 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add hugepage stat information to /proc/vmstat and /proc/meminfo.
+Teach memcg to charge/uncharge compound pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- fs/proc/meminfo.c      |    7 +++++++
- include/linux/mmzone.h |    1 +
- mm/huge_memory.c       |    3 +++
- mm/rmap.c              |   20 ++++++++++++++++----
- mm/vmstat.c            |    3 +++
- 5 files changed, 30 insertions(+), 4 deletions(-)
+ Documentation/cgroups/memory.txt |    4 +
+ mm/memcontrol.c                  |   80 +++++++++++++++++++++++----------------
+ 2 files changed, 52 insertions(+), 32 deletions(-)
 
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -105,6 +105,9 @@ int _meminfo_proc_show(struct seq_file *
- #ifdef CONFIG_MEMORY_FAILURE
- 		"HardwareCorrupted: %5lu kB\n"
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		"AnonHugePages:  %8lu kB\n"
-+#endif
- 		,
- 		K(i.totalram),
- 		K(i.freeram),
-@@ -155,6 +158,10 @@ int _meminfo_proc_show(struct seq_file *
- #ifdef CONFIG_MEMORY_FAILURE
- 		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
-+		   HPAGE_PMD_NR)
-+#endif
- 		);
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -4,6 +4,10 @@ NOTE: The Memory Resource Controller has
+ to as the memory controller in this document. Do not confuse memory controller
+ used here with the memory controller that is used in hardware.
  
- 	hugetlb_report_meminfo(m);
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -112,6 +112,7 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-+	NR_ANON_TRANSPARENT_HUGEPAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
++NOTE: When in this documentation we refer to PAGE_SIZE, we actually
++mean the real page size of the page being accounted which is bigger than
++PAGE_SIZE for compound pages.
++
+ Salient features
+ 
+ a. Enable control of Anonymous, Page Cache (mapped and unmapped) and
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1424,8 +1424,8 @@ static int __cpuinit memcg_stock_cpu_cal
+  * oom-killer can be invoked.
+  */
+ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+-			gfp_t gfp_mask, struct mem_cgroup **memcg,
+-			bool oom, struct page *page)
++				   gfp_t gfp_mask, struct mem_cgroup **memcg,
++				   bool oom, struct page *page, int page_size)
+ {
+ 	struct mem_cgroup *mem, *mem_over_limit;
+ 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+@@ -1438,6 +1438,9 @@ static int __mem_cgroup_try_charge(struc
+ 		return 0;
+ 	}
+ 
++	if (PageTransHuge(page))
++		csize = page_size;
++
+ 	/*
+ 	 * We always charge the cgroup the mm_struct belongs to.
+ 	 * The mm_struct's mem_cgroup changes on task migration if the
+@@ -1462,8 +1465,9 @@ static int __mem_cgroup_try_charge(struc
+ 		int ret = 0;
+ 		unsigned long flags = 0;
+ 
+-		if (consume_stock(mem))
+-			goto charged;
++		if (!PageTransHuge(page))
++			if (consume_stock(mem))
++				goto charged;
+ 
+ 		ret = res_counter_charge(&mem->res, csize, &fail_res);
+ 		if (likely(!ret)) {
+@@ -1483,7 +1487,7 @@ static int __mem_cgroup_try_charge(struc
+ 									res);
+ 
+ 		/* reduce request size and retry */
+-		if (csize > PAGE_SIZE) {
++		if (csize > page_size) {
+ 			csize = PAGE_SIZE;
+ 			continue;
+ 		}
+@@ -1556,7 +1560,7 @@ static int __mem_cgroup_try_charge(struc
+ 			goto nomem;
+ 		}
+ 	}
+-	if (csize > PAGE_SIZE)
++	if (csize > page_size)
+ 		refill_stock(mem, csize - PAGE_SIZE);
+ charged:
+ 	/*
+@@ -1593,9 +1597,10 @@ static void __mem_cgroup_cancel_charge(s
+ 	/* we don't need css_put for root */
+ }
+ 
+-static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
++static void mem_cgroup_cancel_charge(struct mem_cgroup *mem,
++				     int page_size)
+ {
+-	__mem_cgroup_cancel_charge(mem, 1);
++	__mem_cgroup_cancel_charge(mem, page_size >> PAGE_SHIFT);
+ }
  
  /*
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -724,6 +724,9 @@ static void __split_huge_page_refcount(s
- 		put_page(page_tail);
- 	}
+@@ -1651,8 +1656,9 @@ struct mem_cgroup *try_get_mem_cgroup_fr
+  */
  
-+	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
-+
- 	ClearPageCompound(page);
- 	compound_unlock(page);
- 	spin_unlock_irq(&zone->lru_lock);
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -798,8 +798,13 @@ void page_add_anon_rmap(struct page *pag
- 	struct vm_area_struct *vma, unsigned long address)
+ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+-				     struct page_cgroup *pc,
+-				     enum charge_type ctype)
++				       struct page_cgroup *pc,
++				       enum charge_type ctype,
++				       int page_size)
  {
- 	int first = atomic_inc_and_test(&page->_mapcount);
--	if (first)
--		__inc_zone_page_state(page, NR_ANON_PAGES);
-+	if (first) {
-+		if (!PageTransHuge(page))
-+			__inc_zone_page_state(page, NR_ANON_PAGES);
-+		else
-+			__inc_zone_page_state(page,
-+					      NR_ANON_TRANSPARENT_HUGEPAGES);
-+	}
- 	if (unlikely(PageKsm(page)))
+ 	/* try_charge() can return NULL to *memcg, taking care of it. */
+ 	if (!mem)
+@@ -1661,7 +1667,7 @@ static void __mem_cgroup_commit_charge(s
+ 	lock_page_cgroup(pc);
+ 	if (unlikely(PageCgroupUsed(pc))) {
+ 		unlock_page_cgroup(pc);
+-		mem_cgroup_cancel_charge(mem);
++		mem_cgroup_cancel_charge(mem, page_size);
  		return;
- 
-@@ -827,7 +832,10 @@ void page_add_new_anon_rmap(struct page 
- 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
- 	SetPageSwapBacked(page);
- 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
--	__inc_zone_page_state(page, NR_ANON_PAGES);
-+	if (!PageTransHuge(page))
-+	    __inc_zone_page_state(page, NR_ANON_PAGES);
-+	else
-+	    __inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
- 	__page_set_anon_rmap(page, vma, address);
- 	if (page_evictable(page, vma))
- 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
-@@ -874,7 +882,11 @@ void page_remove_rmap(struct page *page)
  	}
- 	if (PageAnon(page)) {
- 		mem_cgroup_uncharge_page(page);
--		__dec_zone_page_state(page, NR_ANON_PAGES);
-+		if (!PageTransHuge(page))
-+			__dec_zone_page_state(page, NR_ANON_PAGES);
-+		else
-+			__dec_zone_page_state(page,
-+					      NR_ANON_TRANSPARENT_HUGEPAGES);
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
- 		mem_cgroup_update_file_mapped(page, -1);
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -657,6 +657,9 @@ static const char * const vmstat_text[] 
- 	"numa_local",
- 	"numa_other",
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	"nr_anon_transparent_hugepages",
-+#endif
  
- #ifdef CONFIG_VM_EVENT_COUNTERS
- 	"pgpgin",
+@@ -1732,7 +1738,7 @@ static void __mem_cgroup_move_account(st
+ 	mem_cgroup_charge_statistics(from, pc, false);
+ 	if (uncharge)
+ 		/* This is not "cancel", but cancel_charge does all we need. */
+-		mem_cgroup_cancel_charge(from);
++		mem_cgroup_cancel_charge(from, PAGE_SIZE);
+ 
+ 	/* caller should have done css_get */
+ 	pc->mem_cgroup = to;
+@@ -1788,13 +1794,14 @@ static int mem_cgroup_move_parent(struct
+ 		goto put;
+ 
+ 	parent = mem_cgroup_from_cont(pcg);
+-	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page);
++	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page,
++		PAGE_SIZE);
+ 	if (ret || !parent)
+ 		goto put_back;
+ 
+ 	ret = mem_cgroup_move_account(pc, child, parent, true);
+ 	if (ret)
+-		mem_cgroup_cancel_charge(parent);
++		mem_cgroup_cancel_charge(parent, PAGE_SIZE);
+ put_back:
+ 	putback_lru_page(page);
+ put:
+@@ -1816,6 +1823,10 @@ static int mem_cgroup_charge_common(stru
+ 	struct mem_cgroup *mem;
+ 	struct page_cgroup *pc;
+ 	int ret;
++	int page_size = PAGE_SIZE;
++
++	if (PageTransHuge(page))
++		page_size <<= compound_order(page);
+ 
+ 	pc = lookup_page_cgroup(page);
+ 	/* can happen at boot */
+@@ -1824,11 +1835,12 @@ static int mem_cgroup_charge_common(stru
+ 	prefetchw(pc);
+ 
+ 	mem = memcg;
+-	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page);
++	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page,
++				      page_size);
+ 	if (ret || !mem)
+ 		return ret;
+ 
+-	__mem_cgroup_commit_charge(mem, pc, ctype);
++	__mem_cgroup_commit_charge(mem, pc, ctype, page_size);
+ 	return 0;
+ }
+ 
+@@ -1837,8 +1849,6 @@ int mem_cgroup_newpage_charge(struct pag
+ {
+ 	if (mem_cgroup_disabled())
+ 		return 0;
+-	if (PageCompound(page))
+-		return 0;
+ 	/*
+ 	 * If already mapped, we don't have to account.
+ 	 * If page cache, page->mapping has address_space.
+@@ -1851,7 +1861,7 @@ int mem_cgroup_newpage_charge(struct pag
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
+ 	return mem_cgroup_charge_common(page, mm, gfp_mask,
+-				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
++					MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
+ }
+ 
+ static void
+@@ -1944,14 +1954,14 @@ int mem_cgroup_try_charge_swapin(struct 
+ 	if (!mem)
+ 		goto charge_cur_mm;
+ 	*ptr = mem;
+-	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page);
++	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page, PAGE_SIZE);
+ 	/* drop extra refcnt from tryget */
+ 	css_put(&mem->css);
+ 	return ret;
+ charge_cur_mm:
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
+-	return __mem_cgroup_try_charge(mm, mask, ptr, true, page);
++	return __mem_cgroup_try_charge(mm, mask, ptr, true, page, PAGE_SIZE);
+ }
+ 
+ static void
+@@ -1967,7 +1977,7 @@ __mem_cgroup_commit_charge_swapin(struct
+ 	cgroup_exclude_rmdir(&ptr->css);
+ 	pc = lookup_page_cgroup(page);
+ 	mem_cgroup_lru_del_before_commit_swapcache(page);
+-	__mem_cgroup_commit_charge(ptr, pc, ctype);
++	__mem_cgroup_commit_charge(ptr, pc, ctype, PAGE_SIZE);
+ 	mem_cgroup_lru_add_after_commit_swapcache(page);
+ 	/*
+ 	 * Now swap is on-memory. This means this page may be
+@@ -2016,11 +2026,12 @@ void mem_cgroup_cancel_charge_swapin(str
+ 		return;
+ 	if (!mem)
+ 		return;
+-	mem_cgroup_cancel_charge(mem);
++	mem_cgroup_cancel_charge(mem, PAGE_SIZE);
+ }
+ 
+ static void
+-__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
++__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype,
++	      int page_size)
+ {
+ 	struct memcg_batch_info *batch = NULL;
+ 	bool uncharge_memsw = true;
+@@ -2053,14 +2064,14 @@ __do_uncharge(struct mem_cgroup *mem, co
+ 	if (batch->memcg != mem)
+ 		goto direct_uncharge;
+ 	/* remember freed charge and uncharge it later */
+-	batch->bytes += PAGE_SIZE;
++	batch->bytes += page_size;
+ 	if (uncharge_memsw)
+-		batch->memsw_bytes += PAGE_SIZE;
++		batch->memsw_bytes += page_size;
+ 	return;
+ direct_uncharge:
+-	res_counter_uncharge(&mem->res, PAGE_SIZE);
++	res_counter_uncharge(&mem->res, page_size);
+ 	if (uncharge_memsw)
+-		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
++		res_counter_uncharge(&mem->memsw, page_size);
+ 	return;
+ }
+ 
+@@ -2073,6 +2084,10 @@ __mem_cgroup_uncharge_common(struct page
+ 	struct page_cgroup *pc;
+ 	struct mem_cgroup *mem = NULL;
+ 	struct mem_cgroup_per_zone *mz;
++	int page_size = PAGE_SIZE;
++
++	if (PageTransHuge(page))
++		page_size <<= compound_order(page);
+ 
+ 	if (mem_cgroup_disabled())
+ 		return NULL;
+@@ -2112,7 +2127,7 @@ __mem_cgroup_uncharge_common(struct page
+ 	}
+ 
+ 	if (!mem_cgroup_is_root(mem))
+-		__do_uncharge(mem, ctype);
++		__do_uncharge(mem, ctype, page_size);
+ 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+ 		mem_cgroup_swap_statistics(mem, true);
+ 	mem_cgroup_charge_statistics(mem, pc, false);
+@@ -2341,7 +2356,7 @@ int mem_cgroup_prepare_migration(struct 
+ 
+ 	if (mem) {
+ 		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false,
+-						page);
++					      page, PAGE_SIZE);
+ 		css_put(&mem->css);
+ 	}
+ 	*ptr = mem;
+@@ -2384,7 +2399,7 @@ void mem_cgroup_end_migration(struct mem
+ 	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
+ 	 * So, double-counting is effectively avoided.
+ 	 */
+-	__mem_cgroup_commit_charge(mem, pc, ctype);
++	__mem_cgroup_commit_charge(mem, pc, ctype, PAGE_SIZE);
+ 
+ 	/*
+ 	 * Both of oldpage and newpage are still under lock_page().
+@@ -3864,7 +3879,7 @@ one_by_one:
+ 			cond_resched();
+ 		}
+ 		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem,
+-								false, NULL);
++					      false, NULL, PAGE_SIZE);
+ 		if (ret || !mem)
+ 			/* mem_cgroup_clear_mc() will do uncharge later */
+ 			return -ENOMEM;
+@@ -4124,6 +4139,7 @@ static int mem_cgroup_move_charge_pte_ra
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ retry:
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; addr += PAGE_SIZE) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
