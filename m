@@ -1,26 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D8C606B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 12:24:26 -0500 (EST)
-Message-ID: <4B8803C1.4070401@cs.helsinki.fi>
-Date: Fri, 26 Feb 2010 19:24:17 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id DF9166B0078
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 12:25:13 -0500 (EST)
+Date: Fri, 26 Feb 2010 11:24:50 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
+In-Reply-To: <20100226155755.GE16335@basil.fritz.box>
+Message-ID: <alpine.DEB.2.00.1002261123520.7719@router.home>
+References: <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi>
+ <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box> <alpine.DEB.2.00.1002260904311.6641@router.home> <20100226155755.GE16335@basil.fritz.box>
 MIME-Version: 1.0
-Subject: Re: [PATCH] failslab: add ability to filter slab caches [v3]
-References: <1267166172-14059-1-git-send-email-dmonakhov@openvz.org> <alpine.DEB.2.00.1002260902310.6641@router.home>
-In-Reply-To: <alpine.DEB.2.00.1002260902310.6641@router.home>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Dmitry Monakhov <dmonakhov@openvz.org>, linux-mm@kvack.org, rientjes@google.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> Acked-by: Christoph Lameter <cl@linux-foundation.org>
+On Fri, 26 Feb 2010, Andi Kleen wrote:
 
-Applied, thanks!
+> > > Memory hotplug with node add never quite worked on x86 before,
+> > > for various reasons not related to slab.
+> >
+> > Ok but why did things break in such a big way?
+>
+> 1) numa memory hotadd never worked
 
+Well Kamesan indicated that this worked if a cpu became online.
+
+> 2) the rest just bitrotted because nobody tested it.
+
+Yep. David: Can you revise the relevant portions of the patchset and
+repost it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
