@@ -1,79 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D2D926B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 09:07:45 -0500 (EST)
-Date: Fri, 26 Feb 2010 15:08:25 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-Message-ID: <20100226140825.GC16335@basil.fritz.box>
-References: <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <alpine.DEB.2.00.1002251315010.3501@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251627040.18861@router.home> <4B87A62E.5030307@cs.helsinki.fi> <20100226114312.GB16335@basil.fritz.box> <84144f021002260435l6de50c0enb3fcc0c8b45d9f20@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id DF7956B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 09:17:50 -0500 (EST)
+Date: Fri, 26 Feb 2010 09:17:40 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH] readahead: add notes on readahead size
+Message-ID: <20100226141740.GB6023@redhat.com>
+References: <20100224031001.026464755@intel.com> <20100224031054.307027163@intel.com> <4B869682.9010709@linux.vnet.ibm.com> <20100226022907.GA22226@localhost> <20100226024837.GA22859@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <84144f021002260435l6de50c0enb3fcc0c8b45d9f20@mail.gmail.com>
+In-Reply-To: <20100226024837.GA22859@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Matt Mackall <mpm@selenic.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 26, 2010 at 02:35:24PM +0200, Pekka Enberg wrote:
-> On Fri, Feb 26, 2010 at 1:43 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> > On Fri, Feb 26, 2010 at 12:45:02PM +0200, Pekka Enberg wrote:
-> >> Christoph Lameter kirjoitti:
-> >>>> kmalloc_node() in generic kernel code.  All that is done under
-> >>>> MEM_GOING_ONLINE and not MEM_ONLINE, which is why I suggest the first and
-> >>>> fourth patch in this series may not be necessary if we prevent setting the
-> >>>> bit in the nodemask or building the zonelists until the slab nodelists are
-> >>>> ready.
-> >>>
-> >>> That sounds good.
-> >>
-> >> Andi?
-> >
-> > Well if Christoph wants to submit a better patch that is tested and solves
-> > the problems he can do that.
+On Fri, Feb 26, 2010 at 10:48:37AM +0800, Wu Fengguang wrote:
+> > readahead: limit read-ahead size for small memory systems
+> > 
+> > When lifting the default readahead size from 128KB to 512KB,
+> > make sure it won't add memory pressure to small memory systems.
 > 
-> Sure.
+> btw, I wrote some comments to summarize the now complex readahead size
+> rules..
 > 
-> > if he doesn't then I think my patch kit which has been tested
-> > is the best alternative currently.
+> ==
+> readahead: add notes on readahead size
 > 
-> So do you expect me to merge your patches over his objections?
+> Basically, currently the default max readahead size
+> - is 512k
+> - is boot time configurable with "readahead="
+> and is auto scaled down:
+> - for small devices
+> - for small memory systems (read-around size alone)
+> 
+> CC: Matt Mackall <mpm@selenic.com>
+> CC: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/readahead.c |   22 ++++++++++++++++++++++
+>  1 file changed, 22 insertions(+)
+> 
+> --- linux.orig/mm/readahead.c	2010-02-26 10:11:41.000000000 +0800
+> +++ linux/mm/readahead.c	2010-02-26 10:11:55.000000000 +0800
+> @@ -7,6 +7,28 @@
+>   *		Initial version.
+>   */
+>  
+> +/*
+> + * Notes on readahead size.
+> + *
+> + * The default max readahead size is VM_MAX_READAHEAD=512k,
+> + * which can be changed by user with boot time parameter "readahead="
+> + * or runtime interface "/sys/devices/virtual/bdi/default/read_ahead_kb".
+> + * The latter normally only takes effect in future for hot added devices.
+> + *
+> + * The effective max readahead size for each block device can be accessed with
+> + * 1) the `blockdev` command
+> + * 2) /sys/block/sda/queue/read_ahead_kb
+> + * 3) /sys/devices/virtual/bdi/$(env stat -c '%t:%T' /dev/sda)/read_ahead_kb
+> + *
+> + * They are typically initialized with the global default size, however may be
+> + * auto scaled down for small devices in add_disk(). NFS, software RAID, btrfs
+> + * etc. have special rules to setup their default readahead size.
+> + *
+> + * The mmap read-around size typically equals with readahead size, with an
+> + * extra limit proportional to system memory size.  For example, a 64MB box
+> + * will have a 64KB read-around size limit, 128MB mem => 128KB limit, etc.
+> + */
+> +
 
-Let's put it like this: i'm sure there a myriad different 
-way in all the possible design spaces to change slab to 
-make memory hotadd work.
+Great. I was confused among so many ways to control read ahead size. This
+documentation helps a lot.
 
-Unless someone gives me a strong reason (e.g. code as submitted
-doesn't work or is really unclean) I'm not very motivated to try them
-all (also given that slab.c is really legacy code that will
-hopefully go away at some point).  
+Vivek
 
-Also there are still other bugs to fix in memory hotadd and I'm focussing
- my efforts on that.
-
-I don't think the patches I submitted are particularly intrusive or 
-unclean or broken.
-
-As far as I can see Christoph's proposal was just another way
-to do this, but it wasn't clear to me it was better enough
-in any way to spend significant time on it.
-
-So yes I would prefer if you merged them as submitted just
-to fix the bugs. If someone else comes up with a better way
-to do this and submits patches they could still change
-to that later.
-
-As for the timer race patch: I cannot make a strong
-argument right now that it's needed, on the other hand
-a bit of defensive programming also doesn't hurt. But 
-if that one is not in I won't cry.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+>  #include <linux/kernel.h>
+>  #include <linux/fs.h>
+>  #include <linux/memcontrol.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
