@@ -1,84 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DF7956B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 09:17:50 -0500 (EST)
-Date: Fri, 26 Feb 2010 09:17:40 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH] readahead: add notes on readahead size
-Message-ID: <20100226141740.GB6023@redhat.com>
-References: <20100224031001.026464755@intel.com> <20100224031054.307027163@intel.com> <4B869682.9010709@linux.vnet.ibm.com> <20100226022907.GA22226@localhost> <20100226024837.GA22859@localhost>
-MIME-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F31ED6B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 09:32:43 -0500 (EST)
+Date: Fri, 26 Feb 2010 15:32:32 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: mm: used-once mapped file page detection
+Message-ID: <20100226143232.GA13001@cmpxchg.org>
+References: <1266868150-25984-1-git-send-email-hannes@cmpxchg.org> <20100224133946.a5092804.akpm@linux-foundation.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100226024837.GA22859@localhost>
+In-Reply-To: <20100224133946.a5092804.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jens.axboe@oracle.com>, Matt Mackall <mpm@selenic.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 26, 2010 at 10:48:37AM +0800, Wu Fengguang wrote:
-> > readahead: limit read-ahead size for small memory systems
-> > 
-> > When lifting the default readahead size from 128KB to 512KB,
-> > make sure it won't add memory pressure to small memory systems.
+On Wed, Feb 24, 2010 at 01:39:46PM -0800, Andrew Morton wrote:
+> On Mon, 22 Feb 2010 20:49:07 +0100 Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> btw, I wrote some comments to summarize the now complex readahead size
-> rules..
+> > This patch makes the VM be more careful about activating mapped file
+> > pages in the first place.  The minimum granted lifetime without
+> > another memory access becomes an inactive list cycle instead of the
+> > full memory cycle, which is more natural given the mentioned loads.
 > 
-> ==
-> readahead: add notes on readahead size
+> iirc from a long time ago, the insta-activation of mapped pages was
+> done because people were getting peeved about having their interactive
+> applications (X, browser, etc) getting paged out, and bumping the pages
+> immediately was found to help with this subjective problem.
 > 
-> Basically, currently the default max readahead size
-> - is 512k
-> - is boot time configurable with "readahead="
-> and is auto scaled down:
-> - for small devices
-> - for small memory systems (read-around size alone)
-> 
-> CC: Matt Mackall <mpm@selenic.com>
-> CC: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/readahead.c |   22 ++++++++++++++++++++++
->  1 file changed, 22 insertions(+)
-> 
-> --- linux.orig/mm/readahead.c	2010-02-26 10:11:41.000000000 +0800
-> +++ linux/mm/readahead.c	2010-02-26 10:11:55.000000000 +0800
-> @@ -7,6 +7,28 @@
->   *		Initial version.
->   */
->  
-> +/*
-> + * Notes on readahead size.
-> + *
-> + * The default max readahead size is VM_MAX_READAHEAD=512k,
-> + * which can be changed by user with boot time parameter "readahead="
-> + * or runtime interface "/sys/devices/virtual/bdi/default/read_ahead_kb".
-> + * The latter normally only takes effect in future for hot added devices.
-> + *
-> + * The effective max readahead size for each block device can be accessed with
-> + * 1) the `blockdev` command
-> + * 2) /sys/block/sda/queue/read_ahead_kb
-> + * 3) /sys/devices/virtual/bdi/$(env stat -c '%t:%T' /dev/sda)/read_ahead_kb
-> + *
-> + * They are typically initialized with the global default size, however may be
-> + * auto scaled down for small devices in add_disk(). NFS, software RAID, btrfs
-> + * etc. have special rules to setup their default readahead size.
-> + *
-> + * The mmap read-around size typically equals with readahead size, with an
-> + * extra limit proportional to system memory size.  For example, a 64MB box
-> + * will have a 64KB read-around size limit, 128MB mem => 128KB limit, etc.
-> + */
-> +
+> So it was a latency issue more than a throughput issue.  I wouldn't be
+> surprised if we get some complaints from people for the same reasons as
+> a result of this patch.
 
-Great. I was confused among so many ways to control read ahead size. This
-documentation helps a lot.
+Agreed.  Although we now have other things in place to protect them once
+they are active (VM_EXEC protection, lazy active list scanning).
 
-Vivek
+> I guess that during the evaluation period of this change, it would be
+> useful to have a /proc knob which people can toggle to revert to the
+> old behaviour.  So they can verify that this patchset was indeed the
+> cause of the deterioration, and so they can easily quantify any
+> deterioration?
 
->  #include <linux/kernel.h>
->  #include <linux/fs.h>
->  #include <linux/memcontrol.h>
+Sounds like a good idea.  By evaluation period, do you mean -mm?  Or
+would this knob make it upstream as well?
+
+	Hannes
+
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: vmscan: add sysctl to revert mapped file heuristics
+
+During the evaluation period of the used-once mapped file detection,
+provide a sysctl to disable the heuristics at runtime, allowing users
+to verify it as a source of problems.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/swap.h |    1 +
+ kernel/sysctl.c      |    7 +++++++
+ mm/vmscan.c          |    4 +++-
+ 3 files changed, 11 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index a2602a8..0c1e724 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -254,6 +254,7 @@ extern unsigned long shrink_all_memory(unsigned long nr_pages);
+ extern int vm_swappiness;
+ extern int remove_mapping(struct address_space *mapping, struct page *page);
+ extern long vm_total_pages;
++extern int vm_rigid_filemap_protection;
+ 
+ #ifdef CONFIG_NUMA
+ extern int zone_reclaim_mode;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 8a68b24..9fa46fb 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1050,6 +1050,13 @@ static struct ctl_table vm_table[] = {
+ 		.extra1		= &zero,
+ 		.extra2		= &one_hundred,
+ 	},
++	{
++		.procname	= "rigid_filemap_protection",
++		.data		= &vm_rigid_filemap_protection,
++		.maxlen		= sizeof(vm_rigid_filemap_protection),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	{
+ 		.procname	= "nr_hugepages",
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 819fff7..d494153 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -565,6 +565,8 @@ enum page_references {
+ 	PAGEREF_ACTIVATE,
+ };
+ 
++int vm_rigid_filemap_protection __read_mostly;
++
+ static enum page_references page_check_references(struct page *page,
+ 						  struct scan_control *sc)
+ {
+@@ -586,7 +588,7 @@ static enum page_references page_check_references(struct page *page,
+ 		return PAGEREF_RECLAIM;
+ 
+ 	if (referenced_ptes) {
+-		if (PageAnon(page))
++		if (PageAnon(page) || vm_rigid_filemap_protection)
+ 			return PAGEREF_ACTIVATE;
+ 		/*
+ 		 * All mapped pages start out with page table
+-- 
+1.6.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
