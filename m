@@ -1,24 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id DEE386B004D
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 10:06:21 -0500 (EST)
-Date: Fri, 26 Feb 2010 09:05:48 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-In-Reply-To: <alpine.DEB.2.00.1002260904311.6641@router.home>
-Message-ID: <alpine.DEB.2.00.1002260905280.6641@router.home>
-References: <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box>
- <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box>
- <alpine.DEB.2.00.1002260904311.6641@router.home>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0536E6B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 10:33:19 -0500 (EST)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: Memory management woes - order 1 allocation failures
+Date: Fri, 26 Feb 2010 16:33:16 +0100
+References: <201002261232.28686.elendil@planet.nl> <84144f021002260601o7ab345fer86b8bec12dbfc31e@mail.gmail.com>
+In-Reply-To: <84144f021002260601o7ab345fer86b8bec12dbfc31e@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <201002261633.17437.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
+On Friday 26 February 2010, Pekka Enberg wrote:
+> > Isn't it a bit strange that cache claims so much memory that real
+> > processes get into allocation failures?
+>
+> All of the failed allocations seem to be GFP_ATOMIC so it's not _that_
+> strange.
 
-I mean why the core changes if this is an x86 issue?
+It's still very ugly though. And I would say it should be unnecessary.
+
+> Dunno if anything changed recently. What's the last known good kernel for
+> you? 
+
+I've not used that box very intensively in the past, but I first saw the 
+allocation failure with aptitude with either .31 or .32. I would be 
+extremely surprised if I could reproduce the problem with .30.
+And I have done large rsyncs to the box without any problems in the past, 
+but that must have been with .24 or so kernels.
+
+It seems likely to me that it's related to all the other swap and 
+allocation issues we've been seeing after .30.
+
+Thanks,
+FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
