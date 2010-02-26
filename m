@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CF196B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 18:53:32 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1621B6B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 18:53:35 -0500 (EST)
 Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id o1QNrUGw013943
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:30 -0800
-Received: from pzk16 (pzk16.prod.google.com [10.243.19.144])
-	by kpbe15.cbf.corp.google.com with ESMTP id o1QNpgvG013378
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:29 -0800
-Received: by pzk16 with SMTP id 16so508619pzk.13
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:29 -0800 (PST)
-Date: Fri, 26 Feb 2010 15:53:26 -0800 (PST)
+	by smtp-out.google.com with ESMTP id o1QNrWSY014009
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:33 -0800
+Received: from pvg2 (pvg2.prod.google.com [10.241.210.130])
+	by kpbe15.cbf.corp.google.com with ESMTP id o1QNrVAY015159
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:31 -0800
+Received: by pvg2 with SMTP id 2so189482pvg.16
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:31 -0800 (PST)
+Date: Fri, 26 Feb 2010 15:53:29 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm v2 09/10] oom: remove unnecessary code and cleanup
+Subject: [patch -mm v2 10/10] oom: default to killing current for pagefault
+ ooms
 In-Reply-To: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002261552190.30830@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002261552350.30830@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -23,121 +24,55 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Remove the redundancy in __oom_kill_task() since:
+The pagefault oom handler does not know the context (gfp_mask, order,
+etc) in which memory was not found when a VM_FAULT_OOM is generated.  The
+only information known is that current is trying to allocate in that
+context, so killing it is a legitimate response (and is the default for
+architectures that do not even use the pagefault oom handler such as ia64
+and powerpc).
 
- - init can never be passed to this function: it will never be PF_EXITING
-   or selectable from select_bad_process(), and
+When a VM_FAULT_OOM occurs, the pagefault oom handler will now attempt to
+kill current by default.  If it is unkillable, the oom killer is called
+to find a memory-hogging task to kill instead that will lead to future
+memory freeing.
 
- - it will never be passed a task from oom_kill_task() without an ->mm
-   and we're unconcerned about detachment from exiting tasks, there's no
-   reason to protect them against SIGKILL or access to memory reserves.
-
-Also moves the kernel log message to a higher level since the verbosity
-is not always emitted here; we need not print an error message if an
-exiting task is given a longer timeslice.
-
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   64 ++++++++++++++------------------------------------------
- 1 files changed, 16 insertions(+), 48 deletions(-)
+ mm/oom_kill.c |   18 +++++++++++++-----
+ 1 files changed, 13 insertions(+), 5 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -412,67 +412,35 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- 		dump_tasks(mem);
+@@ -708,15 +708,23 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
  }
  
--#define K(x) ((x) << (PAGE_SHIFT-10))
--
  /*
-- * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
-- * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
-- * set.
-+ * Give the oom killed task high priority and access to memory reserves so that
-+ * it may quickly exit and free its memory.
+- * The pagefault handler calls here because it is out of memory, so kill a
+- * memory-hogging task.  If a populated zone has ZONE_OOM_LOCKED set, a parallel
+- * oom killing is already in progress so do nothing.  If a task is found with
+- * TIF_MEMDIE set, it has been killed so do nothing and allow it to exit.
++ * The pagefault handler calls here because it is out of memory, so kill current
++ * by default.  If it's unkillable, then fallback to killing a memory-hogging
++ * task.  If a populated zone has ZONE_OOM_LOCKED set, a parallel oom killing is
++ * already in progress so do nothing.  If a task is found with TIF_MEMDIE set,
++ * it has been killed so do nothing and allow it to exit.
   */
--static void __oom_kill_task(struct task_struct *p, int verbose)
-+static void __oom_kill_task(struct task_struct *p)
+ void pagefault_out_of_memory(void)
  {
--	if (is_global_init(p)) {
--		WARN_ON(1);
--		printk(KERN_WARNING "tried to kill init!\n");
--		return;
--	}
--
--	task_lock(p);
--	if (!p->mm) {
--		WARN_ON(1);
--		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
--			task_pid_nr(p), p->comm);
--		task_unlock(p);
--		return;
--	}
--
--	if (verbose)
--		printk(KERN_ERR "Killed process %d (%s) "
--		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
--		       task_pid_nr(p), p->comm,
--		       K(p->mm->total_vm),
--		       K(get_mm_counter(p->mm, MM_ANONPAGES)),
--		       K(get_mm_counter(p->mm, MM_FILEPAGES)));
--	task_unlock(p);
--
--	/*
--	 * We give our sacrificial lamb high priority and access to
--	 * all the memory it needs. That way it should be able to
--	 * exit() and clear out its resources quickly...
--	 */
- 	p->rt.time_slice = HZ;
- 	set_tsk_thread_flag(p, TIF_MEMDIE);
--
- 	force_sig(SIGKILL, p);
++	unsigned long totalpages;
++	int err;
++
+ 	if (!try_set_system_oom())
+ 		return;
+-	out_of_memory(NULL, 0, 0, NULL);
++	constrained_alloc(NULL, 0, NULL, &totalpages);
++	err = oom_kill_process(current, 0, 0, 0, totalpages, NULL,
++				"Out of memory (pagefault)");
++	if (err)
++		out_of_memory(NULL, 0, 0, NULL);
+ 	clear_system_oom();
  }
- 
-+#define K(x) ((x) << (PAGE_SHIFT-10))
- static int oom_kill_task(struct task_struct *p)
- {
--	/* WARNING: mm may not be dereferenced since we did not obtain its
--	 * value from get_task_mm(p).  This is OK since all we need to do is
--	 * compare mm to q->mm below.
--	 *
--	 * Furthermore, even if mm contains a non-NULL value, p->mm may
--	 * change to NULL at any time since we do not hold task_lock(p).
--	 * However, this is of no concern to us.
--	 */
--	if (!p->mm || p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-+	task_lock(p);
-+	if (!p->mm || p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-+		task_unlock(p);
- 		return 1;
-+	}
-+	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-+		task_pid_nr(p), p->comm, K(p->mm->total_vm),
-+	       K(get_mm_counter(p->mm, MM_ANONPAGES)),
-+	       K(get_mm_counter(p->mm, MM_FILEPAGES)));
-+	task_unlock(p);
- 
--	__oom_kill_task(p, 1);
--
-+	__oom_kill_task(p);
- 	return 0;
- }
-+#undef K
- 
- static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			    unsigned int points, unsigned long totalpages,
-@@ -491,7 +459,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
- 	 */
- 	if (p->flags & PF_EXITING) {
--		__oom_kill_task(p, 0);
-+		__oom_kill_task(p);
- 		return 0;
- 	}
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
