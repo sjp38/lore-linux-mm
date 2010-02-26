@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id EB0126B0096
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:06 -0500 (EST)
-Received: from int-mx02.intmail.prod.int.phx2.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK9533004864
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 9380E6B0093
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:07 -0500 (EST)
+Received: from int-mx08.intmail.prod.int.phx2.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.21])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK96aA023187
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:05 -0500
-Message-Id: <20100226200903.331170307@redhat.com>
-Date: Fri, 26 Feb 2010 21:05:01 +0100
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:06 -0500
+Message-Id: <20100226200904.224766637@redhat.com>
+Date: Fri, 26 Feb 2010 21:05:06 +0100
 From: aarcange@redhat.com
-Subject: [patch 28/35] adapt to mm_counter in -mm
+Subject: [patch 33/35] memcg huge memory
 References: <20100226200433.516502198@redhat.com>
-Content-Disposition: inline; filename=mm-rss
+Content-Disposition: inline; filename=memcg_huge_memory
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
@@ -19,43 +19,95 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-The interface changed slightly.
+Add memcg charge/uncharge to hugepage faults in huge_memory.c.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- mm/huge_memory.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/huge_memory.c |   30 +++++++++++++++++++++++++-----
+ 1 file changed, 25 insertions(+), 5 deletions(-)
 
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -251,7 +251,7 @@ static int __do_huge_pmd_anonymous_page(
- 		page_add_new_anon_rmap(page, vma, haddr);
- 		set_pmd_at(mm, haddr, pmd, entry);
- 		prepare_pmd_huge_pte(pgtable, mm);
--		add_mm_counter(mm, anon_rss, HPAGE_PMD_NR);
-+		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
+@@ -225,6 +225,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	VM_BUG_ON(!PageCompound(page));
+ 	pgtable = pte_alloc_one(mm, haddr);
+ 	if (unlikely(!pgtable)) {
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		return VM_FAULT_OOM;
+ 	}
+@@ -235,6 +236,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_none(*pmd))) {
  		spin_unlock(&mm->page_table_lock);
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		pte_free(mm, pgtable);
+ 	} else {
+@@ -278,6 +280,10 @@ int do_huge_pmd_anonymous_page(struct mm
+ 		page = alloc_hugepage(transparent_hugepage_defrag(vma));
+ 		if (unlikely(!page))
+ 			goto out;
++		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
++			put_page(page);
++			goto out;
++		}
+ 
+ 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
+ 	}
+@@ -377,9 +383,15 @@ static int do_huge_pmd_wp_page_fallback(
+ 	for (i = 0; i < HPAGE_PMD_NR; i++) {
+ 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+ 					  vma, address);
+-		if (unlikely(!pages[i])) {
+-			while (--i >= 0)
++		if (unlikely(!pages[i] ||
++			     mem_cgroup_newpage_charge(pages[i], mm,
++						       GFP_KERNEL))) {
++			if (pages[i])
++				put_page(pages[i]);
++			while (--i >= 0) {
++				mem_cgroup_uncharge_page(pages[i]);
+ 				put_page(pages[i]);
++			}
+ 			kfree(pages);
+ 			ret |= VM_FAULT_OOM;
+ 			goto out;
+@@ -438,8 +450,10 @@ out:
+ 
+ out_free_pages:
+ 	spin_unlock(&mm->page_table_lock);
+-	for (i = 0; i < HPAGE_PMD_NR; i++)
++	for (i = 0; i < HPAGE_PMD_NR; i++) {
++		mem_cgroup_uncharge_page(pages[i]);
+ 		put_page(pages[i]);
++	}
+ 	kfree(pages);
+ 	goto out;
+ }
+@@ -482,13 +496,19 @@ int do_huge_pmd_wp_page(struct mm_struct
+ 		goto out;
  	}
  
-@@ -321,7 +321,7 @@ int copy_huge_pmd(struct mm_struct *dst_
- 	VM_BUG_ON(!PageHead(src_page));
- 	get_page(src_page);
- 	page_dup_rmap(src_page);
--	add_mm_counter(dst_mm, anon_rss, HPAGE_PMD_NR);
-+	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
++	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
++		put_page(new_page);
++		ret |= VM_FAULT_OOM;
++		goto out;
++	}
+ 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
  
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
-@@ -562,7 +562,7 @@ int zap_huge_pmd(struct mmu_gather *tlb,
- 			pmd_clear(pmd);
- 			page_remove_rmap(page);
- 			VM_BUG_ON(page_mapcount(page) < 0);
--			add_mm_counter(tlb->mm, anon_rss, -HPAGE_PMD_NR);
-+			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
- 			spin_unlock(&tlb->mm->page_table_lock);
- 			VM_BUG_ON(!PageHead(page));
- 			tlb_remove_page(tlb, page);
+ 	spin_lock(&mm->page_table_lock);
+-	if (unlikely(!pmd_same(*pmd, orig_pmd)))
++	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
++		mem_cgroup_uncharge_page(new_page);
+ 		put_page(new_page);
+-	else {
++	} else {
+ 		pmd_t entry;
+ 		entry = mk_pmd(new_page, vma->vm_page_prot);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
