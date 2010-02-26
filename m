@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4866F6B008C
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id AC0756B007D
 	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:06 -0500 (EST)
-Received: from int-mx08.intmail.prod.int.phx2.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.21])
-	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK941g028006
+Received: from int-mx05.intmail.prod.int.phx2.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.18])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK95sR001277
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:04 -0500
-Message-Id: <20100226200903.521314484@redhat.com>
-Date: Fri, 26 Feb 2010 21:05:02 +0100
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:05 -0500
+Message-Id: <20100226200903.710125544@redhat.com>
+Date: Fri, 26 Feb 2010 21:05:03 +0100
 From: aarcange@redhat.com
-Subject: [patch 29/35] verify pmd_trans_huge isnt leaking
+Subject: [patch 30/35] madvise(MADV_HUGEPAGE)
 References: <20100226200433.516502198@redhat.com>
-Content-Disposition: inline; filename=debug_pte_trans_huge
+Content-Disposition: inline; filename=madv_hugepage
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
@@ -19,53 +19,86 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-pte_trans_huge must not leak in certain vmas like the mmio special pfn or
-filebacked mappings.
+Add madvise MADV_HUGEPAGE to mark regions that are important to be hugepage
+backed. Return -EINVAL if the vma is not of an anonymous type, or the feature
+isn't built into the kernel. Never silently return success.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- mm/memory.c |    7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ include/linux/huge_mm.h |    6 ++++++
+ mm/huge_memory.c        |   16 ++++++++++++++++
+ mm/madvise.c            |    8 ++++++++
+ 3 files changed, 30 insertions(+)
 
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1423,6 +1423,7 @@ int __get_user_pages(struct task_struct 
- 			pmd = pmd_offset(pud, pg);
- 			if (pmd_none(*pmd))
- 				return i ? : -EFAULT;
-+			VM_BUG_ON(pmd_trans_huge(*pmd));
- 			pte = pte_offset_map(pmd, pg);
- 			if (pte_none(*pte)) {
- 				pte_unmap(pte);
-@@ -1624,8 +1625,10 @@ pte_t *get_locked_pte(struct mm_struct *
- 	pud_t * pud = pud_alloc(mm, pgd, addr);
- 	if (pud) {
- 		pmd_t * pmd = pmd_alloc(mm, pud, addr);
--		if (pmd)
-+		if (pmd) {
-+			VM_BUG_ON(pmd_trans_huge(*pmd));
- 			return pte_alloc_map_lock(mm, pmd, addr, ptl);
-+		}
- 	}
- 	return NULL;
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -107,6 +107,7 @@ extern int split_huge_page(struct page *
+ #endif
+ 
+ extern unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
++extern int hugepage_madvise(unsigned long *vm_flags);
+ static inline int PageTransHuge(struct page *page)
+ {
+ 	VM_BUG_ON(PageTail(page));
+@@ -131,6 +132,11 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++static inline int hugepage_madvise(unsigned long *vm_flags)
++{
++	BUG_ON(0);
++	return 0;
++}
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+ #endif /* _LINUX_HUGE_MM_H */
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -856,3 +856,19 @@ out_unlock:
+ out:
+ 	return ret;
  }
-@@ -1844,6 +1847,7 @@ static inline int remap_pmd_range(struct
- 	pmd = pmd_alloc(mm, pud, addr);
- 	if (!pmd)
- 		return -ENOMEM;
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	do {
- 		next = pmd_addr_end(addr, end);
- 		if (remap_pte_range(mm, pmd, addr, next,
-@@ -3319,6 +3323,7 @@ static int follow_pte(struct mm_struct *
- 		goto out;
++
++int hugepage_madvise(unsigned long *vm_flags)
++{
++	/*
++	 * Be somewhat over-protective like KSM for now!
++	 */
++	if (*vm_flags & (VM_HUGEPAGE | VM_SHARED  | VM_MAYSHARE   |
++			 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
++			 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
++			 VM_MIXEDMAP | VM_SAO))
++		return -EINVAL;
++
++	*vm_flags |= VM_HUGEPAGE;
++
++	return 0;
++}
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -71,6 +71,11 @@ static long madvise_behavior(struct vm_a
+ 		if (error)
+ 			goto out;
+ 		break;
++	case MADV_HUGEPAGE:
++		error = hugepage_madvise(&new_flags);
++		if (error)
++			goto out;
++		break;
+ 	}
  
- 	pmd = pmd_offset(pud, address);
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
- 		goto out;
+ 	if (new_flags == vma->vm_flags) {
+@@ -283,6 +288,9 @@ madvise_behavior_valid(int behavior)
+ 	case MADV_MERGEABLE:
+ 	case MADV_UNMERGEABLE:
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	case MADV_HUGEPAGE:
++#endif
+ 		return 1;
  
+ 	default:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
