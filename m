@@ -1,155 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0BC976B00A6
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:26 -0500 (EST)
-Message-Id: <20100226200901.604212423@redhat.com>
-Date: Fri, 26 Feb 2010 21:04:50 +0100
+	by kanga.kvack.org (Postfix) with SMTP id B70556B0093
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:27 -0500 (EST)
+Message-Id: <20100226200859.425316472@redhat.com>
+Date: Fri, 26 Feb 2010 21:04:37 +0100
 From: aarcange@redhat.com
-Subject: [patch 17/35] pte alloc trans splitting
+Subject: [patch 04/35] update futex compound knowledge
 References: <20100226200433.516502198@redhat.com>
-Content-Disposition: inline; filename=pte_alloc_trans_splitting
+Content-Disposition: inline; filename=compound_futex
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-pte alloc routines must wait for split_huge_page if the pmd is not
-present and not null (i.e. pmd_trans_splitting). The additional
-branches are optimized away at compile time by pmd_trans_splitting if
-the config option is off. However we must pass the vma down in order
-to know the anon_vma lock to wait for.
+Futex code is smarter than most other gup_fast O_DIRECT code and knows about
+the compound internals. However now doing a put_page(head_page) will not
+release the pin on the tail page taken by gup-fast, leading to all sort of
+refcounting bugchecks. Getting a stable head_page is a little tricky.
+
+page_head = page is there because if this is not a tail page it's also the
+page_head. Only in case this is a tail page, compound_head is called, otherwise
+it's guaranteed unnecessary. And if it's a tail page compound_head has to run
+atomically inside irq disabled section __get_user_pages_fast before returning.
+Otherwise ->first_page won't be a stable pointer.
+
+Disableing irq before __get_user_page_fast and releasing irq after running
+compound_head is needed because if __get_user_page_fast returns == 1, it means
+the huge pmd is established and cannot go away from under us.
+pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
+for local_irq_enable before the IPI delivery can return. This means
+__split_huge_page_refcount can't be running from under us, and in turn when we
+run compound_head(page) we're not reading a dangling pointer from
+tailpage->first_page. Then after we get to stable head page, we are always safe
+to call compound_lock and after taking the compound lock on head page we can
+finally re-check if the page returned by gup-fast is still a tail page. in
+which case we're set and we didn't need to split the hugepage in order to take
+a futex on it.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/mm.h |   13 ++++++++-----
- mm/memory.c        |   19 +++++++++++++------
- mm/mremap.c        |    7 ++++---
- 3 files changed, 25 insertions(+), 14 deletions(-)
+ kernel/futex.c |   67 +++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 58 insertions(+), 9 deletions(-)
 
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1062,7 +1062,8 @@ static inline int __pmd_alloc(struct mm_
- int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
- #endif
- 
--int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
-+int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-+		pmd_t *pmd, unsigned long address);
- int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
- 
- /*
-@@ -1131,12 +1132,14 @@ static inline void pgtable_page_dtor(str
- 	pte_unmap(pte);					\
- } while (0)
- 
--#define pte_alloc_map(mm, pmd, address)			\
--	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
--		NULL: pte_offset_map(pmd, address))
-+#define pte_alloc_map(mm, vma, pmd, address)				\
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, vma,	\
-+							pmd, address))?	\
-+	 NULL: pte_offset_map(pmd, address))
- 
- #define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
--	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, NULL,	\
-+							pmd, address))?	\
- 		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
- 
- #define pte_alloc_kernel(pmd, address)			\
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -398,9 +398,11 @@ void free_pgtables(struct mmu_gather *tl
- 	}
- }
- 
--int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
-+int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-+		pmd_t *pmd, unsigned long address)
+--- a/kernel/futex.c
++++ b/kernel/futex.c
+@@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
  {
- 	pgtable_t new = pte_alloc_one(mm, address);
-+	int wait_split_huge_page;
- 	if (!new)
- 		return -ENOMEM;
+ 	unsigned long address = (unsigned long)uaddr;
+ 	struct mm_struct *mm = current->mm;
+-	struct page *page;
++	struct page *page, *page_head;
+ 	int err;
  
-@@ -420,14 +422,18 @@ int __pte_alloc(struct mm_struct *mm, pm
- 	smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
+ 	/*
+@@ -250,10 +250,53 @@ again:
+ 	if (err < 0)
+ 		return err;
  
- 	spin_lock(&mm->page_table_lock);
--	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
-+	wait_split_huge_page = 0;
-+	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
- 		mm->nr_ptes++;
- 		pmd_populate(mm, pmd, new);
- 		new = NULL;
--	}
-+	} else if (unlikely(pmd_trans_splitting(*pmd)))
-+		wait_split_huge_page = 1;
- 	spin_unlock(&mm->page_table_lock);
- 	if (new)
- 		pte_free(mm, new);
-+	if (wait_split_huge_page)
-+		wait_split_huge_page(vma->anon_vma, pmd);
+-	page = compound_head(page);
+-	lock_page(page);
+-	if (!page->mapping) {
+-		unlock_page(page);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	page_head = page;
++	if (unlikely(PageTail(page))) {
++		put_page(page);
++		/* serialize against __split_huge_page_splitting() */
++		local_irq_disable();
++		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
++			page_head = compound_head(page);
++			/*
++			 * page_head is valid pointer but we must pin
++			 * it before taking the PG_lock and/or
++			 * PG_compound_lock. The moment we re-enable
++			 * irqs __split_huge_page_splitting() can
++			 * return and the head page can be freed from
++			 * under us. We can't take the PG_lock and/or
++			 * PG_compound_lock on a page that could be
++			 * freed from under us.
++			 */
++			if (page != page_head)
++				get_page(page_head);
++			local_irq_enable();
++		} else {
++			local_irq_enable();
++			goto again;
++		}
++	}
++#else
++	page_head = compound_head(page);
++	if (page != page_head)
++		get_page(page_head);
++#endif
++
++	lock_page(page_head);
++	if (unlikely(page_head != page)) {
++		compound_lock(page_head);
++		if (unlikely(!PageTail(page))) {
++			compound_unlock(page_head);
++			unlock_page(page_head);
++			put_page(page_head);
++			put_page(page);
++			goto again;
++		}
++	}
++	if (!page_head->mapping) {
++		unlock_page(page_head);
++		if (page_head != page)
++			put_page(page_head);
+ 		put_page(page);
+ 		goto again;
+ 	}
+@@ -265,19 +308,25 @@ again:
+ 	 * it's a read-only handle, it's expected that futexes attach to
+ 	 * the object not the particular process.
+ 	 */
+-	if (PageAnon(page)) {
++	if (PageAnon(page_head)) {
+ 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
+ 		key->private.mm = mm;
+ 		key->private.address = address;
+ 	} else {
+ 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+-		key->shared.inode = page->mapping->host;
+-		key->shared.pgoff = page->index;
++		key->shared.inode = page_head->mapping->host;
++		key->shared.pgoff = page_head->index;
+ 	}
+ 
+ 	get_futex_key_refs(key);
+ 
+-	unlock_page(page);
++	unlock_page(page_head);
++	if (page != page_head) {
++		VM_BUG_ON(!PageTail(page));
++		/* releasing compound_lock after page_lock won't matter */
++		compound_unlock(page_head);
++		put_page(page_head);
++	}
+ 	put_page(page);
  	return 0;
  }
- 
-@@ -440,10 +446,11 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
- 	smp_wmb(); /* See comment in __pte_alloc */
- 
- 	spin_lock(&init_mm.page_table_lock);
--	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
-+	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
- 		pmd_populate_kernel(&init_mm, pmd, new);
- 		new = NULL;
--	}
-+	} else
-+		VM_BUG_ON(pmd_trans_splitting(*pmd));
- 	spin_unlock(&init_mm.page_table_lock);
- 	if (new)
- 		pte_free_kernel(&init_mm, new);
-@@ -3121,7 +3128,7 @@ int handle_mm_fault(struct mm_struct *mm
- 	pmd = pmd_alloc(mm, pud, address);
- 	if (!pmd)
- 		return VM_FAULT_OOM;
--	pte = pte_alloc_map(mm, pmd, address);
-+	pte = pte_alloc_map(mm, vma, pmd, address);
- 	if (!pte)
- 		return VM_FAULT_OOM;
- 
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -48,7 +48,8 @@ static pmd_t *get_old_pmd(struct mm_stru
- 	return pmd;
- }
- 
--static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
-+static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
-+			    unsigned long addr)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-@@ -63,7 +64,7 @@ static pmd_t *alloc_new_pmd(struct mm_st
- 	if (!pmd)
- 		return NULL;
- 
--	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
-+	if (!pmd_present(*pmd) && __pte_alloc(mm, vma, pmd, addr))
- 		return NULL;
- 
- 	return pmd;
-@@ -148,7 +149,7 @@ unsigned long move_page_tables(struct vm
- 		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
- 		if (!old_pmd)
- 			continue;
--		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
-+		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
- 		if (!new_pmd)
- 			break;
- 		next = (new_addr + PMD_SIZE) & PMD_MASK;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
