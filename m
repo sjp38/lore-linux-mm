@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7456F6B0078
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D05E66B004D
 	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:02 -0500 (EST)
-Received: from int-mx04.intmail.prod.int.phx2.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.17])
-	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK90B5016365
+Received: from int-mx01.intmail.prod.int.phx2.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK91pK004844
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:00 -0500
-Message-Id: <20100226200859.012738067@redhat.com>
-Date: Fri, 26 Feb 2010 21:04:35 +0100
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:01 -0500
+Message-Id: <20100226200859.159424521@redhat.com>
+Date: Fri, 26 Feb 2010 21:04:36 +0100
 From: aarcange@redhat.com
-Subject: [patch 02/35] compound_lock
+Subject: [patch 03/35] alter compound get_page/put_page
 References: <20100226200433.516502198@redhat.com>
-Content-Disposition: inline; filename=compound_lock
+Content-Disposition: inline; filename=compound_get_put
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
@@ -19,82 +19,197 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add a new compound_lock() needed to serialize put_page against
-__split_huge_page_refcount().
+Alter compound get_page/put_page to keep references on subpages too, in order
+to allow __split_huge_page_refcount to split an hugepage even while subpages
+have been pinned by one of the get_user_pages() variants.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/mm.h         |   15 +++++++++++++++
- include/linux/page-flags.h |   12 +++++++++++-
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ arch/powerpc/mm/gup.c |   12 +++++++
+ arch/x86/mm/gup.c     |   12 +++++++
+ include/linux/mm.h    |   12 ++++++-
+ mm/swap.c             |   79 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 4 files changed, 106 insertions(+), 9 deletions(-)
 
+--- a/arch/powerpc/mm/gup.c
++++ b/arch/powerpc/mm/gup.c
+@@ -16,6 +16,16 @@
+ 
+ #ifdef __HAVE_ARCH_PTE_SPECIAL
+ 
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
++
+ /*
+  * The performance critical leaf functions are made noinline otherwise gcc
+  * inlines everything into a single function which results in too much
+@@ -47,6 +57,8 @@ static noinline int gup_pte_range(pmd_t 
+ 			put_page(page);
+ 			return 0;
+ 		}
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		pages[*nr] = page;
+ 		(*nr)++;
+ 
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -105,6 +105,16 @@ static inline void get_head_page_multipl
+ 	atomic_add(nr, &page->_count);
+ }
+ 
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
++
+ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+@@ -128,6 +138,8 @@ static noinline int gup_huge_pmd(pmd_t p
+ 	do {
+ 		VM_BUG_ON(compound_head(page) != head);
+ 		pages[*nr] = page;
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		(*nr)++;
+ 		page++;
+ 		refs++;
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -12,6 +12,7 @@
- #include <linux/prio_tree.h>
- #include <linux/debug_locks.h>
- #include <linux/mm_types.h>
-+#include <linux/bit_spinlock.h>
+@@ -325,9 +325,17 @@ static inline int page_count(struct page
  
- struct mempolicy;
- struct anon_vma;
-@@ -296,6 +297,20 @@ static inline int is_vmalloc_or_module_a
- }
- #endif
- 
-+static inline void compound_lock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_lock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
-+static inline void compound_unlock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_unlock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
- static inline struct page *compound_head(struct page *page)
+ static inline void get_page(struct page *page)
  {
- 	if (unlikely(PageTail(page)))
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -108,6 +108,9 @@ enum pageflags {
- #ifdef CONFIG_MEMORY_FAILURE
- 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	PG_compound_lock,
-+#endif
- 	__NR_PAGEFLAGS,
+-	page = compound_head(page);
+-	VM_BUG_ON(atomic_read(&page->_count) == 0);
++	VM_BUG_ON(atomic_read(&page->_count) < !PageTail(page));
+ 	atomic_inc(&page->_count);
++	if (unlikely(PageTail(page))) {
++		/*
++		 * This is safe only because
++		 * __split_huge_page_refcount can't run under
++		 * get_page().
++		 */
++		VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
++		atomic_inc(&page->first_page->_count);
++	}
+ }
  
- 	/* Filesystems */
-@@ -399,6 +402,12 @@ static inline void __ClearPageTail(struc
- #define __PG_MLOCKED		0
- #endif
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
-+#else
-+#define __PG_COMPOUND_LOCK		0
-+#endif
+ static inline struct page *virt_to_head_page(const void *x)
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -55,17 +55,82 @@ static void __page_cache_release(struct 
+ 		del_page_from_lru(zone, page);
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
++}
 +
- /*
-  * Flags checked when a page is freed.  Pages being freed should not have
-  * these flags set.  It they are, there is a problem.
-@@ -408,7 +417,8 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
-+	 __PG_COMPOUND_LOCK)
++static void __put_single_page(struct page *page)
++{
++	__page_cache_release(page);
+ 	free_hot_cold_page(page, 0);
+ }
  
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
+-static void put_compound_page(struct page *page)
++static void __put_compound_page(struct page *page)
+ {
+-	page = compound_head(page);
+-	if (put_page_testzero(page)) {
+-		compound_page_dtor *dtor;
++	compound_page_dtor *dtor;
++
++	__page_cache_release(page);
++	dtor = get_compound_page_dtor(page);
++	(*dtor)(page);
++}
+ 
+-		dtor = get_compound_page_dtor(page);
+-		(*dtor)(page);
++static void put_compound_page(struct page *page)
++{
++	if (unlikely(PageTail(page))) {
++		/* __split_huge_page_refcount can run under us */
++		struct page *page_head = page->first_page;
++		smp_rmb();
++		if (likely(PageTail(page) && get_page_unless_zero(page_head))) {
++			if (unlikely(!PageHead(page_head))) {
++				/* PageHead is cleared after PageTail */
++				smp_rmb();
++				VM_BUG_ON(PageTail(page));
++				goto out_put_head;
++			}
++			/*
++			 * Only run compound_lock on a valid PageHead,
++			 * after having it pinned with
++			 * get_page_unless_zero() above.
++			 */
++			smp_mb();
++			/* page_head wasn't a dangling pointer */
++			compound_lock(page_head);
++			if (unlikely(!PageTail(page))) {
++				/* __split_huge_page_refcount run before us */
++				compound_unlock(page_head);
++				VM_BUG_ON(PageHead(page_head));
++			out_put_head:
++				if (put_page_testzero(page_head))
++					__put_single_page(page_head);
++			out_put_single:
++				if (put_page_testzero(page))
++					__put_single_page(page);
++				return;
++			}
++			VM_BUG_ON(page_head != page->first_page);
++			/*
++			 * We can release the refcount taken by
++			 * get_page_unless_zero now that
++			 * split_huge_page_refcount is blocked on the
++			 * compound_lock.
++			 */
++			if (put_page_testzero(page_head))
++				VM_BUG_ON(1);
++			/* __split_huge_page_refcount will wait now */
++			VM_BUG_ON(atomic_read(&page->_count) <= 0);
++			atomic_dec(&page->_count);
++			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
++			compound_unlock(page_head);
++			if (put_page_testzero(page_head))
++				__put_compound_page(page_head);
++		} else {
++			/* page_head is a dangling pointer */
++			VM_BUG_ON(PageTail(page));
++			goto out_put_single;
++		}
++	} else if (put_page_testzero(page)) {
++		if (PageHead(page))
++			__put_compound_page(page);
++		else
++			__put_single_page(page);
+ 	}
+ }
+ 
+@@ -74,7 +139,7 @@ void put_page(struct page *page)
+ 	if (unlikely(PageCompound(page)))
+ 		put_compound_page(page);
+ 	else if (put_page_testzero(page))
+-		__page_cache_release(page);
++		__put_single_page(page);
+ }
+ EXPORT_SYMBOL(put_page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
