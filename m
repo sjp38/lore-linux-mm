@@ -1,151 +1,286 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 23B656B007E
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 02:49:19 -0500 (EST)
-Date: Fri, 26 Feb 2010 15:49:16 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [RFC] nfs: use 4*rsize readahead size
-Message-ID: <20100226074916.GA8545@localhost>
-References: <20100224024100.GA17048@localhost> <20100224032934.GF16175@discord.disaster> <20100224041822.GB27459@localhost> <20100224052215.GH16175@discord.disaster> <20100224061247.GA8421@localhost> <20100224073940.GJ16175@discord.disaster>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id BE3FC6B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 03:56:34 -0500 (EST)
+Received: by fxm22 with SMTP id 22so7754716fxm.6
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2010 00:56:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100224073940.GJ16175@discord.disaster>
+In-Reply-To: <1267166172-14059-1-git-send-email-dmonakhov@openvz.org>
+References: <1267166172-14059-1-git-send-email-dmonakhov@openvz.org>
+Date: Fri, 26 Feb 2010 10:56:31 +0200
+Message-ID: <84144f021002260056g68e25ecer1dd826ecc5d42a56@mail.gmail.com>
+Subject: Re: [PATCH] failslab: add ability to filter slab caches [v3]
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dmitry Monakhov <dmonakhov@openvz.org>
+Cc: linux-mm@kvack.org, cl@linux-foundation.org, rientjes@google.com, akinobu.mita@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 24, 2010 at 03:39:40PM +0800, Dave Chinner wrote:
-> On Wed, Feb 24, 2010 at 02:12:47PM +0800, Wu Fengguang wrote:
-> > On Wed, Feb 24, 2010 at 01:22:15PM +0800, Dave Chinner wrote:
-> > > What I'm trying to say is that while I agree with your premise that
-> > > a 7.8MB readahead window is probably far larger than was ever
-> > > intended, I disagree with your methodology and environment for
-> > > selecting a better default value.  The default readahead value needs
-> > > to work well in as many situations as possible, not just in perfect
-> > > 1:1 client/server environment.
-> > 
-> > Good points. It's imprudent to change a default value based on one
-> > single benchmark. Need to collect more data, which may take time..
-> 
-> Agreed - better to spend time now to get it right...
+On Fri, Feb 26, 2010 at 8:36 AM, Dmitry Monakhov <dmonakhov@openvz.org> wro=
+te:
+> This patch allow to inject faults only for specific slabs.
+> In order to preserve default behavior cache filter is off by
+> default (all caches are faulty).
+>
+> One may define specific set of slabs like this:
+> # mark skbuff_head_cache as faulty
+> echo 1 > /sys/kernel/slab/skbuff_head_cache/failslab
+> # Turn on cache filter (off by default)
+> echo 1 > /sys/kernel/debug/failslab/cache-filter
+> # Turn on fault injection
+> echo 1 > /sys/kernel/debug/failslab/times
+> echo 1 > /sys/kernel/debug/failslab/probability
+>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
 
-I collected more data with large network latency as well as rsize=32k,
-and updates the readahead size accordingly to 4*rsize.
+Lets CC the failslab author as well for ACKs.
 
-===
-nfs: use 2*rsize readahead size
-
-With default rsize=512k and NFS_MAX_READAHEAD=15, the current NFS
-readahead size 512k*15=7680k is too large than necessary for typical
-clients.
-
-On a e1000e--e1000e connection, I got the following numbers
-(this reads sparse file from server and involves no disk IO)
-
-readahead size	normal		1ms+1ms		5ms+5ms		10ms+10ms(*)
-	   16k	35.5 MB/s	 4.8 MB/s 	 2.1 MB/s 	1.2 MB/s
-	   32k	54.3 MB/s	 6.7 MB/s 	 3.6 MB/s       2.3 MB/s
-	   64k	64.1 MB/s	12.6 MB/s	 6.5 MB/s       4.7 MB/s
-	  128k	70.5 MB/s	20.1 MB/s	11.9 MB/s       8.7 MB/s
-	  256k	74.6 MB/s	38.6 MB/s	21.3 MB/s      15.0 MB/s
-rsize ==> 512k	77.4 MB/s	59.4 MB/s	39.8 MB/s      25.5 MB/s
-	 1024k	85.5 MB/s	77.9 MB/s	65.7 MB/s      43.0 MB/s
-	 2048k	86.8 MB/s	81.5 MB/s	84.1 MB/s      59.7 MB/s
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	 4096k	87.9 MB/s	77.4 MB/s	56.2 MB/s      59.2 MB/s
-	 8192k	89.0 MB/s	81.2 MB/s	78.0 MB/s      41.2 MB/s
-	16384k	87.7 MB/s	85.8 MB/s	62.0 MB/s      56.5 MB/s
-
-readahead size	normal		1ms+1ms		5ms+5ms		10ms+10ms(*)
-	   16k	37.2 MB/s	 6.4 MB/s	 2.1 MB/s	 1.2 MB/s
-rsize ==>  32k	56.6 MB/s        6.8 MB/s        3.6 MB/s        2.3 MB/s
-	   64k	66.1 MB/s       12.7 MB/s        6.6 MB/s        4.7 MB/s
-	  128k	69.3 MB/s       22.0 MB/s       12.2 MB/s        8.9 MB/s
-	  256k	69.6 MB/s       41.8 MB/s       20.7 MB/s       14.7 MB/s
-	  512k	71.3 MB/s       54.1 MB/s       25.0 MB/s       16.9 MB/s
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	 1024k	71.5 MB/s       48.4 MB/s       26.0 MB/s       16.7 MB/s
-	 2048k	71.7 MB/s       53.2 MB/s       25.3 MB/s       17.6 MB/s
-	 4096k	71.5 MB/s       50.4 MB/s       25.7 MB/s       17.1 MB/s
-	 8192k	71.1 MB/s       52.3 MB/s       26.3 MB/s       16.9 MB/s
-	16384k	70.2 MB/s       56.6 MB/s       27.0 MB/s       16.8 MB/s
-
-(*) 10ms+10ms means to add delay on both client & server sides with
-    # /sbin/tc qdisc change dev eth0 root netem delay 10ms 
-    The total >=20ms delay is so large for NFS, that a simple `vi some.sh`
-    command takes a dozen seconds. Note that the actual delay reported
-    by ping is larger, eg. for the 1ms+1ms case:
-        rtt min/avg/max/mdev = 7.361/8.325/9.710/0.837 ms
-    
-
-So it seems that readahead_size=4*rsize (ie. keep 4 RPC requests in
-flight) is able to get near full NFS bandwidth. Reducing the mulriple
-from 15 to 4 not only makes the client side readahead size more sane
-(2MB by default), but also reduces the disorderness of the server side
-RPC read requests, which yeilds better server side readahead behavior.
-
-To avoid small readahead when the client mount with "-o rsize=32k" or
-the server only supports rsize <= 32k, we take the max of 2*rsize and
-default_backing_dev_info.ra_pages. The latter defaults to 512K, and can
-be explicitly changed by user with kernel parameter "readahead=" and
-runtime tunable "/sys/devices/virtual/bdi/default/read_ahead_kb" (which
-takes effective for future NFS mounts).
-
-The test script is:
-
-#!/bin/sh
-
-file=/mnt/sparse
-BDI=0:15
-
-for rasize in 16 32 64 128 256 512 1024 2048 4096 8192 16384
-do
-	echo 3 > /proc/sys/vm/drop_caches
-	echo $rasize > /sys/devices/virtual/bdi/$BDI/read_ahead_kb
-	echo readahead_size=${rasize}k
-	dd if=$file of=/dev/null bs=4k count=1024000
-done
-
-CC: Dave Chinner <david@fromorbit.com> 
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/nfs/client.c   |    4 +++-
- fs/nfs/internal.h |    8 --------
- 2 files changed, 3 insertions(+), 9 deletions(-)
-
---- linux.orig/fs/nfs/client.c	2010-02-26 10:10:46.000000000 +0800
-+++ linux/fs/nfs/client.c	2010-02-26 11:07:22.000000000 +0800
-@@ -889,7 +889,9 @@ static void nfs_server_set_fsinfo(struct
- 	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
- 
- 	server->backing_dev_info.name = "nfs";
--	server->backing_dev_info.ra_pages = server->rpages * NFS_MAX_READAHEAD;
-+	server->backing_dev_info.ra_pages = max_t(unsigned long,
-+					      default_backing_dev_info.ra_pages,
-+					      4 * server->rpages);
- 	server->backing_dev_info.capabilities |= BDI_CAP_ACCT_UNSTABLE;
- 
- 	if (server->wsize > max_rpc_payload)
---- linux.orig/fs/nfs/internal.h	2010-02-26 10:10:46.000000000 +0800
-+++ linux/fs/nfs/internal.h	2010-02-26 11:07:07.000000000 +0800
-@@ -10,14 +10,6 @@
- 
- struct nfs_string;
- 
--/* Maximum number of readahead requests
-- * FIXME: this should really be a sysctl so that users may tune it to suit
-- *        their needs. People that do NFS over a slow network, might for
-- *        instance want to reduce it to something closer to 1 for improved
-- *        interactive response.
-- */
--#define NFS_MAX_READAHEAD	(RPC_DEF_SLOT_TABLE - 1)
--
- /*
-  * Determine if sessions are in use.
-  */
+> ---
+> =A0Documentation/vm/slub.txt =A0 =A0| =A0 =A01 +
+> =A0include/linux/fault-inject.h | =A0 =A05 +++--
+> =A0include/linux/slab.h =A0 =A0 =A0 =A0 | =A0 =A05 +++++
+> =A0mm/failslab.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 18 +++++++++++++++-=
+--
+> =A0mm/slab.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A02 +-
+> =A0mm/slub.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 29 ++++++++++++=
++++++++++++++++--
+> =A06 files changed, 52 insertions(+), 8 deletions(-)
+>
+> diff --git a/Documentation/vm/slub.txt b/Documentation/vm/slub.txt
+> index b37300e..07375e7 100644
+> --- a/Documentation/vm/slub.txt
+> +++ b/Documentation/vm/slub.txt
+> @@ -41,6 +41,7 @@ Possible debug options are
+> =A0 =A0 =A0 =A0P =A0 =A0 =A0 =A0 =A0 =A0 =A0 Poisoning (object and paddin=
+g)
+> =A0 =A0 =A0 =A0U =A0 =A0 =A0 =A0 =A0 =A0 =A0 User tracking (free and allo=
+c)
+> =A0 =A0 =A0 =A0T =A0 =A0 =A0 =A0 =A0 =A0 =A0 Trace (please only use on si=
+ngle slabs)
+> + =A0 =A0 =A0 A =A0 =A0 =A0 =A0 =A0 =A0 =A0 Toggle failslab filter mark f=
+or the cache
+> =A0 =A0 =A0 =A0O =A0 =A0 =A0 =A0 =A0 =A0 =A0 Switch debugging off for cac=
+hes that would have
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0caused higher minimum slab=
+ orders
+> =A0 =A0 =A0 =A0- =A0 =A0 =A0 =A0 =A0 =A0 =A0 Switch all debugging off (us=
+eful if the kernel is
+> diff --git a/include/linux/fault-inject.h b/include/linux/fault-inject.h
+> index 06ca9b2..7b64ad4 100644
+> --- a/include/linux/fault-inject.h
+> +++ b/include/linux/fault-inject.h
+> @@ -82,9 +82,10 @@ static inline void cleanup_fault_attr_dentries(struct =
+fault_attr *attr)
+> =A0#endif /* CONFIG_FAULT_INJECTION */
+>
+> =A0#ifdef CONFIG_FAILSLAB
+> -extern bool should_failslab(size_t size, gfp_t gfpflags);
+> +extern bool should_failslab(size_t size, gfp_t gfpflags, unsigned long f=
+lags);
+> =A0#else
+> -static inline bool should_failslab(size_t size, gfp_t gfpflags)
+> +static inline bool should_failslab(size_t size, gfp_t gfpflags,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned lo=
+ng flags)
+> =A0{
+> =A0 =A0 =A0 =A0return false;
+> =A0}
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 2da8372..4884462 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -70,6 +70,11 @@
+> =A0#else
+> =A0# define SLAB_NOTRACK =A0 =A0 =A0 =A0 =A00x00000000UL
+> =A0#endif
+> +#ifdef CONFIG_FAILSLAB
+> +# define SLAB_FAILSLAB =A0 =A0 =A0 =A0 0x02000000UL =A0 =A0/* Fault inje=
+ction mark */
+> +#else
+> +# define SLAB_FAILSLAB =A0 =A0 =A0 =A0 0x00000000UL
+> +#endif
+>
+> =A0/* The following flags affect the page allocator grouping pages by mob=
+ility */
+> =A0#define SLAB_RECLAIM_ACCOUNT =A0 0x00020000UL =A0 =A0 =A0 =A0 =A0 =A0/=
+* Objects are reclaimable */
+> diff --git a/mm/failslab.c b/mm/failslab.c
+> index 9339de5..bb41f98 100644
+> --- a/mm/failslab.c
+> +++ b/mm/failslab.c
+> @@ -1,18 +1,22 @@
+> =A0#include <linux/fault-inject.h>
+> =A0#include <linux/gfp.h>
+> +#include <linux/slab.h>
+>
+> =A0static struct {
+> =A0 =A0 =A0 =A0struct fault_attr attr;
+> =A0 =A0 =A0 =A0u32 ignore_gfp_wait;
+> + =A0 =A0 =A0 int cache_filter;
+> =A0#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+> =A0 =A0 =A0 =A0struct dentry *ignore_gfp_wait_file;
+> + =A0 =A0 =A0 struct dentry *cache_filter_file;
+> =A0#endif
+> =A0} failslab =3D {
+> =A0 =A0 =A0 =A0.attr =3D FAULT_ATTR_INITIALIZER,
+> =A0 =A0 =A0 =A0.ignore_gfp_wait =3D 1,
+> + =A0 =A0 =A0 .cache_filter =3D 0,
+> =A0};
+>
+> -bool should_failslab(size_t size, gfp_t gfpflags)
+> +bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_fl=
+ags)
+> =A0{
+> =A0 =A0 =A0 =A0if (gfpflags & __GFP_NOFAIL)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return false;
+> @@ -20,6 +24,9 @@ bool should_failslab(size_t size, gfp_t gfpflags)
+> =A0 =A0 =A0 =A0 if (failslab.ignore_gfp_wait && (gfpflags & __GFP_WAIT))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return false;
+>
+> + =A0 =A0 =A0 if (failslab.cache_filter && !(cache_flags & SLAB_FAILSLAB)=
+)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
+> +
+> =A0 =A0 =A0 =A0return should_fail(&failslab.attr, size);
+> =A0}
+>
+> @@ -30,7 +37,6 @@ static int __init setup_failslab(char *str)
+> =A0__setup("failslab=3D", setup_failslab);
+>
+> =A0#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+> -
+> =A0static int __init failslab_debugfs_init(void)
+> =A0{
+> =A0 =A0 =A0 =A0mode_t mode =3D S_IFREG | S_IRUSR | S_IWUSR;
+> @@ -46,8 +52,14 @@ static int __init failslab_debugfs_init(void)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0debugfs_create_bool("ignore-gfp-wait", mod=
+e, dir,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0&failslab.ignore_gfp_wait);
+>
+> - =A0 =A0 =A0 if (!failslab.ignore_gfp_wait_file) {
+> + =A0 =A0 =A0 failslab.cache_filter_file =3D
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 debugfs_create_bool("cache-filter", mode, d=
+ir,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ &failslab.cache_filter);
+> +
+> + =A0 =A0 =A0 if (!failslab.ignore_gfp_wait_file ||
+> + =A0 =A0 =A0 =A0 =A0 !failslab.cache_filter_file) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0err =3D -ENOMEM;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 debugfs_remove(failslab.cache_filter_file);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0debugfs_remove(failslab.ignore_gfp_wait_fi=
+le);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0cleanup_fault_attr_dentries(&failslab.attr=
+);
+> =A0 =A0 =A0 =A0}
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 7451bda..33496b7 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3101,7 +3101,7 @@ static bool slab_should_failslab(struct kmem_cache =
+*cachep, gfp_t flags)
+> =A0 =A0 =A0 =A0if (cachep =3D=3D &cache_cache)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return false;
+>
+> - =A0 =A0 =A0 return should_failslab(obj_size(cachep), flags);
+> + =A0 =A0 =A0 return should_failslab(obj_size(cachep), flags, cachep->fla=
+gs);
+> =A0}
+>
+> =A0static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t f=
+lags)
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 8d71aaf..cab5288 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -151,7 +151,8 @@
+> =A0* Set of flags that will prevent slab merging
+> =A0*/
+> =A0#define SLUB_NEVER_MERGE (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USE=
+R | \
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOL=
+EAKTRACE)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOL=
+EAKTRACE | \
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 SLAB_FAILSLAB)
+>
+> =A0#define SLUB_MERGE_SAME (SLAB_DEBUG_FREE | SLAB_RECLAIM_ACCOUNT | \
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0SLAB_CACHE_DMA | SLAB_NOTRACK)
+> @@ -1020,6 +1021,9 @@ static int __init setup_slub_debug(char *str)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0case 't':
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0slub_debug |=3D SLAB_TRACE=
+;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 case 'a':
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 slub_debug |=3D SLAB_FAILSL=
+AB;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0default:
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0printk(KERN_ERR "slub_debu=
+g option '%c' "
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0"unknown. =
+skipped\n", *str);
+> @@ -1718,7 +1722,7 @@ static __always_inline void *slab_alloc(struct kmem=
+_cache *s,
+> =A0 =A0 =A0 =A0lockdep_trace_alloc(gfpflags);
+> =A0 =A0 =A0 =A0might_sleep_if(gfpflags & __GFP_WAIT);
+>
+> - =A0 =A0 =A0 if (should_failslab(s->objsize, gfpflags))
+> + =A0 =A0 =A0 if (should_failslab(s->objsize, gfpflags, s->flags))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return NULL;
+>
+> =A0 =A0 =A0 =A0local_irq_save(flags);
+> @@ -4171,6 +4175,23 @@ static ssize_t trace_store(struct kmem_cache *s, c=
+onst char *buf,
+> =A0}
+> =A0SLAB_ATTR(trace);
+>
+> +#ifdef CONFIG_FAILSLAB
+> +static ssize_t failslab_show(struct kmem_cache *s, char *buf)
+> +{
+> + =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_FAILSLAB));
+> +}
+> +
+> +static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size_t length)
+> +{
+> + =A0 =A0 =A0 s->flags &=3D ~SLAB_FAILSLAB;
+> + =A0 =A0 =A0 if (buf[0] =3D=3D '1')
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D SLAB_FAILSLAB;
+> + =A0 =A0 =A0 return length;
+> +}
+> +SLAB_ATTR(failslab);
+> +#endif
+> +
+> =A0static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
+> =A0{
+> =A0 =A0 =A0 =A0return sprintf(buf, "%d\n", !!(s->flags & SLAB_RECLAIM_ACC=
+OUNT));
+> @@ -4467,6 +4488,10 @@ static struct attribute *slab_attrs[] =3D {
+> =A0 =A0 =A0 =A0&deactivate_remote_frees_attr.attr,
+> =A0 =A0 =A0 =A0&order_fallback_attr.attr,
+> =A0#endif
+> +#ifdef CONFIG_FAILSLAB
+> + =A0 =A0 =A0 &failslab_attr.attr,
+> +#endif
+> +
+> =A0 =A0 =A0 =A0NULL
+> =A0};
+>
+> --
+> 1.6.6
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
