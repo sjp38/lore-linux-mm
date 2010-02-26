@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EE3056B0089
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 170AA6B008A
 	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:05 -0500 (EST)
-Received: from int-mx05.intmail.prod.int.phx2.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.18])
-	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK94cX016379
+Received: from int-mx04.intmail.prod.int.phx2.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.17])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id o1QK94YF027801
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
 	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:09:04 -0500
-Message-Id: <20100226200903.028538109@redhat.com>
-Date: Fri, 26 Feb 2010 21:04:59 +0100
+Message-Id: <20100226200902.721243055@redhat.com>
+Date: Fri, 26 Feb 2010 21:04:57 +0100
 From: aarcange@redhat.com
-Subject: [patch 26/35] dont alloc harder for gfp nomemalloc even if nowait
+Subject: [patch 24/35] kvm mmu transparent hugepage support
 References: <20100226200433.516502198@redhat.com>
-Content-Disposition: inline; filename=gfp_nomemalloc_wait
+Content-Disposition: inline; filename=kvm_transparent_hugepage
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+From: Marcelo Tosatti <mtosatti@redhat.com>
 
-Not worth throwing away the precious reserved free memory pool for allocations
-that can fail gracefully (either through mempool or because they're transhuge
-allocations later falling back to 4k allocations).
+This should work for both hugetlbfs and transparent hugepages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- mm/page_alloc.c |    6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ arch/x86/kvm/mmu.c |    9 +++++++++
+ 1 file changed, 9 insertions(+)
 
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1809,7 +1809,11 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	 */
- 	alloc_flags |= (gfp_mask & __GFP_HIGH);
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -470,6 +470,15 @@ static int host_mapping_level(struct kvm
  
--	if (!wait) {
-+	/*
-+	 * Not worth trying to allocate harder for __GFP_NOMEMALLOC
-+	 * even if it can't schedule.
-+	 */
-+	if (!wait && !(gfp_mask & __GFP_NOMEMALLOC)) {
- 		alloc_flags |= ALLOC_HARDER;
- 		/*
- 		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+ 	page_size = kvm_host_page_size(kvm, gfn);
+ 
++	/* check for transparent hugepages */
++	if (page_size == PAGE_SIZE) {
++		struct page *page = gfn_to_page(kvm, gfn);
++
++		if (!is_error_page(page) && PageHead(page))
++			page_size = KVM_HPAGE_SIZE(2);
++		kvm_release_page_clean(page);
++	}
++
+ 	for (i = PT_PAGE_TABLE_LEVEL;
+ 	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
+ 		if (page_size >= KVM_HPAGE_SIZE(i))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
