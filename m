@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AF706B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 18:53:25 -0500 (EST)
-Received: from spaceape23.eur.corp.google.com (spaceape23.eur.corp.google.com [172.28.16.75])
-	by smtp-out.google.com with ESMTP id o1QNrMM0029766
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 23:53:22 GMT
-Received: from pzk26 (pzk26.prod.google.com [10.243.19.154])
-	by spaceape23.eur.corp.google.com with ESMTP id o1QNrKaF027553
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:21 -0800
-Received: by pzk26 with SMTP id 26so130902pzk.18
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:20 -0800 (PST)
-Date: Fri, 26 Feb 2010 15:53:18 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 689A26B0047
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 18:53:29 -0500 (EST)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o1QNrRUv019599
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:27 -0800
+Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
+	by wpaz29.hot.corp.google.com with ESMTP id o1QNr3RI029784
+	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:26 -0800
+Received: by pwi5 with SMTP id 5so439673pwi.6
+        for <linux-mm@kvack.org>; Fri, 26 Feb 2010 15:53:26 -0800 (PST)
+Date: Fri, 26 Feb 2010 15:53:23 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm v2 06/10] oom: deprecate oom_adj tunable
+Subject: [patch -mm v2 08/10] oom: avoid oom killer for lowmem allocations
 In-Reply-To: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1002261551370.30830@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1002261552060.30830@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -23,105 +23,78 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-/proc/pid/oom_adj is now deprecated so that that it may eventually be
-removed.  The target date for removal is December 2011.
+If memory has been depleted in lowmem zones even with the protection
+afforded to it by /proc/sys/vm/lowmem_reserve_ratio, it is unlikely that
+killing current users will help.  The memory is either reclaimable (or
+migratable) already, in which case we should not invoke the oom killer at
+all, or it is pinned by an application for I/O.  Killing such an
+application may leave the hardware in an unspecified state and there is
+no guarantee that it will be able to make a timely exit.
 
-A warning will be printed to the kernel log if a task attempts to use
-this interface.  Future warning will be suppressed until the kernel is
-rebooted to prevent spamming the kernel log.
+Lowmem allocations are now failed in oom conditions when __GFP_NOFAIL is
+not used so that the task can perhaps recover or try again later.
+
+Previously, the heuristic provided some protection for those tasks with 
+CAP_SYS_RAWIO, but this is no longer necessary since we will not be
+killing tasks for the purposes of ISA allocations.
+
+high_zoneidx is gfp_zone(gfp_flags), meaning that ZONE_NORMAL will be the
+default for all allocations that are not __GFP_DMA, __GFP_DMA32,
+__GFP_HIGHMEM, and __GFP_MOVABLE on kernels configured to support those
+flags.  Testing for high_zoneidx being less than ZONE_NORMAL will only
+return true for allocations that have either __GFP_DMA or __GFP_DMA32.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/feature-removal-schedule.txt |   30 ++++++++++++++++++++++++++++
- Documentation/filesystems/proc.txt         |    3 ++
- fs/proc/base.c                             |    8 +++++++
- include/linux/oom.h                        |    3 ++
- 4 files changed, 44 insertions(+), 0 deletions(-)
+ mm/page_alloc.c |   29 ++++++++++++++++++++---------
+ 1 files changed, 20 insertions(+), 9 deletions(-)
 
-diff --git a/Documentation/feature-removal-schedule.txt b/Documentation/feature-removal-schedule.txt
---- a/Documentation/feature-removal-schedule.txt
-+++ b/Documentation/feature-removal-schedule.txt
-@@ -193,6 +193,36 @@ Who:	Eric Biederman <ebiederm@xmission.com>
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1658,6 +1658,9 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 		/* The OOM killer will not help higher order allocs */
+ 		if (order > PAGE_ALLOC_COSTLY_ORDER)
+ 			goto out;
++		/* The OOM killer does not needlessly kill tasks for lowmem */
++		if (high_zoneidx < ZONE_NORMAL)
++			goto out;
+ 		/*
+ 		 * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
+ 		 * Sanity check for bare calls of __GFP_THISNODE, not real OOM.
+@@ -1886,15 +1889,23 @@ rebalance:
+ 			if (page)
+ 				goto got_pg;
  
- ---------------------------
+-			/*
+-			 * The OOM killer does not trigger for high-order
+-			 * ~__GFP_NOFAIL allocations so if no progress is being
+-			 * made, there are no other options and retrying is
+-			 * unlikely to help.
+-			 */
+-			if (order > PAGE_ALLOC_COSTLY_ORDER &&
+-						!(gfp_mask & __GFP_NOFAIL))
+-				goto nopage;
++			if (!(gfp_mask & __GFP_NOFAIL)) {
++				/*
++				 * The oom killer is not called for high-order
++				 * allocations that may fail, so if no progress
++				 * is being made, there are no other options and
++				 * retrying is unlikely to help.
++				 */
++				if (order > PAGE_ALLOC_COSTLY_ORDER)
++					goto nopage;
++				/*
++				 * The oom killer is not called for lowmem
++				 * allocations to prevent needlessly killing
++				 * innocent tasks.
++				 */
++				if (high_zoneidx < ZONE_NORMAL)
++					goto nopage;
++			}
  
-+What:	/proc/<pid>/oom_adj
-+When:	December 2011
-+Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
-+	badness heuristic used to determine which task to kill when the kernel
-+	is out of memory.
-+
-+	The badness heuristic has since been rewritten since the introduction of
-+	this tunable such that its meaning is deprecated.  The value was
-+	implemented as a bitshift on a score generated by the badness()
-+	function that did not have any precise units of measure.  With the
-+	rewrite, the score is given as a proportion of available memory to the
-+	task allocating pages, so using a bitshift which grows the score
-+	exponentially is, thus, impossible to tune with fine granularity.
-+
-+	A much more powerful interface, /proc/<pid>/oom_score_adj, was
-+	introduced with the oom killer rewrite that allows users to increase or
-+	decrease the badness() score linearly.  This interface will replace
-+	/proc/<pid>/oom_adj.
-+
-+	See Documentation/filesystems/proc.txt for information on how to use the
-+	new tunable.
-+
-+	A warning will be emitted to the kernel log if an application uses this
-+	deprecated interface.  After it is printed once, future warning will be
-+	suppressed until the kernel is rebooted.
-+
-+Who:	David Rientjes <rientjes@google.com>
-+
-+---------------------------
-+
- What:	remove EXPORT_SYMBOL(kernel_thread)
- When:	August 2006
- Files:	arch/*/kernel/*_ksyms.c
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -1242,6 +1242,9 @@ scaled linearly with /proc/<pid>/oom_score_adj.
- Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
- other with its scaled value.
- 
-+NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
-+Documentation/feature-removal-schedule.txt.
-+
- Caveat: when a parent task is selected, the oom killer will sacrifice any first
- generation children with seperate address spaces instead, if possible.  This
- avoids servers and important system daemons from being killed and loses the
-diff --git a/fs/proc/base.c b/fs/proc/base.c
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1059,6 +1059,14 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 		return -EACCES;
- 	}
- 
-+	/*
-+	 * Warn that /proc/pid/oom_adj is deprecated, see
-+	 * Documentation/feature-removal-schedule.txt.
-+	 */
-+	printk_once(KERN_WARNING "%s (%d): /proc/%d/oom_adj is deprecated, "
-+			"please use /proc/%d/oom_score_adj instead.\n",
-+			current->comm, task_pid_nr(current),
-+			task_pid_nr(task), task_pid_nr(task));
- 	task->signal->oom_adj = oom_adjust;
- 	/*
- 	 * Scale /proc/pid/oom_score_adj appropriately ensuring that a maximum
-diff --git a/include/linux/oom.h b/include/linux/oom.h
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -2,6 +2,9 @@
- #define __INCLUDE_LINUX_OOM_H
- 
- /*
-+ * /proc/<pid>/oom_adj is deprecated, see
-+ * Documentation/feature-removal-schedule.txt.
-+ *
-  * /proc/<pid>/oom_adj set to -17 protects from the oom-killer
-  */
- #define OOM_DISABLE (-17)
+ 			goto restart;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
