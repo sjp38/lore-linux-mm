@@ -1,49 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 62F136B0047
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 19:01:18 -0500 (EST)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o1R01E8T012378
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:01:14 -0800
-Received: from pvc21 (pvc21.prod.google.com [10.241.209.149])
-	by wpaz37.hot.corp.google.com with ESMTP id o1R01DUQ005966
-	for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:01:13 -0800
-Received: by pvc21 with SMTP id 21so192295pvc.19
-        for <linux-mm@kvack.org>; Fri, 26 Feb 2010 16:01:13 -0800 (PST)
-Date: Fri, 26 Feb 2010 16:01:08 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-In-Reply-To: <alpine.DEB.2.00.1002261123520.7719@router.home>
-Message-ID: <alpine.DEB.2.00.1002261555030.32111@chino.kir.corp.google.com>
-References: <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi>
- <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box> <alpine.DEB.2.00.1002260904311.6641@router.home> <20100226155755.GE16335@basil.fritz.box>
- <alpine.DEB.2.00.1002261123520.7719@router.home>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 56E0C6B0047
+	for <linux-mm@kvack.org>; Sun, 28 Feb 2010 12:49:28 -0500 (EST)
+Message-ID: <4B8AAC9A.10203@redhat.com>
+Date: Sun, 28 Feb 2010 12:49:14 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: mm: used-once mapped file page detection
+References: <1266868150-25984-1-git-send-email-hannes@cmpxchg.org> <20100224133946.a5092804.akpm@linux-foundation.org> <20100226143232.GA13001@cmpxchg.org>
+In-Reply-To: <20100226143232.GA13001@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Feb 2010, Christoph Lameter wrote:
+On 02/26/2010 09:32 AM, Johannes Weiner wrote:
+> On Wed, Feb 24, 2010 at 01:39:46PM -0800, Andrew Morton wrote:
+>> On Mon, 22 Feb 2010 20:49:07 +0100 Johannes Weiner<hannes@cmpxchg.org>  wrote:
+>>
+>>> This patch makes the VM be more careful about activating mapped file
+>>> pages in the first place.  The minimum granted lifetime without
+>>> another memory access becomes an inactive list cycle instead of the
+>>> full memory cycle, which is more natural given the mentioned loads.
+>>
+>> iirc from a long time ago, the insta-activation of mapped pages was
+>> done because people were getting peeved about having their interactive
+>> applications (X, browser, etc) getting paged out, and bumping the pages
+>> immediately was found to help with this subjective problem.
+>>
+>> So it was a latency issue more than a throughput issue.  I wouldn't be
+>> surprised if we get some complaints from people for the same reasons as
+>> a result of this patch.
+>
+> Agreed.  Although we now have other things in place to protect them once
+> they are active (VM_EXEC protection, lazy active list scanning).
 
-> > 1) numa memory hotadd never worked
-> 
-> Well Kamesan indicated that this worked if a cpu became online.
-> 
-
-That may be true, but it doesn't address hotpluggable 
-ACPI_SRAT_MEM_HOT_PLUGGABLE entries for CONFIG_MEMORY_HOTPLUG_SPARSE where 
-no cpus are being onlined or writing to /sys/devices/system/memory/probe 
-for CONFIG_ARCH_MEMORY_PROBE.
-
-> > 2) the rest just bitrotted because nobody tested it.
-> 
-> Yep. David: Can you revise the relevant portions of the patchset and
-> repost it?
-> 
-
-Ok.
+You think we'll need VM_EXEC protection on the inactive list
+after your changes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
