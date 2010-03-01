@@ -1,106 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1E9616B0047
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 17:35:00 -0500 (EST)
-Date: Mon, 1 Mar 2010 23:34:57 +0100
-From: Michal Hocko <mstsxfx@gmail.com>
-Subject: Re: unable to handle kernel paging request on resume with
- 2.6.33-00001-gbaac35c
-Message-ID: <20100301223457.GB4034@tiehlicka.suse.cz>
-References: <20100301175256.GA4034@tiehlicka.suse.cz>
- <201003012207.37582.rjw@sisk.pl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201003012207.37582.rjw@sisk.pl>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 415256B0047
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 18:59:13 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o21NxAdj015062
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 2 Mar 2010 08:59:10 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5829145DE54
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 08:59:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 27C0445DE4E
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 08:59:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E5FE51DB8017
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 08:59:09 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 817251DB8014
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 08:59:09 +0900 (JST)
+Date: Tue, 2 Mar 2010 08:55:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
+ ooms
+Message-Id: <20100302085532.ff9d3cf4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1003010159420.26824@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com>
+	<20100301052306.GG19665@balbir.in.ibm.com>
+	<alpine.DEB.2.00.1003010159420.26824@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: linux-kernel@vger.kernel.org, pm list <linux-pm@lists.linux-foundation.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Let's CC mm guys]
+On Mon, 1 Mar 2010 02:04:07 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-On Mon, Mar 01, 2010 at 10:07:37PM +0100, Rafael J. Wysocki wrote:
-> On Monday 01 March 2010, Michal Hocko wrote:
-> > Hi,
+> On Mon, 1 Mar 2010, Balbir Singh wrote:
+> 
+> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > > --- a/mm/oom_kill.c
+> > > +++ b/mm/oom_kill.c
+> > > @@ -580,6 +580,44 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
+> > >  }
+> > > 
+> > >  /*
+> > > + * Try to acquire the oom killer lock for all system zones.  Returns zero if a
+> > > + * parallel oom killing is taking place, otherwise locks all zones and returns
+> > > + * non-zero.
+> > > + */
+> > > +static int try_set_system_oom(void)
+> > > +{
+> > > +	struct zone *zone;
+> > > +	int ret = 1;
+> > > +
+> > > +	spin_lock(&zone_scan_lock);
+> > > +	for_each_populated_zone(zone)
+> > > +		if (zone_is_oom_locked(zone)) {
+> > > +			ret = 0;
+> > > +			goto out;
+> > > +		}
+> > > +	for_each_populated_zone(zone)
+> > > +		zone_set_flag(zone, ZONE_OOM_LOCKED);
+> > > +out:
+> > > +	spin_unlock(&zone_scan_lock);
+> > > +	return ret;
+> > > +}
 > > 
-> > I have experienced the following kernel BUG on resume from suspend from
-> > disk (the whole log from  hibarnation to suspend along with kernel
-> > config are attached):
+> > Isn't this an overkill, if pagefault_out_of_memory() does nothing and
+> > oom takes longer than anticipated, we might end up looping, no?
+> > Aren't we better off waiting for OOM to finish and retry the
+> > pagefault?
 > > 
-> > BUG: unable to handle kernel paging request at 00aaaaaa
-> > IP: [<c019e28c>] anon_vma_link+0x2c/0x39
-> > *pde = 00000000
-> > Oops: 0002 [#1] PREEMPT SMP
-> > last sysfs file: /sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0003:00/power_supply/AC/type
-> > Modules linked in: aes_i586 aes_generic iwl3945 iwlcore mac80211 cfg80211 fbcon font bitblit softcursor i915 drm_kms_helper drm fb i2c_algo_bit cfbcopyarea i2c_core cfbimgblt cfbfillrect fuse tun coretemp hwmon snd_hda_codec_realtek snd_hda_intel snd_hda_codec arc4 ecb snd_pcm_oss snd_mixer_oss snd_pcm snd_seq_oss snd_seq_midi_event snd_seq snd_timer fujitsu_laptop snd_seq_device rtc_cmos rtc_core led_class rtc_lib snd snd_page_alloc video backlight output [last unloaded: cfg80211]
+> 
+> I agree, I can add schedule_timeout_uninterruptible(1) so we decrease the 
+> loop while waiting for the parallel oom kill to happen.  It's not overkill 
+> because we want to avoid needlessly killing tasks when killing one will 
+> already free memory which is hopefully usable by the pagefault.  This 
+> merely covers the race between a parallel oom kill calling out_of_memory() 
+> and setting TIF_MEMDIE for a task which would make the following 
+> out_of_memory() call in pagefault_out_of_memory() a no-op anyway.
+> 
+> > And like Kame said the pagefault code in memcg is undergoing a churn,
+> > we should revisit those parts later. I am yet to review that
+> > patchset though.
 > > 
-> > Pid: 3942, comm: kxkb Not tainted 2.6.33-00001-gbaac35c #11 FJNB1B5/LIFEBOOK S7110
-> > EIP: 0060:[<c019e28c>] EFLAGS: 00010246 CPU: 1
-> > EIP is at anon_vma_link+0x2c/0x39
-> > EAX: 00aaaaaa EBX: f69c6410 ECX: f69c6414 EDX: f63e4df4
-> > ESI: f63e4dc0 EDI: f63e4e14 EBP: f6901ec0 ESP: f6901eb8
-> >  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
-> > Process kxkb (pid: 3942, ti=f6901000 task=f6aa6ff0 task.ti=f6901000)
-> > Stack:
-> >  f63e4dc0 f23fc7e4 f6901efc c012fc28 f6aa6ff0 f63e4e30 f63e4e34 f63e4e24
-> > <0> ca4656f4 f6ace734 f6aa6ff0 f6ace700 ca4656c0 f23fc790 ca560000 fffffff4
-> > <0> f659ef94 f6901f38 c0130821 f6aa6ff0 f6901fb4 bff441f0 ca560208 00000000
-> > Call Trace:
-> >  [<c012fc28>] ? dup_mm+0x1c7/0x3d3
-> >  [<c0130821>] ? copy_process+0x98e/0xf26
-> >  [<c0130ed6>] ? do_fork+0x11d/0x2a1
-> >  [<c0434547>] ? _raw_spin_unlock+0x14/0x28
-> >  [<c01b6795>] ? set_close_on_exec+0x45/0x4b
-> >  [<c01b6e98>] ? do_fcntl+0x15f/0x3f1
-> >  [<c0108678>] ? sys_clone+0x20/0x25
-> >  [<c010291d>] ? ptregs_clone+0x15/0x38
-> >  [<c0102850>] ? sysenter_do_call+0x12/0x26
-> > Code: 89 e5 56 53 0f 1f 44 00 00 8b 58 3c 89 c6 85 db 74 22 89 d8 e8 54 65 29 00 8b 43 08 8d 56 34 8d 4b 04 89 53 08 89 4e 34 89 46 38 <89> 10 89 d8 e8 9e 62 29 00 5b 5e 5d c3 55 89 e5 0f 1f 44 00 00
-> > EIP: [<c019e28c>] anon_vma_link+0x2c/0x39 SS:ESP 0068:f6901eb8
-> > CR2: 0000000000aaaaaa
-> > ---[ end trace b7f008b0e5aa7c65 ]---
 > 
-> This looks like a low-level memory management issue of some sort.
-
-Yes, it really looks strange. dup_mm+0x1c7 matches to:
-c102fc0e:       81 60 14 ff df ff ff    andl   $0xffffdfff,0x14(%eax)
-c102fc15:       8b 45 ec                mov    -0x14(%ebp),%eax
-c102fc18:       c7 43 0c 00 00 00 00    movl   $0x0,0xc(%ebx)
-c102fc1f:       89 03                   mov    %eax,(%ebx)
-c102fc21:       89 d8                   mov    %ebx,%eax
-c102fc23:       e8 38 e6 06 00          call   c109e260 <anon_vma_link>
-c102fc28:       8b 43 48                mov    0x48(%ebx),%eax  <<< BANG
-
-which corresponds to:
-kernel/fork.c:336
-		tmp->vm_flags &= ~VM_LOCKED;
-                tmp->vm_mm = mm;
-                tmp->vm_next = NULL;
-                anon_vma_link(tmp);
-                file = tmp->vm_file; <<< BANG
-
-ebx is tmp which somehow got deallocated. I cannot see how this could happened.
-
-
+> Kame said earlier it would be no problem to rebase his memcg oom work on 
+> mmotm if my patches were merged.
 > 
-> What's the HEAD commit in this kernel tree?
 
-$ git describe
-v2.6.33-1-gbaac35c
+But I also said this patch cause regression.
+I said it's ok to rabese to you series of patch. But about this patch,
+No.
 
-> 
-> Also, is the problem reproducible?
 
-As I've already mentioned. This is the first time I have seen this problem.
-I am using suspend to disk and wake up quite often (several times a day). I
-haven't tried suspend/resume loop test yet.
+Thanks,
+-Kame
 
-> 
-> Rafael
-
--- 
-Michal Hocko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
