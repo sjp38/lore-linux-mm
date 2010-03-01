@@ -1,209 +1,140 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 09/16] readahead: record readahead patterns
-Date: Mon, 01 Mar 2010 13:27:00 +0800
-Message-ID: <20100301053621.518486546@intel.com>
+Subject: [PATCH 02/16] readahead: retain inactive lru pages to be accessed soon
+Date: Mon, 01 Mar 2010 13:26:53 +0800
+Message-ID: <20100301053620.539719938@intel.com>
 References: <20100301052651.857984880@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NlyKV-00050j-JT
-	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:07 +0100
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 709246B004D
+	id 1NlyKY-00051U-0Q
+	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:10 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9DEAA6B007E
 	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:37:57 -0500 (EST)
-Content-Disposition: inline; filename=readahead-tracepoints.patch
+Content-Disposition: inline; filename=readahead-retain-pages-find_get_page.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Rik van Riel <riel@redhat.com>, Chris Frost <frost@cs.ucla.edu>, Steve VanDeBogart <vandebo@cs.ucla.edu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Record the readahead pattern in ra_flags. This info can be examined by
-users via the readahead tracing/stats interfaces.
+From: Chris Frost <frost@cs.ucla.edu>
 
-Currently 7 patterns are defined:
+Ensure that cached pages in the inactive list are not prematurely evicted;
+move such pages to lru head when they are covered by
+- in-kernel heuristic readahead
+- an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
 
-      	pattern			readahead for
------------------------------------------------------------
-	RA_PATTERN_INITIAL	start-of-file/oversize read
-	RA_PATTERN_SUBSEQUENT	trivial     sequential read
-	RA_PATTERN_CONTEXT	interleaved sequential read
-	RA_PATTERN_THRASH	thrashed    sequential read
-	RA_PATTERN_MMAP_AROUND	mmap fault
-	RA_PATTERN_FADVISE	posix_fadvise()
-	RA_PATTERN_RANDOM	random read
+Before this patch, pages already in core may be evicted before the
+pages covered by the same prefetch scan but that were not yet in core.
+Many small read requests may be forced on the disk because of this
+behavior.
 
-CC: Ingo Molnar <mingo@elte.hu> 
-CC: Jens Axboe <jens.axboe@oracle.com> 
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl> 
+In particular, posix_fadvise(... POSIX_FADV_WILLNEED) on an in-core page
+has no effect on the page's location in the LRU list, even if it is the
+next victim on the inactive list.
+
+This change helps address the performance problems we encountered
+while modifying SQLite and the GIMP to use large file prefetching.
+Overall these prefetching techniques improved the runtime of large
+benchmarks by 10-17x for these applications. More in the publication
+_Reducing Seek Overhead with Application-Directed Prefetching_ in
+USENIX ATC 2009 and at http://libprefetch.cs.ucla.edu/.
+
+Notes from Fengguang:
+
+I'm actually not afraid of it adding memory pressure to the readahead
+thrashing case.  The context readahead can adaptively control the memory
+pressure with or without this patch.
+
+It does add memory pressure to mmap read-around. A typical read-around
+request would cover some cached pages (whether or not they are
+memory-mapped), and all those pages would be moved to LRU head by this
+patch.
+
+This somehow implicitly adds LRU lifetime to executable/lib pages.
+
+Hopefully this won't behave too bad. Note that the read-around size will
+be limited in small memory systems, which in turn reduces the risk of
+this patch.
+
 Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Chris Frost <frost@cs.ucla.edu>
+Signed-off-by: Steve VanDeBogart <vandebo@cs.ucla.edu>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/fs.h |   32 ++++++++++++++++++++++++++++++++
- include/linux/mm.h |    4 +++-
- mm/filemap.c       |    9 +++++++--
- mm/readahead.c     |   13 +++++++++++--
- 4 files changed, 53 insertions(+), 5 deletions(-)
+ mm/readahead.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
 
---- linux.orig/include/linux/fs.h	2010-03-01 13:23:38.000000000 +0800
-+++ linux/include/linux/fs.h	2010-03-01 13:23:42.000000000 +0800
-@@ -894,8 +894,40 @@ struct file_ra_state {
- };
+--- linux.orig/mm/readahead.c	2010-02-24 10:44:26.000000000 +0800
++++ linux/mm/readahead.c	2010-02-24 10:44:40.000000000 +0800
+@@ -9,7 +9,9 @@
  
- /* ra_flags bits */
-+#define READAHEAD_PATTERN_SHIFT	20
-+#define READAHEAD_PATTERN	0x00f00000
- #define	READAHEAD_MMAP_MISS	0x00000fff /* cache misses for mmap access */
- #define READAHEAD_THRASHED	0x10000000
-+#define	READAHEAD_MMAP		0x20000000
-+
-+/*
-+ * Which policy makes decision to do the current read-ahead IO?
-+ */
-+enum readahead_pattern {
-+	RA_PATTERN_INITIAL,
-+	RA_PATTERN_SUBSEQUENT,
-+	RA_PATTERN_CONTEXT,
-+	RA_PATTERN_THRASH,
-+	RA_PATTERN_MMAP_AROUND,
-+	RA_PATTERN_FADVISE,
-+	RA_PATTERN_RANDOM,
-+	RA_PATTERN_ALL,		/* for summary stats */
-+	RA_PATTERN_MAX
-+};
-+
-+static inline int ra_pattern(int ra_flags)
-+{
-+	int pattern = (ra_flags & READAHEAD_PATTERN)
-+			       >> READAHEAD_PATTERN_SHIFT;
-+
-+	return min(pattern, RA_PATTERN_ALL);
-+}
-+
-+static inline void ra_set_pattern(struct file_ra_state *ra, int pattern)
-+{
-+	ra->ra_flags = (ra->ra_flags & ~READAHEAD_PATTERN) |
-+			    (pattern << READAHEAD_PATTERN_SHIFT);
-+}
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
++#include <linux/memcontrol.h>
+ #include <linux/mm.h>
++#include <linux/mm_inline.h>
+ #include <linux/module.h>
+ #include <linux/blkdev.h>
+ #include <linux/backing-dev.h>
+@@ -133,6 +135,40 @@ out:
+ }
  
  /*
-  * Don't do ra_flags++ directly to avoid possible overflow:
---- linux.orig/mm/readahead.c	2010-03-01 13:23:38.000000000 +0800
-+++ linux/mm/readahead.c	2010-03-01 13:23:42.000000000 +0800
-@@ -337,7 +337,10 @@ unsigned long max_sane_readahead(unsigne
-  * Submit IO for the read-ahead request in file_ra_state.
-  */
- unsigned long ra_submit(struct file_ra_state *ra,
--		       struct address_space *mapping, struct file *filp)
-+			struct address_space *mapping,
-+			struct file *filp,
-+			pgoff_t offset,
-+			unsigned long req_size)
- {
- 	int actual;
- 
-@@ -471,6 +474,7 @@ ondemand_readahead(struct address_space 
- 	 * start of file
- 	 */
- 	if (!offset) {
-+		ra_set_pattern(ra, RA_PATTERN_INITIAL);
- 		ra->start = offset;
- 		ra->size = get_init_ra_size(req_size, max);
- 		ra->async_size = ra->size > req_size ?
-@@ -491,6 +495,7 @@ ondemand_readahead(struct address_space 
- 	 */
- 	if ((offset == (ra->start + ra->size - ra->async_size) ||
- 	     offset == (ra->start + ra->size))) {
-+		ra_set_pattern(ra, RA_PATTERN_SUBSEQUENT);
- 		ra->start += ra->size;
- 		ra->size = get_next_ra_size(ra, max);
- 		ra->async_size = ra->size;
-@@ -501,6 +506,7 @@ ondemand_readahead(struct address_space 
- 	 * oversize read, no need to query page cache
- 	 */
- 	if (req_size > max && !hit_readahead_marker) {
-+		ra_set_pattern(ra, RA_PATTERN_INITIAL);
- 		ra->start = offset;
- 		ra->size = max;
- 		ra->async_size = max;
-@@ -546,8 +552,10 @@ context_readahead:
- 	 */
- 	if (!tt && !hit_readahead_marker) {
- 		if (!ra_thrashed(ra, offset)) {
-+			ra_set_pattern(ra, RA_PATTERN_RANDOM);
- 			ra->size = min(req_size, max);
- 		} else {
-+			ra_set_pattern(ra, RA_PATTERN_THRASH);
- 			retain_inactive_pages(mapping, offset, min(2 * max,
- 						ra->start + ra->size - offset));
- 			ra->size = max_t(int, ra->size/2, MIN_READAHEAD_PAGES);
-@@ -569,6 +577,7 @@ context_readahead:
- 	if (tt <= start - offset)
- 		return 0;
- 
-+	ra_set_pattern(ra, RA_PATTERN_CONTEXT);
- 	ra->start = start;
- 	ra->size = clamp_t(unsigned int, tt - (start - offset),
- 			   MIN_READAHEAD_PAGES, max);
-@@ -586,7 +595,7 @@ readit:
- 		ra->size += ra->async_size;
- 	}
- 
--	return ra_submit(ra, mapping, filp);
-+	return ra_submit(ra, mapping, filp, offset, req_size);
- }
- 
- /**
---- linux.orig/include/linux/mm.h	2010-03-01 13:21:44.000000000 +0800
-+++ linux/include/linux/mm.h	2010-03-01 13:23:42.000000000 +0800
-@@ -1208,7 +1208,9 @@ void page_cache_async_readahead(struct a
- unsigned long max_sane_readahead(unsigned long nr);
- unsigned long ra_submit(struct file_ra_state *ra,
- 			struct address_space *mapping,
--			struct file *filp);
-+			struct file *filp,
-+			pgoff_t offset,
-+			unsigned long req_size);
- 
- /* Do stack extension */
- extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
---- linux.orig/mm/filemap.c	2010-03-01 13:21:44.000000000 +0800
-+++ linux/mm/filemap.c	2010-03-01 13:23:42.000000000 +0800
-@@ -1413,6 +1413,7 @@ static void do_sync_mmap_readahead(struc
- 
- 	if (VM_SequentialReadHint(vma) ||
- 			offset - 1 == (ra->prev_pos >> PAGE_CACHE_SHIFT)) {
-+		ra->ra_flags |= READAHEAD_MMAP;
- 		page_cache_sync_readahead(mapping, ra, file, offset,
- 					  ra->ra_pages);
- 		return;
-@@ -1433,10 +1434,12 @@ static void do_sync_mmap_readahead(struc
- 			 ra->ra_pages,
- 			 roundup_pow_of_two(totalram_pages / 1024));
- 	if (ra_pages) {
-+		ra->ra_flags |= READAHEAD_MMAP;
-+		ra_set_pattern(ra, RA_PATTERN_MMAP_AROUND);
- 		ra->start = max_t(long, 0, offset - ra_pages/2);
- 		ra->size = ra_pages;
- 		ra->async_size = 0;
--		ra_submit(ra, mapping, file);
-+		ra_submit(ra, mapping, file, offset, 1);
- 	}
- }
- 
-@@ -1456,9 +1459,11 @@ static void do_async_mmap_readahead(stru
- 	if (VM_RandomReadHint(vma))
- 		return;
- 	ra_mmap_miss_dec(ra);
--	if (PageReadahead(page))
-+	if (PageReadahead(page)) {
-+		ra->ra_flags |= READAHEAD_MMAP;
- 		page_cache_async_readahead(mapping, ra, file,
- 					   page, offset, ra->ra_pages);
++ * The file range is expected to be accessed in near future.  Move pages
++ * (possibly in inactive lru tail) to lru head, so that they are retained
++ * in memory for some reasonable time.
++ */
++static void retain_inactive_pages(struct address_space *mapping,
++				  pgoff_t index, int len)
++{
++	int i;
++	struct page *page;
++	struct zone *zone;
++
++	for (i = 0; i < len; i++) {
++		page = find_get_page(mapping, index + i);
++		if (!page)
++			continue;
++
++		zone = page_zone(page);
++		spin_lock_irq(&zone->lru_lock);
++
++		if (PageLRU(page) &&
++		    !PageActive(page) &&
++		    !PageUnevictable(page)) {
++			int lru = page_lru_base_type(page);
++
++			del_page_from_lru_list(zone, page, lru);
++			add_page_to_lru_list(zone, page, lru);
++		}
++
++		spin_unlock_irq(&zone->lru_lock);
++		put_page(page);
 +	}
- }
++}
++
++/*
+  * __do_page_cache_readahead() actually reads a chunk of disk.  It allocates all
+  * the pages first, then submits them all for I/O. This avoids the very bad
+  * behaviour which would occur if page allocations are causing VM writeback.
+@@ -184,6 +220,14 @@ __do_page_cache_readahead(struct address
+ 	}
  
- /**
+ 	/*
++	 * Normally readahead will auto stop on cached segments, so we won't
++	 * hit many cached pages. If it does happen, bring the inactive pages
++	 * adjecent to the newly prefetched ones(if any).
++	 */
++	if (ret < nr_to_read)
++		retain_inactive_pages(mapping, offset, page_idx);
++
++	/*
+ 	 * Now start the IO.  We ignore I/O errors - if the page is not
+ 	 * uptodate then the caller will launch readpage again, and
+ 	 * will then handle the error.
 
 
 --
