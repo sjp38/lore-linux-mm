@@ -1,135 +1,209 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 13/16] radixtree: introduce radix_tree_lookup_leaf_node()
-Date: Mon, 01 Mar 2010 13:27:04 +0800
-Message-ID: <20100301053622.084130183@intel.com>
+Subject: [PATCH 09/16] readahead: record readahead patterns
+Date: Mon, 01 Mar 2010 13:27:00 +0800
+Message-ID: <20100301053621.518486546@intel.com>
 References: <20100301052651.857984880@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NlyKT-00050P-Ad
-	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:05 +0100
+	id 1NlyKV-00050j-JT
+	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:07 +0100
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8ABA66B007D
+	by kanga.kvack.org (Postfix) with SMTP id 709246B004D
 	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:37:57 -0500 (EST)
-Content-Disposition: inline; filename=radixtree-radix_tree_lookup_leaf_node.patch
+Content-Disposition: inline; filename=readahead-tracepoints.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-This will be used by the pagecache context based read-ahead/read-around
-heuristic to quickly check one pagecache range:
-- if there is any hole
-- if there is any pages
+Record the readahead pattern in ra_flags. This info can be examined by
+users via the readahead tracing/stats interfaces.
 
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>
+Currently 7 patterns are defined:
+
+      	pattern			readahead for
+-----------------------------------------------------------
+	RA_PATTERN_INITIAL	start-of-file/oversize read
+	RA_PATTERN_SUBSEQUENT	trivial     sequential read
+	RA_PATTERN_CONTEXT	interleaved sequential read
+	RA_PATTERN_THRASH	thrashed    sequential read
+	RA_PATTERN_MMAP_AROUND	mmap fault
+	RA_PATTERN_FADVISE	posix_fadvise()
+	RA_PATTERN_RANDOM	random read
+
+CC: Ingo Molnar <mingo@elte.hu> 
+CC: Jens Axboe <jens.axboe@oracle.com> 
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl> 
 Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/radix-tree.h |    2 +
- lib/radix-tree.c           |   37 ++++++++++++++++++++++++++---------
- 2 files changed, 30 insertions(+), 9 deletions(-)
+ include/linux/fs.h |   32 ++++++++++++++++++++++++++++++++
+ include/linux/mm.h |    4 +++-
+ mm/filemap.c       |    9 +++++++--
+ mm/readahead.c     |   13 +++++++++++--
+ 4 files changed, 53 insertions(+), 5 deletions(-)
 
---- linux.orig/lib/radix-tree.c	2010-02-27 12:59:22.000000000 +0800
-+++ linux/lib/radix-tree.c	2010-02-27 13:00:09.000000000 +0800
-@@ -359,19 +359,20 @@ EXPORT_SYMBOL(radix_tree_insert);
-  * is_slot == 0 : search for the node.
-  */
- static void *radix_tree_lookup_element(struct radix_tree_root *root,
--				unsigned long index, int is_slot)
-+				unsigned long index, int is_slot, int level)
- {
- 	unsigned int height, shift;
--	struct radix_tree_node *node, **slot;
-+	struct radix_tree_node *node;
-+	struct radix_tree_node **slot = &root->rnode;
+--- linux.orig/include/linux/fs.h	2010-03-01 13:23:38.000000000 +0800
++++ linux/include/linux/fs.h	2010-03-01 13:23:42.000000000 +0800
+@@ -894,8 +894,40 @@ struct file_ra_state {
+ };
  
- 	node = rcu_dereference(root->rnode);
- 	if (node == NULL)
- 		return NULL;
- 
- 	if (!radix_tree_is_indirect_ptr(node)) {
--		if (index > 0)
-+		if (index > 0 || level > 0)
- 			return NULL;
--		return is_slot ? (void *)&root->rnode : node;
-+		goto out;
- 	}
- 	node = radix_tree_indirect_to_ptr(node);
- 
-@@ -381,7 +382,7 @@ static void *radix_tree_lookup_element(s
- 
- 	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
- 
--	do {
-+	while (height > level) {
- 		slot = (struct radix_tree_node **)
- 			(node->slots + ((index>>shift) & RADIX_TREE_MAP_MASK));
- 		node = rcu_dereference(*slot);
-@@ -390,9 +391,10 @@ static void *radix_tree_lookup_element(s
- 
- 		shift -= RADIX_TREE_MAP_SHIFT;
- 		height--;
--	} while (height > 0);
-+	}
- 
--	return is_slot ? (void *)slot:node;
-+out:
-+	return is_slot ? (void *)slot : node;
- }
- 
- /**
-@@ -410,7 +412,7 @@ static void *radix_tree_lookup_element(s
-  */
- void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned long index)
- {
--	return (void **)radix_tree_lookup_element(root, index, 1);
-+	return (void **)radix_tree_lookup_element(root, index, 1, 0);
- }
- EXPORT_SYMBOL(radix_tree_lookup_slot);
- 
-@@ -428,11 +430,28 @@ EXPORT_SYMBOL(radix_tree_lookup_slot);
-  */
- void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
- {
--	return radix_tree_lookup_element(root, index, 0);
-+	return radix_tree_lookup_element(root, index, 0, 0);
- }
- EXPORT_SYMBOL(radix_tree_lookup);
- 
- /**
-+ *	radix_tree_lookup_leaf_node    -    lookup leaf node on a radix tree
-+ *	@root:		radix tree root
-+ *	@index:		index key
-+ *
-+ *	Lookup the leaf node that covers @index in the radix tree @root.
-+ *	Return NULL if the node does not exist, or is the special root node.
-+ *
-+ *	The typical usage is to check the value of node->count, which shall be
-+ *	performed inside rcu_read_lock to prevent the node from being freed.
+ /* ra_flags bits */
++#define READAHEAD_PATTERN_SHIFT	20
++#define READAHEAD_PATTERN	0x00f00000
+ #define	READAHEAD_MMAP_MISS	0x00000fff /* cache misses for mmap access */
+ #define READAHEAD_THRASHED	0x10000000
++#define	READAHEAD_MMAP		0x20000000
++
++/*
++ * Which policy makes decision to do the current read-ahead IO?
 + */
-+struct radix_tree_node *
-+radix_tree_lookup_leaf_node(struct radix_tree_root *root, unsigned long index)
++enum readahead_pattern {
++	RA_PATTERN_INITIAL,
++	RA_PATTERN_SUBSEQUENT,
++	RA_PATTERN_CONTEXT,
++	RA_PATTERN_THRASH,
++	RA_PATTERN_MMAP_AROUND,
++	RA_PATTERN_FADVISE,
++	RA_PATTERN_RANDOM,
++	RA_PATTERN_ALL,		/* for summary stats */
++	RA_PATTERN_MAX
++};
++
++static inline int ra_pattern(int ra_flags)
 +{
-+	return radix_tree_lookup_element(root, index, 0, 1);
++	int pattern = (ra_flags & READAHEAD_PATTERN)
++			       >> READAHEAD_PATTERN_SHIFT;
++
++	return min(pattern, RA_PATTERN_ALL);
 +}
 +
-+/**
-  *	radix_tree_tag_set - set a tag on a radix tree node
-  *	@root:		radix tree root
-  *	@index:		index key
---- linux.orig/include/linux/radix-tree.h	2010-02-27 12:59:22.000000000 +0800
-+++ linux/include/linux/radix-tree.h	2010-02-27 12:59:23.000000000 +0800
-@@ -158,6 +158,8 @@ static inline void radix_tree_replace_sl
- int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
- void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
- void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
-+struct radix_tree_node *
-+radix_tree_lookup_leaf_node(struct radix_tree_root *root, unsigned long index);
- void *radix_tree_delete(struct radix_tree_root *, unsigned long);
- unsigned int
- radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
++static inline void ra_set_pattern(struct file_ra_state *ra, int pattern)
++{
++	ra->ra_flags = (ra->ra_flags & ~READAHEAD_PATTERN) |
++			    (pattern << READAHEAD_PATTERN_SHIFT);
++}
+ 
+ /*
+  * Don't do ra_flags++ directly to avoid possible overflow:
+--- linux.orig/mm/readahead.c	2010-03-01 13:23:38.000000000 +0800
++++ linux/mm/readahead.c	2010-03-01 13:23:42.000000000 +0800
+@@ -337,7 +337,10 @@ unsigned long max_sane_readahead(unsigne
+  * Submit IO for the read-ahead request in file_ra_state.
+  */
+ unsigned long ra_submit(struct file_ra_state *ra,
+-		       struct address_space *mapping, struct file *filp)
++			struct address_space *mapping,
++			struct file *filp,
++			pgoff_t offset,
++			unsigned long req_size)
+ {
+ 	int actual;
+ 
+@@ -471,6 +474,7 @@ ondemand_readahead(struct address_space 
+ 	 * start of file
+ 	 */
+ 	if (!offset) {
++		ra_set_pattern(ra, RA_PATTERN_INITIAL);
+ 		ra->start = offset;
+ 		ra->size = get_init_ra_size(req_size, max);
+ 		ra->async_size = ra->size > req_size ?
+@@ -491,6 +495,7 @@ ondemand_readahead(struct address_space 
+ 	 */
+ 	if ((offset == (ra->start + ra->size - ra->async_size) ||
+ 	     offset == (ra->start + ra->size))) {
++		ra_set_pattern(ra, RA_PATTERN_SUBSEQUENT);
+ 		ra->start += ra->size;
+ 		ra->size = get_next_ra_size(ra, max);
+ 		ra->async_size = ra->size;
+@@ -501,6 +506,7 @@ ondemand_readahead(struct address_space 
+ 	 * oversize read, no need to query page cache
+ 	 */
+ 	if (req_size > max && !hit_readahead_marker) {
++		ra_set_pattern(ra, RA_PATTERN_INITIAL);
+ 		ra->start = offset;
+ 		ra->size = max;
+ 		ra->async_size = max;
+@@ -546,8 +552,10 @@ context_readahead:
+ 	 */
+ 	if (!tt && !hit_readahead_marker) {
+ 		if (!ra_thrashed(ra, offset)) {
++			ra_set_pattern(ra, RA_PATTERN_RANDOM);
+ 			ra->size = min(req_size, max);
+ 		} else {
++			ra_set_pattern(ra, RA_PATTERN_THRASH);
+ 			retain_inactive_pages(mapping, offset, min(2 * max,
+ 						ra->start + ra->size - offset));
+ 			ra->size = max_t(int, ra->size/2, MIN_READAHEAD_PAGES);
+@@ -569,6 +577,7 @@ context_readahead:
+ 	if (tt <= start - offset)
+ 		return 0;
+ 
++	ra_set_pattern(ra, RA_PATTERN_CONTEXT);
+ 	ra->start = start;
+ 	ra->size = clamp_t(unsigned int, tt - (start - offset),
+ 			   MIN_READAHEAD_PAGES, max);
+@@ -586,7 +595,7 @@ readit:
+ 		ra->size += ra->async_size;
+ 	}
+ 
+-	return ra_submit(ra, mapping, filp);
++	return ra_submit(ra, mapping, filp, offset, req_size);
+ }
+ 
+ /**
+--- linux.orig/include/linux/mm.h	2010-03-01 13:21:44.000000000 +0800
++++ linux/include/linux/mm.h	2010-03-01 13:23:42.000000000 +0800
+@@ -1208,7 +1208,9 @@ void page_cache_async_readahead(struct a
+ unsigned long max_sane_readahead(unsigned long nr);
+ unsigned long ra_submit(struct file_ra_state *ra,
+ 			struct address_space *mapping,
+-			struct file *filp);
++			struct file *filp,
++			pgoff_t offset,
++			unsigned long req_size);
+ 
+ /* Do stack extension */
+ extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
+--- linux.orig/mm/filemap.c	2010-03-01 13:21:44.000000000 +0800
++++ linux/mm/filemap.c	2010-03-01 13:23:42.000000000 +0800
+@@ -1413,6 +1413,7 @@ static void do_sync_mmap_readahead(struc
+ 
+ 	if (VM_SequentialReadHint(vma) ||
+ 			offset - 1 == (ra->prev_pos >> PAGE_CACHE_SHIFT)) {
++		ra->ra_flags |= READAHEAD_MMAP;
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+ 					  ra->ra_pages);
+ 		return;
+@@ -1433,10 +1434,12 @@ static void do_sync_mmap_readahead(struc
+ 			 ra->ra_pages,
+ 			 roundup_pow_of_two(totalram_pages / 1024));
+ 	if (ra_pages) {
++		ra->ra_flags |= READAHEAD_MMAP;
++		ra_set_pattern(ra, RA_PATTERN_MMAP_AROUND);
+ 		ra->start = max_t(long, 0, offset - ra_pages/2);
+ 		ra->size = ra_pages;
+ 		ra->async_size = 0;
+-		ra_submit(ra, mapping, file);
++		ra_submit(ra, mapping, file, offset, 1);
+ 	}
+ }
+ 
+@@ -1456,9 +1459,11 @@ static void do_async_mmap_readahead(stru
+ 	if (VM_RandomReadHint(vma))
+ 		return;
+ 	ra_mmap_miss_dec(ra);
+-	if (PageReadahead(page))
++	if (PageReadahead(page)) {
++		ra->ra_flags |= READAHEAD_MMAP;
+ 		page_cache_async_readahead(mapping, ra, file,
+ 					   page, offset, ra->ra_pages);
++	}
+ }
+ 
+ /**
 
 
 --
