@@ -1,87 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 24F6A6B007E
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 05:30:06 -0500 (EST)
-Date: Mon, 1 Mar 2010 11:30:01 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 052C46B0047
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 05:38:40 -0500 (EST)
+Date: Mon, 1 Mar 2010 11:38:36 +0100
 From: Andrea Righi <arighi@develer.com>
 Subject: Re: [PATCH -mmotm 1/2] memcg: dirty pages accounting and limiting
  infrastructure
-Message-ID: <20100301103001.GB2087@linux>
+Message-ID: <20100301103836.GC2087@linux>
 References: <1267224751-6382-1-git-send-email-arighi@develer.com>
  <1267224751-6382-2-git-send-email-arighi@develer.com>
- <20100301170535.2f1db0ed.nishimura@mxp.nes.nec.co.jp>
+ <cc557aab1003010058i3a824f98l4cec173fac05911f@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100301170535.2f1db0ed.nishimura@mxp.nes.nec.co.jp>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <cc557aab1003010058i3a824f98l4cec173fac05911f@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, Vivek Goyal <vgoyal@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Vivek Goyal <vgoyal@redhat.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 01, 2010 at 05:05:35PM +0900, Daisuke Nishimura wrote:
-> On Fri, 26 Feb 2010 23:52:30 +0100, Andrea Righi <arighi@develer.com> wrote:
-> > Infrastructure to account dirty pages per cgroup and add dirty limit
-> > interfaces in the cgroupfs:
-> > 
-> >  - Active write-out: memory.dirty_ratio, memory.dirty_bytes
-> >  - Background write-out: memory.dirty_background_ratio, memory.dirty_background_bytes
-> > 
-> It looks good for me in general.
-> 
-> > Signed-off-by: Andrea Righi <arighi@develer.com>
-> > ---
-> >  include/linux/memcontrol.h |   74 +++++++++-
-> >  mm/memcontrol.c            |  354 ++++++++++++++++++++++++++++++++++++++++----
-> >  2 files changed, 399 insertions(+), 29 deletions(-)
-> > 
-> 
-> (snip)
-> 
-> > +s64 mem_cgroup_page_stat(enum mem_cgroup_page_stat_item item)
+On Mon, Mar 01, 2010 at 10:58:35AM +0200, Kirill A. Shutemov wrote:
+[snip]
+> > +static u64 mem_cgroup_dirty_ratio_read(struct cgroup *cgrp, struct cftype *cft)
 > > +{
-> > +	struct mem_cgroup_page_stat stat = {};
-> > +	struct mem_cgroup *memcg;
+> > +       struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
 > > +
-> I think it would be better to add "if (mem_cgroup_disabled())".
-
-Agreed.
-
-> 
-> > +	rcu_read_lock();
-> > +	memcg = mem_cgroup_from_task(current);
-> > +	if (memcg) {
-> > +		/*
-> > +		 * Recursively evaulate page statistics against all cgroup
-> > +		 * under hierarchy tree
-> > +		 */
-> > +		stat.item = item;
-> > +		mem_cgroup_walk_tree(memcg, &stat, mem_cgroup_page_stat_cb);
-> > +	} else
-> > +		stat.value = -ENOMEM;
-> > +	rcu_read_unlock();
-> > +
-> > +	return stat.value;
+> > +       return get_dirty_param(memcg, MEM_CGROUP_DIRTY_RATIO);
 > > +}
 > > +
-> >  static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
-> >  {
-> >  	int *val = data;
-> > @@ -1263,10 +1419,10 @@ static void record_last_oom(struct mem_cgroup *mem)
-> >  }
-> >  
-> >  /*
-> > - * Currently used to update mapped file statistics, but the routine can be
-> > - * generalized to update other statistics as well.
-> > + * Generalized routine to update memory cgroup statistics.
-> >   */
-> > -void mem_cgroup_update_file_mapped(struct page *page, int val)
-> > +void mem_cgroup_update_stat(struct page *page,
-> > +			enum mem_cgroup_stat_index idx, int val)
-> >  {
-> >  	struct mem_cgroup *mem;
-> >  	struct page_cgroup *pc;
-> ditto.
+> > +static int
+> > +mem_cgroup_dirty_ratio_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
+> > +{
+> > +       struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > +
+> > +       if ((cgrp->parent == NULL) || (val > 100))
+> > +               return -EINVAL;
+> > +
+> > +       spin_lock(&memcg->reclaim_param_lock);
+> > +       memcg->dirty_ratio = val;
+> > +       memcg->dirty_bytes = 0;
+> > +       spin_unlock(&memcg->reclaim_param_lock);
+> > +
+> > +       return 0;
+> > +}
+> > +
+> > +static u64 mem_cgroup_dirty_bytes_read(struct cgroup *cgrp, struct cftype *cft)
+> > +{
+> > +       struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > +
+> > +       return get_dirty_param(memcg, MEM_CGROUP_DIRTY_BYTES);
+> > +}
+> > +
+> > +static int
+> > +mem_cgroup_dirty_bytes_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
+> > +{
+> > +       struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > +
+> > +       if (cgrp->parent == NULL)
+> > +               return -EINVAL;
+> > +
+> > +       spin_lock(&memcg->reclaim_param_lock);
+> > +       memcg->dirty_ratio = 0;
+> > +       memcg->dirty_bytes = val;
+> > +       spin_unlock(&memcg->reclaim_param_lock);
+> > +
+> > +       return 0;
+> > +}
+> > +
+> > +static u64
+> > +mem_cgroup_dirty_background_ratio_read(struct cgroup *cgrp, struct cftype *cft)
+> > +{
+> > +       struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > +
+> > +       return get_dirty_param(memcg, MEM_CGROUP_DIRTY_BACKGROUND_RATIO);
+> > +}
+> > +
+> > +static int mem_cgroup_dirty_background_ratio_write(struct cgroup *cgrp,
+> > +                               struct cftype *cft, u64 val)
+> > +{
+> > +       struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > +
+> > +       if ((cgrp->parent == NULL) || (val > 100))
+> > +               return -EINVAL;
+> > +
+> > +       spin_lock(&memcg->reclaim_param_lock);
+> > +       memcg->dirty_background_ratio = val;
+> > +       memcg->dirty_background_bytes = 0;
+> > +       spin_unlock(&memcg->reclaim_param_lock);
+> > +
+> > +       return 0;
+> > +}
+> > +
+> > +static u64
+> > +mem_cgroup_dirty_background_bytes_read(struct cgroup *cgrp, struct cftype *cft)
+> > +{
+> > +       struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > +
+> > +       return get_dirty_param(memcg, MEM_CGROUP_DIRTY_BACKGROUND_BYTES);
+> > +}
+> > +
+> > +static int mem_cgroup_dirty_background_bytes_write(struct cgroup *cgrp,
+> > +                               struct cftype *cft, u64 val)
+> > +{
+> > +       struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > +
+> > +       if (cgrp->parent == NULL)
+> > +               return -EINVAL;
+> > +
+> > +       spin_lock(&memcg->reclaim_param_lock);
+> > +       memcg->dirty_background_ratio = 0;
+> > +       memcg->dirty_background_bytes = val;
+> > +       spin_unlock(&memcg->reclaim_param_lock);
+> > +
+> > +       return 0;
+> > +}
+> > +
+> >  static struct cftype mem_cgroup_files[] = {
+> >        {
+> >                .name = "usage_in_bytes",
+> > @@ -3518,6 +3785,26 @@ static struct cftype mem_cgroup_files[] = {
+> >                .write_u64 = mem_cgroup_swappiness_write,
+> >        },
+> >        {
+> > +               .name = "dirty_ratio",
+> > +               .read_u64 = mem_cgroup_dirty_ratio_read,
+> > +               .write_u64 = mem_cgroup_dirty_ratio_write,
+> > +       },
+> > +       {
+> > +               .name = "dirty_bytes",
+> > +               .read_u64 = mem_cgroup_dirty_bytes_read,
+> > +               .write_u64 = mem_cgroup_dirty_bytes_write,
+> > +       },
+> > +       {
+> > +               .name = "dirty_background_ratio",
+> > +               .read_u64 = mem_cgroup_dirty_background_ratio_read,
+> > +               .write_u64 = mem_cgroup_dirty_background_ratio_write,
+> > +       },
+> > +       {
+> > +               .name = "dirty_background_bytes",
+> > +               .read_u64 = mem_cgroup_dirty_background_bytes_read,
+> > +               .write_u64 = mem_cgroup_dirty_background_bytes_write,
+> > +       },
+> > +       {
+> 
+> mem_cgroup_dirty_background_* functions are too similar to
+> mem_cgroup_dirty_bytes_*. I think they should be combined
+> like mem_cgroup_read() and mem_cgroup_write(). It will be
+> cleaner.
 
 Agreed.
 
