@@ -1,122 +1,92 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 149346B01EE
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 23:05:16 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3135DYw020420
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 1 Apr 2010 12:05:13 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E19FF45DE4F
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 12:13:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E19FF45DE62
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 12:13:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B7AD1E3800F
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 12:05:12 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 96576E38009
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 12:05:11 +0900 (JST)
-Date: Thu, 1 Apr 2010 12:01:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 14/14] mm,migration: Allow the migration of
- PageSwapCache  pages
-Message-Id: <20100401120123.f9f9e872.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <j2s28c262361003311943ke6d39007of3861743cef3733a@mail.gmail.com>
-References: <1269940489-5776-1-git-send-email-mel@csn.ul.ie>
-	<1269940489-5776-15-git-send-email-mel@csn.ul.ie>
-	<20100331142623.62ac9175.kamezawa.hiroyu@jp.fujitsu.com>
-	<j2s28c262361003311943ke6d39007of3861743cef3733a@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 00/16] [PATCH 00/15] 512K readahead size with thrashing safe readahead v3
+Date: Mon, 01 Mar 2010 13:26:51 +0800
+Message-ID: <20100301052651.857984880@intel.com>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1NlyKP-0004zL-M1
+	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:01 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id DE3556B0047
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:37:56 -0500 (EST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
+List-Id: linux-mm.kvack.org
 
-On Thu, 1 Apr 2010 11:43:18 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+Andrew,
 
-> On Wed, Mar 31, 2010 at 2:26 PM, KAMEZAWA Hiroyuki A  A  A  /*
-> >> diff --git a/mm/rmap.c b/mm/rmap.c
-> >> index af35b75..d5ea1f2 100644
-> >> --- a/mm/rmap.c
-> >> +++ b/mm/rmap.c
-> >> @@ -1394,9 +1394,11 @@ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
-> >>
-> >> A  A  A  if (unlikely(PageKsm(page)))
-> >> A  A  A  A  A  A  A  return rmap_walk_ksm(page, rmap_one, arg);
-> >> - A  A  else if (PageAnon(page))
-> >> + A  A  else if (PageAnon(page)) {
-> >> + A  A  A  A  A  A  if (PageSwapCache(page))
-> >> + A  A  A  A  A  A  A  A  A  A  return SWAP_AGAIN;
-> >> A  A  A  A  A  A  A  return rmap_walk_anon(page, rmap_one, arg);
-> >
-> > SwapCache has a condition as (PageSwapCache(page) && page_mapped(page) == true.
-> >
-> 
-> In case of tmpfs, page has swapcache but not mapped.
-> 
-> > Please see do_swap_page(), PageSwapCache bit is cleared only when
-> >
-> > do_swap_page()...
-> > A  A  A  swap_free(entry);
-> > A  A  A  A if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
-> > A  A  A  A  A  A  A  A try_to_free_swap(page);
-> >
-> > Then, PageSwapCache is cleared only when swap is freeable even if mapped.
-> >
-> > rmap_walk_anon() should be called and the check is not necessary.
-> 
-> Frankly speaking, I don't understand what is Mel's problem, why he added
-> Swapcache check in rmap_walk, and why do you said we don't need it.
-> 
-> Could you explain more detail if you don't mind?
-> 
-I may miss something.
+This enlarges the default readahead size from 128K to 512K.
+To avoid possible regressions, also do
+- scale down readahead size on small device and small memory
+- thrashing safe context readahead
+- add readahead tracing/stats support to help expose possible problems
 
-unmap_and_move()
- 1. try_to_unmap(TTU_MIGRATION)
- 2. move_to_newpage
- 3. remove_migration_ptes
-	-> rmap_walk()
+Besides, the patchset also includes several algorithm updates:
+- no start-of-file readahead after lseek
+- faster radix_tree_next_hole()/radix_tree_prev_hole()
+- pagecache context based mmap read-around
 
-Then, to map a page back we unmapped we call rmap_walk().
 
-Assume a SwapCache which is mapped, then, PageAnon(page) == true.
+Changes since v2:
+- add notes on readahead size
+- limit read-around size for small memory system, but don't limit readahead size
+- bug fix: allow context readahead async size grow to its full size
+- bug fix: let radix_tree_lookup_leaf_node() handle the height=1 case
 
- At 1. try_to_unmap() will rewrite pte with swp_entry of SwapCache.
-       mapcount goes to 0.
- At 2. SwapCache is copied to a new page.
- At 3. The new page is mapped back to the place. Now, newpage's mapcount is 0.
-       Before patch, the new page is mapped back to all ptes.
-       After patch, the new page is not mapped back because its mapcount is 0.
+Changes since v1:
+- update mmap read-around heuristics (Thanks to Nick Piggin)
+- radix_tree_lookup_leaf_node() for the pagecache based mmap read-around
+- use __print_symbolic() to show readahead pattern names
+  (Thanks to Steven Rostedt)
+- scale down readahead size proportional to system memory
+  (Thanks to Matt Mackall)
+- add readahead size kernel parameter (by Nikanth Karthikesan)
+- add comments from Christian Ehrhardt
 
-I don't think shared SwapCache of anon is not an usual behavior, so, the logic
-before patch is more attractive.
+Changes since RFC:
+- move the lenthy intro text to individual patch changelogs
+- treat get_capacity()==0 as uninitilized value (Thanks to Vivek Goyal)
+- increase readahead size limit for small devices (Thanks to Jens Axboe)
+- add fio test results by Vivek Goyal
 
-If SwapCache is not mapped before "1", we skip "1" and rmap_walk will do nothing
-because page->mapping is NULL.
+
+[PATCH 01/16] readahead: limit readahead size for small devices
+[PATCH 02/16] readahead: retain inactive lru pages to be accessed soon
+[PATCH 03/16] readahead: bump up the default readahead size
+[PATCH 04/16] readahead: make default readahead size a kernel parameter
+[PATCH 05/16] readahead: limit read-ahead size for small memory systems
+[PATCH 06/16] readahead: add notes on readahead size
+[PATCH 07/16] readahead: replace ra->mmap_miss with ra->ra_flags
+[PATCH 08/16] readahead: thrashing safe context readahead
+[PATCH 09/16] readahead: record readahead patterns
+[PATCH 10/16] readahead: add tracing event
+[PATCH 11/16] readahead: add /debug/readahead/stats
+[PATCH 12/16] readahead: dont do start-of-file readahead after lseek()
+[PATCH 13/16] radixtree: introduce radix_tree_lookup_leaf_node()
+[PATCH 14/16] radixtree: speed up the search for hole
+[PATCH 15/16] readahead: reduce MMAP_LOTSAMISS for mmap read-around
+[PATCH 16/16] readahead: pagecache context based mmap read-around
+
+ Documentation/kernel-parameters.txt |    4 
+ block/blk-core.c                    |    3 
+ block/genhd.c                       |   24 +
+ fs/fuse/inode.c                     |    2 
+ fs/read_write.c                     |    3 
+ include/linux/fs.h                  |   64 +++
+ include/linux/mm.h                  |    8 
+ include/linux/radix-tree.h          |    2 
+ include/trace/events/readahead.h    |   78 ++++
+ lib/radix-tree.c                    |  104 ++++-
+ mm/Kconfig                          |   13 
+ mm/filemap.c                        |   34 +
+ mm/readahead.c                      |  458 ++++++++++++++++++++++----
+ 13 files changed, 688 insertions(+), 109 deletions(-)
 
 Thanks,
--Kame
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
