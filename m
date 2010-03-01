@@ -1,69 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1AAA96B0047
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 17:18:36 -0500 (EST)
-Date: Mon, 1 Mar 2010 23:18:31 +0100
-From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH -mmotm 3/3] memcg: dirty pages instrumentation
-Message-ID: <20100301221830.GA5460@linux>
-References: <1267478620-5276-1-git-send-email-arighi@develer.com>
- <1267478620-5276-4-git-send-email-arighi@develer.com>
- <20100301220208.GH3109@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1E9616B0047
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 17:35:00 -0500 (EST)
+Date: Mon, 1 Mar 2010 23:34:57 +0100
+From: Michal Hocko <mstsxfx@gmail.com>
+Subject: Re: unable to handle kernel paging request on resume with
+ 2.6.33-00001-gbaac35c
+Message-ID: <20100301223457.GB4034@tiehlicka.suse.cz>
+References: <20100301175256.GA4034@tiehlicka.suse.cz>
+ <201003012207.37582.rjw@sisk.pl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100301220208.GH3109@redhat.com>
+In-Reply-To: <201003012207.37582.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-kernel@vger.kernel.org, pm list <linux-pm@lists.linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 01, 2010 at 05:02:08PM -0500, Vivek Goyal wrote:
-> > @@ -686,10 +699,14 @@ void throttle_vm_writeout(gfp_t gfp_mask)
-> >                   */
-> >                  dirty_thresh += dirty_thresh / 10;      /* wheeee... */
-> >  
-> > -                if (global_page_state(NR_UNSTABLE_NFS) +
-> > -			global_page_state(NR_WRITEBACK) <= dirty_thresh)
-> > -                        	break;
-> > -                congestion_wait(BLK_RW_ASYNC, HZ/10);
-> > +
-> > +		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-> > +		if (dirty < 0)
-> > +			dirty = global_page_state(NR_UNSTABLE_NFS) +
-> > +				global_page_state(NR_WRITEBACK);
+[Let's CC mm guys]
+
+On Mon, Mar 01, 2010 at 10:07:37PM +0100, Rafael J. Wysocki wrote:
+> On Monday 01 March 2010, Michal Hocko wrote:
+> > Hi,
+> > 
+> > I have experienced the following kernel BUG on resume from suspend from
+> > disk (the whole log from  hibarnation to suspend along with kernel
+> > config are attached):
+> > 
+> > BUG: unable to handle kernel paging request at 00aaaaaa
+> > IP: [<c019e28c>] anon_vma_link+0x2c/0x39
+> > *pde = 00000000
+> > Oops: 0002 [#1] PREEMPT SMP
+> > last sysfs file: /sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0003:00/power_supply/AC/type
+> > Modules linked in: aes_i586 aes_generic iwl3945 iwlcore mac80211 cfg80211 fbcon font bitblit softcursor i915 drm_kms_helper drm fb i2c_algo_bit cfbcopyarea i2c_core cfbimgblt cfbfillrect fuse tun coretemp hwmon snd_hda_codec_realtek snd_hda_intel snd_hda_codec arc4 ecb snd_pcm_oss snd_mixer_oss snd_pcm snd_seq_oss snd_seq_midi_event snd_seq snd_timer fujitsu_laptop snd_seq_device rtc_cmos rtc_core led_class rtc_lib snd snd_page_alloc video backlight output [last unloaded: cfg80211]
+> > 
+> > Pid: 3942, comm: kxkb Not tainted 2.6.33-00001-gbaac35c #11 FJNB1B5/LIFEBOOK S7110
+> > EIP: 0060:[<c019e28c>] EFLAGS: 00010246 CPU: 1
+> > EIP is at anon_vma_link+0x2c/0x39
+> > EAX: 00aaaaaa EBX: f69c6410 ECX: f69c6414 EDX: f63e4df4
+> > ESI: f63e4dc0 EDI: f63e4e14 EBP: f6901ec0 ESP: f6901eb8
+> >  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
+> > Process kxkb (pid: 3942, ti=f6901000 task=f6aa6ff0 task.ti=f6901000)
+> > Stack:
+> >  f63e4dc0 f23fc7e4 f6901efc c012fc28 f6aa6ff0 f63e4e30 f63e4e34 f63e4e24
+> > <0> ca4656f4 f6ace734 f6aa6ff0 f6ace700 ca4656c0 f23fc790 ca560000 fffffff4
+> > <0> f659ef94 f6901f38 c0130821 f6aa6ff0 f6901fb4 bff441f0 ca560208 00000000
+> > Call Trace:
+> >  [<c012fc28>] ? dup_mm+0x1c7/0x3d3
+> >  [<c0130821>] ? copy_process+0x98e/0xf26
+> >  [<c0130ed6>] ? do_fork+0x11d/0x2a1
+> >  [<c0434547>] ? _raw_spin_unlock+0x14/0x28
+> >  [<c01b6795>] ? set_close_on_exec+0x45/0x4b
+> >  [<c01b6e98>] ? do_fcntl+0x15f/0x3f1
+> >  [<c0108678>] ? sys_clone+0x20/0x25
+> >  [<c010291d>] ? ptregs_clone+0x15/0x38
+> >  [<c0102850>] ? sysenter_do_call+0x12/0x26
+> > Code: 89 e5 56 53 0f 1f 44 00 00 8b 58 3c 89 c6 85 db 74 22 89 d8 e8 54 65 29 00 8b 43 08 8d 56 34 8d 4b 04 89 53 08 89 4e 34 89 46 38 <89> 10 89 d8 e8 9e 62 29 00 5b 5e 5d c3 55 89 e5 0f 1f 44 00 00
+> > EIP: [<c019e28c>] anon_vma_link+0x2c/0x39 SS:ESP 0068:f6901eb8
+> > CR2: 0000000000aaaaaa
+> > ---[ end trace b7f008b0e5aa7c65 ]---
 > 
-> dirty is unsigned long. As mentioned last time, above will never be true?
-> In general these patches look ok to me. I will do some testing with these.
+> This looks like a low-level memory management issue of some sort.
 
-Re-introduced the same bug. My bad. :(
+Yes, it really looks strange. dup_mm+0x1c7 matches to:
+c102fc0e:       81 60 14 ff df ff ff    andl   $0xffffdfff,0x14(%eax)
+c102fc15:       8b 45 ec                mov    -0x14(%ebp),%eax
+c102fc18:       c7 43 0c 00 00 00 00    movl   $0x0,0xc(%ebx)
+c102fc1f:       89 03                   mov    %eax,(%ebx)
+c102fc21:       89 d8                   mov    %ebx,%eax
+c102fc23:       e8 38 e6 06 00          call   c109e260 <anon_vma_link>
+c102fc28:       8b 43 48                mov    0x48(%ebx),%eax  <<< BANG
 
-The value returned from mem_cgroup_page_stat() can be negative, i.e.
-when memory cgroup is disabled. We could simply use a long for dirty,
-the unit is in # of pages so s64 should be enough. Or cast dirty to long
-only for the check (see below).
+which corresponds to:
+kernel/fork.c:336
+		tmp->vm_flags &= ~VM_LOCKED;
+                tmp->vm_mm = mm;
+                tmp->vm_next = NULL;
+                anon_vma_link(tmp);
+                file = tmp->vm_file; <<< BANG
 
-Thanks!
--Andrea
+ebx is tmp which somehow got deallocated. I cannot see how this could happened.
 
-Signed-off-by: Andrea Righi <arighi@develer.com>
----
- mm/page-writeback.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index d83f41c..dbee976 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -701,7 +701,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
- 
- 
- 		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
--		if (dirty < 0)
-+		if ((long)dirty < 0)
- 			dirty = global_page_state(NR_UNSTABLE_NFS) +
- 				global_page_state(NR_WRITEBACK);
- 		if (dirty <= dirty_thresh)
+> 
+> What's the HEAD commit in this kernel tree?
+
+$ git describe
+v2.6.33-1-gbaac35c
+
+> 
+> Also, is the problem reproducible?
+
+As I've already mentioned. This is the first time I have seen this problem.
+I am using suspend to disk and wake up quite often (several times a day). I
+haven't tried suspend/resume loop test yet.
+
+> 
+> Rafael
+
+-- 
+Michal Hocko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
