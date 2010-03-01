@@ -1,92 +1,136 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 00/16] [PATCH 00/15] 512K readahead size with thrashing safe readahead v3
-Date: Mon, 01 Mar 2010 13:26:51 +0800
-Message-ID: <20100301052651.857984880@intel.com>
+Subject: [PATCH 13/16] radixtree: introduce radix_tree_lookup_leaf_node()
+Date: Mon, 01 Mar 2010 13:27:04 +0800
+Message-ID: <20100301053622.084130183@intel.com>
+References: <20100301052651.857984880@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NlyKP-0004zL-M1
-	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:01 +0100
+	id 1NlyKT-00050P-Ad
+	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:05 +0100
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id DE3556B0047
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:37:56 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 8ABA66B007D
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:37:57 -0500 (EST)
+Content-Disposition: inline; filename=radixtree-radix_tree_lookup_leaf_node.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Andrew,
+This will be used by the pagecache context based read-ahead/read-around
+heuristic to quickly check one pagecache range:
+- if there is any hole
+- if there is any pages
 
-This enlarges the default readahead size from 128K to 512K.
-To avoid possible regressions, also do
-- scale down readahead size on small device and small memory
-- thrashing safe context readahead
-- add readahead tracing/stats support to help expose possible problems
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>
+Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/radix-tree.h |    2 +
+ lib/radix-tree.c           |   37 ++++++++++++++++++++++++++---------
+ 2 files changed, 30 insertions(+), 9 deletions(-)
 
-Besides, the patchset also includes several algorithm updates:
-- no start-of-file readahead after lseek
-- faster radix_tree_next_hole()/radix_tree_prev_hole()
-- pagecache context based mmap read-around
+--- linux.orig/lib/radix-tree.c	2010-02-27 12:59:22.000000000 +0800
++++ linux/lib/radix-tree.c	2010-02-27 13:00:09.000000000 +0800
+@@ -359,19 +359,20 @@ EXPORT_SYMBOL(radix_tree_insert);
+  * is_slot == 0 : search for the node.
+  */
+ static void *radix_tree_lookup_element(struct radix_tree_root *root,
+-				unsigned long index, int is_slot)
++				unsigned long index, int is_slot, int level)
+ {
+ 	unsigned int height, shift;
+-	struct radix_tree_node *node, **slot;
++	struct radix_tree_node *node;
++	struct radix_tree_node **slot = &root->rnode;
+ 
+ 	node = rcu_dereference(root->rnode);
+ 	if (node == NULL)
+ 		return NULL;
+ 
+ 	if (!radix_tree_is_indirect_ptr(node)) {
+-		if (index > 0)
++		if (index > 0 || level > 0)
+ 			return NULL;
+-		return is_slot ? (void *)&root->rnode : node;
++		goto out;
+ 	}
+ 	node = radix_tree_indirect_to_ptr(node);
+ 
+@@ -381,7 +382,7 @@ static void *radix_tree_lookup_element(s
+ 
+ 	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
+ 
+-	do {
++	while (height > level) {
+ 		slot = (struct radix_tree_node **)
+ 			(node->slots + ((index>>shift) & RADIX_TREE_MAP_MASK));
+ 		node = rcu_dereference(*slot);
+@@ -390,9 +391,10 @@ static void *radix_tree_lookup_element(s
+ 
+ 		shift -= RADIX_TREE_MAP_SHIFT;
+ 		height--;
+-	} while (height > 0);
++	}
+ 
+-	return is_slot ? (void *)slot:node;
++out:
++	return is_slot ? (void *)slot : node;
+ }
+ 
+ /**
+@@ -410,7 +412,7 @@ static void *radix_tree_lookup_element(s
+  */
+ void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned long index)
+ {
+-	return (void **)radix_tree_lookup_element(root, index, 1);
++	return (void **)radix_tree_lookup_element(root, index, 1, 0);
+ }
+ EXPORT_SYMBOL(radix_tree_lookup_slot);
+ 
+@@ -428,11 +430,28 @@ EXPORT_SYMBOL(radix_tree_lookup_slot);
+  */
+ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
+ {
+-	return radix_tree_lookup_element(root, index, 0);
++	return radix_tree_lookup_element(root, index, 0, 0);
+ }
+ EXPORT_SYMBOL(radix_tree_lookup);
+ 
+ /**
++ *	radix_tree_lookup_leaf_node    -    lookup leaf node on a radix tree
++ *	@root:		radix tree root
++ *	@index:		index key
++ *
++ *	Lookup the leaf node that covers @index in the radix tree @root.
++ *	Return NULL if the node does not exist, or is the special root node.
++ *
++ *	The typical usage is to check the value of node->count, which shall be
++ *	performed inside rcu_read_lock to prevent the node from being freed.
++ */
++struct radix_tree_node *
++radix_tree_lookup_leaf_node(struct radix_tree_root *root, unsigned long index)
++{
++	return radix_tree_lookup_element(root, index, 0, 1);
++}
++
++/**
+  *	radix_tree_tag_set - set a tag on a radix tree node
+  *	@root:		radix tree root
+  *	@index:		index key
+--- linux.orig/include/linux/radix-tree.h	2010-02-27 12:59:22.000000000 +0800
++++ linux/include/linux/radix-tree.h	2010-02-27 12:59:23.000000000 +0800
+@@ -158,6 +158,8 @@ static inline void radix_tree_replace_sl
+ int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
+ void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
+ void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
++struct radix_tree_node *
++radix_tree_lookup_leaf_node(struct radix_tree_root *root, unsigned long index);
+ void *radix_tree_delete(struct radix_tree_root *, unsigned long);
+ unsigned int
+ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
 
-
-Changes since v2:
-- add notes on readahead size
-- limit read-around size for small memory system, but don't limit readahead size
-- bug fix: allow context readahead async size grow to its full size
-- bug fix: let radix_tree_lookup_leaf_node() handle the height=1 case
-
-Changes since v1:
-- update mmap read-around heuristics (Thanks to Nick Piggin)
-- radix_tree_lookup_leaf_node() for the pagecache based mmap read-around
-- use __print_symbolic() to show readahead pattern names
-  (Thanks to Steven Rostedt)
-- scale down readahead size proportional to system memory
-  (Thanks to Matt Mackall)
-- add readahead size kernel parameter (by Nikanth Karthikesan)
-- add comments from Christian Ehrhardt
-
-Changes since RFC:
-- move the lenthy intro text to individual patch changelogs
-- treat get_capacity()==0 as uninitilized value (Thanks to Vivek Goyal)
-- increase readahead size limit for small devices (Thanks to Jens Axboe)
-- add fio test results by Vivek Goyal
-
-
-[PATCH 01/16] readahead: limit readahead size for small devices
-[PATCH 02/16] readahead: retain inactive lru pages to be accessed soon
-[PATCH 03/16] readahead: bump up the default readahead size
-[PATCH 04/16] readahead: make default readahead size a kernel parameter
-[PATCH 05/16] readahead: limit read-ahead size for small memory systems
-[PATCH 06/16] readahead: add notes on readahead size
-[PATCH 07/16] readahead: replace ra->mmap_miss with ra->ra_flags
-[PATCH 08/16] readahead: thrashing safe context readahead
-[PATCH 09/16] readahead: record readahead patterns
-[PATCH 10/16] readahead: add tracing event
-[PATCH 11/16] readahead: add /debug/readahead/stats
-[PATCH 12/16] readahead: dont do start-of-file readahead after lseek()
-[PATCH 13/16] radixtree: introduce radix_tree_lookup_leaf_node()
-[PATCH 14/16] radixtree: speed up the search for hole
-[PATCH 15/16] readahead: reduce MMAP_LOTSAMISS for mmap read-around
-[PATCH 16/16] readahead: pagecache context based mmap read-around
-
- Documentation/kernel-parameters.txt |    4 
- block/blk-core.c                    |    3 
- block/genhd.c                       |   24 +
- fs/fuse/inode.c                     |    2 
- fs/read_write.c                     |    3 
- include/linux/fs.h                  |   64 +++
- include/linux/mm.h                  |    8 
- include/linux/radix-tree.h          |    2 
- include/trace/events/readahead.h    |   78 ++++
- lib/radix-tree.c                    |  104 ++++-
- mm/Kconfig                          |   13 
- mm/filemap.c                        |   34 +
- mm/readahead.c                      |  458 ++++++++++++++++++++++----
- 13 files changed, 688 insertions(+), 109 deletions(-)
-
-Thanks,
-Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
