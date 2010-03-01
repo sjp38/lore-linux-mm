@@ -1,140 +1,161 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 02/16] readahead: retain inactive lru pages to be accessed soon
-Date: Mon, 01 Mar 2010 13:26:53 +0800
-Message-ID: <20100301053620.539719938@intel.com>
+Subject: [PATCH 10/16] readahead: add tracing event
+Date: Mon, 01 Mar 2010 13:27:01 +0800
+Message-ID: <20100301053621.672250519@intel.com>
 References: <20100301052651.857984880@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NlyKY-00051U-0Q
-	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:10 +0100
+	id 1NlyKa-00052B-CD
+	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:12 +0100
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9DEAA6B007E
+	by kanga.kvack.org (Postfix) with SMTP id A937B6B0082
 	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:37:57 -0500 (EST)
-Content-Disposition: inline; filename=readahead-retain-pages-find_get_page.patch
+Content-Disposition: inline; filename=readahead-tracer.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Rik van Riel <riel@redhat.com>, Chris Frost <frost@cs.ucla.edu>, Steve VanDeBogart <vandebo@cs.ucla.edu>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-From: Chris Frost <frost@cs.ucla.edu>
+Example output:
 
-Ensure that cached pages in the inactive list are not prematurely evicted;
-move such pages to lru head when they are covered by
-- in-kernel heuristic readahead
-- an posix_fadvise(POSIX_FADV_WILLNEED) hint from an application
+# echo 1 > /debug/tracing/events/readahead/enable
+# cp test-file /dev/null
+# cat /debug/tracing/trace  # trimmed output
+readahead-initial(dev=0:15, ino=100177, req=0+2, ra=0+4-2, async=0) = 4
+readahead-subsequent(dev=0:15, ino=100177, req=2+2, ra=4+8-8, async=1) = 8
+readahead-subsequent(dev=0:15, ino=100177, req=4+2, ra=12+16-16, async=1) = 16
+readahead-subsequent(dev=0:15, ino=100177, req=12+2, ra=28+32-32, async=1) = 32
+readahead-subsequent(dev=0:15, ino=100177, req=28+2, ra=60+60-60, async=1) = 24
+readahead-subsequent(dev=0:15, ino=100177, req=60+2, ra=120+60-60, async=1) = 0
 
-Before this patch, pages already in core may be evicted before the
-pages covered by the same prefetch scan but that were not yet in core.
-Many small read requests may be forced on the disk because of this
-behavior.
-
-In particular, posix_fadvise(... POSIX_FADV_WILLNEED) on an in-core page
-has no effect on the page's location in the LRU list, even if it is the
-next victim on the inactive list.
-
-This change helps address the performance problems we encountered
-while modifying SQLite and the GIMP to use large file prefetching.
-Overall these prefetching techniques improved the runtime of large
-benchmarks by 10-17x for these applications. More in the publication
-_Reducing Seek Overhead with Application-Directed Prefetching_ in
-USENIX ATC 2009 and at http://libprefetch.cs.ucla.edu/.
-
-Notes from Fengguang:
-
-I'm actually not afraid of it adding memory pressure to the readahead
-thrashing case.  The context readahead can adaptively control the memory
-pressure with or without this patch.
-
-It does add memory pressure to mmap read-around. A typical read-around
-request would cover some cached pages (whether or not they are
-memory-mapped), and all those pages would be moved to LRU head by this
-patch.
-
-This somehow implicitly adds LRU lifetime to executable/lib pages.
-
-Hopefully this won't behave too bad. Note that the read-around size will
-be limited in small memory systems, which in turn reduces the risk of
-this patch.
-
+CC: Ingo Molnar <mingo@elte.hu> 
+CC: Jens Axboe <jens.axboe@oracle.com> 
+CC: Steven Rostedt <rostedt@goodmis.org>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl> 
 Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Chris Frost <frost@cs.ucla.edu>
-Signed-off-by: Steve VanDeBogart <vandebo@cs.ucla.edu>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/readahead.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ include/trace/events/readahead.h |   78 +++++++++++++++++++++++++++++
+ mm/readahead.c                   |   11 ++++
+ 2 files changed, 89 insertions(+)
 
---- linux.orig/mm/readahead.c	2010-02-24 10:44:26.000000000 +0800
-+++ linux/mm/readahead.c	2010-02-24 10:44:40.000000000 +0800
-@@ -9,7 +9,9 @@
- 
- #include <linux/kernel.h>
- #include <linux/fs.h>
-+#include <linux/memcontrol.h>
- #include <linux/mm.h>
-+#include <linux/mm_inline.h>
- #include <linux/module.h>
- #include <linux/blkdev.h>
- #include <linux/backing-dev.h>
-@@ -133,6 +135,40 @@ out:
- }
- 
- /*
-+ * The file range is expected to be accessed in near future.  Move pages
-+ * (possibly in inactive lru tail) to lru head, so that they are retained
-+ * in memory for some reasonable time.
-+ */
-+static void retain_inactive_pages(struct address_space *mapping,
-+				  pgoff_t index, int len)
-+{
-+	int i;
-+	struct page *page;
-+	struct zone *zone;
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux/include/trace/events/readahead.h	2010-02-26 10:09:48.000000000 +0800
+@@ -0,0 +1,78 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM readahead
 +
-+	for (i = 0; i < len; i++) {
-+		page = find_get_page(mapping, index + i);
-+		if (!page)
-+			continue;
++#if !defined(_TRACE_READAHEAD_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_READAHEAD_H
 +
-+		zone = page_zone(page);
-+		spin_lock_irq(&zone->lru_lock);
++#include <linux/tracepoint.h>
 +
-+		if (PageLRU(page) &&
-+		    !PageActive(page) &&
-+		    !PageUnevictable(page)) {
-+			int lru = page_lru_base_type(page);
-+
-+			del_page_from_lru_list(zone, page, lru);
-+			add_page_to_lru_list(zone, page, lru);
-+		}
-+
-+		spin_unlock_irq(&zone->lru_lock);
-+		put_page(page);
-+	}
-+}
++#define show_pattern_name(val)						   \
++	__print_symbolic(val,						   \
++			{ RA_PATTERN_INITIAL,		"initial"	}, \
++			{ RA_PATTERN_SUBSEQUENT,	"subsequent"	}, \
++			{ RA_PATTERN_CONTEXT,		"context"	}, \
++			{ RA_PATTERN_THRASH,		"thrash"	}, \
++			{ RA_PATTERN_MMAP_AROUND,	"around"	}, \
++			{ RA_PATTERN_FADVISE,		"fadvise"	}, \
++			{ RA_PATTERN_RANDOM,		"random"	}, \
++			{ RA_PATTERN_ALL,		"all"		})
 +
 +/*
-  * __do_page_cache_readahead() actually reads a chunk of disk.  It allocates all
-  * the pages first, then submits them all for I/O. This avoids the very bad
-  * behaviour which would occur if page allocations are causing VM writeback.
-@@ -184,6 +220,14 @@ __do_page_cache_readahead(struct address
- 	}
- 
- 	/*
-+	 * Normally readahead will auto stop on cached segments, so we won't
-+	 * hit many cached pages. If it does happen, bring the inactive pages
-+	 * adjecent to the newly prefetched ones(if any).
-+	 */
-+	if (ret < nr_to_read)
-+		retain_inactive_pages(mapping, offset, page_idx);
++ * Tracepoint for guest mode entry.
++ */
++TRACE_EVENT(readahead,
++	TP_PROTO(struct address_space *mapping,
++		 pgoff_t offset,
++		 unsigned long req_size,
++		 unsigned int ra_flags,
++		 pgoff_t start,
++		 unsigned int size,
++		 unsigned int async_size,
++		 unsigned int actual),
 +
-+	/*
- 	 * Now start the IO.  We ignore I/O errors - if the page is not
- 	 * uptodate then the caller will launch readpage again, and
- 	 * will then handle the error.
++	TP_ARGS(mapping, offset, req_size,
++		ra_flags, start, size, async_size, actual),
++
++	TP_STRUCT__entry(
++		__field(	dev_t,		dev		)
++		__field(	ino_t,		ino		)
++		__field(	pgoff_t,	offset		)
++		__field(	unsigned long,	req_size	)
++		__field(	unsigned int,	pattern		)
++		__field(	pgoff_t,	start		)
++		__field(	unsigned int,	size		)
++		__field(	unsigned int,	async_size	)
++		__field(	unsigned int,	actual		)
++	),
++
++	TP_fast_assign(
++		__entry->dev		= mapping->host->i_sb->s_dev;
++		__entry->ino		= mapping->host->i_ino;
++		__entry->pattern	= ra_pattern(ra_flags);
++		__entry->offset		= offset;
++		__entry->req_size	= req_size;
++		__entry->start		= start;
++		__entry->size		= size;
++		__entry->async_size	= async_size;
++		__entry->actual		= actual;
++	),
++
++	TP_printk("readahead-%s(dev=%d:%d, ino=%lu, "
++		  "req=%lu+%lu, ra=%lu+%d-%d, async=%d) = %d",
++			show_pattern_name(__entry->pattern),
++			MAJOR(__entry->dev),
++			MINOR(__entry->dev),
++			__entry->ino,
++			__entry->offset,
++			__entry->req_size,
++			__entry->start,
++			__entry->size,
++			__entry->async_size,
++			__entry->start > __entry->offset,
++			__entry->actual)
++);
++
++#endif /* _TRACE_READAHEAD_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+--- linux.orig/mm/readahead.c	2010-02-26 10:09:47.000000000 +0800
++++ linux/mm/readahead.c	2010-02-26 10:10:05.000000000 +0800
+@@ -41,6 +41,9 @@
+ #include <linux/pagevec.h>
+ #include <linux/pagemap.h>
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/readahead.h>
++
+ /*
+  * Set async size to 1/# of the thrashing threshold.
+  */
+@@ -320,6 +323,11 @@ int force_page_cache_readahead(struct ad
+ 		offset += this_chunk;
+ 		nr_to_read -= this_chunk;
+ 	}
++
++	trace_readahead(mapping, offset, nr_to_read,
++			RA_PATTERN_FADVISE << READAHEAD_PATTERN_SHIFT,
++			offset, nr_to_read, 0, ret);
++
+ 	return ret;
+ }
+ 
+@@ -347,6 +355,9 @@ unsigned long ra_submit(struct file_ra_s
+ 	actual = __do_page_cache_readahead(mapping, filp,
+ 					ra->start, ra->size, ra->async_size);
+ 
++	trace_readahead(mapping, offset, req_size, ra->ra_flags,
++			ra->start, ra->size, ra->async_size, actual);
++
+ 	return actual;
+ }
+ 
 
 
 --
