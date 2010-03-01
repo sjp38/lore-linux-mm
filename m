@@ -1,84 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DA6116B0078
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 05:13:34 -0500 (EST)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id o21ADWYO014230
-	for <linux-mm@kvack.org>; Mon, 1 Mar 2010 02:13:32 -0800
-Received: from pwi2 (pwi2.prod.google.com [10.241.219.2])
-	by wpaz13.hot.corp.google.com with ESMTP id o21ADVok025840
-	for <linux-mm@kvack.org>; Mon, 1 Mar 2010 02:13:31 -0800
-Received: by pwi2 with SMTP id 2so1408479pwi.12
-        for <linux-mm@kvack.org>; Mon, 01 Mar 2010 02:13:31 -0800 (PST)
-Date: Mon, 1 Mar 2010 02:13:28 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 969F06B007D
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 05:14:47 -0500 (EST)
+Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
+	by smtp-out.google.com with ESMTP id o21AEhFd016626
+	for <linux-mm@kvack.org>; Mon, 1 Mar 2010 10:14:43 GMT
+Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
+	by spaceape13.eur.corp.google.com with ESMTP id o21AEZDs003546
+	for <linux-mm@kvack.org>; Mon, 1 Mar 2010 02:14:42 -0800
+Received: by pzk37 with SMTP id 37so1840635pzk.7
+        for <linux-mm@kvack.org>; Mon, 01 Mar 2010 02:14:41 -0800 (PST)
+Date: Mon, 1 Mar 2010 02:14:39 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
- ooms
-In-Reply-To: <20100301101259.af730fa0.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1003010204180.26824@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com> <alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com> <20100301101259.af730fa0.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [patch] mm: adjust kswapd nice level for high priority page
+ allocators
+Message-ID: <alpine.DEB.2.00.1003010213480.26824@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Con Kolivas <kernel@kolivas.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Mar 2010, KAMEZAWA Hiroyuki wrote:
+From: Con Kolivas <kernel@kolivas.org>
 
-> On Fri, 26 Feb 2010 15:53:11 -0800 (PST)
-> David Rientjes <rientjes@google.com> wrote:
-> 
-> > It is possible to remove the special pagefault oom handler by simply
-> > oom locking all system zones and then calling directly into
-> > out_of_memory().
-> > 
-> > All populated zones must have ZONE_OOM_LOCKED set, otherwise there is a
-> > parallel oom killing in progress that will lead to eventual memory
-> > freeing so it's not necessary to needlessly kill another task.  The
-> > context in which the pagefault is allocating memory is unknown to the oom
-> > killer, so this is done on a system-wide level.
-> > 
-> > If a task has already been oom killed and hasn't fully exited yet, this
-> > will be a no-op since select_bad_process() recognizes tasks across the
-> > system with TIF_MEMDIE set.
-> > 
-> > The special handling to determine whether a parallel memcg is currently
-> > oom is removed since we can detect future memory freeing with TIF_MEMDIE.
-> > The memcg has already reached its memory limit, so it will still need to
-> > kill a task regardless of the pagefault oom.
-> > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
-> 
-> NACK. please leave memcg's oom as it is. We're now rewriting.
-> This is not core of your patch set. please skip.
-> 
+When kswapd is awoken due to reclaim by a running task, set the priority
+of kswapd to that of the task allocating pages thus making memory reclaim
+cpu activity affected by nice level.
 
-Your nack is completely unjustified, we're not going to stop oom killer 
-development so memcg can catch up.  This patch allows pagefaults to go 
-through the typical out_of_memory() interface so we don't have any 
-ambiguity in how situations such as panic_on_oom are handled or whether 
-current's memcg recently called the oom killer and it PREVENTS needlessly 
-killing tasks when a parallel oom condition exists but a task hasn't been 
-killed yet.
+[rientjes@google.com: refactor for current]
+Cc: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Con Kolivas <kernel@kolivas.org>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/vmscan.c |   33 ++++++++++++++++++++++++++++++++-
+ 1 files changed, 32 insertions(+), 1 deletions(-)
 
-mem_cgroup_oom_called() is completely and utterly BOGUS since we can 
-detect the EXACT same conditions via a tasklist scan filtered on current's 
-memcg by looking for parallel oom kills, which out_of_memory() does, and 
-locking the zonelists to prevent racing in calling out_of_memory() and 
-actually setting the TIF_MEMDIE bit for the selected task.
-
-You said earlier that you would wait for the next mmotm to be released and 
-could easily rebase on my patchset and now you're stopping development 
-entirely and allowing tasks to be needlessly oom killed via the old 
-pagefault_out_of_memory() which does not synchronize on parallel oom 
-kills.
-
-I'm completely sure that you'll remove mem_cgroup_oom_called() entirely 
-yourself since it doesn't do anything but encourage VM_FAULT_OOM loops 
-itself, so please come up with some constructive criticism of my patch 
-that Andrew can use to decide whether to merge my work or not instead of 
-thinking you're the only one that can touch memcg.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1658,6 +1658,33 @@ static void shrink_zone(int priority, struct zone *zone,
+ }
+ 
+ /*
++ * Helper functions to adjust nice level of kswapd, based on the priority of
++ * the task allocating pages. If it is already higher priority we do not
++ * demote its nice level since it is still working on behalf of a higher
++ * priority task. With kernel threads we leave it at nice 0.
++ *
++ * We don't ever run kswapd real time, so if a real time task calls kswapd we
++ * set it to highest SCHED_NORMAL priority.
++ */
++static int effective_sc_prio(struct task_struct *p)
++{
++	if (likely(p->mm)) {
++		if (rt_task(p))
++			return -20;
++		return task_nice(p);
++	}
++	return 0;
++}
++
++static void set_kswapd_nice(struct task_struct *kswapd, int active)
++{
++	long nice = effective_sc_prio(current);
++
++	if (task_nice(kswapd) > nice || !active)
++		set_user_nice(kswapd, nice);
++}
++
++/*
+  * This is the direct reclaim path, for page-allocating processes.  We only
+  * try to reclaim pages from zones which will satisfy the caller's allocation
+  * request.
+@@ -2257,6 +2284,7 @@ static int kswapd(void *p)
+ 				}
+ 			}
+ 
++			set_user_nice(tsk, 0);
+ 			order = pgdat->kswapd_max_order;
+ 		}
+ 		finish_wait(&pgdat->kswapd_wait, &wait);
+@@ -2281,6 +2309,7 @@ static int kswapd(void *p)
+ void wakeup_kswapd(struct zone *zone, int order)
+ {
+ 	pg_data_t *pgdat;
++	int active;
+ 
+ 	if (!populated_zone(zone))
+ 		return;
+@@ -2292,7 +2321,9 @@ void wakeup_kswapd(struct zone *zone, int order)
+ 		pgdat->kswapd_max_order = order;
+ 	if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 		return;
+-	if (!waitqueue_active(&pgdat->kswapd_wait))
++	active = waitqueue_active(&pgdat->kswapd_wait);
++	set_kswapd_nice(pgdat->kswapd, active);
++	if (!active)
+ 		return;
+ 	wake_up_interruptible(&pgdat->kswapd_wait);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
