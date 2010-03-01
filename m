@@ -1,55 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C4C16B0078
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 05:27:41 -0500 (EST)
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id o21ARakA001129
-	for <linux-mm@kvack.org>; Mon, 1 Mar 2010 10:27:36 GMT
-Received: from pwi10 (pwi10.prod.google.com [10.241.219.10])
-	by spaceape14.eur.corp.google.com with ESMTP id o21ARYPL007920
-	for <linux-mm@kvack.org>; Mon, 1 Mar 2010 02:27:34 -0800
-Received: by pwi10 with SMTP id 10so1367635pwi.25
-        for <linux-mm@kvack.org>; Mon, 01 Mar 2010 02:27:34 -0800 (PST)
-Date: Mon, 1 Mar 2010 02:27:31 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
-In-Reply-To: <20100301105932.5db60c93.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1003010224530.26824@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box> <alpine.DEB.2.00.1002260904311.6641@router.home> <20100226155755.GE16335@basil.fritz.box> <alpine.DEB.2.00.1002261123520.7719@router.home> <20100226173115.GG16335@basil.fritz.box>
- <20100301105932.5db60c93.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 24F6A6B007E
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 05:30:06 -0500 (EST)
+Date: Mon, 1 Mar 2010 11:30:01 +0100
+From: Andrea Righi <arighi@develer.com>
+Subject: Re: [PATCH -mmotm 1/2] memcg: dirty pages accounting and limiting
+ infrastructure
+Message-ID: <20100301103001.GB2087@linux>
+References: <1267224751-6382-1-git-send-email-arighi@develer.com>
+ <1267224751-6382-2-git-send-email-arighi@develer.com>
+ <20100301170535.2f1db0ed.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100301170535.2f1db0ed.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, Vivek Goyal <vgoyal@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Mar 2010, KAMEZAWA Hiroyuki wrote:
-
-> > > Well Kamesan indicated that this worked if a cpu became online.
+On Mon, Mar 01, 2010 at 05:05:35PM +0900, Daisuke Nishimura wrote:
+> On Fri, 26 Feb 2010 23:52:30 +0100, Andrea Righi <arighi@develer.com> wrote:
+> > Infrastructure to account dirty pages per cgroup and add dirty limit
+> > interfaces in the cgroupfs:
 > > 
-> > I mean in the general case. There were tons of problems all over.
+> >  - Active write-out: memory.dirty_ratio, memory.dirty_bytes
+> >  - Background write-out: memory.dirty_background_ratio, memory.dirty_background_bytes
 > > 
-> Then, it's cpu hotplug matter, not memory hotplug.
-> cpu hotplug callback should prepaare 
+> It looks good for me in general.
 > 
+> > Signed-off-by: Andrea Righi <arighi@develer.com>
+> > ---
+> >  include/linux/memcontrol.h |   74 +++++++++-
+> >  mm/memcontrol.c            |  354 ++++++++++++++++++++++++++++++++++++++++----
+> >  2 files changed, 399 insertions(+), 29 deletions(-)
+> > 
 > 
-> 	l3 = searchp->nodelists[node];
-> 	BUG_ON(!l3);
+> (snip)
 > 
-> before onlined. Rather than taking care of races.
-> 
+> > +s64 mem_cgroup_page_stat(enum mem_cgroup_page_stat_item item)
+> > +{
+> > +	struct mem_cgroup_page_stat stat = {};
+> > +	struct mem_cgroup *memcg;
+> > +
+> I think it would be better to add "if (mem_cgroup_disabled())".
 
-I can only speak for x86 and not the abundance of memory hotplug support 
-that exists for powerpc, but cpu hotplug doesn't do _anything_ when a 
-memory region that has a corresponding ACPI_SRAT_MEM_HOT_PLUGGABLE entry 
-in the SRAT is hotadded and requires a new nodeid.  That can be triggered 
-via the acpi layer with plug and play or explicitly from the command line 
-via CONFIG_ARCH_MEMORY_PROBE.
+Agreed.
 
-Relying on cpu hotplug to set up nodelists in such a circumstance simply 
-won't work.  You need memory hotplug support such as in my patch.
+> 
+> > +	rcu_read_lock();
+> > +	memcg = mem_cgroup_from_task(current);
+> > +	if (memcg) {
+> > +		/*
+> > +		 * Recursively evaulate page statistics against all cgroup
+> > +		 * under hierarchy tree
+> > +		 */
+> > +		stat.item = item;
+> > +		mem_cgroup_walk_tree(memcg, &stat, mem_cgroup_page_stat_cb);
+> > +	} else
+> > +		stat.value = -ENOMEM;
+> > +	rcu_read_unlock();
+> > +
+> > +	return stat.value;
+> > +}
+> > +
+> >  static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
+> >  {
+> >  	int *val = data;
+> > @@ -1263,10 +1419,10 @@ static void record_last_oom(struct mem_cgroup *mem)
+> >  }
+> >  
+> >  /*
+> > - * Currently used to update mapped file statistics, but the routine can be
+> > - * generalized to update other statistics as well.
+> > + * Generalized routine to update memory cgroup statistics.
+> >   */
+> > -void mem_cgroup_update_file_mapped(struct page *page, int val)
+> > +void mem_cgroup_update_stat(struct page *page,
+> > +			enum mem_cgroup_stat_index idx, int val)
+> >  {
+> >  	struct mem_cgroup *mem;
+> >  	struct page_cgroup *pc;
+> ditto.
+
+Agreed.
+
+Thanks,
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
