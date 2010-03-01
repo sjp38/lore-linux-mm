@@ -1,68 +1,285 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 05/16] readahead: limit read-ahead size for small memory systems
-Date: Mon, 01 Mar 2010 13:26:56 +0800
-Message-ID: <20100301053620.966418452@intel.com>
+Subject: [PATCH 11/16] readahead: add /debug/readahead/stats
+Date: Mon, 01 Mar 2010 13:27:02 +0800
+Message-ID: <20100301053621.799821906@intel.com>
 References: <20100301052651.857984880@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NlyKm-00056N-8k
-	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:24 +0100
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2E41D6B0088
+	id 1NlyKp-00057U-6o
+	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:27 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id EB6E36B007D
 	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:37:58 -0500 (EST)
-Content-Disposition: inline; filename=readahead-small-memory-limit-readaround.patch
+Content-Disposition: inline; filename=readahead-stats.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-When lifting the default readahead size from 128KB to 512KB,
-make sure it won't add memory pressure to small memory systems.
+Collect readahead stats when CONFIG_READAHEAD_STATS=y.
 
-For read-ahead, the memory pressure is mainly readahead buffers consumed
-by too many concurrent streams. The context readahead can adapt
-readahead size to thrashing threshold well.  So in principle we don't
-need to adapt the default _max_ read-ahead size to memory pressure.
+This is enabled by default because the added overheads are trivial:
+two readahead_stats() calls per readahead.
 
-For read-around, the memory pressure is mainly read-around misses on
-executables/libraries. Which could be reduced by scaling down
-read-around size on fast "reclaim passes".
+Example output:
+(taken from a fresh booted NFS-ROOT box with rsize=16k)
 
-This patch presents a straightforward solution: to limit default
-read-ahead size proportional to available system memory, ie.
+$ cat /debug/readahead/stats
+pattern     readahead    eof_hit  cache_hit         io    sync_io    mmap_io       size async_size    io_size
+initial           524        216         26        498        498         18          7          4          4
+subsequent        181         80          1        130         13         60         25         25         24
+context            94         28          3         85         64          8          7          2          5
+thrash              0          0          0          0          0          0          0          0          0
+around            162        121         33        162        162        162         60          0         21
+fadvise             0          0          0          0          0          0          0          0          0
+random            137          0          0        137        137          0          1          0          1
+all              1098        445         63       1012        874          0         17          6          9
 
-                512MB mem => 512KB read-around size limit
-                128MB mem => 128KB read-around size limit
-                 32MB mem =>  32KB read-around size limit
+The two most important columns are
+- io		number of readahead IO
+- io_size	average readahead IO size
 
-This will allow power users to adjust read-ahead/read-around size at
-once, while saving the low end from unnecessary memory pressure, under
-the assumption that low end users have no need to request a large
-read-around size.
-
-CC: Matt Mackall <mpm@selenic.com>
+CC: Ingo Molnar <mingo@elte.hu> 
+CC: Jens Axboe <jens.axboe@oracle.com> 
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl> 
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/filemap.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/Kconfig     |   13 +++
+ mm/readahead.c |  187 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 198 insertions(+), 2 deletions(-)
 
---- linux.orig/mm/filemap.c	2010-02-26 10:11:41.000000000 +0800
-+++ linux/mm/filemap.c	2010-02-27 13:05:16.000000000 +0800
-@@ -1431,7 +1431,9 @@ static void do_sync_mmap_readahead(struc
- 	/*
- 	 * mmap read-around
- 	 */
--	ra_pages = max_sane_readahead(ra->ra_pages);
-+	ra_pages = min_t(unsigned long,
-+			 ra->ra_pages,
-+			 roundup_pow_of_two(totalram_pages / 1024));
- 	if (ra_pages) {
- 		ra->start = max_t(long, 0, offset - ra_pages/2);
- 		ra->size = ra_pages;
+--- linux.orig/mm/readahead.c	2010-02-26 10:10:05.000000000 +0800
++++ linux/mm/readahead.c	2010-02-26 10:10:27.000000000 +0800
+@@ -87,6 +87,189 @@ EXPORT_SYMBOL_GPL(file_ra_state_init);
+ 
+ #define list_to_page(head) (list_entry((head)->prev, struct page, lru))
+ 
++#ifdef CONFIG_READAHEAD_STATS
++#include <linux/seq_file.h>
++#include <linux/debugfs.h>
++enum ra_account {
++	/* number of readaheads */
++	RA_ACCOUNT_COUNT,	/* readahead request */
++	RA_ACCOUNT_EOF,		/* readahead request contains/beyond EOF page */
++	RA_ACCOUNT_CHIT,	/* readahead request covers some cached pages */
++	RA_ACCOUNT_IOCOUNT,	/* readahead IO */
++	RA_ACCOUNT_SYNC,	/* readahead IO that is synchronous */
++	RA_ACCOUNT_MMAP,	/* readahead IO by mmap accesses */
++	/* number of readahead pages */
++	RA_ACCOUNT_SIZE,	/* readahead size */
++	RA_ACCOUNT_ASIZE,	/* readahead async size */
++	RA_ACCOUNT_ACTUAL,	/* readahead actual IO size */
++	/* end mark */
++	RA_ACCOUNT_MAX,
++};
++
++static unsigned long ra_stats[RA_PATTERN_MAX][RA_ACCOUNT_MAX];
++
++static void readahead_stats(struct address_space *mapping,
++			    pgoff_t offset,
++			    unsigned long req_size,
++			    unsigned int ra_flags,
++			    pgoff_t start,
++			    unsigned int size,
++			    unsigned int async_size,
++			    int actual)
++{
++	unsigned int pattern = ra_pattern(ra_flags);
++
++	ra_stats[pattern][RA_ACCOUNT_COUNT]++;
++	ra_stats[pattern][RA_ACCOUNT_SIZE] += size;
++	ra_stats[pattern][RA_ACCOUNT_ASIZE] += async_size;
++	ra_stats[pattern][RA_ACCOUNT_ACTUAL] += actual;
++
++	if (actual < size) {
++		if (start + size >
++		    (i_size_read(mapping->host) - 1) >> PAGE_CACHE_SHIFT)
++			ra_stats[pattern][RA_ACCOUNT_EOF]++;
++		else
++			ra_stats[pattern][RA_ACCOUNT_CHIT]++;
++	}
++
++	if (!actual)
++		return;
++
++	ra_stats[pattern][RA_ACCOUNT_IOCOUNT]++;
++
++	if (start <= offset && start + size > offset)
++		ra_stats[pattern][RA_ACCOUNT_SYNC]++;
++
++	if (ra_flags & READAHEAD_MMAP)
++		ra_stats[pattern][RA_ACCOUNT_MMAP]++;
++}
++
++static int readahead_stats_show(struct seq_file *s, void *_)
++{
++	static const char * const ra_pattern_names[] = {
++		[RA_PATTERN_INITIAL]		= "initial",
++		[RA_PATTERN_SUBSEQUENT]		= "subsequent",
++		[RA_PATTERN_CONTEXT]		= "context",
++		[RA_PATTERN_THRASH]		= "thrash",
++		[RA_PATTERN_MMAP_AROUND]	= "around",
++		[RA_PATTERN_FADVISE]		= "fadvise",
++		[RA_PATTERN_RANDOM]		= "random",
++		[RA_PATTERN_ALL]		= "all",
++	};
++	unsigned long count, iocount;
++	unsigned long i;
++
++	seq_printf(s, "%-10s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
++			"pattern",
++			"readahead", "eof_hit", "cache_hit",
++			"io", "sync_io", "mmap_io",
++			"size", "async_size", "io_size");
++
++	for (i = 0; i < RA_PATTERN_MAX; i++) {
++		count = ra_stats[i][RA_ACCOUNT_COUNT];
++		iocount = ra_stats[i][RA_ACCOUNT_IOCOUNT];
++		/*
++		 * avoid division-by-zero
++		 */
++		if (count == 0)
++			count = 1;
++		if (iocount == 0)
++			iocount = 1;
++
++		seq_printf(s, "%-10s %10lu %10lu %10lu %10lu %10lu %10lu "
++			   "%10lu %10lu %10lu\n",
++				ra_pattern_names[i],
++				ra_stats[i][RA_ACCOUNT_COUNT],
++				ra_stats[i][RA_ACCOUNT_EOF],
++				ra_stats[i][RA_ACCOUNT_CHIT],
++				ra_stats[i][RA_ACCOUNT_IOCOUNT],
++				ra_stats[i][RA_ACCOUNT_SYNC],
++				ra_stats[i][RA_ACCOUNT_MMAP],
++				ra_stats[i][RA_ACCOUNT_SIZE]   / count,
++				ra_stats[i][RA_ACCOUNT_ASIZE]  / count,
++				ra_stats[i][RA_ACCOUNT_ACTUAL] / iocount);
++	}
++
++	return 0;
++}
++
++static int readahead_stats_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, readahead_stats_show, NULL);
++}
++
++static ssize_t readahead_stats_write(struct file *file, const char __user *buf,
++				     size_t size, loff_t *offset)
++{
++	memset(ra_stats, 0, sizeof(ra_stats));
++	return size;
++}
++
++static struct file_operations readahead_stats_fops = {
++	.owner		= THIS_MODULE,
++	.open		= readahead_stats_open,
++	.write		= readahead_stats_write,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++
++static struct dentry *ra_debug_root;
++
++static int debugfs_create_readahead(void)
++{
++	struct dentry *debugfs_stats;
++
++	ra_debug_root = debugfs_create_dir("readahead", NULL);
++	if (!ra_debug_root)
++		goto out;
++
++	debugfs_stats = debugfs_create_file("stats", 0644, ra_debug_root,
++					    NULL, &readahead_stats_fops);
++	if (!debugfs_stats)
++		goto out;
++
++	return 0;
++out:
++	printk(KERN_ERR "readahead: failed to create debugfs entries\n");
++	return -ENOMEM;
++}
++
++static int __init readahead_init(void)
++{
++	debugfs_create_readahead();
++	return 0;
++}
++
++static void __exit readahead_exit(void)
++{
++	debugfs_remove_recursive(ra_debug_root);
++}
++
++module_init(readahead_init);
++module_exit(readahead_exit);
++#endif
++
++static void readahead_event(struct address_space *mapping,
++			    pgoff_t offset,
++			    unsigned long req_size,
++			    unsigned int ra_flags,
++			    pgoff_t start,
++			    unsigned int size,
++			    unsigned int async_size,
++			    unsigned int actual)
++{
++#ifdef CONFIG_READAHEAD_STATS
++	readahead_stats(mapping, offset, req_size, ra_flags,
++			start, size, async_size, actual);
++	readahead_stats(mapping, offset, req_size,
++			RA_PATTERN_ALL << READAHEAD_PATTERN_SHIFT,
++			start, size, async_size, actual);
++#endif
++	trace_readahead(mapping, offset, req_size, ra_flags,
++			start, size, async_size, actual);
++}
++
+ /*
+  * see if a page needs releasing upon read_cache_pages() failure
+  * - the caller of read_cache_pages() may have set PG_private or PG_fscache
+@@ -324,7 +507,7 @@ int force_page_cache_readahead(struct ad
+ 		nr_to_read -= this_chunk;
+ 	}
+ 
+-	trace_readahead(mapping, offset, nr_to_read,
++	readahead_event(mapping, offset, nr_to_read,
+ 			RA_PATTERN_FADVISE << READAHEAD_PATTERN_SHIFT,
+ 			offset, nr_to_read, 0, ret);
+ 
+@@ -355,7 +538,7 @@ unsigned long ra_submit(struct file_ra_s
+ 	actual = __do_page_cache_readahead(mapping, filp,
+ 					ra->start, ra->size, ra->async_size);
+ 
+-	trace_readahead(mapping, offset, req_size, ra->ra_flags,
++	readahead_event(mapping, offset, req_size, ra->ra_flags,
+ 			ra->start, ra->size, ra->async_size, actual);
+ 
+ 	return actual;
+--- linux.orig/mm/Kconfig	2010-02-26 09:17:43.000000000 +0800
++++ linux/mm/Kconfig	2010-02-26 10:10:27.000000000 +0800
+@@ -283,3 +283,16 @@ config NOMMU_INITIAL_TRIM_EXCESS
+ 	  of 1 says that all excess pages should be trimmed.
+ 
+ 	  See Documentation/nommu-mmap.txt for more information.
++
++config READAHEAD_STATS
++	bool "Collect page-cache readahead stats"
++	depends on DEBUG_FS
++	default y
++	help
++	  Enable readahead events accounting. Usage:
++
++	  # mount -t debugfs none /debug
++
++	  # echo > /debug/readahead/stats  # reset counters
++	  # do benchmarks
++	  # cat /debug/readahead/stats     # check counters
 
 
 --
