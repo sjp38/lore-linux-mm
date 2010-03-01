@@ -1,66 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B80E6B0047
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 12:56:14 -0500 (EST)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id o21HuAOj013890
-	for <linux-mm@kvack.org>; Mon, 1 Mar 2010 09:56:10 -0800
-Received: from pwi8 (pwi8.prod.google.com [10.241.219.8])
-	by kpbe14.cbf.corp.google.com with ESMTP id o21Hu8Ih008690
-	for <linux-mm@kvack.org>; Mon, 1 Mar 2010 09:56:09 -0800
-Received: by pwi8 with SMTP id 8so1744140pwi.23
-        for <linux-mm@kvack.org>; Mon, 01 Mar 2010 09:56:08 -0800 (PST)
-Date: Mon, 1 Mar 2010 09:56:02 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: adjust kswapd nice level for high priority page
- allocators
-In-Reply-To: <20100301135242.GE3852@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1003010941020.26562@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1003010213480.26824@chino.kir.corp.google.com> <20100301135242.GE3852@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6435D6B0078
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 13:00:10 -0500 (EST)
+Date: Mon, 1 Mar 2010 18:58:46 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 04 of 32] update futex compound knowledge
+Message-ID: <20100301175846.GE17057@random.random>
+References: <patchbomb.1264969631@v2.random>
+ <57877975a9a72d2fad7e.1264969635@v2.random>
+ <1266319998.8404.48.camel@laptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1266319998.8404.48.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Con Kolivas <kernel@kolivas.org>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Mar 2010, Mel Gorman wrote:
+On Tue, Feb 16, 2010 at 12:33:18PM +0100, Peter Zijlstra wrote:
+> OK, so I really don't like this, the futex code is pain enough without
+> having all this open-coded gunk in. Is there really no sensible
+> vm-helper you can use here?
 
-> > When kswapd is awoken due to reclaim by a running task, set the priority
-> > of kswapd to that of the task allocating pages thus making memory reclaim
-> > cpu activity affected by nice level.
-> > 
-> 
-> Why?
-> 
-> When a process kicks kswapd, the watermark at which a process enters
-> direct reclaim has not been reached yet. In other words, there is no
-> guarantee that a process will stall due to memory pressure.
-> 
-> The exception would be if there are many high-priority processes allocating
-> pages at a steady rate that are starving kswapd of CPU time and
-> consequently entering direct reclaim.
+I also don't like this but there's no vm helper and this is the only
+case where this happens. No other place pretends to work on the head
+page while calling gup on a tail page! So this requires special care
+considering tail page may disappear any time (and head page as well)
+if split_huge_page is running.
 
-They don't necessarily need to be allocating pages, they may simply be 
-starving kswapd of cputime which increases the liklihood of subsequently 
-entering direct reclaim because of a low watermark on a later allocation.  
-Without this patch, it's trivial especially on smaller desktop machines or 
-servers using cpusets to preempt kswapd from running by setting nice 
-levels for processes from userspace to have high priority.
+> Also, that whole local_irq_disable(); __gup_fast(); dance is terribly
+> x86 specific, and this is generic core kernel code.
 
-If we're going to be doing background reclaim, it should not be done 
-slower than one or more processes allocating pages; otherwise, we bias 
-high priority tasks trying to allocate pages and favor lower priority.
-
-> My main concern is that in the case there are a mix of high and low processes
-> with kswapd towards the higher priority as a result of this patch, kswapd
-> could be keeping CPU time from low-priority processes that are well behaved
-> that would would make less forward progress as a result of this patch.
-> 
-
-That would only be the case if we constantly follow the slowpath in the 
-page allocator, in which case we want kswapd to run and reclaim memory so 
-that all processes can use the fastpath.
+But nothing risks to break at build time, simply any arch with
+transparent hugepage support also has to implement
+__get_user_pages_fast. Disabling irq and using __get_user_pages_fast
+looked the best way to serialize against split_huge_page here (rather
+than taking locks).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
