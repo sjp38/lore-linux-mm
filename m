@@ -1,69 +1,108 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 06/16] readahead: add notes on readahead size
-Date: Mon, 01 Mar 2010 13:26:57 +0800
-Message-ID: <20100301053621.102557225@intel.com>
+Subject: [PATCH 04/16] readahead: make default readahead size a kernel parameter
+Date: Mon, 01 Mar 2010 13:26:55 +0800
+Message-ID: <20100301053620.823064620@intel.com>
 References: <20100301052651.857984880@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NlyLL-0005Hm-G0
-	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:38:59 +0100
+	id 1NlyLN-0005IQ-K0
+	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:39:01 +0100
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B899A6B0089
+	by kanga.kvack.org (Postfix) with SMTP id 09D4B6B008C
 	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:38:57 -0500 (EST)
-Content-Disposition: inline; filename=readahead-size-comment.patch
+Content-Disposition: inline; filename=readahead-kernel-parameter.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Matt Mackall <mpm@selenic.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Ankit Jain <radical@gmail.com>, Dave Chinner <david@fromorbit.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Nikanth Karthikesan <knikanth@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Basically, currently the default max readahead size
-- is 512k
-- is boot time configurable with "readahead="
-and is auto scaled down:
-- for small devices
-- for small memory systems (read-around size alone)
+From: Nikanth Karthikesan <knikanth@suse.de>
 
-CC: Matt Mackall <mpm@selenic.com>
+Add new kernel parameter "readahead=", which allows user to override
+the static VM_MAX_READAHEAD=512kb.
+
+CC: Ankit Jain <radical@gmail.com>
+CC: Dave Chinner <david@fromorbit.com>
 CC: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/readahead.c |   22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ Documentation/kernel-parameters.txt |    4 ++++
+ block/blk-core.c                    |    3 +--
+ fs/fuse/inode.c                     |    2 +-
+ mm/readahead.c                      |   22 ++++++++++++++++++++++
+ 4 files changed, 28 insertions(+), 3 deletions(-)
 
---- linux.orig/mm/readahead.c	2010-02-26 10:11:41.000000000 +0800
-+++ linux/mm/readahead.c	2010-02-26 10:11:55.000000000 +0800
-@@ -7,6 +7,28 @@
-  *		Initial version.
-  */
+--- linux.orig/Documentation/kernel-parameters.txt	2010-02-24 10:44:26.000000000 +0800
++++ linux/Documentation/kernel-parameters.txt	2010-02-24 10:44:42.000000000 +0800
+@@ -2200,6 +2200,10 @@ and is between 256 and 4096 characters. 
+ 			Run specified binary instead of /init from the ramdisk,
+ 			used for early userspace startup. See initrd.
  
-+/*
-+ * Notes on readahead size.
-+ *
-+ * The default max readahead size is VM_MAX_READAHEAD=512k,
-+ * which can be changed by user with boot time parameter "readahead="
-+ * or runtime interface "/sys/devices/virtual/bdi/default/read_ahead_kb".
-+ * The latter normally only takes effect in future for hot added devices.
-+ *
-+ * The effective max readahead size for each block device can be accessed with
-+ * 1) the `blockdev` command
-+ * 2) /sys/block/sda/queue/read_ahead_kb
-+ * 3) /sys/devices/virtual/bdi/$(env stat -c '%t:%T' /dev/sda)/read_ahead_kb
-+ *
-+ * They are typically initialized with the global default size, however may be
-+ * auto scaled down for small devices in add_disk(). NFS, software RAID, btrfs
-+ * etc. have special rules to setup their default readahead size.
-+ *
-+ * The mmap read-around size typically equals with readahead size, with an
-+ * extra limit proportional to system memory size.  For example, a 64MB box
-+ * will have a 64KB read-around size limit, 128MB mem => 128KB limit, etc.
-+ */
++	readahead=nn[KM]
++			Default max readahead size for block devices.
++			Range: 0; 4k - 128m
 +
- #include <linux/kernel.h>
- #include <linux/fs.h>
- #include <linux/memcontrol.h>
+ 	reboot=		[BUGS=X86-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
+ 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
+ 			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
+--- linux.orig/block/blk-core.c	2010-02-24 10:44:26.000000000 +0800
++++ linux/block/blk-core.c	2010-02-24 10:44:42.000000000 +0800
+@@ -498,8 +498,7 @@ struct request_queue *blk_alloc_queue_no
+ 
+ 	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
+ 	q->backing_dev_info.unplug_io_data = q;
+-	q->backing_dev_info.ra_pages =
+-			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
++	q->backing_dev_info.ra_pages = default_backing_dev_info.ra_pages;
+ 	q->backing_dev_info.state = 0;
+ 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
+ 	q->backing_dev_info.name = "block";
+--- linux.orig/fs/fuse/inode.c	2010-02-24 10:44:26.000000000 +0800
++++ linux/fs/fuse/inode.c	2010-02-24 10:44:42.000000000 +0800
+@@ -870,7 +870,7 @@ static int fuse_bdi_init(struct fuse_con
+ 	int err;
+ 
+ 	fc->bdi.name = "fuse";
+-	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
++	fc->bdi.ra_pages = default_backing_dev_info.ra_pages;
+ 	fc->bdi.unplug_io_fn = default_unplug_io_fn;
+ 	/* fuse does it's own writeback accounting */
+ 	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
+--- linux.orig/mm/readahead.c	2010-02-24 10:44:40.000000000 +0800
++++ linux/mm/readahead.c	2010-02-24 10:44:42.000000000 +0800
+@@ -19,6 +19,28 @@
+ #include <linux/pagevec.h>
+ #include <linux/pagemap.h>
+ 
++static int __init config_readahead_size(char *str)
++{
++	unsigned long bytes;
++
++	if (!str)
++		return -EINVAL;
++	bytes = memparse(str, &str);
++	if (*str != '\0')
++		return -EINVAL;
++
++	if (bytes) {
++		if (bytes < PAGE_CACHE_SIZE)	/* missed 'k'/'m' suffixes? */
++			return -EINVAL;
++		if (bytes > 128 << 20)		/* limit to 128MB */
++			bytes = 128 << 20;
++	}
++
++	default_backing_dev_info.ra_pages = bytes / PAGE_CACHE_SIZE;
++	return 0;
++}
++early_param("readahead", config_readahead_size);
++
+ /*
+  * Initialise a struct file's readahead state.  Assumes that the caller has
+  * memset *ra to zero.
 
 
 --
