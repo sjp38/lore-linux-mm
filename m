@@ -1,320 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EE5A46B0047
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 22:02:16 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2232DqG013749
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 2 Mar 2010 12:02:13 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EC83945DE54
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 12:02:12 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C822645DE50
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 12:02:12 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AAFB21DB8038
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 12:02:12 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 420281DB803C
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 12:02:12 +0900 (JST)
-Date: Tue, 2 Mar 2010 11:58:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] memcg: fix oom kill behavior.
-Message-Id: <20100302115834.c0045175.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7E9646B0078
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 22:10:25 -0500 (EST)
+Date: Tue, 2 Mar 2010 11:10:21 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC] nfs: use 4*rsize readahead size
+Message-ID: <20100302031021.GA14267@localhost>
+References: <20100224024100.GA17048@localhost> <20100224032934.GF16175@discord.disaster> <20100224041822.GB27459@localhost> <20100224052215.GH16175@discord.disaster> <20100224061247.GA8421@localhost> <20100224073940.GJ16175@discord.disaster> <20100226074916.GA8545@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100226074916.GA8545@localhost>
 Sender: owner-linux-mm@kvack.org
-To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Brief Summary (for Andrew)
+Dave,
 
- - Nishimura reported my fix (one year ago)
-   a636b327f731143ccc544b966cfd8de6cb6d72c6
-   doesn't work well in some extreme situation.
+Here is one more test on a big ext4 disk file:
 
- - David Rientjes said mem_cgroup_oom_called() is completely
-   ugly and broken and.....
-   And he tries to remove that in his patch set.
+	   16k	39.7 MB/s
+	   32k	54.3 MB/s
+	   64k	63.6 MB/s
+	  128k	72.6 MB/s
+	  256k	71.7 MB/s
+rsize ==> 512k  71.7 MB/s
+	 1024k	72.2 MB/s
+	 2048k	71.0 MB/s
+	 4096k	73.0 MB/s
+	 8192k	74.3 MB/s
+	16384k	74.5 MB/s
 
-Then, I wrote this as bugfix onto mmotm. This patch implements
- - per-memcg OOM lock as per-zone OOM lock
- - avoid to return -ENOMEM via mamcg's page fault path.
-   ENOMEM causes unnecessary page_fault_out_of_memory().
-   (Even if memcg hangs, there is no change from current behavior)
- - in addtion to MEMDIE thread, KILLED proceses go bypath memcg.
+It shows that >=128k client side readahead is enough for single disk
+case :) As for RAID configurations, I guess big server side readahead
+should be enough.
 
-I'm glad if this goes into 2.6.34 timeline (as bugfix). But I'm
-afraid this seems too big as bugfix...
+#!/bin/sh
 
-My plans for 2.6.35 are
- - oom-notifier for memcg (based on memcg threshold notifier) 
- - oom-freezer (disable oom-kill) for memcg
- - better handling in extreme situation.
-And now, Andrea Righi works for dirty_ratio for memcg. We'll have
-something better in 2.6.35 kernels.
+file=/mnt/ext4_test/zero
+BDI=0:24
 
-This patch will HUNK with David's set. Then, if this hunks in mmotm,
-I'll rework.
+for rasize in 16 32 64 128 256 512 1024 2048 4096 8192 16384
+do
+        echo $rasize > /sys/devices/virtual/bdi/$BDI/read_ahead_kb
+        echo readahead_size=${rasize}k
+        fadvise $file 0 0 dontneed
+        ssh p9 "fadvise $file 0 0 dontneed"
+        dd if=$file of=/dev/null bs=4k count=402400
+done
 
-Tested on x86-64. Nishimura-san, could you test ?
+Thanks,
+Fengguang
 
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-In current page-fault code,
-
-	handle_mm_fault()
-		-> ...
-		-> mem_cgroup_charge()
-		-> map page or handle error.
-	-> check return code.
-
-If page fault's return code is VM_FAULT_OOM, page_fault_out_of_memory()
-is called. But if it's caused by memcg, OOM should have been already
-invoked.
-Then, I added a patch: a636b327f731143ccc544b966cfd8de6cb6d72c6
-
-That patch records last_oom_jiffies for memcg's sub-hierarchy and
-prevents page_fault_out_of_memory from being invoked in near future.
-
-But Nishimura-san reported that check by jiffies is not enough
-when the system is terribly heavy. 
-
-This patch changes memcg's oom logic as.
- * If memcg causes OOM-kill, continue to retry.
- * remove jiffies check which is used now.
- * add memcg-oom-lock which works like perzone oom lock.
- * If current is killed(as a process), bypass charge.
-
-Something more sophisticated can be added but this pactch does
-fundamental things.
-TODO:
- - add oom notifier
- - add permemcg disable-oom-kill flag and freezer at oom.
- - more chances for wake up oom waiter (when changing memory limit etc..)
-
-Changelog;
- - fixed per-memcg oom lock.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/memcontrol.h |    6 --
- mm/memcontrol.c            |  109 +++++++++++++++++++++++++++++++++------------
- mm/oom_kill.c              |    8 ---
- 3 files changed, 82 insertions(+), 41 deletions(-)
-
-Index: mmotm-2.6.33-Feb11/include/linux/memcontrol.h
-===================================================================
---- mmotm-2.6.33-Feb11.orig/include/linux/memcontrol.h
-+++ mmotm-2.6.33-Feb11/include/linux/memcontrol.h
-@@ -124,7 +124,6 @@ static inline bool mem_cgroup_disabled(v
- 	return false;
- }
- 
--extern bool mem_cgroup_oom_called(struct task_struct *task);
- void mem_cgroup_update_file_mapped(struct page *page, int val);
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask, int nid,
-@@ -258,11 +257,6 @@ static inline bool mem_cgroup_disabled(v
- 	return true;
- }
- 
--static inline bool mem_cgroup_oom_called(struct task_struct *task)
--{
--	return false;
--}
--
- static inline int
- mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
- {
-Index: mmotm-2.6.33-Feb11/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.33-Feb11.orig/mm/memcontrol.c
-+++ mmotm-2.6.33-Feb11/mm/memcontrol.c
-@@ -200,7 +200,7 @@ struct mem_cgroup {
- 	 * Should the accounting and control be hierarchical, per subtree?
- 	 */
- 	bool use_hierarchy;
--	unsigned long	last_oom_jiffies;
-+	atomic_t	oom_lock;
- 	atomic_t	refcnt;
- 
- 	unsigned int	swappiness;
-@@ -1234,32 +1234,77 @@ static int mem_cgroup_hierarchical_recla
- 	return total;
- }
- 
--bool mem_cgroup_oom_called(struct task_struct *task)
-+static int mem_cgroup_oom_lock_cb(struct mem_cgroup *mem, void *data)
- {
--	bool ret = false;
--	struct mem_cgroup *mem;
--	struct mm_struct *mm;
-+	int *val = (int *)data;
-+	int x;
- 
--	rcu_read_lock();
--	mm = task->mm;
--	if (!mm)
--		mm = &init_mm;
--	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
--	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
--		ret = true;
--	rcu_read_unlock();
--	return ret;
-+	x = atomic_inc_return(&mem->oom_lock);
-+	if (x > *val)
-+		*val = x;
-+	return 0;
-+}
-+/*
-+ * Check OOM-Killer is already running under our hierarchy.
-+ * If someone is running, return false.
-+ */
-+static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
-+{
-+	int check = 0;
-+
-+	mem_cgroup_walk_tree(mem, &check, mem_cgroup_oom_lock_cb);
-+
-+	if (check == 1)
-+		return true;
-+	return false;
- }
- 
--static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
-+static int mem_cgroup_oom_unlock_cb(struct mem_cgroup *mem, void *data)
- {
--	mem->last_oom_jiffies = jiffies;
-+	atomic_dec(&mem->oom_lock);
- 	return 0;
- }
- 
--static void record_last_oom(struct mem_cgroup *mem)
-+static void mem_cgroup_oom_unlock(struct mem_cgroup *mem)
- {
--	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
-+	mem_cgroup_walk_tree(mem, NULL,	mem_cgroup_oom_unlock_cb);
-+}
-+
-+static DEFINE_MUTEX(memcg_oom_mutex);
-+static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
-+
-+/*
-+ * try to call OOM killer. returns false if we should exit memory-reclaim loop.
-+ */
-+bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
-+{
-+	DEFINE_WAIT(wait);
-+	bool locked;
-+
-+	prepare_to_wait(&memcg_oom_waitq, &wait, TASK_INTERRUPTIBLE);
-+	/* At first, try to OOM lock hierarchy under mem.*/
-+	mutex_lock(&memcg_oom_mutex);
-+	locked = mem_cgroup_oom_lock(mem);
-+	mutex_unlock(&memcg_oom_mutex);
-+
-+	if (locked) {
-+		finish_wait(&memcg_oom_waitq, &wait);
-+		mem_cgroup_out_of_memory(mem, mask);
-+	} else {
-+		schedule();
-+		finish_wait(&memcg_oom_waitq, &wait);
-+	}
-+	mutex_lock(&memcg_oom_mutex);
-+	mem_cgroup_oom_unlock(mem);
-+	/* TODO: more fine grained waitq ? */
-+	wake_up_all(&memcg_oom_waitq);
-+	mutex_unlock(&memcg_oom_mutex);
-+
-+	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
-+		return false;
-+	/* Give chance to dying process */
-+	schedule_timeout(1);
-+	return true;
- }
- 
- /*
-@@ -1432,11 +1477,14 @@ static int __mem_cgroup_try_charge(struc
- 	struct res_counter *fail_res;
- 	int csize = CHARGE_SIZE;
- 
--	if (unlikely(test_thread_flag(TIF_MEMDIE))) {
--		/* Don't account this! */
--		*memcg = NULL;
--		return 0;
--	}
-+	/*
-+	 * Unlike gloval-vm's OOM-kill, we're not in memory shortage
-+	 * in system level. So, allow to go ahead dying process in addition to
-+	 * MEMDIE process.
-+	 */
-+	if (unlikely(test_thread_flag(TIF_MEMDIE)
-+		     || fatal_signal_pending(current)))
-+		goto bypass;
- 
- 	/*
- 	 * We always charge the cgroup the mm_struct belongs to.
-@@ -1549,11 +1597,15 @@ static int __mem_cgroup_try_charge(struc
- 		}
- 
- 		if (!nr_retries--) {
--			if (oom) {
--				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
--				record_last_oom(mem_over_limit);
-+			if (!oom)
-+				goto nomem;
-+			if (mem_cgroup_handle_oom(mem_over_limit, gfp_mask)) {
-+				nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+				continue;
- 			}
--			goto nomem;
-+			/* When we reach here, current task is dying .*/
-+			css_put(&mem->css);
-+			goto bypass;
- 		}
- 	}
- 	if (csize > PAGE_SIZE)
-@@ -1572,6 +1624,9 @@ done:
- nomem:
- 	css_put(&mem->css);
- 	return -ENOMEM;
-+bypass:
-+	*memcg = NULL;
-+	return 0;
- }
- 
- /*
-Index: mmotm-2.6.33-Feb11/mm/oom_kill.c
-===================================================================
---- mmotm-2.6.33-Feb11.orig/mm/oom_kill.c
-+++ mmotm-2.6.33-Feb11/mm/oom_kill.c
-@@ -599,13 +599,6 @@ void pagefault_out_of_memory(void)
- 		/* Got some memory back in the last second. */
- 		return;
- 
--	/*
--	 * If this is from memcg, oom-killer is already invoked.
--	 * and not worth to go system-wide-oom.
--	 */
--	if (mem_cgroup_oom_called(current))
--		goto rest_and_return;
--
- 	if (sysctl_panic_on_oom)
- 		panic("out of memory from page fault. panic_on_oom is selected.\n");
- 
-@@ -617,7 +610,6 @@ void pagefault_out_of_memory(void)
- 	 * Give "p" a good chance of killing itself before we
- 	 * retry to allocate memory.
- 	 */
--rest_and_return:
- 	if (!test_thread_flag(TIF_MEMDIE))
- 		schedule_timeout_uninterruptible(1);
- }
+On Fri, Feb 26, 2010 at 03:49:16PM +0800, Wu Fengguang wrote:
+> On Wed, Feb 24, 2010 at 03:39:40PM +0800, Dave Chinner wrote:
+> > On Wed, Feb 24, 2010 at 02:12:47PM +0800, Wu Fengguang wrote:
+> > > On Wed, Feb 24, 2010 at 01:22:15PM +0800, Dave Chinner wrote:
+> > > > What I'm trying to say is that while I agree with your premise that
+> > > > a 7.8MB readahead window is probably far larger than was ever
+> > > > intended, I disagree with your methodology and environment for
+> > > > selecting a better default value.  The default readahead value needs
+> > > > to work well in as many situations as possible, not just in perfect
+> > > > 1:1 client/server environment.
+> > > 
+> > > Good points. It's imprudent to change a default value based on one
+> > > single benchmark. Need to collect more data, which may take time..
+> > 
+> > Agreed - better to spend time now to get it right...
+> 
+> I collected more data with large network latency as well as rsize=32k,
+> and updates the readahead size accordingly to 4*rsize.
+> 
+> ===
+> nfs: use 2*rsize readahead size
+> 
+> With default rsize=512k and NFS_MAX_READAHEAD=15, the current NFS
+> readahead size 512k*15=7680k is too large than necessary for typical
+> clients.
+> 
+> On a e1000e--e1000e connection, I got the following numbers
+> (this reads sparse file from server and involves no disk IO)
+> 
+> readahead size	normal		1ms+1ms		5ms+5ms		10ms+10ms(*)
+> 	   16k	35.5 MB/s	 4.8 MB/s 	 2.1 MB/s 	1.2 MB/s
+> 	   32k	54.3 MB/s	 6.7 MB/s 	 3.6 MB/s       2.3 MB/s
+> 	   64k	64.1 MB/s	12.6 MB/s	 6.5 MB/s       4.7 MB/s
+> 	  128k	70.5 MB/s	20.1 MB/s	11.9 MB/s       8.7 MB/s
+> 	  256k	74.6 MB/s	38.6 MB/s	21.3 MB/s      15.0 MB/s
+> rsize ==> 512k	77.4 MB/s	59.4 MB/s	39.8 MB/s      25.5 MB/s
+> 	 1024k	85.5 MB/s	77.9 MB/s	65.7 MB/s      43.0 MB/s
+> 	 2048k	86.8 MB/s	81.5 MB/s	84.1 MB/s      59.7 MB/s
+> 	 4096k	87.9 MB/s	77.4 MB/s	56.2 MB/s      59.2 MB/s
+> 	 8192k	89.0 MB/s	81.2 MB/s	78.0 MB/s      41.2 MB/s
+> 	16384k	87.7 MB/s	85.8 MB/s	62.0 MB/s      56.5 MB/s
+> 
+> readahead size	normal		1ms+1ms		5ms+5ms		10ms+10ms(*)
+> 	   16k	37.2 MB/s	 6.4 MB/s	 2.1 MB/s	 1.2 MB/s
+> rsize ==>  32k	56.6 MB/s        6.8 MB/s        3.6 MB/s        2.3 MB/s
+> 	   64k	66.1 MB/s       12.7 MB/s        6.6 MB/s        4.7 MB/s
+> 	  128k	69.3 MB/s       22.0 MB/s       12.2 MB/s        8.9 MB/s
+> 	  256k	69.6 MB/s       41.8 MB/s       20.7 MB/s       14.7 MB/s
+> 	  512k	71.3 MB/s       54.1 MB/s       25.0 MB/s       16.9 MB/s
+> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 	 1024k	71.5 MB/s       48.4 MB/s       26.0 MB/s       16.7 MB/s
+> 	 2048k	71.7 MB/s       53.2 MB/s       25.3 MB/s       17.6 MB/s
+> 	 4096k	71.5 MB/s       50.4 MB/s       25.7 MB/s       17.1 MB/s
+> 	 8192k	71.1 MB/s       52.3 MB/s       26.3 MB/s       16.9 MB/s
+> 	16384k	70.2 MB/s       56.6 MB/s       27.0 MB/s       16.8 MB/s
+> 
+> (*) 10ms+10ms means to add delay on both client & server sides with
+>     # /sbin/tc qdisc change dev eth0 root netem delay 10ms 
+>     The total >=20ms delay is so large for NFS, that a simple `vi some.sh`
+>     command takes a dozen seconds. Note that the actual delay reported
+>     by ping is larger, eg. for the 1ms+1ms case:
+>         rtt min/avg/max/mdev = 7.361/8.325/9.710/0.837 ms
+>     
+> 
+> So it seems that readahead_size=4*rsize (ie. keep 4 RPC requests in
+> flight) is able to get near full NFS bandwidth. Reducing the mulriple
+> from 15 to 4 not only makes the client side readahead size more sane
+> (2MB by default), but also reduces the disorderness of the server side
+> RPC read requests, which yeilds better server side readahead behavior.
+> 
+> To avoid small readahead when the client mount with "-o rsize=32k" or
+> the server only supports rsize <= 32k, we take the max of 2*rsize and
+> default_backing_dev_info.ra_pages. The latter defaults to 512K, and can
+> be explicitly changed by user with kernel parameter "readahead=" and
+> runtime tunable "/sys/devices/virtual/bdi/default/read_ahead_kb" (which
+> takes effective for future NFS mounts).
+> 
+> The test script is:
+> 
+> #!/bin/sh
+> 
+> file=/mnt/sparse
+> BDI=0:15
+> 
+> for rasize in 16 32 64 128 256 512 1024 2048 4096 8192 16384
+> do
+> 	echo 3 > /proc/sys/vm/drop_caches
+> 	echo $rasize > /sys/devices/virtual/bdi/$BDI/read_ahead_kb
+> 	echo readahead_size=${rasize}k
+> 	dd if=$file of=/dev/null bs=4k count=1024000
+> done
+> 
+> CC: Dave Chinner <david@fromorbit.com> 
+> CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/nfs/client.c   |    4 +++-
+>  fs/nfs/internal.h |    8 --------
+>  2 files changed, 3 insertions(+), 9 deletions(-)
+> 
+> --- linux.orig/fs/nfs/client.c	2010-02-26 10:10:46.000000000 +0800
+> +++ linux/fs/nfs/client.c	2010-02-26 11:07:22.000000000 +0800
+> @@ -889,7 +889,9 @@ static void nfs_server_set_fsinfo(struct
+>  	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+>  
+>  	server->backing_dev_info.name = "nfs";
+> -	server->backing_dev_info.ra_pages = server->rpages * NFS_MAX_READAHEAD;
+> +	server->backing_dev_info.ra_pages = max_t(unsigned long,
+> +					      default_backing_dev_info.ra_pages,
+> +					      4 * server->rpages);
+>  	server->backing_dev_info.capabilities |= BDI_CAP_ACCT_UNSTABLE;
+>  
+>  	if (server->wsize > max_rpc_payload)
+> --- linux.orig/fs/nfs/internal.h	2010-02-26 10:10:46.000000000 +0800
+> +++ linux/fs/nfs/internal.h	2010-02-26 11:07:07.000000000 +0800
+> @@ -10,14 +10,6 @@
+>  
+>  struct nfs_string;
+>  
+> -/* Maximum number of readahead requests
+> - * FIXME: this should really be a sysctl so that users may tune it to suit
+> - *        their needs. People that do NFS over a slow network, might for
+> - *        instance want to reduce it to something closer to 1 for improved
+> - *        interactive response.
+> - */
+> -#define NFS_MAX_READAHEAD	(RPC_DEF_SLOT_TABLE - 1)
+> -
+>  /*
+>   * Determine if sessions are in use.
+>   */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
