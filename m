@@ -1,46 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E78126B0047
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 13:29:53 -0500 (EST)
-Received: from localhost.localdomain by digidescorp.com (Cipher TLSv1:RC4-MD5:128) (MDaemon PRO v10.1.1)
-	with ESMTP id md50001211258.msg
-	for <linux-mm@kvack.org>; Tue, 02 Mar 2010 12:29:51 -0600
-From: "Steven J. Magnani" <steve@digidescorp.com>
-Subject: [PATCH] nommu: get_user_pages(): pin last page on non-page-aligned start
-Date: Tue,  2 Mar 2010 12:29:44 -0600
-Message-Id: <1267554584-24349-1-git-send-email-steve@digidescorp.com>
+	by kanga.kvack.org (Postfix) with ESMTP id EB5D96B0047
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 13:32:02 -0500 (EST)
+Date: Tue, 2 Mar 2010 18:34:51 +0000
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: Memory management woes - order 1 allocation failures
+Message-ID: <20100302183451.75d44f03@lxorguk.ukuu.org.uk>
+In-Reply-To: <20100302172606.GA11355@csn.ul.ie>
+References: <alpine.DEB.2.00.1002261042020.7719@router.home>
+	<84144f021002260917q61f7c255rf994425f3a613819@mail.gmail.com>
+	<20100301103546.DD86.A69D9226@jp.fujitsu.com>
+	<20100302172606.GA11355@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, "Steven J. Magnani" <steve@digidescorp.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Greg Kroah-Hartman <gregkh@suse.de>, Christoph Lameter <cl@linux-foundation.org>, Frans Pop <elendil@planet.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>
 List-ID: <linux-mm.kvack.org>
 
-The noMMU version of get_user_pages() fails to pin the last page
-when the start address isn't page-aligned. The patch fixes this in a way
-that makes find_extend_vma() congruent to its MMU cousin.
+> For reasons that are not particularly clear to me, tty_buffer_alloc() is
+> called far more frequently in 2.6.33 than in 2.6.24. I instrumented the
+> function to print out the size of the buffers allocated, booted under
+> qemu and would just "cat /bin/ls" to see what buffers were allocated.
+> 2.6.33 allocates loads, including high-order allocations. 2.6.24
+> appeared to allocate once and keep silent.
 
-Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
----
-diff -uprN a/mm/nommu.c b/mm/nommu.c
---- a/mm/nommu.c	2010-03-01 16:37:31.000000000 -0600
-+++ b/mm/nommu.c	2010-03-01 21:34:49.000000000 -0600
-@@ -146,7 +146,7 @@ int __get_user_pages(struct task_struct 
- 			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
- 
- 	for (i = 0; i < nr_pages; i++) {
--		vma = find_vma(mm, start);
-+		vma = find_extend_vma(mm, start);
- 		if (!vma)
- 			goto finish_or_fault;
- 
-@@ -764,7 +764,7 @@ EXPORT_SYMBOL(find_vma);
-  */
- struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr)
- {
--	return find_vma(mm, addr);
-+	return find_vma(mm, addr & PAGE_MASK);
- }
- 
- /*
+The pty layer is using them now and didn't before. That will massively
+distort your numhers.
+
+> While there have been snags recently with respect to high-order
+> allocation failures in recent kernels, this might be one of the cases
+> where it's due to subsystems requesting high-order allocations more.
+
+The pty code certainly triggered more such allocations. I've sent Greg
+patches to make the tty buffering layer allocate sensible sizes as it
+doesn't need multiple page allocations in the first place.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
