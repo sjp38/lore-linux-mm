@@ -1,53 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D45D6B0047
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 00:54:11 -0500 (EST)
-Message-ID: <4B8CA7F5.1030802@cs.helsinki.fi>
-Date: Tue, 02 Mar 2010 07:53:57 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: [patch] slab: add memory hotplug support
-References: <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box> <alpine.DEB.2.00.1002260904311.6641@router.home> <20100226155755.GE16335@basil.fritz.box> <alpine.DEB.2.00.1002261123520.7719@router.home> <alpine.DEB.2.00.1002261555030.32111@chino.kir.corp.google.com> <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 47AA86B0047
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 01:00:18 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2260Fwg014889
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 2 Mar 2010 15:00:15 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 543AA45DE50
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 15:00:15 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D05245DE4D
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 15:00:15 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E40B81DB8042
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 15:00:14 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A6F31DB803E
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 15:00:14 +0900 (JST)
+Date: Tue, 2 Mar 2010 14:56:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix oom kill behavior v2
+Message-Id: <20100302145644.0f8fbcca.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100302143738.5cd42026.nishimura@mxp.nes.nec.co.jp>
+References: <20100302115834.c0045175.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100302135524.afe2f7ab.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100302143738.5cd42026.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes wrote:
-> Slab lacks any memory hotplug support for nodes that are hotplugged
-> without cpus being hotplugged.  This is possible at least on x86
-> CONFIG_MEMORY_HOTPLUG_SPARSE kernels where SRAT entries are marked
-> ACPI_SRAT_MEM_HOT_PLUGGABLE and the regions of RAM represent a seperate
-> node.  It can also be done manually by writing the start address to
-> /sys/devices/system/memory/probe for kernels that have
-> CONFIG_ARCH_MEMORY_PROBE set, which is how this patch was tested, and
-> then onlining the new memory region.
-> 
-> When a node is hotadded, a nodelist for that node is allocated and 
-> initialized for each slab cache.  If this isn't completed due to a lack
-> of memory, the hotadd is aborted: we have a reasonable expectation that
-> kmalloc_node(nid) will work for all caches if nid is online and memory is
-> available.  
-> 
-> Since nodelists must be allocated and initialized prior to the new node's
-> memory actually being online, the struct kmem_list3 is allocated off-node
-> due to kmalloc_node()'s fallback.
-> 
-> When an entire node is offlined (or an online is aborted), these
-> nodelists are subsequently drained and freed.  If objects still exist
-> either on the partial or full lists for those nodes, the offline is
-> aborted.  This scenario will not occur for an aborted online, however,
-> since objects can never be allocated from those nodelists until the
-> online has completed.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Tue, 2 Mar 2010 14:37:38 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-Andi, does this fix the oops you were seeing?
+> On Tue, 2 Mar 2010 13:55:24 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > Very sorry, mutex_lock is called after prepare_to_wait.
+> > This is a fixed one.
+> I'm willing to test your patch, but I have one concern.
+> 
+> > +/*
+> > + * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+> > + */
+> > +bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+> >  {
+> > -	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
+> > +	DEFINE_WAIT(wait);
+> > +	bool locked;
+> > +
+> > +	/* At first, try to OOM lock hierarchy under mem.*/
+> > +	mutex_lock(&memcg_oom_mutex);
+> > +	locked = mem_cgroup_oom_lock(mem);
+> > +	if (!locked)
+> > +		prepare_to_wait(&memcg_oom_waitq, &wait, TASK_INTERRUPTIBLE);
+> > +	mutex_unlock(&memcg_oom_mutex);
+> > +
+> > +	if (locked)
+> > +		mem_cgroup_out_of_memory(mem, mask);
+> > +	else {
+> > +		schedule();
+> > +		finish_wait(&memcg_oom_waitq, &wait);
+> > +	}
+> > +	mutex_lock(&memcg_oom_mutex);
+> > +	mem_cgroup_oom_unlock(mem);
+> > +	/* TODO: more fine grained waitq ? */
+> > +	wake_up_all(&memcg_oom_waitq);
+> > +	mutex_unlock(&memcg_oom_mutex);
+> > +
+> > +	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
+> > +		return false;
+> > +	/* Give chance to dying process */
+> > +	schedule_timeout(1);
+> > +	return true;
+> >  }
+> >  
+> Isn't there such race conditions ?
+> 
+> 	context A				context B
+>   mutex_lock(&memcg_oom_mutex)
+>   mem_cgroup_oom_lock()
+>     ->success
+>   mutex_unlock(&memcg_oom_mutex)
+>   mem_cgroup_out_of_memory()
+> 					mutex_lock(&memcg_oom_mutex)
+> 					mem_cgroup_oom_lock()
+> 					  ->fail
+> 					prepare_to_wait()
+> 					mutex_unlock(&memcg_oom_mutex)
+>   mutex_lock(&memcg_oom_mutex)
+>   mem_cgroup_oom_unlock()
+>   wake_up_all()
+>   mutex_unlocklock(&memcg_oom_mutex)
+> 					schedule()
+> 					finish_wait()
+> 
+> In this case, context B will not be waken up, right?
+> 
 
-			Pekka
+No. 
+	prerape_to_wait();
+	schedule();
+	finish_wait();
+call sequence is for this kind of waiting.
+
+
+1. Thread B. call prepare_to_wait(), then, wait is queued and task's status
+   is changed to be TASK_INTERRUPTIBLE
+2. Thread A. wake_up_all() check all waiters in queue and change their status
+   to be TASK_RUNNING.
+3. Thread B. calles schedule() but it's status is TASK_RUNNING,
+   it will be scheduled soon, no sleep.
+
+Then, mutex_lock after prepare_to_wait() is bad ;)
+
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
