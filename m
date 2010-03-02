@@ -1,109 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F1D726B0047
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 19:03:05 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o22033Hd016726
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 2 Mar 2010 09:03:03 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7980D45DE62
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 09:03:03 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4509E45DE57
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 09:03:03 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 29E001DB803B
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 09:03:03 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C53651DB803E
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 09:03:02 +0900 (JST)
-Date: Tue, 2 Mar 2010 08:59:32 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
- ooms
-Message-Id: <20100302085932.7b22f830.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1003010204180.26824@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com>
-	<20100301101259.af730fa0.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1003010204180.26824@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A731B6B004D
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 19:03:45 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: unable to handle kernel paging request on resume with 2.6.33-00001-gbaac35c
+Date: Tue, 2 Mar 2010 01:06:06 +0100
+References: <20100301175256.GA4034@tiehlicka.suse.cz> <201003012207.37582.rjw@sisk.pl> <20100301223457.GB4034@tiehlicka.suse.cz>
+In-Reply-To: <20100301223457.GB4034@tiehlicka.suse.cz>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201003020106.06867.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Michal Hocko <mstsxfx@gmail.com>
+Cc: linux-kernel@vger.kernel.org, pm list <linux-pm@lists.linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Mar 2010 02:13:28 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Monday 01 March 2010, Michal Hocko wrote:
+> [Let's CC mm guys]
 
-> On Mon, 1 Mar 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > On Fri, 26 Feb 2010 15:53:11 -0800 (PST)
-> > David Rientjes <rientjes@google.com> wrote:
+I guess it's rather architecture-related than a genering mm issue.
+
+> On Mon, Mar 01, 2010 at 10:07:37PM +0100, Rafael J. Wysocki wrote:
+> > On Monday 01 March 2010, Michal Hocko wrote:
+> > > Hi,
+> > > 
+> > > I have experienced the following kernel BUG on resume from suspend from
+> > > disk (the whole log from  hibarnation to suspend along with kernel
+> > > config are attached):
+> > > 
+> > > BUG: unable to handle kernel paging request at 00aaaaaa
+> > > IP: [<c019e28c>] anon_vma_link+0x2c/0x39
+> > > *pde = 00000000
+> > > Oops: 0002 [#1] PREEMPT SMP
+> > > last sysfs file: /sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0003:00/power_supply/AC/type
+> > > Modules linked in: aes_i586 aes_generic iwl3945 iwlcore mac80211 cfg80211 fbcon font bitblit softcursor i915 drm_kms_helper drm fb i2c_algo_bit cfbcopyarea i2c_core cfbimgblt cfbfillrect fuse tun coretemp hwmon snd_hda_codec_realtek snd_hda_intel snd_hda_codec arc4 ecb snd_pcm_oss snd_mixer_oss snd_pcm snd_seq_oss snd_seq_midi_event snd_seq snd_timer fujitsu_laptop snd_seq_device rtc_cmos rtc_core led_class rtc_lib snd snd_page_alloc video backlight output [last unloaded: cfg80211]
+> > > 
+> > > Pid: 3942, comm: kxkb Not tainted 2.6.33-00001-gbaac35c #11 FJNB1B5/LIFEBOOK S7110
+> > > EIP: 0060:[<c019e28c>] EFLAGS: 00010246 CPU: 1
+> > > EIP is at anon_vma_link+0x2c/0x39
+> > > EAX: 00aaaaaa EBX: f69c6410 ECX: f69c6414 EDX: f63e4df4
+> > > ESI: f63e4dc0 EDI: f63e4e14 EBP: f6901ec0 ESP: f6901eb8
+> > >  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
+> > > Process kxkb (pid: 3942, ti=f6901000 task=f6aa6ff0 task.ti=f6901000)
+> > > Stack:
+> > >  f63e4dc0 f23fc7e4 f6901efc c012fc28 f6aa6ff0 f63e4e30 f63e4e34 f63e4e24
+> > > <0> ca4656f4 f6ace734 f6aa6ff0 f6ace700 ca4656c0 f23fc790 ca560000 fffffff4
+> > > <0> f659ef94 f6901f38 c0130821 f6aa6ff0 f6901fb4 bff441f0 ca560208 00000000
+> > > Call Trace:
+> > >  [<c012fc28>] ? dup_mm+0x1c7/0x3d3
+> > >  [<c0130821>] ? copy_process+0x98e/0xf26
+> > >  [<c0130ed6>] ? do_fork+0x11d/0x2a1
+> > >  [<c0434547>] ? _raw_spin_unlock+0x14/0x28
+> > >  [<c01b6795>] ? set_close_on_exec+0x45/0x4b
+> > >  [<c01b6e98>] ? do_fcntl+0x15f/0x3f1
+> > >  [<c0108678>] ? sys_clone+0x20/0x25
+> > >  [<c010291d>] ? ptregs_clone+0x15/0x38
+> > >  [<c0102850>] ? sysenter_do_call+0x12/0x26
+> > > Code: 89 e5 56 53 0f 1f 44 00 00 8b 58 3c 89 c6 85 db 74 22 89 d8 e8 54 65 29 00 8b 43 08 8d 56 34 8d 4b 04 89 53 08 89 4e 34 89 46 38 <89> 10 89 d8 e8 9e 62 29 00 5b 5e 5d c3 55 89 e5 0f 1f 44 00 00
+> > > EIP: [<c019e28c>] anon_vma_link+0x2c/0x39 SS:ESP 0068:f6901eb8
+> > > CR2: 0000000000aaaaaa
+> > > ---[ end trace b7f008b0e5aa7c65 ]---
 > > 
-> > > It is possible to remove the special pagefault oom handler by simply
-> > > oom locking all system zones and then calling directly into
-> > > out_of_memory().
-> > > 
-> > > All populated zones must have ZONE_OOM_LOCKED set, otherwise there is a
-> > > parallel oom killing in progress that will lead to eventual memory
-> > > freeing so it's not necessary to needlessly kill another task.  The
-> > > context in which the pagefault is allocating memory is unknown to the oom
-> > > killer, so this is done on a system-wide level.
-> > > 
-> > > If a task has already been oom killed and hasn't fully exited yet, this
-> > > will be a no-op since select_bad_process() recognizes tasks across the
-> > > system with TIF_MEMDIE set.
-> > > 
-> > > The special handling to determine whether a parallel memcg is currently
-> > > oom is removed since we can detect future memory freeing with TIF_MEMDIE.
-> > > The memcg has already reached its memory limit, so it will still need to
-> > > kill a task regardless of the pagefault oom.
-> > > 
-> > > Signed-off-by: David Rientjes <rientjes@google.com>
-> > 
-> > NACK. please leave memcg's oom as it is. We're now rewriting.
-> > This is not core of your patch set. please skip.
-> > 
+> > This looks like a low-level memory management issue of some sort.
 > 
-> Your nack is completely unjustified, we're not going to stop oom killer 
-> development so memcg can catch up.  This patch allows pagefaults to go 
-> through the typical out_of_memory() interface so we don't have any 
-> ambiguity in how situations such as panic_on_oom are handled or whether 
-> current's memcg recently called the oom killer and it PREVENTS needlessly 
-> killing tasks when a parallel oom condition exists but a task hasn't been 
-> killed yet.
+> Yes, it really looks strange. dup_mm+0x1c7 matches to:
+> c102fc0e:       81 60 14 ff df ff ff    andl   $0xffffdfff,0x14(%eax)
+> c102fc15:       8b 45 ec                mov    -0x14(%ebp),%eax
+> c102fc18:       c7 43 0c 00 00 00 00    movl   $0x0,0xc(%ebx)
+> c102fc1f:       89 03                   mov    %eax,(%ebx)
+> c102fc21:       89 d8                   mov    %ebx,%eax
+> c102fc23:       e8 38 e6 06 00          call   c109e260 <anon_vma_link>
+> c102fc28:       8b 43 48                mov    0x48(%ebx),%eax  <<< BANG
 > 
-> mem_cgroup_oom_called() is completely and utterly BOGUS since we can 
-> detect the EXACT same conditions via a tasklist scan filtered on current's 
-> memcg by looking for parallel oom kills, which out_of_memory() does, and 
-> locking the zonelists to prevent racing in calling out_of_memory() and 
-> actually setting the TIF_MEMDIE bit for the selected task.
+> which corresponds to:
+> kernel/fork.c:336
+> 		tmp->vm_flags &= ~VM_LOCKED;
+>                 tmp->vm_mm = mm;
+>                 tmp->vm_next = NULL;
+>                 anon_vma_link(tmp);
+>                 file = tmp->vm_file; <<< BANG
 > 
-> You said earlier that you would wait for the next mmotm to be released and 
-> could easily rebase on my patchset and now you're stopping development 
-> entirely and allowing tasks to be needlessly oom killed via the old 
-> pagefault_out_of_memory() which does not synchronize on parallel oom 
-> kills.
-> 
-> I'm completely sure that you'll remove mem_cgroup_oom_called() entirely 
-> yourself since it doesn't do anything but encourage VM_FAULT_OOM loops 
-> itself, so please come up with some constructive criticism of my patch 
-> that Andrew can use to decide whether to merge my work or not instead of 
-> thinking you're the only one that can touch memcg.
-> 
+> ebx is tmp which somehow got deallocated. I cannot see how this could happened.
 
-Your patch seems not to go earlier than mine.
-And please avoid zone avoid locking. memcg requires memcg based locking.
-I pointed out this beofre, but you ignore that as usual.
-Then, I said I'll do by myself.
+Through a page tables corruption or a TLB issue, for example.
 
-Bye,
--Kame
+> > What's the HEAD commit in this kernel tree?
+> 
+> $ git describe
+> v2.6.33-1-gbaac35c
 
+I can't find gbaac35c anywhere post 2.6.33.  Can you just send the output
+of "git show | head -1", please?
+
+> > Also, is the problem reproducible?
+> 
+> As I've already mentioned. This is the first time I have seen this problem.
+> I am using suspend to disk and wake up quite often (several times a day). I
+> haven't tried suspend/resume loop test yet.
+
+OK
+
+Given the apparent nature of the problem it will be extremely difficult to
+track down without a reliable way to reproduce it.
+
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
