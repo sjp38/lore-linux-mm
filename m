@@ -1,793 +1,310 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1755F6B0047
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 05:04:56 -0500 (EST)
-Received: by wyb29 with SMTP id 29so32150wyb.14
-        for <linux-mm@kvack.org>; Tue, 02 Mar 2010 02:04:53 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 634686B0047
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 05:11:13 -0500 (EST)
+Received: by wyb29 with SMTP id 29so34517wyb.14
+        for <linux-mm@kvack.org>; Tue, 02 Mar 2010 02:11:11 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1267478620-5276-3-git-send-email-arighi@develer.com>
+In-Reply-To: <1267478620-5276-4-git-send-email-arighi@develer.com>
 References: <1267478620-5276-1-git-send-email-arighi@develer.com>
-	 <1267478620-5276-3-git-send-email-arighi@develer.com>
-Date: Tue, 2 Mar 2010 12:04:53 +0200
-Message-ID: <cc557aab1003020204k16038838ta537357aeeb67b11@mail.gmail.com>
-Subject: Re: [PATCH -mmotm 2/3] memcg: dirty pages accounting and limiting
-	infrastructure
+	 <1267478620-5276-4-git-send-email-arighi@develer.com>
+Date: Tue, 2 Mar 2010 12:11:10 +0200
+Message-ID: <cc557aab1003020211h391947f0p3eae04a298127d32@mail.gmail.com>
+Subject: Re: [PATCH -mmotm 3/3] memcg: dirty pages instrumentation
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 To: Andrea Righi <arighi@develer.com>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 1, 2010 at 11:23 PM, Andrea Righi <arighi@develer.com> wrote:
-> Infrastructure to account dirty pages per cgroup and add dirty limit
-> interfaces in the cgroupfs:
->
-> =C2=A0- Direct write-out: memory.dirty_ratio, memory.dirty_bytes
->
-> =C2=A0- Background write-out: memory.dirty_background_ratio, memory.dirty=
-_background_bytes
->
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> ---
-> =C2=A0include/linux/memcontrol.h | =C2=A0 77 ++++++++++-
-> =C2=A0mm/memcontrol.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A033=
-6 ++++++++++++++++++++++++++++++++++++++++----
-> =C2=A02 files changed, 384 insertions(+), 29 deletions(-)
->
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 1f9b119..cc88b2e 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -19,12 +19,50 @@
->
-> =C2=A0#ifndef _LINUX_MEMCONTROL_H
-> =C2=A0#define _LINUX_MEMCONTROL_H
-> +
-> +#include <linux/writeback.h>
-> =C2=A0#include <linux/cgroup.h>
-> +
-> =C2=A0struct mem_cgroup;
-> =C2=A0struct page_cgroup;
-> =C2=A0struct page;
-> =C2=A0struct mm_struct;
->
-> +/* Cgroup memory statistics items exported to the kernel */
-> +enum mem_cgroup_page_stat_item {
-> + =C2=A0 =C2=A0 =C2=A0 MEMCG_NR_DIRTYABLE_PAGES,
-> + =C2=A0 =C2=A0 =C2=A0 MEMCG_NR_RECLAIM_PAGES,
-> + =C2=A0 =C2=A0 =C2=A0 MEMCG_NR_WRITEBACK,
-> + =C2=A0 =C2=A0 =C2=A0 MEMCG_NR_DIRTY_WRITEBACK_PAGES,
-> +};
-> +
-> +/*
-> + * Statistics for memory cgroup.
-> + */
-> +enum mem_cgroup_stat_index {
-> + =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* For MEM_CONTAINER_TYPE_ALL, usage =3D page=
-cache + rss.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_CACHE, =C2=A0 =C2=A0 /* # of pages=
- charged as cache */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_RSS, =C2=A0 =C2=A0 =C2=A0 /* # of =
-pages charged as anon rss */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_FILE_MAPPED, =C2=A0/* # of pages c=
-harged as file rss */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_PGPGIN_COUNT, =C2=A0 /* # of pages=
- paged in */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_PGPGOUT_COUNT, =C2=A0/* # of pages=
- paged out */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_EVENTS, /* sum of pagein + pageout=
- for internal use */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped ou=
-t */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_SOFTLIMIT, /* decrements on each p=
-age in/out.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 used by soft=
- limit implementation */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each =
-page in/out.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 used by thre=
-shold implementation */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_FILE_DIRTY, =C2=A0 /* # of dirty p=
-ages in page cache */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_WRITEBACK, =C2=A0 /* # of pages un=
-der writeback */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_WRITEBACK_TEMP, =C2=A0 /* # of pag=
-es under writeback using
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 temporary buffers */
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_UNSTABLE_NFS, =C2=A0 /* # of NFS u=
-nstable pages */
-> +
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_NSTATS,
-> +};
-> +
-> =C2=A0#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> =C2=A0/*
-> =C2=A0* All "charge" functions with gfp_mask should use GFP_KERNEL or
-> @@ -117,6 +155,13 @@ extern void mem_cgroup_print_oom_info(struct mem_cgr=
-oup *memcg,
-> =C2=A0extern int do_swap_account;
-> =C2=A0#endif
->
-> +extern long mem_cgroup_dirty_ratio(void);
-> +extern unsigned long mem_cgroup_dirty_bytes(void);
-> +extern long mem_cgroup_dirty_background_ratio(void);
-> +extern unsigned long mem_cgroup_dirty_background_bytes(void);
-> +
-> +extern s64 mem_cgroup_page_stat(enum mem_cgroup_page_stat_item item);
-> +
-> =C2=A0static inline bool mem_cgroup_disabled(void)
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (mem_cgroup_subsys.disabled)
-> @@ -125,7 +170,8 @@ static inline bool mem_cgroup_disabled(void)
-> =C2=A0}
->
-> =C2=A0extern bool mem_cgroup_oom_called(struct task_struct *task);
-> -void mem_cgroup_update_file_mapped(struct page *page, int val);
-> +void mem_cgroup_update_stat(struct page *page,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 enum mem_cgroup_stat_index idx, int val);
-> =C2=A0unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int =
-order,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0gfp_t gfp_mask, int nid,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0int zid);
-> @@ -300,8 +346,8 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, s=
-truct task_struct *p)
-> =C2=A0{
-> =C2=A0}
->
-> -static inline void mem_cgroup_update_file_mapped(struct page *page,
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int val)
-> +static inline void mem_cgroup_update_stat(struct page *page,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 enum mem_cgroup_stat_index idx, int val)
-> =C2=A0{
-> =C2=A0}
->
-> @@ -312,6 +358,31 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct z=
-one *zone, int order,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
-> =C2=A0}
->
-> +static inline long mem_cgroup_dirty_ratio(void)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 return vm_dirty_ratio;
-> +}
-> +
-> +static inline unsigned long mem_cgroup_dirty_bytes(void)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 return vm_dirty_bytes;
-> +}
-> +
-> +static inline long mem_cgroup_dirty_background_ratio(void)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 return dirty_background_ratio;
-> +}
-> +
-> +static inline unsigned long mem_cgroup_dirty_background_bytes(void)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 return dirty_background_bytes;
-> +}
-> +
-> +static inline s64 mem_cgroup_page_stat(enum mem_cgroup_page_stat_item it=
-em)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 return -ENOMEM;
-
-Why ENOMEM? Probably, EINVAL or ENOSYS?
-
-> +}
-> +
-> =C2=A0#endif /* CONFIG_CGROUP_MEM_CONT */
->
-> =C2=A0#endif /* _LINUX_MEMCONTROL_H */
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index a443c30..e74cf66 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -66,31 +66,16 @@ static int really_do_swap_account __initdata =3D 1; /=
-* for remember boot option*/
-> =C2=A0#define SOFTLIMIT_EVENTS_THRESH (1000)
-> =C2=A0#define THRESHOLDS_EVENTS_THRESH (100)
->
-> -/*
-> - * Statistics for memory cgroup.
-> - */
-> -enum mem_cgroup_stat_index {
-> - =C2=A0 =C2=A0 =C2=A0 /*
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* For MEM_CONTAINER_TYPE_ALL, usage =3D page=
-cache + rss.
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_CACHE, =C2=A0 =C2=A0 /* # of pages=
- charged as cache */
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_RSS, =C2=A0 =C2=A0 =C2=A0 /* # of =
-pages charged as anon rss */
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_FILE_MAPPED, =C2=A0/* # of pages c=
-harged as file rss */
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_PGPGIN_COUNT, =C2=A0 /* # of pages=
- paged in */
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_PGPGOUT_COUNT, =C2=A0/* # of pages=
- paged out */
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped ou=
-t */
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_SOFTLIMIT, /* decrements on each p=
-age in/out.
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 used by soft=
- limit implementation */
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each =
-page in/out.
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 used by thre=
-shold implementation */
-> -
-> - =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_NSTATS,
-> -};
-> -
-> =C2=A0struct mem_cgroup_stat_cpu {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0s64 count[MEM_CGROUP_STAT_NSTATS];
-> =C2=A0};
->
-> +/* Per cgroup page statistics */
-> +struct mem_cgroup_page_stat {
-> + =C2=A0 =C2=A0 =C2=A0 enum mem_cgroup_page_stat_item item;
-> + =C2=A0 =C2=A0 =C2=A0 s64 value;
-> +};
-> +
-> =C2=A0/*
-> =C2=A0* per-zone information in memory controller.
-> =C2=A0*/
-> @@ -157,6 +142,15 @@ struct mem_cgroup_threshold_ary {
-> =C2=A0static bool mem_cgroup_threshold_check(struct mem_cgroup *mem);
-> =C2=A0static void mem_cgroup_threshold(struct mem_cgroup *mem);
->
-> +enum mem_cgroup_dirty_param {
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_DIRTY_RATIO,
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_DIRTY_BYTES,
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_DIRTY_BACKGROUND_RATIO,
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_DIRTY_BACKGROUND_BYTES,
-> +
-> + =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_DIRTY_NPARAMS,
-> +};
-> +
-> =C2=A0/*
-> =C2=A0* The memory controller data structure. The memory controller contr=
-ols both
-> =C2=A0* page cache and RSS per cgroup. We would eventually like to provid=
-e
-> @@ -205,6 +199,9 @@ struct mem_cgroup {
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned int =C2=A0 =C2=A0swappiness;
->
-> + =C2=A0 =C2=A0 =C2=A0 /* control memory cgroup dirty pages */
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long dirty_param[MEM_CGROUP_DIRTY_NPARAMS=
-];
-> +
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* set when res.limit =3D=3D memsw.limit */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0bool =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
-memsw_is_minimum;
->
-> @@ -1021,6 +1018,164 @@ static unsigned int get_swappiness(struct mem_cgr=
-oup *memcg)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return swappiness;
-> =C2=A0}
->
-> +static unsigned long get_dirty_param(struct mem_cgroup *memcg,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 enum mem_cgroup_dirty_param idx)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long ret;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(idx >=3D MEM_CGROUP_DIRTY_NPARAMS);
-> + =C2=A0 =C2=A0 =C2=A0 spin_lock(&memcg->reclaim_param_lock);
-> + =C2=A0 =C2=A0 =C2=A0 ret =3D memcg->dirty_param[idx];
-> + =C2=A0 =C2=A0 =C2=A0 spin_unlock(&memcg->reclaim_param_lock);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return ret;
-> +}
-> +
-> +long mem_cgroup_dirty_ratio(void)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *memcg;
-> + =C2=A0 =C2=A0 =C2=A0 long ret =3D vm_dirty_ratio;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_disabled())
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ret;
-> + =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* It's possible that "current" may be moved =
-to other cgroup while we
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* access cgroup. But precise check is meanin=
-gless because the task can
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* be moved after our access and writeback te=
-nds to take long time.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* At least, "memcg" will not be freed under =
-rcu_read_lock().
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_lock();
-> + =C2=A0 =C2=A0 =C2=A0 memcg =3D mem_cgroup_from_task(current);
-> + =C2=A0 =C2=A0 =C2=A0 if (likely(memcg))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D get_dirty_para=
-m(memcg, MEM_CGROUP_DIRTY_RATIO);
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_unlock();
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return ret;
-> +}
-> +
-> +unsigned long mem_cgroup_dirty_bytes(void)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *memcg;
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long ret =3D vm_dirty_bytes;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_disabled())
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ret;
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_lock();
-> + =C2=A0 =C2=A0 =C2=A0 memcg =3D mem_cgroup_from_task(current);
-> + =C2=A0 =C2=A0 =C2=A0 if (likely(memcg))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D get_dirty_para=
-m(memcg, MEM_CGROUP_DIRTY_BYTES);
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_unlock();
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return ret;
-> +}
-> +
-> +long mem_cgroup_dirty_background_ratio(void)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *memcg;
-> + =C2=A0 =C2=A0 =C2=A0 long ret =3D dirty_background_ratio;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_disabled())
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ret;
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_lock();
-> + =C2=A0 =C2=A0 =C2=A0 memcg =3D mem_cgroup_from_task(current);
-> + =C2=A0 =C2=A0 =C2=A0 if (likely(memcg))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D get_dirty_para=
-m(memcg, MEM_CGROUP_DIRTY_BACKGROUND_RATIO);
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_unlock();
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return ret;
-> +}
-> +
-> +unsigned long mem_cgroup_dirty_background_bytes(void)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *memcg;
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long ret =3D dirty_background_bytes;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_disabled())
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ret;
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_lock();
-> + =C2=A0 =C2=A0 =C2=A0 memcg =3D mem_cgroup_from_task(current);
-> + =C2=A0 =C2=A0 =C2=A0 if (likely(memcg))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D get_dirty_para=
-m(memcg, MEM_CGROUP_DIRTY_BACKGROUND_BYTES);
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_unlock();
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return ret;
-> +}
-> +
-> +static inline bool mem_cgroup_can_swap(struct mem_cgroup *memcg)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 return do_swap_account ?
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 res_counter_read_u64(&memcg->memsw, RES_LIMIT) :
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 nr_swap_pages > 0;
-> +}
-> +
-> +static s64 mem_cgroup_get_local_page_stat(struct mem_cgroup *memcg,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 enum mem_cgroup_page_stat_item item)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 s64 ret;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 switch (item) {
-> + =C2=A0 =C2=A0 =C2=A0 case MEMCG_NR_DIRTYABLE_PAGES:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D res_counter_re=
-ad_u64(&memcg->res, RES_LIMIT) -
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 res_counter_read_u64(&memcg->res, RES_USAGE);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Translate free memo=
-ry in pages */
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret >>=3D PAGE_SHIFT;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret +=3D mem_cgroup_re=
-ad_stat(memcg, LRU_ACTIVE_FILE) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 mem_cgroup_read_stat(memcg, LRU_INACTIVE_FILE);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_can_swa=
-p(memcg))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 ret +=3D mem_cgroup_read_stat(memcg, LRU_ACTIVE_ANON) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_read_stat(memcg, LRU_INACTIVE=
-_ANON);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
-> + =C2=A0 =C2=A0 =C2=A0 case MEMCG_NR_RECLAIM_PAGES:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D mem_cgroup_rea=
-d_stat(memcg, MEM_CGROUP_STAT_FILE_DIRTY) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 mem_cgroup_read_stat(memcg,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_S=
-TAT_UNSTABLE_NFS);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
-> + =C2=A0 =C2=A0 =C2=A0 case MEMCG_NR_WRITEBACK:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D mem_cgroup_rea=
-d_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
-> + =C2=A0 =C2=A0 =C2=A0 case MEMCG_NR_DIRTY_WRITEBACK_PAGES:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D mem_cgroup_rea=
-d_stat(memcg, MEM_CGROUP_STAT_WRITEBACK) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 mem_cgroup_read_stat(memcg,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 MEM_CGROUP_STAT_UNSTABLE_NFS);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
-> + =C2=A0 =C2=A0 =C2=A0 default:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 WARN_ON_ONCE(1);
-
-I think it's a bug, not warning.
-
-> + =C2=A0 =C2=A0 =C2=A0 }
-> + =C2=A0 =C2=A0 =C2=A0 return ret;
-> +}
-> +
-> +static int mem_cgroup_page_stat_cb(struct mem_cgroup *mem, void *data)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup_page_stat *stat =3D (struct mem_=
-cgroup_page_stat *)data;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 stat->value +=3D mem_cgroup_get_local_page_stat(me=
-m, stat->item);
-> + =C2=A0 =C2=A0 =C2=A0 return 0;
-> +}
-> +
-> +s64 mem_cgroup_page_stat(enum mem_cgroup_page_stat_item item)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup_page_stat stat =3D {};
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *memcg;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_disabled())
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -ENOMEM;
-
-EINVAL/ENOSYS?
-
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_lock();
-> + =C2=A0 =C2=A0 =C2=A0 memcg =3D mem_cgroup_from_task(current);
-> + =C2=A0 =C2=A0 =C2=A0 if (memcg) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* Recursively ev=
-aulate page statistics against all cgroup
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* under hierarch=
-y tree
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 stat.item =3D item;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_walk_tree(m=
-emcg, &stat, mem_cgroup_page_stat_cb);
-> + =C2=A0 =C2=A0 =C2=A0 } else
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 stat.value =3D -ENOMEM=
-;
-
-ditto.
-
-> + =C2=A0 =C2=A0 =C2=A0 rcu_read_unlock();
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return stat.value;
-> +}
-> +
-> =C2=A0static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, voi=
-d *data)
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0int *val =3D data;
-> @@ -1263,14 +1418,16 @@ static void record_last_oom(struct mem_cgroup *me=
-m)
-> =C2=A0}
->
-> =C2=A0/*
-> - * Currently used to update mapped file statistics, but the routine can =
-be
-> - * generalized to update other statistics as well.
-> + * Generalized routine to update memory cgroup statistics.
-> =C2=A0*/
-> -void mem_cgroup_update_file_mapped(struct page *page, int val)
-> +void mem_cgroup_update_stat(struct page *page,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 enum mem_cgroup_stat_index idx, int val)
-
-EXPORT_SYMBOL_GPL(mem_cgroup_update_stat) is needed, since
-it uses by filesystems.
-
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct mem_cgroup *mem;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page_cgroup *pc;
->
-> + =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_disabled())
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0pc =3D lookup_page_cgroup(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (unlikely(!pc))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return;
-> @@ -1286,7 +1443,8 @@ void mem_cgroup_update_file_mapped(struct page *pag=
-e, int val)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Preemption is already disabled. We can use =
-__this_cpu_xxx
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> - =C2=A0 =C2=A0 =C2=A0 __this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_FI=
-LE_MAPPED], val);
-> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(idx >=3D MEM_CGROUP_STAT_NSTATS);
-> + =C2=A0 =C2=A0 =C2=A0 __this_cpu_add(mem->stat->count[idx], val);
->
-> =C2=A0done:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unlock_page_cgroup(pc);
-> @@ -3033,6 +3191,10 @@ enum {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0MCS_PGPGIN,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0MCS_PGPGOUT,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0MCS_SWAP,
-> + =C2=A0 =C2=A0 =C2=A0 MCS_FILE_DIRTY,
-> + =C2=A0 =C2=A0 =C2=A0 MCS_WRITEBACK,
-> + =C2=A0 =C2=A0 =C2=A0 MCS_WRITEBACK_TEMP,
-> + =C2=A0 =C2=A0 =C2=A0 MCS_UNSTABLE_NFS,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0MCS_INACTIVE_ANON,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0MCS_ACTIVE_ANON,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0MCS_INACTIVE_FILE,
-> @@ -3055,6 +3217,10 @@ struct {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0{"pgpgin", "total_pgpgin"},
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0{"pgpgout", "total_pgpgout"},
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0{"swap", "total_swap"},
-> + =C2=A0 =C2=A0 =C2=A0 {"filedirty", "dirty_pages"},
-> + =C2=A0 =C2=A0 =C2=A0 {"writeback", "writeback_pages"},
-> + =C2=A0 =C2=A0 =C2=A0 {"writeback_tmp", "writeback_temp_pages"},
-> + =C2=A0 =C2=A0 =C2=A0 {"nfs", "nfs_unstable"},
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0{"inactive_anon", "total_inactive_anon"},
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0{"active_anon", "total_active_anon"},
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0{"inactive_file", "total_inactive_file"},
-> @@ -3083,6 +3249,14 @@ static int mem_cgroup_get_local_stat(struct mem_cg=
-roup *mem, void *data)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0val =3D mem_cgroup=
-_read_stat(mem, MEM_CGROUP_STAT_SWAPOUT);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0s->stat[MCS_SWAP] =
-+=3D val * PAGE_SIZE;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> + =C2=A0 =C2=A0 =C2=A0 val =3D mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_=
-FILE_DIRTY);
-> + =C2=A0 =C2=A0 =C2=A0 s->stat[MCS_FILE_DIRTY] +=3D val;
-> + =C2=A0 =C2=A0 =C2=A0 val =3D mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_=
-WRITEBACK);
-> + =C2=A0 =C2=A0 =C2=A0 s->stat[MCS_WRITEBACK] +=3D val;
-> + =C2=A0 =C2=A0 =C2=A0 val =3D mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_=
-WRITEBACK_TEMP);
-> + =C2=A0 =C2=A0 =C2=A0 s->stat[MCS_WRITEBACK_TEMP] +=3D val;
-> + =C2=A0 =C2=A0 =C2=A0 val =3D mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_=
-UNSTABLE_NFS);
-> + =C2=A0 =C2=A0 =C2=A0 s->stat[MCS_UNSTABLE_NFS] +=3D val;
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* per zone stat */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0val =3D mem_cgroup_get_local_zonestat(mem, LRU=
-_INACTIVE_ANON);
-> @@ -3467,6 +3641,50 @@ unlock:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
-> =C2=A0}
->
-> +static u64 mem_cgroup_dirty_read(struct cgroup *cgrp, struct cftype *cft=
-)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *memcg =3D mem_cgroup_from_cont(=
-cgrp);
-> + =C2=A0 =C2=A0 =C2=A0 int type =3D cft->private;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return get_dirty_param(memcg, type);
-> +}
-> +
-> +static int
-> +mem_cgroup_dirty_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *memcg =3D mem_cgroup_from_cont(=
-cgrp);
-> + =C2=A0 =C2=A0 =C2=A0 int type =3D cft->private;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (cgrp->parent =3D=3D NULL)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -EINVAL;
-> + =C2=A0 =C2=A0 =C2=A0 if (((type =3D=3D MEM_CGROUP_DIRTY_RATIO) ||
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (type =3D=3D MEM_CGROU=
-P_DIRTY_BACKGROUND_RATIO)) && (val > 100))
-
-Too many unnecessary brackets
-
-       if ((type =3D=3D MEM_CGROUP_DIRTY_RATIO ||
-               type =3D=3D MEM_CGROUP_DIRTY_BACKGROUND_RATIO) && val > 100)
-
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -EINVAL;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 spin_lock(&memcg->reclaim_param_lock);
-> + =C2=A0 =C2=A0 =C2=A0 switch (type) {
-> + =C2=A0 =C2=A0 =C2=A0 case MEM_CGROUP_DIRTY_RATIO:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memcg->dirty_param[MEM=
-_CGROUP_DIRTY_RATIO] =3D val;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memcg->dirty_param[MEM=
-_CGROUP_DIRTY_BYTES] =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
-> + =C2=A0 =C2=A0 =C2=A0 case MEM_CGROUP_DIRTY_BYTES:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memcg->dirty_param[MEM=
-_CGROUP_DIRTY_RATIO] =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memcg->dirty_param[MEM=
-_CGROUP_DIRTY_BYTES] =3D val;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
-> + =C2=A0 =C2=A0 =C2=A0 case MEM_CGROUP_DIRTY_BACKGROUND_RATIO:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memcg->dirty_param[MEM=
-_CGROUP_DIRTY_BACKGROUND_RATIO] =3D val;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memcg->dirty_param[MEM=
-_CGROUP_DIRTY_BACKGROUND_BYTES] =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
-> + =C2=A0 =C2=A0 =C2=A0 case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memcg->dirty_param[MEM=
-_CGROUP_DIRTY_BACKGROUND_RATIO] =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 memcg->dirty_param[MEM=
-_CGROUP_DIRTY_BACKGROUND_BYTES] =3D val;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
-> + =C2=A0 =C2=A0 =C2=A0 }
-> + =C2=A0 =C2=A0 =C2=A0 spin_unlock(&memcg->reclaim_param_lock);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return 0;
-> +}
-> +
-> =C2=A0static struct cftype mem_cgroup_files[] =3D {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0.name =3D "usage_i=
-n_bytes",
-> @@ -3518,6 +3736,30 @@ static struct cftype mem_cgroup_files[] =3D {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0.write_u64 =3D mem=
-_cgroup_swappiness_write,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0},
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0{
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .name =3D "dirty_ratio=
-",
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .read_u64 =3D mem_cgro=
-up_dirty_read,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .write_u64 =3D mem_cgr=
-oup_dirty_write,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .private =3D MEM_CGROU=
-P_DIRTY_RATIO,
-> + =C2=A0 =C2=A0 =C2=A0 },
-> + =C2=A0 =C2=A0 =C2=A0 {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .name =3D "dirty_bytes=
-",
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .read_u64 =3D mem_cgro=
-up_dirty_read,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .write_u64 =3D mem_cgr=
-oup_dirty_write,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .private =3D MEM_CGROU=
-P_DIRTY_BYTES,
-> + =C2=A0 =C2=A0 =C2=A0 },
-> + =C2=A0 =C2=A0 =C2=A0 {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .name =3D "dirty_backg=
-round_ratio",
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .read_u64 =3D mem_cgro=
-up_dirty_read,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .write_u64 =3D mem_cgr=
-oup_dirty_write,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .private =3D MEM_CGROU=
-P_DIRTY_BACKGROUND_RATIO,
-> + =C2=A0 =C2=A0 =C2=A0 },
-> + =C2=A0 =C2=A0 =C2=A0 {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .name =3D "dirty_backg=
-round_bytes",
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .read_u64 =3D mem_cgro=
-up_dirty_read,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .write_u64 =3D mem_cgr=
-oup_dirty_write,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .private =3D MEM_CGROU=
-P_DIRTY_BACKGROUND_BYTES,
-> + =C2=A0 =C2=A0 =C2=A0 },
-> + =C2=A0 =C2=A0 =C2=A0 {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0.name =3D "move_ch=
-arge_at_immigrate",
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0.read_u64 =3D mem_=
-cgroup_move_charge_read,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0.write_u64 =3D mem=
-_cgroup_move_charge_write,
-> @@ -3725,6 +3967,19 @@ static int mem_cgroup_soft_limit_tree_init(void)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
-> =C2=A0}
->
-> +/*
-> + * NOTE: called only with &src->reclaim_param_lock held from
-> + * mem_cgroup_create().
-> + */
-> +static inline void
-> +copy_dirty_params(struct mem_cgroup *dst, struct mem_cgroup *src)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 int i;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 for (i =3D 0; i < MEM_CGROUP_DIRTY_NPARAMS; i++)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 dst->dirty_param[i] =
-=3D src->dirty_param[i];
-> +}
-> +
-> =C2=A0static struct cgroup_subsys_state * __ref
-> =C2=A0mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
-> =C2=A0{
-> @@ -3776,8 +4031,37 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct=
- cgroup *cont)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0mem->last_scanned_child =3D 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock_init(&mem->reclaim_param_lock);
->
-> - =C2=A0 =C2=A0 =C2=A0 if (parent)
-> + =C2=A0 =C2=A0 =C2=A0 if (parent) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem->swappiness =
-=3D get_swappiness(parent);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_lock(&parent->rec=
-laim_param_lock);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 copy_dirty_params(mem,=
- parent);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock(&parent->r=
-eclaim_param_lock);
-> + =C2=A0 =C2=A0 =C2=A0 } else {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* XXX: should we=
- need a lock here? we could switch from
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* vm_dirty_ratio=
- to vm_dirty_bytes or vice versa but we're not
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* reading them a=
-tomically. The same for dirty_background_ratio
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* and dirty_back=
-ground_bytes.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* For now, try t=
-o read them speculatively and retry if a
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* "conflict" is =
-detected.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 do {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 mem->dirty_param[MEM_CGROUP_DIRTY_RATIO] =3D
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 vm_dirty_ratio;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 mem->dirty_param[MEM_CGROUP_DIRTY_BYTES] =3D
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 vm_dirty_bytes;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 } while (mem->dirty_pa=
-ram[MEM_CGROUP_DIRTY_RATIO] &&
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0mem->dirty_param[MEM_CGROUP_DIRTY_BYTES]);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 do {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 mem->dirty_param[MEM_CGROUP_DIRTY_BACKGROUND_RATIO] =3D
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 dirty_background_ratio;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 mem->dirty_param[MEM_CGROUP_DIRTY_BACKGROUND_BYTES] =3D
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 dirty_background_bytes;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 } while (mem->dirty_pa=
-ram[MEM_CGROUP_DIRTY_BACKGROUND_RATIO] &&
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 mem->dirty_param[MEM_CGROUP_DIRTY_BACKGROUND_BYTES]);
-> + =C2=A0 =C2=A0 =C2=A0 }
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0atomic_set(&mem->refcnt, 1);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0mem->move_charge_at_immigrate =3D 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0mutex_init(&mem->thresholds_lock);
-> --
-> 1.6.3.3
->
->
+T24gTW9uLCBNYXIgMSwgMjAxMCBhdCAxMToyMyBQTSwgQW5kcmVhIFJpZ2hpIDxhcmlnaGlAZGV2
+ZWxlci5jb20+IHdyb3RlOgo+IEFwcGx5IHRoZSBjZ3JvdXAgZGlydHkgcGFnZXMgYWNjb3VudGlu
+ZyBhbmQgbGltaXRpbmcgaW5mcmFzdHJ1Y3R1cmUgdG8KPiB0aGUgb3Bwb3J0dW5lIGtlcm5lbCBm
+dW5jdGlvbnMuCj4KPiBTaWduZWQtb2ZmLWJ5OiBBbmRyZWEgUmlnaGkgPGFyaWdoaUBkZXZlbGVy
+LmNvbT4KPiAtLS0KPiDCoGZzL2Z1c2UvZmlsZS5jIMKgIMKgIMKgfCDCoCDCoDUgKysrCj4gwqBm
+cy9uZnMvd3JpdGUuYyDCoCDCoCDCoHwgwqAgwqA0ICsrCj4gwqBmcy9uaWxmczIvc2VnbWVudC5j
+IHwgwqAgMTAgKysrKystCj4gwqBtbS9maWxlbWFwLmMgwqAgwqAgwqAgwqB8IMKgIMKgMSArCj4g
+wqBtbS9wYWdlLXdyaXRlYmFjay5jIHwgwqAgODQgKysrKysrKysrKysrKysrKysrKysrKysrKysr
+KysrKystLS0tLS0tLS0tLS0tLS0tLS0KPiDCoG1tL3JtYXAuYyDCoCDCoCDCoCDCoCDCoCB8IMKg
+IMKgNCArLQo+IMKgbW0vdHJ1bmNhdGUuYyDCoCDCoCDCoCB8IMKgIMKgMiArCj4gwqA3IGZpbGVz
+IGNoYW5nZWQsIDc2IGluc2VydGlvbnMoKyksIDM0IGRlbGV0aW9ucygtKQo+Cj4gZGlmZiAtLWdp
+dCBhL2ZzL2Z1c2UvZmlsZS5jIGIvZnMvZnVzZS9maWxlLmMKPiBpbmRleCBhOWY1ZTEzLi5kYmJk
+ZDUzIDEwMDY0NAo+IC0tLSBhL2ZzL2Z1c2UvZmlsZS5jCj4gKysrIGIvZnMvZnVzZS9maWxlLmMK
+PiBAQCAtMTEsNiArMTEsNyBAQAo+IMKgI2luY2x1ZGUgPGxpbnV4L3BhZ2VtYXAuaD4KPiDCoCNp
+bmNsdWRlIDxsaW51eC9zbGFiLmg+Cj4gwqAjaW5jbHVkZSA8bGludXgva2VybmVsLmg+Cj4gKyNp
+bmNsdWRlIDxsaW51eC9tZW1jb250cm9sLmg+Cj4gwqAjaW5jbHVkZSA8bGludXgvc2NoZWQuaD4K
+PiDCoCNpbmNsdWRlIDxsaW51eC9tb2R1bGUuaD4KPgo+IEBAIC0xMTI5LDYgKzExMzAsOCBAQCBz
+dGF0aWMgdm9pZCBmdXNlX3dyaXRlcGFnZV9maW5pc2goc3RydWN0IGZ1c2VfY29ubiAqZmMsIHN0
+cnVjdCBmdXNlX3JlcSAqcmVxKQo+Cj4gwqAgwqAgwqAgwqBsaXN0X2RlbCgmcmVxLT53cml0ZXBh
+Z2VzX2VudHJ5KTsKPiDCoCDCoCDCoCDCoGRlY19iZGlfc3RhdChiZGksIEJESV9XUklURUJBQ0sp
+Owo+ICsgwqAgwqAgwqAgbWVtX2Nncm91cF91cGRhdGVfc3RhdChyZXEtPnBhZ2VzWzBdLAo+ICsg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgTUVNX0NHUk9VUF9TVEFUX1dSSVRFQkFD
+S19URU1QLCAtMSk7Cj4gwqAgwqAgwqAgwqBkZWNfem9uZV9wYWdlX3N0YXRlKHJlcS0+cGFnZXNb
+MF0sIE5SX1dSSVRFQkFDS19URU1QKTsKPiDCoCDCoCDCoCDCoGJkaV93cml0ZW91dF9pbmMoYmRp
+KTsKPiDCoCDCoCDCoCDCoHdha2VfdXAoJmZpLT5wYWdlX3dhaXRxKTsKPiBAQCAtMTI0MCw2ICsx
+MjQzLDggQEAgc3RhdGljIGludCBmdXNlX3dyaXRlcGFnZV9sb2NrZWQoc3RydWN0IHBhZ2UgKnBh
+Z2UpCj4gwqAgwqAgwqAgwqByZXEtPmlub2RlID0gaW5vZGU7Cj4KPiDCoCDCoCDCoCDCoGluY19i
+ZGlfc3RhdChtYXBwaW5nLT5iYWNraW5nX2Rldl9pbmZvLCBCRElfV1JJVEVCQUNLKTsKPiArIMKg
+IMKgIMKgIG1lbV9jZ3JvdXBfdXBkYXRlX3N0YXQodG1wX3BhZ2UsCj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCBNRU1fQ0dST1VQX1NUQVRfV1JJVEVCQUNLX1RFTVAsIDEpOwo+
+IMKgIMKgIMKgIMKgaW5jX3pvbmVfcGFnZV9zdGF0ZSh0bXBfcGFnZSwgTlJfV1JJVEVCQUNLX1RF
+TVApOwo+IMKgIMKgIMKgIMKgZW5kX3BhZ2Vfd3JpdGViYWNrKHBhZ2UpOwo+Cj4gZGlmZiAtLWdp
+dCBhL2ZzL25mcy93cml0ZS5jIGIvZnMvbmZzL3dyaXRlLmMKPiBpbmRleCBiNzUzMjQyLi43MzE2
+ZjdhIDEwMDY0NAo+IC0tLSBhL2ZzL25mcy93cml0ZS5jCj4gKysrIGIvZnMvbmZzL3dyaXRlLmMK
+PiBAQCAtNDM5LDYgKzQzOSw3IEBAIG5mc19tYXJrX3JlcXVlc3RfY29tbWl0KHN0cnVjdCBuZnNf
+cGFnZSAqcmVxKQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgcmVxLT53Yl9p
+bmRleCwKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoE5GU19QQUdFX1RBR19D
+T01NSVQpOwo+IMKgIMKgIMKgIMKgc3Bpbl91bmxvY2soJmlub2RlLT5pX2xvY2spOwo+ICsgwqAg
+wqAgwqAgbWVtX2Nncm91cF91cGRhdGVfc3RhdChyZXEtPndiX3BhZ2UsIE1FTV9DR1JPVVBfU1RB
+VF9VTlNUQUJMRV9ORlMsIDEpOwo+IMKgIMKgIMKgIMKgaW5jX3pvbmVfcGFnZV9zdGF0ZShyZXEt
+PndiX3BhZ2UsIE5SX1VOU1RBQkxFX05GUyk7Cj4gwqAgwqAgwqAgwqBpbmNfYmRpX3N0YXQocmVx
+LT53Yl9wYWdlLT5tYXBwaW5nLT5iYWNraW5nX2Rldl9pbmZvLCBCRElfVU5TVEFCTEUpOwo+IMKg
+IMKgIMKgIMKgX19tYXJrX2lub2RlX2RpcnR5KGlub2RlLCBJX0RJUlRZX0RBVEFTWU5DKTsKPiBA
+QCAtNDUwLDYgKzQ1MSw3IEBAIG5mc19jbGVhcl9yZXF1ZXN0X2NvbW1pdChzdHJ1Y3QgbmZzX3Bh
+Z2UgKnJlcSkKPiDCoCDCoCDCoCDCoHN0cnVjdCBwYWdlICpwYWdlID0gcmVxLT53Yl9wYWdlOwo+
+Cj4gwqAgwqAgwqAgwqBpZiAodGVzdF9hbmRfY2xlYXJfYml0KFBHX0NMRUFOLCAmKHJlcSktPndi
+X2ZsYWdzKSkgewo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWVtX2Nncm91cF91cGRhdGVfc3Rh
+dChwYWdlLCBNRU1fQ0dST1VQX1NUQVRfVU5TVEFCTEVfTkZTLCAtMSk7Cj4gwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqBkZWNfem9uZV9wYWdlX3N0YXRlKHBhZ2UsIE5SX1VOU1RBQkxFX05GUyk7Cj4g
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBkZWNfYmRpX3N0YXQocGFnZS0+bWFwcGluZy0+YmFja2lu
+Z19kZXZfaW5mbywgQkRJX1VOU1RBQkxFKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHJldHVy
+biAxOwo+IEBAIC0xMjczLDYgKzEyNzUsOCBAQCBuZnNfY29tbWl0X2xpc3Qoc3RydWN0IGlub2Rl
+ICppbm9kZSwgc3RydWN0IGxpc3RfaGVhZCAqaGVhZCwgaW50IGhvdykKPiDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoHJlcSA9IG5mc19saXN0X2VudHJ5KGhlYWQtPm5leHQpOwo+IMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgbmZzX2xpc3RfcmVtb3ZlX3JlcXVlc3QocmVxKTsKPiDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoG5mc19tYXJrX3JlcXVlc3RfY29tbWl0KHJlcSk7Cj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCBtZW1fY2dyb3VwX3VwZGF0ZV9zdGF0KHJlcS0+d2JfcGFnZSwKPiArIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIE1FTV9DR1JPVVBfU1RBVF9VTlNU
+QUJMRV9ORlMsIC0xKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRlY196b25lX3BhZ2Vfc3Rh
+dGUocmVxLT53Yl9wYWdlLCBOUl9VTlNUQUJMRV9ORlMpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgZGVjX2JkaV9zdGF0KHJlcS0+d2JfcGFnZS0+bWFwcGluZy0+YmFja2luZ19kZXZfaW5mbywK
+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoEJESV9VTlNU
+QUJMRSk7Cj4gZGlmZiAtLWdpdCBhL2ZzL25pbGZzMi9zZWdtZW50LmMgYi9mcy9uaWxmczIvc2Vn
+bWVudC5jCj4gaW5kZXggYWRhMmYxYi4uYWVmNmQxMyAxMDA2NDQKPiAtLS0gYS9mcy9uaWxmczIv
+c2VnbWVudC5jCj4gKysrIGIvZnMvbmlsZnMyL3NlZ21lbnQuYwo+IEBAIC0xNjYwLDggKzE2NjAs
+MTEgQEAgbmlsZnNfY29weV9yZXBsYWNlX3BhZ2VfYnVmZmVycyhzdHJ1Y3QgcGFnZSAqcGFnZSwg
+c3RydWN0IGxpc3RfaGVhZCAqb3V0KQo+IMKgIMKgIMKgIMKgfSB3aGlsZSAoYmggPSBiaC0+Yl90
+aGlzX3BhZ2UsIGJoMiA9IGJoMi0+Yl90aGlzX3BhZ2UsIGJoICE9IGhlYWQpOwo+IMKgIMKgIMKg
+IMKga3VubWFwX2F0b21pYyhrYWRkciwgS01fVVNFUjApOwo+Cj4gLSDCoCDCoCDCoCBpZiAoIVRl
+c3RTZXRQYWdlV3JpdGViYWNrKGNsb25lX3BhZ2UpKQo+ICsgwqAgwqAgwqAgaWYgKCFUZXN0U2V0
+UGFnZVdyaXRlYmFjayhjbG9uZV9wYWdlKSkgewo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWVt
+X2Nncm91cF91cGRhdGVfc3RhdChjbG9uZV9wYWdlLAoKcy9jbG9uZV9wYWdlL3BhZ2UvCgpBbmQg
+I2luY2x1ZGUgPGxpbnV4L21lbWNvbnRyb2wuaD4gaXMgbWlzc2VkLgoKPiArIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIE1FTV9DR1JPVVBfU1RBVF9XUklURUJB
+Q0ssIDEpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaW5jX3pvbmVfcGFnZV9zdGF0ZShjbG9u
+ZV9wYWdlLCBOUl9XUklURUJBQ0spOwo+ICsgwqAgwqAgwqAgfQo+IMKgIMKgIMKgIMKgdW5sb2Nr
+X3BhZ2UoY2xvbmVfcGFnZSk7Cj4KPiDCoCDCoCDCoCDCoHJldHVybiAwOwo+IEBAIC0xNzgzLDgg
+KzE3ODYsMTEgQEAgc3RhdGljIHZvaWQgX19uaWxmc19lbmRfcGFnZV9pbyhzdHJ1Y3QgcGFnZSAq
+cGFnZSwgaW50IGVycikKPiDCoCDCoCDCoCDCoH0KPgo+IMKgIMKgIMKgIMKgaWYgKGJ1ZmZlcl9u
+aWxmc19hbGxvY2F0ZWQocGFnZV9idWZmZXJzKHBhZ2UpKSkgewo+IC0gwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgaWYgKFRlc3RDbGVhclBhZ2VXcml0ZWJhY2socGFnZSkpCj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCBpZiAoVGVzdENsZWFyUGFnZVdyaXRlYmFjayhwYWdlKSkgewo+ICsgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWVtX2Nncm91cF91cGRhdGVfc3RhdChjbG9uZV9wYWdl
+LAo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgTUVNX0NHUk9VUF9TVEFUX1dSSVRFQkFDSywgLTEpOwo+IMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgZGVjX3pvbmVfcGFnZV9zdGF0ZShwYWdlLCBOUl9XUklURUJBQ0sp
+Owo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgfQo+IMKgIMKgIMKgIMKgfSBlbHNlCj4gwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqBlbmRfcGFnZV93cml0ZWJhY2socGFnZSk7Cj4gwqB9Cj4gZGlmZiAt
+LWdpdCBhL21tL2ZpbGVtYXAuYyBiL21tL2ZpbGVtYXAuYwo+IGluZGV4IGZlMDllNTEuLmY4NWFj
+YWUgMTAwNjQ0Cj4gLS0tIGEvbW0vZmlsZW1hcC5jCj4gKysrIGIvbW0vZmlsZW1hcC5jCj4gQEAg
+LTEzNSw2ICsxMzUsNyBAQCB2b2lkIF9fcmVtb3ZlX2Zyb21fcGFnZV9jYWNoZShzdHJ1Y3QgcGFn
+ZSAqcGFnZSkKPiDCoCDCoCDCoCDCoCAqIGhhdmluZyByZW1vdmVkIHRoZSBwYWdlIGVudGlyZWx5
+Lgo+IMKgIMKgIMKgIMKgICovCj4gwqAgwqAgwqAgwqBpZiAoUGFnZURpcnR5KHBhZ2UpICYmIG1h
+cHBpbmdfY2FwX2FjY291bnRfZGlydHkobWFwcGluZykpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIG1lbV9jZ3JvdXBfdXBkYXRlX3N0YXQocGFnZSwgTUVNX0NHUk9VUF9TVEFUX0ZJTEVfRElS
+VFksIC0xKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRlY196b25lX3BhZ2Vfc3RhdGUocGFn
+ZSwgTlJfRklMRV9ESVJUWSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBkZWNfYmRpX3N0YXQo
+bWFwcGluZy0+YmFja2luZ19kZXZfaW5mbywgQkRJX0RJUlRZKTsKPiDCoCDCoCDCoCDCoH0KPiBk
+aWZmIC0tZ2l0IGEvbW0vcGFnZS13cml0ZWJhY2suYyBiL21tL3BhZ2Utd3JpdGViYWNrLmMKPiBp
+bmRleCA1YTBmOGYzLi5kODNmNDFjIDEwMDY0NAo+IC0tLSBhL21tL3BhZ2Utd3JpdGViYWNrLmMK
+PiArKysgYi9tbS9wYWdlLXdyaXRlYmFjay5jCj4gQEAgLTEzNywxMyArMTM3LDE0IEBAIHN0YXRp
+YyBzdHJ1Y3QgcHJvcF9kZXNjcmlwdG9yIHZtX2RpcnRpZXM7Cj4gwqAqLwo+IMKgc3RhdGljIGlu
+dCBjYWxjX3BlcmlvZF9zaGlmdCh2b2lkKQo+IMKgewo+IC0gwqAgwqAgwqAgdW5zaWduZWQgbG9u
+ZyBkaXJ0eV90b3RhbDsKPiArIMKgIMKgIMKgIHVuc2lnbmVkIGxvbmcgZGlydHlfdG90YWwsIGRp
+cnR5X2J5dGVzOwo+Cj4gLSDCoCDCoCDCoCBpZiAodm1fZGlydHlfYnl0ZXMpCj4gLSDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCBkaXJ0eV90b3RhbCA9IHZtX2RpcnR5X2J5dGVzIC8gUEFHRV9TSVpFOwo+
+ICsgwqAgwqAgwqAgZGlydHlfYnl0ZXMgPSBtZW1fY2dyb3VwX2RpcnR5X2J5dGVzKCk7Cj4gKyDC
+oCDCoCDCoCBpZiAoZGlydHlfYnl0ZXMpCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBkaXJ0eV90
+b3RhbCA9IGRpcnR5X2J5dGVzIC8gUEFHRV9TSVpFOwo+IMKgIMKgIMKgIMKgZWxzZQo+IC0gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgZGlydHlfdG90YWwgPSAodm1fZGlydHlfcmF0aW8gKiBkZXRlcm1p
+bmVfZGlydHlhYmxlX21lbW9yeSgpKSAvCj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCAxMDA7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBkaXJ0eV90b3Rh
+bCA9IChtZW1fY2dyb3VwX2RpcnR5X3JhdGlvKCkgKgo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgZGV0ZXJtaW5lX2RpcnR5YWJsZV9tZW1vcnkoKSkgLyAx
+MDA7Cj4gwqAgwqAgwqAgwqByZXR1cm4gMiArIGlsb2cyKGRpcnR5X3RvdGFsIC0gMSk7Cj4gwqB9
+Cj4KPiBAQCAtNDA4LDE0ICs0MDksMTYgQEAgc3RhdGljIHVuc2lnbmVkIGxvbmcgaGlnaG1lbV9k
+aXJ0eWFibGVfbWVtb3J5KHVuc2lnbmVkIGxvbmcgdG90YWwpCj4gwqAqLwo+IMKgdW5zaWduZWQg
+bG9uZyBkZXRlcm1pbmVfZGlydHlhYmxlX21lbW9yeSh2b2lkKQo+IMKgewo+IC0gwqAgwqAgwqAg
+dW5zaWduZWQgbG9uZyB4Owo+IC0KPiAtIMKgIMKgIMKgIHggPSBnbG9iYWxfcGFnZV9zdGF0ZShO
+Ul9GUkVFX1BBR0VTKSArIGdsb2JhbF9yZWNsYWltYWJsZV9wYWdlcygpOwo+ICsgwqAgwqAgwqAg
+dW5zaWduZWQgbG9uZyBtZW1vcnk7Cj4gKyDCoCDCoCDCoCBzNjQgbWVtY2dfbWVtb3J5Owo+Cj4g
+KyDCoCDCoCDCoCBtZW1vcnkgPSBnbG9iYWxfcGFnZV9zdGF0ZShOUl9GUkVFX1BBR0VTKSArIGds
+b2JhbF9yZWNsYWltYWJsZV9wYWdlcygpOwo+IMKgIMKgIMKgIMKgaWYgKCF2bV9oaWdobWVtX2lz
+X2RpcnR5YWJsZSkKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHggLT0gaGlnaG1lbV9kaXJ0eWFi
+bGVfbWVtb3J5KHgpOwo+IC0KPiAtIMKgIMKgIMKgIHJldHVybiB4ICsgMTsgwqAgLyogRW5zdXJl
+IHRoYXQgd2UgbmV2ZXIgcmV0dXJuIDAgKi8KPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG1lbW9y
+eSAtPSBoaWdobWVtX2RpcnR5YWJsZV9tZW1vcnkobWVtb3J5KTsKPiArIMKgIMKgIMKgIG1lbWNn
+X21lbW9yeSA9IG1lbV9jZ3JvdXBfcGFnZV9zdGF0KE1FTUNHX05SX0RJUlRZQUJMRV9QQUdFUyk7
+Cj4gKyDCoCDCoCDCoCBpZiAobWVtY2dfbWVtb3J5IDwgMCkKPiArIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIHJldHVybiBtZW1vcnkgKyAxOwo+ICsgwqAgwqAgwqAgcmV0dXJuIG1pbigodW5zaWduZWQg
+bG9uZyltZW1jZ19tZW1vcnksIG1lbW9yeSArIDEpOwo+IMKgfQo+Cj4gwqB2b2lkCj4gQEAgLTQy
+MywyNiArNDI2LDI4IEBAIGdldF9kaXJ0eV9saW1pdHModW5zaWduZWQgbG9uZyAqcGJhY2tncm91
+bmQsIHVuc2lnbmVkIGxvbmcgKnBkaXJ0eSwKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB1bnNp
+Z25lZCBsb25nICpwYmRpX2RpcnR5LCBzdHJ1Y3QgYmFja2luZ19kZXZfaW5mbyAqYmRpKQo+IMKg
+ewo+IMKgIMKgIMKgIMKgdW5zaWduZWQgbG9uZyBiYWNrZ3JvdW5kOwo+IC0gwqAgwqAgwqAgdW5z
+aWduZWQgbG9uZyBkaXJ0eTsKPiArIMKgIMKgIMKgIHVuc2lnbmVkIGxvbmcgZGlydHksIGRpcnR5
+X2J5dGVzLCBkaXJ0eV9iYWNrZ3JvdW5kOwo+IMKgIMKgIMKgIMKgdW5zaWduZWQgbG9uZyBhdmFp
+bGFibGVfbWVtb3J5ID0gZGV0ZXJtaW5lX2RpcnR5YWJsZV9tZW1vcnkoKTsKPiDCoCDCoCDCoCDC
+oHN0cnVjdCB0YXNrX3N0cnVjdCAqdHNrOwo+Cj4gLSDCoCDCoCDCoCBpZiAodm1fZGlydHlfYnl0
+ZXMpCj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCBkaXJ0eSA9IERJVl9ST1VORF9VUCh2bV9kaXJ0
+eV9ieXRlcywgUEFHRV9TSVpFKTsKPiArIMKgIMKgIMKgIGRpcnR5X2J5dGVzID0gbWVtX2Nncm91
+cF9kaXJ0eV9ieXRlcygpOwo+ICsgwqAgwqAgwqAgaWYgKGRpcnR5X2J5dGVzKQo+ICsgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgZGlydHkgPSBESVZfUk9VTkRfVVAoZGlydHlfYnl0ZXMsIFBBR0VfU0la
+RSk7Cj4gwqAgwqAgwqAgwqBlbHNlIHsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGludCBkaXJ0
+eV9yYXRpbzsKPgo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgZGlydHlfcmF0aW8gPSB2bV9kaXJ0
+eV9yYXRpbzsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGRpcnR5X3JhdGlvID0gbWVtX2Nncm91
+cF9kaXJ0eV9yYXRpbygpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaWYgKGRpcnR5X3JhdGlv
+IDwgNSkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRpcnR5X3JhdGlvID0g
+NTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRpcnR5ID0gKGRpcnR5X3JhdGlvICogYXZhaWxh
+YmxlX21lbW9yeSkgLyAxMDA7Cj4gwqAgwqAgwqAgwqB9Cj4KPiAtIMKgIMKgIMKgIGlmIChkaXJ0
+eV9iYWNrZ3JvdW5kX2J5dGVzKQo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgYmFja2dyb3VuZCA9
+IERJVl9ST1VORF9VUChkaXJ0eV9iYWNrZ3JvdW5kX2J5dGVzLCBQQUdFX1NJWkUpOwo+ICsgwqAg
+wqAgwqAgZGlydHlfYmFja2dyb3VuZCA9IG1lbV9jZ3JvdXBfZGlydHlfYmFja2dyb3VuZF9ieXRl
+cygpOwo+ICsgwqAgwqAgwqAgaWYgKGRpcnR5X2JhY2tncm91bmQpCj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCBiYWNrZ3JvdW5kID0gRElWX1JPVU5EX1VQKGRpcnR5X2JhY2tncm91bmQsIFBBR0Vf
+U0laRSk7Cj4gwqAgwqAgwqAgwqBlbHNlCj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCBiYWNrZ3Jv
+dW5kID0gKGRpcnR5X2JhY2tncm91bmRfcmF0aW8gKiBhdmFpbGFibGVfbWVtb3J5KSAvIDEwMDsK
+PiAtCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBiYWNrZ3JvdW5kID0gKG1lbV9jZ3JvdXBfZGly
+dHlfYmFja2dyb3VuZF9yYXRpbygpICoKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGF2YWlsYWJsZV9tZW1vcnkpIC8gMTAwOwo+IMKg
+IMKgIMKgIMKgaWYgKGJhY2tncm91bmQgPj0gZGlydHkpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqBiYWNrZ3JvdW5kID0gZGlydHkgLyAyOwo+IMKgIMKgIMKgIMKgdHNrID0gY3VycmVudDsKPiBA
+QCAtNTA4LDkgKzUxMywxMyBAQCBzdGF0aWMgdm9pZCBiYWxhbmNlX2RpcnR5X3BhZ2VzKHN0cnVj
+dCBhZGRyZXNzX3NwYWNlICptYXBwaW5nLAo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgZ2V0X2Rp
+cnR5X2xpbWl0cygmYmFja2dyb3VuZF90aHJlc2gsICZkaXJ0eV90aHJlc2gsCj4gwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAmYmRpX3RocmVzaCwgYmRpKTsK
+Pgo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgbnJfcmVjbGFpbWFibGUgPSBnbG9iYWxfcGFnZV9z
+dGF0ZShOUl9GSUxFX0RJUlRZKSArCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBucl9yZWNsYWlt
+YWJsZSA9IG1lbV9jZ3JvdXBfcGFnZV9zdGF0KE1FTUNHX05SX1JFQ0xBSU1fUEFHRVMpOwo+ICsg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgbnJfd3JpdGViYWNrID0gbWVtX2Nncm91cF9wYWdlX3N0YXQo
+TUVNQ0dfTlJfV1JJVEVCQUNLKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmICgobnJfcmVj
+bGFpbWFibGUgPCAwKSB8fCAobnJfd3JpdGViYWNrIDwgMCkpIHsKPiArIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIG5yX3JlY2xhaW1hYmxlID0gZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJf
+RklMRV9ESVJUWSkgKwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfVU5TVEFCTEVfTkZTKTsKPiAt
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIG5yX3dyaXRlYmFjayA9IGdsb2JhbF9wYWdlX3N0YXRlKE5S
+X1dSSVRFQkFDSyk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBucl93cml0
+ZWJhY2sgPSBnbG9iYWxfcGFnZV9zdGF0ZShOUl9XUklURUJBQ0spOwo+ICsgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgfQo+Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBiZGlfbnJfcmVjbGFpbWFibGUg
+PSBiZGlfc3RhdChiZGksIEJESV9ESVJUWSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAo
+YmRpX2NhcF9hY2NvdW50X3Vuc3RhYmxlKGJkaSkpIHsKPiBAQCAtNjExLDEwICs2MjAsMTIgQEAg
+c3RhdGljIHZvaWQgYmFsYW5jZV9kaXJ0eV9wYWdlcyhzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFw
+cGluZywKPiDCoCDCoCDCoCDCoCAqIEluIG5vcm1hbCBtb2RlLCB3ZSBzdGFydCBiYWNrZ3JvdW5k
+IHdyaXRlb3V0IGF0IHRoZSBsb3dlcgo+IMKgIMKgIMKgIMKgICogYmFja2dyb3VuZF90aHJlc2gs
+IHRvIGtlZXAgdGhlIGFtb3VudCBvZiBkaXJ0eSBtZW1vcnkgbG93Lgo+IMKgIMKgIMKgIMKgICov
+Cj4gKyDCoCDCoCDCoCBucl9yZWNsYWltYWJsZSA9IG1lbV9jZ3JvdXBfcGFnZV9zdGF0KE1FTUNH
+X05SX1JFQ0xBSU1fUEFHRVMpOwo+ICsgwqAgwqAgwqAgaWYgKG5yX3JlY2xhaW1hYmxlIDwgMCkK
+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG5yX3JlY2xhaW1hYmxlID0gZ2xvYmFsX3BhZ2Vfc3Rh
+dGUoTlJfRklMRV9ESVJUWSkgKwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfVU5TVEFCTEVfTkZTKTsKPiDCoCDCoCDC
+oCDCoGlmICgobGFwdG9wX21vZGUgJiYgcGFnZXNfd3JpdHRlbikgfHwKPiAtIMKgIMKgIMKgIMKg
+IMKgICghbGFwdG9wX21vZGUgJiYgKChnbG9iYWxfcGFnZV9zdGF0ZShOUl9GSUxFX0RJUlRZKQo+
+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqArIGdsb2JhbF9w
+YWdlX3N0YXRlKE5SX1VOU1RBQkxFX05GUykpCj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCA+IGJhY2tncm91bmRfdGhyZXNoKSkp
+Cj4gKyDCoCDCoCDCoCDCoCDCoCAoIWxhcHRvcF9tb2RlICYmIChucl9yZWNsYWltYWJsZSA+IGJh
+Y2tncm91bmRfdGhyZXNoKSkpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBiZGlfc3RhcnRfd3Jp
+dGViYWNrKGJkaSwgTlVMTCwgMCk7Cj4gwqB9Cj4KPiBAQCAtNjc4LDYgKzY4OSw4IEBAIHZvaWQg
+dGhyb3R0bGVfdm1fd3JpdGVvdXQoZ2ZwX3QgZ2ZwX21hc2spCj4gwqAgwqAgwqAgwqB1bnNpZ25l
+ZCBsb25nIGRpcnR5X3RocmVzaDsKPgo+IMKgIMKgIMKgIMKgIGZvciAoIDsgOyApIHsKPiArIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIHVuc2lnbmVkIGxvbmcgZGlydHk7Cj4gKwo+IMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgZ2V0X2RpcnR5X2xpbWl0cygmYmFja2dyb3VuZF90aHJlc2gsICZkaXJ0eV90
+aHJlc2gsIE5VTEwsIE5VTEwpOwo+Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgLyoKPiBAQCAt
+Njg2LDEwICs2OTksMTQgQEAgdm9pZCB0aHJvdHRsZV92bV93cml0ZW91dChnZnBfdCBnZnBfbWFz
+aykKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCovCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgZGlydHlfdGhyZXNoICs9IGRpcnR5X3RocmVzaCAvIDEwOyDCoCDCoCDCoC8qIHdoZWVlZS4u
+LiAqLwo+Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGlmIChnbG9iYWxfcGFnZV9zdGF0ZShO
+Ul9VTlNUQUJMRV9ORlMpICsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGds
+b2JhbF9wYWdlX3N0YXRlKE5SX1dSSVRFQkFDSykgPD0gZGlydHlfdGhyZXNoKQo+IC0gwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgYnJlYWs7Cj4gLSDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoGNvbmdlc3Rpb25fd2FpdChCTEtfUldfQVNZTkMsIEhaLzEwKTsKPiAr
+Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBkaXJ0eSA9IG1lbV9jZ3JvdXBfcGFnZV9zdGF0KE1F
+TUNHX05SX0RJUlRZX1dSSVRFQkFDS19QQUdFUyk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBp
+ZiAoZGlydHkgPCAwKQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgZGlydHkg
+PSBnbG9iYWxfcGFnZV9zdGF0ZShOUl9VTlNUQUJMRV9ORlMpICsKPiArIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGdsb2JhbF9wYWdlX3N0YXRlKE5SX1dSSVRF
+QkFDSyk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAoZGlydHkgPD0gZGlydHlfdGhyZXNo
+KQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgYnJlYWs7Cj4gKyDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCBjb25nZXN0aW9uX3dhaXQoQkxLX1JXX0FTWU5DLCBIWi8xMCk7Cj4KPiDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoC8qCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgKiBUaGUg
+Y2FsbGVyIG1pZ2h0IGhvbGQgbG9ja3Mgd2hpY2ggY2FuIHByZXZlbnQgSU8gY29tcGxldGlvbgo+
+IEBAIC0xMDk2LDYgKzExMTMsNyBAQCBpbnQgX19zZXRfcGFnZV9kaXJ0eV9ub193cml0ZWJhY2so
+c3RydWN0IHBhZ2UgKnBhZ2UpCj4gwqB2b2lkIGFjY291bnRfcGFnZV9kaXJ0aWVkKHN0cnVjdCBw
+YWdlICpwYWdlLCBzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGluZykKPiDCoHsKPiDCoCDCoCDC
+oCDCoGlmIChtYXBwaW5nX2NhcF9hY2NvdW50X2RpcnR5KG1hcHBpbmcpKSB7Cj4gKyDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCBtZW1fY2dyb3VwX3VwZGF0ZV9zdGF0KHBhZ2UsIE1FTV9DR1JPVVBfU1RB
+VF9GSUxFX0RJUlRZLCAxKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoF9faW5jX3pvbmVfcGFn
+ZV9zdGF0ZShwYWdlLCBOUl9GSUxFX0RJUlRZKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoF9f
+aW5jX2JkaV9zdGF0KG1hcHBpbmctPmJhY2tpbmdfZGV2X2luZm8sIEJESV9ESVJUWSk7Cj4gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqB0YXNrX2RpcnR5X2luYyhjdXJyZW50KTsKPiBAQCAtMTI5Nyw2
+ICsxMzE1LDggQEAgaW50IGNsZWFyX3BhZ2VfZGlydHlfZm9yX2lvKHN0cnVjdCBwYWdlICpwYWdl
+KQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgICogZm9yIG1vcmUgY29tbWVudHMuCj4gwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgKi8KPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGlmIChUZXN0Q2xl
+YXJQYWdlRGlydHkocGFnZSkpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IG1lbV9jZ3JvdXBfdXBkYXRlX3N0YXQocGFnZSwKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIE1FTV9DR1JPVVBfU1RBVF9GSUxFX0RJ
+UlRZLCAtMSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBkZWNfem9uZV9w
+YWdlX3N0YXRlKHBhZ2UsIE5SX0ZJTEVfRElSVFkpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgZGVjX2JkaV9zdGF0KG1hcHBpbmctPmJhY2tpbmdfZGV2X2luZm8sCj4gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBC
+RElfRElSVFkpOwo+IEBAIC0xMzMyLDggKzEzNTIsMTAgQEAgaW50IHRlc3RfY2xlYXJfcGFnZV93
+cml0ZWJhY2soc3RydWN0IHBhZ2UgKnBhZ2UpCj4gwqAgwqAgwqAgwqB9IGVsc2Ugewo+IMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgcmV0ID0gVGVzdENsZWFyUGFnZVdyaXRlYmFjayhwYWdlKTsKPiDC
+oCDCoCDCoCDCoH0KPiAtIMKgIMKgIMKgIGlmIChyZXQpCj4gKyDCoCDCoCDCoCBpZiAocmV0KSB7
+Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBtZW1fY2dyb3VwX3VwZGF0ZV9zdGF0KHBhZ2UsIE1F
+TV9DR1JPVVBfU1RBVF9XUklURUJBQ0ssIC0xKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRl
+Y196b25lX3BhZ2Vfc3RhdGUocGFnZSwgTlJfV1JJVEVCQUNLKTsKPiArIMKgIMKgIMKgIH0KPiDC
+oCDCoCDCoCDCoHJldHVybiByZXQ7Cj4gwqB9Cj4KPiBAQCAtMTM2Myw4ICsxMzg1LDEwIEBAIGlu
+dCB0ZXN0X3NldF9wYWdlX3dyaXRlYmFjayhzdHJ1Y3QgcGFnZSAqcGFnZSkKPiDCoCDCoCDCoCDC
+oH0gZWxzZSB7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqByZXQgPSBUZXN0U2V0UGFnZVdyaXRl
+YmFjayhwYWdlKTsKPiDCoCDCoCDCoCDCoH0KPiAtIMKgIMKgIMKgIGlmICghcmV0KQo+ICsgwqAg
+wqAgwqAgaWYgKCFyZXQpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG1lbV9jZ3JvdXBfdXBk
+YXRlX3N0YXQocGFnZSwgTUVNX0NHUk9VUF9TVEFUX1dSSVRFQkFDSywgMSk7Cj4gwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqBpbmNfem9uZV9wYWdlX3N0YXRlKHBhZ2UsIE5SX1dSSVRFQkFDSyk7Cj4g
+KyDCoCDCoCDCoCB9Cj4gwqAgwqAgwqAgwqByZXR1cm4gcmV0Owo+Cj4gwqB9Cj4gZGlmZiAtLWdp
+dCBhL21tL3JtYXAuYyBiL21tL3JtYXAuYwo+IGluZGV4IDRkMmZiOTMuLjhkNzQzMzUgMTAwNjQ0
+Cj4gLS0tIGEvbW0vcm1hcC5jCj4gKysrIGIvbW0vcm1hcC5jCj4gQEAgLTgzMiw3ICs4MzIsNyBA
+QCB2b2lkIHBhZ2VfYWRkX2ZpbGVfcm1hcChzdHJ1Y3QgcGFnZSAqcGFnZSkKPiDCoHsKPiDCoCDC
+oCDCoCDCoGlmIChhdG9taWNfaW5jX2FuZF90ZXN0KCZwYWdlLT5fbWFwY291bnQpKSB7Cj4gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqBfX2luY196b25lX3BhZ2Vfc3RhdGUocGFnZSwgTlJfRklMRV9N
+QVBQRUQpOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWVtX2Nncm91cF91cGRhdGVfZmlsZV9t
+YXBwZWQocGFnZSwgMSk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBtZW1fY2dyb3VwX3VwZGF0
+ZV9zdGF0KHBhZ2UsIE1FTV9DR1JPVVBfU1RBVF9GSUxFX01BUFBFRCwgMSk7Cj4gwqAgwqAgwqAg
+wqB9Cj4gwqB9Cj4KPiBAQCAtODY0LDcgKzg2NCw3IEBAIHZvaWQgcGFnZV9yZW1vdmVfcm1hcChz
+dHJ1Y3QgcGFnZSAqcGFnZSkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoF9fZGVjX3pvbmVfcGFn
+ZV9zdGF0ZShwYWdlLCBOUl9BTk9OX1BBR0VTKTsKPiDCoCDCoCDCoCDCoH0gZWxzZSB7Cj4gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqBfX2RlY196b25lX3BhZ2Vfc3RhdGUocGFnZSwgTlJfRklMRV9N
+QVBQRUQpOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWVtX2Nncm91cF91cGRhdGVfZmlsZV9t
+YXBwZWQocGFnZSwgLTEpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWVtX2Nncm91cF91cGRh
+dGVfc3RhdChwYWdlLCBNRU1fQ0dST1VQX1NUQVRfRklMRV9NQVBQRUQsIC0xKTsKPiDCoCDCoCDC
+oCDCoH0KPiDCoCDCoCDCoCDCoC8qCj4gwqAgwqAgwqAgwqAgKiBJdCB3b3VsZCBiZSB0aWR5IHRv
+IHJlc2V0IHRoZSBQYWdlQW5vbiBtYXBwaW5nIGhlcmUsCj4gZGlmZiAtLWdpdCBhL21tL3RydW5j
+YXRlLmMgYi9tbS90cnVuY2F0ZS5jCj4gaW5kZXggMjQ2NmUwYy4uNWY0MzdlNyAxMDA2NDQKPiAt
+LS0gYS9tbS90cnVuY2F0ZS5jCj4gKysrIGIvbW0vdHJ1bmNhdGUuYwo+IEBAIC03Myw2ICs3Myw4
+IEBAIHZvaWQgY2FuY2VsX2RpcnR5X3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsIHVuc2lnbmVkIGlu
+dCBhY2NvdW50X3NpemUpCj4gwqAgwqAgwqAgwqBpZiAoVGVzdENsZWFyUGFnZURpcnR5KHBhZ2Up
+KSB7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGlu
+ZyA9IHBhZ2UtPm1hcHBpbmc7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAobWFwcGluZyAm
+JiBtYXBwaW5nX2NhcF9hY2NvdW50X2RpcnR5KG1hcHBpbmcpKSB7Cj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCBtZW1fY2dyb3VwX3VwZGF0ZV9zdGF0KHBhZ2UsCj4gKyDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBNRU1f
+Q0dST1VQX1NUQVRfRklMRV9ESVJUWSwgLTEpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgZGVjX3pvbmVfcGFnZV9zdGF0ZShwYWdlLCBOUl9GSUxFX0RJUlRZKTsKPiDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRlY19iZGlfc3RhdChtYXBwaW5nLT5iYWNr
+aW5nX2Rldl9pbmZvLAo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgQkRJX0RJUlRZKTsKPiAtLQo+IDEuNi4zLjMKPgo+Cg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
