@@ -1,390 +1,320 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C5DB66B0047
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 19:26:47 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o220QiwA027619
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 184296B0047
+	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 21:25:41 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o222PbMq015687
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 2 Mar 2010 09:26:44 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C72A945DE61
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 09:26:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 772E545DE55
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 09:26:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DD841DB803F
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 09:26:43 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C7FF1DB8044
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 09:26:42 +0900 (JST)
-Date: Tue, 2 Mar 2010 09:23:09 +0900
+	Tue, 2 Mar 2010 11:25:38 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DA6345DE54
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 11:25:32 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A8D945DE4F
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 11:25:32 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CA3F01DB8043
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 11:25:31 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 68C8EE38003
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 11:25:30 +0900 (JST)
+Date: Tue, 2 Mar 2010 11:21:57 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 3/3] memcg: dirty pages instrumentation
-Message-Id: <20100302092309.bff454d7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1267478620-5276-4-git-send-email-arighi@develer.com>
-References: <1267478620-5276-1-git-send-email-arighi@develer.com>
-	<1267478620-5276-4-git-send-email-arighi@develer.com>
+Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
+ ooms
+Message-Id: <20100302112157.0665c339.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon,  1 Mar 2010 22:23:40 +0100
-Andrea Righi <arighi@develer.com> wrote:
+On Fri, 26 Feb 2010 15:53:11 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> Apply the cgroup dirty pages accounting and limiting infrastructure to
-> the opportune kernel functions.
+> It is possible to remove the special pagefault oom handler by simply
+> oom locking all system zones and then calling directly into
+> out_of_memory().
 > 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
+> All populated zones must have ZONE_OOM_LOCKED set, otherwise there is a
+> parallel oom killing in progress that will lead to eventual memory
+> freeing so it's not necessary to needlessly kill another task.  The
+> context in which the pagefault is allocating memory is unknown to the oom
+> killer, so this is done on a system-wide level.
+> 
+> If a task has already been oom killed and hasn't fully exited yet, this
+> will be a no-op since select_bad_process() recognizes tasks across the
+> system with TIF_MEMDIE set.
+> 
+> The special handling to determine whether a parallel memcg is currently
+> oom is removed since we can detect future memory freeing with TIF_MEMDIE.
+> The memcg has already reached its memory limit, so it will still need to
+> kill a task regardless of the pagefault oom.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Seems nice.
+Reviewd with refleshed mind.
 
-Hmm. the last problem is moving account between memcg.
+1. mem_cgroup_oom_called should be removed. ok.
+2. I think mem_cgroup should not return -ENOMEM at charging
+   Then, no complicated thing in page_fault_out_of_memory().
+   I'll add such changes, soom.
+3. This patch includes too much things. please divide.
+   At least, please put memcg part ouf of this patch.
 
-Right ?
+Maybe own my patch will remove mem_cgroup_oom_called() and changes
+memcg not to return -ENOMEM in page fault path.
+You can ignore all memcg part. Then, there will be no HUNK.
 
-Thanks,
+Bye.
 -Kame
 
 
+
+
+
 > ---
->  fs/fuse/file.c      |    5 +++
->  fs/nfs/write.c      |    4 ++
->  fs/nilfs2/segment.c |   10 +++++-
->  mm/filemap.c        |    1 +
->  mm/page-writeback.c |   84 ++++++++++++++++++++++++++++++++------------------
->  mm/rmap.c           |    4 +-
->  mm/truncate.c       |    2 +
->  7 files changed, 76 insertions(+), 34 deletions(-)
+>  include/linux/memcontrol.h |    6 ---
+>  mm/memcontrol.c            |   35 +---------------
+>  mm/oom_kill.c              |   97 ++++++++++++++++++++++++++------------------
+>  3 files changed, 58 insertions(+), 80 deletions(-)
 > 
-> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-> index a9f5e13..dbbdd53 100644
-> --- a/fs/fuse/file.c
-> +++ b/fs/fuse/file.c
-> @@ -11,6 +11,7 @@
->  #include <linux/pagemap.h>
->  #include <linux/slab.h>
->  #include <linux/kernel.h>
-> +#include <linux/memcontrol.h>
->  #include <linux/sched.h>
->  #include <linux/module.h>
->  
-> @@ -1129,6 +1130,8 @@ static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
->  
->  	list_del(&req->writepages_entry);
->  	dec_bdi_stat(bdi, BDI_WRITEBACK);
-> +	mem_cgroup_update_stat(req->pages[0],
-> +			MEM_CGROUP_STAT_WRITEBACK_TEMP, -1);
->  	dec_zone_page_state(req->pages[0], NR_WRITEBACK_TEMP);
->  	bdi_writeout_inc(bdi);
->  	wake_up(&fi->page_waitq);
-> @@ -1240,6 +1243,8 @@ static int fuse_writepage_locked(struct page *page)
->  	req->inode = inode;
->  
->  	inc_bdi_stat(mapping->backing_dev_info, BDI_WRITEBACK);
-> +	mem_cgroup_update_stat(tmp_page,
-> +			MEM_CGROUP_STAT_WRITEBACK_TEMP, 1);
->  	inc_zone_page_state(tmp_page, NR_WRITEBACK_TEMP);
->  	end_page_writeback(page);
->  
-> diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-> index b753242..7316f7a 100644
-> --- a/fs/nfs/write.c
-> +++ b/fs/nfs/write.c
-> @@ -439,6 +439,7 @@ nfs_mark_request_commit(struct nfs_page *req)
->  			req->wb_index,
->  			NFS_PAGE_TAG_COMMIT);
->  	spin_unlock(&inode->i_lock);
-> +	mem_cgroup_update_stat(req->wb_page, MEM_CGROUP_STAT_UNSTABLE_NFS, 1);
->  	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
->  	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_UNSTABLE);
->  	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-> @@ -450,6 +451,7 @@ nfs_clear_request_commit(struct nfs_page *req)
->  	struct page *page = req->wb_page;
->  
->  	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
-> +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_UNSTABLE_NFS, -1);
->  		dec_zone_page_state(page, NR_UNSTABLE_NFS);
->  		dec_bdi_stat(page->mapping->backing_dev_info, BDI_UNSTABLE);
->  		return 1;
-> @@ -1273,6 +1275,8 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
->  		req = nfs_list_entry(head->next);
->  		nfs_list_remove_request(req);
->  		nfs_mark_request_commit(req);
-> +		mem_cgroup_update_stat(req->wb_page,
-> +				MEM_CGROUP_STAT_UNSTABLE_NFS, -1);
->  		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
->  		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
->  				BDI_UNSTABLE);
-> diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-> index ada2f1b..aef6d13 100644
-> --- a/fs/nilfs2/segment.c
-> +++ b/fs/nilfs2/segment.c
-> @@ -1660,8 +1660,11 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
->  	} while (bh = bh->b_this_page, bh2 = bh2->b_this_page, bh != head);
->  	kunmap_atomic(kaddr, KM_USER0);
->  
-> -	if (!TestSetPageWriteback(clone_page))
-> +	if (!TestSetPageWriteback(clone_page)) {
-> +		mem_cgroup_update_stat(clone_page,
-> +				MEM_CGROUP_STAT_WRITEBACK, 1);
->  		inc_zone_page_state(clone_page, NR_WRITEBACK);
-> +	}
->  	unlock_page(clone_page);
->  
->  	return 0;
-> @@ -1783,8 +1786,11 @@ static void __nilfs_end_page_io(struct page *page, int err)
->  	}
->  
->  	if (buffer_nilfs_allocated(page_buffers(page))) {
-> -		if (TestClearPageWriteback(page))
-> +		if (TestClearPageWriteback(page)) {
-> +			mem_cgroup_update_stat(clone_page,
-> +					MEM_CGROUP_STAT_WRITEBACK, -1);
->  			dec_zone_page_state(page, NR_WRITEBACK);
-> +		}
->  	} else
->  		end_page_writeback(page);
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -124,7 +124,6 @@ static inline bool mem_cgroup_disabled(void)
+>  	return false;
 >  }
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index fe09e51..f85acae 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -135,6 +135,7 @@ void __remove_from_page_cache(struct page *page)
->  	 * having removed the page entirely.
+>  
+> -extern bool mem_cgroup_oom_called(struct task_struct *task);
+>  void mem_cgroup_update_file_mapped(struct page *page, int val);
+>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  						gfp_t gfp_mask, int nid,
+> @@ -258,11 +257,6 @@ static inline bool mem_cgroup_disabled(void)
+>  	return true;
+>  }
+>  
+> -static inline bool mem_cgroup_oom_called(struct task_struct *task)
+> -{
+> -	return false;
+> -}
+> -
+>  static inline int
+>  mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -217,7 +217,6 @@ struct mem_cgroup {
+>  	 * Should the accounting and control be hierarchical, per subtree?
 >  	 */
->  	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
-> +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_FILE_DIRTY, -1);
->  		dec_zone_page_state(page, NR_FILE_DIRTY);
->  		dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
->  	}
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 5a0f8f3..d83f41c 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -137,13 +137,14 @@ static struct prop_descriptor vm_dirties;
->   */
->  static int calc_period_shift(void)
->  {
-> -	unsigned long dirty_total;
-> +	unsigned long dirty_total, dirty_bytes;
+>  	bool use_hierarchy;
+> -	unsigned long	last_oom_jiffies;
+>  	atomic_t	refcnt;
 >  
-> -	if (vm_dirty_bytes)
-> -		dirty_total = vm_dirty_bytes / PAGE_SIZE;
-> +	dirty_bytes = mem_cgroup_dirty_bytes();
-> +	if (dirty_bytes)
-> +		dirty_total = dirty_bytes / PAGE_SIZE;
->  	else
-> -		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
-> -				100;
-> +		dirty_total = (mem_cgroup_dirty_ratio() *
-> +				determine_dirtyable_memory()) / 100;
->  	return 2 + ilog2(dirty_total - 1);
+>  	unsigned int	swappiness;
+> @@ -1205,34 +1204,6 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+>  	return total;
 >  }
 >  
-> @@ -408,14 +409,16 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
->   */
->  unsigned long determine_dirtyable_memory(void)
->  {
-> -	unsigned long x;
+> -bool mem_cgroup_oom_called(struct task_struct *task)
+> -{
+> -	bool ret = false;
+> -	struct mem_cgroup *mem;
+> -	struct mm_struct *mm;
 > -
-> -	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
-> +	unsigned long memory;
-> +	s64 memcg_memory;
+> -	rcu_read_lock();
+> -	mm = task->mm;
+> -	if (!mm)
+> -		mm = &init_mm;
+> -	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+> -	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
+> -		ret = true;
+> -	rcu_read_unlock();
+> -	return ret;
+> -}
+> -
+> -static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
+> -{
+> -	mem->last_oom_jiffies = jiffies;
+> -	return 0;
+> -}
+> -
+> -static void record_last_oom(struct mem_cgroup *mem)
+> -{
+> -	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
+> -}
+> -
+>  /*
+>   * Currently used to update mapped file statistics, but the routine can be
+>   * generalized to update other statistics as well.
+> @@ -1484,10 +1455,8 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+>  			continue;
 >  
-> +	memory = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
->  	if (!vm_highmem_is_dirtyable)
-> -		x -= highmem_dirtyable_memory(x);
-> -
-> -	return x + 1;	/* Ensure that we never return 0 */
-> +		memory -= highmem_dirtyable_memory(memory);
-> +	memcg_memory = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
-> +	if (memcg_memory < 0)
-> +		return memory + 1;
-> +	return min((unsigned long)memcg_memory, memory + 1);
+>  		if (!nr_retries--) {
+> -			if (oom) {
+> +			if (oom)
+>  				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
+> -				record_last_oom(mem_over_limit);
+> -			}
+>  			goto nomem;
+>  		}
+>  	}
+> @@ -2284,8 +2253,6 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+>  
+>  /*
+>   * A call to try to shrink memory usage on charge failure at shmem's swapin.
+> - * Calling hierarchical_reclaim is not enough because we should update
+> - * last_oom_jiffies to prevent pagefault_out_of_memory from invoking global OOM.
+>   * Moreover considering hierarchy, we should reclaim from the mem_over_limit,
+>   * not from the memcg which this page would be charged to.
+>   * try_charge_swapin does all of these works properly.
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -580,6 +580,44 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 >  }
 >  
->  void
-> @@ -423,26 +426,28 @@ get_dirty_limits(unsigned long *pbackground, unsigned long *pdirty,
->  		 unsigned long *pbdi_dirty, struct backing_dev_info *bdi)
->  {
->  	unsigned long background;
-> -	unsigned long dirty;
-> +	unsigned long dirty, dirty_bytes, dirty_background;
->  	unsigned long available_memory = determine_dirtyable_memory();
->  	struct task_struct *tsk;
->  
-> -	if (vm_dirty_bytes)
-> -		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-> +	dirty_bytes = mem_cgroup_dirty_bytes();
-> +	if (dirty_bytes)
-> +		dirty = DIV_ROUND_UP(dirty_bytes, PAGE_SIZE);
->  	else {
->  		int dirty_ratio;
->  
-> -		dirty_ratio = vm_dirty_ratio;
-> +		dirty_ratio = mem_cgroup_dirty_ratio();
->  		if (dirty_ratio < 5)
->  			dirty_ratio = 5;
->  		dirty = (dirty_ratio * available_memory) / 100;
->  	}
->  
-> -	if (dirty_background_bytes)
-> -		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-> +	dirty_background = mem_cgroup_dirty_background_bytes();
-> +	if (dirty_background)
-> +		background = DIV_ROUND_UP(dirty_background, PAGE_SIZE);
->  	else
-> -		background = (dirty_background_ratio * available_memory) / 100;
-> -
-> +		background = (mem_cgroup_dirty_background_ratio() *
-> +					available_memory) / 100;
->  	if (background >= dirty)
->  		background = dirty / 2;
->  	tsk = current;
-> @@ -508,9 +513,13 @@ static void balance_dirty_pages(struct address_space *mapping,
->  		get_dirty_limits(&background_thresh, &dirty_thresh,
->  				&bdi_thresh, bdi);
->  
-> -		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
-> +		nr_reclaimable = mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
-> +		nr_writeback = mem_cgroup_page_stat(MEMCG_NR_WRITEBACK);
-> +		if ((nr_reclaimable < 0) || (nr_writeback < 0)) {
-> +			nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
->  					global_page_state(NR_UNSTABLE_NFS);
-> -		nr_writeback = global_page_state(NR_WRITEBACK);
-> +			nr_writeback = global_page_state(NR_WRITEBACK);
+>  /*
+> + * Try to acquire the oom killer lock for all system zones.  Returns zero if a
+> + * parallel oom killing is taking place, otherwise locks all zones and returns
+> + * non-zero.
+> + */
+> +static int try_set_system_oom(void)
+> +{
+> +	struct zone *zone;
+> +	int ret = 1;
+> +
+> +	spin_lock(&zone_scan_lock);
+> +	for_each_populated_zone(zone)
+> +		if (zone_is_oom_locked(zone)) {
+> +			ret = 0;
+> +			goto out;
 > +		}
->  
->  		bdi_nr_reclaimable = bdi_stat(bdi, BDI_DIRTY);
->  		if (bdi_cap_account_unstable(bdi)) {
-> @@ -611,10 +620,12 @@ static void balance_dirty_pages(struct address_space *mapping,
->  	 * In normal mode, we start background writeout at the lower
->  	 * background_thresh, to keep the amount of dirty memory low.
->  	 */
-> +	nr_reclaimable = mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
-> +	if (nr_reclaimable < 0)
-> +		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
-> +				global_page_state(NR_UNSTABLE_NFS);
->  	if ((laptop_mode && pages_written) ||
-> -	    (!laptop_mode && ((global_page_state(NR_FILE_DIRTY)
-> -			       + global_page_state(NR_UNSTABLE_NFS))
-> -					  > background_thresh)))
-> +	    (!laptop_mode && (nr_reclaimable > background_thresh)))
->  		bdi_start_writeback(bdi, NULL, 0);
+> +	for_each_populated_zone(zone)
+> +		zone_set_flag(zone, ZONE_OOM_LOCKED);
+> +out:
+> +	spin_unlock(&zone_scan_lock);
+> +	return ret;
+> +}
+> +
+> +/*
+> + * Clears ZONE_OOM_LOCKED for all system zones so that failed allocation
+> + * attempts or page faults may now recall the oom killer, if necessary.
+> + */
+> +static void clear_system_oom(void)
+> +{
+> +	struct zone *zone;
+> +
+> +	spin_lock(&zone_scan_lock);
+> +	for_each_populated_zone(zone)
+> +		zone_clear_flag(zone, ZONE_OOM_LOCKED);
+> +	spin_unlock(&zone_scan_lock);
+> +}
+> +
+> +
+> +/*
+>   * Must be called with tasklist_lock held for read.
+>   */
+>  static void __out_of_memory(gfp_t gfp_mask, int order,
+> @@ -614,46 +652,9 @@ retry:
+>  		goto retry;
 >  }
 >  
-> @@ -678,6 +689,8 @@ void throttle_vm_writeout(gfp_t gfp_mask)
->  	unsigned long dirty_thresh;
+> -/*
+> - * pagefault handler calls into here because it is out of memory but
+> - * doesn't know exactly how or why.
+> - */
+> -void pagefault_out_of_memory(void)
+> -{
+> -	unsigned long freed = 0;
+> -
+> -	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+> -	if (freed > 0)
+> -		/* Got some memory back in the last second. */
+> -		return;
+> -
+> -	/*
+> -	 * If this is from memcg, oom-killer is already invoked.
+> -	 * and not worth to go system-wide-oom.
+> -	 */
+> -	if (mem_cgroup_oom_called(current))
+> -		goto rest_and_return;
+> -
+> -	if (sysctl_panic_on_oom)
+> -		panic("out of memory from page fault. panic_on_oom is selected.\n");
+> -
+> -	read_lock(&tasklist_lock);
+> -	/* unknown gfp_mask and order */
+> -	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
+> -	read_unlock(&tasklist_lock);
+> -
+> -	/*
+> -	 * Give "p" a good chance of killing itself before we
+> -	 * retry to allocate memory.
+> -	 */
+> -rest_and_return:
+> -	if (!test_thread_flag(TIF_MEMDIE))
+> -		schedule_timeout_uninterruptible(1);
+> -}
+> -
+>  /**
+>   * out_of_memory - kill the "best" process when we run out of memory
+> - * @zonelist: zonelist pointer
+> + * @zonelist: zonelist pointer passed to page allocator
+>   * @gfp_mask: memory allocation flags
+>   * @order: amount of memory being requested as a power of 2
+>   * @nodemask: nodemask passed to page allocator
+> @@ -667,7 +668,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>  		int order, nodemask_t *nodemask)
+>  {
+>  	unsigned long freed = 0;
+> -	enum oom_constraint constraint;
+> +	enum oom_constraint constraint = CONSTRAINT_NONE;
 >  
->          for ( ; ; ) {
-> +		unsigned long dirty;
-> +
->  		get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
->  
->                  /*
-> @@ -686,10 +699,14 @@ void throttle_vm_writeout(gfp_t gfp_mask)
->                   */
->                  dirty_thresh += dirty_thresh / 10;      /* wheeee... */
->  
-> -                if (global_page_state(NR_UNSTABLE_NFS) +
-> -			global_page_state(NR_WRITEBACK) <= dirty_thresh)
-> -                        	break;
-> -                congestion_wait(BLK_RW_ASYNC, HZ/10);
-> +
-> +		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-> +		if (dirty < 0)
-> +			dirty = global_page_state(NR_UNSTABLE_NFS) +
-> +				global_page_state(NR_WRITEBACK);
-> +		if (dirty <= dirty_thresh)
-> +			break;
-> +		congestion_wait(BLK_RW_ASYNC, HZ/10);
->  
+>  	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+>  	if (freed > 0)
+> @@ -683,7 +684,8 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>  	 * Check if there were limitations on the allocation (only relevant for
+>  	 * NUMA) that may require different handling.
+>  	 */
+> -	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
+> +	if (zonelist)
+> +		constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
+>  	read_lock(&tasklist_lock);
+>  	if (unlikely(sysctl_panic_on_oom)) {
 >  		/*
->  		 * The caller might hold locks which can prevent IO completion
-> @@ -1096,6 +1113,7 @@ int __set_page_dirty_no_writeback(struct page *page)
->  void account_page_dirtied(struct page *page, struct address_space *mapping)
->  {
->  	if (mapping_cap_account_dirty(mapping)) {
-> +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_FILE_DIRTY, 1);
->  		__inc_zone_page_state(page, NR_FILE_DIRTY);
->  		__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
->  		task_dirty_inc(current);
-> @@ -1297,6 +1315,8 @@ int clear_page_dirty_for_io(struct page *page)
->  		 * for more comments.
+> @@ -693,6 +695,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 >  		 */
->  		if (TestClearPageDirty(page)) {
-> +			mem_cgroup_update_stat(page,
-> +					MEM_CGROUP_STAT_FILE_DIRTY, -1);
->  			dec_zone_page_state(page, NR_FILE_DIRTY);
->  			dec_bdi_stat(mapping->backing_dev_info,
->  					BDI_DIRTY);
-> @@ -1332,8 +1352,10 @@ int test_clear_page_writeback(struct page *page)
->  	} else {
->  		ret = TestClearPageWriteback(page);
+>  		if (constraint == CONSTRAINT_NONE) {
+>  			dump_header(NULL, gfp_mask, order, NULL);
+> +			read_unlock(&tasklist_lock);
+>  			panic("Out of memory: panic_on_oom is enabled\n");
+>  		}
 >  	}
-> -	if (ret)
-> +	if (ret) {
-> +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_WRITEBACK, -1);
->  		dec_zone_page_state(page, NR_WRITEBACK);
-> +	}
->  	return ret;
+> @@ -706,3 +709,17 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>  	if (!test_thread_flag(TIF_MEMDIE))
+>  		schedule_timeout_uninterruptible(1);
 >  }
->  
-> @@ -1363,8 +1385,10 @@ int test_set_page_writeback(struct page *page)
->  	} else {
->  		ret = TestSetPageWriteback(page);
->  	}
-> -	if (!ret)
-> +	if (!ret) {
-> +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_WRITEBACK, 1);
->  		inc_zone_page_state(page, NR_WRITEBACK);
-> +	}
->  	return ret;
->  
->  }
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 4d2fb93..8d74335 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -832,7 +832,7 @@ void page_add_file_rmap(struct page *page)
->  {
->  	if (atomic_inc_and_test(&page->_mapcount)) {
->  		__inc_zone_page_state(page, NR_FILE_MAPPED);
-> -		mem_cgroup_update_file_mapped(page, 1);
-> +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, 1);
->  	}
->  }
->  
-> @@ -864,7 +864,7 @@ void page_remove_rmap(struct page *page)
->  		__dec_zone_page_state(page, NR_ANON_PAGES);
->  	} else {
->  		__dec_zone_page_state(page, NR_FILE_MAPPED);
-> -		mem_cgroup_update_file_mapped(page, -1);
-> +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, -1);
->  	}
->  	/*
->  	 * It would be tidy to reset the PageAnon mapping here,
-> diff --git a/mm/truncate.c b/mm/truncate.c
-> index 2466e0c..5f437e7 100644
-> --- a/mm/truncate.c
-> +++ b/mm/truncate.c
-> @@ -73,6 +73,8 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
->  	if (TestClearPageDirty(page)) {
->  		struct address_space *mapping = page->mapping;
->  		if (mapping && mapping_cap_account_dirty(mapping)) {
-> +			mem_cgroup_update_stat(page,
-> +					MEM_CGROUP_STAT_FILE_DIRTY, -1);
->  			dec_zone_page_state(page, NR_FILE_DIRTY);
->  			dec_bdi_stat(mapping->backing_dev_info,
->  					BDI_DIRTY);
-> -- 
-> 1.6.3.3
-> 
+> +
+> +/*
+> + * The pagefault handler calls here because it is out of memory, so kill a
+> + * memory-hogging task.  If a populated zone has ZONE_OOM_LOCKED set, a parallel
+> + * oom killing is already in progress so do nothing.  If a task is found with
+> + * TIF_MEMDIE set, it has been killed so do nothing and allow it to exit.
+> + */
+> +void pagefault_out_of_memory(void)
+> +{
+> +	if (!try_set_system_oom())
+> +		return;
+> +	out_of_memory(NULL, 0, 0, NULL);
+> +	clear_system_oom();
+> +}
 > 
 
 --
