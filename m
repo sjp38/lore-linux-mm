@@ -1,37 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BE6116B0078
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 07:53:17 -0500 (EST)
-Date: Tue, 2 Mar 2010 13:53:06 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DDD946B007E
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 07:55:41 -0500 (EST)
+Date: Tue, 2 Mar 2010 13:55:38 +0100
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch] slab: add memory hotplug support
-Message-ID: <20100302125306.GD19208@basil.fritz.box>
-References: <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box> <alpine.DEB.2.00.1002260904311.6641@router.home> <20100226155755.GE16335@basil.fritz.box> <alpine.DEB.2.00.1002261123520.7719@router.home> <alpine.DEB.2.00.1002261555030.32111@chino.kir.corp.google.com> <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com>
+Subject: Re: [PATCH] [4/4] SLAB: Fix node add timer race in cache_reap
+Message-ID: <20100302125538.GE19208@basil.fritz.box>
+References: <20100215103250.GD21783@one.firstfloor.org> <20100215104135.GM5723@laptop> <20100215105253.GE21783@one.firstfloor.org> <20100215110135.GN5723@laptop> <alpine.DEB.2.00.1002191222320.26567@router.home> <20100220090154.GB11287@basil.fritz.box> <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002251232550.18861@router.home> <4B86C58B.5040906@cs.helsinki.fi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com>
+In-Reply-To: <4B86C58B.5040906@cs.helsinki.fi>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, rientjes@google.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 01, 2010 at 02:24:43AM -0800, David Rientjes wrote:
-> Slab lacks any memory hotplug support for nodes that are hotplugged
-> without cpus being hotplugged.  This is possible at least on x86
-> CONFIG_MEMORY_HOTPLUG_SPARSE kernels where SRAT entries are marked
-> ACPI_SRAT_MEM_HOT_PLUGGABLE and the regions of RAM represent a seperate
-> node.  It can also be done manually by writing the start address to
-> /sys/devices/system/memory/probe for kernels that have
-> CONFIG_ARCH_MEMORY_PROBE set, which is how this patch was tested, and
-> then onlining the new memory region.
+> The first set of patches from Andi are almost one month old. If this issue 
+> progresses as swiftly as it has to this day, I foresee a rocky road for any 
 
-The patch looks far more complicated than my simple fix.
+Yes it seems to be a bike shedding area for some reason (which color
+should we paint it today?)
 
-Is more complicated now better?
+> of them getting merged to .34 through slab.git, that's all.
+
+IMHO they are all bug fixes and there is no excuse for not merging them ASAP,
+independent of any merge windows.
 
 -Andi
-
 -- 
 ak@linux.intel.com -- Speaking for myself only.
 
