@@ -1,108 +1,286 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A58636B0047
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 19:00:11 -0500 (EST)
-Date: Tue, 2 Mar 2010 18:59:32 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH -mmotm 3/3] memcg: dirty pages instrumentation
-Message-ID: <20100302235932.GA3007@redhat.com>
-References: <1267478620-5276-1-git-send-email-arighi@develer.com> <1267478620-5276-4-git-send-email-arighi@develer.com> <20100301220208.GH3109@redhat.com> <20100301221830.GA5460@linux> <20100302150529.GA12855@redhat.com> <20100302222248.GD2369@linux>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100302222248.GD2369@linux>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 581106B0047
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 19:02:02 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o23020kw015684
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 3 Mar 2010 09:02:00 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F3EB145DE54
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:01:59 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D083745DE50
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:01:59 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AA93CE3800A
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:01:59 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40F92E78003
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:01:59 +0900 (JST)
+Date: Wed, 3 Mar 2010 08:58:24 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix oom kill behavior.
+Message-Id: <20100303085824.1b260683.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100302171142.GD16532@balbir.in.ibm.com>
+References: <20100302115834.c0045175.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100302171142.GD16532@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 02, 2010 at 11:22:48PM +0100, Andrea Righi wrote:
-> On Tue, Mar 02, 2010 at 10:05:29AM -0500, Vivek Goyal wrote:
-> > On Mon, Mar 01, 2010 at 11:18:31PM +0100, Andrea Righi wrote:
-> > > On Mon, Mar 01, 2010 at 05:02:08PM -0500, Vivek Goyal wrote:
-> > > > > @@ -686,10 +699,14 @@ void throttle_vm_writeout(gfp_t gfp_mask)
-> > > > >                   */
-> > > > >                  dirty_thresh += dirty_thresh / 10;      /* wheeee... */
-> > > > >  
-> > > > > -                if (global_page_state(NR_UNSTABLE_NFS) +
-> > > > > -			global_page_state(NR_WRITEBACK) <= dirty_thresh)
-> > > > > -                        	break;
-> > > > > -                congestion_wait(BLK_RW_ASYNC, HZ/10);
-> > > > > +
-> > > > > +		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-> > > > > +		if (dirty < 0)
-> > > > > +			dirty = global_page_state(NR_UNSTABLE_NFS) +
-> > > > > +				global_page_state(NR_WRITEBACK);
-> > > > 
-> > > > dirty is unsigned long. As mentioned last time, above will never be true?
-> > > > In general these patches look ok to me. I will do some testing with these.
-> > > 
-> > > Re-introduced the same bug. My bad. :(
-> > > 
-> > > The value returned from mem_cgroup_page_stat() can be negative, i.e.
-> > > when memory cgroup is disabled. We could simply use a long for dirty,
-> > > the unit is in # of pages so s64 should be enough. Or cast dirty to long
-> > > only for the check (see below).
-> > > 
-> > > Thanks!
-> > > -Andrea
-> > > 
-> > > Signed-off-by: Andrea Righi <arighi@develer.com>
-> > > ---
-> > >  mm/page-writeback.c |    2 +-
-> > >  1 files changed, 1 insertions(+), 1 deletions(-)
-> > > 
-> > > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> > > index d83f41c..dbee976 100644
-> > > --- a/mm/page-writeback.c
-> > > +++ b/mm/page-writeback.c
-> > > @@ -701,7 +701,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
-> > >  
-> > >  
-> > >  		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-> > > -		if (dirty < 0)
-> > > +		if ((long)dirty < 0)
-> > 
-> > This will also be problematic as on 32bit systems, your uppper limit of
-> > dirty memory will be 2G?
-> > 
-> > I guess, I will prefer one of the two.
-> > 
-> > - return the error code from function and pass a pointer to store stats
-> >   in as function argument.
-> > 
-> > - Or Peter's suggestion of checking mem_cgroup_has_dirty_limit() and if
-> >   per cgroup dirty control is enabled, then use per cgroup stats. In that
-> >   case you don't have to return negative values.
-> > 
-> >   Only tricky part will be careful accouting so that none of the stats go
-> >   negative in corner cases of migration etc.
+On Tue, 2 Mar 2010 22:41:42 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-02 11:58:34]:
 > 
-> What do you think about Peter's suggestion + the locking stuff? (see the
-> previous email). Otherwise, I'll choose the other solution, passing a
-> pointer and always return the error code is not bad.
+> > Brief Summary (for Andrew)
+> > 
+> >  - Nishimura reported my fix (one year ago)
+> >    a636b327f731143ccc544b966cfd8de6cb6d72c6
+> >    doesn't work well in some extreme situation.
+> > 
+> >  - David Rientjes said mem_cgroup_oom_called() is completely
+> >    ugly and broken and.....
+> >    And he tries to remove that in his patch set.
+> > 
+> > Then, I wrote this as bugfix onto mmotm. This patch implements
+> >  - per-memcg OOM lock as per-zone OOM lock
+> >  - avoid to return -ENOMEM via mamcg's page fault path.
+> >    ENOMEM causes unnecessary page_fault_out_of_memory().
+> >    (Even if memcg hangs, there is no change from current behavior)
+> >  - in addtion to MEMDIE thread, KILLED proceses go bypath memcg.
+> > 
+> > I'm glad if this goes into 2.6.34 timeline (as bugfix). But I'm
+> > afraid this seems too big as bugfix...
+> > 
+> > My plans for 2.6.35 are
+> >  - oom-notifier for memcg (based on memcg threshold notifier) 
+> >  - oom-freezer (disable oom-kill) for memcg
+> >  - better handling in extreme situation.
+> > And now, Andrea Righi works for dirty_ratio for memcg. We'll have
+> > something better in 2.6.35 kernels.
+> > 
+> > This patch will HUNK with David's set. Then, if this hunks in mmotm,
+> > I'll rework.
+> >
 > 
+> Hi, Kamezawa-San,
+> 
+> Some review comments below.
+>  
+> > Tested on x86-64. Nishimura-san, could you test ?
+> > 
+> > ==
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > In current page-fault code,
+> > 
+> > 	handle_mm_fault()
+> > 		-> ...
+> > 		-> mem_cgroup_charge()
+> > 		-> map page or handle error.
+> > 	-> check return code.
+> > 
+> > If page fault's return code is VM_FAULT_OOM, page_fault_out_of_memory()
+> > is called. But if it's caused by memcg, OOM should have been already
+> > invoked.
+> > Then, I added a patch: a636b327f731143ccc544b966cfd8de6cb6d72c6
+> > 
+> > That patch records last_oom_jiffies for memcg's sub-hierarchy and
+> > prevents page_fault_out_of_memory from being invoked in near future.
+> > 
+> > But Nishimura-san reported that check by jiffies is not enough
+> > when the system is terribly heavy. 
+> > 
+> > This patch changes memcg's oom logic as.
+> >  * If memcg causes OOM-kill, continue to retry.
+> >  * remove jiffies check which is used now.
+> 
+> I like this very much!
+> 
+> >  * add memcg-oom-lock which works like perzone oom lock.
+> >  * If current is killed(as a process), bypass charge.
+> > 
+> > Something more sophisticated can be added but this pactch does
+> > fundamental things.
+> > TODO:
+> >  - add oom notifier
+> >  - add permemcg disable-oom-kill flag and freezer at oom.
+> >  - more chances for wake up oom waiter (when changing memory limit etc..)
+> > 
+> > Changelog;
+> >  - fixed per-memcg oom lock.
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  include/linux/memcontrol.h |    6 --
+> >  mm/memcontrol.c            |  109 +++++++++++++++++++++++++++++++++------------
+> >  mm/oom_kill.c              |    8 ---
+> >  3 files changed, 82 insertions(+), 41 deletions(-)
+> > 
+> > Index: mmotm-2.6.33-Feb11/include/linux/memcontrol.h
+> > ===================================================================
+> > --- mmotm-2.6.33-Feb11.orig/include/linux/memcontrol.h
+> > +++ mmotm-2.6.33-Feb11/include/linux/memcontrol.h
+> > @@ -124,7 +124,6 @@ static inline bool mem_cgroup_disabled(v
+> >  	return false;
+> >  }
+> > 
+> > -extern bool mem_cgroup_oom_called(struct task_struct *task);
+> >  void mem_cgroup_update_file_mapped(struct page *page, int val);
+> >  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+> >  						gfp_t gfp_mask, int nid,
+> > @@ -258,11 +257,6 @@ static inline bool mem_cgroup_disabled(v
+> >  	return true;
+> >  }
+> > 
+> > -static inline bool mem_cgroup_oom_called(struct task_struct *task)
+> > -{
+> > -	return false;
+> > -}
+> > -
+> >  static inline int
+> >  mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+> >  {
+> > Index: mmotm-2.6.33-Feb11/mm/memcontrol.c
+> > ===================================================================
+> > --- mmotm-2.6.33-Feb11.orig/mm/memcontrol.c
+> > +++ mmotm-2.6.33-Feb11/mm/memcontrol.c
+> > @@ -200,7 +200,7 @@ struct mem_cgroup {
+> >  	 * Should the accounting and control be hierarchical, per subtree?
+> >  	 */
+> >  	bool use_hierarchy;
+> > -	unsigned long	last_oom_jiffies;
+> > +	atomic_t	oom_lock;
+> >  	atomic_t	refcnt;
+> > 
+> >  	unsigned int	swappiness;
+> > @@ -1234,32 +1234,77 @@ static int mem_cgroup_hierarchical_recla
+> >  	return total;
+> >  }
+> > 
+> > -bool mem_cgroup_oom_called(struct task_struct *task)
+> > +static int mem_cgroup_oom_lock_cb(struct mem_cgroup *mem, void *data)
+> >  {
+> > -	bool ret = false;
+> > -	struct mem_cgroup *mem;
+> > -	struct mm_struct *mm;
+> > +	int *val = (int *)data;
+> > +	int x;
+> > 
+> > -	rcu_read_lock();
+> > -	mm = task->mm;
+> > -	if (!mm)
+> > -		mm = &init_mm;
+> > -	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+> > -	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
+> > -		ret = true;
+> > -	rcu_read_unlock();
+> > -	return ret;
+> > +	x = atomic_inc_return(&mem->oom_lock);
+> > +	if (x > *val)
+> > +		*val = x;a
+> 
+> Use the max_t function here?
+>         x = max_t(int, x, *val);
+> 
+Sure.
 
-Ok, so you are worried about that by the we finish mem_cgroup_has_dirty_limit()
-call, task might change cgroup and later we might call
-mem_cgroup_get_page_stat() on a different cgroup altogether which might or
-might not have dirty limits specified?
 
-But in what cases you don't want to use memory cgroup specified limit? I
-thought cgroup disabled what the only case where we need to use global
-limits. Otherwise a memory cgroup will have either dirty_bytes specified
-or by default inherit global dirty_ratio which is a valid number. If
-that's the case then you don't have to take rcu_lock() outside
-get_page_stat()?
+> > +	return 0;
+> > +}
+> > +/*
+> > + * Check OOM-Killer is already running under our hierarchy.
+> > + * If someone is running, return false.
+> > + */
+> > +static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
+> > +{
+> > +	int check = 0;
+> > +
+> > +	mem_cgroup_walk_tree(mem, &check, mem_cgroup_oom_lock_cb);
+> > +
+> > +	if (check == 1)
+> > +		return true;
+> > +	return false;
+> >  }
+> > 
+> > -static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
+> > +static int mem_cgroup_oom_unlock_cb(struct mem_cgroup *mem, void *data)
+> >  {
+> > -	mem->last_oom_jiffies = jiffies;
+> > +	atomic_dec(&mem->oom_lock);
+> >  	return 0;
+> >  }
+> > 
+> > -static void record_last_oom(struct mem_cgroup *mem)
+> > +static void mem_cgroup_oom_unlock(struct mem_cgroup *mem)
+> >  {
+> > -	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
+> > +	mem_cgroup_walk_tree(mem, NULL,	mem_cgroup_oom_unlock_cb);
+> > +}
+> > +
+> > +static DEFINE_MUTEX(memcg_oom_mutex);
+> > +static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
+> > +
+> > +/*
+> > + * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+> > + */
+> > +bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+> > +{
+> > +	DEFINE_WAIT(wait);
+> > +	bool locked;
+> > +
+> > +	prepare_to_wait(&memcg_oom_waitq, &wait, TASK_INTERRUPTIBLE);
+> > +	/* At first, try to OOM lock hierarchy under mem.*/
+> > +	mutex_lock(&memcg_oom_mutex);
+> > +	locked = mem_cgroup_oom_lock(mem);
+> > +	mutex_unlock(&memcg_oom_mutex);
+> > +
+> > +	if (locked) {
+> > +		finish_wait(&memcg_oom_waitq, &wait);
+> > +		mem_cgroup_out_of_memory(mem, mask);
+> > +	} else {
+> > +		schedule();
+> > +		finish_wait(&memcg_oom_waitq, &wait);
+> > +	}
+> > +	mutex_lock(&memcg_oom_mutex);
+> > +	mem_cgroup_oom_unlock(mem);
+> > +	/* TODO: more fine grained waitq ? */
+> > +	wake_up_all(&memcg_oom_waitq);
+> 
+> I was wondering if we should really wake up all? Shouldn't this be per
+> memcg? The waitq that is, since the check is per memcg, the wakeup
+> should also be per memcg.
+> 
+The difficulty of per-memcg waitq is because of hierarchy.
 
-IOW, apart from cgroup being disabled, what are the other cases where you
-expect to not use cgroup's page stat and use global stats?
+Assume following hierarhcy A and its children 01 and 02.
 
-Thanks
-Vivek
+	A/            <==== under OOM #2
+	  01          <==== under OOM #1
+	  02
 
-> Thanks,
-> -Andrea
+And the OOM happens in following sequence.
+   1.  01 goes to OOM (#1)
+   2.  A  goes to OOM (#2)
+
+Because oom-kill in group 01 can fix both oom under A and 01,
+oom-kill under A and oom-kill under 01 should be mutual exclusive.
+
+When OOM under 01 wakes up, we have no way to wake up waiters on A.
+That's the reason I used system-wide waitq.
+
+I think there is no big problem. But I hope someone finds a new magic
+for doing logically correct things. Then, I added a TODO.
+I'll add some comments.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
