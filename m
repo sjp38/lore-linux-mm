@@ -1,119 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C77B86B0047
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 16:16:24 -0500 (EST)
-Date: Tue, 2 Mar 2010 21:16:04 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Memory management woes - order 1 allocation failures
-Message-ID: <20100302211603.GD11355@csn.ul.ie>
-References: <alpine.DEB.2.00.1002261042020.7719@router.home> <84144f021002260917q61f7c255rf994425f3a613819@mail.gmail.com> <20100301103546.DD86.A69D9226@jp.fujitsu.com> <20100302172606.GA11355@csn.ul.ie> <20100302183451.75d44f03@lxorguk.ukuu.org.uk> <20100302191110.GB11355@csn.ul.ie> <20100302192942.GA2953@suse.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E7B16B004D
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 16:17:14 -0500 (EST)
+Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
+	by smtp-out.google.com with ESMTP id o22LH8ro008821
+	for <linux-mm@kvack.org>; Tue, 2 Mar 2010 21:17:08 GMT
+Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
+	by spaceape8.eur.corp.google.com with ESMTP id o22LH6DV007833
+	for <linux-mm@kvack.org>; Tue, 2 Mar 2010 13:17:07 -0800
+Received: by pwi5 with SMTP id 5so386375pwi.6
+        for <linux-mm@kvack.org>; Tue, 02 Mar 2010 13:17:05 -0800 (PST)
+Date: Tue, 2 Mar 2010 13:17:03 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] slab: add memory hotplug support
+In-Reply-To: <20100302125306.GD19208@basil.fritz.box>
+Message-ID: <alpine.DEB.2.00.1003021303220.18137@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002240949140.26771@router.home> <4B862623.5090608@cs.helsinki.fi> <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box>
+ <alpine.DEB.2.00.1002260904311.6641@router.home> <20100226155755.GE16335@basil.fritz.box> <alpine.DEB.2.00.1002261123520.7719@router.home> <alpine.DEB.2.00.1002261555030.32111@chino.kir.corp.google.com> <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com>
+ <20100302125306.GD19208@basil.fritz.box>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="AhhlLboLdkugWU4S"
-Content-Disposition: inline
-In-Reply-To: <20100302192942.GA2953@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <gregkh@suse.de>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, Frans Pop <elendil@planet.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 2 Mar 2010, Andi Kleen wrote:
 
---AhhlLboLdkugWU4S
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-
-On Tue, Mar 02, 2010 at 11:29:42AM -0800, Greg KH wrote:
-> On Tue, Mar 02, 2010 at 07:11:10PM +0000, Mel Gorman wrote:
-> > On Tue, Mar 02, 2010 at 06:34:51PM +0000, Alan Cox wrote:
-> > > > For reasons that are not particularly clear to me, tty_buffer_alloc() is
-> > > > called far more frequently in 2.6.33 than in 2.6.24. I instrumented the
-> > > > function to print out the size of the buffers allocated, booted under
-> > > > qemu and would just "cat /bin/ls" to see what buffers were allocated.
-> > > > 2.6.33 allocates loads, including high-order allocations. 2.6.24
-> > > > appeared to allocate once and keep silent.
-> > > 
-> > > The pty layer is using them now and didn't before. That will massively
-> > > distort your numhers.
-> > > 
-> > 
-> > That makes perfect sense. It explains why only one allocation showed up
-> > because it must belong to the tty attached to the serial console.
-> > 
-> > Thanks Alan.
-> > 
-> > > > While there have been snags recently with respect to high-order
-> > > > allocation failures in recent kernels, this might be one of the cases
-> > > > where it's due to subsystems requesting high-order allocations more.
-> > > 
-> > > The pty code certainly triggered more such allocations. I've sent Greg
-> > > patches to make the tty buffering layer allocate sensible sizes as it
-> > > doesn't need multiple page allocations in the first place.
-> > > 
-> > 
-> > Greg, what's the story with these patches?
+> The patch looks far more complicated than my simple fix.
 > 
-> They are in -next and will go to Linus later on today for .34.
+> Is more complicated now better?
 > 
 
-So, Greg pointed me at the patch in question in linux-next
-[c9cf55b: tty: Keep the default buffering to sub-page units]
-It's attached for convenience.
+If you still believe these are "fixes," then perhaps you don't fully 
+understand the issue: slab completely lacked memory hotplug support when a 
+node is either being onlined or offlined that do not have hotadded or 
+hotremoved cpus.  It's as simple as that.
 
-However, this patch on its own does not appear to be enough. When rebased to
-.33, it's still possible for the TTY layer to require order-1 allocations so
-I doubt it would fix Frans's on its own. The problem is that TTY_BUFFER_PAGE
-is taking struct tty_buffer into account but not the additional padding
-added by tty_buffer_find().
+To be fair, my patch may appear more complex because it implements full 
+memory hotplug support so that the nodelists are properly drained and 
+freed when the same memory regions you onlined for memory hot-add are now 
+offlined.  Notice, also, how it touches no other slab code as implementing 
+new support for something shouldn't.  There is no need for additional 
+hacks to be added in other slab code if you properly allocate and 
+initialize the nodelists for the memory being added before it is available 
+for use by the kernel.
 
-As it's not clear why "Round the buffer size out" is required, I took a
-simple approach and adjusted TTY_BUFFER_PAGE rather than being clever in
-tty_buffer.c. This keeps the allocation sizes below a page but could it be done
-better or did I miss another patch in linux-next that makes this unnecessary?
+If you'd test my patch out on your setup, that would be very helpful.  I 
+can address any additional issues that you may undercover if you post the 
+oops while doing either memory online or offline.
 
-==== CUT HERE ===
-tty: Take a 256 byte padding into account when buffering below sub-page units
-
-The TTY layer takes some care to ensure that only sub-page allocations
-are made with interrupts disabled. It does this by setting a goal of
-"TTY_BUFFER_PAGE" to allocate. Unfortunately, while TTY_BUFFER_PAGE takes the
-size of tty_buffer into account, it fails to account that tty_buffer_find()
-rounds the buffer size out to the next 256 byte boundary before adding on
-the size of the tty_buffer.
-
-This patch adjusts the TTY_BUFFER_PAGE calculation to take into account the
-size of the tty_buffer and the padding. Once applied, tty_buffer_alloc()
-should not require high-order allocations.
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
---- 
- include/linux/tty.h |    9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/tty.h b/include/linux/tty.h
-index d96e588..8fe018b 100644
---- a/include/linux/tty.h
-+++ b/include/linux/tty.h
-@@ -70,12 +70,13 @@ struct tty_buffer {
- 
- /*
-  * We default to dicing tty buffer allocations to this many characters
-- * in order to avoid multiple page allocations. We assume tty_buffer itself
-- * is under 256 bytes. See tty_buffer_find for the allocation logic this
-- * must match
-+ * in order to avoid multiple page allocations. We know the size of
-+ * tty_buffer itself but it must also be taken into account that the
-+ * the buffer is 256 byte aligned. See tty_buffer_find for the allocation
-+ * logic this must match
-  */
- 
--#define TTY_BUFFER_PAGE		((PAGE_SIZE  - 256) / 2)
-+#define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
- 
- 
- struct tty_bufhead {
-
---AhhlLboLdkugWU4S
-Content-Type: text/x-diff; charset=iso-8859-15
-Content-Disposition: attachment; filename="tty-keep-the-default-buffering-to-sub-page-units.patch"
-
-
---AhhlLboLdkugWU4S--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
