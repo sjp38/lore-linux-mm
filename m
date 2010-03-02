@@ -1,137 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2A8B06B0047
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 14:59:04 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: unable to handle kernel paging request on resume with 2.6.33-00001-gbaac35c
-Date: Tue, 2 Mar 2010 21:01:21 +0100
-References: <20100301175256.GA4034@tiehlicka.suse.cz> <20100302082543.GA4241@tiehlicka.suse.cz> <20100302154553.GB4241@tiehlicka.suse.cz>
-In-Reply-To: <20100302154553.GB4241@tiehlicka.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A363D6B0047
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 15:14:36 -0500 (EST)
+Received: by qyk28 with SMTP id 28so451773qyk.14
+        for <linux-mm@kvack.org>; Tue, 02 Mar 2010 12:14:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201003022101.21521.rjw@sisk.pl>
+In-Reply-To: <20100302031021.GA14267@localhost>
+References: <20100224024100.GA17048@localhost>
+	 <20100224032934.GF16175@discord.disaster>
+	 <20100224041822.GB27459@localhost>
+	 <20100224052215.GH16175@discord.disaster>
+	 <20100224061247.GA8421@localhost>
+	 <20100224073940.GJ16175@discord.disaster>
+	 <20100226074916.GA8545@localhost> <20100302031021.GA14267@localhost>
+Date: Tue, 2 Mar 2010 12:14:33 -0800
+Message-ID: <dda83e781003021214g6721c142o7c66f409296cf5a@mail.gmail.com>
+Subject: Re: [RFC] nfs: use 4*rsize readahead size
+From: Bret Towe <magnade@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Michal Hocko <mstsxfx@gmail.com>
-Cc: linux-kernel@vger.kernel.org, pm list <linux-pm@lists.linux-foundation.org>, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 02 March 2010, Michal Hocko wrote:
-> On Tue, Mar 02, 2010 at 09:25:43AM +0100, Michal Hocko wrote:
-> > On Tue, Mar 02, 2010 at 01:06:06AM +0100, Rafael J. Wysocki wrote:
-> > > On Monday 01 March 2010, Michal Hocko wrote:
-> > > > [Let's CC mm guys]
-> > > 
-> > > I guess it's rather architecture-related than a genering mm issue.
-s/genering/generic/  (why did I write that?)
-... 
-> > > > Yes, it really looks strange. dup_mm+0x1c7 matches to:
-> > > > c102fc0e:       81 60 14 ff df ff ff    andl   $0xffffdfff,0x14(%eax)
-> > > > c102fc15:       8b 45 ec                mov    -0x14(%ebp),%eax
-> > > > c102fc18:       c7 43 0c 00 00 00 00    movl   $0x0,0xc(%ebx)
-> > > > c102fc1f:       89 03                   mov    %eax,(%ebx)
-> > > > c102fc21:       89 d8                   mov    %ebx,%eax
-> > > > c102fc23:       e8 38 e6 06 00          call   c109e260 <anon_vma_link>
-> > > > c102fc28:       8b 43 48                mov    0x48(%ebx),%eax  <<< BANG
-> > > > 
-> > > > which corresponds to:
-> > > > kernel/fork.c:336
-> > > > 		tmp->vm_flags &= ~VM_LOCKED;
-> > > >                 tmp->vm_mm = mm;
-> > > >                 tmp->vm_next = NULL;
-> > > >                 anon_vma_link(tmp);
-> > > >                 file = tmp->vm_file; <<< BANG
-> > > > 
-> > > > ebx is tmp which somehow got deallocated. I cannot see how this could happened.
-> > > 
-> > > Through a page tables corruption or a TLB issue, for example.
-> > 
-> > I thought so. Is there any other possibility? Like a race with vma
-> > unlinking?
-
-I don't think that particular instruction would trigger the NULL poiter
-dereference in that case.
-
-In theory, it may be a result of a stack corruption if EBX was saved on the
-stack by anon_vma_link().  I'm not sure if that happens, though.
-
-> It really looks like some memory corruption. Now I got the following:
+On Mon, Mar 1, 2010 at 7:10 PM, Wu Fengguang <fengguang.wu@intel.com> wrote=
+:
+> Dave,
 >
-> BUG: unable to handle kernel NULL pointer dereference at (null)
-> IP: [<c026db57>] strcmp+0xe/0x22
-> *pde = 00000000
-> Oops: 0000 [#1] PREEMPT SMP
-> last sysfs file: /sys/devices/pci0000:00/0000:00:1e.0/0000:08:03.4/fw-host0/00000e1003d248c6/uevent
-> Modules linked in: fbcon font bitblit softcursor i915 drm_kms_helper drm fb i2c_algo_bit cfbcopyarea i2c
-> on snd_hda_codec_realtek arc4 ecb snd_hda_intel snd_hda_codec snd_pcm_oss snd_mixer_oss snd_pcm iwl3945
-> d_timer snd_seq_device mac80211 snd fujitsu_laptop rtc_cmos cfg80211 rtc_core rtc_lib led_class snd_page
-> i_wait_scan]
-> 
-> Pid: 16719, comm: udev-acl.ck Not tainted 2.6.33-00001-gbaac35c #11 FJNB1B5/LIFEBOOK S7110
-> EIP: 0060:[<c026db57>] EFLAGS: 00010286 CPU: 0
-> EIP is at strcmp+0xe/0x22
-> EAX: 00000000 EBX: f71c0600 ECX: f70d0f00 EDX: f5a1d49c
-> ESI: 00000000 EDI: f5a1d49c EBP: f70d0dec ESP: f70d0de4
->  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
-> Process udev-acl.ck (pid: 16719, ti=f70d0000 task=f6a65710 task.ti=f70d0000)
-> Stack:
->  f5a1d49c fffffffe f70d0dfc c01ea0c0 f5a1d440 f71c05a0 f70d0e14 c01ea267
-> <0> f5a1d330 c044cfac f70d0f00 f6f44968 f70d0e3c c01b3a14 f70fcc80 f70d0e7c
-> <0> f6f449e0 f5a1d330 f5a1d440 f70d0f00 f6f44968 087bed70 f70d0e90 c01b508a
-> Call Trace:
->  [<c01ea0c0>] ? sysfs_find_dirent+0x1b/0x2c
->  [<c01ea267>] ? sysfs_lookup+0x2f/0xa6
->  [<c01b3a14>] ? do_lookup+0xca/0x174
->  [<c01b508a>] ? link_path_walk+0x691/0xa22
->  [<c01bf3e8>] ? mntput_no_expire+0x1e/0xb2
->  [<c01b552c>] ? path_walk+0x3f/0x89
->  [<c01b3dd1>] ? path_init+0x73/0x114
->  [<c01b5601>] ? do_path_lookup+0x26/0x47
->  [<c01b6072>] ? do_filp_open+0xdc/0x79e
->  [<c01899d0>] ? free_hot_page+0x55/0x59
->  [<c01eaad0>] ? sysfs_put_link+0x0/0x1f
->  [<c0189a6b>] ? free_pages+0x22/0x24
->  [<c01b3d54>] ? generic_readlink+0x69/0x73
->  [<c04371c9>] ? add_preempt_count+0x8/0x75
->  [<c0437155>] ? sub_preempt_count+0x8/0x74
->  [<c0434547>] ? _raw_spin_unlock+0x14/0x28
->  [<c01aae0a>] ? do_sys_open+0x4d/0xe9
->  [<c01aad0e>] ? filp_close+0x56/0x60
->  [<c01aaef2>] ? sys_open+0x23/0x2b
->  [<c0102850>] ? sysenter_do_call+0x12/0x26
-> Code: 31 c0 83 c9 ff f2 ae 4f 89 d1 49 78 06 ac aa 84 c0 75 f7 31 c0 aa 89 d8 5b 5e 5f 5d c3 55 89 e5 57 56 0f 1f 44 00 00 89 c6 89 d7 <ac> ae 75 08 84 c0 75 f8 31 c0 eb 04 19 c0 0c 01 5e 5f 5d c3 55
-> EIP: [<c026db57>] strcmp+0xe/0x22 SS:ESP 0068:f70d0de4
-> CR2: 0000000000000000
-> ---[ end trace 877af85bb64785ae ]---
+> Here is one more test on a big ext4 disk file:
+>
+> =A0 =A0 =A0 =A0 =A0 16k =A039.7 MB/s
+> =A0 =A0 =A0 =A0 =A0 32k =A054.3 MB/s
+> =A0 =A0 =A0 =A0 =A0 64k =A063.6 MB/s
+> =A0 =A0 =A0 =A0 =A0128k =A072.6 MB/s
+> =A0 =A0 =A0 =A0 =A0256k =A071.7 MB/s
+> rsize =3D=3D> 512k =A071.7 MB/s
+> =A0 =A0 =A0 =A0 1024k =A072.2 MB/s
+> =A0 =A0 =A0 =A0 2048k =A071.0 MB/s
+> =A0 =A0 =A0 =A0 4096k =A073.0 MB/s
+> =A0 =A0 =A0 =A0 8192k =A074.3 MB/s
+> =A0 =A0 =A0 =A016384k =A074.5 MB/s
+>
+> It shows that >=3D128k client side readahead is enough for single disk
+> case :) As for RAID configurations, I guess big server side readahead
+> should be enough.
+>
+> #!/bin/sh
+>
+> file=3D/mnt/ext4_test/zero
+> BDI=3D0:24
+>
+> for rasize in 16 32 64 128 256 512 1024 2048 4096 8192 16384
+> do
+> =A0 =A0 =A0 =A0echo $rasize > /sys/devices/virtual/bdi/$BDI/read_ahead_kb
+> =A0 =A0 =A0 =A0echo readahead_size=3D${rasize}k
+> =A0 =A0 =A0 =A0fadvise $file 0 0 dontneed
+> =A0 =A0 =A0 =A0ssh p9 "fadvise $file 0 0 dontneed"
+> =A0 =A0 =A0 =A0dd if=3D$file of=3D/dev/null bs=3D4k count=3D402400
+> done
 
-The question is whether hibernation is the reason of this or it's only a
-messenger.
+how do you determine which bdi to use? I skimmed thru
+the filesystem in /sys and didn't see anything that says which is what
 
-> > > > > What's the HEAD commit in this kernel tree?
-> > > > 
-> > > > $ git describe
-> > > > v2.6.33-1-gbaac35c
-> > > 
-> > > I can't find gbaac35c anywhere post 2.6.33.  
-> > 
-> > you should look at baac35c. Git describe displays gHASH
-
-Ah.
-
-> > > Can you just send the output
-> > > of "git show | head -1", please?
-> > 
-> > The whole commit ID is baac35c4155a8aa826c70acee6553368ca5243a2
-
-So this is just plain 2.6.33 plus one commit.
-
-Hmm.  There are only a few changes directly related to hibernation in that
-kernel and none of them can possibly introduce a problem like that.
-
-Do you use s2disk or the in-kernel thing?
-
-Rafael
+> Thanks,
+> Fengguang
+>
+> On Fri, Feb 26, 2010 at 03:49:16PM +0800, Wu Fengguang wrote:
+>> On Wed, Feb 24, 2010 at 03:39:40PM +0800, Dave Chinner wrote:
+>> > On Wed, Feb 24, 2010 at 02:12:47PM +0800, Wu Fengguang wrote:
+>> > > On Wed, Feb 24, 2010 at 01:22:15PM +0800, Dave Chinner wrote:
+>> > > > What I'm trying to say is that while I agree with your premise tha=
+t
+>> > > > a 7.8MB readahead window is probably far larger than was ever
+>> > > > intended, I disagree with your methodology and environment for
+>> > > > selecting a better default value. =A0The default readahead value n=
+eeds
+>> > > > to work well in as many situations as possible, not just in perfec=
+t
+>> > > > 1:1 client/server environment.
+>> > >
+>> > > Good points. It's imprudent to change a default value based on one
+>> > > single benchmark. Need to collect more data, which may take time..
+>> >
+>> > Agreed - better to spend time now to get it right...
+>>
+>> I collected more data with large network latency as well as rsize=3D32k,
+>> and updates the readahead size accordingly to 4*rsize.
+>>
+>> =3D=3D=3D
+>> nfs: use 2*rsize readahead size
+>>
+>> With default rsize=3D512k and NFS_MAX_READAHEAD=3D15, the current NFS
+>> readahead size 512k*15=3D7680k is too large than necessary for typical
+>> clients.
+>>
+>> On a e1000e--e1000e connection, I got the following numbers
+>> (this reads sparse file from server and involves no disk IO)
+>>
+>> readahead size =A0 =A0 =A0 =A0normal =A0 =A0 =A0 =A0 =A01ms+1ms =A0 =A0 =
+=A0 =A0 5ms+5ms =A0 =A0 =A0 =A0 10ms+10ms(*)
+>> =A0 =A0 =A0 =A0 =A016k =A035.5 MB/s =A0 =A0 =A0 =A04.8 MB/s =A0 =A0 =A0 =
+=A02.1 MB/s =A0 =A0 =A0 1.2 MB/s
+>> =A0 =A0 =A0 =A0 =A032k =A054.3 MB/s =A0 =A0 =A0 =A06.7 MB/s =A0 =A0 =A0 =
+=A03.6 MB/s =A0 =A0 =A0 2.3 MB/s
+>> =A0 =A0 =A0 =A0 =A064k =A064.1 MB/s =A0 =A0 =A0 12.6 MB/s =A0 =A0 =A0 =
+=A06.5 MB/s =A0 =A0 =A0 4.7 MB/s
+>> =A0 =A0 =A0 =A0 128k =A070.5 MB/s =A0 =A0 =A0 20.1 MB/s =A0 =A0 =A0 11.9=
+ MB/s =A0 =A0 =A0 8.7 MB/s
+>> =A0 =A0 =A0 =A0 256k =A074.6 MB/s =A0 =A0 =A0 38.6 MB/s =A0 =A0 =A0 21.3=
+ MB/s =A0 =A0 =A015.0 MB/s
+>> rsize =3D=3D> 512k =A0 =A0 =A0 =A077.4 MB/s =A0 =A0 =A0 59.4 MB/s =A0 =
+=A0 =A0 39.8 MB/s =A0 =A0 =A025.5 MB/s
+>> =A0 =A0 =A0 =A01024k =A085.5 MB/s =A0 =A0 =A0 77.9 MB/s =A0 =A0 =A0 65.7=
+ MB/s =A0 =A0 =A043.0 MB/s
+>> =A0 =A0 =A0 =A02048k =A086.8 MB/s =A0 =A0 =A0 81.5 MB/s =A0 =A0 =A0 84.1=
+ MB/s =A0 =A0 =A059.7 MB/s
+>> =A0 =A0 =A0 =A04096k =A087.9 MB/s =A0 =A0 =A0 77.4 MB/s =A0 =A0 =A0 56.2=
+ MB/s =A0 =A0 =A059.2 MB/s
+>> =A0 =A0 =A0 =A08192k =A089.0 MB/s =A0 =A0 =A0 81.2 MB/s =A0 =A0 =A0 78.0=
+ MB/s =A0 =A0 =A041.2 MB/s
+>> =A0 =A0 =A0 16384k =A087.7 MB/s =A0 =A0 =A0 85.8 MB/s =A0 =A0 =A0 62.0 M=
+B/s =A0 =A0 =A056.5 MB/s
+>>
+>> readahead size =A0 =A0 =A0 =A0normal =A0 =A0 =A0 =A0 =A01ms+1ms =A0 =A0 =
+=A0 =A0 5ms+5ms =A0 =A0 =A0 =A0 10ms+10ms(*)
+>> =A0 =A0 =A0 =A0 =A016k =A037.2 MB/s =A0 =A0 =A0 =A06.4 MB/s =A0 =A0 =A0 =
+=A02.1 MB/s =A0 =A0 =A0 =A01.2 MB/s
+>> rsize =3D=3D> =A032k =A0 =A0 =A0 =A056.6 MB/s =A0 =A0 =A0 =A06.8 MB/s =
+=A0 =A0 =A0 =A03.6 MB/s =A0 =A0 =A0 =A02.3 MB/s
+>> =A0 =A0 =A0 =A0 =A064k =A066.1 MB/s =A0 =A0 =A0 12.7 MB/s =A0 =A0 =A0 =
+=A06.6 MB/s =A0 =A0 =A0 =A04.7 MB/s
+>> =A0 =A0 =A0 =A0 128k =A069.3 MB/s =A0 =A0 =A0 22.0 MB/s =A0 =A0 =A0 12.2=
+ MB/s =A0 =A0 =A0 =A08.9 MB/s
+>> =A0 =A0 =A0 =A0 256k =A069.6 MB/s =A0 =A0 =A0 41.8 MB/s =A0 =A0 =A0 20.7=
+ MB/s =A0 =A0 =A0 14.7 MB/s
+>> =A0 =A0 =A0 =A0 512k =A071.3 MB/s =A0 =A0 =A0 54.1 MB/s =A0 =A0 =A0 25.0=
+ MB/s =A0 =A0 =A0 16.9 MB/s
+>> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^=
+^^
+>> =A0 =A0 =A0 =A01024k =A071.5 MB/s =A0 =A0 =A0 48.4 MB/s =A0 =A0 =A0 26.0=
+ MB/s =A0 =A0 =A0 16.7 MB/s
+>> =A0 =A0 =A0 =A02048k =A071.7 MB/s =A0 =A0 =A0 53.2 MB/s =A0 =A0 =A0 25.3=
+ MB/s =A0 =A0 =A0 17.6 MB/s
+>> =A0 =A0 =A0 =A04096k =A071.5 MB/s =A0 =A0 =A0 50.4 MB/s =A0 =A0 =A0 25.7=
+ MB/s =A0 =A0 =A0 17.1 MB/s
+>> =A0 =A0 =A0 =A08192k =A071.1 MB/s =A0 =A0 =A0 52.3 MB/s =A0 =A0 =A0 26.3=
+ MB/s =A0 =A0 =A0 16.9 MB/s
+>> =A0 =A0 =A0 16384k =A070.2 MB/s =A0 =A0 =A0 56.6 MB/s =A0 =A0 =A0 27.0 M=
+B/s =A0 =A0 =A0 16.8 MB/s
+>>
+>> (*) 10ms+10ms means to add delay on both client & server sides with
+>> =A0 =A0 # /sbin/tc qdisc change dev eth0 root netem delay 10ms
+>> =A0 =A0 The total >=3D20ms delay is so large for NFS, that a simple `vi =
+some.sh`
+>> =A0 =A0 command takes a dozen seconds. Note that the actual delay report=
+ed
+>> =A0 =A0 by ping is larger, eg. for the 1ms+1ms case:
+>> =A0 =A0 =A0 =A0 rtt min/avg/max/mdev =3D 7.361/8.325/9.710/0.837 ms
+>>
+>>
+>> So it seems that readahead_size=3D4*rsize (ie. keep 4 RPC requests in
+>> flight) is able to get near full NFS bandwidth. Reducing the mulriple
+>> from 15 to 4 not only makes the client side readahead size more sane
+>> (2MB by default), but also reduces the disorderness of the server side
+>> RPC read requests, which yeilds better server side readahead behavior.
+>>
+>> To avoid small readahead when the client mount with "-o rsize=3D32k" or
+>> the server only supports rsize <=3D 32k, we take the max of 2*rsize and
+>> default_backing_dev_info.ra_pages. The latter defaults to 512K, and can
+>> be explicitly changed by user with kernel parameter "readahead=3D" and
+>> runtime tunable "/sys/devices/virtual/bdi/default/read_ahead_kb" (which
+>> takes effective for future NFS mounts).
+>>
+>> The test script is:
+>>
+>> #!/bin/sh
+>>
+>> file=3D/mnt/sparse
+>> BDI=3D0:15
+>>
+>> for rasize in 16 32 64 128 256 512 1024 2048 4096 8192 16384
+>> do
+>> =A0 =A0 =A0 echo 3 > /proc/sys/vm/drop_caches
+>> =A0 =A0 =A0 echo $rasize > /sys/devices/virtual/bdi/$BDI/read_ahead_kb
+>> =A0 =A0 =A0 echo readahead_size=3D${rasize}k
+>> =A0 =A0 =A0 dd if=3D$file of=3D/dev/null bs=3D4k count=3D1024000
+>> done
+>>
+>> CC: Dave Chinner <david@fromorbit.com>
+>> CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+>> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+>> ---
+>> =A0fs/nfs/client.c =A0 | =A0 =A04 +++-
+>> =A0fs/nfs/internal.h | =A0 =A08 --------
+>> =A02 files changed, 3 insertions(+), 9 deletions(-)
+>>
+>> --- linux.orig/fs/nfs/client.c =A0 =A0 =A0 =A02010-02-26 10:10:46.000000=
+000 +0800
+>> +++ linux/fs/nfs/client.c =A0 =A0 2010-02-26 11:07:22.000000000 +0800
+>> @@ -889,7 +889,9 @@ static void nfs_server_set_fsinfo(struct
+>> =A0 =A0 =A0 server->rpages =3D (server->rsize + PAGE_CACHE_SIZE - 1) >> =
+PAGE_CACHE_SHIFT;
+>>
+>> =A0 =A0 =A0 server->backing_dev_info.name =3D "nfs";
+>> - =A0 =A0 server->backing_dev_info.ra_pages =3D server->rpages * NFS_MAX=
+_READAHEAD;
+>> + =A0 =A0 server->backing_dev_info.ra_pages =3D max_t(unsigned long,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 default_backing_dev_info.ra_pages,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 4 * server->rpages);
+>> =A0 =A0 =A0 server->backing_dev_info.capabilities |=3D BDI_CAP_ACCT_UNST=
+ABLE;
+>>
+>> =A0 =A0 =A0 if (server->wsize > max_rpc_payload)
+>> --- linux.orig/fs/nfs/internal.h =A0 =A0 =A02010-02-26 10:10:46.00000000=
+0 +0800
+>> +++ linux/fs/nfs/internal.h =A0 2010-02-26 11:07:07.000000000 +0800
+>> @@ -10,14 +10,6 @@
+>>
+>> =A0struct nfs_string;
+>>
+>> -/* Maximum number of readahead requests
+>> - * FIXME: this should really be a sysctl so that users may tune it to s=
+uit
+>> - * =A0 =A0 =A0 =A0their needs. People that do NFS over a slow network, =
+might for
+>> - * =A0 =A0 =A0 =A0instance want to reduce it to something closer to 1 f=
+or improved
+>> - * =A0 =A0 =A0 =A0interactive response.
+>> - */
+>> -#define NFS_MAX_READAHEAD =A0 =A0(RPC_DEF_SLOT_TABLE - 1)
+>> -
+>> =A0/*
+>> =A0 * Determine if sessions are in use.
+>> =A0 */
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =A0http://www.tux.org/lkml/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
