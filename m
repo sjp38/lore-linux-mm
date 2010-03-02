@@ -1,65 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DE0436B0078
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 10:04:06 -0500 (EST)
-Received: by fxm22 with SMTP id 22so403311fxm.6
-        for <linux-mm@kvack.org>; Tue, 02 Mar 2010 07:04:00 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C47036B0078
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 10:05:52 -0500 (EST)
+Date: Tue, 2 Mar 2010 10:05:29 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH -mmotm 3/3] memcg: dirty pages instrumentation
+Message-ID: <20100302150529.GA12855@redhat.com>
+References: <1267478620-5276-1-git-send-email-arighi@develer.com> <1267478620-5276-4-git-send-email-arighi@develer.com> <20100301220208.GH3109@redhat.com> <20100301221830.GA5460@linux>
 MIME-Version: 1.0
-In-Reply-To: <20100302125306.GD19208@basil.fritz.box>
-References: <alpine.DEB.2.00.1002240949140.26771@router.home>
-	 <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com>
-	 <alpine.DEB.2.00.1002251228140.18861@router.home>
-	 <20100226114136.GA16335@basil.fritz.box>
-	 <alpine.DEB.2.00.1002260904311.6641@router.home>
-	 <20100226155755.GE16335@basil.fritz.box>
-	 <alpine.DEB.2.00.1002261123520.7719@router.home>
-	 <alpine.DEB.2.00.1002261555030.32111@chino.kir.corp.google.com>
-	 <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com>
-	 <20100302125306.GD19208@basil.fritz.box>
-Date: Tue, 2 Mar 2010 17:04:00 +0200
-Message-ID: <84144f021003020704s3abafc24t9b8ab34234094b79@mail.gmail.com>
-Subject: Re: [patch] slab: add memory hotplug support
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100301221830.GA5460@linux>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrea Righi <arighi@develer.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andi,
+On Mon, Mar 01, 2010 at 11:18:31PM +0100, Andrea Righi wrote:
+> On Mon, Mar 01, 2010 at 05:02:08PM -0500, Vivek Goyal wrote:
+> > > @@ -686,10 +699,14 @@ void throttle_vm_writeout(gfp_t gfp_mask)
+> > >                   */
+> > >                  dirty_thresh += dirty_thresh / 10;      /* wheeee... */
+> > >  
+> > > -                if (global_page_state(NR_UNSTABLE_NFS) +
+> > > -			global_page_state(NR_WRITEBACK) <= dirty_thresh)
+> > > -                        	break;
+> > > -                congestion_wait(BLK_RW_ASYNC, HZ/10);
+> > > +
+> > > +		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+> > > +		if (dirty < 0)
+> > > +			dirty = global_page_state(NR_UNSTABLE_NFS) +
+> > > +				global_page_state(NR_WRITEBACK);
+> > 
+> > dirty is unsigned long. As mentioned last time, above will never be true?
+> > In general these patches look ok to me. I will do some testing with these.
+> 
+> Re-introduced the same bug. My bad. :(
+> 
+> The value returned from mem_cgroup_page_stat() can be negative, i.e.
+> when memory cgroup is disabled. We could simply use a long for dirty,
+> the unit is in # of pages so s64 should be enough. Or cast dirty to long
+> only for the check (see below).
+> 
+> Thanks!
+> -Andrea
+> 
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> ---
+>  mm/page-writeback.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index d83f41c..dbee976 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -701,7 +701,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
+>  
+>  
+>  		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+> -		if (dirty < 0)
+> +		if ((long)dirty < 0)
 
-On Tue, Mar 2, 2010 at 2:53 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> On Mon, Mar 01, 2010 at 02:24:43AM -0800, David Rientjes wrote:
->> Slab lacks any memory hotplug support for nodes that are hotplugged
->> without cpus being hotplugged. =A0This is possible at least on x86
->> CONFIG_MEMORY_HOTPLUG_SPARSE kernels where SRAT entries are marked
->> ACPI_SRAT_MEM_HOT_PLUGGABLE and the regions of RAM represent a seperate
->> node. =A0It can also be done manually by writing the start address to
->> /sys/devices/system/memory/probe for kernels that have
->> CONFIG_ARCH_MEMORY_PROBE set, which is how this patch was tested, and
->> then onlining the new memory region.
->
-> The patch looks far more complicated than my simple fix.
+This will also be problematic as on 32bit systems, your uppper limit of
+dirty memory will be 2G?
 
-I wouldn't exactly call the fallback_alloc() games "simple".
+I guess, I will prefer one of the two.
 
-> Is more complicated now better?
+- return the error code from function and pass a pointer to store stats
+  in as function argument.
 
-Heh, heh. You can't post the oops, you don't want to rework your
-patches as per review comments, and now you complain about David's
-patch without one bit of technical content. I'm sorry but I must
-conclude that someone is playing a prank on me because there's no way
-a seasoned kernel hacker such as yourself could possibly think that
-this is the way to get patches merged.
+- Or Peter's suggestion of checking mem_cgroup_has_dirty_limit() and if
+  per cgroup dirty control is enabled, then use per cgroup stats. In that
+  case you don't have to return negative values.
 
-But anyway, if you have real technical concerns over the patch, please
-make them known; otherwise I'd much appreciate a Tested-by tag from
-you for David's patch.
+  Only tricky part will be careful accouting so that none of the stats go
+  negative in corner cases of migration etc.
 
-Thanks,
+Thanks
+Vivek
 
-                        Pekka
+>  			dirty = global_page_state(NR_UNSTABLE_NFS) +
+>  				global_page_state(NR_WRITEBACK);
+>  		if (dirty <= dirty_thresh)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
