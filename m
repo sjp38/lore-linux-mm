@@ -1,40 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 52C916B0078
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 19:15:13 -0500 (EST)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id o230F9FT016870
-	for <linux-mm@kvack.org>; Tue, 2 Mar 2010 16:15:09 -0800
-Received: from pxi29 (pxi29.prod.google.com [10.243.27.29])
-	by kpbe14.cbf.corp.google.com with ESMTP id o230F11B001926
-	for <linux-mm@kvack.org>; Tue, 2 Mar 2010 16:15:02 -0800
-Received: by pxi29 with SMTP id 29so255407pxi.5
-        for <linux-mm@kvack.org>; Tue, 02 Mar 2010 16:15:01 -0800 (PST)
-Date: Tue, 2 Mar 2010 16:14:57 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: adjust kswapd nice level for high priority page
- allocators
-In-Reply-To: <28c262361003012029j1d17a0dch8987c0d6d939959e@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1003021610530.14687@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1003010213480.26824@chino.kir.corp.google.com> <28c262361003010802o7de2a32ci913b3833074af9eb@mail.gmail.com> <28c262361003012029j1d17a0dch8987c0d6d939959e@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2E7DF6B0047
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 19:25:50 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o230PlBu011931
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 3 Mar 2010 09:25:47 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F11A45DE52
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:25:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FB8945DE51
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:25:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 170001DB803C
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:25:47 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CB67EE38003
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:25:42 +0900 (JST)
+Date: Wed, 3 Mar 2010 09:22:10 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
+ ooms
+Message-Id: <20100303092210.a730a903.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1003021600020.11946@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com>
+	<20100301052306.GG19665@balbir.in.ibm.com>
+	<alpine.DEB.2.00.1003010159420.26824@chino.kir.corp.google.com>
+	<20100302085532.ff9d3cf4.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.1003021600020.11946@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Con Kolivas <kernel@kolivas.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Mar 2010, Minchan Kim wrote:
+On Tue, 2 Mar 2010 16:01:41 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> > Why do you reset nice value which set by set_kswapd_nice?
+> On Tue, 2 Mar 2010, KAMEZAWA Hiroyuki wrote:
 > 
-> My point is that you reset nice value(which is boosted at wakeup_kswapd) to 0
-> before calling balance_pgdat. It means kswapd could be rescheduled by nice 0
-> before really reclaim happens by balance_pgdat.
+> > > Kame said earlier it would be no problem to rebase his memcg oom work on 
+> > > mmotm if my patches were merged.
+> > > 
+> > 
+> > But I also said this patch cause regression.
+> 
+> This patch causes a regression???  You never said that in any of your 
+> reviews and I have no idea what you're talking about, this patch simply 
+> cleans up the code and closes a race where VM_FAULT_OOM could needlessly 
+> kill tasks in parallel oom conditions.
+> 
+try_set_system_oom() is not called in memory_cgroup_out_of_memory() path.
+Then, oom kill twice.
 
-wakeup_kswapd() wakes up kswapd at the finish_wait() point so that it has 
-the nice value set by set_kswapd_nice() when it calls balance_pgdat(), 
-loops, and then sets it back to the default nice level of 0.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
