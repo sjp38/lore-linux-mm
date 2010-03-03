@@ -1,147 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 655D66B0047
-	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 18:13:11 -0500 (EST)
-Date: Wed, 3 Mar 2010 15:12:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUGFIX][PATCH] memcg: fix oom kill behavior v3
-Message-Id: <20100303151257.f45ceffe.akpm@linux-foundation.org>
-In-Reply-To: <20100303162304.eaf49099.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100302115834.c0045175.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100302135524.afe2f7ab.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100302143738.5cd42026.nishimura@mxp.nes.nec.co.jp>
-	<20100302145644.0f8fbcca.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100302151544.59c23678.nishimura@mxp.nes.nec.co.jp>
-	<20100303092606.2e2152fc.nishimura@mxp.nes.nec.co.jp>
-	<20100303093844.cf768ea4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100303162304.eaf49099.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id BDD326B0047
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 18:28:04 -0500 (EST)
+Received: from spaceape23.eur.corp.google.com (spaceape23.eur.corp.google.com [172.28.16.75])
+	by smtp-out.google.com with ESMTP id o23NS1L7000731
+	for <linux-mm@kvack.org>; Wed, 3 Mar 2010 15:28:01 -0800
+Received: from pxi2 (pxi2.prod.google.com [10.243.27.2])
+	by spaceape23.eur.corp.google.com with ESMTP id o23NRwen023722
+	for <linux-mm@kvack.org>; Wed, 3 Mar 2010 15:27:59 -0800
+Received: by pxi2 with SMTP id 2so676609pxi.26
+        for <linux-mm@kvack.org>; Wed, 03 Mar 2010 15:27:58 -0800 (PST)
+Date: Wed, 3 Mar 2010 15:27:53 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
+ ooms
+In-Reply-To: <20100303095812.c3d47ee1.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1003031527230.32530@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com> <alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com> <20100301052306.GG19665@balbir.in.ibm.com> <alpine.DEB.2.00.1003010159420.26824@chino.kir.corp.google.com>
+ <20100302085532.ff9d3cf4.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021600020.11946@chino.kir.corp.google.com> <20100303092210.a730a903.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021634030.18535@chino.kir.corp.google.com>
+ <20100303094438.1e9b09fb.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021651170.20958@chino.kir.corp.google.com> <20100303095812.c3d47ee1.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Mar 2010 16:23:04 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Wed, 3 Mar 2010, KAMEZAWA Hiroyuki wrote:
 
-> In current page-fault code,
+> In patch 01-03, you don't modified panic_on_oom implementation.
+> And this patch, you don't modified the return code of memcg's charge code.
+> It still returns -ENOMEM.
 > 
-> 	handle_mm_fault()
-> 		-> ...
-> 		-> mem_cgroup_charge()
-> 		-> map page or handle error.
-> 	-> check return code.
+> Then, VM_FAULT_OOM is returned and page_fault_out_of_memory() calles this
+> and hit this.
 > 
-> If page fault's return code is VM_FAULT_OOM, page_fault_out_of_memory()
-> is called. But if it's caused by memcg, OOM should have been already
-> invoked.
-> Then, I added a patch: a636b327f731143ccc544b966cfd8de6cb6d72c6
+>        case CONSTRAINT_NONE:
+>                 if (sysctl_panic_on_oom) {
+>                         dump_header(NULL, gfp_mask, order, NULL);
+>                         panic("out of memory. panic_on_oom is selected\n");
+>                 }
 > 
-> That patch records last_oom_jiffies for memcg's sub-hierarchy and
-> prevents page_fault_out_of_memory from being invoked in near future.
+> The system will panic. A hook, mem_cgroup_oom_called() is for avoiding this.
+> memcg's oom doesn't mean memory shortage, just means it his limit.
 > 
-> But Nishimura-san reported that check by jiffies is not enough
-> when the system is terribly heavy. 
-> 
-> This patch changes memcg's oom logic as.
->  * If memcg causes OOM-kill, continue to retry.
->  * remove jiffies check which is used now.
->  * add memcg-oom-lock which works like perzone oom lock.
->  * If current is killed(as a process), bypass charge.
-> 
-> Something more sophisticated can be added but this pactch does
-> fundamental things.
-> TODO:
->  - add oom notifier
->  - add permemcg disable-oom-kill flag and freezer at oom.
->  - more chances for wake up oom waiter (when changing memory limit etc..)
-> 
-> ...
->
-> +static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
-> +{
-> +	int lock_count = 0;
-> +
-> +	mem_cgroup_walk_tree(mem, &lock_count, mem_cgroup_oom_lock_cb);
->  
-> -static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
-> +	if (lock_count == 1)
-> +		return true;
-> +	return false;
-> +}
 
-mem_cgroup_walk_tree() will visit all items, but it could have returned
-when it found the first "locked" item.  I minor inefficiency, I guess.
-
-> +static int mem_cgroup_oom_unlock_cb(struct mem_cgroup *mem, void *data)
->  {
-> -	mem->last_oom_jiffies = jiffies;
-> +	atomic_dec(&mem->oom_lock);
->  	return 0;
->  }
->  
-> -static void record_last_oom(struct mem_cgroup *mem)
-> +static void mem_cgroup_oom_unlock(struct mem_cgroup *mem)
->  {
-> -	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
-> +	mem_cgroup_walk_tree(mem, NULL,	mem_cgroup_oom_unlock_cb);
-> +}
-> +
-> +static DEFINE_MUTEX(memcg_oom_mutex);
-> +static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
-> +
-> +/*
-> + * try to call OOM killer. returns false if we should exit memory-reclaim loop.
-> + */
-> +bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
-> +{
-> +	DEFINE_WAIT(wait);
-> +	bool locked;
-> +
-> +	/* At first, try to OOM lock hierarchy under mem.*/
-> +	mutex_lock(&memcg_oom_mutex);
-> +	locked = mem_cgroup_oom_lock(mem);
-> +	if (!locked)
-> +		prepare_to_wait(&memcg_oom_waitq, &wait, TASK_INTERRUPTIBLE);
-> +	mutex_unlock(&memcg_oom_mutex);
-> +
-> +	if (locked)
-> +		mem_cgroup_out_of_memory(mem, mask);
-> +	else {
-> +		schedule();
-
-If the calling process has signal_pending() then the schedule() will
-immediately return.  A bug, I suspect.  Fixable by using
-TASK_UNINTERRUPTIBLE.
-
-
-> +		finish_wait(&memcg_oom_waitq, &wait);
-> +	}
-> +	mutex_lock(&memcg_oom_mutex);
-> +	mem_cgroup_oom_unlock(mem);
-> +	/*
-> + 	 * Here, we use global waitq .....more fine grained waitq ?
-> + 	 * Assume following hierarchy.
-> + 	 * A/
-> + 	 *   01
-> + 	 *   02
-> + 	 * assume OOM happens both in A and 01 at the same time. Tthey are
-> + 	 * mutually exclusive by lock. (kill in 01 helps A.)
-> + 	 * When we use per memcg waitq, we have to wake up waiters on A and 02
-> + 	 * in addtion to waiters on 01. We use global waitq for avoiding mess.
-> + 	 * It will not be a big problem.
-> + 	 */
-> +	wake_up_all(&memcg_oom_waitq);
-> +	mutex_unlock(&memcg_oom_mutex);
-> +
-> +	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
-> +		return false;
-> +	/* Give chance to dying process */
-> +	schedule_timeout(1);
-> +	return true;
->  }
+And this is fixed by memcg-fix-oom-kill-behavior-v3.patch in -mm, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
