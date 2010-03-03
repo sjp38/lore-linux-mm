@@ -1,55 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 26E646B004D
-	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 19:44:39 -0500 (EST)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id o230ibFE029874
-	for <linux-mm@kvack.org>; Tue, 2 Mar 2010 16:44:37 -0800
-Received: from pxi34 (pxi34.prod.google.com [10.243.27.34])
-	by kpbe17.cbf.corp.google.com with ESMTP id o230iX1b020423
-	for <linux-mm@kvack.org>; Tue, 2 Mar 2010 16:44:36 -0800
-Received: by pxi34 with SMTP id 34so294950pxi.10
-        for <linux-mm@kvack.org>; Tue, 02 Mar 2010 16:44:33 -0800 (PST)
-Date: Tue, 2 Mar 2010 16:44:30 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4D6A96B004D
+	for <linux-mm@kvack.org>; Tue,  2 Mar 2010 19:48:12 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o230mA8J011295
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 3 Mar 2010 09:48:10 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DBC245DE50
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:48:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4ECBA45DE4E
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:48:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BBFC1DB8015
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:48:10 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B257F1DB8014
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 09:48:09 +0900 (JST)
+Date: Wed, 3 Mar 2010 09:44:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
  ooms
-In-Reply-To: <20100303092417.1a2f0418.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1003021639110.18535@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com> <alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com> <20100301101259.af730fa0.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003010204180.26824@chino.kir.corp.google.com>
- <20100302085932.7b22f830.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021547210.11946@chino.kir.corp.google.com> <20100303092417.1a2f0418.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20100303094438.1e9b09fb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1003021634030.18535@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com>
+	<20100301052306.GG19665@balbir.in.ibm.com>
+	<alpine.DEB.2.00.1003010159420.26824@chino.kir.corp.google.com>
+	<20100302085532.ff9d3cf4.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.1003021600020.11946@chino.kir.corp.google.com>
+	<20100303092210.a730a903.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.1003021634030.18535@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Mar 2010, KAMEZAWA Hiroyuki wrote:
+On Tue, 2 Mar 2010 16:38:16 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> > Trying to set ZONE_OOM_LOCKED for all populated zones is fundamentally the 
-> > correct thing to do on VM_FAULT_OOM when you don't know the context in 
-> > which we're trying to allocate pages.  The _only_ thing that does is close 
-> > a race between when another thread calls out_of_memory(), which is likely 
-> > in such conditions, and the oom killer hasn't killed a task yet so we 
-> > can't detect the TIF_MEMDIE bit during the tasklist scan.  Memcg is 
-> > completely irrelevant with respect to this zone locking and that's why I 
-> > didn't touch mem_cgroup_out_of_memory().  Did you seriously even read this 
-> > patch?
+> On Wed, 3 Mar 2010, KAMEZAWA Hiroyuki wrote:
+> 
+> > > This patch causes a regression???  You never said that in any of your 
+> > > reviews and I have no idea what you're talking about, this patch simply 
+> > > cleans up the code and closes a race where VM_FAULT_OOM could needlessly 
+> > > kill tasks in parallel oom conditions.
+> > > 
+> > try_set_system_oom() is not called in memory_cgroup_out_of_memory() path.
+> > Then, oom kill twice.
 > > 
 > 
-> Then, memcg will see second oom-kill.
+> So how does this cause a regression AT ALL?  Calling try_set_system_oom() 
+> in pagefault_out_of_memory() protects against concurrent out_of_memory() 
+> from the page allocator before a task is actually killed.  So this patch 
+> closes that race entirely.  So it most certainly does not introduce a 
+> regression.
 > 
+> You said earlier that mem_cgroup_out_of_memory() need not serialize 
+> against parallel oom killings because in that scenario we must kill 
+> something anyway, memory freeing from other ooms won't help if a memcg is 
+> over its limit.  So, yeah, we may kill two tasks if both the system and a 
+> memcg are oom in parallel and neither have actually killed a task yet, but 
+> that's much more jusitiable since we shouldn't rely on a memcg oom to free 
+> memory for the entire system.
+> 
+> So, again, there's absolutely no regression introduced by this patch.
+> 
+I'm sorry if I miss somthing.
 
-Sigh.  Memcg will only kill a second task if the parallel oom hasn't 
-killed anything yet or the parallel oom kills a task that is not in the 
-memcg, and that's because memcg needs to enforce its limit by killing 
-something, freeing memory for the system won't help that.  We may kill 
-another task for the system-wide oom after the memcg has already killed a 
-task if the system-wide oom is iterating through the tasklist and the 
-memcg kill sets TIF_MEMDIE too late.  That's independent of this patch, we 
-can't go and recind an oom kill.  Labeling that as a regression is just 
-not truthful, it's outside the scope of closing the VM_FAULT_OOM race.
+memory_cgroup_out_of_memory() kills a task. and return VM_FAULT_OOM then,
+page_fault_out_of_memory() kills another task.
+and cause panic if panic_on_oom=1.
+
+Then, if we remove mem_cgroup_oom_called(), we have to take care that
+memcg doesn't cause VM_FAULT_OOM.
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
