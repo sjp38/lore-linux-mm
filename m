@@ -1,265 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 085746B004D
-	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 06:50:34 -0500 (EST)
-Date: Wed, 3 Mar 2010 12:50:30 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 024FE6B0047
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 06:56:27 -0500 (EST)
+Date: Wed, 3 Mar 2010 12:56:23 +0100
 From: Andrea Righi <arighi@develer.com>
 Subject: Re: [PATCH -mmotm 3/3] memcg: dirty pages instrumentation
-Message-ID: <20100303115030.GC1990@linux>
+Message-ID: <20100303115623.GA16239@linux>
 References: <1267478620-5276-1-git-send-email-arighi@develer.com>
  <1267478620-5276-4-git-send-email-arighi@develer.com>
- <20100303111238.7133f8af.nishimura@mxp.nes.nec.co.jp>
- <20100303122906.9c613ab2.kamezawa.hiroyu@jp.fujitsu.com>
- <20100303150137.f56d7084.nishimura@mxp.nes.nec.co.jp>
- <20100303151549.5d3d686a.kamezawa.hiroyu@jp.fujitsu.com>
- <20100303172132.fc6d9387.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100301220208.GH3109@redhat.com>
+ <20100301221830.GA5460@linux>
+ <20100302150529.GA12855@redhat.com>
+ <20100302222248.GD2369@linux>
+ <20100302235932.GA3007@redhat.com>
+ <20100303114703.GA1990@linux>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100303172132.fc6d9387.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100303114703.GA1990@linux>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg@smtp1.linux-foundation.org, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 03, 2010 at 05:21:32PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 3 Mar 2010 15:15:49 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > Agreed.
-> > Let's try how we can write a code in clean way. (we have time ;)
-> > For now, to me, IRQ disabling while lock_page_cgroup() seems to be a little
-> > over killing. What I really want is lockless code...but it seems impossible
-> > under current implementation.
+On Wed, Mar 03, 2010 at 12:47:03PM +0100, Andrea Righi wrote:
+> On Tue, Mar 02, 2010 at 06:59:32PM -0500, Vivek Goyal wrote:
+> > On Tue, Mar 02, 2010 at 11:22:48PM +0100, Andrea Righi wrote:
+> > > On Tue, Mar 02, 2010 at 10:05:29AM -0500, Vivek Goyal wrote:
+> > > > On Mon, Mar 01, 2010 at 11:18:31PM +0100, Andrea Righi wrote:
+> > > > > On Mon, Mar 01, 2010 at 05:02:08PM -0500, Vivek Goyal wrote:
+> > > > > > > @@ -686,10 +699,14 @@ void throttle_vm_writeout(gfp_t gfp_mask)
+> > > > > > >                   */
+> > > > > > >                  dirty_thresh += dirty_thresh / 10;      /* wheeee... */
+> > > > > > >  
+> > > > > > > -                if (global_page_state(NR_UNSTABLE_NFS) +
+> > > > > > > -			global_page_state(NR_WRITEBACK) <= dirty_thresh)
+> > > > > > > -                        	break;
+> > > > > > > -                congestion_wait(BLK_RW_ASYNC, HZ/10);
+> > > > > > > +
+> > > > > > > +		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+> > > > > > > +		if (dirty < 0)
+> > > > > > > +			dirty = global_page_state(NR_UNSTABLE_NFS) +
+> > > > > > > +				global_page_state(NR_WRITEBACK);
+> > > > > > 
+> > > > > > dirty is unsigned long. As mentioned last time, above will never be true?
+> > > > > > In general these patches look ok to me. I will do some testing with these.
+> > > > > 
+> > > > > Re-introduced the same bug. My bad. :(
+> > > > > 
+> > > > > The value returned from mem_cgroup_page_stat() can be negative, i.e.
+> > > > > when memory cgroup is disabled. We could simply use a long for dirty,
+> > > > > the unit is in # of pages so s64 should be enough. Or cast dirty to long
+> > > > > only for the check (see below).
+> > > > > 
+> > > > > Thanks!
+> > > > > -Andrea
+> > > > > 
+> > > > > Signed-off-by: Andrea Righi <arighi@develer.com>
+> > > > > ---
+> > > > >  mm/page-writeback.c |    2 +-
+> > > > >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > > > > 
+> > > > > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> > > > > index d83f41c..dbee976 100644
+> > > > > --- a/mm/page-writeback.c
+> > > > > +++ b/mm/page-writeback.c
+> > > > > @@ -701,7 +701,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
+> > > > >  
+> > > > >  
+> > > > >  		dirty = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+> > > > > -		if (dirty < 0)
+> > > > > +		if ((long)dirty < 0)
+> > > > 
+> > > > This will also be problematic as on 32bit systems, your uppper limit of
+> > > > dirty memory will be 2G?
+> > > > 
+> > > > I guess, I will prefer one of the two.
+> > > > 
+> > > > - return the error code from function and pass a pointer to store stats
+> > > >   in as function argument.
+> > > > 
+> > > > - Or Peter's suggestion of checking mem_cgroup_has_dirty_limit() and if
+> > > >   per cgroup dirty control is enabled, then use per cgroup stats. In that
+> > > >   case you don't have to return negative values.
+> > > > 
+> > > >   Only tricky part will be careful accouting so that none of the stats go
+> > > >   negative in corner cases of migration etc.
+> > > 
+> > > What do you think about Peter's suggestion + the locking stuff? (see the
+> > > previous email). Otherwise, I'll choose the other solution, passing a
+> > > pointer and always return the error code is not bad.
+> > > 
 > > 
-> > I wonder the fact "the page is never unchareged under us" can give us some chances
-> > ...Hmm.
+> > Ok, so you are worried about that by the we finish mem_cgroup_has_dirty_limit()
+> > call, task might change cgroup and later we might call
+> > mem_cgroup_get_page_stat() on a different cgroup altogether which might or
+> > might not have dirty limits specified?
+> 
+> Correct.
+> 
 > > 
+> > But in what cases you don't want to use memory cgroup specified limit? I
+> > thought cgroup disabled what the only case where we need to use global
+> > limits. Otherwise a memory cgroup will have either dirty_bytes specified
+> > or by default inherit global dirty_ratio which is a valid number. If
+> > that's the case then you don't have to take rcu_lock() outside
+> > get_page_stat()?
+> > 
+> > IOW, apart from cgroup being disabled, what are the other cases where you
+> > expect to not use cgroup's page stat and use global stats?
 > 
-> How about this ? Basically, I don't like duplicating information...so,
-> # of new pcg_flags may be able to be reduced.
-> 
-> I'm glad this can be a hint for Andrea-san.
+> At boot, when mem_cgroup_from_task() may return NULL. But this is not
+> related to the RCU acquisition.
 
-Many thanks! I already wrote pretty the same code, but at this point I
-think I'll just apply and test this one. ;)
+Nevermind. You're right. In any case even if a task is migrated to a
+different cgroup it will always have mem_cgroup_has_dirty_limit() ==
+true.
 
+So RCU protection is not needed outside these functions.
+
+OK, I'll go with the Peter's suggestion.
+
+Thanks!
 -Andrea
-
-> 
-> ==
-> ---
->  include/linux/page_cgroup.h |   44 ++++++++++++++++++++-
->  mm/memcontrol.c             |   91 +++++++++++++++++++++++++++++++++++++++++++-
->  2 files changed, 132 insertions(+), 3 deletions(-)
-> 
-> Index: mmotm-2.6.33-Mar2/include/linux/page_cgroup.h
-> ===================================================================
-> --- mmotm-2.6.33-Mar2.orig/include/linux/page_cgroup.h
-> +++ mmotm-2.6.33-Mar2/include/linux/page_cgroup.h
-> @@ -39,6 +39,11 @@ enum {
->  	PCG_CACHE, /* charged as cache */
->  	PCG_USED, /* this object is in use. */
->  	PCG_ACCT_LRU, /* page has been accounted for */
-> +	PCG_MIGRATE_LOCK, /* used for mutual execution of account migration */
-> +	PCG_ACCT_DIRTY,
-> +	PCG_ACCT_WB,
-> +	PCG_ACCT_WB_TEMP,
-> +	PCG_ACCT_UNSTABLE,
->  };
->  
->  #define TESTPCGFLAG(uname, lname)			\
-> @@ -73,6 +78,23 @@ CLEARPCGFLAG(AcctLRU, ACCT_LRU)
->  TESTPCGFLAG(AcctLRU, ACCT_LRU)
->  TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
->  
-> +SETPCGFLAG(AcctDirty, ACCT_DIRTY);
-> +CLEARPCGFLAG(AcctDirty, ACCT_DIRTY);
-> +TESTPCGFLAG(AcctDirty, ACCT_DIRTY);
-> +
-> +SETPCGFLAG(AcctWB, ACCT_WB);
-> +CLEARPCGFLAG(AcctWB, ACCT_WB);
-> +TESTPCGFLAG(AcctWB, ACCT_WB);
-> +
-> +SETPCGFLAG(AcctWBTemp, ACCT_WB_TEMP);
-> +CLEARPCGFLAG(AcctWBTemp, ACCT_WB_TEMP);
-> +TESTPCGFLAG(AcctWBTemp, ACCT_WB_TEMP);
-> +
-> +SETPCGFLAG(AcctUnstableNFS, ACCT_UNSTABLE);
-> +CLEARPCGFLAG(AcctUnstableNFS, ACCT_UNSTABLE);
-> +TESTPCGFLAG(AcctUnstableNFS, ACCT_UNSTABLE);
-> +
-> +
->  static inline int page_cgroup_nid(struct page_cgroup *pc)
->  {
->  	return page_to_nid(pc->page);
-> @@ -82,7 +104,9 @@ static inline enum zone_type page_cgroup
->  {
->  	return page_zonenum(pc->page);
->  }
-> -
-> +/*
-> + * lock_page_cgroup() should not be held under mapping->tree_lock
-> + */
->  static inline void lock_page_cgroup(struct page_cgroup *pc)
->  {
->  	bit_spin_lock(PCG_LOCK, &pc->flags);
-> @@ -93,6 +117,24 @@ static inline void unlock_page_cgroup(st
->  	bit_spin_unlock(PCG_LOCK, &pc->flags);
->  }
->  
-> +/*
-> + * Lock order is
-> + * 	lock_page_cgroup()
-> + * 		lock_page_cgroup_migrate()
-> + * This lock is not be lock for charge/uncharge but for account moving.
-> + * i.e. overwrite pc->mem_cgroup. The lock owner should guarantee by itself
-> + * the page is uncharged while we hold this.
-> + */
-> +static inline void lock_page_cgroup_migrate(struct page_cgroup *pc)
-> +{
-> +	bit_spin_lock(PCG_MIGRATE_LOCK, &pc->flags);
-> +}
-> +
-> +static inline void unlock_page_cgroup_migrate(struct page_cgroup *pc)
-> +{
-> +	bit_spin_unlock(PCG_MIGRATE_LOCK, &pc->flags);
-> +}
-> +
->  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
->  struct page_cgroup;
->  
-> Index: mmotm-2.6.33-Mar2/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.33-Mar2.orig/mm/memcontrol.c
-> +++ mmotm-2.6.33-Mar2/mm/memcontrol.c
-> @@ -87,6 +87,10 @@ enum mem_cgroup_stat_index {
->  	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
->  	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
->  	MEM_CGROUP_EVENTS,	/* incremented at every  pagein/pageout */
-> +	MEM_CGROUP_STAT_DIRTY,
-> +	MEM_CGROUP_STAT_WBACK,
-> +	MEM_CGROUP_STAT_WBACK_TEMP,
-> +	MEM_CGROUP_STAT_UNSTABLE_NFS,
->  
->  	MEM_CGROUP_STAT_NSTATS,
->  };
-> @@ -1360,6 +1364,86 @@ done:
->  }
->  
->  /*
-> + * Update file cache's status for memcg. Before calling this,
-> + * mapping->tree_lock should be held and preemption is disabled.
-> + * Then, it's guarnteed that the page is not uncharged while we
-> + * access page_cgroup. We can make use of that.
-> + */
-> +void mem_cgroup_update_stat_locked(struct page *page, int idx, bool set)
-> +{
-> +	struct page_cgroup *pc;
-> +	struct mem_cgroup *mem;
-> +
-> +	pc = lookup_page_cgroup(page);
-> +	/* Not accounted ? */
-> +	if (!PageCgroupUsed(pc))
-> +		return;
-> +	lock_page_cgroup_migrate(pc);
-> +	/*
-> +	 * It's guarnteed that this page is never uncharged.
-> +	 * The only racy problem is moving account among memcgs.
-> +	 */
-> +	switch (idx) {
-> +	case MEM_CGROUP_STAT_DIRTY:
-> +		if (set)
-> +			SetPageCgroupAcctDirty(pc);
-> +		else
-> +			ClearPageCgroupAcctDirty(pc);
-> +		break;
-> +	case MEM_CGROUP_STAT_WBACK:
-> +		if (set)
-> +			SetPageCgroupAcctWB(pc);
-> +		else
-> +			ClearPageCgroupAcctWB(pc);
-> +		break;
-> +	case MEM_CGROUP_STAT_WBACK_TEMP:
-> +		if (set)
-> +			SetPageCgroupAcctWBTemp(pc);
-> +		else
-> +			ClearPageCgroupAcctWBTemp(pc);
-> +		break;
-> +	case MEM_CGROUP_STAT_UNSTABLE_NFS:
-> +		if (set)
-> +			SetPageCgroupAcctUnstableNFS(pc);
-> +		else
-> +			ClearPageCgroupAcctUnstableNFS(pc);
-> +		break;
-> +	default:
-> +		BUG();
-> +		break;
-> +	}
-> +	mem = pc->mem_cgroup;
-> +	if (set)
-> +		__this_cpu_inc(mem->stat->count[idx]);
-> +	else
-> +		__this_cpu_dec(mem->stat->count[idx]);
-> +	unlock_page_cgroup_migrate(pc);
-> +}
-> +
-> +static void move_acct_information(struct mem_cgroup *from,
-> +				struct mem_cgroup *to,
-> +				struct page_cgroup *pc)
-> +{
-> +	/* preemption is disabled, migration_lock is held. */
-> +	if (PageCgroupAcctDirty(pc)) {
-> +		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_DIRTY]);
-> +		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_DIRTY]);
-> +	}
-> +	if (PageCgroupAcctWB(pc)) {
-> +		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_WBACK]);
-> +		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_WBACK]);
-> +	}
-> +	if (PageCgroupAcctWBTemp(pc)) {
-> +		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_WBACK_TEMP]);
-> +		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_WBACK_TEMP]);
-> +	}
-> +	if (PageCgroupAcctUnstableNFS(pc)) {
-> +		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_UNSTABLE_NFS]);
-> +		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_UNSTABLE_NFS]);
-> +	}
-> +}
-> +
-> +/*
->   * size of first charge trial. "32" comes from vmscan.c's magic value.
->   * TODO: maybe necessary to use big numbers in big irons.
->   */
-> @@ -1794,15 +1878,16 @@ static void __mem_cgroup_move_account(st
->  	VM_BUG_ON(!PageCgroupUsed(pc));
->  	VM_BUG_ON(pc->mem_cgroup != from);
->  
-> +	preempt_disable();
-> +	lock_page_cgroup_migrate(pc);
->  	page = pc->page;
->  	if (page_mapped(page) && !PageAnon(page)) {
->  		/* Update mapped_file data for mem_cgroup */
-> -		preempt_disable();
->  		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
->  		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> -		preempt_enable();
->  	}
->  	mem_cgroup_charge_statistics(from, pc, false);
-> +	move_acct_information(from, to, pc);
->  	if (uncharge)
->  		/* This is not "cancel", but cancel_charge does all we need. */
->  		mem_cgroup_cancel_charge(from);
-> @@ -1810,6 +1895,8 @@ static void __mem_cgroup_move_account(st
->  	/* caller should have done css_get */
->  	pc->mem_cgroup = to;
->  	mem_cgroup_charge_statistics(to, pc, true);
-> +	unlock_page_cgroup_migrate(pc);
-> +	preempt_enable();
->  	/*
->  	 * We charges against "to" which may not have any tasks. Then, "to"
->  	 * can be under rmdir(). But in current implementation, caller of
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
