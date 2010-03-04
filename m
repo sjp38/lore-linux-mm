@@ -1,42 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 975506B0089
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 16:17:30 -0500 (EST)
-Date: Thu, 4 Mar 2010 15:16:49 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH/RFC 3/8] numa:  x86_64:  use generic percpu var for
- numa_node_id() implementation
-In-Reply-To: <1267735368.29020.104.camel@useless.americas.hpqcorp.net>
-Message-ID: <alpine.DEB.2.00.1003041514310.2644@router.home>
-References: <20100304170654.10606.32225.sendpatchset@localhost.localdomain>  <20100304170716.10606.24477.sendpatchset@localhost.localdomain>  <alpine.DEB.2.00.1003041245280.21776@router.home> <1267735368.29020.104.camel@useless.americas.hpqcorp.net>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 749056B008A
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 16:22:03 -0500 (EST)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id o24LM2Ir012306
+	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 21:22:03 GMT
+Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
+	by kpbe13.cbf.corp.google.com with ESMTP id o24LM1Dn007879
+	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 15:22:01 -0600
+Received: by pwj9 with SMTP id 9so2102371pwj.0
+        for <linux-mm@kvack.org>; Thu, 04 Mar 2010 13:22:01 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Greg Thelen <gthelen@google.com>
+Date: Thu, 4 Mar 2010 13:21:41 -0800
+Message-ID: <49b004811003041321g2567bac8yb73235be32a27e7c@mail.gmail.com>
+Subject: mmotm boot panic bootmem-avoid-dma32-zone-by-default.patch
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-numa@vger.kernel.org, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, eric.whitney@hp.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Mar 2010, Lee Schermerhorn wrote:
+On several systems I am seeing a boot panic if I use mmotm
+(stamp-2010-03-02-18-38).  If I remove
+bootmem-avoid-dma32-zone-by-default.patch then no panic is seen.  I
+find that:
+* 2.6.33 boots fine.
+* 2.6.33 + mmotm w/o bootmem-avoid-dma32-zone-by-default.patch: boots fine.
+* 2.6.33 + mmotm (including
+bootmem-avoid-dma32-zone-by-default.patch): panics.
+Note: I had to enable earlyprintk to see the panic.  Without
+earlyprintk no console output was seen.  The system appeared to hang
+after the loader.
 
-> Well, in linux/percpu-defs.h after the first patch in this series, but
-> x86 is overriding it with the percpu_to_op() implementation.  You're
-> saying that the x86 percpu_to_op() macro doesn't handle 8-byte 'pcp'
-> operands?  It appears to handle sizes 1, 2, 4 and 8.
+Here's the panic seen with earlyprintk using 2.6.33 + mmotm:
 
-8 byte operands are not allowed for 32 bit but work on 64 bit.
+Starting up ...
+[    0.000000] Initializing cgroup subsys cpuset
+[    0.000000] Initializing cgroup subsys cpu
+[    0.000000] Linux version 2.6.33-mm1+
+(gthelen@ninji.mtv.corp.google.com) (gcc version 4.2.4 (Ubuntu
+4.2.4-1ubuntu4)) #1 SMP Thu Mar 4 12:03:29 PST 2010
+[    0.000000] Command line:
+root=UUID=a77f406a-7cc7-4f49-9cc2-818b2b4159ae ro console=tty0
+console=ttyS0,115200n8 earlyprintk=serial,ttyS0,9600
+[    0.000000] BIOS-provided physical RAM map:
+[    0.000000]  BIOS-e820: 0000000000000000 - 000000000009fc00 (usable)
+[    0.000000]  BIOS-e820: 000000000009fc00 - 00000000000a0000 (reserved)
+[    0.000000]  BIOS-e820: 00000000000e8000 - 0000000000100000 (reserved)
+[    0.000000]  BIOS-e820: 0000000000100000 - 000000000fff0000 (usable)
+[    0.000000]  BIOS-e820: 000000000fff0000 - 0000000010000000 (ACPI data)
+[    0.000000]  BIOS-e820: 00000000fffbd000 - 0000000100000000 (reserved)
+[    0.000000] bootconsole [earlyser0] enabled
+[    0.000000] NX (Execute Disable) protection: active
+[    0.000000] DMI 2.4 present.
+[    0.000000] No AGP bridge found
+[    0.000000] last_pfn = 0xfff0 max_arch_pfn = 0x400000000
+[    0.000000] PAT not supported by CPU.
+[    0.000000] CPU MTRRs all blank - virtualized system.
+[    0.000000] Scanning 1 areas for low memory corruption
+[    0.000000] modified physical RAM map:
+[    0.000000]  modified: 0000000000000000 - 0000000000010000 (reserved)
+[    0.000000]  modified: 0000000000010000 - 000000000009fc00 (usable)
+[    0.000000]  modified: 000000000009fc00 - 00000000000a0000 (reserved)
+[    0.000000]  modified: 00000000000e8000 - 0000000000100000 (reserved)
+[    0.000000]  modified: 0000000000100000 - 000000000fff0000 (usable)
+[    0.000000]  modified: 000000000fff0000 - 0000000010000000 (ACPI data)
+[    0.000000]  modified: 00000000fffbd000 - 0000000100000000 (reserved)
+[    0.000000] init_memory_mapping: 0000000000000000-000000000fff0000
+[    0.000000] RAMDISK: 0fd9d000 - 0ffdf539
+[    0.000000] ACPI: RSDP 00000000000fb450 00014 (v00 QEMU  )
+[    0.000000] ACPI: RSDT 000000000fff0000 00030 (v01 QEMU   QEMURSDT
+00000001 QEMU 00000001)
+[    0.000000] ACPI: FACP 000000000fff0030 00074 (v01 QEMU   QEMUFACP
+00000001 QEMU 00000001)
+[    0.000000] ACPI: DSDT 000000000fff0100 0089D (v01   BXPC   BXDSDT
+00000001 INTL 20061109)
+[    0.000000] ACPI: FACS 000000000fff00c0 00040
+[    0.000000] ACPI: APIC 000000000fff09d8 00068 (v01 QEMU   QEMUAPIC
+00000001 QEMU 00000001)
+[    0.000000] ACPI: SSDT 000000000fff099d 00037 (v01 QEMU   QEMUSSDT
+00000001 QEMU 00000001)
+[    0.000000] No NUMA configuration found
+[    0.000000] Faking a node at 0000000000000000-000000000fff0000
+[    0.000000] Initmem setup node 0 0000000000000000-000000000fff0000
+[    0.000000]   NODE_DATA [0000000001c4e040 - 0000000001c5303f]
+[    0.000000] BUG: unable to handle kernel NULL pointer dereference at (null)
+[    0.000000] IP: [<ffffffff81b0f5f7>] memory_present+0x9a/0xbf
+[    0.000000] PGD 0
+[    0.000000] Oops: 0000 [#1] SMP
+[    0.000000] last sysfs file:
+[    0.000000] CPU 0
+[    0.000000] Modules linked in:
+[    0.000000]
+[    0.000000] Pid: 0, comm: swapper Not tainted 2.6.33-mm1+ #1 /
+[    0.000000] RIP: 0010:[<ffffffff81b0f5f7>]  [<ffffffff81b0f5f7>]
+memory_present+0x9a/0xbf
+[    0.000000] RSP: 0000:ffffffff81a01e18  EFLAGS: 00010046
+[    0.000000] RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000002
+[    0.000000] RDX: 0000000000000000 RSI: 0000000000000040 RDI: 0000000000000000
+[    0.000000] RBP: ffffffff81a01e58 R08: ffffffffffffffff R09: 0000000000000040
+[    0.000000] R10: ffff880001c4e040 R11: 0000000000004100 R12: 0000000000000000
+[    0.000000] R13: 0000000000000000 R14: 0000000000000001 R15: 0000000000000000
+[    0.000000] FS:  0000000000000000(0000) GS:ffffffff81adf000(0000)
+knlGS:0000000000000000
+[    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    0.000000] CR2: 0000000000000000 CR3: 0000000001a08000 CR4: 00000000000000b0
+[    0.000000] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[    0.000000] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[    0.000000] Process swapper (pid: 0, threadinfo ffffffff81a00000,
+task ffffffff81a10020)
+[    0.000000] Stack:
+[    0.000000]  000000000fff0000 000000000000009f 0000000000000000
+0000000000000000
+[    0.000000] <0> 0000000000000040 ffffffff81a01ef8 0000000000000000
+0000000000000000
+[    0.000000] <0> ffffffff81a01e78 ffffffff81b0dd0e ffffffff81a01e88
+000000000fff0000
+[    0.000000] Call Trace:
+[    0.000000]  [<ffffffff81b0dd0e>]
+sparse_memory_present_with_active_regions+0x31/0x47
+[    0.000000]  [<ffffffff81b0688a>] paging_init+0x3f/0x5b
+[    0.000000]  [<ffffffff81af81a7>] setup_arch+0x964/0xa03
+[    0.000000]  [<ffffffff8103014a>] ? need_resched+0x1e/0x28
+[    0.000000]  [<ffffffff8103015d>] ? should_resched+0x9/0x2a
+[    0.000000]  [<ffffffff8152de24>] ? _cond_resched+0x9/0x1d
+[    0.000000]  [<ffffffff81af4a34>] start_kernel+0x9f/0x382
+[    0.000000]  [<ffffffff81af4299>] x86_64_start_reservations+0xa9/0xad
+[    0.000000]  [<ffffffff81af4383>] x86_64_start_kernel+0xe6/0xed
+[    0.000000] Code: c7 00 56 c2 81 e8 a0 f9 a1 ff 48 83 3c dd 00 16
+c2 81 00 75 08 4c 89 2c dd 00 16 c2 81 fe 05 11 60 11 00 4c 89 ff e8
+85 3b 5c ff <48> 83 38 00 75 03 4c 89 30 49 81 c4 00 80 00 00 4c 3b 65
+c8 72
+[    0.000000] RIP  [<ffffffff81b0f5f7>] memory_present+0x9a/0xbf
+[    0.000000]  RSP <ffffffff81a01e18>
+[    0.000000] CR2: 0000000000000000
+[    0.000000] ---[ end trace 4eaa2a86a8e2da22 ]---
+[    0.000000] Kernel panic - not syncing: Attempted to kill the idle task!
+[    0.000000] Pid: 0, comm: swapper Tainted: G      D    2.6.33-mm1+ #1
+[    0.000000] Call Trace:
+[    0.000000]  [<ffffffff8103c78c>] panic+0x9e/0x113
+[    0.000000]  [<ffffffff8103d3d6>] ? printk+0x67/0x69
+[    0.000000]  [<ffffffff8105914e>] ? blocking_notifier_call_chain+0xf/0x11
+[    0.000000]  [<ffffffff8103f8b4>] do_exit+0x78/0x70f
+[    0.000000]  [<ffffffff8103ca2f>] ? spin_unlock_irqrestore+0x9/0xb
+[    0.000000]  [<ffffffff8103dcde>] ? kmsg_dump+0x112/0x138
+[    0.000000]  [<ffffffff81530061>] oops_end+0xb2/0xba
+[    0.000000]  [<ffffffff810258d3>] no_context+0x1f5/0x204
+[    0.000000]  [<ffffffff81025b1b>] __bad_area_nosemaphore+0x17f/0x1a2
+[    0.000000]  [<ffffffff81025bb4>] bad_area_nosemaphore+0xe/0x10
+[    0.000000]  [<ffffffff81531e36>] do_page_fault+0x122/0x24c
+[    0.000000]  [<ffffffff8152f59f>] page_fault+0x1f/0x30
+[    0.000000]  [<ffffffff81b0f5f7>] ? memory_present+0x9a/0xbf
+[    0.000000]  [<ffffffff81b0f5f7>] ? memory_present+0x9a/0xbf
+[    0.000000]  [<ffffffff81b0dd0e>]
+sparse_memory_present_with_active_regions+0x31/0x47
+[    0.000000]  [<ffffffff81b0688a>] paging_init+0x3f/0x5b
+[    0.000000]  [<ffffffff81af81a7>] setup_arch+0x964/0xa03
+[    0.000000]  [<ffffffff8103014a>] ? need_resched+0x1e/0x28
+[    0.000000]  [<ffffffff8103015d>] ? should_resched+0x9/0x2a
+[    0.000000]  [<ffffffff8152de24>] ? _cond_resched+0x9/0x1d
+[    0.000000]  [<ffffffff81af4a34>] start_kernel+0x9f/0x382
+[    0.000000]  [<ffffffff81af4299>] x86_64_start_reservations+0xa9/0xad
+[    0.000000]  [<ffffffff81af4383>] x86_64_start_kernel+0xe6/0xed
 
-> So, I'll remove those definitions in V4.
+The kernel was built with 'make mrproper && make defconfig && make
+ARCH=x86_64 CONFIG=smp -j 6'.  This panic is seen on every attempt, so
+I can provide more diagnostics.
 
-Ok.
-
-> Do we want to retain the x86 definitions of __this_cpu_xxx_[124]() or
-> remove those and let the generic definitions handle them?
-
-Generic definitions would not be as efficient as the use of the segment
-register to shift the address to the cpu area.
-
-I have not figured out exactly what you are doing with the percpu
-definitions and why yet. Ill look at that when I have some time.
+--
+Greg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
