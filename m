@@ -1,118 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 07E7F6B0047
-	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 23:12:09 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o244C7o1026434
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 4 Mar 2010 13:12:07 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B5A5745DE54
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:12:06 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6547C45DE52
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:12:06 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F7B9E18009
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:12:06 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B7EB9E18001
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:12:05 +0900 (JST)
-Date: Thu, 4 Mar 2010 13:08:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: fix oom kill behavior v3
-Message-Id: <20100304130834.f2843b79.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100304130406.95789929.nishimura@mxp.nes.nec.co.jp>
-References: <20100302115834.c0045175.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100302135524.afe2f7ab.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100302143738.5cd42026.nishimura@mxp.nes.nec.co.jp>
-	<20100302145644.0f8fbcca.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100302151544.59c23678.nishimura@mxp.nes.nec.co.jp>
-	<20100303092606.2e2152fc.nishimura@mxp.nes.nec.co.jp>
-	<20100303093844.cf768ea4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100303162304.eaf49099.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100304130406.95789929.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9C4EE6B0047
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 23:53:21 -0500 (EST)
+Date: Thu, 4 Mar 2010 15:53:15 +1100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy
+ and mems_allowed
+Message-ID: <20100304045315.GP8653@laptop>
+References: <4B8E3F77.6070201@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B8E3F77.6070201@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Miao Xie <miaox@cn.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Mar 2010 13:04:06 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Wed, Mar 03, 2010 at 06:52:39PM +0800, Miao Xie wrote:
+> if MAX_NUMNODES > BITS_PER_LONG, loading/storing task->mems_allowed or mems_allowed in
+> task->mempolicy are not atomic operations, and the kernel page allocator gets an empty
+> mems_allowed when updating task->mems_allowed or mems_allowed in task->mempolicy. So we
+> use a rwlock to protect them to fix this probelm.
 
-> On Wed, 3 Mar 2010 16:23:04 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 3 Mar 2010 09:38:44 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> > > On Wed, 3 Mar 2010 09:26:06 +0900
-> > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > 
-> > > > > I'll test this patch all through this night, and check whether it doesn't trigger
-> > > > > global oom after memcg's oom.
-> > > > > 
-> > > > O.K. It works well.
-> > > > Feel free to add my signs.
-> > > > 
-> > > > 	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > > 	Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > > 
-> > > 
-> > > Thank you !
-> > > 
-> > > I'll apply Balbir's comment and post v3.
-> > > 
-> > 
-> > rebased onto mmotm-Mar2.
-> > tested on x86-64.
-> > 
-> I found a small race problem. This is the fix for it.
-> 
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> We must avoid making oom_lock of a newly created child be negative.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> ---
->  mm/memcontrol.c |    7 ++++++-
->  1 files changed, 6 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3ce8c5b..9e25400 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1272,7 +1272,12 @@ static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
->  
->  static int mem_cgroup_oom_unlock_cb(struct mem_cgroup *mem, void *data)
+Oh, and something else I'm also concerned about:
+
+If  MAX_NUMNODES <= BITS_PER_LONG then these locks are a noop.
+
+> +#define read_mem_lock_irqsave(p, flags)		do { (void)(flags); } while (0)
+> +
+> +#define read_mem_unlock_irqrestore(p, flags)	do { (void)(flags); } while (0)
+> +
+> +/* Be used to protect task->mempolicy and mems_allowed when user reads them */
+
+However you are appearing to use them for more than just atomically
+loading of the nodemasks.
+
+> @@ -2447,11 +2503,14 @@ void cpuset_unlock(void)
+>  int cpuset_mem_spread_node(void)
 >  {
-> -	atomic_dec(&mem->oom_lock);
-> +	/*
-> +	 * There is a small race window where a new child can be created after
-> +	 * we called mem_cgroup_oom_lock(). Use atomic_add_unless() to avoid
-> +	 * making oom_lock of such a child be negative.
-> +	 */
-> +	atomic_add_unless(&mem->oom_lock, -1, 0);
->  	return 0;
->  }
+>  	int node;
+> +	unsigned long flags;
 >  
+> +	read_mem_lock_irqsave(current, flags);
+>  	node = next_node(current->cpuset_mem_spread_rotor, current->mems_allowed);
+>  	if (node == MAX_NUMNODES)
+>  		node = first_node(current->mems_allowed);
+>  	current->cpuset_mem_spread_rotor = node;
+> +	read_mem_unlock_irqrestore(current, flags);
+>  	return node;
+>  }
+>  EXPORT_SYMBOL_GPL(cpuset_mem_spread_node);
 
+If you are worried about doing this kind of atomic RMW on the mask, then
+you cannot make the lock a noop. So if you're nooping the lock in this
+way then you really need to cuddle it neatly around loading of the mask.
 
-Thank you!. I'll merge this to v4.
+Once you do that, it would be trivial to use a seqlock.
 
--Kame
+...
 
+> @@ -1381,8 +1434,16 @@ static struct mempolicy *get_vma_policy(struct task_struct *task,
+>  		} else if (vma->vm_policy)
+>  			pol = vma->vm_policy;
+>  	}
+> +	if (!pol) {
+> +		read_mem_lock_irqsave(task, irqflags);
+> +		pol = task->mempolicy;
+> +		mpol_get(pol);
+> +		read_mem_unlock_irqrestore(task, irqflags);
+> +	}
+> +
+>  	if (!pol)
+>  		pol = &default_policy;
+> +
+>  	return pol;
+>  }
 
-> -- 
-> 1.6.4
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+And a couple of others. It looks like you're using it here to guarantee
+existence of the mempolicy.... Did you mean read_mempolicy_lock? Or do
+you have another problem (there seems to be several cases of this).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
