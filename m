@@ -1,51 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F0A746B0047
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 01:22:10 -0500 (EST)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp08.in.ibm.com (8.14.3/8.13.1) with ESMTP id o245bumS029352
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 11:07:56 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o246M5UY2810006
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 11:52:05 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o246M5JX007879
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 17:22:05 +1100
-Date: Thu, 4 Mar 2010 11:52:03 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7B3E26B004D
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 01:42:45 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o246ggBs028564
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 4 Mar 2010 15:42:42 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5283445DE53
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 15:42:42 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2845345DE54
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 15:42:42 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0401CE18003
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 15:42:42 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 790011DB803F
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 15:42:38 +0900 (JST)
+Date: Thu, 4 Mar 2010 15:39:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] memcg: update mainteiner list
-Message-ID: <20100304062203.GC3073@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-Id: <20100304153905.50f71cc4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100304062203.GC3073@balbir.in.ibm.com>
 References: <20100304145030.22a35a7e.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100304145030.22a35a7e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100304062203.GC3073@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-04 14:50:30]:
+On Thu, 4 Mar 2010 11:52:03 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> Updates for maintainer list of memcg.
-> I'd like to add Nishimura-san to maintainer of memcg, he works really well.
-> And I'm sorry that I've not seen Pavel on memcg discussion for a year.
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-04 14:50:30]:
 > 
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Nishimura-san have been working for memcg very good.
-> His review and tests give us much improvements and account migraiton
-> which he is now challenging is really important.
+> > Updates for maintainer list of memcg.
+> > I'd like to add Nishimura-san to maintainer of memcg, he works really well.
+> > And I'm sorry that I've not seen Pavel on memcg discussion for a year.
+> > 
+> > ==
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Nishimura-san have been working for memcg very good.
+> > His review and tests give us much improvements and account migraiton
+> > which he is now challenging is really important.
+> > 
+> > He is a stakeholder.
 > 
-> He is a stakeholder.
+> I agree. I'd like to ask Pavel if he would like to stay on. CC'ing
+> him as well.
+> 
+Ah, sorry. I missed CCing.
 
-I agree. I'd like to ask Pavel if he would like to stay on. CC'ing
-him as well.
-
--- 
-	Three Cheers,
-	Balbir
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
