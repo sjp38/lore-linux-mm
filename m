@@ -1,45 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C321C6B0047
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 02:49:32 -0500 (EST)
-Received: by pxi26 with SMTP id 26so817106pxi.1
-        for <linux-mm@kvack.org>; Wed, 03 Mar 2010 23:49:31 -0800 (PST)
-Message-ID: <4B8F65CE.5090501@gmail.com>
-Date: Thu, 04 Mar 2010 15:48:30 +0800
-From: Huang Shijie <shijie8@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1B29D6B0047
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 04:02:10 -0500 (EST)
+Date: Thu, 4 Mar 2010 10:02:07 +0100
+From: Michal Hocko <mstsxfx@gmail.com>
+Subject: Re: unable to handle kernel paging request on resume with
+ 2.6.33-00001-gbaac35c
+Message-ID: <20100304090207.GA4640@tiehlicka.suse.cz>
+References: <20100301175256.GA4034@tiehlicka.suse.cz>
+ <201003022101.21521.rjw@sisk.pl>
+ <20100303102621.GC4241@tiehlicka.suse.cz>
+ <201003032204.51167.rjw@sisk.pl>
 MIME-Version: 1.0
-Subject: Re: [PATCH] swapfile : fix the wrong return value
-References: <1267501102-24190-1-git-send-email-shijie8@gmail.com> <alpine.LSU.2.00.1003040029210.28735@sister.anvils> <4B8F5A82.2030805@gmail.com> <alpine.LSU.2.00.1003040706400.3894@sister.anvils>
-In-Reply-To: <alpine.LSU.2.00.1003040706400.3894@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201003032204.51167.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-kernel@vger.kernel.org, pm list <linux-pm@lists.linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Mar 03, 2010 at 10:04:51PM +0100, Rafael J. Wysocki wrote:
+> On Wednesday 03 March 2010, Michal Hocko wrote:
+> > On Tue, Mar 02, 2010 at 09:01:21PM +0100, Rafael J. Wysocki wrote:
+> > > On Tuesday 02 March 2010, Michal Hocko wrote:
+> ...
+> > > So this is just plain 2.6.33 plus one commit.
+> > > 
+> > > Hmm.  There are only a few changes directly related to hibernation in that
+> > > kernel and none of them can possibly introduce a problem like that.
+> > 
+> > My previous kernel was vmlinux-2.6.33-rc8-00164-gaea187c and it didn't
+> > show the problem.
+> 
+> Well, I have no idea which of the commits between -rc8 and .33 final might
+> introduce such a problem.
+> 
+> What graphics is there in the affected box?
 
-> Yes.  Well, we are debating the likelihoods of corruption in different memory
-> areas here.  I answer "Yes" because the swap entry involved in try_to_unmap_one()
-> comes from page->private when PageSwapCache is set (and the page is locked):
-> it requires either an mm bug, or corruption of struct page, for that swap entry
-> to be invalid for duplication.  Memory corruption of entries in a user page
-> table seems to have been a more common case, whether because of single-bit memory
-> errors, or use-after-free bugs: that's the case which copy_one_pte() might meet.
->    
-:), ok, thanks a lot for your kind explanations.
->
->    
->> For the sake of the stability of the system, I perfer to export all the error
->> value, and check it carefully.
->>      
-> But we were happy with void swap_duplicate() for many years.
-> If I wanted to make a further change, it would rather be to remove those
-> error returns from __swap_duplicate() which are not actually made use of.
->
-> Hugh
->
->    
+00:02.1 Display controller: Intel Corporation Mobile 945GM/GMS/GME,
+943/940GML Express Integrated Graphics Controller (rev 03))
+
+> 
+> Rafael
+
+-- 
+Michal Hocko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
