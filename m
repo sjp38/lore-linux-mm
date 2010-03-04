@@ -1,68 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D3A3E6B0078
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 14:42:33 -0500 (EST)
-Date: Thu, 4 Mar 2010 14:41:44 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH -mmotm 4/4] memcg: dirty pages instrumentation
-Message-ID: <20100304194144.GE18786@redhat.com>
-References: <1267699215-4101-1-git-send-email-arighi@develer.com> <1267699215-4101-5-git-send-email-arighi@develer.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 796146B007E
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 14:50:01 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: unable to handle kernel paging request on resume with 2.6.33-00001-gbaac35c
+Date: Thu, 4 Mar 2010 20:52:39 +0100
+References: <20100301175256.GA4034@tiehlicka.suse.cz> <20100304090207.GA4640@tiehlicka.suse.cz> <201003042014.09444.rjw@sisk.pl>
+In-Reply-To: <201003042014.09444.rjw@sisk.pl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1267699215-4101-5-git-send-email-arighi@develer.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201003042052.39625.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mstsxfx@gmail.com>
+Cc: linux-kernel@vger.kernel.org, pm list <linux-pm@lists.linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 04, 2010 at 11:40:15AM +0100, Andrea Righi wrote:
+On Thursday 04 March 2010, Rafael J. Wysocki wrote:
+> On Thursday 04 March 2010, Michal Hocko wrote:
+> > On Wed, Mar 03, 2010 at 10:04:51PM +0100, Rafael J. Wysocki wrote:
+> > > On Wednesday 03 March 2010, Michal Hocko wrote:
+> > > > On Tue, Mar 02, 2010 at 09:01:21PM +0100, Rafael J. Wysocki wrote:
+> > > > > On Tuesday 02 March 2010, Michal Hocko wrote:
+> > > ...
+> > > > > So this is just plain 2.6.33 plus one commit.
+> > > > > 
+> > > > > Hmm.  There are only a few changes directly related to hibernation in that
+> > > > > kernel and none of them can possibly introduce a problem like that.
+> > > > 
+> > > > My previous kernel was vmlinux-2.6.33-rc8-00164-gaea187c and it didn't
+> > > > show the problem.
+> > > 
+> > > Well, I have no idea which of the commits between -rc8 and .33 final might
+> > > introduce such a problem.
+> > > 
+> > > What graphics is there in the affected box?
+> > 
+> > 00:02.1 Display controller: Intel Corporation Mobile 945GM/GMS/GME,
+> > 943/940GML Express Integrated Graphics Controller (rev 03))
+> 
+> Well, no clue.
+> 
+> The problem appears to be 32-bit specific, though, because I'm unable to
+> reproduce it on any of my 64-bit boxes.
 
-[..]
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 5a0f8f3..c5d14ea 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -137,13 +137,16 @@ static struct prop_descriptor vm_dirties;
->   */
->  static int calc_period_shift(void)
->  {
-> +	struct dirty_param dirty_param;
->  	unsigned long dirty_total;
->  
-> -	if (vm_dirty_bytes)
-> -		dirty_total = vm_dirty_bytes / PAGE_SIZE;
-> +	get_dirty_param(&dirty_param);
-> +
-> +	if (dirty_param.dirty_bytes)
-> +		dirty_total = dirty_param.dirty_bytes / PAGE_SIZE;
->  	else
-> -		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
-> -				100;
-> +		dirty_total = (dirty_param.dirty_ratio *
-> +				determine_dirtyable_memory()) / 100;
->  	return 2 + ilog2(dirty_total - 1);
->  }
->  
+Well, this patch from Shaohua might help:
 
-Hmm.., I have been staring at this for some time and I think something is
-wrong. I don't fully understand the way floating proportions are working
-but this function seems to be calculating the period over which we need
-to measuer the proportions. (vm_completion proportion and vm_dirties
-proportions).
+http://patchwork.kernel.org/patch/83497/
 
-And we this period (shift), when admin updates dirty_ratio or dirty_bytes
-etc. In that case we recalculate the global dirty limit and take log2 and
-use that as period over which we monitor and calculate proportions.
-
-If yes, then it should be global and not per cgroup (because all our 
-accouting of bdi completion is global and not per cgroup).
-
-PeterZ, can tell us more about it. I am just raising the flag here to be
-sure.
-
-Thanks
-Vivek
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
