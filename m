@@ -1,59 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A3F496B004D
-	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 23:06:38 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2446acN016995
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 4 Mar 2010 13:06:36 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F2A545DE4F
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:06:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E7FB45DE4D
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:06:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 091761DB8040
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:06:36 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 86FB91DB8050
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:06:32 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: Fix some coding styles on mm/ tree
-In-Reply-To: <20100304110916.GA3197@localhost.localdomain>
-References: <20100304110916.GA3197@localhost.localdomain>
-Message-Id: <20100304130509.D653.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EFBB6B0047
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 23:07:56 -0500 (EST)
+Date: Thu, 4 Mar 2010 13:04:06 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [BUGFIX][PATCH] memcg: fix oom kill behavior v3
+Message-Id: <20100304130406.95789929.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100303162304.eaf49099.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100302115834.c0045175.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100302135524.afe2f7ab.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100302143738.5cd42026.nishimura@mxp.nes.nec.co.jp>
+	<20100302145644.0f8fbcca.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100302151544.59c23678.nishimura@mxp.nes.nec.co.jp>
+	<20100303092606.2e2152fc.nishimura@mxp.nes.nec.co.jp>
+	<20100303093844.cf768ea4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100303162304.eaf49099.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Thu,  4 Mar 2010 13:06:31 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: wzt.wzt@gmail.com
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, rientjes@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c26986c..fbe2793 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1327,9 +1327,9 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  	 * zone->pages_scanned is used for detect zone's oom
->  	 * mem_cgroup remembers nr_scan by itself.
->  	 */
-> -	if (scanning_global_lru(sc)) {
-> +	if (scanning_global_lru(sc))
->  		zone->pages_scanned += pgscanned;
-> -	}
-> +
->  	reclaim_stat->recent_scanned[file] += nr_taken;
->  
->  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+On Wed, 3 Mar 2010 16:23:04 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed, 3 Mar 2010 09:38:44 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > On Wed, 3 Mar 2010 09:26:06 +0900
+> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > 
+> > > > I'll test this patch all through this night, and check whether it doesn't trigger
+> > > > global oom after memcg's oom.
+> > > > 
+> > > O.K. It works well.
+> > > Feel free to add my signs.
+> > > 
+> > > 	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > > 	Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > > 
+> > 
+> > Thank you !
+> > 
+> > I'll apply Balbir's comment and post v3.
+> > 
+> 
+> rebased onto mmotm-Mar2.
+> tested on x86-64.
+> 
+I found a small race problem. This is the fix for it.
 
-Probably this part is my fault. 
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Thanks! Zhitong.
+We must avoid making oom_lock of a newly created child be negative.
 
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |    7 ++++++-
+ 1 files changed, 6 insertions(+), 1 deletions(-)
 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3ce8c5b..9e25400 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1272,7 +1272,12 @@ static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
+ 
+ static int mem_cgroup_oom_unlock_cb(struct mem_cgroup *mem, void *data)
+ {
+-	atomic_dec(&mem->oom_lock);
++	/*
++	 * There is a small race window where a new child can be created after
++	 * we called mem_cgroup_oom_lock(). Use atomic_add_unless() to avoid
++	 * making oom_lock of such a child be negative.
++	 */
++	atomic_add_unless(&mem->oom_lock, -1, 0);
+ 	return 0;
+ }
+ 
+-- 
+1.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
