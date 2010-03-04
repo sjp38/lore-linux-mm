@@ -1,99 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 553FA6B0092
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 16:37:39 -0500 (EST)
-Date: Thu, 4 Mar 2010 22:37:34 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 775D46B0096
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 16:51:06 -0500 (EST)
+Date: Thu, 4 Mar 2010 22:51:01 +0100
 From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH -mmotm 0/4] memcg: per cgroup dirty limit (v4)
-Message-ID: <20100304213734.GA4787@linux>
+Subject: Re: [PATCH -mmotm 4/4] memcg: dirty pages instrumentation
+Message-ID: <20100304215101.GB4787@linux>
 References: <1267699215-4101-1-git-send-email-arighi@develer.com>
- <20100304171143.GG3073@balbir.in.ibm.com>
+ <1267699215-4101-5-git-send-email-arighi@develer.com>
+ <20100304194144.GE18786@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100304171143.GG3073@balbir.in.ibm.com>
+In-Reply-To: <20100304194144.GE18786@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 04, 2010 at 10:41:43PM +0530, Balbir Singh wrote:
-> * Andrea Righi <arighi@develer.com> [2010-03-04 11:40:11]:
+On Thu, Mar 04, 2010 at 02:41:44PM -0500, Vivek Goyal wrote:
+> On Thu, Mar 04, 2010 at 11:40:15AM +0100, Andrea Righi wrote:
 > 
-> > Control the maximum amount of dirty pages a cgroup can have at any given time.
-> > 
-> > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
-> > page cache used by any cgroup. So, in case of multiple cgroup writers, they
-> > will not be able to consume more than their designated share of dirty pages and
-> > will be forced to perform write-out if they cross that limit.
-> > 
-> > The overall design is the following:
-> > 
-> >  - account dirty pages per cgroup
-> >  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
-> >    and memory.dirty_background_ratio / memory.dirty_background_bytes in
-> >    cgroupfs
-> >  - start to write-out (background or actively) when the cgroup limits are
-> >    exceeded
-> > 
-> > This feature is supposed to be strictly connected to any underlying IO
-> > controller implementation, so we can stop increasing dirty pages in VM layer
-> > and enforce a write-out before any cgroup will consume the global amount of
-> > dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
-> > /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
-> > 
-> > Changelog (v3 -> v4)
-> > ~~~~~~~~~~~~~~~~~~~~~~
-> >  * handle the migration of tasks across different cgroups
-> >    NOTE: at the moment we don't move charges of file cache pages, so this
-> >    functionality is not immediately necessary. However, since the migration of
-> >    file cache pages is in plan, it is better to start handling file pages
-> >    anyway.
-> >  * properly account dirty pages in nilfs2
-> >    (thanks to Kirill A. Shutemov <kirill@shutemov.name>)
-> >  * lockless access to dirty memory parameters
-> >  * fix: page_cgroup lock must not be acquired under mapping->tree_lock
-> >    (thanks to Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> and
-> >     KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>)
-> >  * code restyling
-> >
+> [..]
+> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> > index 5a0f8f3..c5d14ea 100644
+> > --- a/mm/page-writeback.c
+> > +++ b/mm/page-writeback.c
+> > @@ -137,13 +137,16 @@ static struct prop_descriptor vm_dirties;
+> >   */
+> >  static int calc_period_shift(void)
+> >  {
+> > +	struct dirty_param dirty_param;
+> >  	unsigned long dirty_total;
+> >  
+> > -	if (vm_dirty_bytes)
+> > -		dirty_total = vm_dirty_bytes / PAGE_SIZE;
+> > +	get_dirty_param(&dirty_param);
+> > +
+> > +	if (dirty_param.dirty_bytes)
+> > +		dirty_total = dirty_param.dirty_bytes / PAGE_SIZE;
+> >  	else
+> > -		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+> > -				100;
+> > +		dirty_total = (dirty_param.dirty_ratio *
+> > +				determine_dirtyable_memory()) / 100;
+> >  	return 2 + ilog2(dirty_total - 1);
+> >  }
+> >  
 > 
-> This seems to be converging, what sort of tests are you running on
-> this patchset? 
+> Hmm.., I have been staring at this for some time and I think something is
+> wrong. I don't fully understand the way floating proportions are working
+> but this function seems to be calculating the period over which we need
+> to measuer the proportions. (vm_completion proportion and vm_dirties
+> proportions).
+> 
+> And we this period (shift), when admin updates dirty_ratio or dirty_bytes
+> etc. In that case we recalculate the global dirty limit and take log2 and
+> use that as period over which we monitor and calculate proportions.
+> 
+> If yes, then it should be global and not per cgroup (because all our 
+> accouting of bdi completion is global and not per cgroup).
+> 
+> PeterZ, can tell us more about it. I am just raising the flag here to be
+> sure.
+> 
+> Thanks
+> Vivek
 
-A very simple test at the moment, just some parallel dd's running in
-different cgroups. For example:
+Hi Vivek,
 
- - cgroup A: low dirty limits (writes are almost sync)
-   echo 1000 > /cgroups/A/memory.dirty_bytes
-   echo 1000 > /cgroups/A/memory.dirty_background_bytes
+I tend to agree, we must use global dirty values here.
 
- - cgroup B: high dirty limits (writes are all buffered in page cache)
-   echo 100 > /cgroups/B/memory.dirty_ratio
-   echo 50  > /cgroups/B/memory.dirty_background_ratio
+BTW, update_completion_period() is called from dirty_* handlers, so it's
+totally unrelated to use the current memcg. That's the memcg where the
+admin is running, so probably it's the root memcg almost all the time,
+but it's wrong in principle. In conclusion this patch shouldn't touch
+calc_period_shift().
 
-Then run the dd's and look at memory.stat:
-  - cgroup A: # dd if=/dev/zero of=A bs=1M count=1000
-  - cgroup B: # dd if=/dev/zero of=B bs=1M count=1000
-
-A random snapshot during the writes:
-
-# grep "dirty\|writeback" /cgroups/[AB]/memory.stat
-/cgroups/A/memory.stat:filedirty 0
-/cgroups/A/memory.stat:writeback 0
-/cgroups/A/memory.stat:writeback_tmp 0
-/cgroups/A/memory.stat:dirty_pages 0
-/cgroups/A/memory.stat:writeback_pages 0
-/cgroups/A/memory.stat:writeback_temp_pages 0
-/cgroups/B/memory.stat:filedirty 67226
-/cgroups/B/memory.stat:writeback 136
-/cgroups/B/memory.stat:writeback_tmp 0
-/cgroups/B/memory.stat:dirty_pages 67226
-/cgroups/B/memory.stat:writeback_pages 136
-/cgroups/B/memory.stat:writeback_temp_pages 0
-
-I plan to run more detailed IO benchmark soon.
-
+Thanks,
 -Andrea
 
 --
