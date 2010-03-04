@@ -1,54 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A598C6B0047
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 05:40:33 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id F0E366B004D
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 05:40:36 -0500 (EST)
 From: Andrea Righi <arighi@develer.com>
-Subject: [PATCH -mmotm 0/4] memcg: per cgroup dirty limit (v4)
-Date: Thu,  4 Mar 2010 11:40:11 +0100
-Message-Id: <1267699215-4101-1-git-send-email-arighi@develer.com>
+Subject: [PATCH -mmotm 1/4] memcg: dirty memory documentation
+Date: Thu,  4 Mar 2010 11:40:12 +0100
+Message-Id: <1267699215-4101-2-git-send-email-arighi@develer.com>
+In-Reply-To: <1267699215-4101-1-git-send-email-arighi@develer.com>
+References: <1267699215-4101-1-git-send-email-arighi@develer.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Righi <arighi@develer.com>
 List-ID: <linux-mm.kvack.org>
 
-Control the maximum amount of dirty pages a cgroup can have at any given time.
+Document cgroup dirty memory interfaces and statistics.
 
-Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
-page cache used by any cgroup. So, in case of multiple cgroup writers, they
-will not be able to consume more than their designated share of dirty pages and
-will be forced to perform write-out if they cross that limit.
+Signed-off-by: Andrea Righi <arighi@develer.com>
+---
+ Documentation/cgroups/memory.txt |   36 ++++++++++++++++++++++++++++++++++++
+ 1 files changed, 36 insertions(+), 0 deletions(-)
 
-The overall design is the following:
-
- - account dirty pages per cgroup
- - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
-   and memory.dirty_background_ratio / memory.dirty_background_bytes in
-   cgroupfs
- - start to write-out (background or actively) when the cgroup limits are
-   exceeded
-
-This feature is supposed to be strictly connected to any underlying IO
-controller implementation, so we can stop increasing dirty pages in VM layer
-and enforce a write-out before any cgroup will consume the global amount of
-dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
-/proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
-
-Changelog (v3 -> v4)
-~~~~~~~~~~~~~~~~~~~~~~
- * handle the migration of tasks across different cgroups
-   NOTE: at the moment we don't move charges of file cache pages, so this
-   functionality is not immediately necessary. However, since the migration of
-   file cache pages is in plan, it is better to start handling file pages
-   anyway.
- * properly account dirty pages in nilfs2
-   (thanks to Kirill A. Shutemov <kirill@shutemov.name>)
- * lockless access to dirty memory parameters
- * fix: page_cgroup lock must not be acquired under mapping->tree_lock
-   (thanks to Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> and
-    KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>)
- * code restyling
-
--Andrea
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 49f86f3..38ca499 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -310,6 +310,11 @@ cache		- # of bytes of page cache memory.
+ rss		- # of bytes of anonymous and swap cache memory.
+ pgpgin		- # of pages paged in (equivalent to # of charging events).
+ pgpgout		- # of pages paged out (equivalent to # of uncharging events).
++filedirty	- # of pages that are waiting to get written back to the disk.
++writeback	- # of pages that are actively being written back to the disk.
++writeback_tmp	- # of pages used by FUSE for temporary writeback buffers.
++nfs		- # of NFS pages sent to the server, but not yet committed to
++		  the actual storage.
+ active_anon	- # of bytes of anonymous and  swap cache memory on active
+ 		  lru list.
+ inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+@@ -345,6 +350,37 @@ Note:
+   - a cgroup which uses hierarchy and it has child cgroup.
+   - a cgroup which uses hierarchy and not the root of hierarchy.
+ 
++5.4 dirty memory
++
++  Control the maximum amount of dirty pages a cgroup can have at any given time.
++
++  Limiting dirty memory is like fixing the max amount of dirty (hard to
++  reclaim) page cache used by any cgroup. So, in case of multiple cgroup writers,
++  they will not be able to consume more than their designated share of dirty
++  pages and will be forced to perform write-out if they cross that limit.
++
++  The interface is equivalent to the procfs interface: /proc/sys/vm/dirty_*.
++  It is possible to configure a limit to trigger both a direct writeback or a
++  background writeback performed by per-bdi flusher threads.
++
++  Per-cgroup dirty limits can be set using the following files in the cgroupfs:
++
++  - memory.dirty_ratio: contains, as a percentage of cgroup memory, the
++    amount of dirty memory at which a process which is generating disk writes
++    inside the cgroup will start itself writing out dirty data.
++
++  - memory.dirty_bytes: the amount of dirty memory of the cgroup (expressed in
++    bytes) at which a process generating disk writes will start itself writing
++    out dirty data.
++
++  - memory.dirty_background_ratio: contains, as a percentage of the cgroup
++    memory, the amount of dirty memory at which background writeback kernel
++    threads will start writing out dirty data.
++
++  - memory.dirty_background_bytes: the amount of dirty memory of the cgroup (in
++    bytes) at which background writeback kernel threads will start writing out
++    dirty data.
++
+ 
+ 6. Hierarchy support
+ 
+-- 
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
