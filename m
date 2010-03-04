@@ -1,67 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CCEDA6B0047
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 04:31:30 -0500 (EST)
-Message-ID: <4B8F7DE7.1050705@cn.fujitsu.com>
-Date: Thu, 04 Mar 2010 17:31:19 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B7D376B0047
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 04:36:32 -0500 (EST)
+Message-ID: <4B8F7F1A.6020000@cn.fujitsu.com>
+Date: Thu, 04 Mar 2010 17:36:26 +0800
 From: Miao Xie <miaox@cn.fujitsu.com>
 Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] cpuset: fix the problem that cpuset_mem_spread_node()
- returns an offline node(was: Re: [regression] cpuset,mm: update tasks' mems_allowed
- in time (58568d2))
-References: <4B8E3DAB.1090307@cn.fujitsu.com> <20100304032209.GM8653@laptop>
-In-Reply-To: <20100304032209.GM8653@laptop>
+Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy
+ and mems_allowed
+References: <4B8E3F77.6070201@cn.fujitsu.com> <20100304033017.GN8653@laptop>
+In-Reply-To: <20100304033017.GN8653@laptop>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@suse.de>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-on 2010-3-4 11:22, Nick Piggin wrote:
-...
->> +	/* 
->> +	 * After current->mems_allowed is set to a new value, current will
->> +	 * allocate new pages for the migrating memory region. So we must
->> +	 * ensure that update of current->mems_allowed have been completed
->> +	 * by this moment.
->> +	 */
->> +	smp_wmb();
->>  	do_migrate_pages(mm, from, to, MPOL_MF_MOVE_ALL);
->>  
->>  	guarantee_online_mems(task_cs(tsk),&tsk->mems_allowed);
->> +
->> +	/* 
->> +	 * After doing migrate pages, current will allocate new pages for
->> +	 * itself not the other tasks. So we must ensure that update of
->> +	 * current->mems_allowed have been completed by this moment.
->> +	 */
->> +	smp_wmb();
+on 2010-3-4 11:30, Nick Piggin wrote:
+> On Wed, Mar 03, 2010 at 06:52:39PM +0800, Miao Xie wrote:
+>> if MAX_NUMNODES > BITS_PER_LONG, loading/storing task->mems_allowed or mems_allowed in
+>> task->mempolicy are not atomic operations, and the kernel page allocator gets an empty
+>> mems_allowed when updating task->mems_allowed or mems_allowed in task->mempolicy. So we
+>> use a rwlock to protect them to fix this probelm.
 > 
-> The comments don't really make sense. A task always sees its own
-> memory operations in program order. You keep saying *current* allocates
-> pages so *current*->mems_allowed must be updated. This doesn't make
-> sense. Do you mean to say tsk->?
+> Thanks for working on this. However, rwlocks are pretty nasty to use
+> when you have short critical sections and hot read-side (they're twice
+> as heavy as even spinlocks in that case).
 > 
-> Secondly, memory ordering operations do not ensure anything is
-> completed. They only ensure ordering. So to make sense to use them,
-> you generally need corresponding barriers in other code that can
-> run concurrently.
+> It's being used in the page allocator path, so I would say rwlocks are
+> almost a showstopper. Wouldn't it be possible to use a seqlock for this?
 > 
-> So you need to comment what is being ordered (ie. at least 2 memory
-> operations). And what other code might be running that requires this
-> ordering.
-> 
-> You need to comment to all these sites and operations. Sprinkling of
-> memory barriers just gets unmaintainable.
 
-My thought is wrong.
-I thought the kernel might call do_migrate_pages() before updating
-->mems_allowed, so I used smp_wmb() to ensure this order.
-
-In fact, this problem which I worried can't occur, so these smp_wmb()
-is unnecessary.
+I will do my best to try to do it.
 
 Thanks!
 Miao
