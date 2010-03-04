@@ -1,49 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 12D7A6B0092
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 11:34:23 -0500 (EST)
-Date: Fri, 5 Mar 2010 03:34:18 +1100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy
- and mems_allowed
-Message-ID: <20100304163417.GS8653@laptop>
-References: <4B8E3F77.6070201@cn.fujitsu.com>
- <20100304033017.GN8653@laptop>
- <1267714704.25158.199.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1267714704.25158.199.camel@laptop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 17EFF6B0095
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 11:45:46 -0500 (EST)
+Date: Thu, 4 Mar 2010 09:31:47 -0700
+Message-Id: <201003041631.o24GVl51005720@alien.loup.net>
+From: Mike Hayward <hayward@loup.net>
+In-reply-to: <f875e2fe1003040458o3e13de97v3d839482939b687b@mail.gmail.com>
+	(message from foo saa on Thu, 4 Mar 2010 07:58:07 -0500)
+Subject: Re: Linux kernel - Libata bad block error handling to user mode
+	program
+References: <f875e2fe1003032052p944f32ayfe9fe8cfbed056d4@mail.gmail.com>
+	 <20100303224245.ae8d1f7a.akpm@linux-foundation.org> <f875e2fe1003040458o3e13de97v3d839482939b687b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, tglx <tglx@linutronix.de>
+To: foosaa@gmail.com
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 04, 2010 at 03:58:24PM +0100, Peter Zijlstra wrote:
-> On Thu, 2010-03-04 at 14:30 +1100, Nick Piggin wrote:
-> > 
-> > Thanks for working on this. However, rwlocks are pretty nasty to use
-> > when you have short critical sections and hot read-side (they're twice
-> > as heavy as even spinlocks in that case). 
-> 
-> Should we add a checkpatch.pl warning for them? 
+I have seen a couple of your posts on this and thought I'd chime in
+since I know a bit about storage.
 
-Yes I think it could be useful.
+I frequently see io errors come through to user space (both read and
+write requests) from usb flash drives, so there is a functioning error
+path there to some degree.  When I see the errors, the kernel is also
+logging the sector and eventually resetting the device.
 
-Most people agree rwlock is *almost* always the wrong thing to do. Or at
-least, they can easily be used wrongly because they seem like a great
-idea for read-mostly data.
+There is no doubt a disk drive will slow down when it hits a bad spot
+since it will retry numerous times, most likely trying to remap bad
+blocks.  Of course your write succeeded because you probably have the
+drive cache enabled.  Flush or a full cache hangs while the drive
+retries all of the sectors that are bad, remapping them until finally
+it can remap no more.  At some point it probably returns an error if
+flush is timing out or it can't remap any more sectors, but it won't
+include the bad sector.
 
-> 
-> There really rarely is a good case for using rwlock_t, for as you say
-> they're a pain and often more expensive than a spinlock_t, and if
-> possible RCU has the best performance.
+I would suggest turning the drive cache off.  Then the drive won't lie
+to you about completing writes and you'll at least know which sectors
+are bad.  Just a thought :-)
 
-Yep. Not to mention they starve writers (and don't FIFO like spinlocks).
-
-Between normal spinlocks, RCU, percpu, and seqlocks, there's not much
-room for rwlocks. Even tasklist lock should be RCUable if the effort is
-put into it.
+- Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
