@@ -1,69 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E68A86B007B
-	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 18:50:14 -0500 (EST)
-Date: Wed, 3 Mar 2010 15:50:04 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy
- and mems_allowed
-Message-Id: <20100303155004.5f9e793e.akpm@linux-foundation.org>
-In-Reply-To: <4B8E3F77.6070201@cn.fujitsu.com>
-References: <4B8E3F77.6070201@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 39D066B0047
+	for <linux-mm@kvack.org>; Wed,  3 Mar 2010 19:37:55 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id o240bpG3014027
+	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 00:37:51 GMT
+Received: from wwb29 (wwb29.prod.google.com [10.241.241.93])
+	by kpbe17.cbf.corp.google.com with ESMTP id o240bnPk016812
+	for <linux-mm@kvack.org>; Wed, 3 Mar 2010 16:37:49 -0800
+Received: by wwb29 with SMTP id 29so1016030wwb.35
+        for <linux-mm@kvack.org>; Wed, 03 Mar 2010 16:37:48 -0800 (PST)
+Date: Thu, 4 Mar 2010 00:37:36 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] swapfile : fix the wrong return value
+In-Reply-To: <1267501102-24190-1-git-send-email-shijie8@gmail.com>
+Message-ID: <alpine.LSU.2.00.1003040029210.28735@sister.anvils>
+References: <1267501102-24190-1-git-send-email-shijie8@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: miaox@cn.fujitsu.com
-Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Huang Shijie <shijie8@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 03 Mar 2010 18:52:39 +0800
-Miao Xie <miaox@cn.fujitsu.com> wrote:
+On Tue, 2 Mar 2010, Huang Shijie wrote:
 
-> if MAX_NUMNODES > BITS_PER_LONG, loading/storing task->mems_allowed or mems_allowed in
-> task->mempolicy are not atomic operations, and the kernel page allocator gets an empty
-> mems_allowed when updating task->mems_allowed or mems_allowed in task->mempolicy. So we
-> use a rwlock to protect them to fix this probelm.
-
-Boy, that is one big ugly patch.  Is there no other way of doing this?
-
->
-> ...
->
-> --- a/include/linux/mempolicy.h
-> +++ b/include/linux/mempolicy.h
-> @@ -51,6 +51,7 @@ enum {
->   */
->  #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
->  #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
-> +#define MPOL_F_TASK    (1 << 2)	/* identify tasks' policies */
-
-What's this?  It wasn't mentioned in the changelog - I suspect it
-should have been?
-
->
-> ...
->
-> +int cpuset_mems_allowed_intersects(struct task_struct *tsk1,
-> +				   struct task_struct *tsk2)
+> If the __swap_duplicate returns a negative value except of the -ENOMEM,
+> but the err is zero at this time, the return value of swap_duplicate is
+> wrong in this situation.
+> 
+> The caller, such as try_to_unmap_one(), will do the wrong operations too
+> in this situation.
+> 
+> This patch fix it.
+> 
+> Signed-off-by: Huang Shijie <shijie8@gmail.com>
+> ---
+>  mm/swapfile.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 6c0585b..191d8fa 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -2161,7 +2161,7 @@ int swap_duplicate(swp_entry_t entry)
 >  {
-> -	return nodes_intersects(tsk1->mems_allowed, tsk2->mems_allowed);
-> +	unsigned long flags1, flags2;
-> +	int retval;
-> +
-> +	read_mem_lock_irqsave(tsk1, flags1);
-> +	read_mem_lock_irqsave(tsk2, flags2);
-> +	retval = nodes_intersects(tsk1->mems_allowed, tsk2->mems_allowed);
-> +	read_mem_unlock_irqrestore(tsk2, flags2);
-> +	read_mem_unlock_irqrestore(tsk1, flags1);
+>  	int err = 0;
+>  
+> -	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
+> +	while (!err && (err = __swap_duplicate(entry, 1)) == -ENOMEM)
+>  		err = add_swap_count_continuation(entry, GFP_ATOMIC);
+>  	return err;
+>  }
+> -- 
 
-I suspect this is deadlockable in sufficiently arcane circumstances:
-one task takes the locks in a,b order, another task takes them in b,a
-order and a third task gets in at the right time and does a
-write_lock().  Probably that's not possible for some reason, dunno.  The usual
-way of solving this is to always take the locks in
-sorted-by-ascending-virtual-address order.
+I was on the point of Ack'ing your patch, and despairing at my confusion,
+when I realized what's actually going on here - the key is (look at 2.6.32)
+swap_duplicate() used to be a void function (no error code whatsoever),
+until I added the -ENOMEM for swap_count_continuation.  And in fact your
+patch is wrong, copy_one_pte() does not want to add swap_count_continuation
+in the case when it hits a corrupt pte (one which looks like a swap entry).
 
+But you're absolutely right that it cries out for a comment:
+
+
+[PATCH] mm: add comment on swap_duplicate's error code
+
+swap_duplicate()'s loop appears to miss out on returning the error code
+from __swap_duplicate(), except when that's -ENOMEM.  In fact this is
+intentional: prior to -ENOMEM for swap_count_continuation, swap_duplicate()
+was void (and the case only occurs when copy_one_pte() hits a corrupt pte).
+But that's surprising behaviour, which certainly deserves a comment.
+
+Reported-by: Huang Shijie <shijie8@gmail.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/swapfile.c |    6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+--- 2633/mm/swapfile.c	2010-02-24 18:52:17.000000000 +0000
++++ linux/mm/swapfile.c	2010-03-04 00:11:35.000000000 +0000
+@@ -2155,7 +2155,11 @@ void swap_shmem_alloc(swp_entry_t entry)
+ }
+ 
+ /*
+- * increase reference count of swap entry by 1.
++ * Increase reference count of swap entry by 1.
++ * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
++ * but could not be atomically allocated.  Returns 0, just as if it succeeded,
++ * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
++ * might occur if a page table entry has got corrupted.
+  */
+ int swap_duplicate(swp_entry_t entry)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
