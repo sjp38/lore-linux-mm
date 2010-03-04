@@ -1,45 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F2AA6B0078
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 04:50:15 -0500 (EST)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id o249oAgf013531
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 09:50:10 GMT
-Received: from pzk41 (pzk41.prod.google.com [10.243.19.169])
-	by kpbe15.cbf.corp.google.com with ESMTP id o249o85S008230
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 01:50:08 -0800
-Received: by pzk41 with SMTP id 41so1604110pzk.23
-        for <linux-mm@kvack.org>; Thu, 04 Mar 2010 01:50:08 -0800 (PST)
-Date: Thu, 4 Mar 2010 01:50:04 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
- ooms
-In-Reply-To: <20100304160016.dda8101a.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1003040149110.30214@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com> <alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com> <20100301052306.GG19665@balbir.in.ibm.com> <alpine.DEB.2.00.1003010159420.26824@chino.kir.corp.google.com>
- <20100302085532.ff9d3cf4.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021600020.11946@chino.kir.corp.google.com> <20100303092210.a730a903.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021634030.18535@chino.kir.corp.google.com>
- <20100303094438.1e9b09fb.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021651170.20958@chino.kir.corp.google.com> <20100303095812.c3d47ee1.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003031527230.32530@chino.kir.corp.google.com>
- <20100304125934.1d8118b0.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003032249340.25386@chino.kir.corp.google.com> <20100304160016.dda8101a.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id F15D86B0047
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 05:18:48 -0500 (EST)
+Subject: Re: kmemleak issue on ARM target
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <9bde694e1003040113k3b573957h1b831c8d25205d22@mail.gmail.com>
+References: <9bde694e1003040113k3b573957h1b831c8d25205d22@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 04 Mar 2010 10:18:44 +0000
+Message-ID: <1267697924.6526.5.camel@e102109-lin.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: naveen yadav <yad.naveen@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Mar 2010, KAMEZAWA Hiroyuki wrote:
-
-> About the _changes_ for generic part itself, I have no concerns.
+On Thu, 2010-03-04 at 09:13 +0000, naveen yadav wrote:
+> W am facing one issue on ARM target, we have 512 MB ram on our target,
+> we port your patch of
+> kmemleak(http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-04/msg11830.html)
 > 
+> We are facing problem in DEBUG_KMEMLEAK_EARLY_LOG_SIZE we cannot
+> increase its size above 1000 because of our kernel Image size for
+> embedded board
+> has some limit that if it increase we cannot execute it. so is there
+> any implementaion possible using vmalloc and not statically allocating
+> the log of array or else any suggestion.
 
-Is that your acked-by?
+Not really. This buffer needs to be static because it is used before
+kmemleak is fully initialised. It's also tracking bootmem allocations.
 
-> But I'm not sure whether TIF_MEMDIE task has been already killed (quit tasklist)
-> before VM_FAULT_OOM task comes here.
-> 
+But this size should not increase the Image file size as it should go in
+the BSS section.
 
-If it's no longer a member of the tasklist then it has freed its memory 
-and thus returning VM_FAULT_OOM again would mean that we are still oom.
+An additional question - why do you need to increase this size? I found
+400 to be enough usually. Do you get any errors?
+
+Since you backported kmemleak, please make sure that you check the
+latest code in mm/kmemleak.c as there are some bug-fixes.
+
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
