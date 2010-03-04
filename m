@@ -1,22 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FA206B0047
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 01:18:16 -0500 (EST)
-Date: Thu, 4 Mar 2010 15:14:28 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F0A746B0047
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 01:22:10 -0500 (EST)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp08.in.ibm.com (8.14.3/8.13.1) with ESMTP id o245bumS029352
+	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 11:07:56 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o246M5UY2810006
+	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 11:52:05 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o246M5JX007879
+	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 17:22:05 +1100
+Date: Thu, 4 Mar 2010 11:52:03 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH] memcg: update mainteiner list
-Message-Id: <20100304151428.d2c0f019.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100304145030.22a35a7e.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <20100304062203.GC3073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <20100304145030.22a35a7e.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100304145030.22a35a7e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, balbir@linux.vnet.ibm.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Mar 2010 14:50:30 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-04 14:50:30]:
+
 > Updates for maintainer list of memcg.
 > I'd like to add Nishimura-san to maintainer of memcg, he works really well.
 > And I'm sorry that I've not seen Pavel on memcg discussion for a year.
@@ -28,31 +39,13 @@ On Thu, 4 Mar 2010 14:50:30 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu
 > which he is now challenging is really important.
 > 
 > He is a stakeholder.
-> 
-Ack the part of adding my name.
 
-Thanks,
-Daisuke Nishimura.
+I agree. I'd like to ask Pavel if he would like to stay on. CC'ing
+him as well.
 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  MAINTAINERS |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: mmotm-2.6.33-Mar2/MAINTAINERS
-> ===================================================================
-> --- mmotm-2.6.33-Mar2.orig/MAINTAINERS
-> +++ mmotm-2.6.33-Mar2/MAINTAINERS
-> @@ -3675,7 +3675,7 @@ F:	mm/
->  
->  MEMORY RESOURCE CONTROLLER
->  M:	Balbir Singh <balbir@linux.vnet.ibm.com>
-> -M:	Pavel Emelyanov <xemul@openvz.org>
-> +M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
->  M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->  L:	linux-mm@kvack.org
->  S:	Maintained
-> 
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
