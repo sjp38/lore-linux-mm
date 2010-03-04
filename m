@@ -1,63 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B45626B00A7
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 12:00:23 -0500 (EST)
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 04 Mar 2010 12:08:36 -0500
-Message-Id: <20100304170836.10606.40668.sendpatchset@localhost.localdomain>
-In-Reply-To: <20100304170654.10606.32225.sendpatchset@localhost.localdomain>
-References: <20100304170654.10606.32225.sendpatchset@localhost.localdomain>
-Subject: [PATCH/RFC 8/8] numa:  in-kernel profiling -- support memoryless nodes
+	by kanga.kvack.org (Postfix) with ESMTP id 3AFD16B0095
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 12:11:54 -0500 (EST)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp05.au.ibm.com (8.14.3/8.13.1) with ESMTP id o24H8GvW011561
+	for <linux-mm@kvack.org>; Fri, 5 Mar 2010 04:08:16 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o24H6Cwg1531906
+	for <linux-mm@kvack.org>; Fri, 5 Mar 2010 04:06:12 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o24HBlL9003970
+	for <linux-mm@kvack.org>; Fri, 5 Mar 2010 04:11:47 +1100
+Date: Thu, 4 Mar 2010 22:41:43 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mmotm 0/4] memcg: per cgroup dirty limit (v4)
+Message-ID: <20100304171143.GG3073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1267699215-4101-1-git-send-email-arighi@develer.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1267699215-4101-1-git-send-email-arighi@develer.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-numa@vger.kernel.org
-Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, eric.whitney@hp.com
+To: Andrea Righi <arighi@develer.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Against:  2.6.33-mmotm-100302-1838
+* Andrea Righi <arighi@develer.com> [2010-03-04 11:40:11]:
 
-Patch:  in-kernel profiling -- support memoryless nodes.
+> Control the maximum amount of dirty pages a cgroup can have at any given time.
+> 
+> Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
+> page cache used by any cgroup. So, in case of multiple cgroup writers, they
+> will not be able to consume more than their designated share of dirty pages and
+> will be forced to perform write-out if they cross that limit.
+> 
+> The overall design is the following:
+> 
+>  - account dirty pages per cgroup
+>  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
+>    and memory.dirty_background_ratio / memory.dirty_background_bytes in
+>    cgroupfs
+>  - start to write-out (background or actively) when the cgroup limits are
+>    exceeded
+> 
+> This feature is supposed to be strictly connected to any underlying IO
+> controller implementation, so we can stop increasing dirty pages in VM layer
+> and enforce a write-out before any cgroup will consume the global amount of
+> dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
+> /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
+> 
+> Changelog (v3 -> v4)
+> ~~~~~~~~~~~~~~~~~~~~~~
+>  * handle the migration of tasks across different cgroups
+>    NOTE: at the moment we don't move charges of file cache pages, so this
+>    functionality is not immediately necessary. However, since the migration of
+>    file cache pages is in plan, it is better to start handling file pages
+>    anyway.
+>  * properly account dirty pages in nilfs2
+>    (thanks to Kirill A. Shutemov <kirill@shutemov.name>)
+>  * lockless access to dirty memory parameters
+>  * fix: page_cgroup lock must not be acquired under mapping->tree_lock
+>    (thanks to Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> and
+>     KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>)
+>  * code restyling
+>
 
-Another example of using numa_mem_id() to support memoryless
-nodes efficiently.  I stumbled across this when trying to profile
-the kernel in the memoryless nodes configuration.  A quick look
-at other usages of numa_node_id() and cpu_to_node() for explicit
-local allocations indicates that there are several other places
-that could be problematic for systems with memoryless nodes that
-can also be addressed with this simple substitution:
+This seems to be converging, what sort of tests are you running on
+this patchset? 
 
-In-kernel profiling requires that we be able to allocate "local"
-memory for each cpu.  Use "cpu_to_mem()" instead of "cpu_to_node()"
-to support memoryless nodes.
-
-Depends on the "numa_mem_id()" patch.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- kernel/profile.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-Index: linux-2.6.33-mmotm-100302-1838/kernel/profile.c
-===================================================================
---- linux-2.6.33-mmotm-100302-1838.orig/kernel/profile.c
-+++ linux-2.6.33-mmotm-100302-1838/kernel/profile.c
-@@ -363,7 +363,7 @@ static int __cpuinit profile_cpu_callbac
- 	switch (action) {
- 	case CPU_UP_PREPARE:
- 	case CPU_UP_PREPARE_FROZEN:
--		node = cpu_to_node(cpu);
-+		node = cpu_to_mem(cpu);
- 		per_cpu(cpu_profile_flip, cpu) = 0;
- 		if (!per_cpu(cpu_profile_hits, cpu)[1]) {
- 			page = alloc_pages_exact_node(node,
-@@ -565,7 +565,7 @@ static int create_hash_tables(void)
- 	int cpu;
- 
- 	for_each_online_cpu(cpu) {
--		int node = cpu_to_node(cpu);
-+		int node = cpu_to_mem(cpu);
- 		struct page *page;
- 
- 		page = alloc_pages_exact_node(node,
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
