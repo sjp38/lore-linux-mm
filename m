@@ -1,61 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4732D6B007E
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:43:02 -0500 (EST)
-Received: from de01smr02.am.mot.com (de01smr02.freescale.net [10.208.0.151])
-	by az33egw02.freescale.net (8.14.3/az33egw02) with ESMTP id o24Ih09C022544
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 11:43:00 -0700 (MST)
-Received: from zin33exm20.fsl.freescale.net (zin33exm20.ap.freescale.net [10.232.192.5])
-	by de01smr02.am.mot.com (8.13.1/8.13.0) with ESMTP id o24Ip9dN028185
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 12:51:10 -0600 (CST)
+	by kanga.kvack.org (Postfix) with SMTP id 2544A6B004D
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 13:44:57 -0500 (EST)
+Date: Thu, 4 Mar 2010 12:44:13 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH/RFC 2/8] numa:  add generic percpu var implementation of
+ numa_node_id()
+In-Reply-To: <20100304170708.10606.7659.sendpatchset@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1003041243570.21776@router.home>
+References: <20100304170654.10606.32225.sendpatchset@localhost.localdomain> <20100304170708.10606.7659.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
-Content-class: 
-From: "Kalra Ashish-B00888" <B00888@freescale.com>
-Message-ID: <292801cabbca$829e365e$2303d30a@fsl.freescale.net>
-Subject: RE: Linux kernel - Libata bad block error handling to user mode  program
-Date: Fri, 5 Mar 2010 00:11:01 +0530
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset="utf-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mark Lord <kernel@teksavvy.com>, foo saa <foosaa@gmail.com>
-Cc: Greg Freemyer <greg.freemyer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>, linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-numa@vger.kernel.org, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
 
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
-Sent from my HTC
-
------Original Message-----
-From: Mark Lord <kernel@teksavvy.com>
-Sent: 04 March 2010 11:20 PM
-To: foo saa <foosaa@gmail.com>
-Cc: Greg Freemyer <greg.freemyer@gmail.com>; Andrew Morton <akpm@linux-foun=
-dation.org>; linux-kernel@vger.kernel.org <linux-kernel@vger.kernel.org>; l=
-inux-ide@vger.kernel.org <linux-ide@vger.kernel.org>; Jens Axboe <jens.axbo=
-e@oracle.com>; linux-mm@kvack.org <linux-mm@kvack.org>
-Subject: Re: Linux kernel - Libata bad block error handling to user mode  p=
-rogram
-
-On 03/04/10 10:33, foo saa wrote:
-..
-> hdparm is good, but I don't want to use the internal ATA SECURE ERASE
-> because I can never get the amount of bad sectors the drive had.
-..
-
-Oh.. but isn't that information in the S.M.A.R.T. data ??
-
-You'll not find the bad sectors by writing -- a true WRITE nearly never
-reports a media error.  Instead, the drive simply remaps to a good sector
-on the fly and returns success.
-
-Generally, only READs report media errors.
-
-Cheers
---
-To unsubscribe from this list: send the line "unsubscribe linux-ide" in
-the body of a message to majordomo@vger.kernel.org
-More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
