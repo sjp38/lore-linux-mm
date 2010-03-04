@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id F15D86B0047
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 05:18:48 -0500 (EST)
-Subject: Re: kmemleak issue on ARM target
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <9bde694e1003040113k3b573957h1b831c8d25205d22@mail.gmail.com>
-References: <9bde694e1003040113k3b573957h1b831c8d25205d22@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 04 Mar 2010 10:18:44 +0000
-Message-ID: <1267697924.6526.5.camel@e102109-lin.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A598C6B0047
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 05:40:33 -0500 (EST)
+From: Andrea Righi <arighi@develer.com>
+Subject: [PATCH -mmotm 0/4] memcg: per cgroup dirty limit (v4)
+Date: Thu,  4 Mar 2010 11:40:11 +0100
+Message-Id: <1267699215-4101-1-git-send-email-arighi@develer.com>
 Sender: owner-linux-mm@kvack.org
-To: naveen yadav <yad.naveen@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-03-04 at 09:13 +0000, naveen yadav wrote:
-> W am facing one issue on ARM target, we have 512 MB ram on our target,
-> we port your patch of
-> kmemleak(http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-04/msg11830.html)
-> 
-> We are facing problem in DEBUG_KMEMLEAK_EARLY_LOG_SIZE we cannot
-> increase its size above 1000 because of our kernel Image size for
-> embedded board
-> has some limit that if it increase we cannot execute it. so is there
-> any implementaion possible using vmalloc and not statically allocating
-> the log of array or else any suggestion.
+Control the maximum amount of dirty pages a cgroup can have at any given time.
 
-Not really. This buffer needs to be static because it is used before
-kmemleak is fully initialised. It's also tracking bootmem allocations.
+Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
+page cache used by any cgroup. So, in case of multiple cgroup writers, they
+will not be able to consume more than their designated share of dirty pages and
+will be forced to perform write-out if they cross that limit.
 
-But this size should not increase the Image file size as it should go in
-the BSS section.
+The overall design is the following:
 
-An additional question - why do you need to increase this size? I found
-400 to be enough usually. Do you get any errors?
+ - account dirty pages per cgroup
+ - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
+   and memory.dirty_background_ratio / memory.dirty_background_bytes in
+   cgroupfs
+ - start to write-out (background or actively) when the cgroup limits are
+   exceeded
 
-Since you backported kmemleak, please make sure that you check the
-latest code in mm/kmemleak.c as there are some bug-fixes.
+This feature is supposed to be strictly connected to any underlying IO
+controller implementation, so we can stop increasing dirty pages in VM layer
+and enforce a write-out before any cgroup will consume the global amount of
+dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
+/proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
 
+Changelog (v3 -> v4)
+~~~~~~~~~~~~~~~~~~~~~~
+ * handle the migration of tasks across different cgroups
+   NOTE: at the moment we don't move charges of file cache pages, so this
+   functionality is not immediately necessary. However, since the migration of
+   file cache pages is in plan, it is better to start handling file pages
+   anyway.
+ * properly account dirty pages in nilfs2
+   (thanks to Kirill A. Shutemov <kirill@shutemov.name>)
+ * lockless access to dirty memory parameters
+ * fix: page_cgroup lock must not be acquired under mapping->tree_lock
+   (thanks to Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> and
+    KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>)
+ * code restyling
 
--- 
-Catalin
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
