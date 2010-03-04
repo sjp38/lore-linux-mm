@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D2B356B0047
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 02:03:54 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2473of4004929
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 4 Mar 2010 16:03:50 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E8ED545DE56
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 16:03:49 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 829A145DE4F
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 16:03:49 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FC88E38006
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 16:03:49 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CB341E38002
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 16:03:48 +0900 (JST)
-Date: Thu, 4 Mar 2010 16:00:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
- ooms
-Message-Id: <20100304160016.dda8101a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1003032249340.25386@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com>
-	<20100301052306.GG19665@balbir.in.ibm.com>
-	<alpine.DEB.2.00.1003010159420.26824@chino.kir.corp.google.com>
-	<20100302085532.ff9d3cf4.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1003021600020.11946@chino.kir.corp.google.com>
-	<20100303092210.a730a903.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1003021634030.18535@chino.kir.corp.google.com>
-	<20100303094438.1e9b09fb.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1003021651170.20958@chino.kir.corp.google.com>
-	<20100303095812.c3d47ee1.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1003031527230.32530@chino.kir.corp.google.com>
-	<20100304125934.1d8118b0.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1003032249340.25386@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7FFEF6B0047
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 02:15:37 -0500 (EST)
+Received: by pwj9 with SMTP id 9so1322674pwj.14
+        for <linux-mm@kvack.org>; Wed, 03 Mar 2010 23:15:35 -0800 (PST)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] swapfile : export more return values for swap_duplicate()
+Date: Thu,  4 Mar 2010 15:14:30 +0800
+Message-Id: <1267686870-2303-1-git-send-email-shijie8@gmail.com>
+In-Reply-To: <1267501102-24190-1-git-send-email-shijie8@gmail.com>
+References: <1267501102-24190-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: hugh.dickins@tiscali.co.uk, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Mar 2010 22:50:53 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+Exporting more return values for swap_duplicate() is useful for
+try_to_unmap(). It could check the swap entry more carefully which
+is helpful for the system stability.
 
-> On Thu, 4 Mar 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > > And this is fixed by memcg-fix-oom-kill-behavior-v3.patch in -mm, right?
-> > > 
-> > yes.
-> > 
-> 
-> Good.  This patch can easily be rebased on top of the next mmotm release, 
-> then, as I mentioned before.  Do you have time to review the actual oom 
-> killer part of this patch?
-> 
-About the _changes_ for generic part itself, I have no concerns.
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+---
+ mm/memory.c   |    3 ++-
+ mm/swapfile.c |    2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
-But I'm not sure whether TIF_MEMDIE task has been already killed (quit tasklist)
-before VM_FAULT_OOM task comes here.
-
-Thanks,
--Kame
+diff --git a/mm/memory.c b/mm/memory.c
+index 72fb5f3..72d1d1c 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -586,7 +586,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		if (!pte_file(pte)) {
+ 			swp_entry_t entry = pte_to_swp_entry(pte);
+ 
+-			if (swap_duplicate(entry) < 0)
++			/* add_swap_count_continuation() failed ? */
++			if (swap_duplicate(entry) == -ENOMEM)
+ 				return entry.val;
+ 
+ 			/* make sure dst_mm is on swapoff's mmlist. */
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 6c0585b..a2720d0 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2161,7 +2161,7 @@ int swap_duplicate(swp_entry_t entry)
+ {
+ 	int err = 0;
+ 
+-	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
++	while (!err && (err =  __swap_duplicate(entry, 1)) == -ENOMEM)
+ 		err = add_swap_count_continuation(entry, GFP_ATOMIC);
+ 	return err;
+ }
+-- 
+1.6.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
