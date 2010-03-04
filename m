@@ -1,48 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C58196B0083
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 14:50:54 -0500 (EST)
-Received: by vws6 with SMTP id 6so87897vws.14
-        for <linux-mm@kvack.org>; Thu, 04 Mar 2010 11:50:53 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <87f94c371003041141y1bcd30fdkdca7349eea5930b4@mail.gmail.com>
-References: <f875e2fe1003032052p944f32ayfe9fe8cfbed056d4@mail.gmail.com>
-	 <20100303224245.ae8d1f7a.akpm@linux-foundation.org>
-	 <87f94c371003040617t4a4fcd0dt1c9fc0f50e6002c4@mail.gmail.com>
-	 <4B8FC6AC.4060801@teksavvy.com>
-	 <f875e2fe1003040733h20d5523ex5d18b84f47fee8c7@mail.gmail.com>
-	 <4B8FF2C3.1060808@teksavvy.com>
-	 <f875e2fe1003041020t7cbab2c2x585df9b2dfc10dd2@mail.gmail.com>
-	 <87f94c371003041141y1bcd30fdkdca7349eea5930b4@mail.gmail.com>
-Date: Thu, 4 Mar 2010 14:50:53 -0500
-Message-ID: <f875e2fe1003041150k2e29c813w4149c73277c051d@mail.gmail.com>
-Subject: Re: Linux kernel - Libata bad block error handling to user mode
-	program
-From: s ponnusa <foosaa@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AAD46B0087
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 15:43:00 -0500 (EST)
+Subject: Re: [PATCH/RFC 3/8] numa:  x86_64:  use generic percpu var for
+ numa_node_id() implementation
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.2.00.1003041245280.21776@router.home>
+References: <20100304170654.10606.32225.sendpatchset@localhost.localdomain>
+	 <20100304170716.10606.24477.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.2.00.1003041245280.21776@router.home>
+Content-Type: text/plain
+Date: Thu, 04 Mar 2010 15:42:48 -0500
+Message-Id: <1267735368.29020.104.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Freemyer <greg.freemyer@gmail.com>
-Cc: Mark Lord <kernel@teksavvy.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-numa@vger.kernel.org, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Oops! ATA Specifications! It is a block device. HDD.
+On Thu, 2010-03-04 at 12:47 -0600, Christoph Lameter wrote: 
+> On Thu, 4 Mar 2010, Lee Schermerhorn wrote:
+> 
+> > Index: linux-2.6.33-mmotm-100302-1838/arch/x86/include/asm/percpu.h
+> > ===================================================================
+> > --- linux-2.6.33-mmotm-100302-1838.orig/arch/x86/include/asm/percpu.h
+> > +++ linux-2.6.33-mmotm-100302-1838/arch/x86/include/asm/percpu.h
+> > @@ -208,10 +208,12 @@ do {									\
+> >  #define percpu_or(var, val)		percpu_to_op("or", var, val)
+> >  #define percpu_xor(var, val)		percpu_to_op("xor", var, val)
+> >
+> > +#define __this_cpu_read(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+> >  #define __this_cpu_read_1(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+> >  #define __this_cpu_read_2(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+> >  #define __this_cpu_read_4(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+> >
+> > +#define __this_cpu_write(pcp, val)	percpu_to_op("mov", (pcp), val)
+> >  #define __this_cpu_write_1(pcp, val)	percpu_to_op("mov", (pcp), val)
+> >  #define __this_cpu_write_2(pcp, val)	percpu_to_op("mov", (pcp), val)
+> >  #define __this_cpu_write_4(pcp, val)	percpu_to_op("mov", (pcp), val)
+> 
+> 
+> The functions added are already defined in linux/percpu.h and their
+> definition here is wrong since the u64 case is not handled (percpu.h does
+> that correctly).
 
-On Thu, Mar 4, 2010 at 2:41 PM, Greg Freemyer <greg.freemyer@gmail.com> wrote:
-> On Thu, Mar 4, 2010 at 1:20 PM, s ponnusa <foosaa@gmail.com> wrote:
->> SMART data consists only the count of remapped sectors, seek failures,
->> raw read error rate, uncorrectable sector counts, crc errors etc., and
->> technically one should be aware of the error during write operation as
->> well.
->>
->> As per the ATAPI specifications\
->
->
-> ATAPI?
->
-> What sort of device is this?
->
-> Greg
->
+Well, in linux/percpu-defs.h after the first patch in this series, but
+x86 is overriding it with the percpu_to_op() implementation.  You're
+saying that the x86 percpu_to_op() macro doesn't handle 8-byte 'pcp'
+operands?  It appears to handle sizes 1, 2, 4 and 8.
+
+But, I just tried the series with the above two definitions removed and
+the kernel builds and boots.  And runs the hackbench test even faster.
+
+2.6.33-mmotm-100302-1838 on 8x6 AMD x86_64 -- hackbench 400 process 200
+[avg of 10 runs]:
+no add'l patches:		3.332
+my V3 series:			3.148
+V3 + generic __this_cpu_xxx():  3.083  [removed x86 defs of
+__this_cpu_xxx()]
+
+
+So, I'll remove those definitions in V4.
+
+Do we want to retain the x86 definitions of __this_cpu_xxx_[124]() or
+remove those and let the generic definitions handle them? 
+
+Lee
+
+
+
+
+
+  
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
