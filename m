@@ -1,42 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B7D376B0047
-	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 04:36:32 -0500 (EST)
-Message-ID: <4B8F7F1A.6020000@cn.fujitsu.com>
-Date: Thu, 04 Mar 2010 17:36:26 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2AA6B0078
+	for <linux-mm@kvack.org>; Thu,  4 Mar 2010 04:50:15 -0500 (EST)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id o249oAgf013531
+	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 09:50:10 GMT
+Received: from pzk41 (pzk41.prod.google.com [10.243.19.169])
+	by kpbe15.cbf.corp.google.com with ESMTP id o249o85S008230
+	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 01:50:08 -0800
+Received: by pzk41 with SMTP id 41so1604110pzk.23
+        for <linux-mm@kvack.org>; Thu, 04 Mar 2010 01:50:08 -0800 (PST)
+Date: Thu, 4 Mar 2010 01:50:04 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm v2 04/10] oom: remove special handling for pagefault
+ ooms
+In-Reply-To: <20100304160016.dda8101a.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1003040149110.30214@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1002261549290.30830@chino.kir.corp.google.com> <alpine.DEB.2.00.1002261551030.30830@chino.kir.corp.google.com> <20100301052306.GG19665@balbir.in.ibm.com> <alpine.DEB.2.00.1003010159420.26824@chino.kir.corp.google.com>
+ <20100302085532.ff9d3cf4.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021600020.11946@chino.kir.corp.google.com> <20100303092210.a730a903.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021634030.18535@chino.kir.corp.google.com>
+ <20100303094438.1e9b09fb.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003021651170.20958@chino.kir.corp.google.com> <20100303095812.c3d47ee1.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003031527230.32530@chino.kir.corp.google.com>
+ <20100304125934.1d8118b0.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1003032249340.25386@chino.kir.corp.google.com> <20100304160016.dda8101a.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy
- and mems_allowed
-References: <4B8E3F77.6070201@cn.fujitsu.com> <20100304033017.GN8653@laptop>
-In-Reply-To: <20100304033017.GN8653@laptop>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-on 2010-3-4 11:30, Nick Piggin wrote:
-> On Wed, Mar 03, 2010 at 06:52:39PM +0800, Miao Xie wrote:
->> if MAX_NUMNODES > BITS_PER_LONG, loading/storing task->mems_allowed or mems_allowed in
->> task->mempolicy are not atomic operations, and the kernel page allocator gets an empty
->> mems_allowed when updating task->mems_allowed or mems_allowed in task->mempolicy. So we
->> use a rwlock to protect them to fix this probelm.
-> 
-> Thanks for working on this. However, rwlocks are pretty nasty to use
-> when you have short critical sections and hot read-side (they're twice
-> as heavy as even spinlocks in that case).
-> 
-> It's being used in the page allocator path, so I would say rwlocks are
-> almost a showstopper. Wouldn't it be possible to use a seqlock for this?
+On Thu, 4 Mar 2010, KAMEZAWA Hiroyuki wrote:
+
+> About the _changes_ for generic part itself, I have no concerns.
 > 
 
-I will do my best to try to do it.
+Is that your acked-by?
 
-Thanks!
-Miao
+> But I'm not sure whether TIF_MEMDIE task has been already killed (quit tasklist)
+> before VM_FAULT_OOM task comes here.
+> 
+
+If it's no longer a member of the tasklist then it has freed its memory 
+and thus returning VM_FAULT_OOM again would mean that we are still oom.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
