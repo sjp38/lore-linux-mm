@@ -1,40 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 538DA6B0047
-	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 09:11:04 -0500 (EST)
-Message-ID: <4B9110ED.5000703@redhat.com>
-Date: Fri, 05 Mar 2010 09:10:53 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CB3436B004D
+	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 09:11:23 -0500 (EST)
+Date: Fri, 5 Mar 2010 08:11:00 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [patch] slab: add memory hotplug support
+In-Reply-To: <c1fb08351003050447w17175bbdy15e1e9bb78c2e40@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1003050808390.32229@router.home>
+References: <alpine.DEB.2.00.1002240949140.26771@router.home>  <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com>  <alpine.DEB.2.00.1002251228140.18861@router.home>  <20100226114136.GA16335@basil.fritz.box>  <alpine.DEB.2.00.1002260904311.6641@router.home>
+  <20100226155755.GE16335@basil.fritz.box>  <alpine.DEB.2.00.1002261123520.7719@router.home>  <alpine.DEB.2.00.1002261555030.32111@chino.kir.corp.google.com>  <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com>  <20100305062002.GV8653@laptop>
+ <c1fb08351003050447w17175bbdy15e1e9bb78c2e40@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] rmap: Fix Bugzilla Bug #5493
-References: <20100305093834.GG17078@lisa.in-ulm.de>
-In-Reply-To: <20100305093834.GG17078@lisa.in-ulm.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christian Ehrhardt <lk@c--e.de>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Anca Emanuel <anca.emanuel@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "haicheng.li" <haicheng.li@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 03/05/2010 04:38 AM, Christian Ehrhardt wrote:
->
-> Hi,
->
-> this patch fixes bugzilla Bug
->
->          http://bugzilla.kernel.org/show_bug.cgi?id=5493
->
-> This bug describes a search complexity failure in rmap if a single
-> anon_vma has a huge number of vmas associated with it.
->
-> The patch makes the vma prio tree code somewhat more reusable and then uses
-> that to replace the linked list of vmas in an anon_vma with a prio_tree.
+On Fri, 5 Mar 2010, Anca Emanuel wrote:
 
-Your patch will not apply against a current -mm, because it
-conflicts with my anon_vma linking patches (which attacks
-another "rmap walks too many vmas" failure mode).
+> Dumb question: it is possible to hot remove the (bad) memory ? And add
+> an good one ?
 
-Please rediff your patch against the latest -mm tree.
+Under certain conditions this is possible. If the bad memory was modified
+then you have a condition that requires termination of all processes that
+are using the memory. If its the kernel then you need to reboot.
+
+If the memory contains a page from disk then the memory can be moved
+elsewhere.
+
+If you can clean up a whole range like that then its possible to replace
+the memory.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
