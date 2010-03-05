@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E203F6B0078
-	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 05:38:34 -0500 (EST)
-Message-ID: <4B90DF01.7070107@tensilica.com>
-Date: Fri, 5 Mar 2010 02:37:53 -0800
-From: Piet Delaney <pdelaney@tensilica.com>
-MIME-Version: 1.0
-Subject: Conceptual difference  between VM_CAN_NONLINEAR and VM_NONLINEAR
- ; path by which VM_NONLINEAR is suppose to be set.
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2914A6B0047
+	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 07:00:48 -0500 (EST)
+Date: Fri, 5 Mar 2010 12:03:55 +0000
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: Linux kernel - Libata bad block error handling to user mode
+ program
+Message-ID: <20100305120355.6b161572@lxorguk.ukuu.org.uk>
+In-Reply-To: <f875e2fe1003041811p5aa934ecob90836a8d0a6b605@mail.gmail.com>
+References: <f875e2fe1003032052p944f32ayfe9fe8cfbed056d4@mail.gmail.com>
+	<20100303224245.ae8d1f7a.akpm@linux-foundation.org>
+	<87f94c371003040617t4a4fcd0dt1c9fc0f50e6002c4@mail.gmail.com>
+	<4B8FC6AC.4060801@teksavvy.com>
+	<f875e2fe1003040733h20d5523ex5d18b84f47fee8c7@mail.gmail.com>
+	<4B8FF2C3.1060808@teksavvy.com>
+	<f875e2fe1003041020t7cbab2c2x585df9b2dfc10dd2@mail.gmail.com>
+	<4B90655B.4000005@gmail.com>
+	<f875e2fe1003041811p5aa934ecob90836a8d0a6b605@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Piet Delaney <Piet.Delaney@tensilica.com>
-Cc: piet delaney <piet.delaney@gmail.com>
+To: s ponnusa <foosaa@gmail.com>
+Cc: Robert Hancock <hancockrwd@gmail.com>, Mark Lord <kernel@teksavvy.com>, Greg Freemyer <greg.freemyer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I'm getting a PANIC while working with mmap'd files due to the
-VM_NONLINEAR not being set when working with the pte's. I looked quite
-a few places and haven't found a clear explanation of how VM_NONLINEAR
-differs conceptually from VM_CAN_NONLINEAR. It looks like VM_CAN_NONLINEAR
-is suppose to be set earlier and VM_NONLINEAR later when something in
-particular is done. I see it set via the remap_file_pages() system call
-but not by mmap() via shmem_mmap().
+> cannot be read back by any other means. And the program which wrote
+> the data is unaware of the error that has happened at the lower level.
+> But the error log clearly has the issue caught but is trying to handle
+> differently.
 
-Our open_posix_testsuite/conformance/interfaces/mmap/6-2.test panic is
-avoided with by setting VM_NONLINEAR when the file is mapped but I really
-doubt this is appropriate as the test runs fine on i386.
-------------------------------------------------------------------------
-static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
-{
-          file_accessed(file);
-          vma->vm_ops = &shmem_vm_ops;
-#if 1
-	/* Wrong but didn't panic */
-          vma->vm_flags |= (VM_CAN_NONLINEAR|VM_NONLINEAR);
-#else
-	/* Right but panics here via LTP posix mmap/6-2.test */
-          vma->vm_flags |= VM_CAN_NONLINEAR;
-#endif
-          return 0;
-}
--------------------------------------------------------------------------
+This is standard behaviour on pretty much every OS. If each write was
+back verified by the OS you wouldn't get any work done due fact it took
+so long to do any I/O and all I/O was synchronoous.
 
-I was hopping this hack would panic the system and that would help explain
-why this approach is wrong, but unfortunately it worked.
+Where it matters you can mount some file systems synchronous, you can do
+synchronous I/O (O_SYNC) or you can use and check fsync/fdatasync results
+which should give you pretty good coverage providing barriers are enabled.
 
-Could someone take a minute and explain the conceptual difference of
-these two vma flags and the path by which the VM_NONLINEAR flag is
-suppose to be set.
+It still won't catch a lot of cases because you sometimes see
 
--piet
+- sectors being corrupted/dying that were not written by near to it
+- writes that the drive thinks were successful and reports that way but
+  turn out not to be readable
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
