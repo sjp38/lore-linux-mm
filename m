@@ -1,227 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 22AD96B0047
-	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 17:55:09 -0500 (EST)
-Date: Fri, 5 Mar 2010 23:55:01 +0100
-From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH -mmotm 4/4] memcg: dirty pages instrumentation
-Message-ID: <20100305225501.GD1578@linux>
-References: <1267699215-4101-1-git-send-email-arighi@develer.com>
- <1267699215-4101-5-git-send-email-arighi@develer.com>
- <20100305063843.GI3073@balbir.in.ibm.com>
-MIME-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 30ACE6B0047
+	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 18:58:47 -0500 (EST)
+Date: Sat, 6 Mar 2010 00:58:12 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: mmotm boot panic bootmem-avoid-dma32-zone-by-default.patch
+Message-ID: <20100305235812.GA15249@cmpxchg.org>
+References: <49b004811003041321g2567bac8yb73235be32a27e7c@mail.gmail.com> <20100305032106.GA12065@cmpxchg.org> <49b004811003042117n720f356h7e10997a1a783475@mail.gmail.com> <4B915074.4020704@kernel.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100305063843.GI3073@balbir.in.ibm.com>
+In-Reply-To: <4B915074.4020704@kernel.org>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 05, 2010 at 12:08:43PM +0530, Balbir Singh wrote:
-> * Andrea Righi <arighi@develer.com> [2010-03-04 11:40:15]:
-> 
-> > Apply the cgroup dirty pages accounting and limiting infrastructure
-> > to the opportune kernel functions.
-> > 
-> > Signed-off-by: Andrea Righi <arighi@develer.com>
-> > ---
-> >  fs/fuse/file.c      |    5 +++
-> >  fs/nfs/write.c      |    4 ++
-> >  fs/nilfs2/segment.c |   11 +++++-
-> >  mm/filemap.c        |    1 +
-> >  mm/page-writeback.c |   91 ++++++++++++++++++++++++++++++++++-----------------
-> >  mm/rmap.c           |    4 +-
-> >  mm/truncate.c       |    2 +
-> >  7 files changed, 84 insertions(+), 34 deletions(-)
-> > 
-> > diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-> > index a9f5e13..dbbdd53 100644
-> > --- a/fs/fuse/file.c
-> > +++ b/fs/fuse/file.c
-> > @@ -11,6 +11,7 @@
-> >  #include <linux/pagemap.h>
-> >  #include <linux/slab.h>
-> >  #include <linux/kernel.h>
-> > +#include <linux/memcontrol.h>
-> >  #include <linux/sched.h>
-> >  #include <linux/module.h>
-> > 
-> > @@ -1129,6 +1130,8 @@ static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
-> > 
-> >  	list_del(&req->writepages_entry);
-> >  	dec_bdi_stat(bdi, BDI_WRITEBACK);
-> > +	mem_cgroup_update_stat(req->pages[0],
-> > +			MEM_CGROUP_STAT_WRITEBACK_TEMP, -1);
-> >  	dec_zone_page_state(req->pages[0], NR_WRITEBACK_TEMP);
-> >  	bdi_writeout_inc(bdi);
-> >  	wake_up(&fi->page_waitq);
-> > @@ -1240,6 +1243,8 @@ static int fuse_writepage_locked(struct page *page)
-> >  	req->inode = inode;
-> > 
-> >  	inc_bdi_stat(mapping->backing_dev_info, BDI_WRITEBACK);
-> > +	mem_cgroup_update_stat(tmp_page,
-> > +			MEM_CGROUP_STAT_WRITEBACK_TEMP, 1);
-> >  	inc_zone_page_state(tmp_page, NR_WRITEBACK_TEMP);
-> >  	end_page_writeback(page);
-> > 
-> > diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-> > index b753242..7316f7a 100644
-> > --- a/fs/nfs/write.c
-> > +++ b/fs/nfs/write.c
-> > @@ -439,6 +439,7 @@ nfs_mark_request_commit(struct nfs_page *req)
-> >  			req->wb_index,
-> >  			NFS_PAGE_TAG_COMMIT);
-> >  	spin_unlock(&inode->i_lock);
-> > +	mem_cgroup_update_stat(req->wb_page, MEM_CGROUP_STAT_UNSTABLE_NFS, 1);
-> >  	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-> >  	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_UNSTABLE);
-> >  	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-> > @@ -450,6 +451,7 @@ nfs_clear_request_commit(struct nfs_page *req)
-> >  	struct page *page = req->wb_page;
-> > 
-> >  	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
-> > +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_UNSTABLE_NFS, -1);
-> >  		dec_zone_page_state(page, NR_UNSTABLE_NFS);
-> >  		dec_bdi_stat(page->mapping->backing_dev_info, BDI_UNSTABLE);
-> >  		return 1;
-> > @@ -1273,6 +1275,8 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
-> >  		req = nfs_list_entry(head->next);
-> >  		nfs_list_remove_request(req);
-> >  		nfs_mark_request_commit(req);
-> > +		mem_cgroup_update_stat(req->wb_page,
-> > +				MEM_CGROUP_STAT_UNSTABLE_NFS, -1);
-> >  		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-> >  		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-> >  				BDI_UNSTABLE);
-> > diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-> > index ada2f1b..27a01b1 100644
-> > --- a/fs/nilfs2/segment.c
-> > +++ b/fs/nilfs2/segment.c
-> > @@ -24,6 +24,7 @@
-> >  #include <linux/pagemap.h>
-> >  #include <linux/buffer_head.h>
-> >  #include <linux/writeback.h>
-> > +#include <linux/memcontrol.h>
-> >  #include <linux/bio.h>
-> >  #include <linux/completion.h>
-> >  #include <linux/blkdev.h>
-> > @@ -1660,8 +1661,11 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
-> >  	} while (bh = bh->b_this_page, bh2 = bh2->b_this_page, bh != head);
-> >  	kunmap_atomic(kaddr, KM_USER0);
-> > 
-> > -	if (!TestSetPageWriteback(clone_page))
-> > +	if (!TestSetPageWriteback(clone_page)) {
-> > +		mem_cgroup_update_stat(clone_page,
-> > +				MEM_CGROUP_STAT_WRITEBACK, 1);
-> 
-> I wonder if we should start implementing inc and dec to avoid passing
-> the +1 and -1 parameters. It should make the code easier to read.
+Hello Yinghai,
 
-OK, it's always +1/-1, and I don't see any case where we should use
-different numbers. So, better to move to the inc/dec naming.
-
-> 
-> >  		inc_zone_page_state(clone_page, NR_WRITEBACK);
-> > +	}
-> >  	unlock_page(clone_page);
+On Fri, Mar 05, 2010 at 10:41:56AM -0800, Yinghai Lu wrote:
+> On 03/04/2010 09:17 PM, Greg Thelen wrote:
+> > On Thu, Mar 4, 2010 at 7:21 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> >> On Thu, Mar 04, 2010 at 01:21:41PM -0800, Greg Thelen wrote:
+> >>> On several systems I am seeing a boot panic if I use mmotm
+> >>> (stamp-2010-03-02-18-38).  If I remove
+> >>> bootmem-avoid-dma32-zone-by-default.patch then no panic is seen.  I
+> >>> find that:
+> >>> * 2.6.33 boots fine.
+> >>> * 2.6.33 + mmotm w/o bootmem-avoid-dma32-zone-by-default.patch: boots fine.
+> >>> * 2.6.33 + mmotm (including
+> >>> bootmem-avoid-dma32-zone-by-default.patch): panics.
+> ...
 > > 
-> >  	return 0;
-> > @@ -1783,8 +1787,11 @@ static void __nilfs_end_page_io(struct page *page, int err)
-> >  	}
-> > 
-> >  	if (buffer_nilfs_allocated(page_buffers(page))) {
-> > -		if (TestClearPageWriteback(page))
-> > +		if (TestClearPageWriteback(page)) {
-> > +			mem_cgroup_update_stat(page,
-> > +					MEM_CGROUP_STAT_WRITEBACK, -1);
-> >  			dec_zone_page_state(page, NR_WRITEBACK);
-> > +		}
-> >  	} else
-> >  		end_page_writeback(page);
-> >  }
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index fe09e51..f85acae 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -135,6 +135,7 @@ void __remove_from_page_cache(struct page *page)
-> >  	 * having removed the page entirely.
-> >  	 */
-> >  	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
-> > +		mem_cgroup_update_stat(page, MEM_CGROUP_STAT_FILE_DIRTY, -1);
-> >  		dec_zone_page_state(page, NR_FILE_DIRTY);
-> >  		dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTY);
-> >  	}
-> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> > index 5a0f8f3..c5d14ea 100644
-> > --- a/mm/page-writeback.c
-> > +++ b/mm/page-writeback.c
-> > @@ -137,13 +137,16 @@ static struct prop_descriptor vm_dirties;
-> >   */
-> >  static int calc_period_shift(void)
-> >  {
-> > +	struct dirty_param dirty_param;
+> > Note: mmotm has been recently updated to stamp-2010-03-04-18-05.  I
+> > re-tested with 'make defconfig' to confirm the panic with this later
+> > mmotm.
 > 
-> vm_dirty_param?
-
-Agreed.
-
+> please check
 > 
-> >  	unsigned long dirty_total;
-> > 
-> > -	if (vm_dirty_bytes)
-> > -		dirty_total = vm_dirty_bytes / PAGE_SIZE;
-> > +	get_dirty_param(&dirty_param);
+> [PATCH] early_res: double check with updated goal in alloc_memory_core_early
 > 
-> get_vm_dirty_param() is a nicer name.
-
-Agreed.
-
+> Johannes Weiner pointed out that new early_res replacement for alloc_bootmem_node
+> change the behavoir about goal.
+> original bootmem one will try go further regardless of goal.
 > 
-> > +
-> > +	if (dirty_param.dirty_bytes)
-> > +		dirty_total = dirty_param.dirty_bytes / PAGE_SIZE;
-> >  	else
-> > -		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
-> > -				100;
-> > +		dirty_total = (dirty_param.dirty_ratio *
-> > +				determine_dirtyable_memory()) / 100;
-> >  	return 2 + ilog2(dirty_total - 1);
-> >  }
-> > 
-> > @@ -408,41 +411,46 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
-> >   */
-> >  unsigned long determine_dirtyable_memory(void)
-> >  {
-> > -	unsigned long x;
-> > -
-> > -	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
-> > +	unsigned long memory;
-> > +	s64 memcg_memory;
-> > 
-> > +	memory = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
-> >  	if (!vm_highmem_is_dirtyable)
-> > -		x -= highmem_dirtyable_memory(x);
-> > -
-> > -	return x + 1;	/* Ensure that we never return 0 */
-> > +		memory -= highmem_dirtyable_memory(memory);
-> > +	if (mem_cgroup_has_dirty_limit())
-> > +		return memory + 1;
+> and it will break his patch about default goal from MAX_DMA to MAX_DMA32...
+> also broke uncommon machines with <=16M of memory.
+> (really? our x86 kernel still can run on 16M system?)
 > 
-> Vivek already pointed out this issue I suppose. Should be *not*
+> so try again with update goal.
 
-Right. Will be fixed in the next version of the patch.
+Thanks for the patch, it seems to be correct.
 
+However, I have a more generic question about it, regarding the future of the
+early_res allocator.
+
+Did you plan on keeping the bootmem API for longer?  Because my impression was,
+emulating it is a temporary measure until all users are gone and bootmem can
+be finally dropped.
+
+But then this would require some sort of handling of 'user does not need DMA[32]
+memory, so avoid it' and 'user can only use DMA[32] memory' in the early_res
+allocator as well.
+
+I ask this specifically because you move this fix into the bootmem compatibility
+code while there is not yet a way to tell early_res the same thing, so switching
+a user that _needs_ to specify this requirement from bootmem to early_res is not
+yet possible, is it?
+
+> Reported-by: Greg Thelen <gthelen@google.com>
+> Signed-off-by: Yinghai Lu <yinghai@kernel.org>
 > 
-> > +	memcg_memory = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
+> ---
+>  mm/bootmem.c |   28 +++++++++++++++++++++++++---
+>  1 file changed, 25 insertions(+), 3 deletions(-)
 > 
-> Can memcg_memory be 0?
+> Index: linux-2.6/mm/bootmem.c
+> ===================================================================
+> --- linux-2.6.orig/mm/bootmem.c
+> +++ linux-2.6/mm/bootmem.c
+> @@ -170,6 +170,28 @@ void __init free_bootmem_late(unsigned l
+>  }
+>  
+>  #ifdef CONFIG_NO_BOOTMEM
+> +static void * __init ___alloc_memory_core_early(pg_data_t *pgdat, u64 size,
+> +						 u64 align, u64 goal, u64 limit)
+> +{
+> +	void *ptr;
+> +	unsigned long end_pfn;
+> +
+> +	ptr = __alloc_memory_core_early(pgdat->node_id, size, align,
+> +					 goal, limit);
+> +	if (ptr)
+> +		return ptr;
+> +
+> +	/* check goal according  */
+> +	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
+> +	if ((end_pfn << PAGE_SHIFT) < (goal + size)) {
+> +		goal = pgdat->node_start_pfn << PAGE_SHIFT;
+> +		ptr = __alloc_memory_core_early(pgdat->node_id, size, align,
+> +						 goal, limit);
+> +	}
+> +
+> +	return ptr;
 
-No LRU file pages, no swappable pages, and RES_USAGE == RES_LIMIT? this
-would trigger an OOM before memcg_memory == 0 can happen, I think.
+I think it would make sense to move the parameter check before doing the
+allocation.  Then you save the second call.
+
+And a second nitpick: naming the inner function __foo and the outer one ___foo seems
+confusing to me.  Could you maybe rename the wrapper? bootmem_compat_alloc_early() or
+something like that?
 
 Thanks,
--Andrea
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
