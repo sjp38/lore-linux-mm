@@ -1,168 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B1AE6B0047
-	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 14:10:08 -0500 (EST)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o25JA3i7007977
-	for <linux-mm@kvack.org>; Fri, 5 Mar 2010 19:10:03 GMT
-Received: from pxi27 (pxi27.prod.google.com [10.243.27.27])
-	by wpaz21.hot.corp.google.com with ESMTP id o25JA1oT028920
-	for <linux-mm@kvack.org>; Fri, 5 Mar 2010 11:10:02 -0800
-Received: by pxi27 with SMTP id 27so157131pxi.31
-        for <linux-mm@kvack.org>; Fri, 05 Mar 2010 11:10:01 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id C7E8C6B0047
+	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 15:28:11 -0500 (EST)
+Message-ID: <4B916922.3010807@kernel.org>
+Date: Fri, 05 Mar 2010 12:27:14 -0800
+From: Yinghai Lu <yinghai@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <4B915074.4020704@kernel.org>
-References: <49b004811003041321g2567bac8yb73235be32a27e7c@mail.gmail.com>
-	<20100305032106.GA12065@cmpxchg.org> <49b004811003042117n720f356h7e10997a1a783475@mail.gmail.com>
-	<4B915074.4020704@kernel.org>
-From: Greg Thelen <gthelen@google.com>
-Date: Fri, 5 Mar 2010 11:09:41 -0800
-Message-ID: <49b004811003051109t3215f86dy280a6317bdab9b15@mail.gmail.com>
 Subject: Re: mmotm boot panic bootmem-avoid-dma32-zone-by-default.patch
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+References: <49b004811003041321g2567bac8yb73235be32a27e7c@mail.gmail.com> <20100305032106.GA12065@cmpxchg.org> <4B90C921.6060908@kernel.org> <4B90DC3C.1060000@gmail.com>
+In-Reply-To: <4B90DC3C.1060000@gmail.com>
+Content-Type: multipart/mixed;
+ boundary="------------010205080801090505000906"
 Sender: owner-linux-mm@kvack.org
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 5, 2010 at 10:41 AM, Yinghai Lu <yinghai@kernel.org> wrote:
-> On 03/04/2010 09:17 PM, Greg Thelen wrote:
->> On Thu, Mar 4, 2010 at 7:21 PM, Johannes Weiner <hannes@cmpxchg.org> wro=
-te:
->>> On Thu, Mar 04, 2010 at 01:21:41PM -0800, Greg Thelen wrote:
->>>> On several systems I am seeing a boot panic if I use mmotm
->>>> (stamp-2010-03-02-18-38). =A0If I remove
->>>> bootmem-avoid-dma32-zone-by-default.patch then no panic is seen. =A0I
->>>> find that:
->>>> * 2.6.33 boots fine.
->>>> * 2.6.33 + mmotm w/o bootmem-avoid-dma32-zone-by-default.patch: boots =
-fine.
->>>> * 2.6.33 + mmotm (including
->>>> bootmem-avoid-dma32-zone-by-default.patch): panics.
-> ...
+This is a multi-part message in MIME format.
+--------------010205080801090505000906
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+
+On 03/05/2010 02:26 AM, Jiri Slaby wrote:
+> On 03/05/2010 10:04 AM, Yinghai Lu wrote:
+>> according to context
+>> http://patchwork.kernel.org/patch/73893/
 >>
->> Note: mmotm has been recently updated to stamp-2010-03-04-18-05. =A0I
->> re-tested with 'make defconfig' to confirm the panic with this later
->> mmotm.
->
-> please check
->
-> [PATCH] early_res: double check with updated goal in alloc_memory_core_ea=
-rly
->
-> Johannes Weiner pointed out that new early_res replacement for alloc_boot=
-mem_node
-> change the behavoir about goal.
-> original bootmem one will try go further regardless of goal.
->
-> and it will break his patch about default goal from MAX_DMA to MAX_DMA32.=
-..
-> also broke uncommon machines with <=3D16M of memory.
-> (really? our x86 kernel still can run on 16M system?)
->
-> so try again with update goal.
->
-> Reported-by: Greg Thelen <gthelen@google.com>
-> Signed-off-by: Yinghai Lu <yinghai@kernel.org>
->
-> ---
-> =A0mm/bootmem.c | =A0 28 +++++++++++++++++++++++++---
-> =A01 file changed, 25 insertions(+), 3 deletions(-)
->
-> Index: linux-2.6/mm/bootmem.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/mm/bootmem.c
-> +++ linux-2.6/mm/bootmem.c
-> @@ -170,6 +170,28 @@ void __init free_bootmem_late(unsigned l
-> =A0}
->
-> =A0#ifdef CONFIG_NO_BOOTMEM
-> +static void * __init ___alloc_memory_core_early(pg_data_t *pgdat, u64 si=
-ze,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0u64 align, u64 goal, u64 limit)
-> +{
-> + =A0 =A0 =A0 void *ptr;
-> + =A0 =A0 =A0 unsigned long end_pfn;
-> +
-> + =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->node_id, size, ali=
-gn,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0goal, limit);
-> + =A0 =A0 =A0 if (ptr)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
-> +
-> + =A0 =A0 =A0 /* check goal according =A0*/
-> + =A0 =A0 =A0 end_pfn =3D pgdat->node_start_pfn + pgdat->node_spanned_pag=
-es;
-> + =A0 =A0 =A0 if ((end_pfn << PAGE_SHIFT) < (goal + size)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal =3D pgdat->node_start_pfn << PAGE_SHIF=
-T;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->no=
-de_id, size, align,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0goal, limit);
-> + =A0 =A0 =A0 }
-> +
-> + =A0 =A0 =A0 return ptr;
-> +}
-> +
-> =A0static void __init __free_pages_memory(unsigned long start, unsigned l=
-ong end)
-> =A0{
-> =A0 =A0 =A0 =A0int i;
-> @@ -836,7 +858,7 @@ void * __init __alloc_bootmem_node(pg_da
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return kzalloc_node(size, GFP_NOWAIT, pgda=
-t->node_id);
->
-> =A0#ifdef CONFIG_NO_BOOTMEM
-> - =A0 =A0 =A0 return __alloc_memory_core_early(pgdat->node_id, size, alig=
-n,
-> + =A0 =A0 =A0 return =A0___alloc_memory_core_early(pgdat, size, align,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 goal, -1ULL);
-> =A0#else
-> =A0 =A0 =A0 =A0return ___alloc_bootmem_node(pgdat->bdata, size, align, go=
-al, 0);
-> @@ -920,7 +942,7 @@ void * __init __alloc_bootmem_node_nopan
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return kzalloc_node(size, GFP_NOWAIT, pgda=
-t->node_id);
->
-> =A0#ifdef CONFIG_NO_BOOTMEM
-> - =A0 =A0 =A0 ptr =3D =A0__alloc_memory_core_early(pgdat->node_id, size, =
-align,
-> + =A0 =A0 =A0 ptr =3D =A0___alloc_memory_core_early(pgdat, size, align,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 goal, -1ULL);
-> =A0#else
-> =A0 =A0 =A0 =A0ptr =3D alloc_arch_preferred_bootmem(pgdat->bdata, size, a=
-lign, goal, 0);
-> @@ -980,7 +1002,7 @@ void * __init __alloc_bootmem_low_node(p
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return kzalloc_node(size, GFP_NOWAIT, pgda=
-t->node_id);
->
-> =A0#ifdef CONFIG_NO_BOOTMEM
-> - =A0 =A0 =A0 return __alloc_memory_core_early(pgdat->node_id, size, alig=
-n,
-> + =A0 =A0 =A0 return ___alloc_memory_core_early(pgdat, size, align,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goal, ARCH=
-_LOW_ADDRESS_LIMIT);
-> =A0#else
-> =A0 =A0 =A0 =A0return ___alloc_bootmem_node(pgdat->bdata, size, align,
->
+>> Jiri, 
+>> please check current linus tree still have problem about mem_map is using that much low mem?
+> 
+> Hi!
+> 
+> Sorry, I don't have direct access to the machine. I might try to ask the
+> owners to do so.
+> 
+>> on my 1024g system first node has 128G ram, [2g, 4g) are mmio range.
+> 
+> So where gets your mem_map allocated (I suppose you're running flat model)?
+> 
+> Note that the failure we were seeing was with different amount of memory
+> on different machines. Obviously because of different e820 reservations
+> and driver requirements at boot time. So the required memory to trigger
+> the error oscillated around 128G, sometimes being 130G.
+> 
+> It triggered when mem_map fit exactly into 0-2G (and 2-4G was reserved)
+> and no more space was there. If RAM was more than 130G, mem_map was
+> above 4G boundary implicitly, so that there was enough space in the
+> first 4G of memory for others with specific bootmem limitations.
+> 
+>> with NO_BOOTMEM
+>> [    0.000000]  a - 11
+>> [    0.000000]  19 40 - 80 95
+>> [    0.000000]  702 740 - 1000 1000
+>> [    0.000000]  331f 3340 - 3400 3400
+>> [    0.000000]  35dd - 3600
+>> [    0.000000]  37dd - 3800
+>> [    0.000000]  39dd - 3a00
+>> [    0.000000]  3bdd - 3c00
+>> [    0.000000]  3ddd - 3e00
+>> [    0.000000]  3fdd - 4000
+>> [    0.000000]  41dd - 4200
+>> [    0.000000]  43dd - 4400
+>> [    0.000000]  45dd - 4600
+>> [    0.000000]  47dd - 4800
+>> [    0.000000]  49dd - 4a00
+>> [    0.000000]  4bdd - 4c00
+>> [    0.000000]  4ddd - 4e00
+>> [    0.000000]  4fdd - 5000
+>> [    0.000000]  51dd - 5200
+>> [    0.000000]  93dd 9400 - 7d500 7d53b
+>> [    0.000000]  7f730 - 7f750
+>> [    0.000000]  100012 100040 - 100200 100200
+>> [    0.000000]  170200 170200 - 2080000 2080000
+>> [    0.000000]  2080065 2080080 - 2080200 2080200
+>>
+>> so PFN: 9400 - 7d500 are free.
+> 
+> Could you explain more the dmesg output?
 
-On my 256MB VM, which detected the problem starting this thread, the
-"double check with updated goal in alloc_memory_core_early" patch
-(above) boots without panic.
+it will list free pfn range that will be use for slab...
 
-My initial impression is that this fixes the reported problem.  Note:
-I have not tested to see if any other issues are introduced.
+attached is debug patch for print out without CONFIG_NO_BOOTMEM set.
 
---
-Greg
+YH
+
+--------------010205080801090505000906
+Content-Type: text/x-patch;
+ name="print_free_bootmem.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="print_free_bootmem.patch"
+
+Subject: [PATCH -v3] x86: print bootmem free before and free_all_bootmem
+
+so we could double check if we have enough low pages later
+
+-v2: fix errors checkpatch.pl reported
+-v3: move after pci_iommu_alloc, so could compare it with NO_BOOTMEM
+
+Signed-off-by: Yinghai Lu <yinghai@kernel.org>
+
+---
+ arch/x86/mm/init_64.c   |    2 +
+ include/linux/bootmem.h |    3 +
+ mm/bootmem.c            |   91 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 96 insertions(+)
+
+Index: linux-2.6/mm/bootmem.c
+===================================================================
+--- linux-2.6.orig/mm/bootmem.c
++++ linux-2.6/mm/bootmem.c
+@@ -335,6 +335,97 @@ static void __init __free(bootmem_data_t
+ 			BUG();
+ }
+ 
++static void __init print_all_bootmem_free_core(bootmem_data_t *bdata)
++{
++	int aligned;
++	unsigned long *map;
++	unsigned long start, end, count = 0;
++	unsigned long free_start = -1UL, free_end = 0;
++
++	if (!bdata->node_bootmem_map)
++		return;
++
++	start = bdata->node_min_pfn;
++	end = bdata->node_low_pfn;
++
++	/*
++	 * If the start is aligned to the machines wordsize, we might
++	 * be able to count it in bulks of that order.
++	 */
++	aligned = !(start & (BITS_PER_LONG - 1));
++
++	printk(KERN_DEBUG "nid=%td start=0x%010lx end=0x%010lx aligned=%d\n",
++		bdata - bootmem_node_data, start, end, aligned);
++	map = bdata->node_bootmem_map;
++
++	while (start < end) {
++		unsigned long idx, vec;
++
++		idx = start - bdata->node_min_pfn;
++		vec = ~map[idx / BITS_PER_LONG];
++
++		if (aligned && vec == ~0UL && start + BITS_PER_LONG < end) {
++			if (free_start == -1UL) {
++				free_start = idx;
++				free_end = free_start + BITS_PER_LONG;
++			} else {
++				if (free_end == idx) {
++					free_end += BITS_PER_LONG;
++				} else {
++					/* there is gap, print old */
++					printk(KERN_DEBUG "  free [0x%010lx - 0x%010lx]\n",
++							free_start + bdata->node_min_pfn,
++							free_end + bdata->node_min_pfn);
++					free_start = idx;
++					free_end = idx + BITS_PER_LONG;
++				}
++			}
++			count += BITS_PER_LONG;
++		} else {
++			unsigned long off = 0;
++
++			while (vec && off < BITS_PER_LONG) {
++				if (vec & 1) {
++					if (free_start == -1UL) {
++						free_start = idx + off;
++						free_end = free_start + 1;
++					} else {
++						if (free_end == (idx + off)) {
++							free_end++;
++						} else {
++							/* there is gap, print old */
++							printk(KERN_DEBUG "  free [0x%010lx - 0x%010lx]\n",
++								free_start + bdata->node_min_pfn,
++								free_end + bdata->node_min_pfn);
++							free_start = idx + off;
++							free_end = free_start + 1;
++						}
++					}
++					count++;
++				}
++				vec >>= 1;
++				off++;
++			}
++		}
++		start += BITS_PER_LONG;
++	}
++
++	/* last one */
++	if (free_start != -1UL)
++		printk(KERN_DEBUG "  free [0x%010lx - 0x%010lx]\n",
++			free_start + bdata->node_min_pfn,
++			free_end + bdata->node_min_pfn);
++	printk(KERN_DEBUG "  total free 0x%010lx\n", count);
++}
++
++void __init print_bootmem_free(void)
++{
++	bootmem_data_t *bdata;
++
++	list_for_each_entry(bdata, &bdata_list, list)
++		print_all_bootmem_free_core(bdata);
++}
++
+ static int __init __reserve(bootmem_data_t *bdata, unsigned long sidx,
+ 			unsigned long eidx, int flags)
+ {
+Index: linux-2.6/arch/x86/mm/init_64.c
+===================================================================
+--- linux-2.6.orig/arch/x86/mm/init_64.c
++++ linux-2.6/arch/x86/mm/init_64.c
+@@ -679,6 +679,8 @@ void __init mem_init(void)
+ 
+ 	pci_iommu_alloc();
+ 
++	print_bootmem_free();
++
+ 	/* clear_bss() already clear the empty_zero_page */
+ 
+ 	reservedpages = 0;
+Index: linux-2.6/include/linux/bootmem.h
+===================================================================
+--- linux-2.6.orig/include/linux/bootmem.h
++++ linux-2.6/include/linux/bootmem.h
+@@ -38,6 +38,9 @@ typedef struct bootmem_data {
+ } bootmem_data_t;
+ 
+ extern bootmem_data_t bootmem_node_data[];
++void print_bootmem_free(void);
++#else
++static inline void print_bootmem_free(void) {}
+ #endif
+ 
+ extern unsigned long bootmem_bootmap_pages(unsigned long);
+
+--------------010205080801090505000906--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
