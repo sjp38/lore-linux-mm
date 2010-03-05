@@ -1,42 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3995E6B004D
-	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 00:34:39 -0500 (EST)
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id o255Yb7E023810
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 21:34:37 -0800
-Received: from pzk41 (pzk41.prod.google.com [10.243.19.169])
-	by spaceape11.eur.corp.google.com with ESMTP id o255YF5j000914
-	for <linux-mm@kvack.org>; Thu, 4 Mar 2010 21:34:36 -0800
-Received: by pzk41 with SMTP id 41so2237315pzk.23
-        for <linux-mm@kvack.org>; Thu, 04 Mar 2010 21:34:34 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CE2866B004D
+	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 01:01:09 -0500 (EST)
+Received: by gwb11 with SMTP id 11so1522869gwb.14
+        for <linux-mm@kvack.org>; Thu, 04 Mar 2010 22:01:08 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <49b004811003042117n720f356h7e10997a1a783475@mail.gmail.com>
-References: <49b004811003041321g2567bac8yb73235be32a27e7c@mail.gmail.com>
-	<20100305032106.GA12065@cmpxchg.org> <49b004811003042117n720f356h7e10997a1a783475@mail.gmail.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Thu, 4 Mar 2010 21:34:14 -0800
-Message-ID: <49b004811003042134s4bbd0425n1517a1cb0e9879d9@mail.gmail.com>
-Subject: Re: mmotm boot panic bootmem-avoid-dma32-zone-by-default.patch
+In-Reply-To: <201003050042.o250gsUC007947@alien.loup.net>
+References: <f875e2fe1003032052p944f32ayfe9fe8cfbed056d4@mail.gmail.com>
+	 <20100303224245.ae8d1f7a.akpm@linux-foundation.org>
+	 <f875e2fe1003040458o3e13de97v3d839482939b687b@mail.gmail.com>
+	 <201003041631.o24GVl51005720@alien.loup.net>
+	 <f875e2fe1003041012m680ffc87i50099ed011526440@mail.gmail.com>
+	 <201003050042.o250gsUC007947@alien.loup.net>
+Date: Fri, 5 Mar 2010 01:01:07 -0500
+Message-ID: <87f94c371003042201n72ce8578vc01331678b52da75@mail.gmail.com>
+Subject: Re: Linux kernel - Libata bad block error handling to user mode
+	program
+From: Greg Freemyer <greg.freemyer@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Yinghai Lu <yinghai@kernel.org>, linux-mm@kvack.org
+To: Mike Hayward <hayward@loup.net>
+Cc: foosaa@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, jens.axboe@oracle.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 4, 2010 at 9:17 PM, Greg Thelen <gthelen@google.com> wrote:
-> On Thu, Mar 4, 2010 at 7:21 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->> 256MB of memory, right?
+> Please let me know if you can prove data corruption. =A0I'm writing a
+> sophisticated storage app and would like to know if kernel has such a
+> defect. =A0My bet is it's just a drive that is slowly remapping.
 >
-> yes, I am testing in a 256MB VM.
+> - Mike
 
-I also performed a 6GB test and found that the system booted fine with
-defconfig:
-CONFIG_NO_BOOTMEM=y
-CONFIG_SPARSEMEM_EXTREME=y
+For clarity, most ATA class disk drives are spec'ed to have one
+non-recoverable error per 150TB or so of writes.  Disk drives do blind
+writes.  (ie. They are not verified).  So we should all expect to have
+the occasional silent data corruption on write.  The problem is
+compounded with bad cables, controllers, RAM, etc.
 
---
+The only way for the linux kernel even attempt to fix that is for it
+to do a read verify on everything it writes.  For the vast majority of
+uses that is just not acceptable for performance reasons.
+
+OTOH, if data integrity is of the utmost for you, then you should
+maintain a md5hash or similar for your critical files and verify them
+any time you make a copy.  btrfs may offer a auto read-verify.  I
+don't know much about btrfs.
+
 Greg
+
+
+--=20
+Greg Freemyer
+Head of EDD Tape Extraction and Processing team
+Litigation Triage Solutions Specialist
+http://www.linkedin.com/in/gregfreemyer
+Preservation and Forensic processing of Exchange Repositories White Paper -
+<http://www.norcrossgroup.com/forms/whitepapers/tng_whitepaper_fpe.html>
+
+The Norcross Group
+The Intersection of Evidence & Technology
+http://www.norcrossgroup.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
