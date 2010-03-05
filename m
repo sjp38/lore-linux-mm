@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2914A6B0047
-	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 07:00:48 -0500 (EST)
-Date: Fri, 5 Mar 2010 12:03:55 +0000
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: Linux kernel - Libata bad block error handling to user mode
- program
-Message-ID: <20100305120355.6b161572@lxorguk.ukuu.org.uk>
-In-Reply-To: <f875e2fe1003041811p5aa934ecob90836a8d0a6b605@mail.gmail.com>
-References: <f875e2fe1003032052p944f32ayfe9fe8cfbed056d4@mail.gmail.com>
-	<20100303224245.ae8d1f7a.akpm@linux-foundation.org>
-	<87f94c371003040617t4a4fcd0dt1c9fc0f50e6002c4@mail.gmail.com>
-	<4B8FC6AC.4060801@teksavvy.com>
-	<f875e2fe1003040733h20d5523ex5d18b84f47fee8c7@mail.gmail.com>
-	<4B8FF2C3.1060808@teksavvy.com>
-	<f875e2fe1003041020t7cbab2c2x585df9b2dfc10dd2@mail.gmail.com>
-	<4B90655B.4000005@gmail.com>
-	<f875e2fe1003041811p5aa934ecob90836a8d0a6b605@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 273926B0047
+	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 07:03:32 -0500 (EST)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id o25C3TNP008202
+	for <linux-mm@kvack.org>; Fri, 5 Mar 2010 04:03:29 -0800
+Received: from fxm5 (fxm5.prod.google.com [10.184.13.5])
+	by wpaz37.hot.corp.google.com with ESMTP id o25C3RZj023461
+	for <linux-mm@kvack.org>; Fri, 5 Mar 2010 04:03:28 -0800
+Received: by fxm5 with SMTP id 5so4009156fxm.29
+        for <linux-mm@kvack.org>; Fri, 05 Mar 2010 04:03:26 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <4B8E3F77.6070201@cn.fujitsu.com>
+References: <4B8E3F77.6070201@cn.fujitsu.com>
+Date: Fri, 5 Mar 2010 04:03:26 -0800
+Message-ID: <6599ad831003050403v2e988723k1b6bf38d48707ab1@mail.gmail.com>
+Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy and
+	mems_allowed
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: s ponnusa <foosaa@gmail.com>
-Cc: Robert Hancock <hancockrwd@gmail.com>, Mark Lord <kernel@teksavvy.com>, Greg Freemyer <greg.freemyer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>, linux-mm@kvack.org
+To: miaox@cn.fujitsu.com
+Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> cannot be read back by any other means. And the program which wrote
-> the data is unaware of the error that has happened at the lower level.
-> But the error log clearly has the issue caught but is trying to handle
-> differently.
+On Wed, Mar 3, 2010 at 2:52 AM, Miao Xie <miaox@cn.fujitsu.com> wrote:
+> if MAX_NUMNODES > BITS_PER_LONG, loading/storing task->mems_allowed or mems_allowed in
+> task->mempolicy are not atomic operations, and the kernel page allocator gets an empty
+> mems_allowed when updating task->mems_allowed or mems_allowed in task->mempolicy. So we
+> use a rwlock to protect them to fix this probelm.
 
-This is standard behaviour on pretty much every OS. If each write was
-back verified by the OS you wouldn't get any work done due fact it took
-so long to do any I/O and all I/O was synchronoous.
+Rather than adding locks, if the intention is just to avoid the
+allocator seeing an empty nodemask couldn't we instead do the
+equivalent of:
 
-Where it matters you can mount some file systems synchronous, you can do
-synchronous I/O (O_SYNC) or you can use and check fsync/fdatasync results
-which should give you pretty good coverage providing barriers are enabled.
+current->mems_allowed |= new_mask;
+current->mems_allowed = new_mask;
 
-It still won't catch a lot of cases because you sometimes see
+i.e. effectively set all new bits in the nodemask first, and then
+clear all old bits that are no longer in the new mask. The only
+downside of this is that a page allocation that races with the update
+could potentially allocate from any node in the union of the old and
+new nodemasks - but that's the case anyway for an allocation that
+races with an update, so I don't see that it's any worse.
 
-- sectors being corrupted/dying that were not written by near to it
-- writes that the drive thinks were successful and reports that way but
-  turn out not to be readable
-
-Alan
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
