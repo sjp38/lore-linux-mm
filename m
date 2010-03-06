@@ -1,136 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 08AF56B0078
-	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 20:51:56 -0500 (EST)
-Message-ID: <4B91B4EF.5090502@kernel.org>
-Date: Fri, 05 Mar 2010 17:50:39 -0800
-From: Yinghai Lu <yinghai@kernel.org>
-MIME-Version: 1.0
-Subject: Re: mmotm boot panic bootmem-avoid-dma32-zone-by-default.patch
-References: <49b004811003041321g2567bac8yb73235be32a27e7c@mail.gmail.com> <20100305032106.GA12065@cmpxchg.org> <49b004811003042117n720f356h7e10997a1a783475@mail.gmail.com> <4B915074.4020704@kernel.org> <20100305235812.GA15249@cmpxchg.org>
-In-Reply-To: <20100305235812.GA15249@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1EB6B0047
+	for <linux-mm@kvack.org>; Fri,  5 Mar 2010 21:01:02 -0500 (EST)
+Date: Sat, 6 Mar 2010 03:00:48 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] rmap: Fix Bugzilla Bug #5493
+Message-ID: <20100306020048.GA16967@cmpxchg.org>
+References: <20100305093834.GG17078@lisa.in-ulm.de> <4B9110ED.5000703@redhat.com> <20100306010212.GH17078@lisa.in-ulm.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100306010212.GH17078@lisa.in-ulm.de>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christian Ehrhardt <uni@c--e.de>
+Cc: Rik van Riel <riel@redhat.com>, Christian Ehrhardt <lk@c--e.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/05/2010 03:58 PM, Johannes Weiner wrote:
-> Hello Yinghai,
-> 
-> On Fri, Mar 05, 2010 at 10:41:56AM -0800, Yinghai Lu wrote:
->> On 03/04/2010 09:17 PM, Greg Thelen wrote:
->>> On Thu, Mar 4, 2010 at 7:21 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->>>> On Thu, Mar 04, 2010 at 01:21:41PM -0800, Greg Thelen wrote:
->>>>> On several systems I am seeing a boot panic if I use mmotm
->>>>> (stamp-2010-03-02-18-38).  If I remove
->>>>> bootmem-avoid-dma32-zone-by-default.patch then no panic is seen.  I
->>>>> find that:
->>>>> * 2.6.33 boots fine.
->>>>> * 2.6.33 + mmotm w/o bootmem-avoid-dma32-zone-by-default.patch: boots fine.
->>>>> * 2.6.33 + mmotm (including
->>>>> bootmem-avoid-dma32-zone-by-default.patch): panics.
->> ...
->>>
->>> Note: mmotm has been recently updated to stamp-2010-03-04-18-05.  I
->>> re-tested with 'make defconfig' to confirm the panic with this later
->>> mmotm.
->>
->> please check
->>
->> [PATCH] early_res: double check with updated goal in alloc_memory_core_early
->>
->> Johannes Weiner pointed out that new early_res replacement for alloc_bootmem_node
->> change the behavoir about goal.
->> original bootmem one will try go further regardless of goal.
->>
->> and it will break his patch about default goal from MAX_DMA to MAX_DMA32...
->> also broke uncommon machines with <=16M of memory.
->> (really? our x86 kernel still can run on 16M system?)
->>
->> so try again with update goal.
-> 
-> Thanks for the patch, it seems to be correct.
-> 
-> However, I have a more generic question about it, regarding the future of the
-> early_res allocator.
-> 
-> Did you plan on keeping the bootmem API for longer?  Because my impression was,
-> emulating it is a temporary measure until all users are gone and bootmem can
-> be finally dropped.
+Hi Christian,
 
-that depends on every arch maintainer.
+On Sat, Mar 06, 2010 at 02:02:12AM +0100, Christian Ehrhardt wrote:
+> diff --git a/arch/arm/mm/fault-armv.c b/arch/arm/mm/fault-armv.c
+> index c9b97e9..4b8d01f 100644
+> --- a/arch/arm/mm/fault-armv.c
+> +++ b/arch/arm/mm/fault-armv.c
+> @@ -117,7 +117,8 @@ make_coherent(struct address_space *mapping, struct vm_area_struct *vma,
+>  	 * cache coherency.
+>  	 */
+>  	flush_dcache_mmap_lock(mapping);
+> -	vma_prio_tree_foreach(mpnt, &iter, &mapping->i_mmap, pgoff, pgoff) {
+> +	vma_prio_tree_foreach(mpnt, struct vm_area_struct, shared, &iter,
+> +				&mapping->i_mmap, pgoff, pgoff) {
 
-user can compare them on x86 to check if...
+How about vma_file_tree_foreach() vs. vma_anon_tree_foreach()?  I found that
+to be more descriptive (and it fits the users into a single line again ;).
 
-next step will be make fw_mem_map to generiaized and combine them with lmb.
+>  #define INIT_PRIO_TREE_ROOT(ptr)	__INIT_PRIO_TREE_ROOT(ptr, 0)
+> -#define INIT_RAW_PRIO_TREE_ROOT(ptr)	__INIT_PRIO_TREE_ROOT(ptr, 1)
+> +#define INIT_SHARED_PRIO_TREE_ROOT(ptr)	__INIT_PRIO_TREE_ROOT(ptr, 1)
+> +#define INIT_ANON_PRIO_TREE_ROOT(ptr)	__INIT_PRIO_TREE_ROOT(ptr, 2)
 
-> 
-> But then this would require some sort of handling of 'user does not need DMA[32]
-> memory, so avoid it' and 'user can only use DMA[32] memory' in the early_res
-> allocator as well.
-> 
-> I ask this specifically because you move this fix into the bootmem compatibility
-> code while there is not yet a way to tell early_res the same thing, so switching
-> a user that _needs_ to specify this requirement from bootmem to early_res is not
-> yet possible, is it?
+SHARED vs. PRIVATE?
 
-just let caller set the goal.
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -207,7 +207,7 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
+>  	if (unlikely(vma->vm_flags & VM_NONLINEAR))
+>  		list_del_init(&vma->shared.vm_set.list);
+>  	else
+> -		vma_prio_tree_remove(vma, &mapping->i_mmap);
+> +		vma_prio_tree_remove(&vma->shared, &mapping->i_mmap);
+>  	flush_dcache_mmap_unlock(mapping);
+>  }
+>  
+> @@ -430,7 +430,7 @@ static void __vma_link_file(struct vm_area_struct *vma)
+>  		if (unlikely(vma->vm_flags & VM_NONLINEAR))
+>  			vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
+>  		else
+> -			vma_prio_tree_insert(vma, &mapping->i_mmap);
+> +			vma_prio_tree_insert(&vma->shared, &mapping->i_mmap);
+>  		flush_dcache_mmap_unlock(mapping);
+>  	}
+>  }
+> @@ -593,9 +593,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+>  
+>  	if (root) {
+>  		flush_dcache_mmap_lock(mapping);
+> -		vma_prio_tree_remove(vma, root);
+> +		vma_prio_tree_remove(&vma->shared, root);
+>  		if (adjust_next)
+> -			vma_prio_tree_remove(next, root);
+> +			vma_prio_tree_remove(&next->shared, root);
+>  	}
+>  
+>  	vma->vm_start = start;
+> @@ -608,8 +608,8 @@ again:			remove_next = 1 + (end > next->vm_end);
+>  
+>  	if (root) {
+>  		if (adjust_next)
+> -			vma_prio_tree_insert(next, root);
+> -		vma_prio_tree_insert(vma, root);
+> +			vma_prio_tree_insert(&next->shared, root);
+> +		vma_prio_tree_insert(&vma->shared, root);
+>  		flush_dcache_mmap_unlock(mapping);
+>  	}
 
-> 
->> Reported-by: Greg Thelen <gthelen@google.com>
->> Signed-off-by: Yinghai Lu <yinghai@kernel.org>
->>
->> ---
->>  mm/bootmem.c |   28 +++++++++++++++++++++++++---
->>  1 file changed, 25 insertions(+), 3 deletions(-)
->>
->> Index: linux-2.6/mm/bootmem.c
->> ===================================================================
->> --- linux-2.6.orig/mm/bootmem.c
->> +++ linux-2.6/mm/bootmem.c
->> @@ -170,6 +170,28 @@ void __init free_bootmem_late(unsigned l
->>  }
->>  
->>  #ifdef CONFIG_NO_BOOTMEM
->> +static void * __init ___alloc_memory_core_early(pg_data_t *pgdat, u64 size,
->> +						 u64 align, u64 goal, u64 limit)
->> +{
->> +	void *ptr;
->> +	unsigned long end_pfn;
->> +
->> +	ptr = __alloc_memory_core_early(pgdat->node_id, size, align,
->> +					 goal, limit);
->> +	if (ptr)
->> +		return ptr;
->> +
->> +	/* check goal according  */
->> +	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
->> +	if ((end_pfn << PAGE_SHIFT) < (goal + size)) {
->> +		goal = pgdat->node_start_pfn << PAGE_SHIFT;
->> +		ptr = __alloc_memory_core_early(pgdat->node_id, size, align,
->> +						 goal, limit);
->> +	}
->> +
->> +	return ptr;
-> 
-> I think it would make sense to move the parameter check before doing the
-> allocation.  Then you save the second call.
-
-I am trying to avoid the second call.
-please check another patch about "introduce bootmem_default_goal : don't punish 64bit system without 4g ram"
-
-> 
-> And a second nitpick: naming the inner function __foo and the outer one ___foo seems
-> confusing to me.  Could you maybe rename the wrapper? bootmem_compat_alloc_early() or
-> something like that?
-
-ok.
-
-Thanks
-
-Yinghai
+What's with expand_stack()?  This changes the radix index or the heap
+index, depending on the direction in which the stack grows, but it
+does not adjust the tree and so its order is violated.  Did you make
+sure that this is fine?
+  
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
