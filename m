@@ -1,70 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6E6AF6B0047
-	for <linux-mm@kvack.org>; Sat,  6 Mar 2010 20:48:38 -0500 (EST)
-Date: Sun, 7 Mar 2010 12:48:26 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: please don't apply : bootmem: avoid DMA32 zone by default
-Message-Id: <20100307124826.6c70a779.sfr@canb.auug.org.au>
-In-Reply-To: <20100307010327.GD15725@brick.ozlabs.ibm.com>
-References: <49b004811003041321g2567bac8yb73235be32a27e7c@mail.gmail.com>
-	<20100305032106.GA12065@cmpxchg.org>
-	<49b004811003042117n720f356h7e10997a1a783475@mail.gmail.com>
-	<4B915074.4020704@kernel.org>
-	<4B916BD6.8010701@kernel.org>
-	<4B91EBC6.6080509@kernel.org>
-	<20100306162234.e2cc84fb.akpm@linux-foundation.org>
-	<20100307010327.GD15725@brick.ozlabs.ibm.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA1";
- boundary="Signature=_Sun__7_Mar_2010_12_48_26_+1100_OZJqAAANxhscbimK"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 751E16B0047
+	for <linux-mm@kvack.org>; Sat,  6 Mar 2010 21:33:26 -0500 (EST)
+Message-ID: <4B931068.70900@cn.fujitsu.com>
+Date: Sun, 07 Mar 2010 10:33:12 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
+MIME-Version: 1.0
+Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy
+ and 	mems_allowed
+References: <4B8E3F77.6070201@cn.fujitsu.com> <6599ad831003050403v2e988723k1b6bf38d48707ab1@mail.gmail.com>
+In-Reply-To: <6599ad831003050403v2e988723k1b6bf38d48707ab1@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Paul Mackerras <paulus@samba.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>, Greg Thelen <gthelen@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org
+To: Paul Menage <menage@google.com>
+Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---Signature=_Sun__7_Mar_2010_12_48_26_+1100_OZJqAAANxhscbimK
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+on 2010-3-5 20:03, Paul Menage wrote:
+> On Wed, Mar 3, 2010 at 2:52 AM, Miao Xie <miaox@cn.fujitsu.com> wrote:
+>> if MAX_NUMNODES > BITS_PER_LONG, loading/storing task->mems_allowed or mems_allowed in
+>> task->mempolicy are not atomic operations, and the kernel page allocator gets an empty
+>> mems_allowed when updating task->mems_allowed or mems_allowed in task->mempolicy. So we
+>> use a rwlock to protect them to fix this probelm.
+> 
+> Rather than adding locks, if the intention is just to avoid the
+> allocator seeing an empty nodemask couldn't we instead do the
+> equivalent of:
+> 
+> current->mems_allowed |= new_mask;
+> current->mems_allowed = new_mask;
+> 
+> i.e. effectively set all new bits in the nodemask first, and then
+> clear all old bits that are no longer in the new mask. The only
+> downside of this is that a page allocation that races with the update
+> could potentially allocate from any node in the union of the old and
+> new nodemasks - but that's the case anyway for an allocation that
+> races with an update, so I don't see that it's any worse.
 
-Hi Paul,
+Before applying this patch, cpuset updates task->mems_allowed just like
+what you said. But the allocator is still likely to see an empty nodemask.
+This problem have been pointed out by Nick Piggin.
 
-On Sun, 7 Mar 2010 12:03:27 +1100 Paul Mackerras <paulus@samba.org> wrote:
->
-> On Sat, Mar 06, 2010 at 04:22:34PM -0800, Andrew Morton wrote:
-> > Earlier, Johannes wrote
-> >=20
-> > : Humm, now that is a bit disappointing.  Because it means we will never
-> > : get rid of bootmem as long as it works for the other architectures.=20
-> > : And your changeset just added ~900 lines of code, some of it being a
-> > : rather ugly compatibility layer in bootmem that I hoped could go away
-> > : again sooner than later.
->=20
-> Whoa!  Who's proposing to get rid of bootmem, and why?
+The problem is following:
+The size of nodemask_t is greater than the size of long integer, so loading
+and storing of nodemask_t are not atomic operations. If task->mems_allowed
+don't intersect with new_mask, such as the first word of the mask is empty
+and only the first word of new_mask is not empty. When the allocator
+loads a word of the mask before
 
-I assume that is the point of the "early_res" work already in Linus' tree
-starting from commit 27811d8cabe56e0c3622251b049086f49face4ff ("x86: Move
-range related operation to one file").
+	current->mems_allowed |= new_mask;
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
+and then loads another word of the mask after
 
---Signature=_Sun__7_Mar_2010_12_48_26_+1100_OZJqAAANxhscbimK
-Content-Type: application/pgp-signature
+	current->mems_allowed = new_mask;
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
+the allocator gets an empty nodemask.
 
-iEYEARECAAYFAkuTBeoACgkQjjKRsyhoI8xhpACcDObt+kcXskN18effWjz/qp07
-NnkAoJp9fYyg3fxv9ru6/yJg5649Y6UK
-=2PoU
------END PGP SIGNATURE-----
+I make a new patch to fix this problem now.
+Considering the change of task->mems_allowed is not frequent, so in the new
+patch, I use variables as a tag to indicate whether task->mems_allowed need
+be update or not. And before setting the tag, cpuset caches the new mask of
+every task at somewhere. 
 
---Signature=_Sun__7_Mar_2010_12_48_26_+1100_OZJqAAANxhscbimK--
+When the allocator want to access task->mems_allowed, it must check updated-tag
+first. If the tag is set, the allocator enters the slow path and updates
+task->mems_allowed.
+
+Thanks!
+Miao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
