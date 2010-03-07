@@ -1,75 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 751E16B0047
-	for <linux-mm@kvack.org>; Sat,  6 Mar 2010 21:33:26 -0500 (EST)
-Message-ID: <4B931068.70900@cn.fujitsu.com>
-Date: Sun, 07 Mar 2010 10:33:12 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A5266B0047
+	for <linux-mm@kvack.org>; Sun,  7 Mar 2010 04:17:46 -0500 (EST)
+Date: Sun, 7 Mar 2010 09:16:21 +0000
+From: Russell King <rmk+lkml@arm.linux.org.uk>
+Subject: Re: please don't apply : bootmem: avoid DMA32 zone by default
+Message-ID: <20100307091621.GA5761@flint.arm.linux.org.uk>
+References: <49b004811003041321g2567bac8yb73235be32a27e7c@mail.gmail.com> <20100305032106.GA12065@cmpxchg.org> <49b004811003042117n720f356h7e10997a1a783475@mail.gmail.com> <4B915074.4020704@kernel.org> <4B916BD6.8010701@kernel.org> <4B91EBC6.6080509@kernel.org> <20100306162234.e2cc84fb.akpm@linux-foundation.org> <20100307010327.GD15725@brick.ozlabs.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy
- and 	mems_allowed
-References: <4B8E3F77.6070201@cn.fujitsu.com> <6599ad831003050403v2e988723k1b6bf38d48707ab1@mail.gmail.com>
-In-Reply-To: <6599ad831003050403v2e988723k1b6bf38d48707ab1@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100307010327.GD15725@brick.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Paul Menage <menage@google.com>
-Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Paul Mackerras <paulus@samba.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>, Greg Thelen <gthelen@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-on 2010-3-5 20:03, Paul Menage wrote:
-> On Wed, Mar 3, 2010 at 2:52 AM, Miao Xie <miaox@cn.fujitsu.com> wrote:
->> if MAX_NUMNODES > BITS_PER_LONG, loading/storing task->mems_allowed or mems_allowed in
->> task->mempolicy are not atomic operations, and the kernel page allocator gets an empty
->> mems_allowed when updating task->mems_allowed or mems_allowed in task->mempolicy. So we
->> use a rwlock to protect them to fix this probelm.
+On Sun, Mar 07, 2010 at 12:03:27PM +1100, Paul Mackerras wrote:
+> On Sat, Mar 06, 2010 at 04:22:34PM -0800, Andrew Morton wrote:
+> > Earlier, Johannes wrote
+> > 
+> > : Humm, now that is a bit disappointing.  Because it means we will never
+> > : get rid of bootmem as long as it works for the other architectures. 
+> > : And your changeset just added ~900 lines of code, some of it being a
+> > : rather ugly compatibility layer in bootmem that I hoped could go away
+> > : again sooner than later.
 > 
-> Rather than adding locks, if the intention is just to avoid the
-> allocator seeing an empty nodemask couldn't we instead do the
-> equivalent of:
-> 
-> current->mems_allowed |= new_mask;
-> current->mems_allowed = new_mask;
-> 
-> i.e. effectively set all new bits in the nodemask first, and then
-> clear all old bits that are no longer in the new mask. The only
-> downside of this is that a page allocation that races with the update
-> could potentially allocate from any node in the union of the old and
-> new nodemasks - but that's the case anyway for an allocation that
-> races with an update, so I don't see that it's any worse.
+> Whoa!  Who's proposing to get rid of bootmem, and why?
 
-Before applying this patch, cpuset updates task->mems_allowed just like
-what you said. But the allocator is still likely to see an empty nodemask.
-This problem have been pointed out by Nick Piggin.
+It would be nice if this stuff was copied to linux-arch since it
+impacts all architectures.
 
-The problem is following:
-The size of nodemask_t is greater than the size of long integer, so loading
-and storing of nodemask_t are not atomic operations. If task->mems_allowed
-don't intersect with new_mask, such as the first word of the mask is empty
-and only the first word of new_mask is not empty. When the allocator
-loads a word of the mask before
-
-	current->mems_allowed |= new_mask;
-
-and then loads another word of the mask after
-
-	current->mems_allowed = new_mask;
-
-the allocator gets an empty nodemask.
-
-I make a new patch to fix this problem now.
-Considering the change of task->mems_allowed is not frequent, so in the new
-patch, I use variables as a tag to indicate whether task->mems_allowed need
-be update or not. And before setting the tag, cpuset caches the new mask of
-every task at somewhere. 
-
-When the allocator want to access task->mems_allowed, it must check updated-tag
-first. If the tag is set, the allocator enters the slow path and updates
-task->mems_allowed.
-
-Thanks!
-Miao
+-- 
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
