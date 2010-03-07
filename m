@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 182596B004D
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C0A586B007E
 	for <linux-mm@kvack.org>; Sun,  7 Mar 2010 15:58:45 -0500 (EST)
 From: Andrea Righi <arighi@develer.com>
-Subject: [PATCH -mmotm 2/4] page_cgroup: introduce file cache flags
-Date: Sun,  7 Mar 2010 21:57:52 +0100
-Message-Id: <1267995474-9117-3-git-send-email-arighi@develer.com>
+Subject: [PATCH -mmotm 1/4] memcg: dirty memory documentation
+Date: Sun,  7 Mar 2010 21:57:51 +0100
+Message-Id: <1267995474-9117-2-git-send-email-arighi@develer.com>
 In-Reply-To: <1267995474-9117-1-git-send-email-arighi@develer.com>
 References: <1267995474-9117-1-git-send-email-arighi@develer.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,90 +13,66 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@lin
 Cc: Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Righi <arighi@develer.com>
 List-ID: <linux-mm.kvack.org>
 
-Introduce page_cgroup flags to keep track of file cache pages.
+Document cgroup dirty memory interfaces and statistics.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Andrea Righi <arighi@develer.com>
 ---
- include/linux/page_cgroup.h |   45 +++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 45 insertions(+), 0 deletions(-)
+ Documentation/cgroups/memory.txt |   36 ++++++++++++++++++++++++++++++++++++
+ 1 files changed, 36 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index 30b0813..dc66bee 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -39,6 +39,12 @@ enum {
- 	PCG_CACHE, /* charged as cache */
- 	PCG_USED, /* this object is in use. */
- 	PCG_ACCT_LRU, /* page has been accounted for */
-+	PCG_MIGRATE_LOCK, /* used for mutual execution of account migration */
-+	PCG_ACCT_FILE_MAPPED, /* page is accounted as file rss*/
-+	PCG_ACCT_DIRTY, /* page is dirty */
-+	PCG_ACCT_WRITEBACK, /* page is being written back to disk */
-+	PCG_ACCT_WRITEBACK_TEMP, /* page is used as temporary buffer for FUSE */
-+	PCG_ACCT_UNSTABLE_NFS, /* NFS page not yet committed to the server */
- };
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 49f86f3..38ca499 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -310,6 +310,11 @@ cache		- # of bytes of page cache memory.
+ rss		- # of bytes of anonymous and swap cache memory.
+ pgpgin		- # of pages paged in (equivalent to # of charging events).
+ pgpgout		- # of pages paged out (equivalent to # of uncharging events).
++filedirty	- # of pages that are waiting to get written back to the disk.
++writeback	- # of pages that are actively being written back to the disk.
++writeback_tmp	- # of pages used by FUSE for temporary writeback buffers.
++nfs		- # of NFS pages sent to the server, but not yet committed to
++		  the actual storage.
+ active_anon	- # of bytes of anonymous and  swap cache memory on active
+ 		  lru list.
+ inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+@@ -345,6 +350,37 @@ Note:
+   - a cgroup which uses hierarchy and it has child cgroup.
+   - a cgroup which uses hierarchy and not the root of hierarchy.
  
- #define TESTPCGFLAG(uname, lname)			\
-@@ -73,6 +79,27 @@ CLEARPCGFLAG(AcctLRU, ACCT_LRU)
- TESTPCGFLAG(AcctLRU, ACCT_LRU)
- TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
++5.4 dirty memory
++
++  Control the maximum amount of dirty pages a cgroup can have at any given time.
++
++  Limiting dirty memory is like fixing the max amount of dirty (hard to
++  reclaim) page cache used by any cgroup. So, in case of multiple cgroup writers,
++  they will not be able to consume more than their designated share of dirty
++  pages and will be forced to perform write-out if they cross that limit.
++
++  The interface is equivalent to the procfs interface: /proc/sys/vm/dirty_*.
++  It is possible to configure a limit to trigger both a direct writeback or a
++  background writeback performed by per-bdi flusher threads.
++
++  Per-cgroup dirty limits can be set using the following files in the cgroupfs:
++
++  - memory.dirty_ratio: contains, as a percentage of cgroup memory, the
++    amount of dirty memory at which a process which is generating disk writes
++    inside the cgroup will start itself writing out dirty data.
++
++  - memory.dirty_bytes: the amount of dirty memory of the cgroup (expressed in
++    bytes) at which a process generating disk writes will start itself writing
++    out dirty data.
++
++  - memory.dirty_background_ratio: contains, as a percentage of the cgroup
++    memory, the amount of dirty memory at which background writeback kernel
++    threads will start writing out dirty data.
++
++  - memory.dirty_background_bytes: the amount of dirty memory of the cgroup (in
++    bytes) at which background writeback kernel threads will start writing out
++    dirty data.
++
  
-+/* File cache and dirty memory flags */
-+TESTPCGFLAG(FileMapped, ACCT_FILE_MAPPED)
-+SETPCGFLAG(FileMapped, ACCT_FILE_MAPPED)
-+CLEARPCGFLAG(FileMapped, ACCT_FILE_MAPPED)
-+
-+TESTPCGFLAG(Dirty, ACCT_DIRTY)
-+SETPCGFLAG(Dirty, ACCT_DIRTY)
-+CLEARPCGFLAG(Dirty, ACCT_DIRTY)
-+
-+TESTPCGFLAG(Writeback, ACCT_WRITEBACK)
-+SETPCGFLAG(Writeback, ACCT_WRITEBACK)
-+CLEARPCGFLAG(Writeback, ACCT_WRITEBACK)
-+
-+TESTPCGFLAG(WritebackTemp, ACCT_WRITEBACK_TEMP)
-+SETPCGFLAG(WritebackTemp, ACCT_WRITEBACK_TEMP)
-+CLEARPCGFLAG(WritebackTemp, ACCT_WRITEBACK_TEMP)
-+
-+TESTPCGFLAG(UnstableNFS, ACCT_UNSTABLE_NFS)
-+SETPCGFLAG(UnstableNFS, ACCT_UNSTABLE_NFS)
-+CLEARPCGFLAG(UnstableNFS, ACCT_UNSTABLE_NFS)
-+
- static inline int page_cgroup_nid(struct page_cgroup *pc)
- {
- 	return page_to_nid(pc->page);
-@@ -83,6 +110,9 @@ static inline enum zone_type page_cgroup_zid(struct page_cgroup *pc)
- 	return page_zonenum(pc->page);
- }
- 
-+/*
-+ * lock_page_cgroup() should not be held under mapping->tree_lock
-+ */
- static inline void lock_page_cgroup(struct page_cgroup *pc)
- {
- 	bit_spin_lock(PCG_LOCK, &pc->flags);
-@@ -93,6 +123,21 @@ static inline void unlock_page_cgroup(struct page_cgroup *pc)
- 	bit_spin_unlock(PCG_LOCK, &pc->flags);
- }
- 
-+/*
-+ * This lock is not be lock for charge/uncharge but for account moving.
-+ * i.e. overwrite pc->mem_cgroup. The lock owner should guarantee by itself
-+ * the page is uncharged while we hold this.
-+ */
-+static inline void lock_page_cgroup_migrate(struct page_cgroup *pc)
-+{
-+	bit_spin_lock(PCG_MIGRATE_LOCK, &pc->flags);
-+}
-+
-+static inline void unlock_page_cgroup_migrate(struct page_cgroup *pc)
-+{
-+	bit_spin_unlock(PCG_MIGRATE_LOCK, &pc->flags);
-+}
-+
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
- struct page_cgroup;
+ 6. Hierarchy support
  
 -- 
 1.6.3.3
