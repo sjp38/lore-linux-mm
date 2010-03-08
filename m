@@ -1,41 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 495056B0095
-	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 04:21:13 -0500 (EST)
-Date: Mon, 8 Mar 2010 10:21:04 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: mm: Do not iterate over NR_CPUS in __zone_pcp_update()
-Message-ID: <alpine.LFD.2.00.1003081018070.22855@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5FD316B0098
+	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 04:34:08 -0500 (EST)
+Received: by pwj9 with SMTP id 9so3231686pwj.14
+        for <linux-mm@kvack.org>; Mon, 08 Mar 2010 01:34:06 -0800 (PST)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] shmem : remove redundant code
+Date: Mon,  8 Mar 2010 17:33:02 +0800
+Message-Id: <1268040782-28561-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: hugh.dickins@tiscali.co.uk, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-__zone_pcp_update() iterates over NR_CPUS instead of limiting the
-access to the possible cpus. This might result in access to
-uninitialized areas as the per cpu allocator only populates the per
-cpu memory for possible cpus.
+The  prep_new_page() will call set_page_private(page, 0) to initiate
+the page.
 
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+So the code is redundant.
+
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
 ---
- mm/page_alloc.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/shmem.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -3224,7 +3224,7 @@ static int __zone_pcp_update(void *data)
- 	int cpu;
- 	unsigned long batch = zone_batchsize(zone), flags;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index eef4ebe..dde4363 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -433,8 +433,6 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
  
--	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-+	for_each_possible_cpu(cpu) {
- 		struct per_cpu_pageset *pset;
- 		struct per_cpu_pages *pcp;
+ 		spin_unlock(&info->lock);
+ 		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
+-		if (page)
+-			set_page_private(page, 0);
+ 		spin_lock(&info->lock);
  
+ 		if (!page) {
+-- 
+1.6.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
