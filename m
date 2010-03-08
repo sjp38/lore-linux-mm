@@ -1,86 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 28E826B0047
-	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 11:20:28 -0500 (EST)
-Received: by pvh11 with SMTP id 11so1619224pvh.14
-        for <linux-mm@kvack.org>; Mon, 08 Mar 2010 08:20:26 -0800 (PST)
-Subject: [PATCH] kvm : remove redundant initialization of page->private
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <1268040782-28561-1-git-send-email-shijie8@gmail.com>
-References: <1268040782-28561-1-git-send-email-shijie8@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 09 Mar 2010 01:20:19 +0900
-Message-ID: <1268065219.1254.12.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 49B206B0078
+	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 12:26:26 -0500 (EST)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp08.au.ibm.com (8.14.3/8.13.1) with ESMTP id o28HQIvM016517
+	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 04:26:18 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o28HQIii1847548
+	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 04:26:18 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o28HQHe6003394
+	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 04:26:18 +1100
+Date: Mon, 8 Mar 2010 22:56:09 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 0/2]  memcg: oom notifier and handling oom by user
+Message-ID: <20100308172609.GS3073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100308162414.faaa9c5f.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100308162414.faaa9c5f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>, Avi Kivity <avi@redhat.com>
-Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-03-08 at 17:33 +0800, Huang Shijie wrote:
-> The  prep_new_page() will call set_page_private(page, 0) to initiate
-> the page.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-08 16:24:14]:
+
+> This 2 patches is for memcg's oom handling.
 > 
-> So the code is redundant.
+> At first, memcg's oom doesn't mean "no more resource" but means "we hit limit."
+> Then, daemons/user shells out of a memcg can work even if it's under oom.
+> So, if we have notifier and some more features, we can do something moderate
+> rather than killing at oom. 
 > 
-> Signed-off-by: Huang Shijie <shijie8@gmail.com>
-> ---
->  mm/shmem.c |    2 --
->  1 files changed, 0 insertions(+), 2 deletions(-)
+> This patch includes
+> [1/2] oom notifier for memcg (using evetfd framework of cgroups.)
+> [2/2] oom killer disalibing and hooks for waitq and wake-up.
 > 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index eef4ebe..dde4363 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -433,8 +433,6 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
->  
->  		spin_unlock(&info->lock);
->  		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
-> -		if (page)
-> -			set_page_private(page, 0);
->  		spin_lock(&info->lock);
->  
->  		if (!page) {
+> When memcg's oom-killer is disabled, all tasks which request accountable memory
+> will sleep in waitq. It will be waken up by user's action as
+>  - enlarge limit. (memory or memsw)
+>  - kill some tasks
+>  - move some tasks (account migration is enabled.)
+> 
 
-And I found another place while I review the code.
-
->From e64322cde914e43d080d8f3be6f72459d809a934 Mon Sep 17 00:00:00 2001
-From: Minchan Kim <barrios@barrios-desktop.(none)>
-Date: Tue, 9 Mar 2010 01:09:56 +0900
-Subject: [PATCH] kvm : remove redundant initialization of page->private.
-
-The prep_new_page() in page allocator calls set_page_private(page, 0).
-So we don't need to reinitialize private of page.
-
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Cc: Avi Kivity <avi@redhat.com>
----
- arch/x86/kvm/mmu.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
-
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 741373e..9851d0e 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -326,7 +326,6 @@ static int mmu_topup_memory_cache_page(struct
-kvm_mmu_memory_cache *cache,
- 		page = alloc_page(GFP_KERNEL);
- 		if (!page)
- 			return -ENOMEM;
--		set_page_private(page, 0);
- 		cache->objects[cache->nobjs++] = page_address(page);
- 	}
- 	return 0;
--- 
-1.6.5
-
+Hmm... I've not seen the waitq and wake-up patches, but does that mean
+user space will control resumtion of tasks?
 
 
 -- 
-Kind regards,
-Minchan Kim
-
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
