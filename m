@@ -1,48 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D5826B0078
-	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 18:23:46 -0500 (EST)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id o28NNehN001252
-	for <linux-mm@kvack.org>; Mon, 8 Mar 2010 23:23:41 GMT
-Received: from pvd12 (pvd12.prod.google.com [10.241.209.204])
-	by wpaz29.hot.corp.google.com with ESMTP id o28NNdnV009901
-	for <linux-mm@kvack.org>; Mon, 8 Mar 2010 15:23:39 -0800
-Received: by pvd12 with SMTP id 12so117360pvd.8
-        for <linux-mm@kvack.org>; Mon, 08 Mar 2010 15:23:39 -0800 (PST)
-Date: Mon, 8 Mar 2010 15:23:35 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: adjust kswapd nice level for high priority page
- allocators
-In-Reply-To: <20100301180412.GF3852@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1003081521380.1431@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1003010213480.26824@chino.kir.corp.google.com> <20100301135242.GE3852@csn.ul.ie> <alpine.DEB.2.00.1003010941020.26562@chino.kir.corp.google.com> <20100301180412.GF3852@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 039476B007E
+	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 18:53:53 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o28Nrpec012885
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 9 Mar 2010 08:53:51 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0527845DE4F
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 08:53:51 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DFC5545DE4E
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 08:53:50 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C9AF71DB8012
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 08:53:50 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 86D841DB8014
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 08:53:47 +0900 (JST)
+Date: Tue, 9 Mar 2010 08:50:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: sync_mm_rss() issues
+Message-Id: <20100309085012.46c28722.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <30859.1268056796@redhat.com>
+References: <30859.1268056796@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Con Kolivas <kernel@kolivas.org>, linux-mm@kvack.org
+To: David Howells <dhowells@redhat.com>
+Cc: torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Mar 2010, Mel Gorman wrote:
+On Mon, 08 Mar 2010 13:59:56 +0000
+David Howells <dhowells@redhat.com> wrote:
 
-> Can figures also be shown then as part of the patch? It would appear that
-> one possibility would be to boot a machine with 1G and simply measure the
-> time taken to complete 7 simultaneous kernel compiles (so that kswapd is
-> active) and measure the number of pages direct reclaimed and reclaimed by
-> kswapd. Rerun the test except that all the kernel builds are at a higher
-> priority than kswapd.
+> 
+> There are a couple of issues with sync_mm_rss(), as added by patch:
+> 
+> 	commit 34e55232e59f7b19050267a05ff1226e5cd122a5
+> 	Author: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 	Date:   Fri Mar 5 13:41:40 2010 -0800
+> 	Subject: mm: avoid false sharing of mm_counter
+> 
+>  (1) You haven't implemented it for NOMMU mode.  What's the right way to do
+>      this?  Just give an empty function?
+> 
+Ah, sorry. I'll prepare empty function immediately. But I have no NOMMU
+enviroment...
+
+
+>  (2) linux/mm.h should carry the empty function as an inline when
+>      CONFIG_SPLIT_RSS_COUNTING=n, rather than it being defined as an empty
+>      function in mm/memory.c.
 > 
 
-Ok, I'll collect those statistics.
+ok.
 
-> When all the priorities are the same, the reclaim figures should match
-> with or without the patch. With the priorities higher, then the direct
-> reclaims should be higher without this patch reflecting the fact that
-> kswapd was starved of CPU.
-> 
+please wait..
 
-Agreed.
+Sorry,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
