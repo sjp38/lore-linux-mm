@@ -1,65 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 54A766B0095
-	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 19:24:37 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o290OZ88032413
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8758D6B0099
+	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 20:02:11 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o29128dF018185
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 9 Mar 2010 09:24:35 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E0F1145DE53
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 09:24:34 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B5DD545DE4E
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 09:24:34 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D871E38003
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 09:24:34 +0900 (JST)
+	Tue, 9 Mar 2010 10:02:08 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E00BA45DE5D
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 10:02:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E64245DE51
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 10:02:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3DCF61DB803C
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 10:02:05 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3840C1DB8043
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 09:24:34 +0900 (JST)
-Date: Tue, 9 Mar 2010 09:20:54 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 37CA01DB804C
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 10:02:03 +0900 (JST)
+Date: Tue, 9 Mar 2010 09:58:30 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 3/4] memcg: dirty pages accounting and limiting
- infrastructure
-Message-Id: <20100309092054.b18a4ff2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100309091845.d38b43ff.nishimura@mxp.nes.nec.co.jp>
-References: <1267995474-9117-1-git-send-email-arighi@develer.com>
-	<1267995474-9117-4-git-send-email-arighi@develer.com>
-	<20100308104447.c124c1ff.nishimura@mxp.nes.nec.co.jp>
-	<20100308105641.e2e714f4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100308111724.3e48aee3.nishimura@mxp.nes.nec.co.jp>
-	<20100308113711.d7a249da.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100308170711.4d8b02f0.nishimura@mxp.nes.nec.co.jp>
-	<20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100309091845.d38b43ff.nishimura@mxp.nes.nec.co.jp>
+Subject: [BUGFIX][PATCH] fix sync_mm_rss in nommu (Was Re: sync_mm_rss()
+ issues
+Message-Id: <20100309095830.7d4a744d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <30859.1268056796@redhat.com>
+References: <30859.1268056796@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Howells <dhowells@redhat.com>
+Cc: torvalds@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Mar 2010 09:18:45 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+David-san, could you check this ?
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> On Mon, 8 Mar 2010 17:31:00 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Mon, 8 Mar 2010 17:07:11 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Fix breakage in NOMMU build
 
-> > Hmm...accepatable ? (sounds it's in error-range)
-> > 
-> > BTW, why local_irq_disable() ? 
-> > local_irq_save()/restore() isn't better ?
-> > 
-> I don't have any strong reason. All of lock_page_cgroup() is *now* called w/o irq disabled,
-> so I used just disable()/enable() instead of save()/restore().
+commit 34e55232e59f7b19050267a05ff1226e5cd122a5 added sync_mm_rss()
+for syncing loosely accounted rss counters. It's for CONFIG_MMU but
+sync_mm_rss is called even in NOMMU enviroment (kerne/exit.c, fs/exec.c).
+Above commit doesn't handle it well.
 
-My point is, this will be used under treelock soon.
+This patch changes
+  SPLIT_RSS_COUNTING depends on SPLIT_PTLOCKS && CONFIG_MMU
 
-Thanks,
--Kame
+And for avoid unnecessary function calls, sync_mm_rss changed to be inlined
+noop function in header file.
+
+Reported-by: David Howells <dhowells@redhat.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/mm.h       |    6 ++++++
+ include/linux/mm_types.h |    2 +-
+ mm/memory.c              |    3 ---
+ 3 files changed, 7 insertions(+), 4 deletions(-)
+
+Index: mmotm-2.6.33-Mar5/include/linux/mm.h
+===================================================================
+--- mmotm-2.6.33-Mar5.orig/include/linux/mm.h
++++ mmotm-2.6.33-Mar5/include/linux/mm.h
+@@ -974,7 +974,13 @@ static inline void setmax_mm_hiwater_rss
+ 		*maxrss = hiwater_rss;
+ }
+ 
++#if defined(SPLIT_RSS_COUNTING)
+ void sync_mm_rss(struct task_struct *task, struct mm_struct *mm);
++#else
++static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
++{
++}
++#endif
+ 
+ /*
+  * A callback you can register to apply pressure to ageable caches.
+Index: mmotm-2.6.33-Mar5/mm/memory.c
+===================================================================
+--- mmotm-2.6.33-Mar5.orig/mm/memory.c
++++ mmotm-2.6.33-Mar5/mm/memory.c
+@@ -190,9 +190,6 @@ static void check_sync_rss_stat(struct t
+ {
+ }
+ 
+-void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
+-{
+-}
+ #endif
+ 
+ /*
+Index: mmotm-2.6.33-Mar5/include/linux/mm_types.h
+===================================================================
+--- mmotm-2.6.33-Mar5.orig/include/linux/mm_types.h
++++ mmotm-2.6.33-Mar5/include/linux/mm_types.h
+@@ -203,7 +203,7 @@ enum {
+ 	NR_MM_COUNTERS
+ };
+ 
+-#if USE_SPLIT_PTLOCKS
++#if USE_SPLIT_PTLOCKS && defined(CONFIG_MMU)
+ #define SPLIT_RSS_COUNTING
+ struct mm_rss_stat {
+ 	atomic_long_t count[NR_MM_COUNTERS];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
