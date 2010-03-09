@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5666E6B009F
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:44:25 -0500 (EST)
-Message-Id: <20100309194313.113954072@redhat.com>
-Date: Tue, 09 Mar 2010 20:39:11 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B6FBC6B009F
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:44:28 -0500 (EST)
+Message-Id: <20100309194311.957542191@redhat.com>
+Date: Tue, 09 Mar 2010 20:39:04 +0100
 From: aarcange@redhat.com
-Subject: [patch 10/35] export maybe_mkwrite
+Subject: [patch 03/35] alter compound get_page/put_page
 References: <20100309193901.207868642@redhat.com>
-Content-Disposition: inline; filename=export_maybe_mkwrite
+Content-Disposition: inline; filename=compound_get_put
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, akpm@linux-foundation.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,61 +15,197 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-huge_memory.c needs it too when it fallbacks in copying hugepages into regular
-fragmented pages if hugepage allocation fails during COW.
+Alter compound get_page/put_page to keep references on subpages too, in order
+to allow __split_huge_page_refcount to split an hugepage even while subpages
+have been pinned by one of the get_user_pages() variants.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
- include/linux/mm.h |   13 +++++++++++++
- mm/memory.c        |   13 -------------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ arch/powerpc/mm/gup.c |   12 +++++++
+ arch/x86/mm/gup.c     |   12 +++++++
+ include/linux/mm.h    |   12 ++++++-
+ mm/swap.c             |   79 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 4 files changed, 106 insertions(+), 9 deletions(-)
 
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -390,6 +390,19 @@ static inline void set_compound_order(st
- }
+--- a/arch/powerpc/mm/gup.c
++++ b/arch/powerpc/mm/gup.c
+@@ -16,6 +16,16 @@
  
- /*
-+ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-+ * servicing faults for write access.  In the normal case, do always want
-+ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-+ * that do not have writing enabled, when used by access_process_vm.
-+ */
-+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+ #ifdef __HAVE_ARCH_PTE_SPECIAL
+ 
++static inline void pin_huge_page_tail(struct page *page)
 +{
-+	if (likely(vma->vm_flags & VM_WRITE))
-+		pte = pte_mkwrite(pte);
-+	return pte;
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
 +}
 +
-+/*
-  * Multiple processes may "see" the same page. E.g. for untouched
-  * mappings of /dev/null, all processes see the same page full of
-  * zeroes, and text pages of executables and shared libraries have
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2037,19 +2037,6 @@ static inline int pte_unmap_same(struct 
- 	return same;
+ /*
+  * The performance critical leaf functions are made noinline otherwise gcc
+  * inlines everything into a single function which results in too much
+@@ -47,6 +57,8 @@ static noinline int gup_pte_range(pmd_t 
+ 			put_page(page);
+ 			return 0;
+ 		}
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		pages[*nr] = page;
+ 		(*nr)++;
+ 
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -105,6 +105,16 @@ static inline void get_head_page_multipl
+ 	atomic_add(nr, &page->_count);
  }
  
--/*
-- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-- * servicing faults for write access.  In the normal case, do always want
-- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-- * that do not have writing enabled, when used by access_process_vm.
-- */
--static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
--{
--	if (likely(vma->vm_flags & VM_WRITE))
--		pte = pte_mkwrite(pte);
--	return pte;
--}
--
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
++
+ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
  {
- 	/*
+@@ -128,6 +138,8 @@ static noinline int gup_huge_pmd(pmd_t p
+ 	do {
+ 		VM_BUG_ON(compound_head(page) != head);
+ 		pages[*nr] = page;
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		(*nr)++;
+ 		page++;
+ 		refs++;
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -326,9 +326,17 @@ static inline int page_count(struct page
+ 
+ static inline void get_page(struct page *page)
+ {
+-	page = compound_head(page);
+-	VM_BUG_ON(atomic_read(&page->_count) == 0);
++	VM_BUG_ON(atomic_read(&page->_count) < !PageTail(page));
+ 	atomic_inc(&page->_count);
++	if (unlikely(PageTail(page))) {
++		/*
++		 * This is safe only because
++		 * __split_huge_page_refcount can't run under
++		 * get_page().
++		 */
++		VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
++		atomic_inc(&page->first_page->_count);
++	}
+ }
+ 
+ static inline struct page *virt_to_head_page(const void *x)
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -55,17 +55,82 @@ static void __page_cache_release(struct 
+ 		del_page_from_lru(zone, page);
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
++}
++
++static void __put_single_page(struct page *page)
++{
++	__page_cache_release(page);
+ 	free_hot_cold_page(page, 0);
+ }
+ 
+-static void put_compound_page(struct page *page)
++static void __put_compound_page(struct page *page)
+ {
+-	page = compound_head(page);
+-	if (put_page_testzero(page)) {
+-		compound_page_dtor *dtor;
++	compound_page_dtor *dtor;
++
++	__page_cache_release(page);
++	dtor = get_compound_page_dtor(page);
++	(*dtor)(page);
++}
+ 
+-		dtor = get_compound_page_dtor(page);
+-		(*dtor)(page);
++static void put_compound_page(struct page *page)
++{
++	if (unlikely(PageTail(page))) {
++		/* __split_huge_page_refcount can run under us */
++		struct page *page_head = page->first_page;
++		smp_rmb();
++		if (likely(PageTail(page) && get_page_unless_zero(page_head))) {
++			if (unlikely(!PageHead(page_head))) {
++				/* PageHead is cleared after PageTail */
++				smp_rmb();
++				VM_BUG_ON(PageTail(page));
++				goto out_put_head;
++			}
++			/*
++			 * Only run compound_lock on a valid PageHead,
++			 * after having it pinned with
++			 * get_page_unless_zero() above.
++			 */
++			smp_mb();
++			/* page_head wasn't a dangling pointer */
++			compound_lock(page_head);
++			if (unlikely(!PageTail(page))) {
++				/* __split_huge_page_refcount run before us */
++				compound_unlock(page_head);
++				VM_BUG_ON(PageHead(page_head));
++			out_put_head:
++				if (put_page_testzero(page_head))
++					__put_single_page(page_head);
++			out_put_single:
++				if (put_page_testzero(page))
++					__put_single_page(page);
++				return;
++			}
++			VM_BUG_ON(page_head != page->first_page);
++			/*
++			 * We can release the refcount taken by
++			 * get_page_unless_zero now that
++			 * split_huge_page_refcount is blocked on the
++			 * compound_lock.
++			 */
++			if (put_page_testzero(page_head))
++				VM_BUG_ON(1);
++			/* __split_huge_page_refcount will wait now */
++			VM_BUG_ON(atomic_read(&page->_count) <= 0);
++			atomic_dec(&page->_count);
++			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
++			compound_unlock(page_head);
++			if (put_page_testzero(page_head))
++				__put_compound_page(page_head);
++		} else {
++			/* page_head is a dangling pointer */
++			VM_BUG_ON(PageTail(page));
++			goto out_put_single;
++		}
++	} else if (put_page_testzero(page)) {
++		if (PageHead(page))
++			__put_compound_page(page);
++		else
++			__put_single_page(page);
+ 	}
+ }
+ 
+@@ -74,7 +139,7 @@ void put_page(struct page *page)
+ 	if (unlikely(PageCompound(page)))
+ 		put_compound_page(page);
+ 	else if (put_page_testzero(page))
+-		__page_cache_release(page);
++		__put_single_page(page);
+ }
+ EXPORT_SYMBOL(put_page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
