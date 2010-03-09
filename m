@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C40DB6B0098
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A02596B0092
 	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:44:21 -0500 (EST)
-Message-Id: <20100309194316.650729518@redhat.com>
-Date: Tue, 09 Mar 2010 20:39:32 +0100
+Message-Id: <20100309194313.612535929@redhat.com>
+Date: Tue, 09 Mar 2010 20:39:14 +0100
 From: aarcange@redhat.com
-Subject: [patch 31/35] pmd_trans_huge migrate bugcheck
+Subject: [patch 13/35] special pmd_trans_* functions
 References: <20100309193901.207868642@redhat.com>
-Content-Disposition: inline; filename=pmd_trans_huge_migrate
+Content-Disposition: inline; filename=pmd_trans
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, akpm@linux-foundation.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,58 +15,76 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No pmd_trans_huge should ever materialize in migration ptes areas, because
-we split the hugepage before migration ptes are instantiated.
+These returns 0 at compile time when the config option is disabled, to allow
+gcc to eliminate the transparent hugepage function calls at compile time
+without additional #ifdefs (only the export of those functions have to be
+visible to gcc but they won't be required at link time and huge_memory.o can be
+not built at all).
+
+_PAGE_BIT_UNUSED1 is never used for pmd, only on pte.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/huge_mm.h |    5 +++++
- mm/migrate.c            |    5 +++++
- 2 files changed, 10 insertions(+)
+ arch/x86/include/asm/pgtable_64.h    |   13 +++++++++++++
+ arch/x86/include/asm/pgtable_types.h |    2 ++
+ include/asm-generic/pgtable.h        |    5 +++++
+ 3 files changed, 20 insertions(+)
 
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -113,6 +113,10 @@ static inline int PageTransHuge(struct p
- 	VM_BUG_ON(PageTail(page));
- 	return PageHead(page);
- }
-+static inline int PageTransCompound(struct page *page)
-+{
-+	return PageCompound(page);
-+}
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define HPAGE_PMD_SHIFT ({ BUG(); 0; })
- #define HPAGE_PMD_MASK ({ BUG(); 0; })
-@@ -132,6 +136,7 @@ static inline int split_huge_page(struct
- #define wait_split_huge_page(__anon_vma, __pmd)	\
- 	do { } while (0)
- #define PageTransHuge(page) 0
-+#define PageTransCompound(page) 0
- static inline int hugepage_madvise(unsigned long *vm_flags)
- {
- 	BUG_ON(0);
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -99,6 +99,7 @@ static int remove_migration_pte(struct p
- 		goto out;
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -168,6 +168,19 @@ extern void cleanup_highmap(void);
+ #define	kc_offset_to_vaddr(o) ((o) | ~__VIRTUAL_MASK)
  
- 	pmd = pmd_offset(pud, addr);
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	if (!pmd_present(*pmd))
- 		goto out;
- 
-@@ -815,6 +816,10 @@ static int do_move_page_to_node_array(st
- 		if (PageReserved(page) || PageKsm(page))
- 			goto put_and_set;
- 
-+		if (unlikely(PageTransCompound(page)))
-+			if (unlikely(split_huge_page(page)))
-+				goto put_and_set;
+ #define __HAVE_ARCH_PTE_SAME
 +
- 		pp->page = page;
- 		err = page_to_nid(page);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline int pmd_trans_splitting(pmd_t pmd)
++{
++	return pmd_val(pmd) & _PAGE_SPLITTING;
++}
++
++static inline int pmd_trans_huge(pmd_t pmd)
++{
++	return pmd_val(pmd) & _PAGE_PSE;
++}
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++
+ #endif /* !__ASSEMBLY__ */
  
+ #endif /* _ASM_X86_PGTABLE_64_H */
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -22,6 +22,7 @@
+ #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
+ #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
+ #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
++#define _PAGE_BIT_SPLITTING	_PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
+ #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
+ 
+ /* If _PAGE_BIT_PRESENT is clear, we use these: */
+@@ -45,6 +46,7 @@
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+ #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
++#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
+ #define __HAVE_ARCH_PTE_SPECIAL
+ 
+ #ifdef CONFIG_KMEMCHECK
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -344,6 +344,11 @@ extern void untrack_pfn_vma(struct vm_ar
+ 				unsigned long size);
+ #endif
+ 
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
++#define pmd_trans_huge(pmd) 0
++#define pmd_trans_splitting(pmd) 0
++#endif
++
+ #endif /* !__ASSEMBLY__ */
+ 
+ #endif /* _ASM_GENERIC_PGTABLE_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
