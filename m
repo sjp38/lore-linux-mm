@@ -1,64 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id BB2C76B0047
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:42:10 -0500 (EST)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id o29Jg6ZA013420
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 11:42:07 -0800
-Received: from gxk6 (gxk6.prod.google.com [10.202.11.6])
-	by kpbe12.cbf.corp.google.com with ESMTP id o29Jg5K8003572
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 11:42:05 -0800
-Received: by gxk6 with SMTP id 6so4407009gxk.14
-        for <linux-mm@kvack.org>; Tue, 09 Mar 2010 11:42:05 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4B931068.70900@cn.fujitsu.com>
-References: <4B8E3F77.6070201@cn.fujitsu.com>
-	 <6599ad831003050403v2e988723k1b6bf38d48707ab1@mail.gmail.com>
-	 <4B931068.70900@cn.fujitsu.com>
-Date: Tue, 9 Mar 2010 11:42:02 -0800
-Message-ID: <6599ad831003091142t38c9ffc9rea7d351742ecbd98@mail.gmail.com>
-Subject: Re: [PATCH 4/4] cpuset,mm: use rwlock to protect task->mempolicy and
-	mems_allowed
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5EFDA6B0047
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:44:11 -0500 (EST)
+Message-Id: <20100309194312.301144529@redhat.com>
+Date: Tue, 09 Mar 2010 20:39:06 +0100
+From: aarcange@redhat.com
+Subject: [patch 05/35] fix bad_page to show the real reason the page is bad
+References: <20100309193901.207868642@redhat.com>
+Content-Disposition: inline; filename=compound_bad_page
 Sender: owner-linux-mm@kvack.org
-To: miaox@cn.fujitsu.com
-Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 6, 2010 at 6:33 PM, Miao Xie <miaox@cn.fujitsu.com> wrote:
->
-> Before applying this patch, cpuset updates task->mems_allowed just like
-> what you said. But the allocator is still likely to see an empty nodemask=
-.
-> This problem have been pointed out by Nick Piggin.
->
-> The problem is following:
-> The size of nodemask_t is greater than the size of long integer, so loadi=
-ng
-> and storing of nodemask_t are not atomic operations. If task->mems_allowe=
-d
-> don't intersect with new_mask, such as the first word of the mask is empt=
-y
-> and only the first word of new_mask is not empty. When the allocator
-> loads a word of the mask before
->
-> =A0 =A0 =A0 =A0current->mems_allowed |=3D new_mask;
->
-> and then loads another word of the mask after
->
-> =A0 =A0 =A0 =A0current->mems_allowed =3D new_mask;
->
-> the allocator gets an empty nodemask.
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Couldn't that be solved by having the reader read the nodemask twice
-and compare them? In the normal case there's no race, so the second
-read is straight from L1 cache and is very cheap. In the unlikely case
-of a race, the reader would keep trying until it got two consistent
-values in a row.
+page_count shows the count of the head page, but the actual check is done on
+the tail page, so show what is really being checked.
 
-Paul
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -290,7 +290,7 @@ static void bad_page(struct page *page)
+ 		current->comm, page_to_pfn(page));
+ 	printk(KERN_ALERT
+ 		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
+-		page, (void *)page->flags, page_count(page),
++		page, (void *)page->flags, atomic_read(&page->_count),
+ 		page_mapcount(page), page->mapping, page->index);
+ 
+ 	dump_stack();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
