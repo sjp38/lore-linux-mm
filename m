@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C378E6B0088
-	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 19:12:58 -0500 (EST)
-Date: Tue, 9 Mar 2010 01:12:52 +0100
-From: Andrea Righi <arighi@develer.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FD766B008A
+	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 19:21:51 -0500 (EST)
+Date: Tue, 9 Mar 2010 09:18:45 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Subject: Re: [PATCH -mmotm 3/4] memcg: dirty pages accounting and limiting
  infrastructure
-Message-ID: <20100309001252.GB13490@linux>
-References: <1267995474-9117-1-git-send-email-arighi@develer.com>
- <1267995474-9117-4-git-send-email-arighi@develer.com>
- <20100308104447.c124c1ff.nishimura@mxp.nes.nec.co.jp>
- <20100308105641.e2e714f4.kamezawa.hiroyu@jp.fujitsu.com>
- <20100308111724.3e48aee3.nishimura@mxp.nes.nec.co.jp>
- <20100308113711.d7a249da.kamezawa.hiroyu@jp.fujitsu.com>
- <20100308170711.4d8b02f0.nishimura@mxp.nes.nec.co.jp>
- <20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <20100309091845.d38b43ff.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1267995474-9117-1-git-send-email-arighi@develer.com>
+	<1267995474-9117-4-git-send-email-arighi@develer.com>
+	<20100308104447.c124c1ff.nishimura@mxp.nes.nec.co.jp>
+	<20100308105641.e2e714f4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100308111724.3e48aee3.nishimura@mxp.nes.nec.co.jp>
+	<20100308113711.d7a249da.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100308170711.4d8b02f0.nishimura@mxp.nes.nec.co.jp>
+	<20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 08, 2010 at 05:31:00PM +0900, KAMEZAWA Hiroyuki wrote:
+On Mon, 8 Mar 2010 17:31:00 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > On Mon, 8 Mar 2010 17:07:11 +0900
 > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
@@ -94,161 +94,16 @@ On Mon, Mar 08, 2010 at 05:31:00PM +0900, KAMEZAWA Hiroyuki wrote:
 > 
 > BTW, why local_irq_disable() ? 
 > local_irq_save()/restore() isn't better ?
+> 
+I don't have any strong reason. All of lock_page_cgroup() is *now* called w/o irq disabled,
+so I used just disable()/enable() instead of save()/restore().
+I think disable()/enable() is better in those cases because we need not to save/restore
+eflags register by pushf/popf, but, I don't have any numbers though, there wouldn't be a big
+difference in performance.
 
-Probably there's not the overhead of saving flags? Anyway, it would make
-the code much more readable...
 
 Thanks,
--Andrea
-
-
-> 
-> Thanks,
-> -Kame
-> 
-> > ===
-> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > 
-> > In current implementation, we don't have to disable irq at lock_page_cgroup()
-> > because the lock is never acquired in interrupt context.
-> > But we are going to do it in later patch, so this patch encloses all of
-> > lock_page_cgroup()/unlock_page_cgroup() with irq_disabled()/irq_enabled().
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > ---
-> >  mm/memcontrol.c |   17 +++++++++++++++++
-> >  1 files changed, 17 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 02ea959..e5ae1a1 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1359,6 +1359,7 @@ void mem_cgroup_update_file_mapped(struct page *page, int val)
-> >  	if (unlikely(!pc))
-> >  		return;
-> >  
-> > +	local_irq_disable();
-> >  	lock_page_cgroup(pc);
-> >  	mem = pc->mem_cgroup;
-> >  	if (!mem)
-> > @@ -1374,6 +1375,7 @@ void mem_cgroup_update_file_mapped(struct page *page, int val)
-> >  
-> >  done:
-> >  	unlock_page_cgroup(pc);
-> > +	local_irq_enable();
-> >  }
-> >  
-> >  /*
-> > @@ -1711,6 +1713,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
-> >  	VM_BUG_ON(!PageLocked(page));
-> >  
-> >  	pc = lookup_page_cgroup(page);
-> > +	local_irq_disable();
-> >  	lock_page_cgroup(pc);
-> >  	if (PageCgroupUsed(pc)) {
-> >  		mem = pc->mem_cgroup;
-> > @@ -1726,6 +1729,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
-> >  		rcu_read_unlock();
-> >  	}
-> >  	unlock_page_cgroup(pc);
-> > +	local_irq_enable();
-> >  	return mem;
-> >  }
-> >  
-> > @@ -1742,9 +1746,11 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
-> >  	if (!mem)
-> >  		return;
-> >  
-> > +	local_irq_disable();
-> >  	lock_page_cgroup(pc);
-> >  	if (unlikely(PageCgroupUsed(pc))) {
-> >  		unlock_page_cgroup(pc);
-> > +		local_irq_enable();
-> >  		mem_cgroup_cancel_charge(mem);
-> >  		return;
-> >  	}
-> > @@ -1775,6 +1781,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
-> >  	mem_cgroup_charge_statistics(mem, pc, true);
-> >  
-> >  	unlock_page_cgroup(pc);
-> > +	local_irq_enable();
-> >  	/*
-> >  	 * "charge_statistics" updated event counter. Then, check it.
-> >  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-> > @@ -1844,12 +1851,14 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
-> >  		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-> >  {
-> >  	int ret = -EINVAL;
-> > +	local_irq_disable();
-> >  	lock_page_cgroup(pc);
-> >  	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
-> >  		__mem_cgroup_move_account(pc, from, to, uncharge);
-> >  		ret = 0;
-> >  	}
-> >  	unlock_page_cgroup(pc);
-> > +	local_irq_enable();
-> >  	/*
-> >  	 * check events
-> >  	 */
-> > @@ -1981,12 +1990,15 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-> >  		pc = lookup_page_cgroup(page);
-> >  		if (!pc)
-> >  			return 0;
-> > +		local_irq_disable();
-> >  		lock_page_cgroup(pc);
-> >  		if (PageCgroupUsed(pc)) {
-> >  			unlock_page_cgroup(pc);
-> > +			local_irq_enable();
-> >  			return 0;
-> >  		}
-> >  		unlock_page_cgroup(pc);
-> > +		local_irq_enable();
-> >  	}
-> >  
-> >  	if (unlikely(!mm && !mem))
-> > @@ -2182,6 +2194,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
-> >  	if (unlikely(!pc || !PageCgroupUsed(pc)))
-> >  		return NULL;
-> >  
-> > +	local_irq_disable();
-> >  	lock_page_cgroup(pc);
-> >  
-> >  	mem = pc->mem_cgroup;
-> > @@ -2222,6 +2235,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
-> >  
-> >  	mz = page_cgroup_zoneinfo(pc);
-> >  	unlock_page_cgroup(pc);
-> > +	local_irq_enable();
-> >  
-> >  	memcg_check_events(mem, page);
-> >  	/* at swapout, this memcg will be accessed to record to swap */
-> > @@ -2232,6 +2246,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
-> >  
-> >  unlock_out:
-> >  	unlock_page_cgroup(pc);
-> > +	local_irq_enable();
-> >  	return NULL;
-> >  }
-> >  
-> > @@ -2424,12 +2439,14 @@ int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
-> >  		return 0;
-> >  
-> >  	pc = lookup_page_cgroup(page);
-> > +	local_irq_disable();
-> >  	lock_page_cgroup(pc);
-> >  	if (PageCgroupUsed(pc)) {
-> >  		mem = pc->mem_cgroup;
-> >  		css_get(&mem->css);
-> >  	}
-> >  	unlock_page_cgroup(pc);
-> > +	local_irq_enable();
-> >  
-> >  	if (mem) {
-> >  		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
-> > -- 
-> > 1.6.4
-> > 
-> > 
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
