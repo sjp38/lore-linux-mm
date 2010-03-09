@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2788F6B0047
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 12:20:42 -0500 (EST)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.1/8.13.1) with ESMTP id o29HKdYl007217
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 17:20:39 GMT
-Received: from d12av03.megacenter.de.ibm.com (d12av03.megacenter.de.ibm.com [9.149.165.213])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o29HKdoT1720508
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 18:20:39 +0100
-Received: from d12av03.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av03.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o29HKdHs000895
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 18:20:39 +0100
-Date: Tue, 9 Mar 2010 18:20:52 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH 2/2] memory hotplug/s390: set phys_device
-Message-ID: <20100309172052.GC2360@osiris.boeblingen.de.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 640BE6B0047
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 12:30:21 -0500 (EST)
+Date: Tue, 9 Mar 2010 17:30:03 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/3] page-allocator: Under memory pressure, wait on
+	pressure to relieve instead of congestion
+Message-ID: <20100309173003.GH4883@csn.ul.ie>
+References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie> <1268048904-19397-2-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1003090946180.28897@router.home> <4B966F93.9060207@linux.vnet.ibm.com> <alpine.DEB.2.00.1003091005310.28897@router.home> <20100309170123.GG4883@csn.ul.ie> <alpine.DEB.2.00.1003091109040.28897@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1003091109040.28897@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gerald Schaefer <gerald.schaefer@de.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
+On Tue, Mar 09, 2010 at 11:11:55AM -0600, Christoph Lameter wrote:
+> On Tue, 9 Mar 2010, Mel Gorman wrote:
+> 
+> > Until it's timeout at least. It's still better than the current
+> > situation of sleeping on congestion.
+> 
+> Congestion may clear if memory becomes available in other zones.
+> 
 
-Implement arch specific arch_get_memory_phys_device function and initialize
-phys_device for each memory section. That way we finally can tell which
-piece of memory belongs to which physical device.
+I understand that.
 
-Cc: Dave Hansen <haveblue@us.ibm.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by:  Heiko Carstens <heiko.carstens@de.ibm.com>
----
- drivers/s390/char/sclp_cmd.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+> > The ideal would be waiting on a per-node basis. I'm just not liking having
+> > to look up the node structure when freeing a patch of pages and making a
+> > cache line in there unnecessarily hot.
+> 
+> The node structure (pgdat) contains the zone structures. If you know the
+> type of zone then you can calculate the pgdat address.
+> 
 
---- a/drivers/s390/char/sclp_cmd.c
-+++ b/drivers/s390/char/sclp_cmd.c
-@@ -704,6 +704,13 @@ int sclp_chp_deconfigure(struct chp_id c
- 	return do_chp_configure(SCLP_CMDW_DECONFIGURE_CHPATH | chpid.id << 8);
- }
- 
-+int arch_get_memory_phys_device(unsigned long start_pfn)
-+{
-+	if (!rzm)
-+		return 0;
-+	return PFN_PHYS(start_pfn) / rzm;
-+}
-+
- struct chp_info_sccb {
- 	struct sccb_header header;
- 	u8 recognized[SCLP_CHP_INFO_MASK_SIZE];
+I know you can lookup the pgdat from the zone structure. The concern is that
+the suggestion requires adding fields to the node structure that then become
+hot in the free_page path when the per-cpu lists are being drained. This patch
+also adds a hot cache line to the zone but at least it can be eliminated by
+using zone->flags. The same optimisation does not apply to working on a
+per-node basis.
+
+Adding such a hot line is a big minus and the gain is that processes may
+wake up slightly faster when under memory pressure. It's not a good trade-off.
+
+> > > But then an overallocated node may stall processes. If that node is full
+> > > of unreclaimable memory then the process may never wake up?
+> >
+> > Processes wake after a timeout.
+> 
+> Ok that limits it but still we may be waiting for no reason.
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
