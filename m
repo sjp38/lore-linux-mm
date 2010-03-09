@@ -1,43 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 201206B009F
-	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 21:04:00 -0500 (EST)
-Received: by pvh11 with SMTP id 11so1808357pvh.14
-        for <linux-mm@kvack.org>; Mon, 08 Mar 2010 18:03:59 -0800 (PST)
-Message-ID: <4B95AC52.1000502@gmail.com>
-Date: Tue, 09 Mar 2010 10:02:58 +0800
-From: Huang Shijie <shijie8@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C27CD6B00A0
+	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 21:06:49 -0500 (EST)
+Message-ID: <4B95AD17.2030106@kernel.org>
+Date: Tue, 09 Mar 2010 11:06:15 +0900
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] shmem : remove redundant code
-References: <1268040782-28561-1-git-send-email-shijie8@gmail.com> <1268064285.1254.6.camel@barrios-desktop>
-In-Reply-To: <1268064285.1254.6.camel@barrios-desktop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: mm: Do not iterate over NR_CPUS in __zone_pcp_update()
+References: <alpine.LFD.2.00.1003081018070.22855@localhost.localdomain> <84144f021003080529w1b20c08dmf6871bd46381bc71@mail.gmail.com>
+In-Reply-To: <84144f021003080529w1b20c08dmf6871bd46381bc71@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
+On 03/08/2010 10:29 PM, Pekka Enberg wrote:
+> On Mon, Mar 8, 2010 at 11:21 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+>> __zone_pcp_update() iterates over NR_CPUS instead of limiting the
+>> access to the possible cpus. This might result in access to
+>> uninitialized areas as the per cpu allocator only populates the per
+>> cpu memory for possible cpus.
+>>
+>> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> 
+> Looks OK to me.
+> 
+> Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
-> On Mon, 2010-03-08 at 17:33 +0800, Huang Shijie wrote:
->    
->> The  prep_new_page() will call set_page_private(page, 0) to initiate
->> the page.
->>
->> So the code is redundant.
->>
->> Signed-off-by: Huang Shijie<shijie8@gmail.com>
->>      
-> Reviewed-by: Minchan Kim<minchan.kim@gmail.com>
->    
-Thanks Minchan. :)
-> Long time ago, nr_swapped named is meaningful as a comment at least.
-> But as split page table lock is introduced in 4c21e2f2441, it was
-> changed by just set_page_private.
-> So even it's not meaningful any more as a comment, I think.
-> So let's remove redundant code.
->
->    
+Yeap, that's buggy.
+
+Acked-by: Tejun Heo <tj@kernel.org>
+
+I suppose this would go through the mm tree?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
