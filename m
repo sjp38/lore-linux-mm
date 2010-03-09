@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 91D836B00A1
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:44:33 -0500 (EST)
-Message-Id: <20100309194316.921051285@redhat.com>
-Date: Tue, 09 Mar 2010 20:39:33 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 06A4A6B00A1
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:44:35 -0500 (EST)
+Message-Id: <20100309194313.940190685@redhat.com>
+Date: Tue, 09 Mar 2010 20:39:16 +0100
 From: aarcange@redhat.com
-Subject: [patch 32/35] memcg compound
+Subject: [patch 15/35] add pmd mangling functions to x86
 References: <20100309193901.207868642@redhat.com>
-Content-Disposition: inline; filename=memcg_compound
+Content-Disposition: inline; filename=pmd_mangling_x86
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, akpm@linux-foundation.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,279 +15,261 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Teach memcg to charge/uncharge compound pages.
+Add needed pmd mangling functions with simmetry with their pte counterparts.
+pmdp_freeze_flush is the only exception only present on the pmd side and it's
+needed to serialize the VM against split_huge_page, it simply atomically clears
+the present bit in the same way pmdp_clear_flush_young atomically clears the
+accessed bit (and both need to flush the tlb to make it effective, which is
+mandatory to happen synchronously for pmdp_freeze_flush).
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- Documentation/cgroups/memory.txt |    4 ++
- mm/memcontrol.c                  |   76 +++++++++++++++++++++++----------------
- 2 files changed, 49 insertions(+), 31 deletions(-)
+ arch/x86/include/asm/pgtable.h    |    8 +-
+ arch/x86/include/asm/pgtable_64.h |  105 ++++++++++++++++++++++++++++++++++++++
+ arch/x86/mm/pgtable.c             |   66 +++++++++++++++++++++++
+ 3 files changed, 175 insertions(+), 4 deletions(-)
 
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -4,6 +4,10 @@ NOTE: The Memory Resource Controller has
- to as the memory controller in this document. Do not confuse memory controller
- used here with the memory controller that is used in hardware.
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -300,15 +300,15 @@ pmd_t *populate_extra_pmd(unsigned long 
+ pte_t *populate_extra_pte(unsigned long vaddr);
+ #endif	/* __ASSEMBLY__ */
  
-+NOTE: When in this documentation we refer to PAGE_SIZE, we actually
-+mean the real page size of the page being accounted which is bigger than
-+PAGE_SIZE for compound pages.
++#ifndef __ASSEMBLY__
++#include <linux/mm_types.h>
 +
- Salient features
+ #ifdef CONFIG_X86_32
+ # include "pgtable_32.h"
+ #else
+ # include "pgtable_64.h"
+ #endif
  
- a. Enable control of Anonymous, Page Cache (mapped and unmapped) and
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1401,8 +1401,8 @@ static int __cpuinit memcg_stock_cpu_cal
-  * oom-killer can be invoked.
-  */
- static int __mem_cgroup_try_charge(struct mm_struct *mm,
--			gfp_t gfp_mask, struct mem_cgroup **memcg,
--			bool oom, struct page *page)
-+				   gfp_t gfp_mask, struct mem_cgroup **memcg,
-+				   bool oom, struct page *page, int page_size)
+-#ifndef __ASSEMBLY__
+-#include <linux/mm_types.h>
+-
+ static inline int pte_none(pte_t pte)
  {
- 	struct mem_cgroup *mem, *mem_over_limit;
- 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-@@ -1415,6 +1415,9 @@ static int __mem_cgroup_try_charge(struc
- 		return 0;
- 	}
- 
-+	if (PageTransHuge(page))
-+		csize = page_size;
-+
- 	/*
- 	 * We always charge the cgroup the mm_struct belongs to.
- 	 * The mm_struct's mem_cgroup changes on task migration if the
-@@ -1439,8 +1442,9 @@ static int __mem_cgroup_try_charge(struc
- 		int ret = 0;
- 		unsigned long flags = 0;
- 
--		if (consume_stock(mem))
--			goto charged;
-+		if (!PageTransHuge(page))
-+			if (consume_stock(mem))
-+				goto charged;
- 
- 		ret = res_counter_charge(&mem->res, csize, &fail_res);
- 		if (likely(!ret)) {
-@@ -1460,7 +1464,7 @@ static int __mem_cgroup_try_charge(struc
- 									res);
- 
- 		/* reduce request size and retry */
--		if (csize > PAGE_SIZE) {
-+		if (csize > page_size) {
- 			csize = PAGE_SIZE;
- 			continue;
- 		}
-@@ -1491,7 +1495,7 @@ static int __mem_cgroup_try_charge(struc
- 			goto nomem;
- 		}
- 	}
--	if (csize > PAGE_SIZE)
-+	if (csize > page_size)
- 		refill_stock(mem, csize - PAGE_SIZE);
- charged:
- 	/*
-@@ -1512,12 +1516,12 @@ nomem:
-  * This function is for that and do uncharge, put css's refcnt.
-  * gotten by try_charge().
+ 	return !pte.pte;
+@@ -351,7 +351,7 @@ static inline unsigned long pmd_page_vad
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
   */
--static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
-+static void mem_cgroup_cancel_charge(struct mem_cgroup *mem, int page_size)
- {
- 	if (!mem_cgroup_is_root(mem)) {
--		res_counter_uncharge(&mem->res, PAGE_SIZE);
-+		res_counter_uncharge(&mem->res, page_size);
- 		if (do_swap_account)
--			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+			res_counter_uncharge(&mem->memsw, page_size);
- 	}
- 	css_put(&mem->css);
- }
-@@ -1575,8 +1579,9 @@ struct mem_cgroup *try_get_mem_cgroup_fr
-  */
+-#define pmd_page(pmd)	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
++#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
  
- static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
--				     struct page_cgroup *pc,
--				     enum charge_type ctype)
-+				       struct page_cgroup *pc,
-+				       enum charge_type ctype,
-+				       int page_size)
- {
- 	/* try_charge() can return NULL to *memcg, taking care of it. */
- 	if (!mem)
-@@ -1585,7 +1590,7 @@ static void __mem_cgroup_commit_charge(s
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
--		mem_cgroup_cancel_charge(mem);
-+		mem_cgroup_cancel_charge(mem, page_size);
- 		return;
- 	}
- 
-@@ -1722,7 +1727,8 @@ static int mem_cgroup_move_parent(struct
- 		goto put;
- 
- 	parent = mem_cgroup_from_cont(pcg);
--	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page);
-+	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page,
-+		PAGE_SIZE);
- 	if (ret || !parent)
- 		goto put_back;
- 
-@@ -1730,7 +1736,7 @@ static int mem_cgroup_move_parent(struct
- 	if (!ret)
- 		css_put(&parent->css);	/* drop extra refcnt by try_charge() */
- 	else
--		mem_cgroup_cancel_charge(parent);	/* does css_put */
-+		mem_cgroup_cancel_charge(parent, PAGE_SIZE); /* does css_put */
- put_back:
- 	putback_lru_page(page);
- put:
-@@ -1752,6 +1758,10 @@ static int mem_cgroup_charge_common(stru
- 	struct mem_cgroup *mem;
- 	struct page_cgroup *pc;
- 	int ret;
-+	int page_size = PAGE_SIZE;
-+
-+	if (PageTransHuge(page))
-+		page_size <<= compound_order(page);
- 
- 	pc = lookup_page_cgroup(page);
- 	/* can happen at boot */
-@@ -1760,11 +1770,12 @@ static int mem_cgroup_charge_common(stru
- 	prefetchw(pc);
- 
- 	mem = memcg;
--	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page);
-+	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page,
-+				      page_size);
- 	if (ret || !mem)
- 		return ret;
- 
--	__mem_cgroup_commit_charge(mem, pc, ctype);
-+	__mem_cgroup_commit_charge(mem, pc, ctype, page_size);
- 	return 0;
+ /*
+  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -72,6 +72,19 @@ static inline pte_t native_ptep_get_and_
+ #endif
  }
  
-@@ -1773,8 +1784,6 @@ int mem_cgroup_newpage_charge(struct pag
++static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
++{
++#ifdef CONFIG_SMP
++	return native_make_pmd(xchg(&xp->pmd, 0));
++#else
++	/* native_local_pmdp_get_and_clear,
++	   but duplicated because of cyclic dependency */
++	pmd_t ret = *xp;
++	native_pmd_clear(NULL, 0, xp);
++	return ret;
++#endif
++}
++
+ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
  {
- 	if (mem_cgroup_disabled())
- 		return 0;
--	if (PageCompound(page))
--		return 0;
- 	/*
- 	 * If already mapped, we don't have to account.
- 	 * If page cache, page->mapping has address_space.
-@@ -1787,7 +1796,7 @@ int mem_cgroup_newpage_charge(struct pag
- 	if (unlikely(!mm))
- 		mm = &init_mm;
- 	return mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
-+					MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
+ 	*pmdp = pmd;
+@@ -181,6 +194,98 @@ static inline int pmd_trans_huge(pmd_t p
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
++#define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
++
++#define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
++extern int pmdp_set_access_flags(struct vm_area_struct *vma,
++				 unsigned long address, pmd_t *pmdp,
++				 pmd_t entry, int dirty);
++
++#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
++extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
++				     unsigned long addr, pmd_t *pmdp);
++
++#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
++extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
++				  unsigned long address, pmd_t *pmdp);
++
++
++#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
++extern void pmdp_splitting_flush(struct vm_area_struct *vma,
++				 unsigned long addr, pmd_t *pmdp);
++
++#define __HAVE_ARCH_PMD_WRITE
++static inline int pmd_write(pmd_t pmd)
++{
++	return pmd_flags(pmd) & _PAGE_RW;
++}
++
++#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
++static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm, unsigned long addr,
++				       pmd_t *pmdp)
++{
++	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
++	pmd_update(mm, addr, pmdp);
++	return pmd;
++}
++
++#define __HAVE_ARCH_PMDP_SET_WRPROTECT
++static inline void pmdp_set_wrprotect(struct mm_struct *mm,
++				      unsigned long addr, pmd_t *pmdp)
++{
++	clear_bit(_PAGE_BIT_RW, (unsigned long *)&pmdp->pmd);
++	pmd_update(mm, addr, pmdp);
++}
++
++static inline int pmd_young(pmd_t pmd)
++{
++	return pmd_flags(pmd) & _PAGE_ACCESSED;
++}
++
++static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
++{
++	pmdval_t v = native_pmd_val(pmd);
++
++	return native_make_pmd(v | set);
++}
++
++static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
++{
++	pmdval_t v = native_pmd_val(pmd);
++
++	return native_make_pmd(v & ~clear);
++}
++
++static inline pmd_t pmd_mkold(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
++}
++
++static inline pmd_t pmd_wrprotect(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_RW);
++}
++
++static inline pmd_t pmd_mkdirty(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_DIRTY);
++}
++
++static inline pmd_t pmd_mkhuge(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_PSE);
++}
++
++static inline pmd_t pmd_mkyoung(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_ACCESSED);
++}
++
++static inline pmd_t pmd_mkwrite(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_RW);
++}
++
+ #endif /* !__ASSEMBLY__ */
+ 
+ #endif /* _ASM_X86_PGTABLE_64_H */
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -309,6 +309,25 @@ int ptep_set_access_flags(struct vm_area
+ 	return changed;
  }
  
- static void
-@@ -1880,14 +1889,14 @@ int mem_cgroup_try_charge_swapin(struct 
- 	if (!mem)
- 		goto charge_cur_mm;
- 	*ptr = mem;
--	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page);
-+	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page, PAGE_SIZE);
- 	/* drop extra refcnt from tryget */
- 	css_put(&mem->css);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++int pmdp_set_access_flags(struct vm_area_struct *vma,
++			  unsigned long address, pmd_t *pmdp,
++			  pmd_t entry, int dirty)
++{
++	int changed = !pmd_same(*pmdp, entry);
++
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++
++	if (changed && dirty) {
++		*pmdp = entry;
++		pmd_update_defer(vma->vm_mm, address, pmdp);
++		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	}
++
++	return changed;
++}
++#endif
++
+ int ptep_test_and_clear_young(struct vm_area_struct *vma,
+ 			      unsigned long addr, pte_t *ptep)
+ {
+@@ -324,6 +343,23 @@ int ptep_test_and_clear_young(struct vm_
  	return ret;
- charge_cur_mm:
- 	if (unlikely(!mm))
- 		mm = &init_mm;
--	return __mem_cgroup_try_charge(mm, mask, ptr, true, page);
-+	return __mem_cgroup_try_charge(mm, mask, ptr, true, page, PAGE_SIZE);
  }
  
- static void
-@@ -1903,7 +1912,7 @@ __mem_cgroup_commit_charge_swapin(struct
- 	cgroup_exclude_rmdir(&ptr->css);
- 	pc = lookup_page_cgroup(page);
- 	mem_cgroup_lru_del_before_commit_swapcache(page);
--	__mem_cgroup_commit_charge(ptr, pc, ctype);
-+	__mem_cgroup_commit_charge(ptr, pc, ctype, PAGE_SIZE);
- 	mem_cgroup_lru_add_after_commit_swapcache(page);
- 	/*
- 	 * Now swap is on-memory. This means this page may be
-@@ -1952,11 +1961,12 @@ void mem_cgroup_cancel_charge_swapin(str
- 		return;
- 	if (!mem)
- 		return;
--	mem_cgroup_cancel_charge(mem);
-+	mem_cgroup_cancel_charge(mem, PAGE_SIZE);
- }
- 
- static void
--__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
-+__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype,
-+	      int page_size)
- {
- 	struct memcg_batch_info *batch = NULL;
- 	bool uncharge_memsw = true;
-@@ -1989,14 +1999,14 @@ __do_uncharge(struct mem_cgroup *mem, co
- 	if (batch->memcg != mem)
- 		goto direct_uncharge;
- 	/* remember freed charge and uncharge it later */
--	batch->bytes += PAGE_SIZE;
-+	batch->bytes += page_size;
- 	if (uncharge_memsw)
--		batch->memsw_bytes += PAGE_SIZE;
-+		batch->memsw_bytes += page_size;
- 	return;
- direct_uncharge:
--	res_counter_uncharge(&mem->res, PAGE_SIZE);
-+	res_counter_uncharge(&mem->res, page_size);
- 	if (uncharge_memsw)
--		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+		res_counter_uncharge(&mem->memsw, page_size);
- 	return;
- }
- 
-@@ -2009,6 +2019,10 @@ __mem_cgroup_uncharge_common(struct page
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *mem = NULL;
- 	struct mem_cgroup_per_zone *mz;
-+	int page_size = PAGE_SIZE;
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++int pmdp_test_and_clear_young(struct vm_area_struct *vma,
++			      unsigned long addr, pmd_t *pmdp)
++{
++	int ret = 0;
 +
-+	if (PageTransHuge(page))
-+		page_size <<= compound_order(page);
++	if (pmd_young(*pmdp))
++		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
++					 (unsigned long *) &pmdp->pmd);
++
++	if (ret)
++		pmd_update(vma->vm_mm, addr, pmdp);
++
++	return ret;
++}
++#endif
++
+ int ptep_clear_flush_young(struct vm_area_struct *vma,
+ 			   unsigned long address, pte_t *ptep)
+ {
+@@ -336,6 +372,36 @@ int ptep_clear_flush_young(struct vm_are
+ 	return young;
+ }
  
- 	if (mem_cgroup_disabled())
- 		return NULL;
-@@ -2048,7 +2062,7 @@ __mem_cgroup_uncharge_common(struct page
- 	}
- 
- 	if (!mem_cgroup_is_root(mem))
--		__do_uncharge(mem, ctype);
-+		__do_uncharge(mem, ctype, page_size);
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
- 		mem_cgroup_swap_statistics(mem, true);
- 	mem_cgroup_charge_statistics(mem, pc, false);
-@@ -2217,7 +2231,7 @@ int mem_cgroup_prepare_migration(struct 
- 
- 	if (mem) {
- 		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false,
--						page);
-+					      page, PAGE_SIZE);
- 		css_put(&mem->css);
- 	}
- 	*ptr = mem;
-@@ -2260,7 +2274,7 @@ void mem_cgroup_end_migration(struct mem
- 	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
- 	 * So, double-counting is effectively avoided.
- 	 */
--	__mem_cgroup_commit_charge(mem, pc, ctype);
-+	__mem_cgroup_commit_charge(mem, pc, ctype, PAGE_SIZE);
- 
- 	/*
- 	 * Both of oldpage and newpage are still under lock_page().
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++int pmdp_clear_flush_young(struct vm_area_struct *vma,
++			   unsigned long address, pmd_t *pmdp)
++{
++	int young;
++
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++
++	young = pmdp_test_and_clear_young(vma, address, pmdp);
++	if (young)
++		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++
++	return young;
++}
++
++void pmdp_splitting_flush(struct vm_area_struct *vma,
++			  unsigned long address, pmd_t *pmdp)
++{
++	int set;
++	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
++	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
++				(unsigned long *)&pmdp->pmd);
++	if (set) {
++		pmd_update(vma->vm_mm, address, pmdp);
++		/* need tlb flush only to serialize against gup-fast */
++		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	}
++}
++#endif
++
+ /**
+  * reserve_top_address - reserves a hole in the top of kernel address space
+  * @reserve - size of hole to reserve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
