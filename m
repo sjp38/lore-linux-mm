@@ -1,78 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6326A6B009D
-	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 20:25:22 -0500 (EST)
-Message-ID: <4B95A379.4000207@cn.fujitsu.com>
-Date: Tue, 09 Mar 2010 09:25:13 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 201206B009F
+	for <linux-mm@kvack.org>; Mon,  8 Mar 2010 21:04:00 -0500 (EST)
+Received: by pvh11 with SMTP id 11so1808357pvh.14
+        for <linux-mm@kvack.org>; Mon, 08 Mar 2010 18:03:59 -0800 (PST)
+Message-ID: <4B95AC52.1000502@gmail.com>
+Date: Tue, 09 Mar 2010 10:02:58 +0800
+From: Huang Shijie <shijie8@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 1/4] cpuset: fix the problem that cpuset_mem_spread_node()
- returns an offline node
-References: <4B94CB6C.8090601@cn.fujitsu.com> <alpine.DEB.2.00.1003081318460.14689@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1003081318460.14689@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] shmem : remove redundant code
+References: <1268040782-28561-1-git-send-email-shijie8@gmail.com> <1268064285.1254.6.camel@barrios-desktop>
+In-Reply-To: <1268064285.1254.6.camel@barrios-desktop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-on 2010-3-9 5:22, David Rientjes wrote:
-> On Mon, 8 Mar 2010, Miao Xie wrote:
-> 
->> Changes from V1 to V2:
->> - cleanup two unnecessary smp_wmb() at cpuset_migrate_mm()
+
+> On Mon, 2010-03-08 at 17:33 +0800, Huang Shijie wrote:
+>    
+>> The  prep_new_page() will call set_page_private(page, 0) to initiate
+>> the page.
 >>
-> 
-> This patch is already in -mm without this update, so it's probably better 
-> to make this an incremental series basedo n mmotm-2010-03-04-18-05 or 
-> later.
-
-ok, I'll do it.
-
-> 
->> @@ -2090,15 +2086,19 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
->>  static int cpuset_track_online_nodes(struct notifier_block *self,
->>  				unsigned long action, void *arg)
->>  {
->> +	nodemask_t oldmems;
->> +
->>  	cgroup_lock();
->>  	switch (action) {
->>  	case MEM_ONLINE:
->> -	case MEM_OFFLINE:
->> +		oldmems = top_cpuset.mems_allowed;
->>  		mutex_lock(&callback_mutex);
->>  		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
->>  		mutex_unlock(&callback_mutex);
->> -		if (action == MEM_OFFLINE)
->> -			scan_for_empty_cpusets(&top_cpuset);
->> +		update_tasks_nodemask(&top_cpuset, &oldmems, NULL);
->> +		break;
->> +	case MEM_OFFLINE:
->> +		scan_for_empty_cpusets(&top_cpuset);
->>  		break;
->>  	default:
->>  		break;
-> 
-> This looks wrong, why isn't top_cpuset.mems_allowed updated for 
-> MEM_OFFLINE?  If you're going to update it when a new node comes online 
-> for (struct memory_notify *)arg->status_change_nid is >= 0, then it should 
-> be removed from the nodemask when offlined as well.  You'd be calling 
-> scan_for_empty_cpusets() needlessly in this code since it'll never change 
-> under your hotplug code.
-
-scan_for_empty_cpusets() will update top_cpuset.mems_allowed when doing MEM_OFFLINE.
-
-The comment of this source is necessary. I'll add it.
-
-Thanks!
-Miao
-
-> 
-> 
-
+>> So the code is redundant.
+>>
+>> Signed-off-by: Huang Shijie<shijie8@gmail.com>
+>>      
+> Reviewed-by: Minchan Kim<minchan.kim@gmail.com>
+>    
+Thanks Minchan. :)
+> Long time ago, nr_swapped named is meaningful as a comment at least.
+> But as split page table lock is introduced in 4c21e2f2441, it was
+> changed by just set_page_private.
+> So even it's not meaningful any more as a comment, I think.
+> So let's remove redundant code.
+>
+>    
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
