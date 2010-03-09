@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 06A4A6B00A1
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:44:35 -0500 (EST)
-Message-Id: <20100309194313.940190685@redhat.com>
-Date: Tue, 09 Mar 2010 20:39:16 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 66E8B6B00AF
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 14:44:36 -0500 (EST)
+Message-Id: <20100309194312.823426793@redhat.com>
+Date: Tue, 09 Mar 2010 20:39:09 +0100
 From: aarcange@redhat.com
-Subject: [patch 15/35] add pmd mangling functions to x86
+Subject: [patch 08/35] add pmd paravirt ops
 References: <20100309193901.207868642@redhat.com>
-Content-Disposition: inline; filename=pmd_mangling_x86
+Content-Disposition: inline; filename=pmd_paravirt_ops
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, akpm@linux-foundation.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>
@@ -15,261 +15,99 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add needed pmd mangling functions with simmetry with their pte counterparts.
-pmdp_freeze_flush is the only exception only present on the pmd side and it's
-needed to serialize the VM against split_huge_page, it simply atomically clears
-the present bit in the same way pmdp_clear_flush_young atomically clears the
-accessed bit (and both need to flush the tlb to make it effective, which is
-mandatory to happen synchronously for pmdp_freeze_flush).
+Paravirt ops pmd_update/pmd_update_defer/pmd_set_at. Not all might be necessary
+(vmware needs pmd_update, Xen needs set_pmd_at, nobody needs pmd_update_defer),
+but this is to keep full simmetry with pte paravirt ops, which looks cleaner
+and simpler from a common code POV.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
- arch/x86/include/asm/pgtable.h    |    8 +-
- arch/x86/include/asm/pgtable_64.h |  105 ++++++++++++++++++++++++++++++++++++++
- arch/x86/mm/pgtable.c             |   66 +++++++++++++++++++++++
- 3 files changed, 175 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/paravirt.h       |   23 +++++++++++++++++++++++
+ arch/x86/include/asm/paravirt_types.h |    6 ++++++
+ arch/x86/kernel/paravirt.c            |    3 +++
+ 3 files changed, 32 insertions(+)
 
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -300,15 +300,15 @@ pmd_t *populate_extra_pmd(unsigned long 
- pte_t *populate_extra_pte(unsigned long vaddr);
- #endif	/* __ASSEMBLY__ */
- 
-+#ifndef __ASSEMBLY__
-+#include <linux/mm_types.h>
-+
- #ifdef CONFIG_X86_32
- # include "pgtable_32.h"
- #else
- # include "pgtable_64.h"
- #endif
- 
--#ifndef __ASSEMBLY__
--#include <linux/mm_types.h>
--
- static inline int pte_none(pte_t pte)
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -440,6 +440,11 @@ static inline void pte_update(struct mm_
  {
- 	return !pte.pte;
-@@ -351,7 +351,7 @@ static inline unsigned long pmd_page_vad
-  * Currently stuck as a macro due to indirect forward reference to
-  * linux/mmzone.h's __section_mem_map_addr() definition:
-  */
--#define pmd_page(pmd)	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
-+#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
+ 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
+ }
++static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
++			      pmd_t *pmdp)
++{
++	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
++}
  
- /*
-  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -72,6 +72,19 @@ static inline pte_t native_ptep_get_and_
- #endif
+ static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
+ 				    pte_t *ptep)
+@@ -447,6 +452,12 @@ static inline void pte_update_defer(stru
+ 	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
  }
  
-+static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
++static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
++				    pmd_t *pmdp)
 +{
-+#ifdef CONFIG_SMP
-+	return native_make_pmd(xchg(&xp->pmd, 0));
-+#else
-+	/* native_local_pmdp_get_and_clear,
-+	   but duplicated because of cyclic dependency */
-+	pmd_t ret = *xp;
-+	native_pmd_clear(NULL, 0, xp);
-+	return ret;
-+#endif
++	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
 +}
 +
- static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+ static inline pte_t __pte(pteval_t val)
  {
- 	*pmdp = pmd;
-@@ -181,6 +194,98 @@ static inline int pmd_trans_huge(pmd_t p
+ 	pteval_t ret;
+@@ -548,6 +559,18 @@ static inline void set_pte_at(struct mm_
+ 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
  }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
-+#define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
++			      pmd_t *pmdp, pmd_t pmd)
++{
++	if (sizeof(pmdval_t) > sizeof(long))
++		/* 5 arg words */
++		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
++	else
++		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp, pmd.pmd);
++}
++#endif
 +
-+#define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
-+extern int pmdp_set_access_flags(struct vm_area_struct *vma,
-+				 unsigned long address, pmd_t *pmdp,
-+				 pmd_t entry, int dirty);
-+
-+#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
-+extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
-+				     unsigned long addr, pmd_t *pmdp);
-+
-+#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
-+extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
-+				  unsigned long address, pmd_t *pmdp);
-+
-+
-+#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
-+extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
+ 	pmdval_t val = native_pmd_val(pmd);
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -266,10 +266,16 @@ struct pv_mmu_ops {
+ 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep, pte_t pteval);
+ 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
++	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
++			   pmd_t *pmdp, pmd_t pmdval);
+ 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep);
+ 	void (*pte_update_defer)(struct mm_struct *mm,
+ 				 unsigned long addr, pte_t *ptep);
++	void (*pmd_update)(struct mm_struct *mm, unsigned long addr,
++			   pmd_t *pmdp);
++	void (*pmd_update_defer)(struct mm_struct *mm,
 +				 unsigned long addr, pmd_t *pmdp);
-+
-+#define __HAVE_ARCH_PMD_WRITE
-+static inline int pmd_write(pmd_t pmd)
-+{
-+	return pmd_flags(pmd) & _PAGE_RW;
-+}
-+
-+#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
-+static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm, unsigned long addr,
-+				       pmd_t *pmdp)
-+{
-+	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
-+	pmd_update(mm, addr, pmdp);
-+	return pmd;
-+}
-+
-+#define __HAVE_ARCH_PMDP_SET_WRPROTECT
-+static inline void pmdp_set_wrprotect(struct mm_struct *mm,
-+				      unsigned long addr, pmd_t *pmdp)
-+{
-+	clear_bit(_PAGE_BIT_RW, (unsigned long *)&pmdp->pmd);
-+	pmd_update(mm, addr, pmdp);
-+}
-+
-+static inline int pmd_young(pmd_t pmd)
-+{
-+	return pmd_flags(pmd) & _PAGE_ACCESSED;
-+}
-+
-+static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
-+{
-+	pmdval_t v = native_pmd_val(pmd);
-+
-+	return native_make_pmd(v | set);
-+}
-+
-+static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
-+{
-+	pmdval_t v = native_pmd_val(pmd);
-+
-+	return native_make_pmd(v & ~clear);
-+}
-+
-+static inline pmd_t pmd_mkold(pmd_t pmd)
-+{
-+	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
-+}
-+
-+static inline pmd_t pmd_wrprotect(pmd_t pmd)
-+{
-+	return pmd_clear_flags(pmd, _PAGE_RW);
-+}
-+
-+static inline pmd_t pmd_mkdirty(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_DIRTY);
-+}
-+
-+static inline pmd_t pmd_mkhuge(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_PSE);
-+}
-+
-+static inline pmd_t pmd_mkyoung(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_ACCESSED);
-+}
-+
-+static inline pmd_t pmd_mkwrite(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_RW);
-+}
-+
- #endif /* !__ASSEMBLY__ */
  
- #endif /* _ASM_X86_PGTABLE_64_H */
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -309,6 +309,25 @@ int ptep_set_access_flags(struct vm_area
- 	return changed;
- }
+ 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
+ 					pte_t *ptep);
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -422,8 +422,11 @@ struct pv_mmu_ops pv_mmu_ops = {
+ 	.set_pte = native_set_pte,
+ 	.set_pte_at = native_set_pte_at,
+ 	.set_pmd = native_set_pmd,
++	.set_pmd_at = native_set_pmd_at,
+ 	.pte_update = paravirt_nop,
+ 	.pte_update_defer = paravirt_nop,
++	.pmd_update = paravirt_nop,
++	.pmd_update_defer = paravirt_nop,
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+int pmdp_set_access_flags(struct vm_area_struct *vma,
-+			  unsigned long address, pmd_t *pmdp,
-+			  pmd_t entry, int dirty)
-+{
-+	int changed = !pmd_same(*pmdp, entry);
-+
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+
-+	if (changed && dirty) {
-+		*pmdp = entry;
-+		pmd_update_defer(vma->vm_mm, address, pmdp);
-+		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	}
-+
-+	return changed;
-+}
-+#endif
-+
- int ptep_test_and_clear_young(struct vm_area_struct *vma,
- 			      unsigned long addr, pte_t *ptep)
- {
-@@ -324,6 +343,23 @@ int ptep_test_and_clear_young(struct vm_
- 	return ret;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+int pmdp_test_and_clear_young(struct vm_area_struct *vma,
-+			      unsigned long addr, pmd_t *pmdp)
-+{
-+	int ret = 0;
-+
-+	if (pmd_young(*pmdp))
-+		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
-+					 (unsigned long *) &pmdp->pmd);
-+
-+	if (ret)
-+		pmd_update(vma->vm_mm, addr, pmdp);
-+
-+	return ret;
-+}
-+#endif
-+
- int ptep_clear_flush_young(struct vm_area_struct *vma,
- 			   unsigned long address, pte_t *ptep)
- {
-@@ -336,6 +372,36 @@ int ptep_clear_flush_young(struct vm_are
- 	return young;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+int pmdp_clear_flush_young(struct vm_area_struct *vma,
-+			   unsigned long address, pmd_t *pmdp)
-+{
-+	int young;
-+
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+
-+	young = pmdp_test_and_clear_young(vma, address, pmdp);
-+	if (young)
-+		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+
-+	return young;
-+}
-+
-+void pmdp_splitting_flush(struct vm_area_struct *vma,
-+			  unsigned long address, pmd_t *pmdp)
-+{
-+	int set;
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
-+				(unsigned long *)&pmdp->pmd);
-+	if (set) {
-+		pmd_update(vma->vm_mm, address, pmdp);
-+		/* need tlb flush only to serialize against gup-fast */
-+		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	}
-+}
-+#endif
-+
- /**
-  * reserve_top_address - reserves a hole in the top of kernel address space
-  * @reserve - size of hole to reserve
+ 	.ptep_modify_prot_start = __ptep_modify_prot_start,
+ 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
