@@ -1,90 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3AB0F6B0047
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 11:55:19 -0500 (EST)
-From: David Howells <dhowells@redhat.com>
-Subject: [PATCH] Fix breakage in NOMMU build
-Date: Tue, 09 Mar 2010 16:55:09 +0000
-Message-ID: <20100309165508.8522.63314.stgit@warthog.procyon.org.uk>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A64576B0047
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 12:01:40 -0500 (EST)
+Date: Tue, 9 Mar 2010 17:01:23 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/3] page-allocator: Under memory pressure, wait on
+	pressure to relieve instead of congestion
+Message-ID: <20100309170123.GG4883@csn.ul.ie>
+References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie> <1268048904-19397-2-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1003090946180.28897@router.home> <4B966F93.9060207@linux.vnet.ibm.com> <alpine.DEB.2.00.1003091005310.28897@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1003091005310.28897@router.home>
 Sender: owner-linux-mm@kvack.org
-To: torvalds@osdl.org, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mike Frysinger <vapier@gentoo.org>, Michal Simek <monstr@monstr.eu>, David Howells <dhowells@redhat.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Tue, Mar 09, 2010 at 10:09:11AM -0600, Christoph Lameter wrote:
+> On Tue, 9 Mar 2010, Christian Ehrhardt wrote:
+> 
+> > > What happens if memory becomes available in another zone? Lets say we are
+> > > waiting on HIGHMEM and memory in ZONE_NORMAL becomes available?
+> >
+> > Do you mean the same as Nick asked or another aspect of it?
+> > citation:
+> > "I mean the other way around. If that zone's watermarks are not met, then why
+> > shouldn't it be woken up by other zones reaching their watermarks."
+> 
+> Just saw that exchange. Yes it is similar. Mel only thought about NUMA
+> but the situation can also occur in !NUMA because multiple zones do not
+> require NUMA.
+> 
 
-Commit 34e55232e59f7b19050267a05ff1226e5cd122a5 added sync_mm_rss() for
-syncing loosely accounted rss counters.  It's for CONFIG_MMU but sync_mm_rss
-is called even in NOMMU enviroment (kerne/exit.c, fs/exec.c).  Above commit
-doesn't handle it well.
+True, although rare. Elsewhere I suggested that the wait could be on a
+per-node basis instead of per-zone. My main concern there would be
+adding a new hot cache line in the page free path or an unfortunate mix
+of zone and node logic. I'm not fully convinced it's worth it but will
+check it out.
 
-This patch changes
-  SPLIT_RSS_COUNTING depends on SPLIT_PTLOCKS && CONFIG_MMU
+> If a process goes to sleep on an allocation that has a preferred zone of
+> HIGHMEM then other processors may free up memory in ZONE_DMA and
+> ZONE_NORMAL and therefore memory may become available but the process will
+> continue to sleep.
+> 
 
-And for avoid unnecessary function calls, sync_mm_rss changed to be inlined
-noop function in header file.
+Until it's timeout at least. It's still better than the current
+situation of sleeping on congestion.
 
-Reported-by: David Howells <dhowells@redhat.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Mike Frysinger <vapier@gentoo.org>
-Signed-off-by: Michal Simek <monstr@monstr.eu>
-Signed-off-by: David Howells <dhowells@redhat.com>
----
+The ideal would be waiting on a per-node basis. I'm just not liking having
+to look up the node structure when freeing a patch of pages and making a
+cache line in there unnecessarily hot.
 
- include/linux/mm.h       |    6 ++++++
- include/linux/mm_types.h |    2 +-
- mm/memory.c              |    3 ---
- 3 files changed, 7 insertions(+), 4 deletions(-)
+> The wait structure needs to be placed in the pgdat structure to make it
+> node specific.
+> 
+> But then an overallocated node may stall processes. If that node is full
+> of unreclaimable memory then the process may never wake up?
+> 
 
+Processes wake after a timeout.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 3899395..7f693b2 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -971,7 +971,13 @@ static inline void setmax_mm_hiwater_rss(unsigned long *maxrss,
- 		*maxrss = hiwater_rss;
- }
- 
-+#if defined(SPLIT_RSS_COUNTING)
- void sync_mm_rss(struct task_struct *task, struct mm_struct *mm);
-+#else
-+static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
-+{
-+}
-+#endif
- 
- /*
-  * A callback you can register to apply pressure to ageable caches.
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 048b462..b8bb9a6 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -203,7 +203,7 @@ enum {
- 	NR_MM_COUNTERS
- };
- 
--#if USE_SPLIT_PTLOCKS
-+#if USE_SPLIT_PTLOCKS && defined(CONFIG_MMU)
- #define SPLIT_RSS_COUNTING
- struct mm_rss_stat {
- 	atomic_long_t count[NR_MM_COUNTERS];
-diff --git a/mm/memory.c b/mm/memory.c
-index d1153e3..3d9130b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -190,9 +190,6 @@ static void check_sync_rss_stat(struct task_struct *task)
- {
- }
- 
--void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
--{
--}
- #endif
- 
- /*
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
