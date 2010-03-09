@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5963D6B00CE
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 16:22:05 -0500 (EST)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate2.de.ibm.com (8.13.1/8.13.1) with ESMTP id o29LM0uS032668
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 21:22:00 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o29LLxMl1593498
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 22:21:59 +0100
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o29LLxCE016146
-	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 22:21:59 +0100
-Date: Tue, 9 Mar 2010 22:22:11 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH 2/2] memory hotplug/s390: set phys_device
-Message-ID: <20100309212211.GA2288@osiris.boeblingen.de.ibm.com>
-References: <20100309172052.GC2360@osiris.boeblingen.de.ibm.com>
- <20100309123748.3015e10a.akpm@linux-foundation.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 85D8C6B00D1
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 16:25:31 -0500 (EST)
+Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
+	by smtp-out.google.com with ESMTP id o29LPSI3027105
+	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 13:25:28 -0800
+Received: from fxm2 (fxm2.prod.google.com [10.184.13.2])
+	by spaceape13.eur.corp.google.com with ESMTP id o29LPRh3019319
+	for <linux-mm@kvack.org>; Tue, 9 Mar 2010 13:25:27 -0800
+Received: by fxm2 with SMTP id 2so1190577fxm.36
+        for <linux-mm@kvack.org>; Tue, 09 Mar 2010 13:25:26 -0800 (PST)
+Date: Tue, 9 Mar 2010 21:25:12 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] shmem : remove redundant code
+In-Reply-To: <1268040782-28561-1-git-send-email-shijie8@gmail.com>
+Message-ID: <alpine.LSU.2.00.1003092123520.22884@sister.anvils>
+References: <1268040782-28561-1-git-send-email-shijie8@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100309123748.3015e10a.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gerald Schaefer <gerald.schaefer@de.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Huang Shijie <shijie8@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 09, 2010 at 12:37:48PM -0800, Andrew Morton wrote:
-> On Tue, 9 Mar 2010 18:20:52 +0100
-> Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
-> 
-> > From: Heiko Carstens <heiko.carstens@de.ibm.com>
-> > 
-> > Implement arch specific arch_get_memory_phys_device function and initialize
-> > phys_device for each memory section. That way we finally can tell which
-> > piece of memory belongs to which physical device.
-> > 
-> > --- a/drivers/s390/char/sclp_cmd.c
-> > +++ b/drivers/s390/char/sclp_cmd.c
-> > @@ -704,6 +704,13 @@ int sclp_chp_deconfigure(struct chp_id c
-> >  	return do_chp_configure(SCLP_CMDW_DECONFIGURE_CHPATH | chpid.id << 8);
-> >  }
-> >  
-> > +int arch_get_memory_phys_device(unsigned long start_pfn)
-> > +{
-> > +	if (!rzm)
-> > +		return 0;
-> > +	return PFN_PHYS(start_pfn) / rzm;
-> > +}
-> > +
-> >  struct chp_info_sccb {
-> >  	struct sccb_header header;
-> >  	u8 recognized[SCLP_CHP_INFO_MASK_SIZE];
-> 
-> What is the utility of this patch?  It makes s390's
-> /sys/devices/system/memory/memoryX/phys_device display the correct
-> thing?
+On Mon, 8 Mar 2010, Huang Shijie wrote:
 
-Yes, exactly.
+> The  prep_new_page() will call set_page_private(page, 0) to initiate
+> the page.
+> 
+> So the code is redundant.
+> 
+> Signed-off-by: Huang Shijie <shijie8@gmail.com>
+
+Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+
+I didn't feel too enthusiastic at first, since private used not to be initialized
+by page allocation, and I don't know of a strong reason why it should be: we do
+strongly demand that page->mapping be NULL on allocation, but we leave page->index
+with whatever it already contains, and I had thought page->_private the same.
+
+But it seems we have been initializing private to 0 for nearly seven years now,
+and it was done intentionally for something (XFS) to depend upon, so yes,
+let's rely on that here too - thanks.
+
+Hugh
+
+> ---
+>  mm/shmem.c |    2 --
+>  1 files changed, 0 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index eef4ebe..dde4363 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -433,8 +433,6 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
+>  
+>  		spin_unlock(&info->lock);
+>  		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
+> -		if (page)
+> -			set_page_private(page, 0);
+>  		spin_lock(&info->lock);
+>  
+>  		if (!page) {
+> -- 
+> 1.6.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
