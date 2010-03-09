@@ -1,29 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 54ADB6B0047
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 10:11:29 -0500 (EST)
-Date: Tue, 9 Mar 2010 09:10:52 -0600 (CST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 74B7F6B0047
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 10:41:41 -0500 (EST)
+Date: Tue, 9 Mar 2010 09:41:27 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: mm: Do not iterate over NR_CPUS in __zone_pcp_update()
-In-Reply-To: <4B95AD17.2030106@kernel.org>
-Message-ID: <alpine.DEB.2.00.1003090910200.28897@router.home>
-References: <alpine.LFD.2.00.1003081018070.22855@localhost.localdomain> <84144f021003080529w1b20c08dmf6871bd46381bc71@mail.gmail.com> <4B95AD17.2030106@kernel.org>
+Subject: Re: [BUGFIX][PATCH] fix sync_mm_rss in nommu (Was Re: sync_mm_rss()
+ issues
+In-Reply-To: <4B9635BE.6090001@petalogix.com>
+Message-ID: <alpine.DEB.2.00.1003090941030.28897@router.home>
+References: <30859.1268056796@redhat.com> <20100309095830.7d4a744d.kamezawa.hiroyu@jp.fujitsu.com> <8bd0f97a1003081833s2e8527d7pd1e0b427ae76020@mail.gmail.com> <4B9635BE.6090001@petalogix.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Michal Simek <michal.simek@petalogix.com>
+Cc: Mike Frysinger <vapier.adi@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Howells <dhowells@redhat.com>, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Mar 2010, Tejun Heo wrote:
+On Tue, 9 Mar 2010, Michal Simek wrote:
 
-> Yeap, that's buggy.
->
-> Acked-by: Tejun Heo <tj@kernel.org>
->
-> I suppose this would go through the mm tree?
+> > Signed-off-by: Mike Frysinger <vapier@gentoo.org>
+> Signed-off-by: Michal Simek <monstr@monstr.eu>
 
-As you said: Its a bug so it needs to be applied to upstream.
+?? You handled this patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
