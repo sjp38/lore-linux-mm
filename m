@@ -1,127 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D8DD6B0047
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 08:35:25 -0500 (EST)
-Date: Wed, 10 Mar 2010 00:35:13 +1100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 662386B0078
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 08:46:41 -0500 (EST)
+Date: Wed, 10 Mar 2010 00:46:33 +1100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 1/3] page-allocator: Under memory pressure, wait on
- pressure to relieve instead of congestion
-Message-ID: <20100309133513.GL8653@laptop>
-References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie>
- <1268048904-19397-2-git-send-email-mel@csn.ul.ie>
+Subject: Re: [patch] slab: add memory hotplug support
+Message-ID: <20100309134633.GM8653@laptop>
+References: <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1002251228140.18861@router.home>
+ <20100226114136.GA16335@basil.fritz.box>
+ <alpine.DEB.2.00.1002260904311.6641@router.home>
+ <20100226155755.GE16335@basil.fritz.box>
+ <alpine.DEB.2.00.1002261123520.7719@router.home>
+ <alpine.DEB.2.00.1002261555030.32111@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com>
+ <20100305062002.GV8653@laptop>
+ <alpine.DEB.2.00.1003081502400.30456@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1268048904-19397-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <alpine.DEB.2.00.1003081502400.30456@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 08, 2010 at 11:48:21AM +0000, Mel Gorman wrote:
-> Under heavy memory pressure, the page allocator may call congestion_wait()
-> to wait for IO congestion to clear or a timeout. This is not as sensible
-> a choice as it first appears. There is no guarantee that BLK_RW_ASYNC is
-> even congested as the pressure could have been due to a large number of
-> SYNC reads and the allocator waits for the entire timeout, possibly uselessly.
+On Mon, Mar 08, 2010 at 03:19:48PM -0800, David Rientjes wrote:
+> On Fri, 5 Mar 2010, Nick Piggin wrote:
 > 
-> At the point of congestion_wait(), the allocator is struggling to get the
-> pages it needs and it should back off. This patch puts the allocator to sleep
-> on a zone->pressure_wq for either a timeout or until a direct reclaimer or
-> kswapd brings the zone over the low watermark, whichever happens first.
+> > > +#if defined(CONFIG_NUMA) && defined(CONFIG_MEMORY_HOTPLUG)
+> > > +/*
+> > > + * Drains and frees nodelists for a node on each slab cache, used for memory
+> > > + * hotplug.  Returns -EBUSY if all objects cannot be drained on memory
+> > > + * hot-remove so that the node is not removed.  When used because memory
+> > > + * hot-add is canceled, the only result is the freed kmem_list3.
+> > > + *
+> > > + * Must hold cache_chain_mutex.
+> > > + */
+> > > +static int __meminit free_cache_nodelists_node(int node)
+> > > +{
+> > > +	struct kmem_cache *cachep;
+> > > +	int ret = 0;
+> > > +
+> > > +	list_for_each_entry(cachep, &cache_chain, next) {
+> > > +		struct array_cache *shared;
+> > > +		struct array_cache **alien;
+> > > +		struct kmem_list3 *l3;
+> > > +
+> > > +		l3 = cachep->nodelists[node];
+> > > +		if (!l3)
+> > > +			continue;
+> > > +
+> > > +		spin_lock_irq(&l3->list_lock);
+> > > +		shared = l3->shared;
+> > > +		if (shared) {
+> > > +			free_block(cachep, shared->entry, shared->avail, node);
+> > > +			l3->shared = NULL;
+> > > +		}
+> > > +		alien = l3->alien;
+> > > +		l3->alien = NULL;
+> > > +		spin_unlock_irq(&l3->list_lock);
+> > > +
+> > > +		if (alien) {
+> > > +			drain_alien_cache(cachep, alien);
+> > > +			free_alien_cache(alien);
+> > > +		}
+> > > +		kfree(shared);
+> > > +
+> > > +		drain_freelist(cachep, l3, l3->free_objects);
+> > > +		if (!list_empty(&l3->slabs_full) ||
+> > > +					!list_empty(&l3->slabs_partial)) {
+> > > +			/*
+> > > +			 * Continue to iterate through each slab cache to free
+> > > +			 * as many nodelists as possible even though the
+> > > +			 * offline will be canceled.
+> > > +			 */
+> > > +			ret = -EBUSY;
+> > > +			continue;
+> > > +		}
+> > > +		kfree(l3);
+> > > +		cachep->nodelists[node] = NULL;
+> > 
+> > What's stopping races of other CPUs trying to access l3 and array
+> > caches while they're being freed?
+> > 
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  include/linux/mmzone.h |    3 ++
->  mm/internal.h          |    4 +++
->  mm/mmzone.c            |   47 +++++++++++++++++++++++++++++++++++++++++++++
->  mm/page_alloc.c        |   50 +++++++++++++++++++++++++++++++++++++++++++----
->  mm/vmscan.c            |    2 +
->  5 files changed, 101 insertions(+), 5 deletions(-)
+> numa_node_id() will not return an offlined nodeid and cache_alloc_node() 
+> already does a fallback to other onlined nodes in case a nodeid is passed 
+> to kmalloc_node() that does not have a nodelist.  l3->shared and l3->alien 
+> cannot be accessed without l3->list_lock (drain, cache_alloc_refill, 
+> cache_flusharray) or cache_chain_mutex (kmem_cache_destroy, cache_reap).
+
+Yeah, but can't it _have_ a nodelist (ie. before it is set to NULL here)
+while it is being accessed by another CPU and concurrently being freed
+on this one? 
+
+
+> > > +	}
+> > > +	return ret;
+> > > +}
+> > > +
+> > > +/*
+> > > + * Onlines nid either as the result of memory hot-add or canceled hot-remove.
+> > > + */
+> > > +static int __meminit slab_node_online(int nid)
+> > > +{
+> > > +	int ret;
+> > > +	mutex_lock(&cache_chain_mutex);
+> > > +	ret = init_cache_nodelists_node(nid);
+> > > +	mutex_unlock(&cache_chain_mutex);
+> > > +	return ret;
+> > > +}
+> > > +
+> > > +/*
+> > > + * Offlines nid either as the result of memory hot-remove or canceled hot-add.
+> > > + */
+> > > +static int __meminit slab_node_offline(int nid)
+> > > +{
+> > > +	int ret;
+> > > +	mutex_lock(&cache_chain_mutex);
+> > > +	ret = free_cache_nodelists_node(nid);
+> > > +	mutex_unlock(&cache_chain_mutex);
+> > > +	return ret;
+> > > +}
+> > > +
+> > > +static int __meminit slab_memory_callback(struct notifier_block *self,
+> > > +					unsigned long action, void *arg)
+> > > +{
+> > > +	struct memory_notify *mnb = arg;
+> > > +	int ret = 0;
+> > > +	int nid;
+> > > +
+> > > +	nid = mnb->status_change_nid;
+> > > +	if (nid < 0)
+> > > +		goto out;
+> > > +
+> > > +	switch (action) {
+> > > +	case MEM_GOING_ONLINE:
+> > > +	case MEM_CANCEL_OFFLINE:
+> > > +		ret = slab_node_online(nid);
+> > > +		break;
+> > 
+> > This would explode if CANCEL_OFFLINE fails. Call it theoretical and
+> > put a panic() in here and I don't mind. Otherwise you get corruption
+> > somewhere in the slab code.
+> > 
 > 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 30fe668..72465c1 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -398,6 +398,9 @@ struct zone {
->  	unsigned long		wait_table_hash_nr_entries;
->  	unsigned long		wait_table_bits;
->  
-> +	/* queue for processes waiting for pressure to relieve */
-> +	wait_queue_head_t	*pressure_wq;
+> MEM_CANCEL_ONLINE would only fail here if a struct kmem_list3 couldn't be 
+> allocated anywhere on the system and if that happens then the node simply 
+> couldn't be allocated from (numa_node_id() would never return it as the 
+> cpu's node, so it's possible to fallback in this scenario).
 
-Hmm, processes may be eligible to allocate from > 1 zone, but you
-have them only waiting for one. I wonder if we shouldn't wait for
-more zones?
-
-Congestion waiting uses a global waitqueue, which hasn't seemed to
-cause a big scalability problem. Would it be better to have a global
-waitqueue for this too?
+Why would it never return the CPU's node? It's CANCEL_OFFLINE that is
+the problem.
 
 
-> +void check_zone_pressure(struct zone *zone)
-
-I don't really like the name pressure. We use that term for the reclaim
-pressure wheras we're just checking watermarks here (actual pressure
-could be anything).
-
-
-> +{
-> +	/* If no process is waiting, nothing to do */
-> +	if (!waitqueue_active(zone->pressure_wq))
-> +		return;
-> +
-> +	/* Check if the high watermark is ok for order 0 */
-> +	if (zone_watermark_ok(zone, 0, low_wmark_pages(zone), 0, 0))
-> +		wake_up_interruptible(zone->pressure_wq);
-> +}
-
-If you were to do this under the zone lock (in your subsequent patch),
-then it could avoid races. I would suggest doing it all as a single
-patch and not doing the pressure checks in reclaim at all.
-
-If you are missing anything, then that needs to be explained and fixed
-rather than just adding extra checks.
-
-> +
-> +/**
-> + * zonepressure_wait - Wait for pressure on a zone to ease off
-> + * @zone: The zone that is expected to be under pressure
-> + * @order: The order the caller is waiting on pages for
-> + * @timeout: Wait until pressure is relieved or this timeout is reached
-> + *
-> + * Waits for up to @timeout jiffies for pressure on a zone to be relieved.
-> + * It's considered to be relieved if any direct reclaimer or kswapd brings
-> + * the zone above the high watermark
-> + */
-> +long zonepressure_wait(struct zone *zone, unsigned int order, long timeout)
-> +{
-> +	long ret;
-> +	DEFINE_WAIT(wait);
-> +
-> +wait_again:
-> +	prepare_to_wait(zone->pressure_wq, &wait, TASK_INTERRUPTIBLE);
-
-I guess to do it without races you need to check watermark here.
-And possibly some barriers if it is done without zone->lock.
-
-> +
-> +	/*
-> +	 * The use of io_schedule_timeout() here means that it gets
-> +	 * accounted for as IO waiting. This may or may not be the case
-> +	 * but at least this way it gets picked up by vmstat
-> +	 */
-> +	ret = io_schedule_timeout(timeout);
-> +	finish_wait(zone->pressure_wq, &wait);
-> +
-> +	/* If woken early, check watermarks before continuing */
-> +	if (ret && !zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0)) {
-> +		timeout = ret;
-> +		goto wait_again;
-> +	}
-
-And then I don't know if we'd really need the extra check here. Might as
-well just let the allocator try again and avoid the code?
+> Instead of doing this all at MEM_GOING_OFFLINE, we could delay freeing of 
+> the array caches and the nodelist until MEM_OFFLINE.  We're guaranteed 
+> that all pages are freed at that point so there are no existing objects 
+> that we need to track and then if the offline fails from a different 
+> callback it would be possible to reset the l3->nodelists[node] pointers 
+> since they haven't been freed yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
