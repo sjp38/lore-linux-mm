@@ -1,38 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7543E6B0047
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 16:05:58 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH] mm: fix typo in refill_stock() comment
-Date: Wed, 10 Mar 2010 13:05:17 -0800
-Message-Id: <1268255117-3280-1-git-send-email-gthelen@google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B65A76B007D
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 17:19:08 -0500 (EST)
+Date: Wed, 10 Mar 2010 23:19:03 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: mm/ksm.c seems to be doing an unneeded _notify.
+Message-ID: <20100310221903.GC5967@random.random>
+References: <20100310191842.GL5677@sgi.com>
+ <4B97FED5.2030007@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B97FED5.2030007@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, trivial@kernel.org, Greg Thelen <gthelen@google.com>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: Robin Holt <holt@sgi.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Chris Wright <chrisw@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Change refill_stock() comment: s/consumt_stock()/consume_stock()/
+On Wed, Mar 10, 2010 at 10:19:33PM +0200, Izik Eidus wrote:
+> On 03/10/2010 09:18 PM, Robin Holt wrote:
+> > While reviewing ksm.c, I noticed that ksm.c does:
+> >
+> >          if (pte_write(*ptep)) {
+> >                  pte_t entry;
+> >
+> >                  swapped = PageSwapCache(page);
+> >                  flush_cache_page(vma, addr, page_to_pfn(page));
+> >                  /*
+> >                   * Ok this is tricky, when get_user_pages_fast() run it doesnt
+> >                   * take any lock, therefore the check that we are going to make
+> >                   * with the pagecount against the mapcount is racey and
+> >                   * O_DIRECT can happen right after the check.
+> >                   * So we clear the pte and flush the tlb before the check
+> >                   * this assure us that no O_DIRECT can happen after the check
+> >                   * or in the middle of the check.
+> >                   */
+> >                  entry = ptep_clear_flush(vma, addr, ptep);
+> >                  /*
+> >                   * Check that no O_DIRECT or similar I/O is in progress on the
+> >                   * page
+> >                   */
+> >                  if (page_mapcount(page) + 1 + swapped != page_count(page)) {
+> >                          set_pte_at_notify(mm, addr, ptep, entry);
+> >                          goto out_unlock;
+> >                  }
+> >                  entry = pte_wrprotect(entry);
+> >                  set_pte_at_notify(mm, addr, ptep, entry);
+> >
+> >
+> > I would think the error case (where the page has an elevated page_count)
+> > should not be using set_pte_at_notify.  In that event, you are simply
+> > restoring the previous value.  Have I missed something or is this an
+> > extraneous _notify?
+> >    
+> 
+> Yes, I think you are right set_pte_at(mm, addr, ptep, entry);  would be
+> enough here.
+> 
+> I can`t remember or think any reason why I have used the _notify...
+> 
+> Lets just get ACK from Andrea and Hugh that they agree it isn't needed
 
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- mm/memcontrol.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d813823..0576de1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1330,7 +1330,7 @@ static void drain_local_stock(struct work_struct *dummy)
- 
- /*
-  * Cache charges(val) which is from res_counter, to local per_cpu area.
-- * This will be consumed by consumt_stock() function, later.
-+ * This will be consumed by consume_stock() function, later.
-  */
- static void refill_stock(struct mem_cgroup *mem, int val)
- {
--- 
-1.7.0.1
+_notify it's needed, we're downgrading permissions here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
