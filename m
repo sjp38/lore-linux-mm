@@ -1,41 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BC4CA6B0082
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:16:16 -0500 (EST)
-Date: Tue, 09 Mar 2010 23:16:35 -0800 (PST)
-Message-Id: <20100309.231635.199019630.davem@davemloft.net>
-Subject: Re: further plans on bootmem, was: Re: -
- bootmem-avoid-dma32-zone-by-default.patch removed from -mm tree
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20100310000121.GA9985@cmpxchg.org>
-References: <4B96B923.7020805@kernel.org>
-	<20100309134902.171ba2ae.akpm@linux-foundation.org>
-	<20100310000121.GA9985@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A95AB6B008C
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 03:29:37 -0500 (EST)
+Received: by pvh11 with SMTP id 11so2144937pvh.14
+        for <linux-mm@kvack.org>; Wed, 10 Mar 2010 00:29:37 -0800 (PST)
+MIME-Version: 1.0
+Date: Wed, 10 Mar 2010 16:29:37 +0800
+Message-ID: <2375c9f91003100029q7d64bbf7xce15eee97f7e2190@mail.gmail.com>
+Subject: 2.6.34-rc1: kernel BUG at mm/slab.c:2989!
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: hannes@cmpxchg.org
-Cc: akpm@linux-foundation.org, yinghai@kernel.org, x86@kernel.org, linux-arch@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Johannes Weiner <hannes@cmpxchg.org>
-Date: Wed, 10 Mar 2010 01:01:21 +0100
+Hello, mm experts,
 
-> I also found it weird that it makes x86 skip an allocator level that all
-> the other architectures are using, and replaces it with 'generic' code that
-> nobody but x86 is using (sparc, powerpc, sh and microblaze  appear to have
-> lib/lmb.c at this stage and for this purpose? lmb was also suggested by
-> benh [4] but I have to admit I do not understand Yinghai's response to it).
+I triggered an mm bug today, the full backtrace is here:
 
-It kind of irked me that lmb was passed over for whatever vague reason
-was given.
+http://pastebin.ca/1831436
 
-It works fine with memory hotplug on powerpc, so a lack of hotplug
-support can't be an argument for not using it.
+I am using yesterday's Linus tree.
 
-But hey, having yet another early memory allocator instead of making
-one of the existing ones do what you want, that's fine right?
+It's not easy to reproduce this, I got this very randomly.
+
+Some related config's are:
+
+CONFIG_SLAB=y
+CONFIG_SLABINFO=y
+# CONFIG_DEBUG_SLAB is not set
+
+Please let me know if you need more info.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
