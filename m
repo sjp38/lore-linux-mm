@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BC6196B00A6
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 05:41:43 -0500 (EST)
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id o2AAfefl022739
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:41:40 -0800
-Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
-	by spaceape8.eur.corp.google.com with ESMTP id o2AAfc6o014870
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:41:38 -0800
-Received: by pwi7 with SMTP id 7so3794389pwi.16
-        for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:41:38 -0800 (PST)
-Date: Wed, 10 Mar 2010 02:41:35 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id EC2076B00A6
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 05:41:46 -0500 (EST)
+Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
+	by smtp-out.google.com with ESMTP id o2AAfgo5022774
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:41:42 -0800
+Received: from pvg6 (pvg6.prod.google.com [10.241.210.134])
+	by kpbe18.cbf.corp.google.com with ESMTP id o2AAffJb018106
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:41:41 -0800
+Received: by pvg6 with SMTP id 6so2289198pvg.9
+        for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:41:41 -0800 (PST)
+Date: Wed, 10 Mar 2010 02:41:38 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 06/10 -mm v3] oom: deprecate oom_adj tunable
+Subject: [patch 07/10 -mm v3] oom: replace sysctls with quick mode
 In-Reply-To: <alpine.DEB.2.00.1003100236510.30013@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1003100239350.30013@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1003100239510.30013@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1003100236510.30013@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -23,105 +23,177 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-/proc/pid/oom_adj is now deprecated so that that it may eventually be
-removed.  The target date for removal is December 2011.
+Two VM sysctls, oom dump_tasks and oom_kill_allocating_task, were
+implemented for very large systems to avoid excessively long tasklist
+scans.  The former suppresses helpful diagnostic messages that are
+emitted for each thread group leader that are candidates for oom kill
+including their pid, uid, vm size, rss, oom_adj value, and name; this
+information is very helpful to users in understanding why a particular
+task was chosen for kill over others.  The latter simply kills current,
+the task triggering the oom condition, instead of iterating through the
+tasklist looking for the worst offender.
 
-A warning will be printed to the kernel log if a task attempts to use
-this interface.  Future warning will be suppressed until the kernel is
-rebooted to prevent spamming the kernel log.
+Both of these sysctls are combined into one for use on the aforementioned
+large systems: oom_kill_quick.  This disables the now-default
+oom_dump_tasks and kills current whenever the oom killer is called.
 
+This consolidation is possible because the audience for both tunables is
+the same and there is no backwards compatibility issue in removing
+oom_dump_tasks since its behavior is now default.  Since mempolicy ooms
+now scan the tasklist, oom_kill_allocating_task may now find more users
+to avoid the performance penalty, so it's better to unite them under one
+sysctl than carry two for legacy purposes.
+
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/feature-removal-schedule.txt |   30 ++++++++++++++++++++++++++++
- Documentation/filesystems/proc.txt         |    3 ++
- fs/proc/base.c                             |    8 +++++++
- include/linux/oom.h                        |    3 ++
- 4 files changed, 44 insertions(+), 0 deletions(-)
+ Documentation/sysctl/vm.txt |   44 +++++-------------------------------------
+ include/linux/oom.h         |    3 +-
+ kernel/sysctl.c             |   13 ++---------
+ mm/oom_kill.c               |    9 +++----
+ 4 files changed, 14 insertions(+), 55 deletions(-)
 
-diff --git a/Documentation/feature-removal-schedule.txt b/Documentation/feature-removal-schedule.txt
---- a/Documentation/feature-removal-schedule.txt
-+++ b/Documentation/feature-removal-schedule.txt
-@@ -174,6 +174,36 @@ Who:	Eric Biederman <ebiederm@xmission.com>
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -43,9 +43,8 @@ Currently, these files are in /proc/sys/vm:
+ - nr_pdflush_threads
+ - nr_trim_pages         (only if CONFIG_MMU=n)
+ - numa_zonelist_order
+-- oom_dump_tasks
+ - oom_forkbomb_thres
+-- oom_kill_allocating_task
++- oom_kill_quick
+ - overcommit_memory
+ - overcommit_ratio
+ - page-cluster
+@@ -470,27 +469,6 @@ this is causing problems for your system/application.
  
- ---------------------------
+ ==============================================================
  
-+What:	/proc/<pid>/oom_adj
-+When:	December 2011
-+Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
-+	badness heuristic used to determine which task to kill when the kernel
-+	is out of memory.
-+
-+	The badness heuristic has since been rewritten since the introduction of
-+	this tunable such that its meaning is deprecated.  The value was
-+	implemented as a bitshift on a score generated by the badness()
-+	function that did not have any precise units of measure.  With the
-+	rewrite, the score is given as a proportion of available memory to the
-+	task allocating pages, so using a bitshift which grows the score
-+	exponentially is, thus, impossible to tune with fine granularity.
-+
-+	A much more powerful interface, /proc/<pid>/oom_score_adj, was
-+	introduced with the oom killer rewrite that allows users to increase or
-+	decrease the badness() score linearly.  This interface will replace
-+	/proc/<pid>/oom_adj.
-+
-+	See Documentation/filesystems/proc.txt for information on how to use the
-+	new tunable.
-+
-+	A warning will be emitted to the kernel log if an application uses this
-+	deprecated interface.  After it is printed once, future warning will be
-+	suppressed until the kernel is rebooted.
-+
-+Who:	David Rientjes <rientjes@google.com>
-+
-+---------------------------
-+
- What:	remove EXPORT_SYMBOL(kernel_thread)
- When:	August 2006
- Files:	arch/*/kernel/*_ksyms.c
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -1290,6 +1290,9 @@ scaled linearly with /proc/<pid>/oom_score_adj.
- Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
- other with its scaled value.
+-oom_dump_tasks
+-
+-Enables a system-wide task dump (excluding kernel threads) to be
+-produced when the kernel performs an OOM-killing and includes such
+-information as pid, uid, tgid, vm size, rss, cpu, oom_adj score, and
+-name.  This is helpful to determine why the OOM killer was invoked
+-and to identify the rogue task that caused it.
+-
+-If this is set to zero, this information is suppressed.  On very
+-large systems with thousands of tasks it may not be feasible to dump
+-the memory state information for each one.  Such systems should not
+-be forced to incur a performance penalty in OOM conditions when the
+-information may not be desired.
+-
+-If this is set to non-zero, this information is shown whenever the
+-OOM killer actually kills a memory-hogging task.
+-
+-The default value is 0.
+-
+-==============================================================
+-
+ oom_forkbomb_thres
  
-+NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
-+Documentation/feature-removal-schedule.txt.
-+
- Caveat: when a parent task is selected, the oom killer will sacrifice any first
- generation children with seperate address spaces instead, if possible.  This
- avoids servers and important system daemons from being killed and loses the
-diff --git a/fs/proc/base.c b/fs/proc/base.c
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1138,6 +1138,14 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 		return -EACCES;
- 	}
+ This value defines how many children with a seperate address space a specific
+@@ -511,22 +489,12 @@ The default value is 1000.
  
-+	/*
-+	 * Warn that /proc/pid/oom_adj is deprecated, see
-+	 * Documentation/feature-removal-schedule.txt.
-+	 */
-+	printk_once(KERN_WARNING "%s (%d): /proc/%d/oom_adj is deprecated, "
-+			"please use /proc/%d/oom_score_adj instead.\n",
-+			current->comm, task_pid_nr(current),
-+			task_pid_nr(task), task_pid_nr(task));
- 	task->signal->oom_adj = oom_adjust;
- 	/*
- 	 * Scale /proc/pid/oom_score_adj appropriately ensuring that a maximum
+ ==============================================================
+ 
+-oom_kill_allocating_task
+-
+-This enables or disables killing the OOM-triggering task in
+-out-of-memory situations.
+-
+-If this is set to zero, the OOM killer will scan through the entire
+-tasklist and select a task based on heuristics to kill.  This normally
+-selects a rogue memory-hogging task that frees up a large amount of
+-memory when killed.
+-
+-If this is set to non-zero, the OOM killer simply kills the task that
+-triggered the out-of-memory condition.  This avoids the expensive
+-tasklist scan.
++oom_kill_quick
+ 
+-If panic_on_oom is selected, it takes precedence over whatever value
+-is used in oom_kill_allocating_task.
++When enabled, this will always kill the task that triggered the oom killer, i.e.
++the task that attempted to allocate memory that could not be found.  It also
++suppresses the tasklist dump to the kernel log whenever the oom killer is
++called.  Typically set on systems with an extremely large number of tasks.
+ 
+ The default value is 0.
+ 
 diff --git a/include/linux/oom.h b/include/linux/oom.h
 --- a/include/linux/oom.h
 +++ b/include/linux/oom.h
-@@ -2,6 +2,9 @@
- #define __INCLUDE_LINUX_OOM_H
+@@ -63,8 +63,7 @@ static inline void oom_killer_enable(void)
+ }
+ /* for sysctl */
+ extern int sysctl_panic_on_oom;
+-extern int sysctl_oom_kill_allocating_task;
+-extern int sysctl_oom_dump_tasks;
++extern int sysctl_oom_kill_quick;
+ extern int sysctl_oom_forkbomb_thres;
+ 
+ #endif /* __KERNEL__*/
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -940,16 +940,9 @@ static struct ctl_table vm_table[] = {
+ 		.proc_handler	= proc_dointvec,
+ 	},
+ 	{
+-		.procname	= "oom_kill_allocating_task",
+-		.data		= &sysctl_oom_kill_allocating_task,
+-		.maxlen		= sizeof(sysctl_oom_kill_allocating_task),
+-		.mode		= 0644,
+-		.proc_handler	= proc_dointvec,
+-	},
+-	{
+-		.procname	= "oom_dump_tasks",
+-		.data		= &sysctl_oom_dump_tasks,
+-		.maxlen		= sizeof(sysctl_oom_dump_tasks),
++		.procname	= "oom_kill_quick",
++		.data		= &sysctl_oom_kill_quick,
++		.maxlen		= sizeof(sysctl_oom_kill_quick),
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_dointvec,
+ 	},
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -32,9 +32,8 @@
+ #include <linux/security.h>
+ 
+ int sysctl_panic_on_oom;
+-int sysctl_oom_kill_allocating_task;
+-int sysctl_oom_dump_tasks;
+ int sysctl_oom_forkbomb_thres = DEFAULT_OOM_FORKBOMB_THRES;
++int sysctl_oom_kill_quick;
+ static DEFINE_SPINLOCK(zone_scan_lock);
  
  /*
-+ * /proc/<pid>/oom_adj is deprecated, see
-+ * Documentation/feature-removal-schedule.txt.
-+ *
-  * /proc/<pid>/oom_adj set to -17 protects from the oom-killer
-  */
- #define OOM_DISABLE (-17)
+@@ -409,7 +408,7 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	dump_stack();
+ 	mem_cgroup_print_oom_info(mem, p);
+ 	show_mem();
+-	if (sysctl_oom_dump_tasks)
++	if (!sysctl_oom_kill_quick)
+ 		dump_tasks(mem);
+ }
+ 
+@@ -658,9 +657,9 @@ static void __out_of_memory(gfp_t gfp_mask, int order, unsigned long totalpages,
+ 	struct task_struct *p;
+ 	unsigned int points;
+ 
+-	if (sysctl_oom_kill_allocating_task)
++	if (sysctl_oom_kill_quick)
+ 		if (!oom_kill_process(current, gfp_mask, order, 0, totalpages,
+-			NULL, "Out of memory (oom_kill_allocating_task)"))
++			NULL, "Out of memory (quick mode)"))
+ 			return;
+ retry:
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
