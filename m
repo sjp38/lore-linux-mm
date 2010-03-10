@@ -1,46 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EA5AE6B00B6
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 10:23:24 -0500 (EST)
-Subject: Re: [BUG] 2.6.33-mmotm-100302
- "page-allocator-reduce-fragmentation-in-buddy-allocator..."  patch causes
- Oops at boot
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <4e5e476b1003091403h361984acocc71377660317373@mail.gmail.com>
-References: <1267644632.4023.28.camel@useless.americas.hpqcorp.net>
-	 <4e5e476b1003091403h361984acocc71377660317373@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 10 Mar 2010 10:23:18 -0500
-Message-Id: <1268234598.4184.7.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AC4486B0083
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 14:18:44 -0500 (EST)
+Date: Wed, 10 Mar 2010 13:18:42 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: mm/ksm.c seems to be doing an unneeded _notify.
+Message-ID: <20100310191842.GL5677@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Corrado Zoccolo <czoccolo@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Chris Wright <chrisw@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-03-09 at 23:03 +0100, Corrado Zoccolo wrote:
-> Hi Lee,
-> the correct fix is attached.
-> It has the good property that the check is compiled out when not
-> needed (i.e. when !CONFIG_HOLES_IN_ZONE).
-> Can you give it a spin on your machine?
-> 
-> Thanks,
-> Corrado
-> 
+While reviewing ksm.c, I noticed that ksm.c does:
+
+        if (pte_write(*ptep)) {
+                pte_t entry;
+
+                swapped = PageSwapCache(page);
+                flush_cache_page(vma, addr, page_to_pfn(page));
+                /*
+                 * Ok this is tricky, when get_user_pages_fast() run it doesnt
+                 * take any lock, therefore the check that we are going to make
+                 * with the pagecount against the mapcount is racey and
+                 * O_DIRECT can happen right after the check.
+                 * So we clear the pte and flush the tlb before the check
+                 * this assure us that no O_DIRECT can happen after the check
+                 * or in the middle of the check.
+                 */
+                entry = ptep_clear_flush(vma, addr, ptep);
+                /*
+                 * Check that no O_DIRECT or similar I/O is in progress on the
+                 * page 
+                 */
+                if (page_mapcount(page) + 1 + swapped != page_count(page)) {
+                        set_pte_at_notify(mm, addr, ptep, entry);
+                        goto out_unlock;
+                }
+                entry = pte_wrprotect(entry);
+                set_pte_at_notify(mm, addr, ptep, entry);
 
 
-Corrado:
+I would think the error case (where the page has an elevated page_count)
+should not be using set_pte_at_notify.  In that event, you are simply
+restoring the previous value.  Have I missed something or is this an
+extraneous _notify?
 
-That, indeed, fixed the problem.  I applied your patch to 2.6.33 + the
-4mar mmotm and it booted fine on the same hardware config that was
-failing before.  You can add my
-
-Tested-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
-Thanks, 
-Lee
+Thanks,
+Robin Holt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
