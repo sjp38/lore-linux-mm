@@ -1,162 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C7CEE6B00C4
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 21:59:08 -0500 (EST)
-Date: Wed, 10 Mar 2010 11:50:46 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mmotm 7/8] memcg: move charges of anonymous swap
-Message-Id: <20100310115046.425857f0.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100309151334.f28d9930.akpm@linux-foundation.org>
-References: <20091221143106.6ff3ca15.nishimura@mxp.nes.nec.co.jp>
-	<20091221143816.9794cd17.nishimura@mxp.nes.nec.co.jp>
-	<20100203193127.fe5efa17.akpm@linux-foundation.org>
-	<20100204140942.0ef6d7b1.nishimura@mxp.nes.nec.co.jp>
-	<20100204142736.2a8bec26.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100204071840.GC5574@linux-sh.org>
-	<20100204164441.d012f6fa.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100205093806.5699d406.nishimura@mxp.nes.nec.co.jp>
-	<20100205011602.GA8416@linux-sh.org>
-	<20100309151334.f28d9930.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 572246B00B4
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 22:56:38 -0500 (EST)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id o2A3uQq4027766
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 14:56:26 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2A3oebh1560596
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 14:50:40 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2A3uPjb016483
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 14:56:26 +1100
+Date: Wed, 10 Mar 2010 09:26:24 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH mmotm 2.5/4] memcg: disable irq at page cgroup lock (Re:
+ [PATCH -mmotm 3/4] memcg: dirty pages accounting and limiting
+ infrastructure)
+Message-ID: <20100310035624.GP3073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100308105641.e2e714f4.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100308111724.3e48aee3.nishimura@mxp.nes.nec.co.jp>
+ <20100308113711.d7a249da.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100308170711.4d8b02f0.nishimura@mxp.nes.nec.co.jp>
+ <20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100309001252.GB13490@linux>
+ <20100309091914.4b5f6661.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100309102928.9f36d2bb.nishimura@mxp.nes.nec.co.jp>
+ <20100309045058.GX3073@balbir.in.ibm.com>
+ <20100310104309.c5f9c9a9.nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100310104309.c5f9c9a9.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Mundt <lethal@linux-sh.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, Andrea Righi <arighi@develer.com>, linux-kernel@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, Vivek Goyal <vgoyal@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Mar 2010 15:13:34 -0800, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Fri, 5 Feb 2010 10:16:02 +0900
-> Paul Mundt <lethal@linux-sh.org> wrote:
+* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2010-03-10 10:43:09]:
+
+> > Please please measure the performance overhead of this change.
+> > 
 > 
-> > On Fri, Feb 05, 2010 at 09:38:06AM +0900, Daisuke Nishimura wrote:
-> > > On Thu, 4 Feb 2010 16:44:41 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > On Thu, 4 Feb 2010 16:18:40 +0900
-> > > > Paul Mundt <lethal@linux-sh.org> wrote:
-> > > > > CONFIG_SWAP itself is configurable even with CONFIG_MMU=y, so having
-> > > > > stubbed out helpers for the CONFIG_SWAP=n case would give the compiler a
-> > > > > chance to optimize things away in those cases, too. Embedded systems
-> > > > > especially will often have MMU=y and BLOCK=n, resulting in SWAP being
-> > > > > unset but swap cache encodings still defined.
-> > > > > 
-> > > > > How about just changing the is_swap_pte() definition to depend on SWAP
-> > > > > instead?
-> > > > > 
-> > > > I think the new feature as "move task charge" itself depends on CONFIG_MMU
-> > > > because it walks a process's page table. 
-> > > > 
-> > > > Then, how about this ? (sorry, I can't test this in valid way..)
-> > > > 
-> > > I agree to this direction of making "move charge" depend on CONFIG_MMU,
-> > > although I can't test !CONFIG_MMU case either.
-> > > 
-> > I'll try to give it a test on nommu today and see how it goes.
+> here.
 > 
-> The patch is still breaking the NOMMU build for me:
+> > > > > > > I made a patch below and measured the time(average of 10 times) of kernel build
+> > > > > > > on tmpfs(make -j8 on 8 CPU machine with 2.6.33 defconfig).
+> > > > > > > 
+> > > > > > > <before>
+> > > > > > > - root cgroup: 190.47 sec
+> > > > > > > - child cgroup: 192.81 sec
+> > > > > > > 
+> > > > > > > <after>
+> > > > > > > - root cgroup: 191.06 sec
+> > > > > > > - child cgroup: 193.06 sec
+> > > > > > > 
 > 
-> mm/memcontrol.c: In function `is_target_pte_for_mc':
-> mm/memcontrol.c:3641: error: implicit declaration of function `is_swap_pte'
+> <after2(local_irq_save/restore)>
+> - root cgroup: 191.42 sec
+> - child cgroup: 193.55 sec
 > 
-This is a fix patch based on KAMEZAWA-san's.
+> hmm, I think it's in error range, but I can see a tendency by testing several times
+> that it's getting slower as I add additional codes. Using local_irq_disable()/enable()
+> except in mem_cgroup_update_file_mapped(it can be the only candidate to be called
+> with irq disabled in future) might be the choice.
+>
 
-This patch makes "move charge" feature depends on CONFIG_MMU. I think it would be
-more appropriate to place this patch as a fix for
-memcg-add-interface-to-move-charge-at-task-migration.patch, because of its nature,
-so I prepared this patch as a fix for it. And all of the following patches can be
-applied properly in my environment.
-
-===
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
-"move charges at task migration" feature depends on page tables. So, it doesn't
-work in !CONIFG_MMU environments.
-This patch moves "task move" codes under CONIFG_MMU.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- Documentation/cgroups/memory.txt |    2 ++
- mm/memcontrol.c                  |   31 +++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 0 deletions(-)
-
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index e726fb0..b8b6b12 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -420,6 +420,8 @@ NOTE2: It is recommended to set the soft limit always below the hard limit,
+Error range would depend on things like standard deviation and
+repetition. It might be good to keep update_file_mapped and see the
+impact. My concern is with large systems, the difference might be
+larger.
  
- Users can move charges associated with a task along with task migration, that
- is, uncharge task's pages from the old cgroup and charge them to the new cgroup.
-+This feature is not supporetd in !CONFIG_MMU environmetns because of lack of
-+page tables.
- 
- 8.1 Interface
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 59ffaf5..88a6880 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2886,6 +2886,7 @@ static u64 mem_cgroup_move_charge_read(struct cgroup *cgrp,
- 	return mem_cgroup_from_cont(cgrp)->move_charge_at_immigrate;
- }
- 
-+#ifdef CONFIG_MMU
- static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
- 					struct cftype *cft, u64 val)
- {
-@@ -2904,6 +2905,13 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
- 
- 	return 0;
- }
-+#else
-+static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
-+					struct cftype *cft, u64 val)
-+{
-+	return -ENOSYS;
-+}
-+#endif
- 
- 
- /* For read statistics */
-@@ -3427,6 +3435,7 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
- 	return ret;
- }
- 
-+#ifdef CONFIG_MMU
- /* Handlers for move charge at task migration. */
- static int mem_cgroup_can_move_charge(void)
- {
-@@ -3479,6 +3488,28 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
- {
- 	mem_cgroup_move_charge();
- }
-+#else	/* !CONFIG_MMU */
-+static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-+				struct cgroup *cgroup,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+	return 0;
-+}
-+static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
-+				struct cgroup *cgroup,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+}
-+static void mem_cgroup_move_task(struct cgroup_subsys *ss,
-+				struct cgroup *cont,
-+				struct cgroup *old_cont,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+}
-+#endif
- 
- struct cgroup_subsys mem_cgroup_subsys = {
- 	.name = "memory",
 -- 
-1.6.4
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
