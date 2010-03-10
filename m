@@ -1,46 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E2116B0098
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 05:20:54 -0500 (EST)
-Message-ID: <4B977282.40505@cs.helsinki.fi>
-Date: Wed, 10 Mar 2010 12:20:50 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 21C316B008A
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 05:41:24 -0500 (EST)
+Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
+	by smtp-out.google.com with ESMTP id o2AAfJB9006182
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 10:41:20 GMT
+Received: from pzk29 (pzk29.prod.google.com [10.243.19.157])
+	by spaceape10.eur.corp.google.com with ESMTP id o2AAfFuG018374
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:41:17 -0800
+Received: by pzk29 with SMTP id 29so4808638pzk.27
+        for <linux-mm@kvack.org>; Wed, 10 Mar 2010 02:41:15 -0800 (PST)
+Date: Wed, 10 Mar 2010 02:41:08 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 00/10 -mm v3] oom killer rewrite
+Message-ID: <alpine.DEB.2.00.1003100236510.30013@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: 2.6.34-rc1: kernel BUG at mm/slab.c:2989!
-References: <2375c9f91003100029q7d64bbf7xce15eee97f7e2190@mail.gmail.com>
-In-Reply-To: <2375c9f91003100029q7d64bbf7xce15eee97f7e2190@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?B?QW3DqXJpY28gV2FuZw==?= <xiyou.wangcong@gmail.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, viro@zeniv.linux.org.uk, mingo@elte.hu, akpm@linux-foundation.org, roland@redhat.com, peterz@infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-AmA(C)rico Wang kirjoitti:
-> Hello, mm experts,
-> 
-> I triggered an mm bug today, the full backtrace is here:
-> 
-> http://pastebin.ca/1831436
-> 
-> I am using yesterday's Linus tree.
-> 
-> It's not easy to reproduce this, I got this very randomly.
-> 
-> Some related config's are:
-> 
-> CONFIG_SLAB=y
-> CONFIG_SLABINFO=y
-> # CONFIG_DEBUG_SLAB is not set
-> 
-> Please let me know if you need more info.
+This patchset is a rewrite of the out of memory killer to address several
+issues that have been raised recently.  The most notable change is a
+complete rewrite of the badness heuristic that determines which task is
+killed; the goal was to make it as simple and predictable as possible
+while still addressing issues that plague the VM.
 
-Looks like regular SLAB corruption bug to me. Can you trigget it with SLUB?
+Changes from version 2:
 
-Anyway, it seems very unlikely that it's caused by the SLAB changes in 
--rc1 so I'm CC'ing scheduler and fs folks in case the oops rings a bell.
+ - updated to mmotm-2010-03-09-19-15
 
-			Pekka
+ - schedule a timeout for current if it was not selected for oom kill
+   when it has returned VM_FAULT_OOM so memory can freed to prevent
+   needlessly recalling the oom killer and looping.
+
+To apply, download the -mm tree from
+http://userweb.kernel.org/~akpm/mmotm/broken-out.tar.gz first.
+
+This patchset is also available for each kernel release from:
+
+	http://www.kernel.org/pub/linux/kernel/people/rientjes/oom-killer-rewrite/
+
+including broken out patches.
+---
+ Documentation/feature-removal-schedule.txt |   30 +
+ Documentation/filesystems/proc.txt         |  100 +++--
+ Documentation/sysctl/vm.txt                |   51 +-
+ fs/proc/base.c                             |  106 +++++
+ include/linux/memcontrol.h                 |    8 
+ include/linux/mempolicy.h                  |   13 
+ include/linux/oom.h                        |   24 +
+ include/linux/sched.h                      |    3 
+ kernel/exit.c                              |    8 
+ kernel/fork.c                              |    1 
+ kernel/sysctl.c                            |   15 
+ mm/memcontrol.c                            |    8 
+ mm/mempolicy.c                             |   44 ++
+ mm/oom_kill.c                              |  567 +++++++++++++++--------------
+ mm/page_alloc.c                            |   29 +
+ 15 files changed, 655 insertions(+), 352 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
