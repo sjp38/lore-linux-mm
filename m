@@ -1,39 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A95AB6B008C
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 03:29:37 -0500 (EST)
-Received: by pvh11 with SMTP id 11so2144937pvh.14
-        for <linux-mm@kvack.org>; Wed, 10 Mar 2010 00:29:37 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 96E1B6B0093
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 04:07:07 -0500 (EST)
+Message-ID: <4B976108.1010404@kernel.org>
+Date: Wed, 10 Mar 2010 18:06:16 +0900
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Date: Wed, 10 Mar 2010 16:29:37 +0800
-Message-ID: <2375c9f91003100029q7d64bbf7xce15eee97f7e2190@mail.gmail.com>
-Subject: 2.6.34-rc1: kernel BUG at mm/slab.c:2989!
-From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH/RFC 1/8] numa: prep:  move generic percpu interface definitions
+ to percpu-defs.h
+References: <20100304170654.10606.32225.sendpatchset@localhost.localdomain>	 <20100304170702.10606.85808.sendpatchset@localhost.localdomain>	 <4B960AD0.8010709@kernel.org> <1268144009.27921.9.camel@useless.americas.hpqcorp.net>
+In-Reply-To: <1268144009.27921.9.camel@useless.americas.hpqcorp.net>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Hello, mm experts,
+Hello,
 
-I triggered an mm bug today, the full backtrace is here:
+On 03/09/2010 11:13 PM, Lee Schermerhorn wrote:
+>> Hmmm... I think uninlining !SMP case would be much cleaner.  Sorry
+>> that you had to do it twice.  I'll break the dependency in the percpu
+>> devel branch and let you know.
+> 
+> OK, I'll do that for V4.  It'll be one big ugly patch because of all the
+> dependencies.  But, it's really just a mechanical change.
 
-http://pastebin.ca/1831436
-
-I am using yesterday's Linus tree.
-
-It's not easy to reproduce this, I got this very randomly.
-
-Some related config's are:
-
-CONFIG_SLAB=y
-CONFIG_SLABINFO=y
-# CONFIG_DEBUG_SLAB is not set
-
-Please let me know if you need more info.
+Just in case it wasn't clear.  I'm giving it a shot right now.  I
+don't think it will be too ugly and it's something which should be
+done whether ugly or not.  I'll let you know how it turns out.
 
 Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
