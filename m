@@ -1,28 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 10A3A6B00B4
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 09:33:35 -0500 (EST)
-Date: Wed, 10 Mar 2010 08:33:06 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: 2.6.34-rc1: kernel BUG at mm/slab.c:2989!
-In-Reply-To: <4B977282.40505@cs.helsinki.fi>
-Message-ID: <alpine.DEB.2.00.1003100832200.17615@router.home>
-References: <2375c9f91003100029q7d64bbf7xce15eee97f7e2190@mail.gmail.com> <4B977282.40505@cs.helsinki.fi>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EA5AE6B00B6
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 10:23:24 -0500 (EST)
+Subject: Re: [BUG] 2.6.33-mmotm-100302
+ "page-allocator-reduce-fragmentation-in-buddy-allocator..."  patch causes
+ Oops at boot
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <4e5e476b1003091403h361984acocc71377660317373@mail.gmail.com>
+References: <1267644632.4023.28.camel@useless.americas.hpqcorp.net>
+	 <4e5e476b1003091403h361984acocc71377660317373@mail.gmail.com>
+Content-Type: text/plain
+Date: Wed, 10 Mar 2010 10:23:18 -0500
+Message-Id: <1268234598.4184.7.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: =?ISO-8859-15?Q?Am=E9rico_Wang?= <xiyou.wangcong@gmail.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, viro@zeniv.linux.org.uk, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, roland@redhat.com, peterz@infradead.org
+To: Corrado Zoccolo <czoccolo@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Eric Whitney <eric.whitney@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Mar 2010, Pekka Enberg wrote:
+On Tue, 2010-03-09 at 23:03 +0100, Corrado Zoccolo wrote:
+> Hi Lee,
+> the correct fix is attached.
+> It has the good property that the check is compiled out when not
+> needed (i.e. when !CONFIG_HOLES_IN_ZONE).
+> Can you give it a spin on your machine?
+> 
+> Thanks,
+> Corrado
+> 
 
-> > Please let me know if you need more info.
->
-> Looks like regular SLAB corruption bug to me. Can you trigget it with SLUB?
 
-Run SLUB with CONFIG_SLUB_DEBUG_ON or specify slub_debug on the kernel
-command line to have all allocations checked.
+Corrado:
+
+That, indeed, fixed the problem.  I applied your patch to 2.6.33 + the
+4mar mmotm and it booted fine on the same hardware config that was
+failing before.  You can add my
+
+Tested-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+Thanks, 
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
