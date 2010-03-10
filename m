@@ -1,75 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 23B156B00AD
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 08:09:38 -0500 (EST)
-Date: Wed, 10 Mar 2010 21:09:32 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC PATCH] Fix Readahead stalling by plugged device queues
-Message-ID: <20100310130932.GB18509@localhost>
-References: <4B979104.6010907@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B979104.6010907@linux.vnet.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D14A46B009F
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 09:31:33 -0500 (EST)
+Received: by pzk10 with SMTP id 10so2057708pzk.11
+        for <linux-mm@kvack.org>; Wed, 10 Mar 2010 06:31:31 -0800 (PST)
+Subject: Re: [PATCH] kvm : remove redundant initialization of page->private
+From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <4B977244.4010603@redhat.com>
+References: <1268040782-28561-1-git-send-email-shijie8@gmail.com>
+	 <1268065219.1254.12.camel@barrios-desktop>  <4B977244.4010603@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 10 Mar 2010 23:31:22 +0900
+Message-ID: <1268231482.1254.28.camel@barrios-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ronald <intercommit@gmail.com>, Bart Van Assche <bart.vanassche@gmail.com>, Vladislav Bolkhovitin <vst@vlnb.net>, Randy Dunlap <randy.dunlap@oracle.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> --- linux.orig/mm/readahead.c
-> +++ linux/mm/readahead.c
-> @@ -188,8 +188,11 @@ __do_page_cache_readahead(struct address
->  	 * uptodate then the caller will launch readpage again, and
->  	 * will then handle the error.
->  	 */
-> -	if (ret)
-> +	if (ret) {
->  		read_pages(mapping, filp, &page_pool, ret);
-> +		/* unplug backing dev to avoid latencies */
-> +		blk_run_address_space(mapping);
-> +	}
+On Wed, 2010-03-10 at 12:19 +0200, Avi Kivity wrote:
 
-Christian, did you notice this commit for 2.6.33?
+> Whitespace damage, please resend.
+> 
 
-commit 65a80b4c61f5b5f6eb0f5669c8fb120893bfb388
-Author: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-Date:   Thu Dec 17 15:27:26 2009 -0800
+Sorry for forgetting preformatted option of mail client.
+Here is resend version.
 
-    readahead: add blk_run_backing_dev
+== CUT_HERE ==
 
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -547,5 +547,17 @@ page_cache_async_readahead(struct address_space *mapping,
- 
-        /* do read-ahead */
-        ondemand_readahead(mapping, ra, filp, true, offset, req_size);
-+
-+#ifdef CONFIG_BLOCK
-+       /*
-+        * Normally the current page is !uptodate and lock_page() will be
-+        * immediately called to implicitly unplug the device. However this
-+        * is not always true for RAID conifgurations, where data arrives
-+        * not strictly in their submission order. In this case we need to
-+        * explicitly kick off the IO.
-+        */
-+       if (PageUptodate(page))
-+               blk_run_backing_dev(mapping->backing_dev_info, NULL);
-+#endif
- }
+>From e64322cde914e43d080d8f3be6f72459d809a934 Mon Sep 17 00:00:00 2001
+From: Minchan Kim<barrios@barrios-desktop.(none)>
+Date: Tue, 9 Mar 2010 01:09:56 +0900
+Subject: [PATCH] kvm : remove redundant initialization of page->private.
 
-It should at least improve performance between .32 and .33, because
-once two readahead requests are merged into one single IO request,
-the PageUptodate() will be true at next readahead, and hence
-blk_run_backing_dev() get called to break out of the suboptimal
-situation. 
+The prep_new_page() in page allocator calls set_page_private(page, 0). 
+So we don't need to reinitialize private of page.
 
-Your patch does reduce the possible readahead submit latency to 0.
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Cc: Avi Kivity<avi@redhat.com>
+---
+ arch/x86/kvm/mmu.c |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
 
-Is your workload a simple dd on a single disk? If so, it sounds like
-something illogical hidden in the block layer.
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 741373e..9851d0e 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -326,7 +326,6 @@ static int mmu_topup_memory_cache_page(struct kvm_mmu_memory_cache *cache,
+ 		page = alloc_page(GFP_KERNEL);
+ 		if (!page)
+ 			return -ENOMEM;
+-		set_page_private(page, 0);
+ 		cache->objects[cache->nobjs++] = page_address(page);
+ 	}
+ 	return 0;
+-- 
+1.6.5
 
-Thanks,
-Fengguang
+
+
+-- 
+Kind regards,
+Minchan Kim
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
