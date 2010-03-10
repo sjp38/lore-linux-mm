@@ -1,67 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B65A76B007D
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 17:19:08 -0500 (EST)
-Date: Wed, 10 Mar 2010 23:19:03 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: mm/ksm.c seems to be doing an unneeded _notify.
-Message-ID: <20100310221903.GC5967@random.random>
-References: <20100310191842.GL5677@sgi.com>
- <4B97FED5.2030007@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2E24E6B0082
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 17:26:24 -0500 (EST)
+Date: Wed, 10 Mar 2010 17:23:39 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH -mmotm 4/5] memcg: dirty pages accounting and limiting
+	infrastructure
+Message-ID: <20100310222338.GB3009@redhat.com>
+References: <1268175636-4673-1-git-send-email-arighi@develer.com> <1268175636-4673-5-git-send-email-arighi@develer.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <4B97FED5.2030007@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1268175636-4673-5-git-send-email-arighi@develer.com>
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: Robin Holt <holt@sgi.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Chris Wright <chrisw@redhat.com>, linux-mm@kvack.org
+To: Andrea Righi <arighi@develer.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 10, 2010 at 10:19:33PM +0200, Izik Eidus wrote:
-> On 03/10/2010 09:18 PM, Robin Holt wrote:
-> > While reviewing ksm.c, I noticed that ksm.c does:
-> >
-> >          if (pte_write(*ptep)) {
-> >                  pte_t entry;
-> >
-> >                  swapped = PageSwapCache(page);
-> >                  flush_cache_page(vma, addr, page_to_pfn(page));
-> >                  /*
-> >                   * Ok this is tricky, when get_user_pages_fast() run it doesnt
-> >                   * take any lock, therefore the check that we are going to make
-> >                   * with the pagecount against the mapcount is racey and
-> >                   * O_DIRECT can happen right after the check.
-> >                   * So we clear the pte and flush the tlb before the check
-> >                   * this assure us that no O_DIRECT can happen after the check
-> >                   * or in the middle of the check.
-> >                   */
-> >                  entry = ptep_clear_flush(vma, addr, ptep);
-> >                  /*
-> >                   * Check that no O_DIRECT or similar I/O is in progress on the
-> >                   * page
-> >                   */
-> >                  if (page_mapcount(page) + 1 + swapped != page_count(page)) {
-> >                          set_pte_at_notify(mm, addr, ptep, entry);
-> >                          goto out_unlock;
-> >                  }
-> >                  entry = pte_wrprotect(entry);
-> >                  set_pte_at_notify(mm, addr, ptep, entry);
-> >
-> >
-> > I would think the error case (where the page has an elevated page_count)
-> > should not be using set_pte_at_notify.  In that event, you are simply
-> > restoring the previous value.  Have I missed something or is this an
-> > extraneous _notify?
-> >    
-> 
-> Yes, I think you are right set_pte_at(mm, addr, ptep, entry);  would be
-> enough here.
-> 
-> I can`t remember or think any reason why I have used the _notify...
-> 
-> Lets just get ACK from Andrea and Hugh that they agree it isn't needed
+On Wed, Mar 10, 2010 at 12:00:35AM +0100, Andrea Righi wrote:
 
-_notify it's needed, we're downgrading permissions here.
+[..]
+
+> - * Currently used to update mapped file statistics, but the routine can be
+> - * generalized to update other statistics as well.
+> + * mem_cgroup_update_page_stat() - update memcg file cache's accounting
+> + * @page:	the page involved in a file cache operation.
+> + * @idx:	the particular file cache statistic.
+> + * @charge:	true to increment, false to decrement the statistic specified
+> + *		by @idx.
+> + *
+> + * Update memory cgroup file cache's accounting.
+>   */
+> -void mem_cgroup_update_file_mapped(struct page *page, int val)
+> +void mem_cgroup_update_page_stat(struct page *page,
+> +			enum mem_cgroup_write_page_stat_item idx, bool charge)
+>  {
+> -	struct mem_cgroup *mem;
+>  	struct page_cgroup *pc;
+>  	unsigned long flags;
+>  
+> +	if (mem_cgroup_disabled())
+> +		return;
+>  	pc = lookup_page_cgroup(page);
+> -	if (unlikely(!pc))
+> +	if (unlikely(!pc) || !PageCgroupUsed(pc))
+>  		return;
+> -
+>  	lock_page_cgroup(pc, flags);
+> -	mem = pc->mem_cgroup;
+> -	if (!mem)
+> -		goto done;
+> -
+> -	if (!PageCgroupUsed(pc))
+> -		goto done;
+> -
+> -	/*
+> -	 * Preemption is already disabled. We can use __this_cpu_xxx
+> -	 */
+> -	__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED], val);
+> -
+> -done:
+> +	__mem_cgroup_update_page_stat(pc, idx, charge);
+>  	unlock_page_cgroup(pc, flags);
+>  }
+> +EXPORT_SYMBOL_GPL(mem_cgroup_update_page_stat_unlocked);
+
+  CC      mm/memcontrol.o
+mm/memcontrol.c:1600: error: a??mem_cgroup_update_page_stat_unlockeda??
+undeclared here (not in a function)
+mm/memcontrol.c:1600: warning: type defaults to a??inta?? in declaration of
+a??mem_cgroup_update_page_stat_unlockeda??
+make[1]: *** [mm/memcontrol.o] Error 1
+make: *** [mm] Error 2
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
