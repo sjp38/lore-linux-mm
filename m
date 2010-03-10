@@ -1,83 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8E2DA6B0088
-	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 05:19:53 -0500 (EST)
-Message-ID: <4B977244.4010603@redhat.com>
-Date: Wed, 10 Mar 2010 12:19:48 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E2116B0098
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 05:20:54 -0500 (EST)
+Message-ID: <4B977282.40505@cs.helsinki.fi>
+Date: Wed, 10 Mar 2010 12:20:50 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH] kvm : remove redundant initialization of page->private
-References: <1268040782-28561-1-git-send-email-shijie8@gmail.com> <1268065219.1254.12.camel@barrios-desktop>
-In-Reply-To: <1268065219.1254.12.camel@barrios-desktop>
+Subject: Re: 2.6.34-rc1: kernel BUG at mm/slab.c:2989!
+References: <2375c9f91003100029q7d64bbf7xce15eee97f7e2190@mail.gmail.com>
+In-Reply-To: <2375c9f91003100029q7d64bbf7xce15eee97f7e2190@mail.gmail.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, linux-mm@kvack.org
+To: =?UTF-8?B?QW3DqXJpY28gV2FuZw==?= <xiyou.wangcong@gmail.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, viro@zeniv.linux.org.uk, mingo@elte.hu, akpm@linux-foundation.org, roland@redhat.com, peterz@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/08/2010 06:20 PM, Minchan Kim wrote:
-> On Mon, 2010-03-08 at 17:33 +0800, Huang Shijie wrote:
->    
->> The  prep_new_page() will call set_page_private(page, 0) to initiate
->> the page.
->>
->> So the code is redundant.
->>
->> Signed-off-by: Huang Shijie<shijie8@gmail.com>
->> ---
->>   mm/shmem.c |    2 --
->>   1 files changed, 0 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/shmem.c b/mm/shmem.c
->> index eef4ebe..dde4363 100644
->> --- a/mm/shmem.c
->> +++ b/mm/shmem.c
->> @@ -433,8 +433,6 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
->>
->>   		spin_unlock(&info->lock);
->>   		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
->> -		if (page)
->> -			set_page_private(page, 0);
->>   		spin_lock(&info->lock);
->>
->>   		if (!page) {
->>      
-> And I found another place while I review the code.
->
-> > From e64322cde914e43d080d8f3be6f72459d809a934 Mon Sep 17 00:00:00 2001
-> From: Minchan Kim<barrios@barrios-desktop.(none)>
-> Date: Tue, 9 Mar 2010 01:09:56 +0900
-> Subject: [PATCH] kvm : remove redundant initialization of page->private.
->
-> The prep_new_page() in page allocator calls set_page_private(page, 0).
-> So we don't need to reinitialize private of page.
->
-> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
-> Cc: Avi Kivity<avi@redhat.com>
-> ---
->   arch/x86/kvm/mmu.c |    1 -
->   1 files changed, 0 insertions(+), 1 deletions(-)
->
-> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-> index 741373e..9851d0e 100644
-> --- a/arch/x86/kvm/mmu.c
-> +++ b/arch/x86/kvm/mmu.c
-> @@ -326,7 +326,6 @@ static int mmu_topup_memory_cache_page(struct
-> kvm_mmu_memory_cache *cache,
->   		page = alloc_page(GFP_KERNEL);
->   		if (!page)
->   			return -ENOMEM;
-> -		set_page_private(page, 0);
->   		cache->objects[cache->nobjs++] = page_address(page);
->   	}
->   	return 0;
->    
+AmA(C)rico Wang kirjoitti:
+> Hello, mm experts,
+> 
+> I triggered an mm bug today, the full backtrace is here:
+> 
+> http://pastebin.ca/1831436
+> 
+> I am using yesterday's Linus tree.
+> 
+> It's not easy to reproduce this, I got this very randomly.
+> 
+> Some related config's are:
+> 
+> CONFIG_SLAB=y
+> CONFIG_SLABINFO=y
+> # CONFIG_DEBUG_SLAB is not set
+> 
+> Please let me know if you need more info.
 
-Whitespace damage, please resend.
+Looks like regular SLAB corruption bug to me. Can you trigget it with SLUB?
 
--- 
-error compiling committee.c: too many arguments to function
+Anyway, it seems very unlikely that it's caused by the SLAB changes in 
+-rc1 so I'm CC'ing scheduler and fs folks in case the oops rings a bell.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
