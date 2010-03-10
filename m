@@ -1,77 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A29596B00D0
-	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 19:07:48 -0500 (EST)
-Message-ID: <4B96E29E.3060305@kernel.org>
-Date: Tue, 09 Mar 2010 16:06:54 -0800
-From: Yinghai Lu <yinghai@kernel.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 675596B00C7
+	for <linux-mm@kvack.org>; Tue,  9 Mar 2010 20:37:06 -0500 (EST)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id o2A1b1BD016160
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 12:37:01 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2A1VItX1007796
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 12:31:19 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2A1axKC003772
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 12:37:00 +1100
+Date: Wed, 10 Mar 2010 07:06:57 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v6)
+Message-ID: <20100310013657.GO3073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1268175636-4673-1-git-send-email-arighi@develer.com>
 MIME-Version: 1.0
-Subject: Re: further plans on bootmem, was: Re: - bootmem-avoid-dma32-zone-by-default.patch
- removed from -mm tree
-References: <201003091940.o29Je4Iq000754@imap1.linux-foundation.org> <4B96B923.7020805@kernel.org> <20100309134902.171ba2ae.akpm@linux-foundation.org> <20100310000121.GA9985@cmpxchg.org>
-In-Reply-To: <20100310000121.GA9985@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1268175636-4673-1-git-send-email-arighi@develer.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Righi <arighi@develer.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/09/2010 04:01 PM, Johannes Weiner wrote:
-> On Tue, Mar 09, 2010 at 01:49:02PM -0800, Andrew Morton wrote:
->> On Tue, 09 Mar 2010 13:09:55 -0800
->> Yinghai Lu <yinghai@kernel.org> wrote:
->>
->>> On 03/09/2010 11:40 AM, akpm@linux-foundation.org wrote:
->>>> The patch titled
->>>>      bootmem: avoid DMA32 zone by default
->>>> has been removed from the -mm tree.  Its filename was
->>>>      bootmem-avoid-dma32-zone-by-default.patch
->>>>
->>>> This patch was dropped because I'm all confused
->>>>
->>>
->>> Thanks for that...
->>
->> Well.  I did drop it because I'm all confused.  It may come back.
->>
->> If Johannes is working in the direction of removing and simplifying
->> code then that's a high priority.  So I'm waiting to see where this
->> discussion leads (on the mailing list, please!)
-> 
-> I am not working on simplifying in this area at the moment.  I am just
-> questioning the discrepancy between the motivation of Yinghai's patch
-> series to skip bootmem on x86 and its actual outcome.
-> 
-> The stated reason for the series was that the amount of memory allocators
-> involved in bootstrapping mm on x86 'seemed a bit excessive'. [1]
-> 
-> I am perfectly fine with the theory: select one mechanism and see whether
-> it can be bridged and consequently _removed_.  To shrink the code base,
-> shrink text size, make the boot process less complex, more robust etc.
-> 
-> What I take away from this patchset, however, is that all it really does
-> is make the early_res stuff from x86 generic code and add a semantically
-> different version of the bootmem API on top of it, selectable with a config
-> option.  The diffstat balance is an increase of around 900 lines of code.
-> 
-> Note that it still uses bootmem to actually bootstrap the page allocator,
-> that we now have two implementations of the bootmem interface and no real
-> plan - as far as I am informed - to actually change this.
-> 
-> I also found it weird that it makes x86 skip an allocator level that all
-> the other architectures are using, and replaces it with 'generic' code that
-> nobody but x86 is using (sparc, powerpc, sh and microblaze  appear to have
-> lib/lmb.c at this stage and for this purpose? lmb was also suggested by
-> benh [4] but I have to admit I do not understand Yinghai's response to it).
-> 
+* Andrea Righi <arighi@develer.com> [2010-03-10 00:00:31]:
 
-next steps:
-1. create kernel/fw_memmap.c, and move common code from arch/x86/kernel/e820.c to it
-2. merge lmb with fw_memmap.c/early_res.c
-   so some arch that use lmb will fw_memmap/earl_res.c 
+> Control the maximum amount of dirty pages a cgroup can have at any given time.
+> 
+> Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
+> page cache used by any cgroup. So, in case of multiple cgroup writers, they
+> will not be able to consume more than their designated share of dirty pages and
+> will be forced to perform write-out if they cross that limit.
+> 
+> The overall design is the following:
+> 
+>  - account dirty pages per cgroup
+>  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
+>    and memory.dirty_background_ratio / memory.dirty_background_bytes in
+>    cgroupfs
+>  - start to write-out (background or actively) when the cgroup limits are
+>    exceeded
+> 
+> This feature is supposed to be strictly connected to any underlying IO
+> controller implementation, so we can stop increasing dirty pages in VM layer
+> and enforce a write-out before any cgroup will consume the global amount of
+> dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
+> /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
+> 
+> Changelog (v5 -> v6)
+> ~~~~~~~~~~~~~~~~~~~~~~
+>  * always disable/enable IRQs at lock/unlock_page_cgroup(): this allows to drop
+>    the previous complicated locking scheme in favor of a simpler locking, even
+>    if this obviously adds some overhead (see results below)
+>  * drop FUSE and NILFS2 dirty pages accounting for now (this depends on
+>    charging bounce pages per cgroup)
+> 
+> Results
+> ~~~~~~~
+> I ran some tests using a kernel build (2.6.33 x86_64_defconfig) on a
+> Intel Core 2 @ 1.2GHz as testcase using different kernels:
+>  - mmotm "vanilla"
+>  - mmotm with cgroup-dirty-memory using the previous "complex" locking scheme
+>    (my previous patchset + the fixes reported by Kame-san and Daisuke-san)
+>  - mmotm with cgroup-dirty-memory using the simple locking scheme
+>    (lock_page_cgroup() with IRQs disabled)
+> 
+> Following the results:
+> <before>
+>  - mmotm "vanilla", root  cgroup:			11m51.983s
+>  - mmotm "vanilla", child cgroup:			11m56.596s
+> 
+> <after>
+>  - mmotm, "complex" locking scheme, root  cgroup:	11m53.037s
+>  - mmotm, "complex" locking scheme, child cgroup:	11m57.896s
+> 
+>  - mmotm, lock_page_cgroup+irq_disabled, root  cgroup:	12m5.499s
+>  - mmotm, lock_page_cgroup+irq_disabled, child cgroup:	12m9.920s
+>
 
-YH
+This is a cause for big concern, any chance you could test this on a
+large system. I am concerned about root overhead the most.
+ 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
