@@ -1,321 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id AA71E6B00A7
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 01:18:52 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2B6InKO014136
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 11 Mar 2010 15:18:49 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A60F45DE70
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 15:18:49 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BB9445DE6F
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 15:18:49 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C6ED31DB803A
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 15:18:48 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 656751DB803F
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 15:18:48 +0900 (JST)
-Date: Thu, 11 Mar 2010 15:15:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm 2.5/4] memcg: disable irq at page cgroup lock (Re:
- [PATCH -mmotm 3/4] memcg: dirty pages accounting and limiting
- infrastructure)
-Message-Id: <20100311151511.579aa8d1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100311141300.90b85391.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100308105641.e2e714f4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100308111724.3e48aee3.nishimura@mxp.nes.nec.co.jp>
-	<20100308113711.d7a249da.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100308170711.4d8b02f0.nishimura@mxp.nes.nec.co.jp>
-	<20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100309001252.GB13490@linux>
-	<20100309091914.4b5f6661.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100309102928.9f36d2bb.nishimura@mxp.nes.nec.co.jp>
-	<20100309045058.GX3073@balbir.in.ibm.com>
-	<20100310104309.c5f9c9a9.nishimura@mxp.nes.nec.co.jp>
-	<20100310035624.GP3073@balbir.in.ibm.com>
-	<20100311133123.ab10183c.nishimura@mxp.nes.nec.co.jp>
-	<20100311134908.48d8b0fc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100311135847.990eee62.nishimura@mxp.nes.nec.co.jp>
-	<20100311141300.90b85391.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id ACE5A6B00A8
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 01:23:51 -0500 (EST)
+Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
+	by smtp-out.google.com with ESMTP id o2B6NluB025746
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 06:23:48 GMT
+Received: from gyh20 (gyh20.prod.google.com [10.243.50.212])
+	by spaceape10.eur.corp.google.com with ESMTP id o2B6Nj6R030330
+	for <linux-mm@kvack.org>; Wed, 10 Mar 2010 22:23:46 -0800
+Received: by gyh20 with SMTP id 20so2554357gyh.16
+        for <linux-mm@kvack.org>; Wed, 10 Mar 2010 22:23:45 -0800 (PST)
+Date: Thu, 11 Mar 2010 06:23:33 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: mm/ksm.c seems to be doing an unneeded _notify.
+In-Reply-To: <20100310221903.GC5967@random.random>
+Message-ID: <alpine.LSU.2.00.1003110617540.29040@sister.anvils>
+References: <20100310191842.GL5677@sgi.com> <4B97FED5.2030007@redhat.com> <20100310221903.GC5967@random.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Andrea Righi <arighi@develer.com>, linux-kernel@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, Vivek Goyal <vgoyal@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Izik Eidus <ieidus@redhat.com>, Robin Holt <holt@sgi.com>, Chris Wright <chrisw@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Mar 2010 14:13:00 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Thu, 11 Mar 2010 13:58:47 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > I'll consider yet another fix for race in account migration if I can.
-> > > 
-> > me too.
+On Wed, 10 Mar 2010, Andrea Arcangeli wrote:
+> On Wed, Mar 10, 2010 at 10:19:33PM +0200, Izik Eidus wrote:
+> > On 03/10/2010 09:18 PM, Robin Holt wrote:
+> > > While reviewing ksm.c, I noticed that ksm.c does:
+> > >
+> > >          if (pte_write(*ptep)) {
+> > >                  pte_t entry;
+> > >
+> > >                  swapped = PageSwapCache(page);
+> > >                  flush_cache_page(vma, addr, page_to_pfn(page));
+> > >                  /*
+> > >                   * Ok this is tricky, when get_user_pages_fast() run it doesnt
+> > >                   * take any lock, therefore the check that we are going to make
+> > >                   * with the pagecount against the mapcount is racey and
+> > >                   * O_DIRECT can happen right after the check.
+> > >                   * So we clear the pte and flush the tlb before the check
+> > >                   * this assure us that no O_DIRECT can happen after the check
+> > >                   * or in the middle of the check.
+> > >                   */
+> > >                  entry = ptep_clear_flush(vma, addr, ptep);
+> > >                  /*
+> > >                   * Check that no O_DIRECT or similar I/O is in progress on the
+> > >                   * page
+> > >                   */
+> > >                  if (page_mapcount(page) + 1 + swapped != page_count(page)) {
+> > >                          set_pte_at_notify(mm, addr, ptep, entry);
+> > >                          goto out_unlock;
+> > >                  }
+> > >                  entry = pte_wrprotect(entry);
+> > >                  set_pte_at_notify(mm, addr, ptep, entry);
+> > >
+> > >
+> > > I would think the error case (where the page has an elevated page_count)
+> > > should not be using set_pte_at_notify.  In that event, you are simply
+> > > restoring the previous value.  Have I missed something or is this an
+> > > extraneous _notify?
+> > >    
 > > 
+> > Yes, I think you are right set_pte_at(mm, addr, ptep, entry);  would be
+> > enough here.
+> > 
+> > I can`t remember or think any reason why I have used the _notify...
+> > 
+> > Lets just get ACK from Andrea and Hugh that they agree it isn't needed
 > 
-> How about this ? Assume that the race is very rare.
-> 
-> 	1. use trylock when updating statistics.
-> 	   If trylock fails, don't account it.
-> 
-> 	2. add PCG_FLAG for all status as
-> 
-> +	PCG_ACCT_FILE_MAPPED, /* page is accounted as file rss*/
-> +	PCG_ACCT_DIRTY, /* page is dirty */
-> +	PCG_ACCT_WRITEBACK, /* page is being written back to disk */
-> +	PCG_ACCT_WRITEBACK_TEMP, /* page is used as temporary buffer for FUSE */
-> +	PCG_ACCT_UNSTABLE_NFS, /* NFS page not yet committed to the server */
-> 
-> 	3. At reducing counter, check PCG_xxx flags by
-> 	TESTCLEARPCGFLAG()
-> 
-> This is similar to an _used_ method of LRU accounting. And We can think this
-> method's error-range never go too bad number. 
-> 
-> I think this kind of fuzzy accounting is enough for writeback status.
-> Does anyone need strict accounting ?
-> 
+> _notify it's needed, we're downgrading permissions here.
 
-How this looks ?
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Robin is not questioning that it's needed in the success case;
+but in the case where we back out because the counts don't match,
+and just put back the original entry, he's suggesting that then
+the _notify isn't needed.
 
-Now, file-mapped is maintaiend. But more generic update function
-will be needed for dirty page accounting.
+(I'm guessing that Robin is not making a significant improvement to KSM,
+but rather trying to clarify his understanding of set_pte_at_notify.)
 
-For accountig page status, we have to guarantee lock_page_cgroup()
-will be never called under tree_lock held.
-To guarantee that, we use trylock at updating status.
-By this, we do fuzyy accounting, but in almost all case, it's correct.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/memcontrol.h  |    7 +++
- include/linux/page_cgroup.h |   15 +++++++
- mm/memcontrol.c             |   88 +++++++++++++++++++++++++++++++++-----------
- mm/rmap.c                   |    4 +-
- 4 files changed, 90 insertions(+), 24 deletions(-)
-
-Index: mmotm-2.6.34-Mar9/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.34-Mar9.orig/mm/memcontrol.c
-+++ mmotm-2.6.34-Mar9/mm/memcontrol.c
-@@ -1348,30 +1348,79 @@ bool mem_cgroup_handle_oom(struct mem_cg
-  * Currently used to update mapped file statistics, but the routine can be
-  * generalized to update other statistics as well.
-  */
--void mem_cgroup_update_file_mapped(struct page *page, int val)
-+void __mem_cgroup_update_stat(struct page_cgroup *pc, int idx, bool charge)
- {
- 	struct mem_cgroup *mem;
--	struct page_cgroup *pc;
--
--	pc = lookup_page_cgroup(page);
--	if (unlikely(!pc))
--		return;
-+	int val;
- 
--	lock_page_cgroup(pc);
- 	mem = pc->mem_cgroup;
--	if (!mem)
--		goto done;
-+	if (!mem || !PageCgroupUsed(pc))
-+		return;
- 
--	if (!PageCgroupUsed(pc))
--		goto done;
-+	if (charge)
-+		val = 1;
-+	else
-+		val = -1;
- 
-+	switch (idx) {
-+	case MEMCG_NR_FILE_MAPPED:
-+		if (charge) {
-+			if (!PageCgroupFileMapped(pc))
-+				SetPageCgroupFileMapped(pc);
-+			else
-+				val = 0;
-+		} else {
-+			if (PageCgroupFileMapped(pc))
-+				ClearPageCgroupFileMapped(pc);
-+			else
-+				val = 0;
-+		}
-+		idx = MEM_CGROUP_STAT_FILE_MAPPED;
-+		break;
-+	default:
-+		BUG();
-+		break;
-+	}
- 	/*
- 	 * Preemption is already disabled. We can use __this_cpu_xxx
- 	 */
--	__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED], val);
-+	__this_cpu_add(mem->stat->count[idx], val);
-+}
- 
--done:
--	unlock_page_cgroup(pc);
-+void mem_cgroup_update_stat(struct page *page, int idx, bool charge)
-+{
-+	struct page_cgroup *pc;
-+
-+	pc = lookup_page_cgroup(page);
-+	if (unlikely(!pc))
-+		return;
-+
-+	if (trylock_page_cgroup(pc)) {
-+		__mem_cgroup_update_stat(pc, idx, charge);
-+		unlock_page_cgroup(pc);
-+	}
-+	return;
-+}
-+
-+static void mem_cgroup_migrate_stat(struct page_cgroup *pc,
-+	struct mem_cgroup *from, struct mem_cgroup *to)
-+{
-+	preempt_disable();
-+	if (PageCgroupFileMapped(pc)) {
-+		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-+		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-+	}
-+	preempt_enable();
-+}
-+
-+static void
-+__mem_cgroup_stat_fixup(struct page_cgroup *pc, struct mem_cgroup *mem)
-+{
-+	/* We'are in uncharge() and lock_page_cgroup */
-+	if (PageCgroupFileMapped(pc)) {
-+		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-+		ClearPageCgroupFileMapped(pc);
-+	}
- }
- 
- /*
-@@ -1810,13 +1859,7 @@ static void __mem_cgroup_move_account(st
- 	VM_BUG_ON(pc->mem_cgroup != from);
- 
- 	page = pc->page;
--	if (page_mapped(page) && !PageAnon(page)) {
--		/* Update mapped_file data for mem_cgroup */
--		preempt_disable();
--		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
--		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
--		preempt_enable();
--	}
-+	mem_cgroup_migrate_stat(pc, from, to);
- 	mem_cgroup_charge_statistics(from, pc, false);
- 	if (uncharge)
- 		/* This is not "cancel", but cancel_charge does all we need. */
-@@ -2208,6 +2251,9 @@ __mem_cgroup_uncharge_common(struct page
- 		__do_uncharge(mem, ctype);
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
- 		mem_cgroup_swap_statistics(mem, true);
-+	if (unlikely(PCG_PageStatMask & pc->flags))
-+		__mem_cgroup_stat_fixup(pc, mem);
-+
- 	mem_cgroup_charge_statistics(mem, pc, false);
- 
- 	ClearPageCgroupUsed(pc);
-Index: mmotm-2.6.34-Mar9/include/linux/page_cgroup.h
-===================================================================
---- mmotm-2.6.34-Mar9.orig/include/linux/page_cgroup.h
-+++ mmotm-2.6.34-Mar9/include/linux/page_cgroup.h
-@@ -39,6 +39,8 @@ enum {
- 	PCG_CACHE, /* charged as cache */
- 	PCG_USED, /* this object is in use. */
- 	PCG_ACCT_LRU, /* page has been accounted for */
-+	/* for cache-status accounting */
-+	PCG_FILE_MAPPED,
- };
- 
- #define TESTPCGFLAG(uname, lname)			\
-@@ -57,6 +59,10 @@ static inline void ClearPageCgroup##unam
- static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
- 
-+/* Page/File stat flag mask */
-+#define PCG_PageStatMask	((1 << PCG_FILE_MAPPED))
-+
-+
- TESTPCGFLAG(Locked, LOCK)
- 
- /* Cache flag is set only once (at allocation) */
-@@ -73,6 +79,10 @@ CLEARPCGFLAG(AcctLRU, ACCT_LRU)
- TESTPCGFLAG(AcctLRU, ACCT_LRU)
- TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
- 
-+TESTPCGFLAG(FileMapped, FILE_MAPPED)
-+SETPCGFLAG(FileMapped, FILE_MAPPED)
-+CLEARPCGFLAG(FileMapped, FILE_MAPPED)
-+
- static inline int page_cgroup_nid(struct page_cgroup *pc)
- {
- 	return page_to_nid(pc->page);
-@@ -93,6 +103,11 @@ static inline void unlock_page_cgroup(st
- 	bit_spin_unlock(PCG_LOCK, &pc->flags);
- }
- 
-+static inline int trylock_page_cgroup(struct page_cgroup *pc)
-+{
-+	return bit_spin_trylock(PCG_LOCK, &pc->flags);
-+}
-+
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
- struct page_cgroup;
- 
-Index: mmotm-2.6.34-Mar9/include/linux/memcontrol.h
-===================================================================
---- mmotm-2.6.34-Mar9.orig/include/linux/memcontrol.h
-+++ mmotm-2.6.34-Mar9/include/linux/memcontrol.h
-@@ -124,7 +124,12 @@ static inline bool mem_cgroup_disabled(v
- 	return false;
- }
- 
--void mem_cgroup_update_file_mapped(struct page *page, int val);
-+enum mem_cgroup_page_stat_item {
-+	MEMCG_NR_FILE_MAPPED,
-+	MEMCG_NR_FILE_NSTAT,
-+};
-+
-+void mem_cgroup_update_stat(struct page *page, int idx, bool charge);
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask, int nid,
- 						int zid);
-Index: mmotm-2.6.34-Mar9/mm/rmap.c
-===================================================================
---- mmotm-2.6.34-Mar9.orig/mm/rmap.c
-+++ mmotm-2.6.34-Mar9/mm/rmap.c
-@@ -829,7 +829,7 @@ void page_add_file_rmap(struct page *pag
- {
- 	if (atomic_inc_and_test(&page->_mapcount)) {
- 		__inc_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_update_file_mapped(page, 1);
-+		mem_cgroup_update_stat(page, MEMCG_NR_FILE_MAPPED, true);
- 	}
- }
- 
-@@ -861,7 +861,7 @@ void page_remove_rmap(struct page *page)
- 		__dec_zone_page_state(page, NR_ANON_PAGES);
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_update_file_mapped(page, -1);
-+		mem_cgroup_update_stat(page, MEMCG_NR_FILE_MAPPED, false);
- 	}
- 	/*
- 	 * It would be tidy to reset the PageAnon mapping here,
-
-
-
-
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
