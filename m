@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2499D6B00B3
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 03:00:37 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2B80YCt009836
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9C0FE6B00B5
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 03:01:54 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2B81qf2010416
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 11 Mar 2010 17:00:34 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C99CF45DE52
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:00:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C19345DE4E
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:00:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C3561DB8048
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:00:33 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 031D41DB804C
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:00:33 +0900 (JST)
-Date: Thu, 11 Mar 2010 16:57:00 +0900
+	Thu, 11 Mar 2010 17:01:52 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AF47345DE61
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:01:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6783445DE51
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:01:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E8A6E38004
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:01:51 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E26231DB803C
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:01:50 +0900 (JST)
+Date: Thu, 11 Mar 2010 16:58:18 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 2/3] memcg: oom notifier
-Message-Id: <20100311165700.4468ef2a.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 3/3] memcg: oom kill disable and stop and go hooks.
+Message-Id: <20100311165818.9a30c11d.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100311165315.c282d6d2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100311165315.c282d6d2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,268 +34,342 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Considering containers or other resource management softwares in userland,
-event notification of OOM in memcg should be implemented.
-Now, memcg has "threshold" notifier which uses eventfd, we can make
-use of it for oom notification.
+This adds a feature to disable oom-killer for memcg, if disabled,
+of course, tasks under memcg will stop.
 
-This patch adds oom notification eventfd callback for memcg. The usage
-is very similar to threshold notifier, but control file is
-memory.oom_control and no arguments other than eventfd is required.
-
-	% cgroup_event_notifier /cgroup/A/memory.oom_control dummy
-	(About cgroup_event_notifier, see Documentation/cgroup/)
+But now, we have oom-notifier for memcg. And the world around
+memcg is not under out-of-memory. memcg's out-of-memory just
+shows memcg hits limit. Then, administrator or
+management daemon can recover the situation by
+	- kill some process
+	- enlarge limit, add more swap.
+	- migrate some tasks
+	- remove file cache on tmps (difficult ?)
 
 TODO:
- - add a knob to disable oom-kill under a memcg.
- - add read/write function to oom_control
-
-Changelog: 20100309
- - splitted from threshold functions. use list rather than array.
- - moved all to inside of mutex.
-Changelog: 20100304
- - renewed implemenation.
+	more brush up and find races.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- Documentation/cgroups/memory.txt |   20 +++++++
- mm/memcontrol.c                  |  105 ++++++++++++++++++++++++++++++++++++---
- 2 files changed, 116 insertions(+), 9 deletions(-)
+ Documentation/cgroups/memory.txt |   19 ++++++
+ mm/memcontrol.c                  |  113 ++++++++++++++++++++++++++++++++-------
+ 2 files changed, 113 insertions(+), 19 deletions(-)
 
 Index: mmotm-2.6.34-Mar9/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.34-Mar9.orig/mm/memcontrol.c
 +++ mmotm-2.6.34-Mar9/mm/memcontrol.c
-@@ -149,6 +149,7 @@ struct mem_cgroup_threshold {
- 	u64 threshold;
- };
- 
-+/* For threshold */
- struct mem_cgroup_threshold_ary {
- 	/* An array index points to threshold just below usage. */
- 	atomic_t current_threshold;
-@@ -157,8 +158,14 @@ struct mem_cgroup_threshold_ary {
- 	/* Array of thresholds */
- 	struct mem_cgroup_threshold entries[0];
- };
-+/* for OOM */
-+struct mem_cgroup_eventfd_list {
-+	struct list_head list;
-+	struct eventfd_ctx *eventfd;
-+};
- 
- static void mem_cgroup_threshold(struct mem_cgroup *mem);
-+static void mem_cgroup_oom_notify(struct mem_cgroup *mem);
- 
- /*
-  * The memory controller data structure. The memory controller controls both
-@@ -220,6 +227,9 @@ struct mem_cgroup {
- 	/* thresholds for mem+swap usage. RCU-protected */
- 	struct mem_cgroup_threshold_ary *memsw_thresholds;
- 
-+	/* For oom notifier event fd */
-+	struct list_head oom_notify;
-+
- 	/*
- 	 * Should we move charges of a task when a task is moved into this
+@@ -235,7 +235,8 @@ struct mem_cgroup {
  	 * mem_cgroup ? And what type of charges should we move ?
-@@ -282,9 +292,12 @@ enum charge_type {
- /* for encoding cft->private value on file */
- #define _MEM			(0)
- #define _MEMSWAP		(1)
-+#define _OOM_TYPE		(2)
- #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
- #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
- #define MEMFILE_ATTR(val)	((val) & 0xffff)
-+/* Used for OOM nofiier */
-+#define OOM_CONTROL		(0)
- 
- /*
-  * Reclaim flags for mem_cgroup_hierarchical_reclaim
-@@ -1351,6 +1364,8 @@ bool mem_cgroup_handle_oom(struct mem_cg
  	 */
- 	if (!locked)
- 		prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
-+	else
-+		mem_cgroup_oom_notify(mem);
- 	mutex_unlock(&memcg_oom_mutex);
- 
- 	if (locked)
-@@ -3398,8 +3413,22 @@ static int compare_thresholds(const void
- 	return _a->threshold - _b->threshold;
+ 	unsigned long 	move_charge_at_immigrate;
+-
++	/* Disable OOM killer */
++	unsigned long	oom_kill_disable;
+ 	/*
+ 	 * percpu counter.
+ 	 */
+@@ -1340,20 +1341,26 @@ static void memcg_wakeup_oom(struct mem_
+ 	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, mem);
  }
  
--static int mem_cgroup_register_event(struct cgroup *cgrp, struct cftype *cft,
--		struct eventfd_ctx *eventfd, const char *args)
-+static int mem_cgroup_oom_notify_cb(struct mem_cgroup *mem, void *data)
++static void memcg_oom_recover(struct mem_cgroup *mem)
 +{
-+	struct mem_cgroup_eventfd_list *ev;
++	if (mem->oom_kill_disable && atomic_read(&mem->oom_lock))
++		memcg_wakeup_oom(mem);
++}
 +
-+	list_for_each_entry(ev, &mem->oom_notify, list)
-+		eventfd_signal(ev->eventfd, 1);
+ /*
+  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+  */
+ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+ {
+ 	struct oom_wait_info owait;
+-	bool locked;
++	bool locked, need_to_kill;
+ 
+ 	owait.mem = mem;
+ 	owait.wait.flags = 0;
+ 	owait.wait.func = memcg_oom_wake_function;
+ 	owait.wait.private = current;
+ 	INIT_LIST_HEAD(&owait.wait.task_list);
+-
++	need_to_kill = true;
+ 	/* At first, try to OOM lock hierarchy under mem.*/
+ 	mutex_lock(&memcg_oom_mutex);
+ 	locked = mem_cgroup_oom_lock(mem);
+@@ -1362,15 +1369,17 @@ bool mem_cgroup_handle_oom(struct mem_cg
+ 	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
+ 	 * under OOM is always welcomed, use TASK_KILLABLE here.
+ 	 */
+-	if (!locked)
+-		prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+-	else
++	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
++	if (!locked || mem->oom_kill_disable)
++		need_to_kill = false;
++	if (locked)
+ 		mem_cgroup_oom_notify(mem);
+ 	mutex_unlock(&memcg_oom_mutex);
+ 
+-	if (locked)
++	if (need_to_kill) {
++		finish_wait(&memcg_oom_waitq, &owait.wait);
+ 		mem_cgroup_out_of_memory(mem, mask);
+-	else {
++	} else {
+ 		schedule();
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
+ 	}
+@@ -2162,15 +2171,6 @@ __do_uncharge(struct mem_cgroup *mem, co
+ 	/* If swapout, usage of swap doesn't decrease */
+ 	if (!do_swap_account || ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+ 		uncharge_memsw = false;
+-	/*
+-	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
+-	 * In those cases, all pages freed continously can be expected to be in
+-	 * the same cgroup and we have chance to coalesce uncharges.
+-	 * But we do uncharge one by one if this is killed by OOM(TIF_MEMDIE)
+-	 * because we want to do uncharge as soon as possible.
+-	 */
+-	if (!current->memcg_batch.do_batch || test_thread_flag(TIF_MEMDIE))
+-		goto direct_uncharge;
+ 
+ 	batch = &current->memcg_batch;
+ 	/*
+@@ -2181,6 +2181,17 @@ __do_uncharge(struct mem_cgroup *mem, co
+ 	if (!batch->memcg)
+ 		batch->memcg = mem;
+ 	/*
++	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
++	 * In those cases, all pages freed continously can be expected to be in
++	 * the same cgroup and we have chance to coalesce uncharges.
++	 * But we do uncharge one by one if this is killed by OOM(TIF_MEMDIE)
++	 * because we want to do uncharge as soon as possible.
++	 */
++
++	if (!batch->do_batch || test_thread_flag(TIF_MEMDIE))
++		goto direct_uncharge;
++
++	/*
+ 	 * In typical case, batch->memcg == mem. This means we can
+ 	 * merge a series of uncharges to an uncharge of res_counter.
+ 	 * If not, we uncharge res_counter ony by one.
+@@ -2196,6 +2207,8 @@ direct_uncharge:
+ 	res_counter_uncharge(&mem->res, PAGE_SIZE);
+ 	if (uncharge_memsw)
+ 		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
++	if (unlikely(batch->memcg != mem))
++		memcg_oom_recover(mem);
+ 	return;
+ }
+ 
+@@ -2332,6 +2345,7 @@ void mem_cgroup_uncharge_end(void)
+ 		res_counter_uncharge(&batch->memcg->res, batch->bytes);
+ 	if (batch->memsw_bytes)
+ 		res_counter_uncharge(&batch->memcg->memsw, batch->memsw_bytes);
++	memcg_oom_recover(batch->memcg);
+ 	/* forget this pointer (for sanity check) */
+ 	batch->memcg = NULL;
+ }
+@@ -2568,10 +2582,11 @@ static int mem_cgroup_resize_limit(struc
+ 				unsigned long long val)
+ {
+ 	int retry_count;
+-	u64 memswlimit;
++	u64 memswlimit, memlimit;
+ 	int ret = 0;
+ 	int children = mem_cgroup_count_children(memcg);
+ 	u64 curusage, oldusage;
++	int enlarge;
+ 
+ 	/*
+ 	 * For keeping hierarchical_reclaim simple, how long we should retry
+@@ -2582,6 +2597,7 @@ static int mem_cgroup_resize_limit(struc
+ 
+ 	oldusage = res_counter_read_u64(&memcg->res, RES_USAGE);
+ 
++	enlarge = 0;
+ 	while (retry_count) {
+ 		if (signal_pending(current)) {
+ 			ret = -EINTR;
+@@ -2599,6 +2615,11 @@ static int mem_cgroup_resize_limit(struc
+ 			mutex_unlock(&set_limit_mutex);
+ 			break;
+ 		}
++
++		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
++		if (memlimit < val)
++			enlarge = 1;
++
+ 		ret = res_counter_set_limit(&memcg->res, val);
+ 		if (!ret) {
+ 			if (memswlimit == val)
+@@ -2620,6 +2641,8 @@ static int mem_cgroup_resize_limit(struc
+ 		else
+ 			oldusage = curusage;
+ 	}
++	if (!ret && enlarge)
++		memcg_oom_recover(memcg);
+ 
+ 	return ret;
+ }
+@@ -2628,9 +2651,10 @@ static int mem_cgroup_resize_memsw_limit
+ 					unsigned long long val)
+ {
+ 	int retry_count;
+-	u64 memlimit, oldusage, curusage;
++	u64 memlimit, memswlimit, oldusage, curusage;
+ 	int children = mem_cgroup_count_children(memcg);
+ 	int ret = -EBUSY;
++	int enlarge = 0;
+ 
+ 	/* see mem_cgroup_resize_res_limit */
+  	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
+@@ -2652,6 +2676,9 @@ static int mem_cgroup_resize_memsw_limit
+ 			mutex_unlock(&set_limit_mutex);
+ 			break;
+ 		}
++		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
++		if (memswlimit < val)
++			enlarge = 1;
+ 		ret = res_counter_set_limit(&memcg->memsw, val);
+ 		if (!ret) {
+ 			if (memlimit == val)
+@@ -2674,6 +2701,8 @@ static int mem_cgroup_resize_memsw_limit
+ 		else
+ 			oldusage = curusage;
+ 	}
++	if (!ret && enlarge)
++		memcg_oom_recover(memcg);
+ 	return ret;
+ }
+ 
+@@ -2865,6 +2894,7 @@ move_account:
+ 			if (ret)
+ 				break;
+ 		}
++		memcg_oom_recover(mem);
+ 		/* it seems parent cgroup doesn't have enough mem */
+ 		if (ret == -ENOMEM)
+ 			goto try_to_free;
+@@ -3650,6 +3680,46 @@ static int mem_cgroup_oom_unregister_eve
+ 	return 0;
+ }
+ 
++static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
++	struct cftype *cft,  struct cgroup_map_cb *cb)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++
++	cb->fill(cb, "oom_kill_disable", mem->oom_kill_disable);
++
++	if (atomic_read(&mem->oom_lock))
++		cb->fill(cb, "under_oom", 1);
++	else
++		cb->fill(cb, "under_oom", 0);
 +	return 0;
 +}
 +
-+static void mem_cgroup_oom_notify(struct mem_cgroup *mem)
-+{
-+	mem_cgroup_walk_tree(mem, NULL, mem_cgroup_oom_notify_cb);
-+}
-+
-+static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
-+	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
- 	struct mem_cgroup_threshold_ary *thresholds, *thresholds_new;
-@@ -3483,8 +3512,8 @@ unlock:
- 	return ret;
- }
- 
--static int mem_cgroup_unregister_event(struct cgroup *cgrp, struct cftype *cft,
--		struct eventfd_ctx *eventfd)
-+static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
-+	struct cftype *cft, struct eventfd_ctx *eventfd)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
- 	struct mem_cgroup_threshold_ary *thresholds, *thresholds_new;
-@@ -3568,13 +3597,66 @@ unlock:
- 	return ret;
- }
- 
-+static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
-+	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-+	struct mem_cgroup_eventfd_list *event;
-+	int type = MEMFILE_TYPE(cft->private);
-+	int ret = -ENOMEM;
-+
-+	BUG_ON(type != _OOM_TYPE);
-+
-+	mutex_lock(&memcg_oom_mutex);
-+
-+	/* Allocate memory for new array of thresholds */
-+	event = kmalloc(sizeof(*event),	GFP_KERNEL);
-+	if (!event)
-+		goto unlock;
-+	/* Add new threshold */
-+	event->eventfd = eventfd;
-+	list_add(&event->list, &memcg->oom_notify);
-+
-+	/* already in OOM ? */
-+	if (atomic_read(&memcg->oom_lock))
-+		eventfd_signal(eventfd, 1);
-+	ret = 0;
-+unlock:
-+	mutex_unlock(&memcg_oom_mutex);
-+
-+	return ret;
-+}
-+
-+static int mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
-+	struct cftype *cft, struct eventfd_ctx *eventfd)
++/*
++ */
++static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
++	struct cftype *cft, u64 val)
 +{
 +	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
-+	struct mem_cgroup_eventfd_list *ev, *tmp;
-+	int type = MEMFILE_TYPE(cft->private);
++	struct mem_cgroup *parent;
 +
-+	BUG_ON(type != _OOM_TYPE);
++	/* cannot set to root cgroup and only 0 and 1 are allowed */
++	if (!cgrp->parent || !((val == 0) || (val == 1)))
++		return -EINVAL;
 +
-+	mutex_lock(&memcg_oom_mutex);
++	parent = mem_cgroup_from_cont(cgrp->parent);
 +
-+	list_for_each_entry_safe(ev, tmp, &mem->oom_notify, list) {
-+		if (ev->eventfd == eventfd) {
-+			list_del(&ev->list);
-+			kfree(ev);
-+		}
++	cgroup_lock();
++	/* oom-kill-disable is a flag for subhierarchy. */
++	if ((parent->use_hierarchy) ||
++	    (mem->use_hierarchy && !list_empty(&cgrp->children))) {
++		cgroup_unlock();
++		return -EINVAL;
 +	}
-+
-+	mutex_unlock(&memcg_oom_mutex);
-+
++	mem->oom_kill_disable = val;
++	cgroup_unlock();
 +	return 0;
 +}
 +
  static struct cftype mem_cgroup_files[] = {
  	{
  		.name = "usage_in_bytes",
- 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
- 		.read_u64 = mem_cgroup_read,
--		.register_event = mem_cgroup_register_event,
--		.unregister_event = mem_cgroup_unregister_event,
-+		.register_event = mem_cgroup_usage_register_event,
-+		.unregister_event = mem_cgroup_usage_unregister_event,
+@@ -3707,6 +3777,8 @@ static struct cftype mem_cgroup_files[] 
  	},
  	{
- 		.name = "max_usage_in_bytes",
-@@ -3623,6 +3705,12 @@ static struct cftype mem_cgroup_files[] 
- 		.read_u64 = mem_cgroup_move_charge_read,
- 		.write_u64 = mem_cgroup_move_charge_write,
- 	},
-+	{
-+		.name = "oom_control",
-+		.register_event = mem_cgroup_oom_register_event,
-+		.unregister_event = mem_cgroup_oom_unregister_event,
-+		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
-+	},
- };
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-@@ -3631,8 +3719,8 @@ static struct cftype memsw_cgroup_files[
- 		.name = "memsw.usage_in_bytes",
- 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
- 		.read_u64 = mem_cgroup_read,
--		.register_event = mem_cgroup_register_event,
--		.unregister_event = mem_cgroup_unregister_event,
-+		.register_event = mem_cgroup_usage_register_event,
-+		.unregister_event = mem_cgroup_usage_unregister_event,
- 	},
- 	{
- 		.name = "memsw.max_usage_in_bytes",
-@@ -3876,6 +3964,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ 		.name = "oom_control",
++		.read_map = mem_cgroup_oom_control_read,
++		.write_u64 = mem_cgroup_oom_control_write,
+ 		.register_event = mem_cgroup_oom_register_event,
+ 		.unregister_event = mem_cgroup_oom_unregister_event,
+ 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+@@ -3946,6 +4018,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	} else {
+ 		parent = mem_cgroup_from_cont(cont->parent);
+ 		mem->use_hierarchy = parent->use_hierarchy;
++		mem->oom_kill_disable = parent->oom_kill_disable;
  	}
- 	mem->last_scanned_child = 0;
- 	spin_lock_init(&mem->reclaim_param_lock);
-+	INIT_LIST_HEAD(&mem->oom_notify);
  
- 	if (parent)
- 		mem->swappiness = get_swappiness(parent);
+ 	if (parent && parent->use_hierarchy) {
+@@ -4240,6 +4313,7 @@ static void mem_cgroup_clear_mc(void)
+ 	if (mc.precharge) {
+ 		__mem_cgroup_cancel_charge(mc.to, mc.precharge);
+ 		mc.precharge = 0;
++		memcg_oom_recover(mc.to);
+ 	}
+ 	/*
+ 	 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
+@@ -4248,6 +4322,7 @@ static void mem_cgroup_clear_mc(void)
+ 	if (mc.moved_charge) {
+ 		__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
+ 		mc.moved_charge = 0;
++		memcg_oom_recover(mc.from);
+ 	}
+ 	/* we must fixup refcnts and charges */
+ 	if (mc.moved_swap) {
 Index: mmotm-2.6.34-Mar9/Documentation/cgroups/memory.txt
 ===================================================================
 --- mmotm-2.6.34-Mar9.orig/Documentation/cgroups/memory.txt
 +++ mmotm-2.6.34-Mar9/Documentation/cgroups/memory.txt
-@@ -184,6 +184,9 @@ limits on the root cgroup.
+@@ -493,6 +493,8 @@ It's applicable for root and non-root cg
  
- Note2: When panic_on_oom is set to "2", the whole system will panic.
+ 10. OOM Control
  
-+When oom event notifier is registered, event will be delivered.
-+(See oom_control section)
++memory.oom_control file is for OOM notification and other controls.
 +
- 2. Locking
+ Memory controler implements oom notifier using cgroup notification
+ API (See cgroups.txt). It allows to register multiple oom notification
+ delivery and gets notification when oom happens.
+@@ -505,6 +507,23 @@ To register a notifier, application need
+ Application will be notifier through eventfd when oom happens.
+ OOM notification doesn't work for root cgroup.
  
- The memory controller uses the following hierarchy
-@@ -488,7 +491,22 @@ threshold in any direction.
++You can disable oom-killer by writing "1" to memory.oom_control file.
++As.
++	#echo 1 > memory.oom_control
++
++This operation is only allowed to the top cgroup of subhierarchy.
++If oom-killer is disabled, tasks under cgroup will hang/sleep
++in memcg's oom-waitq when they request accountable memory.
++For running them, you have to relax the memcg's oom sitaution by
++	* enlarge limit
++	* kill some tasks.
++	* move some tasks to other group with account migration.
++Then, stopped tasks will work again.
++
++At reading, current status of OOM is shown.
++	oom_kill_disable 0 or 1 (if 1, oom-killer is disabled)
++	under_oom	 0 or 1 (if 1, the memcg is under OOM,tasks may
++				 be stopped.)
  
- It's applicable for root and non-root cgroup.
+ 11. TODO
  
--10. TODO
-+10. OOM Control
-+
-+Memory controler implements oom notifier using cgroup notification
-+API (See cgroups.txt). It allows to register multiple oom notification
-+delivery and gets notification when oom happens.
-+
-+To register a notifier, application need:
-+ - create an eventfd using eventfd(2)
-+ - open memory.oom_control file
-+ - write string like "<event_fd> <memory.oom_control>" to cgroup.event_control
-+
-+Application will be notifier through eventfd when oom happens.
-+OOM notification doesn't work for root cgroup.
-+
-+
-+11. TODO
- 
- 1. Add support for accounting huge pages (as a separate controller)
- 2. Make per-cgroup scanner reclaim not-shared pages first
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
