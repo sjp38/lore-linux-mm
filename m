@@ -1,86 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 325166B00F4
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:27:05 -0500 (EST)
-Date: Thu, 11 Mar 2010 23:27:01 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C2FA26B0078
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:34:50 -0500 (EST)
+Date: Thu, 11 Mar 2010 23:34:46 +0100
 From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH -mmotm 4/5] memcg: dirty pages accounting and limiting
- infrastructure
-Message-ID: <20100311222701.GC2427@linux>
-References: <1268175636-4673-1-git-send-email-arighi@develer.com>
- <1268175636-4673-5-git-send-email-arighi@develer.com>
- <20100310222338.GB3009@redhat.com>
+Subject: Re: [PATCH mmotm 2.5/4] memcg: disable irq at page cgroup lock
+ (Re: [PATCH -mmotm 3/4] memcg: dirty pages accounting and limiting
+ infrastructure)
+Message-ID: <20100311223445.GD2427@linux>
+References: <20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100309001252.GB13490@linux>
+ <20100309091914.4b5f6661.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100309102928.9f36d2bb.nishimura@mxp.nes.nec.co.jp>
+ <20100309045058.GX3073@balbir.in.ibm.com>
+ <20100310104309.c5f9c9a9.nishimura@mxp.nes.nec.co.jp>
+ <20100310035624.GP3073@balbir.in.ibm.com>
+ <20100311133123.ab10183c.nishimura@mxp.nes.nec.co.jp>
+ <20100311134908.48d8b0fc.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100311165413.GD29246@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20100310222338.GB3009@redhat.com>
+In-Reply-To: <20100311165413.GD29246@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Vivek Goyal <vgoyal@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 10, 2010 at 05:23:39PM -0500, Vivek Goyal wrote:
-> On Wed, Mar 10, 2010 at 12:00:35AM +0100, Andrea Righi wrote:
+On Thu, Mar 11, 2010 at 11:54:13AM -0500, Vivek Goyal wrote:
+> On Thu, Mar 11, 2010 at 01:49:08PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 11 Mar 2010 13:31:23 +0900
+> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > 
+> > > On Wed, 10 Mar 2010 09:26:24 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > > * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2010-03-10 10:43:09]:
+> > 
+> > > I made a patch(attached) using both local_irq_disable/enable and local_irq_save/restore.
+> > > local_irq_save/restore is used only in mem_cgroup_update_file_mapped.
+> > > 
+> > > And I attached a histogram graph of 30 times kernel build in root cgroup for each.
+> > > 
+> > >   before_root: no irq operation(original)
+> > >   after_root: local_irq_disable/enable for all
+> > >   after2_root: local_irq_save/restore for all
+> > >   after3_root: mixed version(attached)
+> > > 
+> > > hmm, there seems to be a tendency that before < after < after3 < after2 ?
+> > > Should I replace save/restore version to mixed version ?
+> > > 
+> > 
+> > IMHO, starting from after2_root version is the easist.
+> > If there is a chance to call lock/unlock page_cgroup can be called in
+> > interrupt context, we _have to_ disable IRQ, anyway.
+> > And if we have to do this, I prefer migration_lock rather than this mixture.
+> > 
+> > BTW, how big your system is ? Balbir-san's concern is for bigger machines.
+> > But I'm not sure this change is affecte by the size of machines.
+> > I'm sorry I have no big machine, now.
 > 
-> [..]
+> FWIW, I took andrea's patches (local_irq_save/restore solution) and
+> compiled the kernel on 32 cores hyperthreaded (64 cpus) with make -j32
+> in /dev/shm/. On this system, I can't see much difference.
 > 
-> > - * Currently used to update mapped file statistics, but the routine can be
-> > - * generalized to update other statistics as well.
-> > + * mem_cgroup_update_page_stat() - update memcg file cache's accounting
-> > + * @page:	the page involved in a file cache operation.
-> > + * @idx:	the particular file cache statistic.
-> > + * @charge:	true to increment, false to decrement the statistic specified
-> > + *		by @idx.
-> > + *
-> > + * Update memory cgroup file cache's accounting.
-> >   */
-> > -void mem_cgroup_update_file_mapped(struct page *page, int val)
-> > +void mem_cgroup_update_page_stat(struct page *page,
-> > +			enum mem_cgroup_write_page_stat_item idx, bool charge)
-> >  {
-> > -	struct mem_cgroup *mem;
-> >  	struct page_cgroup *pc;
-> >  	unsigned long flags;
-> >  
-> > +	if (mem_cgroup_disabled())
-> > +		return;
-> >  	pc = lookup_page_cgroup(page);
-> > -	if (unlikely(!pc))
-> > +	if (unlikely(!pc) || !PageCgroupUsed(pc))
-> >  		return;
-> > -
-> >  	lock_page_cgroup(pc, flags);
-> > -	mem = pc->mem_cgroup;
-> > -	if (!mem)
-> > -		goto done;
-> > -
-> > -	if (!PageCgroupUsed(pc))
-> > -		goto done;
-> > -
-> > -	/*
-> > -	 * Preemption is already disabled. We can use __this_cpu_xxx
-> > -	 */
-> > -	__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED], val);
-> > -
-> > -done:
-> > +	__mem_cgroup_update_page_stat(pc, idx, charge);
-> >  	unlock_page_cgroup(pc, flags);
-> >  }
-> > +EXPORT_SYMBOL_GPL(mem_cgroup_update_page_stat_unlocked);
+> I compiled the kernel 10 times and took average.
 > 
->   CC      mm/memcontrol.o
-> mm/memcontrol.c:1600: error: a??mem_cgroup_update_page_stat_unlockeda??
-> undeclared here (not in a function)
-> mm/memcontrol.c:1600: warning: type defaults to a??inta?? in declaration of
-> a??mem_cgroup_update_page_stat_unlockeda??
-> make[1]: *** [mm/memcontrol.o] Error 1
-> make: *** [mm] Error 2
+> Without andrea's patches: 28.698 (seconds)
+> With andrea's patches: 28.711 (seconds).
+> Diff is .04%
+> 
+> This is all should be in root cgroup. Note, I have not mounted memory cgroup
+> controller but it is compiled in. So I am assuming that root group
+> accounting will still be taking place. Also assuming that it is not
+> required to do actual IO to disk and /dev/shm is enough to see the results
+> of local_irq_save()/restore.
 
-Thanks! Will fix in the next version.
+cgroup disable is at boot time "cgroup_disable=...", so root cgroup
+accounting should be enabled.
 
-(mmh... why I didn't see this? probably because I'm building a static kernel...)
+The same for the local_irq_save/restore() overhead, lock/unlock_page_cgroup()
+is called during each charge.
 
+Many thanks for testing!
 -Andrea
 
 --
