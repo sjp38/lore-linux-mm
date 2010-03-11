@@ -1,375 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9C0FE6B00B5
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 03:01:54 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2B81qf2010416
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0E66F6B00B9
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 03:10:28 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2B8AQx3014490
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 11 Mar 2010 17:01:52 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AF47345DE61
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:01:51 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6783445DE51
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:01:51 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E8A6E38004
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:01:51 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E26231DB803C
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:01:50 +0900 (JST)
-Date: Thu, 11 Mar 2010 16:58:18 +0900
+	Thu, 11 Mar 2010 17:10:26 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DE23645DE54
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:10:25 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FDF045DE52
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:10:25 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 52F861DB803A
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:10:25 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CCCEBE78007
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:10:24 +0900 (JST)
+Date: Thu, 11 Mar 2010 17:06:46 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 3/3] memcg: oom kill disable and stop and go hooks.
-Message-Id: <20100311165818.9a30c11d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100311165315.c282d6d2.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100311165315.c282d6d2.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH mmotm 2.5/4] memcg: disable irq at page cgroup lock (Re:
+ [PATCH -mmotm 3/4] memcg: dirty pages accounting and limiting
+ infrastructure)
+Message-Id: <20100311170646.13cf8f05.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100311165020.86ac904b.nishimura@mxp.nes.nec.co.jp>
+References: <20100308105641.e2e714f4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100308111724.3e48aee3.nishimura@mxp.nes.nec.co.jp>
+	<20100308113711.d7a249da.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100308170711.4d8b02f0.nishimura@mxp.nes.nec.co.jp>
+	<20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100309001252.GB13490@linux>
+	<20100309091914.4b5f6661.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100309102928.9f36d2bb.nishimura@mxp.nes.nec.co.jp>
+	<20100309045058.GX3073@balbir.in.ibm.com>
+	<20100310104309.c5f9c9a9.nishimura@mxp.nes.nec.co.jp>
+	<20100310035624.GP3073@balbir.in.ibm.com>
+	<20100311133123.ab10183c.nishimura@mxp.nes.nec.co.jp>
+	<20100311134908.48d8b0fc.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100311135847.990eee62.nishimura@mxp.nes.nec.co.jp>
+	<20100311141300.90b85391.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100311151511.579aa8d1.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100311165020.86ac904b.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, kirill@shutemov.name
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Andrea Righi <arighi@develer.com>, linux-kernel@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, Vivek Goyal <vgoyal@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, 11 Mar 2010 16:50:20 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-This adds a feature to disable oom-killer for memcg, if disabled,
-of course, tasks under memcg will stop.
+> On Thu, 11 Mar 2010 15:15:11 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Thu, 11 Mar 2010 14:13:00 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > On Thu, 11 Mar 2010 13:58:47 +0900
+> > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > > > I'll consider yet another fix for race in account migration if I can.
+> > > > > 
+> > > > me too.
+> > > > 
+> > > 
+> > > How about this ? Assume that the race is very rare.
+> > > 
+> > > 	1. use trylock when updating statistics.
+> > > 	   If trylock fails, don't account it.
+> > > 
+> > > 	2. add PCG_FLAG for all status as
+> > > 
+> > > +	PCG_ACCT_FILE_MAPPED, /* page is accounted as file rss*/
+> > > +	PCG_ACCT_DIRTY, /* page is dirty */
+> > > +	PCG_ACCT_WRITEBACK, /* page is being written back to disk */
+> > > +	PCG_ACCT_WRITEBACK_TEMP, /* page is used as temporary buffer for FUSE */
+> > > +	PCG_ACCT_UNSTABLE_NFS, /* NFS page not yet committed to the server */
+> > > 
+> > > 	3. At reducing counter, check PCG_xxx flags by
+> > > 	TESTCLEARPCGFLAG()
+> > > 
+> > > This is similar to an _used_ method of LRU accounting. And We can think this
+> > > method's error-range never go too bad number. 
+> > > 
+> I agree with you. I've been thinking whether we can remove page cgroup lock
+> in update_stat as we do in lru handling codes.
+> 
+> > > I think this kind of fuzzy accounting is enough for writeback status.
+> > > Does anyone need strict accounting ?
+> > > 
+> > 
+> IMHO, we don't need strict accounting.
+> 
+> > How this looks ?
+> I agree to this direction. One concern is we re-introduce "trylock" again..
+> 
+Yes, it's my concern, too.
 
-But now, we have oom-notifier for memcg. And the world around
-memcg is not under out-of-memory. memcg's out-of-memory just
-shows memcg hits limit. Then, administrator or
-management daemon can recover the situation by
-	- kill some process
-	- enlarge limit, add more swap.
-	- migrate some tasks
-	- remove file cache on tmps (difficult ?)
 
-TODO:
-	more brush up and find races.
+> Some comments are inlined.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- Documentation/cgroups/memory.txt |   19 ++++++
- mm/memcontrol.c                  |  113 ++++++++++++++++++++++++++++++++-------
- 2 files changed, 113 insertions(+), 19 deletions(-)
+> > +	switch (idx) {
+> > +	case MEMCG_NR_FILE_MAPPED:
+> > +		if (charge) {
+> > +			if (!PageCgroupFileMapped(pc))
+> > +				SetPageCgroupFileMapped(pc);
+> > +			else
+> > +				val = 0;
+> > +		} else {
+> > +			if (PageCgroupFileMapped(pc))
+> > +				ClearPageCgroupFileMapped(pc);
+> > +			else
+> > +				val = 0;
+> > +		}
+> Using !TestSetPageCgroupFileMapped(pc) or TestClearPageCgroupFileMapped(pc) is better ?
+> 
 
-Index: mmotm-2.6.34-Mar9/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.34-Mar9.orig/mm/memcontrol.c
-+++ mmotm-2.6.34-Mar9/mm/memcontrol.c
-@@ -235,7 +235,8 @@ struct mem_cgroup {
- 	 * mem_cgroup ? And what type of charges should we move ?
- 	 */
- 	unsigned long 	move_charge_at_immigrate;
--
-+	/* Disable OOM killer */
-+	unsigned long	oom_kill_disable;
- 	/*
- 	 * percpu counter.
- 	 */
-@@ -1340,20 +1341,26 @@ static void memcg_wakeup_oom(struct mem_
- 	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, mem);
- }
- 
-+static void memcg_oom_recover(struct mem_cgroup *mem)
-+{
-+	if (mem->oom_kill_disable && atomic_read(&mem->oom_lock))
-+		memcg_wakeup_oom(mem);
-+}
-+
- /*
-  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
-  */
- bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- {
- 	struct oom_wait_info owait;
--	bool locked;
-+	bool locked, need_to_kill;
- 
- 	owait.mem = mem;
- 	owait.wait.flags = 0;
- 	owait.wait.func = memcg_oom_wake_function;
- 	owait.wait.private = current;
- 	INIT_LIST_HEAD(&owait.wait.task_list);
--
-+	need_to_kill = true;
- 	/* At first, try to OOM lock hierarchy under mem.*/
- 	mutex_lock(&memcg_oom_mutex);
- 	locked = mem_cgroup_oom_lock(mem);
-@@ -1362,15 +1369,17 @@ bool mem_cgroup_handle_oom(struct mem_cg
- 	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
- 	 * under OOM is always welcomed, use TASK_KILLABLE here.
- 	 */
--	if (!locked)
--		prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
--	else
-+	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
-+	if (!locked || mem->oom_kill_disable)
-+		need_to_kill = false;
-+	if (locked)
- 		mem_cgroup_oom_notify(mem);
- 	mutex_unlock(&memcg_oom_mutex);
- 
--	if (locked)
-+	if (need_to_kill) {
-+		finish_wait(&memcg_oom_waitq, &owait.wait);
- 		mem_cgroup_out_of_memory(mem, mask);
--	else {
-+	} else {
- 		schedule();
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
- 	}
-@@ -2162,15 +2171,6 @@ __do_uncharge(struct mem_cgroup *mem, co
- 	/* If swapout, usage of swap doesn't decrease */
- 	if (!do_swap_account || ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
- 		uncharge_memsw = false;
--	/*
--	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
--	 * In those cases, all pages freed continously can be expected to be in
--	 * the same cgroup and we have chance to coalesce uncharges.
--	 * But we do uncharge one by one if this is killed by OOM(TIF_MEMDIE)
--	 * because we want to do uncharge as soon as possible.
--	 */
--	if (!current->memcg_batch.do_batch || test_thread_flag(TIF_MEMDIE))
--		goto direct_uncharge;
- 
- 	batch = &current->memcg_batch;
- 	/*
-@@ -2181,6 +2181,17 @@ __do_uncharge(struct mem_cgroup *mem, co
- 	if (!batch->memcg)
- 		batch->memcg = mem;
- 	/*
-+	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
-+	 * In those cases, all pages freed continously can be expected to be in
-+	 * the same cgroup and we have chance to coalesce uncharges.
-+	 * But we do uncharge one by one if this is killed by OOM(TIF_MEMDIE)
-+	 * because we want to do uncharge as soon as possible.
-+	 */
-+
-+	if (!batch->do_batch || test_thread_flag(TIF_MEMDIE))
-+		goto direct_uncharge;
-+
-+	/*
- 	 * In typical case, batch->memcg == mem. This means we can
- 	 * merge a series of uncharges to an uncharge of res_counter.
- 	 * If not, we uncharge res_counter ony by one.
-@@ -2196,6 +2207,8 @@ direct_uncharge:
- 	res_counter_uncharge(&mem->res, PAGE_SIZE);
- 	if (uncharge_memsw)
- 		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+	if (unlikely(batch->memcg != mem))
-+		memcg_oom_recover(mem);
- 	return;
- }
- 
-@@ -2332,6 +2345,7 @@ void mem_cgroup_uncharge_end(void)
- 		res_counter_uncharge(&batch->memcg->res, batch->bytes);
- 	if (batch->memsw_bytes)
- 		res_counter_uncharge(&batch->memcg->memsw, batch->memsw_bytes);
-+	memcg_oom_recover(batch->memcg);
- 	/* forget this pointer (for sanity check) */
- 	batch->memcg = NULL;
- }
-@@ -2568,10 +2582,11 @@ static int mem_cgroup_resize_limit(struc
- 				unsigned long long val)
- {
- 	int retry_count;
--	u64 memswlimit;
-+	u64 memswlimit, memlimit;
- 	int ret = 0;
- 	int children = mem_cgroup_count_children(memcg);
- 	u64 curusage, oldusage;
-+	int enlarge;
- 
- 	/*
- 	 * For keeping hierarchical_reclaim simple, how long we should retry
-@@ -2582,6 +2597,7 @@ static int mem_cgroup_resize_limit(struc
- 
- 	oldusage = res_counter_read_u64(&memcg->res, RES_USAGE);
- 
-+	enlarge = 0;
- 	while (retry_count) {
- 		if (signal_pending(current)) {
- 			ret = -EINTR;
-@@ -2599,6 +2615,11 @@ static int mem_cgroup_resize_limit(struc
- 			mutex_unlock(&set_limit_mutex);
- 			break;
- 		}
-+
-+		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
-+		if (memlimit < val)
-+			enlarge = 1;
-+
- 		ret = res_counter_set_limit(&memcg->res, val);
- 		if (!ret) {
- 			if (memswlimit == val)
-@@ -2620,6 +2641,8 @@ static int mem_cgroup_resize_limit(struc
- 		else
- 			oldusage = curusage;
- 	}
-+	if (!ret && enlarge)
-+		memcg_oom_recover(memcg);
- 
- 	return ret;
- }
-@@ -2628,9 +2651,10 @@ static int mem_cgroup_resize_memsw_limit
- 					unsigned long long val)
- {
- 	int retry_count;
--	u64 memlimit, oldusage, curusage;
-+	u64 memlimit, memswlimit, oldusage, curusage;
- 	int children = mem_cgroup_count_children(memcg);
- 	int ret = -EBUSY;
-+	int enlarge = 0;
- 
- 	/* see mem_cgroup_resize_res_limit */
-  	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
-@@ -2652,6 +2676,9 @@ static int mem_cgroup_resize_memsw_limit
- 			mutex_unlock(&set_limit_mutex);
- 			break;
- 		}
-+		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-+		if (memswlimit < val)
-+			enlarge = 1;
- 		ret = res_counter_set_limit(&memcg->memsw, val);
- 		if (!ret) {
- 			if (memlimit == val)
-@@ -2674,6 +2701,8 @@ static int mem_cgroup_resize_memsw_limit
- 		else
- 			oldusage = curusage;
- 	}
-+	if (!ret && enlarge)
-+		memcg_oom_recover(memcg);
- 	return ret;
- }
- 
-@@ -2865,6 +2894,7 @@ move_account:
- 			if (ret)
- 				break;
- 		}
-+		memcg_oom_recover(mem);
- 		/* it seems parent cgroup doesn't have enough mem */
- 		if (ret == -ENOMEM)
- 			goto try_to_free;
-@@ -3650,6 +3680,46 @@ static int mem_cgroup_oom_unregister_eve
- 	return 0;
- }
- 
-+static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
-+	struct cftype *cft,  struct cgroup_map_cb *cb)
-+{
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
-+
-+	cb->fill(cb, "oom_kill_disable", mem->oom_kill_disable);
-+
-+	if (atomic_read(&mem->oom_lock))
-+		cb->fill(cb, "under_oom", 1);
-+	else
-+		cb->fill(cb, "under_oom", 0);
-+	return 0;
-+}
-+
-+/*
-+ */
-+static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
-+	struct cftype *cft, u64 val)
-+{
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
-+	struct mem_cgroup *parent;
-+
-+	/* cannot set to root cgroup and only 0 and 1 are allowed */
-+	if (!cgrp->parent || !((val == 0) || (val == 1)))
-+		return -EINVAL;
-+
-+	parent = mem_cgroup_from_cont(cgrp->parent);
-+
-+	cgroup_lock();
-+	/* oom-kill-disable is a flag for subhierarchy. */
-+	if ((parent->use_hierarchy) ||
-+	    (mem->use_hierarchy && !list_empty(&cgrp->children))) {
-+		cgroup_unlock();
-+		return -EINVAL;
-+	}
-+	mem->oom_kill_disable = val;
-+	cgroup_unlock();
-+	return 0;
-+}
-+
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -3707,6 +3777,8 @@ static struct cftype mem_cgroup_files[] 
- 	},
- 	{
- 		.name = "oom_control",
-+		.read_map = mem_cgroup_oom_control_read,
-+		.write_u64 = mem_cgroup_oom_control_write,
- 		.register_event = mem_cgroup_oom_register_event,
- 		.unregister_event = mem_cgroup_oom_unregister_event,
- 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
-@@ -3946,6 +4018,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 	} else {
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		mem->use_hierarchy = parent->use_hierarchy;
-+		mem->oom_kill_disable = parent->oom_kill_disable;
- 	}
- 
- 	if (parent && parent->use_hierarchy) {
-@@ -4240,6 +4313,7 @@ static void mem_cgroup_clear_mc(void)
- 	if (mc.precharge) {
- 		__mem_cgroup_cancel_charge(mc.to, mc.precharge);
- 		mc.precharge = 0;
-+		memcg_oom_recover(mc.to);
- 	}
- 	/*
- 	 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
-@@ -4248,6 +4322,7 @@ static void mem_cgroup_clear_mc(void)
- 	if (mc.moved_charge) {
- 		__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
- 		mc.moved_charge = 0;
-+		memcg_oom_recover(mc.from);
- 	}
- 	/* we must fixup refcnts and charges */
- 	if (mc.moved_swap) {
-Index: mmotm-2.6.34-Mar9/Documentation/cgroups/memory.txt
-===================================================================
---- mmotm-2.6.34-Mar9.orig/Documentation/cgroups/memory.txt
-+++ mmotm-2.6.34-Mar9/Documentation/cgroups/memory.txt
-@@ -493,6 +493,8 @@ It's applicable for root and non-root cg
- 
- 10. OOM Control
- 
-+memory.oom_control file is for OOM notification and other controls.
-+
- Memory controler implements oom notifier using cgroup notification
- API (See cgroups.txt). It allows to register multiple oom notification
- delivery and gets notification when oom happens.
-@@ -505,6 +507,23 @@ To register a notifier, application need
- Application will be notifier through eventfd when oom happens.
- OOM notification doesn't work for root cgroup.
- 
-+You can disable oom-killer by writing "1" to memory.oom_control file.
-+As.
-+	#echo 1 > memory.oom_control
-+
-+This operation is only allowed to the top cgroup of subhierarchy.
-+If oom-killer is disabled, tasks under cgroup will hang/sleep
-+in memcg's oom-waitq when they request accountable memory.
-+For running them, you have to relax the memcg's oom sitaution by
-+	* enlarge limit
-+	* kill some tasks.
-+	* move some tasks to other group with account migration.
-+Then, stopped tasks will work again.
-+
-+At reading, current status of OOM is shown.
-+	oom_kill_disable 0 or 1 (if 1, oom-killer is disabled)
-+	under_oom	 0 or 1 (if 1, the memcg is under OOM,tasks may
-+				 be stopped.)
- 
- 11. TODO
- 
+I used this style because we're under lock. (IOW, to show we're guarded by lock.)
+
+
+> > +		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+> > +		break;
+> > +	default:
+> > +		BUG();
+> > +		break;
+> > +	}
+> >  	/*
+> >  	 * Preemption is already disabled. We can use __this_cpu_xxx
+> >  	 */
+> > -	__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED], val);
+> > +	__this_cpu_add(mem->stat->count[idx], val);
+> > +}
+> >  
+> > -done:
+> > -	unlock_page_cgroup(pc);
+> > +void mem_cgroup_update_stat(struct page *page, int idx, bool charge)
+> > +{
+> > +	struct page_cgroup *pc;
+> > +
+> > +	pc = lookup_page_cgroup(page);
+> > +	if (unlikely(!pc))
+> > +		return;
+> > +
+> > +	if (trylock_page_cgroup(pc)) {
+> > +		__mem_cgroup_update_stat(pc, idx, charge);
+> > +		unlock_page_cgroup(pc);
+> > +	}
+> > +	return;
+> > +}
+> > +
+> > +static void mem_cgroup_migrate_stat(struct page_cgroup *pc,
+> > +	struct mem_cgroup *from, struct mem_cgroup *to)
+> > +{
+> > +	preempt_disable();
+> > +	if (PageCgroupFileMapped(pc)) {
+> > +		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> > +		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> > +	}
+> > +	preempt_enable();
+> > +}
+> > +
+> I think preemption is already disabled here too(by lock_page_cgroup()).
+> 
+Ah, yes. 
+
+
+> > +static void
+> > +__mem_cgroup_stat_fixup(struct page_cgroup *pc, struct mem_cgroup *mem)
+> > +{
+> > +	/* We'are in uncharge() and lock_page_cgroup */
+> > +	if (PageCgroupFileMapped(pc)) {
+> > +		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> > +		ClearPageCgroupFileMapped(pc);
+> > +	}
+> >  }
+> >  
+> ditto.
+> 
+ok.
+
+> >  /*
+> > @@ -1810,13 +1859,7 @@ static void __mem_cgroup_move_account(st
+> >  	VM_BUG_ON(pc->mem_cgroup != from);
+> >  
+> >  	page = pc->page;
+> > -	if (page_mapped(page) && !PageAnon(page)) {
+> > -		/* Update mapped_file data for mem_cgroup */
+> > -		preempt_disable();
+> > -		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> > -		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> > -		preempt_enable();
+> > -	}
+> > +	mem_cgroup_migrate_stat(pc, from, to);
+> >  	mem_cgroup_charge_statistics(from, pc, false);
+> >  	if (uncharge)
+> >  		/* This is not "cancel", but cancel_charge does all we need. */
+> I welcome this fixup. IIUC, we have stat leak in current implementation.
+> 
+
+If necessary, I'd like to prepare fixed one as independent patch for mmotm.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
