@@ -1,86 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C9FC6B00CF
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 06:03:26 -0500 (EST)
-Date: Thu, 11 Mar 2010 22:03:17 +1100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH V2 4/4] cpuset,mm: update task's mems_allowed lazily
-Message-ID: <20100311110317.GL5812@laptop>
-References: <4B94CD2D.8070401@cn.fujitsu.com>
- <alpine.DEB.2.00.1003081330370.18502@chino.kir.corp.google.com>
- <4B95F802.9020308@cn.fujitsu.com>
- <20100311081548.GJ5812@laptop>
- <4B98C6DE.3060602@cn.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C4B0E6B00D0
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 08:18:56 -0500 (EST)
+Message-ID: <4B98EE31.80502@redhat.com>
+Date: Thu, 11 Mar 2010 15:20:49 +0200
+From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B98C6DE.3060602@cn.fujitsu.com>
+Subject: Re: mm/ksm.c seems to be doing an unneeded _notify.
+References: <20100310191842.GL5677@sgi.com> <4B97FED5.2030007@redhat.com> <20100310221903.GC5967@random.random> <alpine.LSU.2.00.1003110617540.29040@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1003110617540.29040@sister.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Miao Xie <miaox@cn.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Robin Holt <holt@sgi.com>, Chris Wright <chrisw@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 11, 2010 at 06:33:02PM +0800, Miao Xie wrote:
-> on 2010-3-11 16:15, Nick Piggin wrote:
-> > On Tue, Mar 09, 2010 at 03:25:54PM +0800, Miao Xie wrote:
-> >> on 2010-3-9 5:46, David Rientjes wrote:
-> >> [snip]
-> >>>> Considering the change of task->mems_allowed is not frequent, so in this patch,
-> >>>> I use two variables as a tag to indicate whether task->mems_allowed need be
-> >>>> update or not. And before setting the tag, cpuset caches the new mask of every
-> >>>> task at its task_struct.
-> >>>>
-> >>>
-> >>> So what exactly is the benefit of 58568d2 from last June that caused this 
-> >>> issue to begin with?  It seems like this entire patchset is a revert of 
-> >>> that commit.  So why shouldn't we just revert that one commit and then add 
-> >>> the locking and updating necessary for configs where
-> >>> MAX_NUMNODES > BITS_PER_LONG on top?
-> >>
-> >> I worried about the consistency of task->mempolicy with task->mems_allowed for
-> >> configs where MAX_NUMNODES <= BITS_PER_LONG. 
-> >>
-> >> The problem that I worried is fowllowing:
-> >> When the kernel allocator allocates pages for tasks, it will access task->mempolicy
-> >> first and get the allowed node, then check whether that node is allowed by
-> >> task->mems_allowed.
-> >>
-> >> But, Without this patch, ->mempolicy and ->mems_allowed is not updated at the same
-> >> time. the kernel allocator may access the inconsistent information of ->mempolicy
-> >> and ->mems_allowed, sush as the allocator gets the allowed node from old mempolicy,
-> >> but checks whether that node is allowed by new mems_allowed which does't intersect
-> >> old mempolicy.
-> >>
-> >> So I made this patchset.
-> > 
-> > I like your focus on keeping the hotpath light, but it is getting a bit
-> > crazy. I wonder if it wouldn't be better just to teach those places that
-> > matter to retry on finding an inconsistent nodemask? The only failure
-> > case to worry about is getting an empty nodemask, isn't it?
-> > 
-> 
-> Ok, I try to make a new patch by using seqlock.
+On 03/11/2010 08:23 AM, Hugh Dickins wrote:
+> On Wed, 10 Mar 2010, Andrea Arcangeli wrote:
+>    
+>> On Wed, Mar 10, 2010 at 10:19:33PM +0200, Izik Eidus wrote:
+>>      
+>>> On 03/10/2010 09:18 PM, Robin Holt wrote:
+>>>        
+>>>> While reviewing ksm.c, I noticed that ksm.c does:
+>>>>
+>>>>           if (pte_write(*ptep)) {
+>>>>                   pte_t entry;
+>>>>
+>>>>                   swapped = PageSwapCache(page);
+>>>>                   flush_cache_page(vma, addr, page_to_pfn(page));
+>>>>                   /*
+>>>>                    * Ok this is tricky, when get_user_pages_fast() run it doesnt
+>>>>                    * take any lock, therefore the check that we are going to make
+>>>>                    * with the pagecount against the mapcount is racey and
+>>>>                    * O_DIRECT can happen right after the check.
+>>>>                    * So we clear the pte and flush the tlb before the check
+>>>>                    * this assure us that no O_DIRECT can happen after the check
+>>>>                    * or in the middle of the check.
+>>>>                    */
+>>>>                   entry = ptep_clear_flush(vma, addr, ptep);
+>>>>                   /*
+>>>>                    * Check that no O_DIRECT or similar I/O is in progress on the
+>>>>                    * page
+>>>>                    */
+>>>>                   if (page_mapcount(page) + 1 + swapped != page_count(page)) {
+>>>>                           set_pte_at_notify(mm, addr, ptep, entry);
+>>>>                           goto out_unlock;
+>>>>                   }
+>>>>                   entry = pte_wrprotect(entry);
+>>>>                   set_pte_at_notify(mm, addr, ptep, entry);
+>>>>
+>>>>
+>>>> I would think the error case (where the page has an elevated page_count)
+>>>> should not be using set_pte_at_notify.  In that event, you are simply
+>>>> restoring the previous value.  Have I missed something or is this an
+>>>> extraneous _notify?
+>>>>
+>>>>          
+>>> Yes, I think you are right set_pte_at(mm, addr, ptep, entry);  would be
+>>> enough here.
+>>>
+>>> I can`t remember or think any reason why I have used the _notify...
+>>>
+>>> Lets just get ACK from Andrea and Hugh that they agree it isn't needed
+>>>        
+>> _notify it's needed, we're downgrading permissions here.
+>>      
+> Robin is not questioning that it's needed in the success case;
+> but in the case where we back out because the counts don't match,
+> and just put back the original entry, he's suggesting that then
+> the _notify isn't needed.
+>    
 
-Well... I do think seqlocks would be a bit simpler because they don't
-require this checking and synchronizing of this patch.
+Yes exactly, and at that 'counts don`t match' path -
+there is no need to call to _notify.
 
-But you are right: on non-x86 architectures seqlocks would probably be
-more costly than your patch in the fastpaths. Unless you can avoid
-using the seqlock in fastpaths and just have callers handle the rare
-case of an empty nodemask.
+> (I'm guessing that Robin is not making a significant improvement to KSM,
+> but rather trying to clarify his understanding of set_pte_at_notify.)
+>    
 
-cpuset_node_allowed_*wall doesn't need anything because it is just
-interested in one bit in the mask.
 
-cpuset_mem_spread_node doesn't matter because it will loop around and
-try again if it doesn't find any nodes online.
+Yea, it won`t run unless at very rare cases
 
-cpuset_mems_allowed seems totally broken anyway
-
-etc.
-
-This approach might take a little more work, but I think it might be the
-best way.
+> Hugh
+>    
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
