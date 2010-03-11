@@ -1,54 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 251DB6B00E1
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 11:07:10 -0500 (EST)
-Date: Thu, 11 Mar 2010 17:06:16 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Patch] mm/ksm.c is doing an unneeded _notify in
- write_protect_page.
-Message-ID: <20100311160616.GH5677@random.random>
-References: <20100310191842.GL5677@sgi.com>
- <4B97FED5.2030007@redhat.com>
- <20100310221903.GC5967@random.random>
- <alpine.LSU.2.00.1003110617540.29040@sister.anvils>
- <4B98EE31.80502@redhat.com>
- <20100311155422.GB5685@sgi.com>
- <20100311180159.124ffecd@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1180A6B00E3
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 11:15:58 -0500 (EST)
+Received: by pvh11 with SMTP id 11so67133pvh.14
+        for <linux-mm@kvack.org>; Thu, 11 Mar 2010 08:15:54 -0800 (PST)
+Date: Fri, 12 Mar 2010 00:19:05 +0800
+From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
+Subject: Re: 2.6.34-rc1: kernel BUG at mm/slab.c:2989!
+Message-ID: <20100311161905.GB3804@hack>
+References: <2375c9f91003100029q7d64bbf7xce15eee97f7e2190@mail.gmail.com> <4B977282.40505@cs.helsinki.fi> <alpine.DEB.2.00.1003100832200.17615@router.home> <2375c9f91003101842g713bba07v146a53f12a15a8d7@mail.gmail.com> <2375c9f91003110157y35d26e39odcd8efd9b44d83a1@mail.gmail.com> <4B98CAC0.5030009@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20100311180159.124ffecd@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4B98CAC0.5030009@cs.helsinki.fi>
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: Robin Holt <holt@sgi.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Chris Wright <chrisw@redhat.com>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, viro@zeniv.linux.org.uk, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, roland@redhat.com, peterz@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 11, 2010 at 06:01:59PM +0200, Izik Eidus wrote:
-> On Thu, 11 Mar 2010 09:54:22 -0600
-> Robin Holt <holt@sgi.com> wrote:
-> 
-> > 
-> > ksm.c's write_protect_page implements a lockless means of verifying a
-> > page does not have any users of the page which are not accounted for via
-> > other kernel tracking means.  It does this by removing the writable pte
-> > with TLB flushes, checking the page_count against the total known users,
-> > and then using set_pte_at_notify to make it a read-only entry.
-> > 
-> > An unneeded mmu_notifier callout is made in the case where the known
-> > users does not match the page_count.  In that event, we are inserting
-> > the identical pte and there is no need for the set_pte_at_notify, but
-> > rather the simpler set_pte_at suffices.
-> > 
-> > Signed-off-by: Robin Holt <holt@sgi.com>
-> > To: Izik Eidus <ieidus@redhat.com>
-> > Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> > Cc: Chris Wright <chrisw@redhat.com>
-> > Cc: linux-mm@kvack.org
-> 
-> Acked-by: Izik Eidus <ieidus@redhat.com>
+On Thu, Mar 11, 2010 at 12:49:36PM +0200, Pekka Enberg wrote:
+> AmA(C)rico Wang kirjoitti:
+>> On Thu, Mar 11, 2010 at 10:42 AM, AmA(C)rico Wang <xiyou.wangcong@gmail.com> wrote:
+>>> On Wed, Mar 10, 2010 at 10:33 PM, Christoph Lameter
+>>> <cl@linux-foundation.org> wrote:
+>>>> On Wed, 10 Mar 2010, Pekka Enberg wrote:
+>>>>
+>>>>>> Please let me know if you need more info.
+>>>>> Looks like regular SLAB corruption bug to me. Can you trigget it with SLUB?
+>>>> Run SLUB with CONFIG_SLUB_DEBUG_ON or specify slub_debug on the kernel
+>>>> command line to have all allocations checked.
+>>>>
+>>>>
+>>> Ok, I will try it today.
+>>
+>> Sorry, I can't trigger it today, either with SLAB or SLUB.
+>
+> Is it the exact same version or is it a new git snapshot?
 
-Ack too. I misunderstood what you were talking about before, patch
-makes it clear now ;).
+No, I did a git pull, but it looks like only some btrfs updates...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
