@@ -1,111 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 51E226B00D2
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 08:29:24 -0500 (EST)
-Date: Thu, 11 Mar 2010 21:29:13 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC PATCH] Fix Readahead stalling by plugged device queues
-Message-ID: <20100311132913.GB6692@localhost>
-References: <4B979104.6010907@linux.vnet.ibm.com> <20100310130932.GB18509@localhost> <4B97AD52.7080201@linux.vnet.ibm.com> <20100311014542.GA8134@localhost> <4B98BEB0.6020800@linux.vnet.ibm.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DC99B6B00D5
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 08:51:04 -0500 (EST)
+Date: Thu, 11 Mar 2010 08:49:21 -0500 (EST)
+From: "Robert P. J. Day" <rpjday@crashcourse.ca>
+Subject: [PATCH] MEMORY MANAGEMENT: Remove deprecated
+ memclear_highpage_flush().
+Message-ID: <alpine.LFD.2.00.1003110847220.6408@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B98BEB0.6020800@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ronald <intercommit@gmail.com>, Bart Van Assche <bart.vanassche@gmail.com>, Vladislav Bolkhovitin <vst@vlnb.net>, Randy Dunlap <randy.dunlap@oracle.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 11, 2010 at 05:58:08PM +0800, Christian Ehrhardt wrote:
-> Wu Fengguang wrote:
-> > On Wed, Mar 10, 2010 at 10:31:46PM +0800, Christian Ehrhardt wrote:
-> >>
-> >> Wu Fengguang wrote:
-> >> [...]
-> >>> Christian, did you notice this commit for 2.6.33?
-> >>>
-> >>> commit 65a80b4c61f5b5f6eb0f5669c8fb120893bfb388
-> >> [...]
-> >>
-> >> I didn't see that particular one, due to the fact that whatever the 
-> >> result is it needs to work .32
-> >>
-> >> Anyway I'll test it tomorrow and if that already accepted one fixes my 
-> >> issue as well I'll recommend distros older than 2.6.33 picking that one 
-> >> up in their on top patches.
-> > 
-> > OK, thanks!
-> 
-> That patch fixes my issue completely and is as we discussed less 
-> aggressive which is fine - thanks for pointing it out - Now I have 
-> something already upstream accepted to fix the issue, thats much better!
 
-That's great news, it works beyond my expectation.. :)
+Since this routine is all of static, deprecated and unreferenced, it
+seems safe to delete it.
 
-> >>> It should at least improve performance between .32 and .33, because
-> >>> once two readahead requests are merged into one single IO request,
-> >>> the PageUptodate() will be true at next readahead, and hence
-> >>> blk_run_backing_dev() get called to break out of the suboptimal
-> >>> situation.
-> >> As you saw from my blktrace thats already the case without that patch.
-> >> Once the second readahead comes in and merged it gets unplugged in 
-> >> 2.6.32 too - but still that is bad behavior as it denies my things like 
-> >> 68% throughput improvement :-).
-> > 
-> > I mean, when readahead windows A and B are submitted in one IO --
-> > let's call it AB -- commit 65a80b4c61 will explicitly unplug on doing
-> > readahead C.  While in your trace, the unplug appears on AB.
-> > 
-> > The 68% improvement is very impressive. Wondering if commit 65a80b4c61
-> > (the _conditional_ unplug) can achieve the same level of improvement :)
-> 
-> Yep it can !
-> We can post update the patch description to bigger numbers :-)
+Signed-off-by: Robert P. J. Day <rpjday@crashcourse.ca>
 
-Andrew/Greg, shall we push the patch to .32 stable?
+---
 
-That would give us an opportunity to change the patch description ;)
 
-> >>> Your patch does reduce the possible readahead submit latency to 0.
-> >> yeah and I think/hope that is fine, because as I stated:
-> >> - low utilized disk -> not an issue
-> >> - high utilized disk -> unplug is an noop
-> >>
-> >> At least personally I consider a case where merging of a readahead 
-> >> window with anything except its own sibling very rare - and therefore 
-> >> fair to unplug after and RA is submitted.
-> > 
-> > They are reasonable assumptions. However I'm not sure if this
-> > unconditional unplug will defeat CFQ's anticipatory logic -- if there
-> > are any. You know commit 65a80b4c61 is more about a *defensive*
-> > protection against the rare case that two readahead windows get
-> > merged.
-> > 
-> >>> Is your workload a simple dd on a single disk? If so, it sounds like
-> >>> something illogical hidden in the block layer.
-> >> It might still be illogical hidden as e.g. 2.6.27 unplugged after the 
-> >> first readahead as well :-)
-> >> But no my load is iozone running with different numbers of processes 
-> >> with one disk per process.
-> >> That neatly resembles e.g. nightly backup jobs which tend to take longer 
-> >> and longer in all time increasing customer scenarios. Such an 
-> >> improvement might banish the backups back to the night were they belong :-)
-> > 
-> > Exactly one process per disk? Are they doing sequential reads or more
-> > complicated access patterns?
-> 
-> Just sequential read where I see the win, but I also had sequential 
-> write, and random read/write as well as some mixed stuff like dbench.
-> It improved sequential read and did not impact the others which is fine.
+diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+index 74152c0..c77f913 100644
+--- a/include/linux/highmem.h
++++ b/include/linux/highmem.h
+@@ -173,12 +173,6 @@ static inline void zero_user(struct page *page,
+ 	zero_user_segments(page, start, start + size, 0, 0);
+ }
 
-Ah OK.
+-static inline void __deprecated memclear_highpage_flush(struct page *page,
+-			unsigned int offset, unsigned int size)
+-{
+-	zero_user(page, offset, size);
+-}
+-
+ #ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE
 
-> Thank you for you quick replies!
+ static inline void copy_user_highpage(struct page *to, struct page *from,
 
-You are welcome~
+========================================================================
+Robert P. J. Day                               Waterloo, Ontario, CANADA
 
-Thanks,
-Fengguang
+            Linux Consulting, Training and Kernel Pedantry.
+
+Web page:                                          http://crashcourse.ca
+Twitter:                                       http://twitter.com/rpjday
+========================================================================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
