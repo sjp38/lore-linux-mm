@@ -1,86 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C2FA26B0078
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 17:34:50 -0500 (EST)
-Date: Thu, 11 Mar 2010 23:34:46 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8C9806B00F9
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 18:27:13 -0500 (EST)
+Date: Fri, 12 Mar 2010 00:27:09 +0100
 From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH mmotm 2.5/4] memcg: disable irq at page cgroup lock
- (Re: [PATCH -mmotm 3/4] memcg: dirty pages accounting and limiting
- infrastructure)
-Message-ID: <20100311223445.GD2427@linux>
-References: <20100308173100.b5997fd4.kamezawa.hiroyu@jp.fujitsu.com>
- <20100309001252.GB13490@linux>
- <20100309091914.4b5f6661.kamezawa.hiroyu@jp.fujitsu.com>
- <20100309102928.9f36d2bb.nishimura@mxp.nes.nec.co.jp>
- <20100309045058.GX3073@balbir.in.ibm.com>
- <20100310104309.c5f9c9a9.nishimura@mxp.nes.nec.co.jp>
- <20100310035624.GP3073@balbir.in.ibm.com>
- <20100311133123.ab10183c.nishimura@mxp.nes.nec.co.jp>
- <20100311134908.48d8b0fc.kamezawa.hiroyu@jp.fujitsu.com>
- <20100311165413.GD29246@redhat.com>
+Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v6)
+Message-ID: <20100311232708.GE2427@linux>
+References: <1268175636-4673-1-git-send-email-arighi@develer.com>
+ <20100311093913.07c9ca8a.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100311101726.f58d24e9.kamezawa.hiroyu@jp.fujitsu.com>
+ <1268298865.5279.997.camel@twins>
+ <20100311182500.0f3ba994.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100311150307.GC29246@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100311165413.GD29246@redhat.com>
+In-Reply-To: <20100311150307.GC29246@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Vivek Goyal <vgoyal@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 11, 2010 at 11:54:13AM -0500, Vivek Goyal wrote:
-> On Thu, Mar 11, 2010 at 01:49:08PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Thu, 11 Mar 2010 13:31:23 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Thu, Mar 11, 2010 at 10:03:07AM -0500, Vivek Goyal wrote:
+> On Thu, Mar 11, 2010 at 06:25:00PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 11 Mar 2010 10:14:25 +0100
+> > Peter Zijlstra <peterz@infradead.org> wrote:
 > > 
-> > > On Wed, 10 Mar 2010 09:26:24 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > > * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2010-03-10 10:43:09]:
+> > > On Thu, 2010-03-11 at 10:17 +0900, KAMEZAWA Hiroyuki wrote:
+> > > > On Thu, 11 Mar 2010 09:39:13 +0900
+> > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > > > > The performance overhead is not so huge in both solutions, but the impact on
+> > > > > > performance is even more reduced using a complicated solution...
+> > > > > > 
+> > > > > > Maybe we can go ahead with the simplest implementation for now and start to
+> > > > > > think to an alternative implementation of the page_cgroup locking and
+> > > > > > charge/uncharge of pages.
+> > > 
+> > > FWIW bit spinlocks suck massive.
+> > > 
+> > > > > 
+> > > > > maybe. But in this 2 years, one of our biggest concerns was the performance.
+> > > > > So, we do something complex in memcg. But complex-locking is , yes, complex.
+> > > > > Hmm..I don't want to bet we can fix locking scheme without something complex.
+> > > > > 
+> > > > But overall patch set seems good (to me.) And dirty_ratio and dirty_background_ratio
+> > > > will give us much benefit (of performance) than we lose by small overheads.
+> > > 
+> > > Well, the !cgroup or root case should really have no performance impact.
+> > > 
+> > > > IIUC, this series affects trgger for background-write-out.
+> > > 
+> > > Not sure though, while this does the accounting the actual writeout is
+> > > still !cgroup aware and can definately impact performance negatively by
+> > > shrinking too much.
+> > > 
 > > 
-> > > I made a patch(attached) using both local_irq_disable/enable and local_irq_save/restore.
-> > > local_irq_save/restore is used only in mem_cgroup_update_file_mapped.
-> > > 
-> > > And I attached a histogram graph of 30 times kernel build in root cgroup for each.
-> > > 
-> > >   before_root: no irq operation(original)
-> > >   after_root: local_irq_disable/enable for all
-> > >   after2_root: local_irq_save/restore for all
-> > >   after3_root: mixed version(attached)
-> > > 
-> > > hmm, there seems to be a tendency that before < after < after3 < after2 ?
-> > > Should I replace save/restore version to mixed version ?
-> > > 
+> > Ah, okay, your point is !cgroup (ROOT cgroup case.)
+> > I don't think accounting these file cache status against root cgroup is necessary.
 > > 
-> > IMHO, starting from after2_root version is the easist.
-> > If there is a chance to call lock/unlock page_cgroup can be called in
-> > interrupt context, we _have to_ disable IRQ, anyway.
-> > And if we have to do this, I prefer migration_lock rather than this mixture.
-> > 
-> > BTW, how big your system is ? Balbir-san's concern is for bigger machines.
-> > But I'm not sure this change is affecte by the size of machines.
-> > I'm sorry I have no big machine, now.
 > 
-> FWIW, I took andrea's patches (local_irq_save/restore solution) and
-> compiled the kernel on 32 cores hyperthreaded (64 cpus) with make -j32
-> in /dev/shm/. On this system, I can't see much difference.
+> I think what peter meant was that with memory cgroups created we will do
+> writeouts much more aggressively.
 > 
-> I compiled the kernel 10 times and took average.
+> In balance_dirty_pages()
 > 
-> Without andrea's patches: 28.698 (seconds)
-> With andrea's patches: 28.711 (seconds).
-> Diff is .04%
+> 	if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
+> 		break;
 > 
-> This is all should be in root cgroup. Note, I have not mounted memory cgroup
-> controller but it is compiled in. So I am assuming that root group
-> accounting will still be taking place. Also assuming that it is not
-> required to do actual IO to disk and /dev/shm is enough to see the results
-> of local_irq_save()/restore.
+> Now with Andrea's patches, we are calculating bdi_thres per memory cgroup
+> (almost)
+> 
+> bdi_thres ~= per_memory_cgroup_dirty * bdi_fraction
+> 
+> But bdi_nr_reclaimable and bdi_nr_writeback stats are still global.
 
-cgroup disable is at boot time "cgroup_disable=...", so root cgroup
-accounting should be enabled.
+Correct. More exactly:
 
-The same for the local_irq_save/restore() overhead, lock/unlock_page_cgroup()
-is called during each charge.
+ bdi_thresh = memcg dirty memory limit * BDI's share of the global dirty memory
 
-Many thanks for testing!
+Before:
+
+ bdi_thresh = global dirty memory limit * BDI's share of the global dirty memory
+
+> 
+> So for the same number of dirty pages system wide on this bdi, we will be
+> triggering writeouts much more aggressively if somebody has created few
+> memory cgroups and tasks are running in those cgroups.
+
+Right, if we don't touch per-cgroup dirty limits.
+
+> 
+> I guess it might cause performance regressions in case of small file
+> writeouts because previously one could have written the file to cache and
+> be done with it but with this patch set, there are higher changes that
+> you will be throttled to write the pages back to disk.
+> 
+> I guess we need two pieces to resolve this.
+> 	- BDI stats per cgroup.
+> 	- Writeback of inodes from same cgroup.
+> 
+> I think BDI stats per cgroup will increase the complextiy.
+
+There'll be the opposite problem I think, the number of dirty pages
+(system-wide) will increase, because in this way we'll consider BDI
+shares of memcg dirty memory. So I think we need both: per memcg BDI
+stats and system-wide BDI stats, then we need to take the min of the two
+when evaluating bdi_thresh. Maybe... I'm not really sure about this, and
+need to figure better this part. So I started with the simplest
+implementation: global BDI stats, and per-memcg dirty memory.
+
+I totally agree about the other point, writeback of inodes per cgroup is
+another feature that we need.
+
+> I am still setting up the system to test whether we see any speedup in
+> writeout of large files with-in a memory cgroup with small memory limits.
+> I am assuming that we are expecting a speedup because we will start
+> writeouts early and background writeouts probably are faster than direct
+> reclaim?
+
+mmh... speedup? I think with a large file write + reduced dirty limits
+you'll get a more uniform write-out (more frequent small writes),
+respect to few and less frequent large writes. The system will be more
+reactive, but I don't think you'll be able to see a speedup in the large
+write itself.
+
+Thanks,
 -Andrea
 
 --
