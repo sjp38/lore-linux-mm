@@ -1,68 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8E1506B0087
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 18:56:26 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2BNuOuK009227
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 784BA6B0092
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 18:58:17 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2BNwFta010076
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Mar 2010 08:56:25 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 276F945DE61
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:56:24 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 00E7945DE55
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:56:24 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C18D71DB8044
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:56:23 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 61FD41DB8041
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:56:23 +0900 (JST)
-Date: Fri, 12 Mar 2010 08:52:44 +0900
+	Fri, 12 Mar 2010 08:58:15 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C015345DE51
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:58:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 98C0845DE4E
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:58:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D73FE38001
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:58:14 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 25EC21DB8037
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:58:14 +0900 (JST)
+Date: Fri, 12 Mar 2010 08:54:38 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v6)
-Message-Id: <20100312085244.98e48991.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100311232708.GE2427@linux>
-References: <1268175636-4673-1-git-send-email-arighi@develer.com>
-	<20100311093913.07c9ca8a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100311101726.f58d24e9.kamezawa.hiroyu@jp.fujitsu.com>
-	<1268298865.5279.997.camel@twins>
-	<20100311182500.0f3ba994.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100311150307.GC29246@redhat.com>
-	<20100311232708.GE2427@linux>
+Subject: Re: [RFC][PATCH 2/3] memcg: oom notifier
+Message-Id: <20100312085438.98c5fcc4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <cc557aab1003110647q1b70c9a0j73867c2c33dd28ce@mail.gmail.com>
+References: <20100311165315.c282d6d2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100311165700.4468ef2a.kamezawa.hiroyu@jp.fujitsu.com>
+	<cc557aab1003110647q1b70c9a0j73867c2c33dd28ce@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Mar 2010 00:27:09 +0100
-Andrea Righi <arighi@develer.com> wrote:
+Thank you.
 
-> On Thu, Mar 11, 2010 at 10:03:07AM -0500, Vivek Goyal wrote:
+On Thu, 11 Mar 2010 16:47:00 +0200
+"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-> > I am still setting up the system to test whether we see any speedup in
-> > writeout of large files with-in a memory cgroup with small memory limits.
-> > I am assuming that we are expecting a speedup because we will start
-> > writeouts early and background writeouts probably are faster than direct
-> > reclaim?
+> On Thu, Mar 11, 2010 at 9:57 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+> > A  A  A  A /*
+> > A  A  A  A  * Should we move charges of a task when a task is moved into this
+> > A  A  A  A  * mem_cgroup ? And what type of charges should we move ?
+> > @@ -282,9 +292,12 @@ enum charge_type {
+> > A /* for encoding cft->private value on file */
+> > A #define _MEM A  A  A  A  A  A  A  A  A  (0)
+> > A #define _MEMSWAP A  A  A  A  A  A  A  (1)
+> > +#define _OOM_TYPE A  A  A  A  A  A  A (2)
+> > A #define MEMFILE_PRIVATE(x, val) A  A  A  A (((x) << 16) | (val))
+> > A #define MEMFILE_TYPE(val) A  A  A (((val) >> 16) & 0xffff)
+> > A #define MEMFILE_ATTR(val) A  A  A ((val) & 0xffff)
+> > +/* Used for OOM nofiier */
+> > +#define OOM_CONTROL A  A  A  A  A  A (0)
+> >
+> > A /*
+> > A * Reclaim flags for mem_cgroup_hierarchical_reclaim
+> > @@ -1351,6 +1364,8 @@ bool mem_cgroup_handle_oom(struct mem_cg
+> > A  A  A  A  */
+> > A  A  A  A if (!locked)
+> > A  A  A  A  A  A  A  A prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+> > + A  A  A  else
+> > + A  A  A  A  A  A  A  mem_cgroup_oom_notify(mem);
+> > A  A  A  A mutex_unlock(&memcg_oom_mutex);
+> >
+> > A  A  A  A if (locked)
+> > @@ -3398,8 +3413,22 @@ static int compare_thresholds(const void
+> > A  A  A  A return _a->threshold - _b->threshold;
+> > A }
+> >
+> > -static int mem_cgroup_register_event(struct cgroup *cgrp, struct cftype *cft,
+> > - A  A  A  A  A  A  A  struct eventfd_ctx *eventfd, const char *args)
+> > +static int mem_cgroup_oom_notify_cb(struct mem_cgroup *mem, void *data)
+> > +{
+> > + A  A  A  struct mem_cgroup_eventfd_list *ev;
+> > +
+> > + A  A  A  list_for_each_entry(ev, &mem->oom_notify, list)
+> > + A  A  A  A  A  A  A  eventfd_signal(ev->eventfd, 1);
+> > + A  A  A  return 0;
+> > +}
+> > +
+> > +static void mem_cgroup_oom_notify(struct mem_cgroup *mem)
+> > +{
+> > + A  A  A  mem_cgroup_walk_tree(mem, NULL, mem_cgroup_oom_notify_cb);
+> > +}
+> > +
+> > +static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
+> > + A  A  A  struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+> > A {
+> > A  A  A  A struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > A  A  A  A struct mem_cgroup_threshold_ary *thresholds, *thresholds_new;
+> > @@ -3483,8 +3512,8 @@ unlock:
+> > A  A  A  A return ret;
+> > A }
+> >
+> > -static int mem_cgroup_unregister_event(struct cgroup *cgrp, struct cftype *cft,
+> > - A  A  A  A  A  A  A  struct eventfd_ctx *eventfd)
+> > +static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+> > + A  A  A  struct cftype *cft, struct eventfd_ctx *eventfd)
+> > A {
+> > A  A  A  A struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > A  A  A  A struct mem_cgroup_threshold_ary *thresholds, *thresholds_new;
+> > @@ -3568,13 +3597,66 @@ unlock:
+> > A  A  A  A return ret;
+> > A }
+> >
+> > +static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
+> > + A  A  A  struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+> > +{
+> > + A  A  A  struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > + A  A  A  struct mem_cgroup_eventfd_list *event;
+> > + A  A  A  int type = MEMFILE_TYPE(cft->private);
+> > + A  A  A  int ret = -ENOMEM;
+> > +
+> > + A  A  A  BUG_ON(type != _OOM_TYPE);
+> > +
+> > + A  A  A  mutex_lock(&memcg_oom_mutex);
+> > +
+> > + A  A  A  /* Allocate memory for new array of thresholds */
 > 
-> mmh... speedup? I think with a large file write + reduced dirty limits
-> you'll get a more uniform write-out (more frequent small writes),
-> respect to few and less frequent large writes. The system will be more
-> reactive, but I don't think you'll be able to see a speedup in the large
-> write itself.
+> Irrelevant comment?
 > 
-Ah, sorry. I misunderstood something. But it's depends on dirty_ratio param.
-If
-	background_dirty_ratio = 5
-	dirty_ratio	       = 100
-under 100M cgroup, I think background write-out will be a help.
-(nonsense ? ;)
-
-And I wonder make -j can get better number....Hmm.
+> > + A  A  A  event = kmalloc(sizeof(*event), GFP_KERNEL);
+> > + A  A  A  if (!event)
+> > + A  A  A  A  A  A  A  goto unlock;
+> > + A  A  A  /* Add new threshold */
+> 
+> Ditto.
+> 
+Ah...sorry for garbages..I'll clean these up.
 
 Thanks,
 -Kame
