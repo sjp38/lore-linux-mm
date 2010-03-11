@@ -1,140 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 784BA6B0092
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 18:58:17 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2BNwFta010076
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Mar 2010 08:58:15 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C015345DE51
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:58:14 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 98C0845DE4E
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:58:14 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D73FE38001
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:58:14 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 25EC21DB8037
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 08:58:14 +0900 (JST)
-Date: Fri, 12 Mar 2010 08:54:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/3] memcg: oom notifier
-Message-Id: <20100312085438.98c5fcc4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <cc557aab1003110647q1b70c9a0j73867c2c33dd28ce@mail.gmail.com>
-References: <20100311165315.c282d6d2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100311165700.4468ef2a.kamezawa.hiroyu@jp.fujitsu.com>
-	<cc557aab1003110647q1b70c9a0j73867c2c33dd28ce@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E59916B0105
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 18:59:27 -0500 (EST)
+Date: Fri, 12 Mar 2010 00:59:22 +0100
+From: Andrea Righi <arighi@develer.com>
+Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v6)
+Message-ID: <20100311235922.GA4569@linux>
+References: <1268175636-4673-1-git-send-email-arighi@develer.com>
+ <20100311180753.GE29246@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100311180753.GE29246@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you.
-
-On Thu, 11 Mar 2010 16:47:00 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> On Thu, Mar 11, 2010 at 9:57 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-> > A  A  A  A /*
-> > A  A  A  A  * Should we move charges of a task when a task is moved into this
-> > A  A  A  A  * mem_cgroup ? And what type of charges should we move ?
-> > @@ -282,9 +292,12 @@ enum charge_type {
-> > A /* for encoding cft->private value on file */
-> > A #define _MEM A  A  A  A  A  A  A  A  A  (0)
-> > A #define _MEMSWAP A  A  A  A  A  A  A  (1)
-> > +#define _OOM_TYPE A  A  A  A  A  A  A (2)
-> > A #define MEMFILE_PRIVATE(x, val) A  A  A  A (((x) << 16) | (val))
-> > A #define MEMFILE_TYPE(val) A  A  A (((val) >> 16) & 0xffff)
-> > A #define MEMFILE_ATTR(val) A  A  A ((val) & 0xffff)
-> > +/* Used for OOM nofiier */
-> > +#define OOM_CONTROL A  A  A  A  A  A (0)
-> >
-> > A /*
-> > A * Reclaim flags for mem_cgroup_hierarchical_reclaim
-> > @@ -1351,6 +1364,8 @@ bool mem_cgroup_handle_oom(struct mem_cg
-> > A  A  A  A  */
-> > A  A  A  A if (!locked)
-> > A  A  A  A  A  A  A  A prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
-> > + A  A  A  else
-> > + A  A  A  A  A  A  A  mem_cgroup_oom_notify(mem);
-> > A  A  A  A mutex_unlock(&memcg_oom_mutex);
-> >
-> > A  A  A  A if (locked)
-> > @@ -3398,8 +3413,22 @@ static int compare_thresholds(const void
-> > A  A  A  A return _a->threshold - _b->threshold;
-> > A }
-> >
-> > -static int mem_cgroup_register_event(struct cgroup *cgrp, struct cftype *cft,
-> > - A  A  A  A  A  A  A  struct eventfd_ctx *eventfd, const char *args)
-> > +static int mem_cgroup_oom_notify_cb(struct mem_cgroup *mem, void *data)
-> > +{
-> > + A  A  A  struct mem_cgroup_eventfd_list *ev;
-> > +
-> > + A  A  A  list_for_each_entry(ev, &mem->oom_notify, list)
-> > + A  A  A  A  A  A  A  eventfd_signal(ev->eventfd, 1);
-> > + A  A  A  return 0;
-> > +}
-> > +
-> > +static void mem_cgroup_oom_notify(struct mem_cgroup *mem)
-> > +{
-> > + A  A  A  mem_cgroup_walk_tree(mem, NULL, mem_cgroup_oom_notify_cb);
-> > +}
-> > +
-> > +static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
-> > + A  A  A  struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
-> > A {
-> > A  A  A  A struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> > A  A  A  A struct mem_cgroup_threshold_ary *thresholds, *thresholds_new;
-> > @@ -3483,8 +3512,8 @@ unlock:
-> > A  A  A  A return ret;
-> > A }
-> >
-> > -static int mem_cgroup_unregister_event(struct cgroup *cgrp, struct cftype *cft,
-> > - A  A  A  A  A  A  A  struct eventfd_ctx *eventfd)
-> > +static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
-> > + A  A  A  struct cftype *cft, struct eventfd_ctx *eventfd)
-> > A {
-> > A  A  A  A struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> > A  A  A  A struct mem_cgroup_threshold_ary *thresholds, *thresholds_new;
-> > @@ -3568,13 +3597,66 @@ unlock:
-> > A  A  A  A return ret;
-> > A }
-> >
-> > +static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
-> > + A  A  A  struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
-> > +{
-> > + A  A  A  struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> > + A  A  A  struct mem_cgroup_eventfd_list *event;
-> > + A  A  A  int type = MEMFILE_TYPE(cft->private);
-> > + A  A  A  int ret = -ENOMEM;
-> > +
-> > + A  A  A  BUG_ON(type != _OOM_TYPE);
-> > +
-> > + A  A  A  mutex_lock(&memcg_oom_mutex);
-> > +
-> > + A  A  A  /* Allocate memory for new array of thresholds */
+On Thu, Mar 11, 2010 at 01:07:53PM -0500, Vivek Goyal wrote:
+> On Wed, Mar 10, 2010 at 12:00:31AM +0100, Andrea Righi wrote:
+> > Control the maximum amount of dirty pages a cgroup can have at any given time.
+> > 
+> > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
+> > page cache used by any cgroup. So, in case of multiple cgroup writers, they
+> > will not be able to consume more than their designated share of dirty pages and
+> > will be forced to perform write-out if they cross that limit.
+> > 
+> > The overall design is the following:
+> > 
+> >  - account dirty pages per cgroup
+> >  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
+> >    and memory.dirty_background_ratio / memory.dirty_background_bytes in
+> >    cgroupfs
+> >  - start to write-out (background or actively) when the cgroup limits are
+> >    exceeded
+> > 
+> > This feature is supposed to be strictly connected to any underlying IO
+> > controller implementation, so we can stop increasing dirty pages in VM layer
+> > and enforce a write-out before any cgroup will consume the global amount of
+> > dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
+> > /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
+> > 
 > 
-> Irrelevant comment?
+> Hi Andrea,
 > 
-> > + A  A  A  event = kmalloc(sizeof(*event), GFP_KERNEL);
-> > + A  A  A  if (!event)
-> > + A  A  A  A  A  A  A  goto unlock;
-> > + A  A  A  /* Add new threshold */
+> I am doing a simple dd test of writting a 4G file. This machine has got
+> 64G of memory and I have created one cgroup with 100M as limit_in_bytes.
 > 
-> Ditto.
+> I run following dd program both in root cgroup as well as test1/
+> cgroup(100M limit) one after the other.
 > 
-Ah...sorry for garbages..I'll clean these up.
+> In root cgroup
+> ==============
+> dd if=/dev/zero of=/root/zerofile bs=4K count=1000000
+> 1000000+0 records in
+> 1000000+0 records out
+> 4096000000 bytes (4.1 GB) copied, 59.5571 s, 68.8 MB/s
+> 
+> In test1/ cgroup
+> ===============
+> dd if=/dev/zero of=/root/zerofile bs=4K count=1000000
+> 1000000+0 records in
+> 1000000+0 records out
+> 4096000000 bytes (4.1 GB) copied, 20.6683 s, 198 MB/s
+> 
+> It is strange that we are throttling process in root group much more than
+> process in test1/ cgroup?
 
-Thanks,
--Kame
+mmmh.. strange, on my side I get something as expected:
+
+<root cgroup>
+$ dd if=/dev/zero of=test bs=1M count=500
+500+0 records in
+500+0 records out
+524288000 bytes (524 MB) copied, 6.28377 s, 83.4 MB/s
+
+<child cgroup with 100M memory.limit_in_bytes>
+$ dd if=/dev/zero of=test bs=1M count=500
+500+0 records in
+500+0 records out
+524288000 bytes (524 MB) copied, 11.8884 s, 44.1 MB/s
+
+Did you change the global /proc/sys/vm/dirty_* or memcg dirty
+parameters?
+
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
