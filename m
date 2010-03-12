@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 15CA56B0148
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 11:41:38 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7CC6B014D
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 11:41:42 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 11/11] Do not compact within a preferred zone after a compaction failure
-Date: Fri, 12 Mar 2010 16:41:27 +0000
-Message-Id: <1268412087-13536-12-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 03/11] mm: Share the anon_vma ref counts between KSM and page migration
+Date: Fri, 12 Mar 2010 16:41:19 +0000
+Message-Id: <1268412087-13536-4-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
 References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,121 +13,167 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The fragmentation index may indicate that a failure it due to external
-fragmentation, a compaction run complete and an allocation failure still
-fail. There are two obvious reasons as to why
-
-  o Page migration cannot move all pages so fragmentation remains
-  o A suitable page may exist but watermarks are not met
-
-In the event of compaction and allocation failure, this patch prevents
-compaction happening for a short interval. It's only recorded on the
-preferred zone but that should be enough coverage. This could have been
-implemented similar to the zonelist_cache but the increased size of the
-zonelist did not appear to be justified.
+For clarity of review, KSM and page migration have separate refcounts on
+the anon_vma. While clear, this is a waste of memory. This patch gets
+KSM and page migration to share their toys in a spirit of harmony.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- include/linux/compaction.h |   35 +++++++++++++++++++++++++++++++++++
- include/linux/mmzone.h     |    7 +++++++
- mm/page_alloc.c            |    5 ++++-
- 3 files changed, 46 insertions(+), 1 deletions(-)
+ include/linux/rmap.h |   50 ++++++++++++++++++--------------------------------
+ mm/ksm.c             |    4 ++--
+ mm/migrate.c         |    4 ++--
+ mm/rmap.c            |    6 ++----
+ 4 files changed, 24 insertions(+), 40 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index b851428..bc7059d 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -14,6 +14,32 @@ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask);
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 567d43f..7721674 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -26,11 +26,17 @@
+  */
+ struct anon_vma {
+ 	spinlock_t lock;	/* Serialize access to vma list */
+-#ifdef CONFIG_KSM
+-	atomic_t ksm_refcount;
+-#endif
+-#ifdef CONFIG_MIGRATION
+-	atomic_t migrate_refcount;
++#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
 +
-+/* defer_compaction - Do not compact within a zone until a given time */
-+static inline void defer_compaction(struct zone *zone, unsigned long resume)
-+{
 +	/*
-+	 * This function is called when compaction fails to result in a page
-+	 * allocation success. This is somewhat unsatisfactory as the failure
-+	 * to compact has nothing to do with time and everything to do with
-+	 * the requested order, the number of free pages and watermarks. How
-+	 * to wait on that is more unclear, but the answer would apply to
-+	 * other areas where the VM waits based on time.
++	 * The external_refcount is taken by either KSM or page migration
++	 * to take a reference to an anon_vma when there is no
++	 * guarantee that the vma of page tables will exist for
++	 * the duration of the operation. A caller that takes
++	 * the reference is responsible for clearing up the
++	 * anon_vma if they are the last user on release
 +	 */
-+	zone->compact_resume = resume;
-+}
-+
-+static inline int compaction_deferred(struct zone *zone)
-+{
-+	/* init once if necessary */
-+	if (unlikely(!zone->compact_resume)) {
-+		zone->compact_resume = jiffies;
-+		return 0;
-+	}
-+
-+	return time_before(jiffies, zone->compact_resume);
-+}
-+
- #else
- static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask)
-@@ -21,6 +47,15 @@ static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 	return COMPACT_INCOMPLETE;
++	atomic_t external_refcount;
+ #endif
+ 	/*
+ 	 * NOTE: the LSB of the head.next is set by
+@@ -64,46 +70,26 @@ struct anon_vma_chain {
+ };
+ 
+ #ifdef CONFIG_MMU
+-#ifdef CONFIG_KSM
+-static inline void ksm_refcount_init(struct anon_vma *anon_vma)
++#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
++static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
+ {
+-	atomic_set(&anon_vma->ksm_refcount, 0);
++	atomic_set(&anon_vma->external_refcount, 0);
  }
  
-+static inline void defer_compaction(struct zone *zone, unsigned long resume)
-+{
-+}
-+
-+static inline int compaction_deferred(struct zone *zone)
-+{
-+	return 1;
-+}
-+
- #endif /* CONFIG_COMPACTION */
+-static inline int ksm_refcount(struct anon_vma *anon_vma)
++static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
+ {
+-	return atomic_read(&anon_vma->ksm_refcount);
++	return atomic_read(&anon_vma->external_refcount);
+ }
+ #else
+-static inline void ksm_refcount_init(struct anon_vma *anon_vma)
++static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
+ {
+ }
  
- #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 37df0b3..99b7ecc 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -321,6 +321,13 @@ struct zone {
- 	unsigned long		*pageblock_flags;
- #endif /* CONFIG_SPARSEMEM */
+-static inline int ksm_refcount(struct anon_vma *anon_vma)
++static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
+ {
+ 	return 0;
+ }
+ #endif /* CONFIG_KSM */
+-#ifdef CONFIG_MIGRATION
+-static inline void migrate_refcount_init(struct anon_vma *anon_vma)
+-{
+-	atomic_set(&anon_vma->migrate_refcount, 0);
+-}
+-
+-static inline int migrate_refcount(struct anon_vma *anon_vma)
+-{
+-	return atomic_read(&anon_vma->migrate_refcount);
+-}
+-#else
+-static inline void migrate_refcount_init(struct anon_vma *anon_vma)
+-{
+-}
+-
+-static inline int migrate_refcount(struct anon_vma *anon_vma)
+-{
+-	return 0;
+-}
+-#endif /* CONFIG_MIGRATE */
  
-+#ifdef CONFIG_COMPACTION
-+	/*
-+	 * If a compaction fails, do not try compaction again until
-+	 * jiffies is after the value of compact_resume
-+	 */
-+	unsigned long		compact_resume;
-+#endif
+ static inline struct anon_vma *page_anon_vma(struct page *page)
+ {
+diff --git a/mm/ksm.c b/mm/ksm.c
+index a93f1b7..e45ec98 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -318,14 +318,14 @@ static void hold_anon_vma(struct rmap_item *rmap_item,
+ 			  struct anon_vma *anon_vma)
+ {
+ 	rmap_item->anon_vma = anon_vma;
+-	atomic_inc(&anon_vma->ksm_refcount);
++	atomic_inc(&anon_vma->external_refcount);
+ }
  
- 	ZONE_PADDING(_pad1_)
+ static void drop_anon_vma(struct rmap_item *rmap_item)
+ {
+ 	struct anon_vma *anon_vma = rmap_item->anon_vma;
  
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e301108..f481df2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1767,7 +1767,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	cond_resched();
- 
- 	/* Try memory compaction for high-order allocations before reclaim */
--	if (order) {
-+	if (order && !compaction_deferred(preferred_zone)) {
- 		*did_some_progress = try_to_compact_pages(zonelist,
- 						order, gfp_mask, nodemask);
- 		if (*did_some_progress != COMPACT_INCOMPLETE) {
-@@ -1787,6 +1787,9 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 			 */
- 			count_vm_event(COMPACTFAIL);
- 
-+			/* On failure, avoid compaction for a short time. */
-+			defer_compaction(preferred_zone, jiffies + HZ/50);
-+
- 			cond_resched();
- 		}
+-	if (atomic_dec_and_lock(&anon_vma->ksm_refcount, &anon_vma->lock)) {
++	if (atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->lock)) {
+ 		int empty = list_empty(&anon_vma->head);
+ 		spin_unlock(&anon_vma->lock);
+ 		if (empty)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3c491e3..dd1ab6b 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -615,7 +615,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 		rcu_read_lock();
+ 		rcu_locked = 1;
+ 		anon_vma = page_anon_vma(page);
+-		atomic_inc(&anon_vma->migrate_refcount);
++		atomic_inc(&anon_vma->external_refcount);
  	}
+ 
+ 	/*
+@@ -657,7 +657,7 @@ skip_unmap:
+ rcu_unlock:
+ 
+ 	/* Drop an anon_vma reference if we took one */
+-	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
++	if (anon_vma && atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->lock)) {
+ 		int empty = list_empty(&anon_vma->head);
+ 		spin_unlock(&anon_vma->lock);
+ 		if (empty)
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 578d0fe..af35b75 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -248,8 +248,7 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
+ 	list_del(&anon_vma_chain->same_anon_vma);
+ 
+ 	/* We must garbage collect the anon_vma if it's empty */
+-	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma) &&
+-					!migrate_refcount(anon_vma);
++	empty = list_empty(&anon_vma->head) && !anonvma_external_refcount(anon_vma);
+ 	spin_unlock(&anon_vma->lock);
+ 
+ 	if (empty)
+@@ -273,8 +272,7 @@ static void anon_vma_ctor(void *data)
+ 	struct anon_vma *anon_vma = data;
+ 
+ 	spin_lock_init(&anon_vma->lock);
+-	ksm_refcount_init(anon_vma);
+-	migrate_refcount_init(anon_vma);
++	anonvma_external_refcount_init(anon_vma);
+ 	INIT_LIST_HEAD(&anon_vma->head);
+ }
+ 
 -- 
 1.6.5
 
