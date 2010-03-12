@@ -1,73 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 210CB6B0117
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 22:32:09 -0500 (EST)
-From: Frans Pop <elendil@planet.nl>
-Subject: Re: Memory management woes - order 1 allocation failures
-Date: Fri, 12 Mar 2010 04:32:03 +0100
-References: <alpine.DEB.2.00.1002261042020.7719@router.home> <20100302221751.20addf02@lxorguk.ukuu.org.uk> <20100302222933.GF11355@csn.ul.ie>
-In-Reply-To: <20100302222933.GF11355@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B88236B0119
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 00:35:32 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2C5ZTfi016714
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 12 Mar 2010 14:35:30 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A9CF945DE52
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 14:35:29 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B67645DE4F
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 14:35:29 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 59B0DE18006
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 14:35:29 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AA381DB8040
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 14:35:26 +0900 (JST)
+Date: Fri, 12 Mar 2010 14:31:37 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 1/3] memcg: oom wakeup filter
+Message-Id: <20100312143137.f4cf0a04.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <201003120432.06149.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Greg KH <gregkh@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kirill@shutemov.name" <kirill@shutemov.name>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 02 March 2010, Mel Gorman wrote:
-> On Tue, Mar 02, 2010 at 10:17:51PM +0000, Alan Cox wrote:
-> > > -#define TTY_BUFFER_PAGE		((PAGE_SIZE  - 256) / 2)
-> > > +#define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) /
-> > > 2) & ~0xFF)
-> >
-> > Yes agreed I missed a '-1'
->
-> Frans, would you mind testing your NAS box with the following patch
-> applied please? It should apply cleanly on top of 2.6.33-rc7. Thanks
+This patch is my answer to a concern for 
+ memcg-fix-oom-kill-behavior-v4.patch
+in mmotm. The concern was that patch uses system-wide waitq.
 
-Thanks Mel.
+For handling hierarchy, per-mm waitq is not useful...this patch adds
+filter at wake-up. Works well on my test.
 
-I've been running with this patch for about a week now and have so far not 
-seen any more allocation failures. I've tried doing large rsyncs a few 
-times.
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-It's not 100% conclusive, but I would say it improves things and I've 
-certainly not noticed any issues with the patch.
+memcg's oom waitqueue is a system-wide wait_queue (for handling hierarchy.)
+So, it's better to add custom wake function and do flitering in wake up path.
 
-Before I got the patch I noticed that the default value for 
-vm.min_free_kbytes was only 1442 for this machine. Isn't that on the low 
-side? Could that have been a factor?
+This patch adds a filtering feature for waking up oom-waiters.
+Hierarchy is properly handled.
 
-My concern is that, although fixing bugs in GFP_ATOMIC allocations is 
-certainly very good, I can't help wondering why the system does not keep a 
-bit more memory in reserve instead of using everything up for relatively 
-silly things like cache and buffers.
-What if during an rsync I plug in some USB device whose driver has some 
-valid GFP_ATOMIC allocations? Shouldn't the memory manager allow for such 
-situations?
+Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   61 ++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 44 insertions(+), 17 deletions(-)
 
-Cheers,
-FJP
-
-> tty: Keep the default buffering to sub-page units
->
-> We allocate during interrupts so while our buffering is normally diced
-> up small anyway on some hardware at speed we can pressure the VM
-> excessively for page pairs. We don't really need big buffers to be
-> linear so don't try so hard.
->
-> In order to make this work well we will tidy up excess callers to
-> request_room, which cannot itself enforce this break up.
->
-> [mel@csn.ul.ie: Adjust TTY_BUFFER_PAGE to take padding into account]
-> Signed-off-by: Alan Cox <alan@linux.intel.com>
-> Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
-
-Tested-by: Frans Pop <fjp@planet.nl>
+Index: mmotm-2.6.34-Mar9/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.34-Mar9.orig/mm/memcontrol.c
++++ mmotm-2.6.34-Mar9/mm/memcontrol.c
+@@ -1293,14 +1293,54 @@ static void mem_cgroup_oom_unlock(struct
+ static DEFINE_MUTEX(memcg_oom_mutex);
+ static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
+ 
++struct oom_wait_info {
++	struct mem_cgroup *mem;
++	wait_queue_t	wait;
++};
++
++static int memcg_oom_wake_function(wait_queue_t *wait,
++	unsigned mode, int sync, void *arg)
++{
++	struct mem_cgroup *wake_mem = (struct mem_cgroup *)arg;
++	struct oom_wait_info *oom_wait_info;
++
++	/* both of oom_wait_info->mem and wake_mem are stable under us */
++	oom_wait_info = container_of(wait, struct oom_wait_info, wait);
++
++	if (oom_wait_info->mem == wake_mem)
++		goto wakeup;
++	/* if no hierarchy, no match */
++	if (!oom_wait_info->mem->use_hierarchy || !wake_mem->use_hierarchy)
++		return 0;
++	/* check hierarchy */
++	if (!css_is_ancestor(&oom_wait_info->mem->css, &wake_mem->css) &&
++	    !css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css))
++		return 0;
++
++wakeup:
++	return autoremove_wake_function(wait, mode, sync, arg);
++}
++
++static void memcg_wakeup_oom(struct mem_cgroup *mem)
++{
++	/* for filtering, pass "mem" as argument. */
++	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, mem);
++}
++
+ /*
+  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+  */
+ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+ {
+-	DEFINE_WAIT(wait);
++	struct oom_wait_info owait;
+ 	bool locked;
+ 
++	owait.mem = mem;
++	owait.wait.flags = 0;
++	owait.wait.func = memcg_oom_wake_function;
++	owait.wait.private = current;
++	INIT_LIST_HEAD(&owait.wait.task_list);
++
+ 	/* At first, try to OOM lock hierarchy under mem.*/
+ 	mutex_lock(&memcg_oom_mutex);
+ 	locked = mem_cgroup_oom_lock(mem);
+@@ -1310,31 +1350,18 @@ bool mem_cgroup_handle_oom(struct mem_cg
+ 	 * under OOM is always welcomed, use TASK_KILLABLE here.
+ 	 */
+ 	if (!locked)
+-		prepare_to_wait(&memcg_oom_waitq, &wait, TASK_KILLABLE);
++		prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+ 	mutex_unlock(&memcg_oom_mutex);
+ 
+ 	if (locked)
+ 		mem_cgroup_out_of_memory(mem, mask);
+ 	else {
+ 		schedule();
+-		finish_wait(&memcg_oom_waitq, &wait);
++		finish_wait(&memcg_oom_waitq, &owait.wait);
+ 	}
+ 	mutex_lock(&memcg_oom_mutex);
+ 	mem_cgroup_oom_unlock(mem);
+-	/*
+-	 * Here, we use global waitq .....more fine grained waitq ?
+-	 * Assume following hierarchy.
+-	 * A/
+-	 *   01
+-	 *   02
+-	 * assume OOM happens both in A and 01 at the same time. Tthey are
+-	 * mutually exclusive by lock. (kill in 01 helps A.)
+-	 * When we use per memcg waitq, we have to wake up waiters on A and 02
+-	 * in addtion to waiters on 01. We use global waitq for avoiding mess.
+-	 * It will not be a big problem.
+-	 * (And a task may be moved to other groups while it's waiting for OOM.)
+-	 */
+-	wake_up_all(&memcg_oom_waitq);
++	memcg_wakeup_oom(mem);
+ 	mutex_unlock(&memcg_oom_mutex);
+ 
+ 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
