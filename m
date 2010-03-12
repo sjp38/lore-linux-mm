@@ -1,56 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9D6616B012E
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 05:01:37 -0500 (EST)
-Date: Fri, 12 Mar 2010 11:01:29 +0100
-From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v6)
-Message-ID: <20100312100129.GB4438@linux>
-References: <1268175636-4673-1-git-send-email-arighi@develer.com>
- <20100311093913.07c9ca8a.kamezawa.hiroyu@jp.fujitsu.com>
- <20100311101726.f58d24e9.kamezawa.hiroyu@jp.fujitsu.com>
- <1268298865.5279.997.camel@twins>
- <20100311182500.0f3ba994.kamezawa.hiroyu@jp.fujitsu.com>
- <20100311150307.GC29246@redhat.com>
- <20100311232708.GE2427@linux>
- <20100312085244.98e48991.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100312085244.98e48991.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FEFE6B0131
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 05:06:55 -0500 (EST)
+Date: Fri, 12 Mar 2010 02:05:26 -0500
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
+ pressure
+Message-Id: <20100312020526.d424f2a8.akpm@linux-foundation.org>
+In-Reply-To: <4B99E19E.6070301@linux.vnet.ibm.com>
+References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie>
+	<20100311154124.e1e23900.akpm@linux-foundation.org>
+	<4B99E19E.6070301@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 12, 2010 at 08:52:44AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 12 Mar 2010 00:27:09 +0100
-> Andrea Righi <arighi@develer.com> wrote:
-> 
-> > On Thu, Mar 11, 2010 at 10:03:07AM -0500, Vivek Goyal wrote:
-> 
-> > > I am still setting up the system to test whether we see any speedup in
-> > > writeout of large files with-in a memory cgroup with small memory limits.
-> > > I am assuming that we are expecting a speedup because we will start
-> > > writeouts early and background writeouts probably are faster than direct
-> > > reclaim?
-> > 
-> > mmh... speedup? I think with a large file write + reduced dirty limits
-> > you'll get a more uniform write-out (more frequent small writes),
-> > respect to few and less frequent large writes. The system will be more
-> > reactive, but I don't think you'll be able to see a speedup in the large
-> > write itself.
-> > 
-> Ah, sorry. I misunderstood something. But it's depends on dirty_ratio param.
-> If
-> 	background_dirty_ratio = 5
-> 	dirty_ratio	       = 100
-> under 100M cgroup, I think background write-out will be a help.
+On Fri, 12 Mar 2010 07:39:26 +0100 Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com> wrote:
 
-Right, in this case background flusher threads will help a lot to
-write-out the cgroup dirty memory and it'll get better performance.
+> 
+> 
+> Andrew Morton wrote:
+> > On Mon,  8 Mar 2010 11:48:20 +0000
+> > Mel Gorman <mel@csn.ul.ie> wrote:
+> > 
+> >> Under memory pressure, the page allocator and kswapd can go to sleep using
+> >> congestion_wait(). In two of these cases, it may not be the appropriate
+> >> action as congestion may not be the problem.
+> > 
+> > clear_bdi_congested() is called each time a write completes and the
+> > queue is below the congestion threshold.
+> > 
+> > So if the page allocator or kswapd call congestion_wait() against a
+> > non-congested queue, they'll wake up on the very next write completion.
+> 
+> Well the issue came up in all kind of loads where you don't have any 
+> writes at all that can wake up congestion_wait.
+> Thats true for several benchmarks, but also real workload as well e.g. A 
+> backup job reading almost all files sequentially and pumping out stuff 
+> via network.
 
--Andrea
+Why is reclaim going into congestion_wait() at all if there's heaps of
+clean reclaimable pagecache lying around?
+
+(I don't thing the read side of the congestion_wqh[] has ever been used, btw)
+
+> > Hence the above-quoted claim seems to me to be a significant mis-analysis and
+> > perhaps explains why the patchset didn't seem to help anything?
+> 
+> While I might have misunderstood you and it is a mis-analysis in your 
+> opinion, it fixes a -80% Throughput regression on sequential read 
+> workloads, thats not nothing - its more like absolutely required :-)
+> 
+> You might check out the discussion with the subject "Performance 
+> regression in scsi sequential throughput (iozone)	due to "e084b - 
+> page-allocator: preserve PFN ordering when	__GFP_COLD is set"".
+> While the original subject is misleading from todays point of view, it 
+> contains a lengthy discussion about exactly when/why/where time is lost 
+> due to congestion wait with a lot of traces, counters, data attachments 
+> and such stuff.
+
+Well if we're not encountering lots of dirty pages in reclaim then we
+shouldn't be waiting for writes to retire, of course.
+
+But if we're not encountering lots of dirty pages in reclaim, we should
+be reclaiming pages, normally.
+
+I could understand reclaim accidentally going into congestion_wait() if
+it hit a large pile of pages which are unreclaimable for reasons other
+than being dirty, but is that happening in this case?
+
+If not, we broke it again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
