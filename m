@@ -1,72 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6F75B6B011F
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 01:24:26 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2C6OO32004717
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Mar 2010 15:24:24 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C769045DE62
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 15:24:23 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 98C1545DE51
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 15:24:23 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7440BE78003
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 15:24:23 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AC61E38005
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 15:24:23 +0900 (JST)
-Date: Fri, 12 Mar 2010 15:20:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 05/10 -mm v3] oom: badness heuristic rewrite
-Message-Id: <20100312152048.e7dc8135.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1003100239150.30013@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1003100236510.30013@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1003100239150.30013@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AA5CC6B0121
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 01:39:40 -0500 (EST)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate5.de.ibm.com (8.13.1/8.13.1) with ESMTP id o2C6dbJG023577
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 06:39:37 GMT
+Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2C6dV4s1523866
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 07:39:37 +0100
+Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o2C6dVMX016790
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 07:39:31 +0100
+Message-ID: <4B99E19E.6070301@linux.vnet.ibm.com>
+Date: Fri, 12 Mar 2010 07:39:26 +0100
+From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone pressure
+References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie> <20100311154124.e1e23900.akpm@linux-foundation.org>
+In-Reply-To: <20100311154124.e1e23900.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Mar 2010 02:41:32 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
 
->  	if (sysctl_panic_on_oom == 2)
->  		panic("out of memory(memcg). panic_on_oom is selected.\n");
-> +
-> +	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
 
-A small concern here.
+Andrew Morton wrote:
+> On Mon,  8 Mar 2010 11:48:20 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+>> Under memory pressure, the page allocator and kswapd can go to sleep using
+>> congestion_wait(). In two of these cases, it may not be the appropriate
+>> action as congestion may not be the problem.
+> 
+> clear_bdi_congested() is called each time a write completes and the
+> queue is below the congestion threshold.
+> 
+> So if the page allocator or kswapd call congestion_wait() against a
+> non-congested queue, they'll wake up on the very next write completion.
 
-+u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
-+{
-+       return res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-+}
+Well the issue came up in all kind of loads where you don't have any 
+writes at all that can wake up congestion_wait.
+Thats true for several benchmarks, but also real workload as well e.g. A 
+backup job reading almost all files sequentially and pumping out stuff 
+via network.
 
-Because memory cgroup has 2 limit controls as "memory" and "memory+swap",
-a user may set only "memory" limitation. (Especially on swapless system.)
-Then, memcg->memsw limit can be infinite in some situation.
+> Hence the above-quoted claim seems to me to be a significant mis-analysis and
+> perhaps explains why the patchset didn't seem to help anything?
 
-So, how about this ? (just an idea after breif thinking..)
+While I might have misunderstood you and it is a mis-analysis in your 
+opinion, it fixes a -80% Throughput regression on sequential read 
+workloads, thats not nothing - its more like absolutely required :-)
 
-u64 mem_cgroup_get_memsw_limit(struct mem_cgroup *memcg)
-{
-	u64 memlimit, memswlimit;
+You might check out the discussion with the subject "Performance 
+regression in scsi sequential throughput (iozone)	due to "e084b - 
+page-allocator: preserve PFN ordering when	__GFP_COLD is set"".
+While the original subject is misleading from todays point of view, it 
+contains a lengthy discussion about exactly when/why/where time is lost 
+due to congestion wait with a lot of traces, counters, data attachments 
+and such stuff.
 
-	memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
-	memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-	if (memlimit + total_swap_pages > memswlimit)
-		return memswlimit;
-	return memlimit + total_swap_pages;
-}
+-- 
 
-Thanks,
--Kame
+Grusse / regards, Christian Ehrhardt
+IBM Linux Technology Center, System z Linux Performance
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
