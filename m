@@ -1,49 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 82F2E6B0129
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 04:10:19 -0500 (EST)
-Date: Fri, 12 Mar 2010 09:09:56 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
-	pressure
-Message-ID: <20100312090956.GA18274@csn.ul.ie>
-References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie> <20100311154124.e1e23900.akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A1C36B012B
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 04:46:54 -0500 (EST)
+Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
+	by smtp-out.google.com with ESMTP id o2C9knKA023422
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 09:46:49 GMT
+Received: from pxi33 (pxi33.prod.google.com [10.243.27.33])
+	by spaceape7.eur.corp.google.com with ESMTP id o2C9klfZ029845
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 01:46:48 -0800
+Received: by pxi33 with SMTP id 33so396292pxi.12
+        for <linux-mm@kvack.org>; Fri, 12 Mar 2010 01:46:47 -0800 (PST)
+Date: Fri, 12 Mar 2010 01:46:43 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -mmotm 1/2] cpuset: fix the problem that cpuset_mem_spread_node()
+ returns an offline node - fix
+In-Reply-To: <4B99E62C.1020500@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1003120145440.22682@chino.kir.corp.google.com>
+References: <4B99E62C.1020500@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100311154124.e1e23900.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org
+To: Miao Xie <miaox@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Menage <menage@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 11, 2010 at 03:41:24PM -0800, Andrew Morton wrote:
-> On Mon,  8 Mar 2010 11:48:20 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > Under memory pressure, the page allocator and kswapd can go to sleep using
-> > congestion_wait(). In two of these cases, it may not be the appropriate
-> > action as congestion may not be the problem.
-> 
-> clear_bdi_congested() is called each time a write completes and the
-> queue is below the congestion threshold.
-> 
+On Fri, 12 Mar 2010, Miao Xie wrote:
 
-Where you appear to get a kicking is if you want on "congestion" but no
-writes are involved. In that case you potentially sleep for the whole timeout
-waiting on an event that is not going to occur.
-
-> So if the page allocator or kswapd call congestion_wait() against a
-> non-congested queue, they'll wake up on the very next write completion.
+> Remove unnecessary smp_wmb().
 > 
-> Hence the above-quoted claim seems to me to be a significant mis-analysis and
-> perhaps explains why the patchset didn't seem to help anything?
-> 
+> Signed-off-by: Miao Xie <miaox@cn.fujitsu.com>
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Acked-by: David Rientjes <rientjes@google.com>
+
+Andrew can easily fold this into its parent patch now before pushing to 
+Linus, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
