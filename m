@@ -1,90 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E59916B0105
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 18:59:27 -0500 (EST)
-Date: Fri, 12 Mar 2010 00:59:22 +0100
-From: Andrea Righi <arighi@develer.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 19D0C6B0106
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 19:07:19 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2C077Uf013986
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 12 Mar 2010 09:07:07 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A0B545DE7D
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 09:07:07 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B01FE45DE6E
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 09:07:06 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 449811DB803A
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 09:07:06 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D204AE18002
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 09:07:05 +0900 (JST)
+Date: Fri, 12 Mar 2010 09:03:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v6)
-Message-ID: <20100311235922.GA4569@linux>
+Message-Id: <20100312090326.ad07c05c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100311235922.GA4569@linux>
 References: <1268175636-4673-1-git-send-email-arighi@develer.com>
- <20100311180753.GE29246@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100311180753.GE29246@redhat.com>
+	<20100311180753.GE29246@redhat.com>
+	<20100311235922.GA4569@linux>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Righi <arighi@develer.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 11, 2010 at 01:07:53PM -0500, Vivek Goyal wrote:
-> On Wed, Mar 10, 2010 at 12:00:31AM +0100, Andrea Righi wrote:
-> > Control the maximum amount of dirty pages a cgroup can have at any given time.
-> > 
-> > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
-> > page cache used by any cgroup. So, in case of multiple cgroup writers, they
-> > will not be able to consume more than their designated share of dirty pages and
-> > will be forced to perform write-out if they cross that limit.
-> > 
-> > The overall design is the following:
-> > 
-> >  - account dirty pages per cgroup
-> >  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
-> >    and memory.dirty_background_ratio / memory.dirty_background_bytes in
-> >    cgroupfs
-> >  - start to write-out (background or actively) when the cgroup limits are
-> >    exceeded
-> > 
-> > This feature is supposed to be strictly connected to any underlying IO
-> > controller implementation, so we can stop increasing dirty pages in VM layer
-> > and enforce a write-out before any cgroup will consume the global amount of
-> > dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
-> > /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
-> > 
-> 
-> Hi Andrea,
-> 
-> I am doing a simple dd test of writting a 4G file. This machine has got
-> 64G of memory and I have created one cgroup with 100M as limit_in_bytes.
-> 
-> I run following dd program both in root cgroup as well as test1/
-> cgroup(100M limit) one after the other.
-> 
-> In root cgroup
-> ==============
-> dd if=/dev/zero of=/root/zerofile bs=4K count=1000000
-> 1000000+0 records in
-> 1000000+0 records out
-> 4096000000 bytes (4.1 GB) copied, 59.5571 s, 68.8 MB/s
-> 
-> In test1/ cgroup
-> ===============
-> dd if=/dev/zero of=/root/zerofile bs=4K count=1000000
-> 1000000+0 records in
-> 1000000+0 records out
-> 4096000000 bytes (4.1 GB) copied, 20.6683 s, 198 MB/s
-> 
-> It is strange that we are throttling process in root group much more than
-> process in test1/ cgroup?
+On Fri, 12 Mar 2010 00:59:22 +0100
+Andrea Righi <arighi@develer.com> wrote:
 
-mmmh.. strange, on my side I get something as expected:
+> On Thu, Mar 11, 2010 at 01:07:53PM -0500, Vivek Goyal wrote:
+> > On Wed, Mar 10, 2010 at 12:00:31AM +0100, Andrea Righi wrote:
 
-<root cgroup>
-$ dd if=/dev/zero of=test bs=1M count=500
-500+0 records in
-500+0 records out
-524288000 bytes (524 MB) copied, 6.28377 s, 83.4 MB/s
+> mmmh.. strange, on my side I get something as expected:
+> 
+> <root cgroup>
+> $ dd if=/dev/zero of=test bs=1M count=500
+> 500+0 records in
+> 500+0 records out
+> 524288000 bytes (524 MB) copied, 6.28377 s, 83.4 MB/s
+> 
+> <child cgroup with 100M memory.limit_in_bytes>
+> $ dd if=/dev/zero of=test bs=1M count=500
+> 500+0 records in
+> 500+0 records out
+> 524288000 bytes (524 MB) copied, 11.8884 s, 44.1 MB/s
+> 
+> Did you change the global /proc/sys/vm/dirty_* or memcg dirty
+> parameters?
+> 
+what happens when bs=4k count=1000000 under 100M ? no changes ?
 
-<child cgroup with 100M memory.limit_in_bytes>
-$ dd if=/dev/zero of=test bs=1M count=500
-500+0 records in
-500+0 records out
-524288000 bytes (524 MB) copied, 11.8884 s, 44.1 MB/s
-
-Did you change the global /proc/sys/vm/dirty_* or memcg dirty
-parameters?
-
--Andrea
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
