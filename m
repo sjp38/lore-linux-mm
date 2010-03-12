@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DB806B014F
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 11:41:47 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 30FB66B0152
+	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 11:42:12 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 09/11] Add /sys trigger for per-node memory compaction
-Date: Fri, 12 Mar 2010 16:41:25 +0000
-Message-Id: <1268412087-13536-10-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 02/11] mm,migration: Do not try to migrate unmapped anonymous pages
+Date: Fri, 12 Mar 2010 16:41:18 +0000
+Message-Id: <1268412087-13536-3-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
 References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,119 +13,39 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a per-node sysfs file called compact. When the file is
-written to, each zone in that node is compacted. The intention that this
-would be used by something like a job scheduler in a batch system before
-a job starts so that the job can allocate the maximum number of
-hugepages without significant start-up cost.
+rmap_walk_anon() was triggering errors in memory compaction that looks like
+use-after-free errors in anon_vma. The problem appears to be that between
+the page being isolated from the LRU and rcu_read_lock() being taken, the
+mapcount of the page dropped to 0 and the anon_vma was freed. This patch
+skips the migration of anon pages that are not mapped by anyone.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- Documentation/ABI/testing/sysfs-devices-node |    7 +++++++
- drivers/base/node.c                          |    3 +++
- include/linux/compaction.h                   |   16 ++++++++++++++++
- mm/compaction.c                              |   23 +++++++++++++++++++++++
- 4 files changed, 49 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/ABI/testing/sysfs-devices-node
+ mm/migrate.c |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
 
-diff --git a/Documentation/ABI/testing/sysfs-devices-node b/Documentation/ABI/testing/sysfs-devices-node
-new file mode 100644
-index 0000000..0cb286a
---- /dev/null
-+++ b/Documentation/ABI/testing/sysfs-devices-node
-@@ -0,0 +1,7 @@
-+What:		/sys/devices/system/node/nodeX/compact
-+Date:		February 2010
-+Contact:	Mel Gorman <mel@csn.ul.ie>
-+Description:
-+		When this file is written to, all memory within that node
-+		will be compacted. When it completes, memory will be free
-+		in as contiguous blocks as possible.
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index ad43185..15fb30d 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -15,6 +15,7 @@
- #include <linux/cpu.h>
- #include <linux/device.h>
- #include <linux/swap.h>
-+#include <linux/compaction.h>
- 
- static struct sysdev_class_attribute *node_state_attrs[];
- 
-@@ -242,6 +243,8 @@ int register_node(struct node *node, int num, struct node *parent)
- 		scan_unevictable_register_node(node);
- 
- 		hugetlb_register_node(node);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 98eaaf2..3c491e3 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -602,6 +602,16 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 	 * just care Anon page here.
+ 	 */
+ 	if (PageAnon(page)) {
++		/*
++		 * If the page has no mappings any more, just bail. An
++		 * unmapped anon page is likely to be freed soon but worse,
++		 * it's possible its anon_vma disappeared between when
++		 * the page was isolated and when we reached here while
++		 * the RCU lock was not held
++		 */
++		if (!page_mapcount(page))
++			goto uncharge;
 +
-+		compaction_register_node(node);
- 	}
- 	return error;
- }
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 52762d2..c94890b 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -11,4 +11,20 @@ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
- 			void __user *buffer, size_t *length, loff_t *ppos);
- #endif /* CONFIG_COMPACTION */
- 
-+#if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-+extern int compaction_register_node(struct node *node);
-+extern void compaction_unregister_node(struct node *node);
-+
-+#else
-+
-+static inline int compaction_register_node(struct node *node)
-+{
-+	return 0;
-+}
-+
-+static inline void compaction_unregister_node(struct node *node)
-+{
-+}
-+#endif /* CONFIG_COMPACTION && CONFIG_SYSFS && CONFIG_NUMA */
-+
- #endif /* _LINUX_COMPACTION_H */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 817aa5b..b85343c 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -12,6 +12,7 @@
- #include <linux/compaction.h>
- #include <linux/mm_inline.h>
- #include <linux/sysctl.h>
-+#include <linux/sysfs.h>
- #include "internal.h"
- 
- /*
-@@ -412,3 +413,25 @@ int sysctl_compaction_handler(struct ctl_table *table, int write,
- 
- 	return 0;
- }
-+
-+#if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-+ssize_t sysfs_compact_node(struct sys_device *dev,
-+			struct sysdev_attribute *attr,
-+			const char *buf, size_t count)
-+{
-+	compact_node(dev->id);
-+
-+	return count;
-+}
-+static SYSDEV_ATTR(compact, S_IWUSR, NULL, sysfs_compact_node);
-+
-+int compaction_register_node(struct node *node)
-+{
-+	return sysdev_create_file(&node->sysdev, &attr_compact);
-+}
-+
-+void compaction_unregister_node(struct node *node)
-+{
-+	return sysdev_remove_file(&node->sysdev, &attr_compact);
-+}
-+#endif /* CONFIG_SYSFS && CONFIG_NUMA */
+ 		rcu_read_lock();
+ 		rcu_locked = 1;
+ 		anon_vma = page_anon_vma(page);
 -- 
 1.6.5
 
