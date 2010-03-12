@@ -1,96 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B6FC06B010D
-	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 21:28:19 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2C2SHF9030464
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Mar 2010 11:28:17 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2259245DE55
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 11:28:17 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F00CF45DE4F
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 11:28:16 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D4A391DB801B
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 11:28:16 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6276B1DB8012
-	for <linux-mm@kvack.org>; Fri, 12 Mar 2010 11:28:16 +0900 (JST)
-Date: Fri, 12 Mar 2010 11:24:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v6)
-Message-Id: <20100312112433.689c7294.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100312101411.b2639128.nishimura@mxp.nes.nec.co.jp>
-References: <1268175636-4673-1-git-send-email-arighi@develer.com>
-	<20100311093913.07c9ca8a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100311101726.f58d24e9.kamezawa.hiroyu@jp.fujitsu.com>
-	<1268298865.5279.997.camel@twins>
-	<20100311182500.0f3ba994.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100311184244.6735076a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100312101411.b2639128.nishimura@mxp.nes.nec.co.jp>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E624B6B010F
+	for <linux-mm@kvack.org>; Thu, 11 Mar 2010 21:39:34 -0500 (EST)
+Date: Fri, 12 Mar 2010 11:30:28 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 1/3] memcg: wake up filter in oom waitqueue
+Message-Id: <20100312113028.1449915f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100311165559.3f9166b2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100311165315.c282d6d2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100311165559.3f9166b2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, kirill@shutemov.name, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Mar 2010 10:14:11 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Thu, 11 Mar 2010 18:42:44 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Thu, 11 Mar 2010 18:25:00 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > Then, it's not problem that check pc->mem_cgroup is root cgroup or not
-> > > without spinlock.
-> > > ==
-> > > void mem_cgroup_update_stat(struct page *page, int idx, bool charge)
-> > > {
-> > > 	pc = lookup_page_cgroup(page);
-> > > 	if (unlikely(!pc) || mem_cgroup_is_root(pc->mem_cgroup))
-> > > 		return;	
-> > > 	...
-> > > }
-> > > ==
-> > > This can be handle in the same logic of "lock failure" path.
-> > > And we just do ignore accounting.
-> > > 
-> > > There are will be no spinlocks....to do more than this,
-> > > I think we have to use "struct page" rather than "struct page_cgroup".
-> > > 
-> > Hmm..like this ? The bad point of this patch is that this will corrupt FILE_MAPPED
-> > status in root cgroup. This kind of change is not very good.
-> > So, one way is to use this kind of function only for new parameters. Hmm.
-> IMHO, if we disable accounting file stats in root cgroup, it would be better
-> not to show them in memory.stat to avoid confusing users.
-agreed.
-
-> But, hmm, I think accounting them in root cgroup isn't so meaningless.
-> Isn't making mem_cgroup_has_dirty_limit() return false in case of root cgroup enough?
+On Thu, 11 Mar 2010 16:55:59 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-The problem is spinlock overhead.
+> memcg's oom waitqueue is a system-wide wait_queue (for handling hierarchy.)
+> So, it's better to add custom wake function and do flitering in wake up path.
+> 
+> This patch adds a filtering feature for waking up oom-waiters.
+> Hierarchy is properly handled.
+> 
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c |   61 ++++++++++++++++++++++++++++++++++++++++----------------
+>  1 file changed, 44 insertions(+), 17 deletions(-)
+> 
+> Index: mmotm-2.6.34-Mar9/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-2.6.34-Mar9.orig/mm/memcontrol.c
+> +++ mmotm-2.6.34-Mar9/mm/memcontrol.c
+> @@ -1293,14 +1293,54 @@ static void mem_cgroup_oom_unlock(struct
+>  static DEFINE_MUTEX(memcg_oom_mutex);
+>  static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
+>  
+> +struct oom_wait_info {
+> +	struct mem_cgroup *mem;
+> +	wait_queue_t	wait;
+> +};
+> +
+> +static int memcg_oom_wake_function(wait_queue_t *wait,
+> +	unsigned mode, int sync, void *arg)
+> +{
+> +	struct mem_cgroup *wake_mem = (struct mem_cgroup *)arg;
+> +	struct oom_wait_info *oom_wait_info;
+> +
+> +	/* both of oom_wait_info->mem and wake_mem are stable under us */
+> +	oom_wait_info = container_of(wait, struct oom_wait_info, wait);
+> +
+> +	if (oom_wait_info->mem == wake_mem)
+> +		goto wakeup;
+> +	/* if no hierarchy, no match */
+> +	if (!oom_wait_info->mem->use_hierarchy || !wake_mem->use_hierarchy)
+> +		return 0;
+> +	/* check hierarchy */
+> +	if (!css_is_ancestor(&oom_wait_info->mem->css, &wake_mem->css) &&
+> +	    !css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css))
+> +		return 0;
+> +
+I think these conditions are wrong.
+This can wake up tasks in oom_wait_info->mem when:
 
-IMHO, there are 2 excuse for "not accounting" in root cgroup
- 1. Low overhead is always appreciated.
- 2. Root's statistics can be obtained by "total - sum of children".
+  00/ <- wake_mem: use_hierarchy == false
+    aa/ <- oom_wait_info->mem: use_hierarchy == true;
 
-And another thinking is that "how root cgroup is used when there are children ?"
-What's benefit we have to place a task to "unlimited/no control" group even when
-some important tasks are placed into children groups ?
-I think administartors don't want to place tasks which they want to watch
-into root cgroup because of lacks of accounting...
+It should be:
 
-Yes, it's the best that root cgroup works as other children, but unfortunately we
-know cgroup's accounting adds some burden.(and it's not avoidable.)
+	if((oom_wait_info->mem->use_hierarchy &&
+		css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css)) ||
+	   (wake_mem->use_hierarchy &&
+		css_is_ancestor(&oom_wait_info->mem->css, &wake_mem->css)))
+		goto wakeup;
 
-But there will be trade-off. If accounting is useful, it should be.
-My concerns is the cost which we have to pay even when cgroup is _not_ mounted.
+	return 0;
+
+But I like the goal of this patch.
 
 Thanks,
--Kame
+Daisuke Nishimura.
+
+> +wakeup:
+> +	return autoremove_wake_function(wait, mode, sync, arg);
+> +}
+> +
+> +static void memcg_wakeup_oom(struct mem_cgroup *mem)
+> +{
+> +	/* for filtering, pass "mem" as argument. */
+> +	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, mem);
+> +}
+> +
+>  /*
+>   * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+>   */
+>  bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+>  {
+> -	DEFINE_WAIT(wait);
+> +	struct oom_wait_info owait;
+>  	bool locked;
+>  
+> +	owait.mem = mem;
+> +	owait.wait.flags = 0;
+> +	owait.wait.func = memcg_oom_wake_function;
+> +	owait.wait.private = current;
+> +	INIT_LIST_HEAD(&owait.wait.task_list);
+> +
+>  	/* At first, try to OOM lock hierarchy under mem.*/
+>  	mutex_lock(&memcg_oom_mutex);
+>  	locked = mem_cgroup_oom_lock(mem);
+> @@ -1310,31 +1350,18 @@ bool mem_cgroup_handle_oom(struct mem_cg
+>  	 * under OOM is always welcomed, use TASK_KILLABLE here.
+>  	 */
+>  	if (!locked)
+> -		prepare_to_wait(&memcg_oom_waitq, &wait, TASK_KILLABLE);
+> +		prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+>  	mutex_unlock(&memcg_oom_mutex);
+>  
+>  	if (locked)
+>  		mem_cgroup_out_of_memory(mem, mask);
+>  	else {
+>  		schedule();
+> -		finish_wait(&memcg_oom_waitq, &wait);
+> +		finish_wait(&memcg_oom_waitq, &owait.wait);
+>  	}
+>  	mutex_lock(&memcg_oom_mutex);
+>  	mem_cgroup_oom_unlock(mem);
+> -	/*
+> -	 * Here, we use global waitq .....more fine grained waitq ?
+> -	 * Assume following hierarchy.
+> -	 * A/
+> -	 *   01
+> -	 *   02
+> -	 * assume OOM happens both in A and 01 at the same time. Tthey are
+> -	 * mutually exclusive by lock. (kill in 01 helps A.)
+> -	 * When we use per memcg waitq, we have to wake up waiters on A and 02
+> -	 * in addtion to waiters on 01. We use global waitq for avoiding mess.
+> -	 * It will not be a big problem.
+> -	 * (And a task may be moved to other groups while it's waiting for OOM.)
+> -	 */
+> -	wake_up_all(&memcg_oom_waitq);
+> +	memcg_wakeup_oom(mem);
+>  	mutex_unlock(&memcg_oom_mutex);
+>  
+>  	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
