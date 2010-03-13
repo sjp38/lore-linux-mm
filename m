@@ -1,56 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E5C546B015F
-	for <linux-mm@kvack.org>; Sat, 13 Mar 2010 00:02:15 -0500 (EST)
-Received: by pxi34 with SMTP id 34so972553pxi.22
-        for <linux-mm@kvack.org>; Fri, 12 Mar 2010 21:02:13 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B509C6B0161
+	for <linux-mm@kvack.org>; Sat, 13 Mar 2010 00:03:49 -0500 (EST)
+Received: by pxi34 with SMTP id 34so972920pxi.22
+        for <linux-mm@kvack.org>; Fri, 12 Mar 2010 21:03:48 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1003121236060.13400@chino.kir.corp.google.com>
+References: <cf18f8341003120224k243ff3fdq6d4a7acfe15dccc8@mail.gmail.com>
+	 <alpine.DEB.2.00.1003121236060.13400@chino.kir.corp.google.com>
+Date: Sat, 13 Mar 2010 13:03:48 +0800
+Message-ID: <cf18f8341003122103i3164a28h4aea908507a6e12e@mail.gmail.com>
+Subject: Re: [Patch] mempolicy: remove redundant code
 From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] mempolicy: remove redundant code
-Date: Sat, 13 Mar 2010 13:01:54 +0800
-Message-Id: <1268456515-8557-1-git-send-email-user@bob-laptop>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, Bob Liu <lliubbo@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Bob Liu <lliubbo@gmail.com>
+On Sat, Mar 13, 2010 at 4:37 AM, David Rientjes <rientjes@google.com> wrote=
+:
+> On Fri, 12 Mar 2010, Bob Liu wrote:
+>
+>> 1. In funtion is_valid_nodemask(), varibable k will be inited to 0 in
+>> the following loop, needn't init to policy_zone anymore.
+>>
+>> 2. (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES) has already defined
+>> to MPOL_MODE_FLAGS in mempolicy.h.
+>>
+>> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+>
+> I like your patch, but it has whitespace damage. =C2=A0Would it be possib=
+le to
+> read the gmail section of Documentation/email-clients.txt and try to
+> repropose it? =C2=A0Thanks.
+>
 
-1. In funtion is_valid_nodemask(), varibable k will be inited to 0 in
-the following loop, needn't init to policy_zone anymore.
+I am sorry for that, I have resend that patch. Thanks a lot for your reply.
 
-2. (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES) has already defined
-to MPOL_MODE_FLAGS in mempolicy.h.
-
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
- mempolicy.c |    5 +----
- 1 files changed, 1 insertions(+), 4 deletions(-)
-
-diff --git a/mempolicy.c b/mempolicy.c
-index bda230e..b6fbcbd 100644
---- a/mempolicy.c
-+++ b/mempolicy.c
-@@ -128,9 +128,6 @@ static int is_valid_nodemask(const nodemask_t *nodemask)
- {
- 	int nd, k;
- 
--	/* Check that there is something useful in this mask */
--	k = policy_zone;
--
- 	for_each_node_mask(nd, *nodemask) {
- 		struct zone *z;
- 
-@@ -146,7 +143,7 @@ static int is_valid_nodemask(const nodemask_t *nodemask)
- 
- static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
- {
--	return pol->flags & (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES);
-+	return pol->flags & MPOL_MODE_FLAGS;
- }
- 
- static void mpol_relative_nodemask(nodemask_t *ret, const nodemask_t *orig,
--- 
-1.5.6.3
+--=20
+Regards,
+-Bob Liu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
