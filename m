@@ -1,59 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D77726B016B
-	for <linux-mm@kvack.org>; Sat, 13 Mar 2010 07:33:06 -0500 (EST)
-Received: by pwj9 with SMTP id 9so1143325pwj.14
-        for <linux-mm@kvack.org>; Sat, 13 Mar 2010 04:33:04 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E82536B016D
+	for <linux-mm@kvack.org>; Sat, 13 Mar 2010 09:56:38 -0500 (EST)
+Received: by fxm2 with SMTP id 2so16299fxm.6
+        for <linux-mm@kvack.org>; Sat, 13 Mar 2010 06:56:36 -0800 (PST)
+Date: Sat, 13 Mar 2010 17:56:21 +0300
+From: Dan Carpenter <error27@gmail.com>
+Subject: [patch] memcontrol: fix potential null deref
+Message-ID: <20100313145621.GA3569@bicker>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1003130149080.22823@chino.kir.corp.google.com>
-References: <1268456515-8557-1-git-send-email-user@bob-laptop>
-	 <alpine.DEB.2.00.1003130149080.22823@chino.kir.corp.google.com>
-Date: Sat, 13 Mar 2010 20:33:04 +0800
-Message-ID: <cf18f8341003130433r474616bfnbb9524a77e815ac1@mail.gmail.com>
-Subject: Re: [PATCH] mempolicy: remove redundant code
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 13, 2010 at 5:52 PM, David Rientjes <rientjes@google.com> wrote=
-:
-> On Sat, 13 Mar 2010, Bob Liu wrote:
->
->> diff --git a/mempolicy.c b/mempolicy.c
->> index bda230e..b6fbcbd 100644
->> --- a/mempolicy.c
->> +++ b/mempolicy.c
->
-> What git tree is this? =C2=A0Your patch needs to change mm/mempolicy.c.
->
+There was a potential null deref introduced in:
+c62b1a3b31b5 memcg: use generic percpu instead of private implementation
 
-It's linux-next.
-Yeah, I forgot the mm/ path, sorry. I need send it again or just reply
-in this mail?
-Thanks a lot!
+Signed-off-by: Dan Carpenter <error27@gmail.com>
 
-> Please clone Linus' repository and then create a patch against that:
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0git clone git://git.kernel.org/pub/scm/linux/k=
-ernel/git/torvalds/linux-2.6.git
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0cd linux-2.6
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0<change mm/mempolicy.c>
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0<compile, test>
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0git commit -a
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0git format-patch HEAD^
->
-> and send the .patch file.
->
-> Thanks.
->
-
---=20
-Regards,
--Bob Liu
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 7973b52..e1e0996 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3691,8 +3691,10 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+ 	else
+ 		mem = vmalloc(size);
+ 
+-	if (mem)
+-		memset(mem, 0, size);
++	if (!mem)
++		return NULL;
++
++	memset(mem, 0, size);
+ 	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
+ 	if (!mem->stat) {
+ 		if (size < PAGE_SIZE)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
