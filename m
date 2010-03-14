@@ -1,44 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CBD446B00CF
-	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 11:01:25 -0400 (EDT)
-Received: by pzk30 with SMTP id 30so595507pzk.12
-        for <linux-mm@kvack.org>; Sun, 14 Mar 2010 08:01:24 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7A0FD6B017B
+	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 12:02:03 -0400 (EDT)
+Message-ID: <4B9D0879.5050809@teksavvy.com>
+Date: Sun, 14 Mar 2010 12:02:01 -0400
+From: Mark Lord <kernel@teksavvy.com>
 MIME-Version: 1.0
-In-Reply-To: <1268412087-13536-2-git-send-email-mel@csn.ul.ie>
-References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
-	 <1268412087-13536-2-git-send-email-mel@csn.ul.ie>
-Date: Mon, 15 Mar 2010 00:01:24 +0900
-Message-ID: <28c262361003140801m44083ad7o784f878d58085948@mail.gmail.com>
-Subject: Re: [PATCH 01/11] mm,migration: Take a reference to the anon_vma
-	before migrating
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: Linux kernel - Libata bad block error handling to user mode
+ program
+References: <f875e2fe1003032052p944f32ayfe9fe8cfbed056d4@mail.gmail.com>	 <20100303224245.ae8d1f7a.akpm@linux-foundation.org>	 <87f94c371003040617t4a4fcd0dt1c9fc0f50e6002c4@mail.gmail.com>	 <4B8FC6AC.4060801@teksavvy.com> <87f94c371003111029s7c7daebgf691ab11e6bdda25@mail.gmail.com>
+In-Reply-To: <87f94c371003111029s7c7daebgf691ab11e6bdda25@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Freemyer <greg.freemyer@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, foo saa <foosaa@gmail.com>, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 13, 2010 at 1:41 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> rmap_walk_anon() does not use page_lock_anon_vma() for looking up and
-> locking an anon_vma and it does not appear to have sufficient locking to
-> ensure the anon_vma does not disappear from under it.
+On 03/11/10 13:29, Greg Freemyer wrote:
+>>
+>> But really.. isn't "hdparm --security-erase NULL /dev/sdX" good enough ???
+>>
 >
-> This patch copies an approach used by KSM to take a reference on the
-> anon_vma while pages are being migrated. This should prevent rmap_walk()
-> running into nasty surprises later because anon_vma has been freed.
+> This thread seems to have died off.  If there is a real problem, I
+> hope it picks back up.
 >
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Mark, as to your question the few times I've tried that the bios on
+> the test machine blocked the command.  So it may have some specific
+> utility, but it's a not a generic solution in my mind.
+..
 
-BTW, This another refcount of anon_vma is merged  with KSM by [3/11].
-Looks good to me.
+Yeah, a lot of BIOSs do a "SECURITY FREEZE" command before booting,
+which disables things like "SECURITY ERASE" until the next hard reset.
 
+So, on a Linux system, just unplug the drive after booting, replug it,
+and usually it can then be erased.
 
--- 
-Kind regards,
-Minchan Kim
+But yeah.. that all makes things tricker for non-techies.
+
+Cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
