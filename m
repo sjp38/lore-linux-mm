@@ -1,54 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3E5D36B0177
-	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 07:50:42 -0400 (EDT)
-Received: by pwj9 with SMTP id 9so1365518pwj.14
-        for <linux-mm@kvack.org>; Sun, 14 Mar 2010 04:50:40 -0700 (PDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] mempolicy: remove redundant code
-Date: Sun, 14 Mar 2010 19:50:18 +0800
-Message-Id: <1268567418-8700-1-git-send-email-user@bob-laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id CBD446B00CF
+	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 11:01:25 -0400 (EDT)
+Received: by pzk30 with SMTP id 30so595507pzk.12
+        for <linux-mm@kvack.org>; Sun, 14 Mar 2010 08:01:24 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1268412087-13536-2-git-send-email-mel@csn.ul.ie>
+References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
+	 <1268412087-13536-2-git-send-email-mel@csn.ul.ie>
+Date: Mon, 15 Mar 2010 00:01:24 +0900
+Message-ID: <28c262361003140801m44083ad7o784f878d58085948@mail.gmail.com>
+Subject: Re: [PATCH 01/11] mm,migration: Take a reference to the anon_vma
+	before migrating
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, Bob Liu <lliubbo@gmail.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Bob Liu <lliubbo@gmail.com>
+On Sat, Mar 13, 2010 at 1:41 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> rmap_walk_anon() does not use page_lock_anon_vma() for looking up and
+> locking an anon_vma and it does not appear to have sufficient locking to
+> ensure the anon_vma does not disappear from under it.
+>
+> This patch copies an approach used by KSM to take a reference on the
+> anon_vma while pages are being migrated. This should prevent rmap_walk()
+> running into nasty surprises later because anon_vma has been freed.
+>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-1. In funtion is_valid_nodemask(), varibable k will be inited to 0 in
-the following loop, needn't init to policy_zone anymore.
+BTW, This another refcount of anon_vma is merged  with KSM by [3/11].
+Looks good to me.
 
-2. (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES) has already defined
-to MPOL_MODE_FLAGS in mempolicy.h.
----
- mempolicy.c |    5 +----
- 1 files changed, 1 insertions(+), 4 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index bda230e..b6fbcbd 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -128,9 +128,6 @@ static int is_valid_nodemask(const nodemask_t *nodemask)
- {
- 	int nd, k;
- 
--	/* Check that there is something useful in this mask */
--	k = policy_zone;
--
- 	for_each_node_mask(nd, *nodemask) {
- 		struct zone *z;
- 
-@@ -146,7 +143,7 @@ static int is_valid_nodemask(const nodemask_t *nodemask)
- 
- static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
- {
--	return pol->flags & (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES);
-+	return pol->flags & MPOL_MODE_FLAGS;
- }
- 
- static void mpol_relative_nodemask(nodemask_t *ret, const nodemask_t *orig,
 -- 
-1.5.6.3
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
