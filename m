@@ -1,65 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3F9E86B017C
-	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 12:12:08 -0400 (EDT)
-Received: by iwn11 with SMTP id 11so2513872iwn.11
-        for <linux-mm@kvack.org>; Sun, 14 Mar 2010 09:12:06 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0F9586B00DA
+	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 19:19:04 -0400 (EDT)
+Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
+	by smtp-out.google.com with ESMTP id o2ENJ0Z7022358
+	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 23:19:01 GMT
+Received: from pxi42 (pxi42.prod.google.com [10.243.27.42])
+	by spaceape8.eur.corp.google.com with ESMTP id o2ENIwnQ000349
+	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 16:18:59 -0700
+Received: by pxi42 with SMTP id 42so1069134pxi.26
+        for <linux-mm@kvack.org>; Sun, 14 Mar 2010 16:18:58 -0700 (PDT)
+Date: Sun, 14 Mar 2010 16:18:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mempolicy: remove redundant code
+In-Reply-To: <1268567418-8700-1-git-send-email-user@bob-laptop>
+Message-ID: <alpine.DEB.2.00.1003141618001.32212@chino.kir.corp.google.com>
+References: <1268567418-8700-1-git-send-email-user@bob-laptop>
 MIME-Version: 1.0
-In-Reply-To: <4B9D0879.5050809@teksavvy.com>
-References: <f875e2fe1003032052p944f32ayfe9fe8cfbed056d4@mail.gmail.com>
-	 <20100303224245.ae8d1f7a.akpm@linux-foundation.org>
-	 <87f94c371003040617t4a4fcd0dt1c9fc0f50e6002c4@mail.gmail.com>
-	 <4B8FC6AC.4060801@teksavvy.com>
-	 <87f94c371003111029s7c7daebgf691ab11e6bdda25@mail.gmail.com>
-	 <4B9D0879.5050809@teksavvy.com>
-Date: Sun, 14 Mar 2010 12:12:06 -0400
-Message-ID: <87f94c371003140912g1a567458ic2d78da6eed7fdb3@mail.gmail.com>
-Subject: Re: Linux kernel - Libata bad block error handling to user mode
-	program
-From: Greg Freemyer <greg.freemyer@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mark Lord <kernel@teksavvy.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, foo saa <foosaa@gmail.com>, linux-kernel@vger.kernel.org, linux-ide@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>, linux-mm@kvack.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 14, 2010 at 12:02 PM, Mark Lord <kernel@teksavvy.com> wrote:
-> On 03/11/10 13:29, Greg Freemyer wrote:
->>>
->>> But really.. isn't "hdparm --security-erase NULL /dev/sdX" good enough
->>> ???
->>>
->>
->> This thread seems to have died off. =A0If there is a real problem, I
->> hope it picks back up.
->>
->> Mark, as to your question the few times I've tried that the bios on
->> the test machine blocked the command. =A0So it may have some specific
->> utility, but it's a not a generic solution in my mind.
->
-> ..
->
-> Yeah, a lot of BIOSs do a "SECURITY FREEZE" command before booting,
-> which disables things like "SECURITY ERASE" until the next hard reset.
->
-> So, on a Linux system, just unplug the drive after booting, replug it,
-> and usually it can then be erased.
+On Sun, 14 Mar 2010, Bob Liu wrote:
 
-I have a client that wipes 10,000+ drives a month. (They do this as a
-service to banks, etc. as the machines they're in are retired, so they
-use 10,000+ machines to wipe those 10,000+ drives.)
+> From: Bob Liu <lliubbo@gmail.com>
+> 
+> 1. In funtion is_valid_nodemask(), varibable k will be inited to 0 in
+> the following loop, needn't init to policy_zone anymore.
+> 
+> 2. (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES) has already defined
+> to MPOL_MODE_FLAGS in mempolicy.h.
 
-They tend not to open the case, just boot via PXE/USB/CD and run a wiping t=
-ool.
+Acked-by: David Rientjes <rientjes@google.com>
 
-Opening the case to do as you propose is not really acceptable.  Also
-they still have a lot of IDE inside those retiring machines.
+> ---
+>  mempolicy.c |    5 +----
+>  1 files changed, 1 insertions(+), 4 deletions(-)
+> 
 
-fyi: If the wipe fails for whatever reason, they do open the case and
-physically remove/disable/sanitize the drive.
-
-Greg
+(although the diffstat still doesn't have the mm/ path).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
