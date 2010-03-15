@@ -1,87 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B86DC6B01C0
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 06:02:10 -0400 (EDT)
-Date: Mon, 15 Mar 2010 11:02:06 +0100
-From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v7)
-Message-ID: <20100315100206.GB1653@linux.develer.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
- <20100315113612.8411d92d.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CD046B01C0
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 06:46:05 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp05.au.ibm.com (8.14.3/8.13.1) with ESMTP id o2FAgMuB000632
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 21:42:22 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2FAe8lR1658884
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 21:40:09 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2FAjvnb018477
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 21:45:57 +1100
+Date: Mon, 15 Mar 2010 16:15:55 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
+ parameter
+Message-ID: <20100315104555.GD18054@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100315072214.GA18054@balbir.in.ibm.com>
+ <4B9DE635.8030208@redhat.com>
+ <20100315080726.GB18054@balbir.in.ibm.com>
+ <4B9DEF81.6020802@redhat.com>
+ <20100315091720.GC18054@balbir.in.ibm.com>
+ <4B9DFD9C.8030608@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100315113612.8411d92d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4B9DFD9C.8030608@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Avi Kivity <avi@redhat.com>
+Cc: KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 15, 2010 at 11:36:12AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 15 Mar 2010 00:26:37 +0100
-> Andrea Righi <arighi@develer.com> wrote:
+* Avi Kivity <avi@redhat.com> [2010-03-15 11:27:56]:
+
+> >>>The knobs are for
+> >>>
+> >>>1. Selective enablement
+> >>>2. Selective control of the % of unmapped pages
+> >>An alternative path is to enable KSM for page cache.  Then we have
+> >>direct read-only guest access to host page cache, without any guest
+> >>modifications required.  That will be pretty difficult to achieve
+> >>though - will need a readonly bit in the page cache radix tree, and
+> >>teach all paths to honour it.
+> >>
+> >Yes, it is, I've taken a quick look. I am not sure if de-duplication
+> >would be the best approach, may be dropping the page in the page cache
+> >might be a good first step. Data consistency would be much easier to
+> >maintain that way, as long as the guest is not writing frequently to
+> >that page, we don't need the page cache in the host.
 > 
-> > Control the maximum amount of dirty pages a cgroup can have at any given time.
-> > 
-> > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
-> > page cache used by any cgroup. So, in case of multiple cgroup writers, they
-> > will not be able to consume more than their designated share of dirty pages and
-> > will be forced to perform write-out if they cross that limit.
-> > 
-> > The overall design is the following:
-> > 
-> >  - account dirty pages per cgroup
-> >  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
-> >    and memory.dirty_background_ratio / memory.dirty_background_bytes in
-> >    cgroupfs
-> >  - start to write-out (background or actively) when the cgroup limits are
-> >    exceeded
-> > 
-> > This feature is supposed to be strictly connected to any underlying IO
-> > controller implementation, so we can stop increasing dirty pages in VM layer
-> > and enforce a write-out before any cgroup will consume the global amount of
-> > dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
-> > /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
-> > 
-> > Changelog (v6 -> v7)
-> > ~~~~~~~~~~~~~~~~~~~~~~
-> >  * introduce trylock_page_cgroup() to guarantee that lock_page_cgroup()
-> >    is never called under tree_lock (no strict accounting, but better overall
-> >    performance)
-> >  * do not account file cache statistics for the root cgroup (zero
-> >    overhead for the root cgroup)
-> >  * fix: evaluate cgroup free pages as at the minimum free pages of all
-> >    its parents
-> > 
-> > Results
-> > ~~~~~~~
-> > The testcase is a kernel build (2.6.33 x86_64_defconfig) on a Intel Core 2 @
-> > 1.2GHz:
-> > 
-> > <before>
-> >  - root  cgroup:	11m51.983s
-> >  - child cgroup:	11m56.596s
-> > 
-> > <after>
-> >  - root cgroup:		11m51.742s
-> >  - child cgroup:	12m5.016s
-> > 
-> > In the previous version of this patchset, using the "complex" locking scheme
-> > with the _locked and _unlocked version of mem_cgroup_update_page_stat(), the
-> > child cgroup required 11m57.896s and 12m9.920s with lock_page_cgroup()+irq_disabled.
-> > 
-> > With this version there's no overhead for the root cgroup (the small difference
-> > is in error range). I expected to see less overhead for the child cgroup, I'll
-> > do more testing and try to figure better what's happening.
-> > 
-> Okay, thanks. This seems good result. Optimization for children can be done under
-> -mm tree, I think. (If no nack, this seems ready for test in -mm.)
+> Trimming the host page cache should happen automatically under
+> pressure.  Since the page is cached by the guest, it won't be
+> re-read, so the host page is not frequently used and then dropped.
+>
 
-OK, I'll wait a bit to see if someone has other fixes or issues and post
-a new version soon including these small changes.
+Yes, agreed, but dropping is easier than tagging cache as read-only
+and getting everybody to understand read-only cached pages. 
 
-Thanks,
--Andrea
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
