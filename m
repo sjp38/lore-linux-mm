@@ -1,44 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 899266B0156
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 14:48:57 -0400 (EDT)
-Received: by pvg2 with SMTP id 2so733967pvg.14
-        for <linux-mm@kvack.org>; Mon, 15 Mar 2010 11:48:52 -0700 (PDT)
-Message-ID: <4B9E810E.9010706@codemonkey.ws>
-Date: Mon, 15 Mar 2010 13:48:46 -0500
-From: Anthony Liguori <anthony@codemonkey.ws>
-MIME-Version: 1.0
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
-References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315091720.GC18054@balbir.in.ibm.com> <4B9DFD9C.8030608@redhat.com>
-In-Reply-To: <4B9DFD9C.8030608@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+	by kanga.kvack.org (Postfix) with ESMTP id 56FB36B01F1
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 16:10:08 -0400 (EDT)
+Date: Mon, 15 Mar 2010 13:09:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
+ pressure
+Message-Id: <20100315130935.f8b0a2d7.akpm@linux-foundation.org>
+In-Reply-To: <4B9E296A.2010605@linux.vnet.ibm.com>
+References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie>
+	<20100311154124.e1e23900.akpm@linux-foundation.org>
+	<4B99E19E.6070301@linux.vnet.ibm.com>
+	<20100312020526.d424f2a8.akpm@linux-foundation.org>
+	<20100312104712.GB18274@csn.ul.ie>
+	<4B9A3049.7010602@linux.vnet.ibm.com>
+	<20100312093755.b2393b33.akpm@linux-foundation.org>
+	<4B9E296A.2010605@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com
 List-ID: <linux-mm.kvack.org>
 
-On 03/15/2010 04:27 AM, Avi Kivity wrote:
->
-> That's only beneficial if the cache is shared.  Otherwise, you could 
-> use the balloon to evict cache when memory is tight.
->
-> Shared cache is mostly a desktop thing where users run similar 
-> workloads.  For servers, it's much less likely.  So a modified-guest 
-> doesn't help a lot here.
+On Mon, 15 Mar 2010 13:34:50 +0100
+Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com> wrote:
 
-Not really.  In many cloud environments, there's a set of common images 
-that are instantiated on each node.  Usually this is because you're 
-running a horizontally scalable application or because you're supporting 
-an ephemeral storage model.
+> c) If direct reclaim did reasonable progress in try_to_free but did not
+> get a page, AND there is no write in flight at all then let it try again
+> to free up something.
+> This could be extended by some kind of max retry to avoid some weird
+> looping cases as well.
+> 
+> d) Another way might be as easy as letting congestion_wait return
+> immediately if there are no outstanding writes - this would keep the 
+> behavior for cases with write and avoid the "running always in full 
+> timeout" issue without writes.
 
-In fact, with ephemeral storage, you typically want to use 
-cache=writeback since you aren't providing data guarantees across 
-shutdown/failure.
+They're pretty much equivalent and would work.  But there are two
+things I still don't understand:
 
-Regards,
+1: Why is direct reclaim calling congestion_wait() at all?  If no
+writes are going on there's lots of clean pagecache around so reclaim
+should trivially succeed.  What's preventing it from doing so?
 
-Anthony Liguori
+2: This is, I think, new behaviour.  A regression.  What caused it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
