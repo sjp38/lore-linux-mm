@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 33A1B6B0193
-	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 21:11:42 -0400 (EDT)
-Received: by pwi4 with SMTP id 4so43586pwi.14
-        for <linux-mm@kvack.org>; Sun, 14 Mar 2010 18:11:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1003141618001.32212@chino.kir.corp.google.com>
-References: <1268567418-8700-1-git-send-email-user@bob-laptop>
-	 <alpine.DEB.2.00.1003141618001.32212@chino.kir.corp.google.com>
-Date: Mon, 15 Mar 2010 09:11:40 +0800
-Message-ID: <cf18f8341003141811q187960cdwf15f27374064ab8d@mail.gmail.com>
-Subject: Re: [PATCH] mempolicy: remove redundant code
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id BE5296B0194
+	for <linux-mm@kvack.org>; Sun, 14 Mar 2010 22:30:45 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2F2UgFB001685
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 15 Mar 2010 11:30:42 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D6FF45DE55
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 11:30:42 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 269B445DE50
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 11:30:42 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 09C53E08003
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 11:30:42 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 299531DB8013
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 11:30:41 +0900 (JST)
+Date: Mon, 15 Mar 2010 11:26:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH -mmotm 4/5] memcg: dirty pages accounting and limiting
+ infrastructure
+Message-Id: <20100315112657.02e476e7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1268609202-15581-5-git-send-email-arighi@develer.com>
+References: <1268609202-15581-1-git-send-email-arighi@develer.com>
+	<1268609202-15581-5-git-send-email-arighi@develer.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
+To: Andrea Righi <arighi@develer.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 15, 2010 at 7:18 AM, David Rientjes <rientjes@google.com> wrote=
-:
-> On Sun, 14 Mar 2010, Bob Liu wrote:
->
->> From: Bob Liu <lliubbo@gmail.com>
->>
->> 1. In funtion is_valid_nodemask(), varibable k will be inited to 0 in
->> the following loop, needn't init to policy_zone anymore.
->>
->> 2. (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES) has already defined
->> to MPOL_MODE_FLAGS in mempolicy.h.
->
-> Acked-by: David Rientjes <rientjes@google.com>
->
->> ---
->> =C2=A0mempolicy.c | =C2=A0 =C2=A05 +----
->> =C2=A01 files changed, 1 insertions(+), 4 deletions(-)
->>
->
-> (although the diffstat still doesn't have the mm/ path).
->
+On Mon, 15 Mar 2010 00:26:41 +0100
+Andrea Righi <arighi@develer.com> wrote:
 
-Thanks a lot, I will check more careful next time :-)
+> Infrastructure to account dirty pages per cgroup and add dirty limit
+> interfaces in the cgroupfs:
+> 
+>  - Direct write-out: memory.dirty_ratio, memory.dirty_bytes
+> 
+>  - Background write-out: memory.dirty_background_ratio, memory.dirty_background_bytes
+> 
+> Signed-off-by: Andrea Righi <arighi@develer.com>
 
---=20
-Regards,
--Bob Liu
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
