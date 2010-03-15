@@ -1,99 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C8B776B019B
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 00:32:38 -0400 (EDT)
-Date: Mon, 15 Mar 2010 13:35:50 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: [PATCH -rc] memcg: disable move charge in no mmu case
-Message-Id: <20100315133550.50e1393c.d-nishimura@mtf.biglobe.ne.jp>
-Reply-To: nishimura@mxp.nes.nec.co.jp
+	by kanga.kvack.org (Postfix) with SMTP id B81716B019D
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 01:10:23 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2F5AK5D029749
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 15 Mar 2010 14:10:20 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5448F45DE7E
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 14:10:20 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A8DA45DE80
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 14:10:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AEA621DB803A
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 14:10:18 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8076BE18018
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 14:10:16 +0900 (JST)
+Date: Mon, 15 Mar 2010 14:06:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 01/11] mm,migration: Take a reference to the anon_vma
+ before migrating
+Message-Id: <20100315140620.24ab378e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1268412087-13536-2-git-send-email-mel@csn.ul.ie>
+References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
+	<1268412087-13536-2-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Balbir Singh <balbir@in.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In commit 02491447(memcg: move charges of anonymous swap), I tried to disable
-move charge feature in no mmu case by enclosing all the related functions
-with "#ifdef CONFIG_MMU", but the commit places these ifdefs in wrong place.
-(it seems that it's mangled while handling some fixes...)
+On Fri, 12 Mar 2010 16:41:17 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-This patch fixes it up.
-
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |   44 ++++++++++++++++++++++----------------------
- 1 files changed, 22 insertions(+), 22 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7973b52..00dda35 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3946,28 +3946,6 @@ one_by_one:
- 	}
- 	return ret;
- }
--#else	/* !CONFIG_MMU */
--static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
--				struct cgroup *cgroup,
--				struct task_struct *p,
--				bool threadgroup)
--{
--	return 0;
--}
--static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
--				struct cgroup *cgroup,
--				struct task_struct *p,
--				bool threadgroup)
--{
--}
--static void mem_cgroup_move_task(struct cgroup_subsys *ss,
--				struct cgroup *cont,
--				struct cgroup *old_cont,
--				struct task_struct *p,
--				bool threadgroup)
--{
--}
--#endif
- 
- /**
-  * is_target_pte_for_mc - check a pte whether it is valid for move charge
-@@ -4330,6 +4308,28 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
- 	}
- 	mem_cgroup_clear_mc();
- }
-+#else	/* !CONFIG_MMU */
-+static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-+				struct cgroup *cgroup,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+	return 0;
-+}
-+static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
-+				struct cgroup *cgroup,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+}
-+static void mem_cgroup_move_task(struct cgroup_subsys *ss,
-+				struct cgroup *cont,
-+				struct cgroup *old_cont,
-+				struct task_struct *p,
-+				bool threadgroup)
-+{
-+}
-+#endif
- 
- struct cgroup_subsys mem_cgroup_subsys = {
- 	.name = "memory",
--- 
-1.6.3.3
-
-
-
+> rmap_walk_anon() does not use page_lock_anon_vma() for looking up and
+> locking an anon_vma and it does not appear to have sufficient locking to
+> ensure the anon_vma does not disappear from under it.
+> 
+> This patch copies an approach used by KSM to take a reference on the
+> anon_vma while pages are being migrated. This should prevent rmap_walk()
+> running into nasty surprises later because anon_vma has been freed.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+>  include/linux/rmap.h |   23 +++++++++++++++++++++++
+>  mm/migrate.c         |   12 ++++++++++++
+>  mm/rmap.c            |   10 +++++-----
+>  3 files changed, 40 insertions(+), 5 deletions(-)
+> 
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
