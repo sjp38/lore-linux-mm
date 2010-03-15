@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A07C66B01F6
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 18:00:26 -0400 (EDT)
-Date: Mon, 15 Mar 2010 15:00:20 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] memcg: oom kill disable and oom status
-Message-Id: <20100315150020.0cc28341.akpm@linux-foundation.org>
-In-Reply-To: <20100312143753.420e7ae7.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100312143137.f4cf0a04.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100312143435.e648e361.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100312143753.420e7ae7.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 847316B01EF
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 19:43:11 -0400 (EDT)
+Received: by gyb13 with SMTP id 13so922889gyb.14
+        for <linux-mm@kvack.org>; Mon, 15 Mar 2010 16:43:09 -0700 (PDT)
+Message-ID: <4B9EC60A.2070101@codemonkey.ws>
+Date: Mon, 15 Mar 2010 18:43:06 -0500
+From: Anthony Liguori <anthony@codemonkey.ws>
+MIME-Version: 1.0
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
+References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com>
+In-Reply-To: <20100315202353.GJ3840@arachsys.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kirill@shutemov.name" <kirill@shutemov.name>
+To: Chris Webb <chris@arachsys.com>
+Cc: Avi Kivity <avi@redhat.com>, balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Mar 2010 14:37:53 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On 03/15/2010 03:23 PM, Chris Webb wrote:
+> Avi Kivity<avi@redhat.com>  writes:
+>
+>    
+>> On 03/15/2010 10:07 AM, Balbir Singh wrote:
+>>
+>>      
+>>> Yes, it is a virtio call away, but is the cost of paying twice in
+>>> terms of memory acceptable?
+>>>        
+>> Usually, it isn't, which is why I recommend cache=off.
+>>      
+> Hi Avi. One observation about your recommendation for cache=none:
+>
+> We run hosts of VMs accessing drives backed by logical volumes carved out
+> from md RAID1. Each host has 32GB RAM and eight cores, divided between (say)
+> twenty virtual machines, which pretty much fill the available memory on the
+> host. Our qemu-kvm is new enough that IDE and SCSI drives with writeback
+> caching turned on get advertised to the guest as having a write-cache, and
+> FLUSH gets translated to fsync() by qemu. (Consequently cache=writeback
+> isn't acting as cache=neverflush like it would have done a year ago. I know
+> that comparing performance for cache=none against that unsafe behaviour
+> would be somewhat unfair!)
+>    
 
-> 
-> I haven't get enough comment to this patch itself. But works well.
-> Feel free to request me if you want me to change some details.
-> 
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> This adds a feature to disable oom-killer for memcg, if disabled,
-> of course, tasks under memcg will stop.
-> 
-> But now, we have oom-notifier for memcg. And the world around
-> memcg is not under out-of-memory. memcg's out-of-memory just
-> shows memcg hits limit. Then, administrator or
-> management daemon can recover the situation by
-> 	- kill some process
-> 	- enlarge limit, add more swap.
-> 	- migrate some tasks
-> 	- remove file cache on tmps (difficult ?)
-> 
-> Unlike OOM-Kill by the kernel, the users can take snapshot or coredump
-> of guilty process, cgroups.
-> 
+I knew someone would do this...
 
-Looks complicated.
+This really gets down to your definition of "safe" behaviour.  As it 
+stands, if you suffer a power outage, it may lead to guest corruption.
 
-> --- mmotm-2.6.34-Mar9.orig/mm/memcontrol.c
-> +++ mmotm-2.6.34-Mar9/mm/memcontrol.c
-> @@ -235,7 +235,8 @@ struct mem_cgroup {
->  	 * mem_cgroup ? And what type of charges should we move ?
->  	 */
->  	unsigned long 	move_charge_at_immigrate;
-> -
-> +	/* Disable OOM killer */
-> +	unsigned long	oom_kill_disable;
->  	/*
->  	 * percpu counter.
->  	 */
+While we are correct in advertising a write-cache, write-caches are 
+volatile and should a drive lose power, it could lead to data 
+corruption.  Enterprise disks tend to have battery backed write caches 
+to prevent this.
 
-Would have been better to make this `int' or `bool', and put it next to
-some other 32-bit value in this struct.
+In the set up you're emulating, the host is acting as a giant write 
+cache.  Should your host fail, you can get data corruption.
+
+cache=writethrough provides a much stronger data guarantee.  Even in the 
+event of a host failure, data integrity will be preserved.
+
+Regards,
+
+Anthony Liguori
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
