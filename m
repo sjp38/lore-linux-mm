@@ -1,92 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5C9436B01DE
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 10:41:52 -0400 (EDT)
-Date: Mon, 15 Mar 2010 10:41:20 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v6)
-Message-ID: <20100315144120.GF21127@redhat.com>
-References: <1268175636-4673-1-git-send-email-arighi@develer.com> <20100311180753.GE29246@redhat.com> <20100311235922.GA4569@linux>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F1416B01DE
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 10:42:14 -0400 (EDT)
+Date: Mon, 15 Mar 2010 14:41:52 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 07/11] Memory compaction core
+Message-ID: <20100315144152.GM18274@csn.ul.ie>
+References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie> <1268412087-13536-8-git-send-email-mel@csn.ul.ie> <1268660654.1889.25.camel@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100311235922.GA4569@linux>
+In-Reply-To: <1268660654.1889.25.camel@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 12, 2010 at 12:59:22AM +0100, Andrea Righi wrote:
-> On Thu, Mar 11, 2010 at 01:07:53PM -0500, Vivek Goyal wrote:
-> > On Wed, Mar 10, 2010 at 12:00:31AM +0100, Andrea Righi wrote:
-> > > Control the maximum amount of dirty pages a cgroup can have at any given time.
-> > > 
-> > > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
-> > > page cache used by any cgroup. So, in case of multiple cgroup writers, they
-> > > will not be able to consume more than their designated share of dirty pages and
-> > > will be forced to perform write-out if they cross that limit.
-> > > 
-> > > The overall design is the following:
-> > > 
-> > >  - account dirty pages per cgroup
-> > >  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
-> > >    and memory.dirty_background_ratio / memory.dirty_background_bytes in
-> > >    cgroupfs
-> > >  - start to write-out (background or actively) when the cgroup limits are
-> > >    exceeded
-> > > 
-> > > This feature is supposed to be strictly connected to any underlying IO
-> > > controller implementation, so we can stop increasing dirty pages in VM layer
-> > > and enforce a write-out before any cgroup will consume the global amount of
-> > > dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
-> > > /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
-> > > 
+On Mon, Mar 15, 2010 at 10:44:14PM +0900, Minchan Kim wrote:
+> On Fri, 2010-03-12 at 16:41 +0000, Mel Gorman wrote:
+> > This patch is the core of a mechanism which compacts memory in a zone by
+> > relocating movable pages towards the end of the zone.
 > > 
-> > Hi Andrea,
+> > A single compaction run involves a migration scanner and a free scanner.
+> > Both scanners operate on pageblock-sized areas in the zone. The migration
+> > scanner starts at the bottom of the zone and searches for all movable pages
+> > within each area, isolating them onto a private list called migratelist.
+> > The free scanner starts at the top of the zone and searches for suitable
+> > areas and consumes the free pages within making them available for the
+> > migration scanner. The pages isolated for migration are then migrated to
+> > the newly isolated free pages.
 > > 
-> > I am doing a simple dd test of writting a 4G file. This machine has got
-> > 64G of memory and I have created one cgroup with 100M as limit_in_bytes.
-> > 
-> > I run following dd program both in root cgroup as well as test1/
-> > cgroup(100M limit) one after the other.
-> > 
-> > In root cgroup
-> > ==============
-> > dd if=/dev/zero of=/root/zerofile bs=4K count=1000000
-> > 1000000+0 records in
-> > 1000000+0 records out
-> > 4096000000 bytes (4.1 GB) copied, 59.5571 s, 68.8 MB/s
-> > 
-> > In test1/ cgroup
-> > ===============
-> > dd if=/dev/zero of=/root/zerofile bs=4K count=1000000
-> > 1000000+0 records in
-> > 1000000+0 records out
-> > 4096000000 bytes (4.1 GB) copied, 20.6683 s, 198 MB/s
-> > 
-> > It is strange that we are throttling process in root group much more than
-> > process in test1/ cgroup?
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 > 
-> mmmh.. strange, on my side I get something as expected:
-> 
-> <root cgroup>
-> $ dd if=/dev/zero of=test bs=1M count=500
-> 500+0 records in
-> 500+0 records out
-> 524288000 bytes (524 MB) copied, 6.28377 s, 83.4 MB/s
-> 
-> <child cgroup with 100M memory.limit_in_bytes>
-> $ dd if=/dev/zero of=test bs=1M count=500
-> 500+0 records in
-> 500+0 records out
-> 524288000 bytes (524 MB) copied, 11.8884 s, 44.1 MB/s
-> 
-> Did you change the global /proc/sys/vm/dirty_* or memcg dirty
-> parameters?
 
-No I did not change any memecg dirty parameters.
+Thanks
 
-Vivek
+> There is below some nitpicks. Otherwise looks good to me. 
+> 
+> ..
+> 
+> < snip >
+> 
+> > +/* Update the number of anon and file isolated pages in the zone) */
+>                                                 single parenthesis ^ 
+> 
+
+Fixed. If a V5 becomes necessary, the fix will be included.
+
+> > +void update_zone_isolated(struct zone *zone, struct compact_control *cc)
+> > +{
+> > +	struct page *page;
+> > +	unsigned int count[NR_LRU_LISTS] = { 0, };
+> > +
+> > +	list_for_each_entry(page, &cc->migratepages, lru) {
+> > +		int lru = page_lru_base_type(page);
+> > +		count[lru]++;
+> > +	}
+> > +
+> > +	cc->nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+> > +	cc->nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+> > +	__mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
+> > +	__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
+> > +}
+> > +
+> 
+> < snip >
+> 
+> > +static unsigned long isolate_migratepages(struct zone *zone,
+> > +					struct compact_control *cc)
+> > +{
+> > +	unsigned long low_pfn, end_pfn;
+> > +	struct list_head *migratelist;
+> > +
+> > +	low_pfn = cc->migrate_pfn;
+> > +	migratelist = &cc->migratepages;
+> > +
+> > +	/* Do not scan outside zone boundaries */
+> > +	if (low_pfn < zone->zone_start_pfn)
+> > +		low_pfn = zone->zone_start_pfn;
+> > +
+> > +	/* Setup to scan one block but not past where we are migrating to */
+> > +	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
+> > +
+> > +	/* Do not cross the free scanner or scan within a memory hole */
+> > +	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
+> > +		cc->migrate_pfn = end_pfn;
+> > +		return 0;
+> > +	}
+> > +
+> > +	migrate_prep();
+> > +
+> > +	/* Time to isolate some pages for migration */
+> > +	spin_lock_irq(&zone->lru_lock);
+> > +	for (; low_pfn < end_pfn; low_pfn++) {
+> > +		struct page *page;
+> > +		if (!pfn_valid_within(low_pfn))
+> > +			continue;
+> > +
+> > +		/* Get the page and skip if free */
+> > +		page = pfn_to_page(low_pfn);
+> > +		if (PageBuddy(page)) {
+> > +			low_pfn += (1 << page_order(page)) - 1;
+> > +			continue;
+> > +		}
+> > +
+> > +		if (!PageLRU(page) || PageUnevictable(page))
+> > +			continue;
+> 
+> Do we need this checks?
+> It is done by __isolate_lru_page. 
+> 
+> Explicit check would make code readability good.
+> So if you mind it, I don't oppose it, either. 
+> But other caller of __isolate_lru_pages don't check it, either.
+> 
+
+The checks are no longer necessary. They were made at a time I was calling
+switch (__isolate_lru_page...) in a similar pattern to what happens
+in mm/vmscan.c. In that pattern, -EINVAL is considered a bug so I was
+deliberately skipped over these pages.
+
+Thanks
+
+> > +		/* Try isolate the page */
+> > +		if (__isolate_lru_page(page, ISOLATE_BOTH, 0) == 0) {
+> > +			del_page_from_lru_list(zone, page, page_lru(page));
+> > +			list_add(&page->lru, migratelist);
+> > +			mem_cgroup_del_lru(page);
+> > +			cc->nr_migratepages++;
+> > +		}
+> > +
+> > +		/* Avoid isolating too much */
+> > +		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
+> > +			break;
+> > +	}
+> > +
+> > +	update_zone_isolated(zone, cc);
+> > +
+> > +	spin_unlock_irq(&zone->lru_lock);
+> > +	cc->migrate_pfn = low_pfn;
+> > +
+> > +	return cc->nr_migratepages;
+> > +}
+> > +
+> 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
