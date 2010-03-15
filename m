@@ -1,110 +1,260 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C79276B01B7
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 05:28:04 -0400 (EDT)
-Message-ID: <4B9DFD9C.8030608@redhat.com>
-Date: Mon, 15 Mar 2010 11:27:56 +0200
-From: Avi Kivity <avi@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 71FB36B01B7
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 05:48:43 -0400 (EDT)
+Date: Mon, 15 Mar 2010 09:48:22 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 05/11] Export unusable free space index via
+	/proc/unusable_index
+Message-ID: <20100315094822.GH18274@csn.ul.ie>
+References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie> <1268412087-13536-6-git-send-email-mel@csn.ul.ie> <20100315144124.ba503bfe.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
-References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315091720.GC18054@balbir.in.ibm.com>
-In-Reply-To: <20100315091720.GC18054@balbir.in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100315144124.ba503bfe.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/15/2010 11:17 AM, Balbir Singh wrote:
-> * Avi Kivity<avi@redhat.com>  [2010-03-15 10:27:45]:
->
->    
->> On 03/15/2010 10:07 AM, Balbir Singh wrote:
->>      
->>> * Avi Kivity<avi@redhat.com>   [2010-03-15 09:48:05]:
->>>
->>>        
->>>> On 03/15/2010 09:22 AM, Balbir Singh wrote:
->>>>          
->>>>> Selectively control Unmapped Page Cache (nospam version)
->>>>>
->>>>> From: Balbir Singh<balbir@linux.vnet.ibm.com>
->>>>>
->>>>> This patch implements unmapped page cache control via preferred
->>>>> page cache reclaim. The current patch hooks into kswapd and reclaims
->>>>> page cache if the user has requested for unmapped page control.
->>>>> This is useful in the following scenario
->>>>>
->>>>> - In a virtualized environment with cache!=none, we see
->>>>>    double caching - (one in the host and one in the guest). As
->>>>>    we try to scale guests, cache usage across the system grows.
->>>>>    The goal of this patch is to reclaim page cache when Linux is running
->>>>>    as a guest and get the host to hold the page cache and manage it.
->>>>>    There might be temporary duplication, but in the long run, memory
->>>>>    in the guests would be used for mapped pages.
->>>>>            
->>>> Well, for a guest, host page cache is a lot slower than guest page cache.
->>>>
->>>>          
->>> Yes, it is a virtio call away, but is the cost of paying twice in
->>> terms of memory acceptable?
->>>        
->> Usually, it isn't, which is why I recommend cache=off.
->>
->>      
-> cache=off works for *direct I/O* supported filesystems and my concern is that
-> one of the side-effects is that idle VM's can consume a lot of memory
-> (assuming all the memory is available to them). As the number of VM's
-> grow, they could cache a whole lot of memory. In my experiments I
-> found that the total amount of memory cached far exceeded the mapped
-> ratio by a large amount when we had idle VM's. The philosophy of this
-> patch is to move the caching to the _host_ and let the host maintain
-> the cache instead of the guest.
->    
+On Mon, Mar 15, 2010 at 02:41:24PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 12 Mar 2010 16:41:21 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > Unusable free space index is a measure of external fragmentation that
+> > takes the allocation size into account. For the most part, the huge page
+> > size will be the size of interest but not necessarily so it is exported
+> > on a per-order and per-zone basis via /proc/unusable_index.
+> > 
+> > The index is a value between 0 and 1. It can be expressed as a
+> > percentage by multiplying by 100 as documented in
+> > Documentation/filesystems/proc.txt.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> > ---
+> >  Documentation/filesystems/proc.txt |   13 ++++-
+> >  mm/vmstat.c                        |  120 ++++++++++++++++++++++++++++++++++++
+> >  2 files changed, 132 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> > index 5e132b5..5c4b0fb 100644
+> > --- a/Documentation/filesystems/proc.txt
+> > +++ b/Documentation/filesystems/proc.txt
+> > @@ -452,6 +452,7 @@ Table 1-5: Kernel info in /proc
+> >   sys         See chapter 2                                     
+> >   sysvipc     Info of SysVIPC Resources (msg, sem, shm)		(2.4)
+> >   tty	     Info of tty drivers
+> > + unusable_index Additional page allocator information (see text)(2.5)
+> >   uptime      System uptime                                     
+> >   version     Kernel version                                    
+> >   video	     bttv info of video resources			(2.4)
+> > @@ -609,7 +610,7 @@ ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE
+> >  available in ZONE_NORMAL, etc... 
+> >  
+> >  More information relevant to external fragmentation can be found in
+> > -pagetypeinfo.
+> > +pagetypeinfo and unusable_index
+> >  
+> >  > cat /proc/pagetypeinfo
+> >  Page block order: 9
+> > @@ -650,6 +651,16 @@ unless memory has been mlock()'d. Some of the Reclaimable blocks should
+> >  also be allocatable although a lot of filesystem metadata may have to be
+> >  reclaimed to achieve this.
+> >  
+> > +> cat /proc/unusable_index
+> > +Node 0, zone      DMA 0.000 0.000 0.000 0.001 0.005 0.013 0.021 0.037 0.037 0.101 0.230
+> > +Node 0, zone   Normal 0.000 0.000 0.000 0.001 0.002 0.002 0.005 0.015 0.028 0.028 0.054
+> > +
+> > +The unusable free space index measures how much of the available free
+> > +memory cannot be used to satisfy an allocation of a given size and is a
+> > +value between 0 and 1. The higher the value, the more of free memory is
+> > +unusable and by implication, the worse the external fragmentation is. This
+> > +can be expressed as a percentage by multiplying by 100.
+> > +
+> 
+> I'm sorry but how this information is different from buddyinfo ?
+> 
 
-That's only beneficial if the cache is shared.  Otherwise, you could use 
-the balloon to evict cache when memory is tight.
+This information can be calculated from buddyinfo by hand or by scripts if
+necessary. The difference is in how the information is presented.  It's far
+easier to see at a glance the potential fragmentation at each order with this
+file than with buddyinfo. I use this information in fragmentation-tests to
+graph the index over time but I also have the necessary scripts to parse
+buddyinfo so it's not a big deal for me.
 
-Shared cache is mostly a desktop thing where users run similar 
-workloads.  For servers, it's much less likely.  So a modified-guest 
-doesn't help a lot here.
+I can drop this patch if necessary because none of the core code uses
+it. It was for the convenience of a user.
 
->>> One of the reasons I created a boot
->>> parameter was to deal with selective enablement for cases where
->>> memory is the most important resource being managed.
->>>
->>> I do see a hit in performance with my results (please see the data
->>> below), but the savings are quite large. The other solution mentioned
->>> in the TODOs is to have the balloon driver invoke this path. The
->>> sysctl also allows the guest to tune the amount of unmapped page cache
->>> if needed.
->>>
->>> The knobs are for
->>>
->>> 1. Selective enablement
->>> 2. Selective control of the % of unmapped pages
->>>        
->> An alternative path is to enable KSM for page cache.  Then we have
->> direct read-only guest access to host page cache, without any guest
->> modifications required.  That will be pretty difficult to achieve
->> though - will need a readonly bit in the page cache radix tree, and
->> teach all paths to honour it.
->>
->>      
-> Yes, it is, I've taken a quick look. I am not sure if de-duplication
-> would be the best approach, may be dropping the page in the page cache
-> might be a good first step. Data consistency would be much easier to
-> maintain that way, as long as the guest is not writing frequently to
-> that page, we don't need the page cache in the host.
->    
-
-Trimming the host page cache should happen automatically under 
-pressure.  Since the page is cached by the guest, it won't be re-read, 
-so the host page is not frequently used and then dropped.
+> Thanks,
+> -Kame
+> 
+> 
+> 
+> >  ..............................................................................
+> >  
+> >  meminfo:
+> > diff --git a/mm/vmstat.c b/mm/vmstat.c
+> > index 7f760cb..ca42e10 100644
+> > --- a/mm/vmstat.c
+> > +++ b/mm/vmstat.c
+> > @@ -453,6 +453,106 @@ static int frag_show(struct seq_file *m, void *arg)
+> >  	return 0;
+> >  }
+> >  
+> > +
+> > +struct contig_page_info {
+> > +	unsigned long free_pages;
+> > +	unsigned long free_blocks_total;
+> > +	unsigned long free_blocks_suitable;
+> > +};
+> > +
+> > +/*
+> > + * Calculate the number of free pages in a zone, how many contiguous
+> > + * pages are free and how many are large enough to satisfy an allocation of
+> > + * the target size. Note that this function makes to attempt to estimate
+> > + * how many suitable free blocks there *might* be if MOVABLE pages were
+> > + * migrated. Calculating that is possible, but expensive and can be
+> > + * figured out from userspace
+> > + */
+> > +static void fill_contig_page_info(struct zone *zone,
+> > +				unsigned int suitable_order,
+> > +				struct contig_page_info *info)
+> > +{
+> > +	unsigned int order;
+> > +
+> > +	info->free_pages = 0;
+> > +	info->free_blocks_total = 0;
+> > +	info->free_blocks_suitable = 0;
+> > +
+> > +	for (order = 0; order < MAX_ORDER; order++) {
+> > +		unsigned long blocks;
+> > +
+> > +		/* Count number of free blocks */
+> > +		blocks = zone->free_area[order].nr_free;
+> > +		info->free_blocks_total += blocks;
+> > +
+> > +		/* Count free base pages */
+> > +		info->free_pages += blocks << order;
+> > +
+> > +		/* Count the suitable free blocks */
+> > +		if (order >= suitable_order)
+> > +			info->free_blocks_suitable += blocks <<
+> > +						(order - suitable_order);
+> > +	}
+> > +}
+> > +
+> > +/*
+> > + * Return an index indicating how much of the available free memory is
+> > + * unusable for an allocation of the requested size.
+> > + */
+> > +static int unusable_free_index(unsigned int order,
+> > +				struct contig_page_info *info)
+> > +{
+> > +	/* No free memory is interpreted as all free memory is unusable */
+> > +	if (info->free_pages == 0)
+> > +		return 1000;
+> > +
+> > +	/*
+> > +	 * Index should be a value between 0 and 1. Return a value to 3
+> > +	 * decimal places.
+> > +	 *
+> > +	 * 0 => no fragmentation
+> > +	 * 1 => high fragmentation
+> > +	 */
+> > +	return ((info->free_pages - (info->free_blocks_suitable << order)) * 1000) / info->free_pages;
+> > +
+> > +}
+> > +
+> > +static void unusable_show_print(struct seq_file *m,
+> > +					pg_data_t *pgdat, struct zone *zone)
+> > +{
+> > +	unsigned int order;
+> > +	int index;
+> > +	struct contig_page_info info;
+> > +
+> > +	seq_printf(m, "Node %d, zone %8s ",
+> > +				pgdat->node_id,
+> > +				zone->name);
+> > +	for (order = 0; order < MAX_ORDER; ++order) {
+> > +		fill_contig_page_info(zone, order, &info);
+> > +		index = unusable_free_index(order, &info);
+> > +		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
+> > +	}
+> > +
+> > +	seq_putc(m, '\n');
+> > +}
+> > +
+> > +/*
+> > + * Display unusable free space index
+> > + * XXX: Could be a lot more efficient, but it's not a critical path
+> > + */
+> > +static int unusable_show(struct seq_file *m, void *arg)
+> > +{
+> > +	pg_data_t *pgdat = (pg_data_t *)arg;
+> > +
+> > +	/* check memoryless node */
+> > +	if (!node_state(pgdat->node_id, N_HIGH_MEMORY))
+> > +		return 0;
+> > +
+> > +	walk_zones_in_node(m, pgdat, unusable_show_print);
+> > +
+> > +	return 0;
+> > +}
+> > +
+> >  static void pagetypeinfo_showfree_print(struct seq_file *m,
+> >  					pg_data_t *pgdat, struct zone *zone)
+> >  {
+> > @@ -603,6 +703,25 @@ static const struct file_operations pagetypeinfo_file_ops = {
+> >  	.release	= seq_release,
+> >  };
+> >  
+> > +static const struct seq_operations unusable_op = {
+> > +	.start	= frag_start,
+> > +	.next	= frag_next,
+> > +	.stop	= frag_stop,
+> > +	.show	= unusable_show,
+> > +};
+> > +
+> > +static int unusable_open(struct inode *inode, struct file *file)
+> > +{
+> > +	return seq_open(file, &unusable_op);
+> > +}
+> > +
+> > +static const struct file_operations unusable_file_ops = {
+> > +	.open		= unusable_open,
+> > +	.read		= seq_read,
+> > +	.llseek		= seq_lseek,
+> > +	.release	= seq_release,
+> > +};
+> > +
+> >  #ifdef CONFIG_ZONE_DMA
+> >  #define TEXT_FOR_DMA(xx) xx "_dma",
+> >  #else
+> > @@ -947,6 +1066,7 @@ static int __init setup_vmstat(void)
+> >  #ifdef CONFIG_PROC_FS
+> >  	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+> >  	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
+> > +	proc_create("unusable_index", S_IRUGO, NULL, &unusable_file_ops);
+> >  	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+> >  	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+> >  #endif
+> > -- 
+> > 1.6.5
+> > 
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> > 
+> 
 
 -- 
-error compiling committee.c: too many arguments to function
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
