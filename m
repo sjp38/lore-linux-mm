@@ -1,64 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 825256B015E
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 16:28:54 -0400 (EDT)
-Date: Mon, 15 Mar 2010 20:23:54 +0000
-From: Chris Webb <chris@arachsys.com>
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
- parameter
-Message-ID: <20100315202353.GJ3840@arachsys.com>
-References: <20100315072214.GA18054@balbir.in.ibm.com>
- <4B9DE635.8030208@redhat.com>
- <20100315080726.GB18054@balbir.in.ibm.com>
- <4B9DEF81.6020802@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B9DEF81.6020802@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D1ED06B0047
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 17:50:49 -0400 (EDT)
+Date: Mon, 15 Mar 2010 14:50:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] memcg: oom wakeup filter
+Message-Id: <20100315145013.ee5919fd.akpm@linux-foundation.org>
+In-Reply-To: <20100312143137.f4cf0a04.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100312143137.f4cf0a04.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kirill@shutemov.name" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-Avi Kivity <avi@redhat.com> writes:
+On Fri, 12 Mar 2010 14:31:37 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On 03/15/2010 10:07 AM, Balbir Singh wrote:
->
-> >Yes, it is a virtio call away, but is the cost of paying twice in
-> >terms of memory acceptable?
-> 
-> Usually, it isn't, which is why I recommend cache=off.
+> +static int memcg_oom_wake_function(wait_queue_t *wait,
+> +	unsigned mode, int sync, void *arg)
+> +{
+> +	struct mem_cgroup *wake_mem = (struct mem_cgroup *)arg;
+> +	struct oom_wait_info *oom_wait_info;
+> +
+> +	/* both of oom_wait_info->mem and wake_mem are stable under us */
+> +	oom_wait_info = container_of(wait, struct oom_wait_info, wait);
+> +
+> +	if (oom_wait_info->mem == wake_mem)
+> +		goto wakeup;
+> +	/* if no hierarchy, no match */
+> +	if (!oom_wait_info->mem->use_hierarchy || !wake_mem->use_hierarchy)
+> +		return 0;
+> +	/* check hierarchy */
+> +	if (!css_is_ancestor(&oom_wait_info->mem->css, &wake_mem->css) &&
+> +	    !css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css))
+> +		return 0;
+> +
+> +wakeup:
+> +	return autoremove_wake_function(wait, mode, sync, arg);
+> +}
 
-Hi Avi. One observation about your recommendation for cache=none:
-
-We run hosts of VMs accessing drives backed by logical volumes carved out
-from md RAID1. Each host has 32GB RAM and eight cores, divided between (say)
-twenty virtual machines, which pretty much fill the available memory on the
-host. Our qemu-kvm is new enough that IDE and SCSI drives with writeback
-caching turned on get advertised to the guest as having a write-cache, and
-FLUSH gets translated to fsync() by qemu. (Consequently cache=writeback
-isn't acting as cache=neverflush like it would have done a year ago. I know
-that comparing performance for cache=none against that unsafe behaviour
-would be somewhat unfair!)
-
-Wasteful duplication of page cache between guest and host notwithstanding,
-turning on cache=writeback is a spectacular performance win for our guests.
-For example, even IDE with cache=writeback easily beats virtio with
-cache=none in most of the guest filesystem performance tests I've tried. The
-anecdotal feedback from clients is also very strongly in favour of
-cache=writeback.
-
-With a host full of cache=none guests, IO contention between guests is
-hugely problematic with non-stop seek from the disks to service tiny
-O_DIRECT writes (especially without virtio), many of which needn't have been
-synchronous if only there had been some way for the guest OS to tell qemu
-that. Running with cache=writeback seems to reduce the frequency of disk
-flush per guest to a much more manageable level, and to allow the host's
-elevator to optimise writing out across the guests in between these flushes.
-
-Cheers,
-
-Chris.
+What are the locking rules for calling css_is_ancestor()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
