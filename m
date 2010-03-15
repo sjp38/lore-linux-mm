@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D1ED06B0047
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 17:50:49 -0400 (EDT)
-Date: Mon, 15 Mar 2010 14:50:13 -0700
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 79D406B01F5
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 17:54:55 -0400 (EDT)
+Date: Mon, 15 Mar 2010 14:54:20 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] memcg: oom wakeup filter
-Message-Id: <20100315145013.ee5919fd.akpm@linux-foundation.org>
-In-Reply-To: <20100312143137.f4cf0a04.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3] memcg: oom notifier
+Message-Id: <20100315145420.07f2bbe5.akpm@linux-foundation.org>
+In-Reply-To: <20100312143435.e648e361.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100312143137.f4cf0a04.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100312143435.e648e361.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,33 +17,75 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kirill@shutemov.name" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Mar 2010 14:31:37 +0900
+On Fri, 12 Mar 2010 14:34:35 +0900
 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> +static int memcg_oom_wake_function(wait_queue_t *wait,
-> +	unsigned mode, int sync, void *arg)
+> +static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
+> +	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
 > +{
-> +	struct mem_cgroup *wake_mem = (struct mem_cgroup *)arg;
-> +	struct oom_wait_info *oom_wait_info;
+> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> +	struct mem_cgroup_eventfd_list *event;
+> +	int type = MEMFILE_TYPE(cft->private);
+> +	int ret = -ENOMEM;
 > +
-> +	/* both of oom_wait_info->mem and wake_mem are stable under us */
-> +	oom_wait_info = container_of(wait, struct oom_wait_info, wait);
+> +	BUG_ON(type != _OOM_TYPE);
 > +
-> +	if (oom_wait_info->mem == wake_mem)
-> +		goto wakeup;
-> +	/* if no hierarchy, no match */
-> +	if (!oom_wait_info->mem->use_hierarchy || !wake_mem->use_hierarchy)
-> +		return 0;
-> +	/* check hierarchy */
-> +	if (!css_is_ancestor(&oom_wait_info->mem->css, &wake_mem->css) &&
-> +	    !css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css))
-> +		return 0;
+> +	mutex_lock(&memcg_oom_mutex);
 > +
-> +wakeup:
-> +	return autoremove_wake_function(wait, mode, sync, arg);
+> +	event = kmalloc(sizeof(*event),	GFP_KERNEL);
+> +	if (!event)
+> +		goto unlock;
+> +
+> +	event->eventfd = eventfd;
+> +	list_add(&event->list, &memcg->oom_notify);
+> +
+> +	/* already in OOM ? */
+> +	if (atomic_read(&memcg->oom_lock))
+> +		eventfd_signal(eventfd, 1);
+> +	ret = 0;
+> +unlock:
+> +	mutex_unlock(&memcg_oom_mutex);
+> +
+> +	return ret;
 > +}
 
-What are the locking rules for calling css_is_ancestor()?
+We can move that kmalloc() outside the lock.  It's more scalable and the
+code's cleaner.
+
+--- a/mm/memcontrol.c~memcg-oom-notifier-fix
++++ a/mm/memcontrol.c
+@@ -3603,27 +3603,23 @@ static int mem_cgroup_oom_register_event
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+ 	struct mem_cgroup_eventfd_list *event;
+ 	int type = MEMFILE_TYPE(cft->private);
+-	int ret = -ENOMEM;
+ 
+ 	BUG_ON(type != _OOM_TYPE);
+ 
+-	mutex_lock(&memcg_oom_mutex);
+-
+ 	event = kmalloc(sizeof(*event),	GFP_KERNEL);
+ 	if (!event)
+-		goto unlock;
++		return -ENOMEM;
+ 
++	mutex_lock(&memcg_oom_mutex);
+ 	event->eventfd = eventfd;
+ 	list_add(&event->list, &memcg->oom_notify);
+ 
+ 	/* already in OOM ? */
+ 	if (atomic_read(&memcg->oom_lock))
+ 		eventfd_signal(eventfd, 1);
+-	ret = 0;
+-unlock:
+ 	mutex_unlock(&memcg_oom_mutex);
+ 
+-	return ret;
++	return 0;
+ }
+ 
+ static int mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
