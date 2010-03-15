@@ -1,136 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5B42F6001DA
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 13:20:00 -0400 (EDT)
-Date: Mon, 15 Mar 2010 13:19:21 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v7)
-Message-ID: <20100315171921.GJ21127@redhat.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com> <20100315171209.GI21127@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B91A6001DA
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 14:07:52 -0400 (EDT)
+Date: Mon, 15 Mar 2010 19:08:00 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [rfc][patch] mm: lockdep page lock
+Message-ID: <20100315180759.GA7744@quack.suse.cz>
+References: <20100315155859.GE2869@laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100315171209.GI21127@redhat.com>
+In-Reply-To: <20100315155859.GE2869@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 15, 2010 at 01:12:09PM -0400, Vivek Goyal wrote:
-> On Mon, Mar 15, 2010 at 12:26:37AM +0100, Andrea Righi wrote:
-> > Control the maximum amount of dirty pages a cgroup can have at any given time.
-> > 
-> > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
-> > page cache used by any cgroup. So, in case of multiple cgroup writers, they
-> > will not be able to consume more than their designated share of dirty pages and
-> > will be forced to perform write-out if they cross that limit.
-> > 
-> 
-> For me even with this version I see that group with 100M limit is getting
-> much more BW.
-> 
-> root cgroup
-> ==========
-> #time dd if=/dev/zero of=/root/zerofile bs=4K count=1M
-> 4294967296 bytes (4.3 GB) copied, 55.7979 s, 77.0 MB/s
-> 
-> real	0m56.209s
-> 
-> test1 cgroup with memory limit of 100M
-> ======================================
-> # time dd if=/dev/zero of=/root/zerofile1 bs=4K count=1M
-> 4294967296 bytes (4.3 GB) copied, 20.9252 s, 205 MB/s
-> 
-> real	0m21.096s
-> 
-> Note, these two jobs are not running in parallel. These are running one
-> after the other.
-> 
+  Hi,
 
-Ok, here is the strange part. I am seeing similar behavior even without
-your patches applied.
-
-root cgroup
-==========
-#time dd if=/dev/zero of=/root/zerofile bs=4K count=1M
-4294967296 bytes (4.3 GB) copied, 56.098 s, 76.6 MB/s
-
-real	0m56.614s
-
-test1 cgroup with memory limit 100M
-===================================
-# time dd if=/dev/zero of=/root/zerofile1 bs=4K count=1M
-4294967296 bytes (4.3 GB) copied, 19.8097 s, 217 MB/s
-
-real	0m19.992s
-
-Vivek
-
+On Tue 16-03-10 02:58:59, Nick Piggin wrote:
+> This patch isn't totally complete. Needs some nesting annotations for
+> filesystems like ntfs, and some async lock release annotations for other
+> end-io handlers, also page migration code needs to set the page lock
+> class. But the core of it is working nicely and is a pretty small patch.
 > 
-> > The overall design is the following:
-> > 
-> >  - account dirty pages per cgroup
-> >  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
-> >    and memory.dirty_background_ratio / memory.dirty_background_bytes in
-> >    cgroupfs
-> >  - start to write-out (background or actively) when the cgroup limits are
-> >    exceeded
-> > 
-> > This feature is supposed to be strictly connected to any underlying IO
-> > controller implementation, so we can stop increasing dirty pages in VM layer
-> > and enforce a write-out before any cgroup will consume the global amount of
-> > dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
-> > /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
-> > 
-> > Changelog (v6 -> v7)
-> > ~~~~~~~~~~~~~~~~~~~~~~
-> >  * introduce trylock_page_cgroup() to guarantee that lock_page_cgroup()
-> >    is never called under tree_lock (no strict accounting, but better overall
-> >    performance)
-> >  * do not account file cache statistics for the root cgroup (zero
-> >    overhead for the root cgroup)
-> >  * fix: evaluate cgroup free pages as at the minimum free pages of all
-> >    its parents
-> > 
-> > Results
-> > ~~~~~~~
-> > The testcase is a kernel build (2.6.33 x86_64_defconfig) on a Intel Core 2 @
-> > 1.2GHz:
-> > 
-> > <before>
-> >  - root  cgroup:	11m51.983s
-> >  - child cgroup:	11m56.596s
-> > 
-> > <after>
-> >  - root cgroup:		11m51.742s
-> >  - child cgroup:	12m5.016s
-> > 
-> > In the previous version of this patchset, using the "complex" locking scheme
-> > with the _locked and _unlocked version of mem_cgroup_update_page_stat(), the
-> > child cgroup required 11m57.896s and 12m9.920s with lock_page_cgroup()+irq_disabled.
-> > 
-> > With this version there's no overhead for the root cgroup (the small difference
-> > is in error range). I expected to see less overhead for the child cgroup, I'll
-> > do more testing and try to figure better what's happening.
-> > 
-> > In the while, it would be great if someone could perform some tests on a larger
-> > system... unfortunately at the moment I don't have a big system available for
-> > this kind of tests...
-> > 
-> > Thanks,
-> > -Andrea
-> > 
-> >  Documentation/cgroups/memory.txt |   36 +++
-> >  fs/nfs/write.c                   |    4 +
-> >  include/linux/memcontrol.h       |   87 ++++++-
-> >  include/linux/page_cgroup.h      |   35 +++
-> >  include/linux/writeback.h        |    2 -
-> >  mm/filemap.c                     |    1 +
-> >  mm/memcontrol.c                  |  542 +++++++++++++++++++++++++++++++++++---
-> >  mm/page-writeback.c              |  215 ++++++++++------
-> >  mm/rmap.c                        |    4 +-
-> >  mm/truncate.c                    |    1 +
-> >  10 files changed, 806 insertions(+), 121 deletions(-)
+> It is a bit different to one Peter posted a while back, with differences.
+> I don't care so much about bloating struct page with a few more bytes.
+> lockdep can't run on a production kernel so I think it's preferable to be
+> catching more complex errors than avoiding overhead. I also set the page
+> lock class at the time it is added to pagecache when we have the mapping
+> pinned to the page.
+> 
+> One issue I wonder about is if the lock class is changed while some other
+> page locker is waiting to get the lock but has already called
+> lock_acquire for the old class. Possibly it could be solved if lockdep
+> has different primitives to say the caller is contending for a lock
+> versus if it has been granted the lock?
+> 
+> Do you think it would be useful?  --
+> 
+> Page lock has very complex dependencies, so it would be really nice to
+> add lockdep support for it.
+> 
+> For example: add_to_page_cache_locked(GFP_KERNEL) (called with page
+> locked) -> page reclaim performs a trylock_page -> page reclaim performs
+> a writepage -> writepage performs a get_block -> get_block reads
+> buffercache -> buffercache read requires grow_dev_page -> grow_dev_page
+> locks buffercache page -> if writepage fails, page reclaim calls
+> handle_write_error -> handle_write_error performs a lock_page
+> 
+> So before even considering any other locks or more complex nested
+> filesystems, we can hold at least 3 different page locks at once. Should
+> be safe because we have an fs->bdev page lock ordering, and because
+> add_to_page_cache* tend to be called on new (non-LRU) pages that can't be
+> locked elsewhere, however a notable exception is tmpfs which moves live
+> pages in and out of pagecache.
+> 
+> So lockdepify the page lock. Each filesystem type gets a unique key, to
+> handle inter-filesystem nesting (like regular filesystem -> buffercache,
+> or ecryptfs -> lower). Newly allocated pages get a default lock class,
+> and it is reassigned to their filesystem type when being added to page
+> cache.
+  You'll probably soon notice that quite some filesystems (ext4, xfs,
+ocfs2, ...) lock several pages at once in their writepages function. The
+locking rule here is that we always lock pages in index increasing order. I
+don't think lockdep will be able to handle something like that. Probably we
+can just avoid lockdep checking in these functions (or just acquire the
+page lock class for the first page) but definitely there will be some
+filesystem work needed. So it would be useful to allow filesystems to
+opt-out from page lock checking (until fs maintainers are able to audit
+their page locking) so that people can still use lockdep to verify other
+things (when lockdep detects some issue, it turns itself off so if people
+would hit pagelock problems with their fs, they'd be basically unable to
+use lockdep for anything).
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
