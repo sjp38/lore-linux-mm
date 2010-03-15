@@ -1,143 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C82E66B01F8
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 19:53:29 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2FNrQNU000394
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4B6636B01F8
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 19:57:45 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2FNvgFr002052
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 16 Mar 2010 08:53:27 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A144F45DE50
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:53:26 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 82FF245DE4E
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:53:26 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A0A21DB803C
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:53:26 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C7541DB803E
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:53:26 +0900 (JST)
-Date: Tue, 16 Mar 2010 08:49:34 +0900
+	Tue, 16 Mar 2010 08:57:43 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B90AE45DE52
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:57:42 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8ECEB45DE51
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:57:42 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 75CD91DB8040
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:57:42 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 284561DB803F
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:57:39 +0900 (JST)
+Date: Tue, 16 Mar 2010 08:54:05 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
- anonymous pages
-Message-Id: <20100316084934.3798576c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100315142124.GL18274@csn.ul.ie>
-References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
-	<1268412087-13536-3-git-send-email-mel@csn.ul.ie>
-	<28c262361003141728g4aa40901hb040144c5a4aeeed@mail.gmail.com>
-	<20100315143420.6ec3bdf9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100315112829.GI18274@csn.ul.ie>
-	<1268657329.1889.4.camel@barrios-desktop>
-	<20100315142124.GL18274@csn.ul.ie>
+Subject: Re: [PATCH] mm: remove return value of putback_lru_pages
+Message-Id: <20100316085405.f2720f56.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1268658994.1889.8.camel@barrios-desktop>
+References: <1268658994.1889.8.camel@barrios-desktop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Mar 2010 14:21:24 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Mon, 15 Mar 2010 22:16:34 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> On Mon, Mar 15, 2010 at 09:48:49PM +0900, Minchan Kim wrote:
-> > On Mon, 2010-03-15 at 11:28 +0000, Mel Gorman wrote:
-> > > The use after free looks like
-> > > 
-> > > 1. page_mapcount(page) was zero so anon_vma was no longer reliable
-> > > 2. rcu lock taken but the anon_vma at this point can already be garbage because the
-> > >    process exited
-> > > 3. call try_to_unmap, looks up tha anon_vma and locks it. This causes problems
-> > > 
-> > > I thought the race would be closed but there is still a very tiny window there all
-> > > right. The following alternative should close it. What do you think?
-> > > 
-> > >         if (PageAnon(page)) {
-> > > 		rcu_read_lock();
-> > > 
-> > >                 /*
-> > >                  * If the page has no mappings any more, just bail. An
-> > >                  * unmapped anon page is likely to be freed soon but worse,
-> > >                  * it's possible its anon_vma disappeared between when
-> > >                  * the page was isolated and when we reached here while
-> > >                  * the RCU lock was not held
-> > >                  */
-> > >                 if (!page_mapcount(page)) {
-> > > 			rcu_read_unlock();
-> > >                         goto uncharge;
-> > > 		}
-> > > 
-> > >                 rcu_locked = 1;
-> > >                 anon_vma = page_anon_vma(page);
-> > >                 atomic_inc(&anon_vma->external_refcount);
-> > >         }
-> > > 
-> > > The rcu_unlock label is not used here because the reference counts were not taken in
-> > > the case where page_mapcount == 0.
-> > > 
-> > 
-> > Please, repost above code with your use-after-free scenario comment.
-> > 
 > 
-> This will be the replacement patch so.
+> Now putback_lru_page never can fail.
+> So it doesn't matter count of "the number of pages put back".
 > 
-> ==== CUT HERE ====
-> mm,migration: Do not try to migrate unmapped anonymous pages
+> In addition, users of this functions don't use return value.
 > 
-> rmap_walk_anon() was triggering errors in memory compaction that look like
-> use-after-free errors. The problem is that between the page being isolated
-> from the LRU and rcu_read_lock() being taken, the mapcount of the page
-> dropped to 0 and the anon_vma gets freed. This can happen during memory
-> compaction if pages being migrated belong to a process that exits before
-> migration completes. Hence, the use-after-free race looks like
+> Let's remove unnecessary code.
 > 
->  1. Page isolated for migration
->  2. Process exits
->  3. page_mapcount(page) drops to zero so anon_vma was no longer reliable
->  4. unmap_and_move() takes the rcu_lock but the anon_vma is already garbage
->  4. call try_to_unmap, looks up tha anon_vma and "locks" it but the lock
->     is garbage.
-> 
-> This patch checks the mapcount after the rcu lock is taken. If the
-> mapcount is zero, the anon_vma is assumed to be freed and no further
-> action is taken.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-Reviewd-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 > ---
->  mm/migrate.c |   13 +++++++++++++
->  1 files changed, 13 insertions(+), 0 deletions(-)
+>  include/linux/migrate.h |    4 ++--
+>  mm/migrate.c            |    7 +------
+>  2 files changed, 3 insertions(+), 8 deletions(-)
 > 
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index 7f085c9..7a07b17 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -9,7 +9,7 @@ typedef struct page *new_page_t(struct page *, unsigned long private, int **);
+>  #ifdef CONFIG_MIGRATION
+>  #define PAGE_MIGRATION 1
+>  
+> -extern int putback_lru_pages(struct list_head *l);
+> +extern void putback_lru_pages(struct list_head *l);
+>  extern int migrate_page(struct address_space *,
+>  			struct page *, struct page *);
+>  extern int migrate_pages(struct list_head *l, new_page_t x,
+> @@ -25,7 +25,7 @@ extern int migrate_vmas(struct mm_struct *mm,
+>  #else
+>  #define PAGE_MIGRATION 0
+>  
+> -static inline int putback_lru_pages(struct list_head *l) { return 0; }
+> +static inline void putback_lru_pages(struct list_head *l) {}
+>  static inline int migrate_pages(struct list_head *l, new_page_t x,
+>  		unsigned long private, int offlining) { return -ENOSYS; }
+>  
 > diff --git a/mm/migrate.c b/mm/migrate.c
-> index 98eaaf2..6eb1efe 100644
+> index 88000b8..6903abf 100644
 > --- a/mm/migrate.c
 > +++ b/mm/migrate.c
-> @@ -603,6 +603,19 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	 */
->  	if (PageAnon(page)) {
->  		rcu_read_lock();
-> +
-> +		/*
-> +		 * If the page has no mappings any more, just bail. An
-> +		 * unmapped anon page is likely to be freed soon but worse,
-> +		 * it's possible its anon_vma disappeared between when
-> +		 * the page was isolated and when we reached here while
-> +		 * the RCU lock was not held
-> +		 */
-> +		if (!page_mapcount(page)) {
-> +			rcu_read_unlock();
-> +			goto uncharge;
-> +		}
-> +
->  		rcu_locked = 1;
->  		anon_vma = page_anon_vma(page);
->  		atomic_inc(&anon_vma->migrate_refcount);
+> @@ -57,23 +57,18 @@ int migrate_prep(void)
+>  /*
+>   * Add isolated pages on the list back to the LRU under page lock
+>   * to avoid leaking evictable pages back onto unevictable list.
+> - *
+> - * returns the number of pages put back.
+>   */
+> -int putback_lru_pages(struct list_head *l)
+> +void putback_lru_pages(struct list_head *l)
+>  {
+>  	struct page *page;
+>  	struct page *page2;
+> -	int count = 0;
+>  
+>  	list_for_each_entry_safe(page, page2, l, lru) {
+>  		list_del(&page->lru);
+>  		dec_zone_page_state(page, NR_ISOLATED_ANON +
+>  				page_is_file_cache(page));
+>  		putback_lru_page(page);
+> -		count++;
+>  	}
+> -	return count;
+>  }
+>  
+>  /*
+> -- 
+> 1.6.5
+> 
+> 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 --
