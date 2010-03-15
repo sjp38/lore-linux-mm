@@ -1,124 +1,64 @@
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 07/16] readahead: replace ra->mmap_miss with ra->ra_flags
-Date: Mon, 01 Mar 2010 13:26:58 +0800
-Message-ID: <20100301053621.236845913@intel.com>
-References: <20100301052651.857984880@intel.com>
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1NlyLX-0005Ld-4f
-	for glkm-linux-mm-2@m.gmane.org; Mon, 01 Mar 2010 06:39:11 +0100
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 743366B0098
-	for <linux-mm@kvack.org>; Mon,  1 Mar 2010 00:38:58 -0500 (EST)
-Content-Disposition: inline; filename=readahead-flags.patch
-Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Steven Whitehouse <swhiteho@redhat.com>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Clemens Ladisch <clemens@ladisch.de>, Olivier Galibert <galibert@pobox.com>, Vivek Goyal <vgoyal@redhat.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Matt Mackall <mpm@selenic.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+From: Thomas Weber <swirl-EOsNSARiLbg@public.gmane.org>
+Subject: [PATCH 0/4] Some typo fixing
+Date: Mon, 15 Mar 2010 21:55:43 +0100
+Message-ID: <1268686558-28171-1-git-send-email-swirl@gmx.li>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Unsubscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
+	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linux-foundation.org/pipermail/containers>
+List-Post: <mailto:containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linux-foundation.org/mailman/listinfo/containers>,
+	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
+Cc: Karsten Keil <isdn-iHCpqvpFUx0uJkBD2foKsQ@public.gmane.org>, Lin Ming <ming.m.lin-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, Takashi Iwai <tiwai-l3A5Bk7waGM@public.gmane.org>, Benjamin Herrenschmidt <benh-XVmvHMARGAS8U2dJNN8I7kB+6BGkLq7r@public.gmane.org>, Jaroslav Kysela <perex-/Fr2/VpizcU@public.gmane.org>, Pavel Machek <pavel-AlSwsSmVLrQ@public.gmane.org>, David Brownell <dbrownell-Rn4VEauK+AKRv+LV9MX5uipxlwaOVQ5f@public.gmane.org>, linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, KOSAKI Motohiro <kosaki.motohiro-+CUm20s59erQFUHtdCDX3A@public.gmane.org>, Bjorn Helgaas <bjorn.helgaas-VXdhtT5mjnY@public.gmane.org>, Rusty Russell <rusty-8n+1lVoiYb80n/F98K4Iww@public.gmane.org>, "John W. Linville" <linville-2XuSBdqkA4R54TAoqtyWWQ@public.gmane.org>, Steve Conklin <sconklin-Z7WLFzj8eWMS+FvcfC7Uqw@public.gmane.org>, Ralph Campbell <infinipath-h88ZbnxC6KDQT0dZR+AlfA@public.gmane.org>, Anton Vorontsov <avorontsov-hkdhdckH98+B+jHODAdFcQ@public.gmane.org>, cbe-oss-dev-mnsaURCQ41sdnm+yROfE0A@public.gmane.org, Liam Girdwood <lrg-kDsPt+C1G03kYMGBc/C6ZA@public.gmane.org>, Anthony Liguori <aliguori-r/Jw6+rmf7HQT0dZR+AlfA@public.gmane.org>, Jiri Kosina <jkosina-AlSwsSmVLrQ@public.gmane.org>, Randy Dunlap <rdunlap-/UHa2rfvQTnk1uMJSBkQmQ@public.gmane.org>, Tejun Heo <tj@kernel>
 List-Id: linux-mm.kvack.org
 
-Introduce a readahead flags field and embed the existing mmap_miss in it
-(mainly to save space).
+I have fixed some typos.
 
-It also changes the mmap_miss upper bound from LONG_MAX to 4096.
-This is to help adapt properly for changing mmap access patterns.
+Thomas Weber (4):
+  Fix typo: [Ss]ytem => [Ss]ystem
+  Fix typo: udpate => update
+  Fix typo: paramters => parameters
+  Fix typo: orginal => original
 
-It will be possible to lose the flags in race conditions, however the
-impact should be limited.  For the race to happen, there must be two
-threads sharing the same file descriptor to be in page fault or
-readahead at the same time.
-
-Note that it has always been racy for "page faults" at the same time.
-
-And if ever the race happen, we'll lose one mmap_miss++ or mmap_miss--.
-Which may change some concrete readahead behavior, but won't really
-impact overall I/O performance.
-
-CC: Nick Piggin <npiggin@suse.de>
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Steven Whitehouse <swhiteho@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- include/linux/fs.h |   30 +++++++++++++++++++++++++++++-
- mm/filemap.c       |    7 ++-----
- 2 files changed, 31 insertions(+), 6 deletions(-)
-
---- linux.orig/include/linux/fs.h	2010-03-01 13:21:26.000000000 +0800
-+++ linux/include/linux/fs.h	2010-03-01 13:21:44.000000000 +0800
-@@ -889,10 +889,38 @@ struct file_ra_state {
- 					   there are only # of pages ahead */
- 
- 	unsigned int ra_pages;		/* Maximum readahead window */
--	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
-+	unsigned int ra_flags;
- 	loff_t prev_pos;		/* Cache last read() position */
- };
- 
-+/* ra_flags bits */
-+#define	READAHEAD_MMAP_MISS	0x00000fff /* cache misses for mmap access */
-+
-+/*
-+ * Don't do ra_flags++ directly to avoid possible overflow:
-+ * the ra fields can be accessed concurrently in a racy way.
-+ */
-+static inline unsigned int ra_mmap_miss_inc(struct file_ra_state *ra)
-+{
-+	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-+
-+	if (miss < READAHEAD_MMAP_MISS) {
-+		miss++;
-+		ra->ra_flags = miss | (ra->ra_flags &~ READAHEAD_MMAP_MISS);
-+	}
-+	return miss;
-+}
-+
-+static inline void ra_mmap_miss_dec(struct file_ra_state *ra)
-+{
-+	unsigned int miss = ra->ra_flags & READAHEAD_MMAP_MISS;
-+
-+	if (miss) {
-+		miss--;
-+		ra->ra_flags = miss | (ra->ra_flags &~ READAHEAD_MMAP_MISS);
-+	}
-+}
-+
- /*
-  * Check if @index falls in the readahead windows.
-  */
---- linux.orig/mm/filemap.c	2010-03-01 13:21:27.000000000 +0800
-+++ linux/mm/filemap.c	2010-03-01 13:21:44.000000000 +0800
-@@ -1418,14 +1418,12 @@ static void do_sync_mmap_readahead(struc
- 		return;
- 	}
- 
--	if (ra->mmap_miss < INT_MAX)
--		ra->mmap_miss++;
- 
- 	/*
- 	 * Do we miss much more than hit in this file? If so,
- 	 * stop bothering with read-ahead. It will only hurt.
- 	 */
--	if (ra->mmap_miss > MMAP_LOTSAMISS)
-+	if (ra_mmap_miss_inc(ra) > MMAP_LOTSAMISS)
- 		return;
- 
- 	/*
-@@ -1457,8 +1455,7 @@ static void do_async_mmap_readahead(stru
- 	/* If we don't want any read-ahead, don't bother */
- 	if (VM_RandomReadHint(vma))
- 		return;
--	if (ra->mmap_miss > 0)
--		ra->mmap_miss--;
-+	ra_mmap_miss_dec(ra);
- 	if (PageReadahead(page))
- 		page_cache_async_readahead(mapping, ra, file,
- 					   page, offset, ra->ra_pages);
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ Documentation/cgroups/cgroups.txt               |    2 +-
+ Documentation/kbuild/kconfig.txt                |    2 +-
+ Documentation/sysfs-rules.txt                   |    2 +-
+ Documentation/trace/events.txt                  |    8 ++++----
+ drivers/acpi/osl.c                              |    4 ++--
+ drivers/ata/ata_piix.c                          |    2 +-
+ drivers/firewire/ohci.c                         |    2 +-
+ drivers/gpu/drm/drm_bufs.c                      |    2 +-
+ drivers/infiniband/hw/ipath/ipath_iba6110.c     |    2 +-
+ drivers/infiniband/hw/ipath/ipath_iba6120.c     |    4 ++--
+ drivers/infiniband/hw/ipath/ipath_iba7220.c     |    2 +-
+ drivers/isdn/hisax/hfc4s8s_l1.c                 |    2 +-
+ drivers/macintosh/windfarm_pm81.c               |    2 +-
+ drivers/media/dvb/dvb-usb/friio-fe.c            |    2 +-
+ drivers/net/smsc911x.c                          |    4 ++--
+ drivers/pci/hotplug/cpqphp_core.c               |    2 +-
+ drivers/pci/pci.c                               |    2 +-
+ drivers/ps3/ps3-sys-manager.c                   |    2 +-
+ drivers/regulator/core.c                        |    2 +-
+ drivers/s390/char/sclp_cpi_sys.c                |    2 +-
+ drivers/scsi/bfa/include/defs/bfa_defs_cee.h    |    2 +-
+ drivers/scsi/bfa/include/defs/bfa_defs_status.h |    4 ++--
+ drivers/spi/spi_mpc8xxx.c                       |    2 +-
+ drivers/staging/iio/Documentation/overview.txt  |    2 +-
+ drivers/staging/rt2860/rtmp.h                   |    2 +-
+ drivers/staging/rtl8187se/r8180_core.c          |    4 ++--
+ drivers/staging/rtl8187se/r8180_dm.c            |    2 +-
+ drivers/staging/rtl8187se/r8185b_init.c         |    2 +-
+ drivers/virtio/virtio_pci.c                     |    2 +-
+ fs/jfs/jfs_dmap.c                               |    2 +-
+ kernel/cgroup.c                                 |    2 +-
+ mm/page_alloc.c                                 |    2 +-
+ net/wimax/op-rfkill.c                           |    2 +-
+ sound/pci/emu10k1/emu10k1_main.c                |    2 +-
+ 34 files changed, 42 insertions(+), 42 deletions(-)
