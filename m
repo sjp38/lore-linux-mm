@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 56FB36B01F1
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 16:10:08 -0400 (EDT)
-Date: Mon, 15 Mar 2010 13:09:35 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
- pressure
-Message-Id: <20100315130935.f8b0a2d7.akpm@linux-foundation.org>
-In-Reply-To: <4B9E296A.2010605@linux.vnet.ibm.com>
-References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie>
-	<20100311154124.e1e23900.akpm@linux-foundation.org>
-	<4B99E19E.6070301@linux.vnet.ibm.com>
-	<20100312020526.d424f2a8.akpm@linux-foundation.org>
-	<20100312104712.GB18274@csn.ul.ie>
-	<4B9A3049.7010602@linux.vnet.ibm.com>
-	<20100312093755.b2393b33.akpm@linux-foundation.org>
-	<4B9E296A.2010605@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 825256B015E
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 16:28:54 -0400 (EDT)
+Date: Mon, 15 Mar 2010 20:23:54 +0000
+From: Chris Webb <chris@arachsys.com>
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
+ parameter
+Message-ID: <20100315202353.GJ3840@arachsys.com>
+References: <20100315072214.GA18054@balbir.in.ibm.com>
+ <4B9DE635.8030208@redhat.com>
+ <20100315080726.GB18054@balbir.in.ibm.com>
+ <4B9DEF81.6020802@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B9DEF81.6020802@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com
+To: Avi Kivity <avi@redhat.com>
+Cc: balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Mar 2010 13:34:50 +0100
-Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com> wrote:
+Avi Kivity <avi@redhat.com> writes:
 
-> c) If direct reclaim did reasonable progress in try_to_free but did not
-> get a page, AND there is no write in flight at all then let it try again
-> to free up something.
-> This could be extended by some kind of max retry to avoid some weird
-> looping cases as well.
+> On 03/15/2010 10:07 AM, Balbir Singh wrote:
+>
+> >Yes, it is a virtio call away, but is the cost of paying twice in
+> >terms of memory acceptable?
 > 
-> d) Another way might be as easy as letting congestion_wait return
-> immediately if there are no outstanding writes - this would keep the 
-> behavior for cases with write and avoid the "running always in full 
-> timeout" issue without writes.
+> Usually, it isn't, which is why I recommend cache=off.
 
-They're pretty much equivalent and would work.  But there are two
-things I still don't understand:
+Hi Avi. One observation about your recommendation for cache=none:
 
-1: Why is direct reclaim calling congestion_wait() at all?  If no
-writes are going on there's lots of clean pagecache around so reclaim
-should trivially succeed.  What's preventing it from doing so?
+We run hosts of VMs accessing drives backed by logical volumes carved out
+from md RAID1. Each host has 32GB RAM and eight cores, divided between (say)
+twenty virtual machines, which pretty much fill the available memory on the
+host. Our qemu-kvm is new enough that IDE and SCSI drives with writeback
+caching turned on get advertised to the guest as having a write-cache, and
+FLUSH gets translated to fsync() by qemu. (Consequently cache=writeback
+isn't acting as cache=neverflush like it would have done a year ago. I know
+that comparing performance for cache=none against that unsafe behaviour
+would be somewhat unfair!)
 
-2: This is, I think, new behaviour.  A regression.  What caused it?
+Wasteful duplication of page cache between guest and host notwithstanding,
+turning on cache=writeback is a spectacular performance win for our guests.
+For example, even IDE with cache=writeback easily beats virtio with
+cache=none in most of the guest filesystem performance tests I've tried. The
+anecdotal feedback from clients is also very strongly in favour of
+cache=writeback.
+
+With a host full of cache=none guests, IO contention between guests is
+hugely problematic with non-stop seek from the disks to service tiny
+O_DIRECT writes (especially without virtio), many of which needn't have been
+synchronous if only there had been some way for the guest OS to tell qemu
+that. Running with cache=writeback seems to reduce the frequency of disk
+flush per guest to a much more manageable level, and to allow the host's
+elevator to optimise writing out across the guests in between these flushes.
+
+Cheers,
+
+Chris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
