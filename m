@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EC5BE6B004D
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:55:14 -0400 (EDT)
-Received: by pwi4 with SMTP id 4so985193pwi.14
-        for <linux-mm@kvack.org>; Tue, 16 Mar 2010 06:55:13 -0700 (PDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] mempolicy: remove redundant check
-Date: Tue, 16 Mar 2010 21:55:03 +0800
-Message-Id: <1268747703-8343-1-git-send-email-user@bob-laptop>
+	by kanga.kvack.org (Postfix) with SMTP id 792416B00D2
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 10:12:25 -0400 (EDT)
+Date: Tue, 16 Mar 2010 10:11:50 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH -mmotm 4/5] memcg: dirty pages accounting and limiting
+	infrastructure
+Message-ID: <20100316141150.GC9144@redhat.com>
+References: <1268609202-15581-1-git-send-email-arighi@develer.com> <1268609202-15581-5-git-send-email-arighi@develer.com> <20100316113238.f7d74848.nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100316113238.f7d74848.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, Bob Liu <lliubbo@gmail.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Bob Liu <lliubbo@gmail.com>
+On Tue, Mar 16, 2010 at 11:32:38AM +0900, Daisuke Nishimura wrote:
 
-1. Lee's patch "mempolicy: use MPOL_PREFERRED for system-wide
-default policy" has made the MPOL_DEFAULT only used in the
-memory policy APIs. So, no need to check in __mpol_equal also.
+[..]
+> > + * mem_cgroup_page_stat() - get memory cgroup file cache statistics
+> > + * @item:	memory statistic item exported to the kernel
+> > + *
+> > + * Return the accounted statistic value, or a negative value in case of error.
+> > + */
+> > +s64 mem_cgroup_page_stat(enum mem_cgroup_read_page_stat_item item)
+> > +{
+> > +	struct mem_cgroup_page_stat stat = {};
+> > +	struct mem_cgroup *mem;
+> > +
+> > +	rcu_read_lock();
+> > +	mem = mem_cgroup_from_task(current);
+> > +	if (mem && !mem_cgroup_is_root(mem)) {
+> > +		/*
+> > +		 * If we're looking for dirtyable pages we need to evaluate
+> > +		 * free pages depending on the limit and usage of the parents
+> > +		 * first of all.
+> > +		 */
+> > +		if (item == MEMCG_NR_DIRTYABLE_PAGES)
+> > +			stat.value = memcg_get_hierarchical_free_pages(mem);
+> > +		/*
+> > +		 * Recursively evaluate page statistics against all cgroup
+> > +		 * under hierarchy tree
+> > +		 */
+> > +		stat.item = item;
+> > +		mem_cgroup_walk_tree(mem, &stat, mem_cgroup_page_stat_cb);
+> > +	} else
+> > +		stat.value = -EINVAL;
+> > +	rcu_read_unlock();
+> > +
+> > +	return stat.value;
+> > +}
+> > +
+> hmm, mem_cgroup_page_stat() can return negative value, but you place BUG_ON()
+> in [5/5] to check it returns negative value. What happens if the current is moved
+> to root between mem_cgroup_has_dirty_limit() and mem_cgroup_page_stat() ?
+> How about making mem_cgroup_has_dirty_limit() return the target mem_cgroup, and
+> passing the mem_cgroup to mem_cgroup_page_stat() ?
+> 
 
-2. In policy_zonelist() mode MPOL_INTERLEAVE shouldn't happen,
-so fall through to BUG() instead of break to return.I also fix
-the comment.
+Hmm, if mem_cgroup_has_dirty_limit() retrun pointer to memcg, then one
+shall have to use rcu_read_lock() and that will look ugly.
 
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
- mm/mempolicy.c |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
+Why don't we simply look at the return value and if it is negative, we
+fall back to using global stats and get rid of BUG_ON()?
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 643f66e..c4b16c9 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1441,15 +1441,15 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
- 		/*
- 		 * Normally, MPOL_BIND allocations are node-local within the
- 		 * allowed nodemask.  However, if __GFP_THISNODE is set and the
--		 * current node is part of the mask, we use the zonelist for
-+		 * current node isn't part of the mask, we use the zonelist for
- 		 * the first node in the mask instead.
- 		 */
- 		if (unlikely(gfp & __GFP_THISNODE) &&
- 				unlikely(!node_isset(nd, policy->v.nodes)))
- 			nd = first_node(policy->v.nodes);
- 		break;
--	case MPOL_INTERLEAVE: /* should not happen */
--		break;
-+	case MPOL_INTERLEAVE:
-+		/* Should not happen, so fall through to BUG()*/
- 	default:
- 		BUG();
- 	}
-@@ -1806,7 +1806,7 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
- 		return 0;
- 	if (a->mode != b->mode)
- 		return 0;
--	if (a->mode != MPOL_DEFAULT && !mpol_match_intent(a, b))
-+	if (!mpol_match_intent(a, b))
- 		return 0;
- 	switch (a->mode) {
- 	case MPOL_BIND:
--- 
-1.5.6.3
+Or, modify mem_cgroup_page_stat() to return global stats if it can't
+determine per cgroup stat for some reason. (mem=NULL or root cgroup etc).
+
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
