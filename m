@@ -1,60 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 360B66B01F7
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 02:42:17 -0400 (EDT)
-Date: Tue, 16 Mar 2010 17:42:09 +1100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch] mm: lockdep page lock
-Message-ID: <20100316064209.GK2869@laptop>
-References: <20100315155859.GE2869@laptop>
- <20100316062032.GB22651@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100316062032.GB22651@elte.hu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 78B4C6B0134
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 03:43:48 -0400 (EDT)
+Date: Tue, 16 Mar 2010 16:41:21 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH -mmotm 2/5] memcg: dirty memory documentation
+Message-Id: <20100316164121.024e35d8.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <1268609202-15581-3-git-send-email-arighi@develer.com>
+References: <1268609202-15581-1-git-send-email-arighi@develer.com>
+	<1268609202-15581-3-git-send-email-arighi@develer.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>
+To: Andrea Righi <arighi@develer.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 16, 2010 at 07:20:32AM +0100, Ingo Molnar wrote:
+On Mon, 15 Mar 2010 00:26:39 +0100, Andrea Righi <arighi@develer.com> wrote:
+> Document cgroup dirty memory interfaces and statistics.
 > 
-> * Nick Piggin <npiggin@suse.de> wrote:
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> ---
+>  Documentation/cgroups/memory.txt |   36 ++++++++++++++++++++++++++++++++++++
+>  1 files changed, 36 insertions(+), 0 deletions(-)
 > 
-> > Page lock has very complex dependencies, so it would be really nice to add 
-> > lockdep support for it.
-> 
-> Just wondering - has your patch shown any suspect areas of code already, in 
-> the testing you did?
-
-Not yet. Although I only did basic stress testing with tmpfs and ext3 so
-far. It would get even further useful for fs developers combined with
-annotating more bit locks like buffer lock.
-
-BTW. I tried adding a might_fault() under page lock to see the infamous
-old page_lock -> mmap_sem deadlock, but it didn't warn. Explicitly doing
-a down_write/up_write of mmap_sem did warn. But it took a while to build
-the required chains, so I may have just been unlucky.
-
- 
-> Maybe it should be test-driven for a while, in a non-append-only tree such as 
-> -mm, to see whether it's finding real bugs.
-
-I think it should be very useful for filesystem developers. It doesn't
-seem too intrusive (and I will make it less so, by not open-coding the
-mutex_release/mutex_acquire pairs when changing page mapping).
-
-Filesystems and mm/vfs/fs lock interactions may be the most complex in
-the kernel...
-
-If you are worried about struct page bloat, it's already getting bloated
-by ptl spinlock in there. But it could always be configurable.
-
-No it isn't ready for -mm yet, let alone an append-only tree, I just
-wanted to get opinions from mm and fs (and lockdep) people.
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 49f86f3..38ca499 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -310,6 +310,11 @@ cache		- # of bytes of page cache memory.
+>  rss		- # of bytes of anonymous and swap cache memory.
+>  pgpgin		- # of pages paged in (equivalent to # of charging events).
+>  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
+> +filedirty	- # of pages that are waiting to get written back to the disk.
+> +writeback	- # of pages that are actively being written back to the disk.
+> +writeback_tmp	- # of pages used by FUSE for temporary writeback buffers.
+> +nfs		- # of NFS pages sent to the server, but not yet committed to
+> +		  the actual storage.
+>  active_anon	- # of bytes of anonymous and  swap cache memory on active
+>  		  lru list.
+>  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+> @@ -345,6 +350,37 @@ Note:
+>    - a cgroup which uses hierarchy and it has child cgroup.
+>    - a cgroup which uses hierarchy and not the root of hierarchy.
+>  
+> +5.4 dirty memory
+> +
+> +  Control the maximum amount of dirty pages a cgroup can have at any given time.
+> +
+> +  Limiting dirty memory is like fixing the max amount of dirty (hard to
+> +  reclaim) page cache used by any cgroup. So, in case of multiple cgroup writers,
+> +  they will not be able to consume more than their designated share of dirty
+> +  pages and will be forced to perform write-out if they cross that limit.
+> +
+> +  The interface is equivalent to the procfs interface: /proc/sys/vm/dirty_*.
+> +  It is possible to configure a limit to trigger both a direct writeback or a
+> +  background writeback performed by per-bdi flusher threads.
+> +
+> +  Per-cgroup dirty limits can be set using the following files in the cgroupfs:
+> +
+> +  - memory.dirty_ratio: contains, as a percentage of cgroup memory, the
+> +    amount of dirty memory at which a process which is generating disk writes
+> +    inside the cgroup will start itself writing out dirty data.
+> +
+> +  - memory.dirty_bytes: the amount of dirty memory of the cgroup (expressed in
+> +    bytes) at which a process generating disk writes will start itself writing
+> +    out dirty data.
+> +
+> +  - memory.dirty_background_ratio: contains, as a percentage of the cgroup
+> +    memory, the amount of dirty memory at which background writeback kernel
+> +    threads will start writing out dirty data.
+> +
+> +  - memory.dirty_background_bytes: the amount of dirty memory of the cgroup (in
+> +    bytes) at which background writeback kernel threads will start writing out
+> +    dirty data.
+> +
+>  
+It would be better to note that what those files of root cgroup mean.
+We cannot write any value to them, IOW, we cannot control dirty limit about root cgroup.
+And they show the same value as the global one(strictly speaking, it's not true
+because global values can change. We need a hook in mem_cgroup_dirty_read()?).
 
 Thanks,
-Nick
+Daisuke Nishimura.
+
+>  6. Hierarchy support
+>  
+> -- 
+> 1.6.3.3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
