@@ -1,80 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2FA896B01A5
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 12:01:03 -0400 (EDT)
-Message-ID: <4B9FAAEC.1040604@redhat.com>
-Date: Tue, 16 Mar 2010 17:59:40 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 753EF6B00E1
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 13:12:54 -0400 (EDT)
+Date: Tue, 16 Mar 2010 19:08:08 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: [PATCH] exit: fix oops in sync_mm_rss
+Message-ID: <20100316170808.GA29400@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
-References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com> <4B9F4CBD.3020805@redhat.com> <20100316102637.GA23584@lst.de> <4B9F5F2F.8020501@redhat.com> <20100316104422.GA24258@lst.de> <4B9F66AC.5080400@redhat.com> <20100316142739.GM18054@balbir.in.ibm.com>
-In-Reply-To: <20100316142739.GM18054@balbir.in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Christoph Hellwig <hch@lst.de>, Chris Webb <chris@arachsys.com>, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kevin Wolf <kwolf@redhat.com>
+To: cl@linux-foundation.org, lee.schermerhorn@hp.com, rientjes@google.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/16/2010 04:27 PM, Balbir Singh wrote:
->
->> Let's assume the guest has virtio (I agree with IDE we need
->> reordering on the host).  The guest sends batches of I/O separated
->> by cache flushes.  If the batches are smaller than the virtio queue
->> length, ideally things look like:
->>
->>   io_submit(..., batch_size_1);
->>   io_getevents(..., batch_size_1);
->>   fdatasync();
->>   io_submit(..., batch_size_2);
->>    io_getevents(..., batch_size_2);
->>    fdatasync();
->>    io_submit(..., batch_size_3);
->>    io_getevents(..., batch_size_3);
->>    fdatasync();
->>
->> (certainly that won't happen today, but it could in principle).
->>
->> How does a write cache give any advantage?  The host kernel sees
->> _exactly_ the same information as it would from a bunch of threaded
->> pwritev()s followed by fdatasync().
->>
->>      
-> Are you suggesting that the model with cache=writeback gives us the
-> same I/O pattern as cache=none, so there are no opportunities for
-> optimization?
->    
+In 2.6.34-rc1, removing vhost_net module causes an oops in sync_mm_rss
+(called from do_exit) when workqueue is destroyed. This does not happen on
+net-next, or with vhost on top of to 2.6.33.
 
-Yes.  The guest also has a large cache with the same optimization algorithm.
+The issue seems to be introduced by
+34e55232e59f7b19050267a05ff1226e5cd122a5: that commit added function
+sync_mm_rss that is passed task->mm, and dereferences it without
+checking. If task is a kernel thread, mm might be NULL.
+I think this might also happen e.g. with aio.
 
->
->    
->> (wish: IO_CMD_ORDERED_FDATASYNC)
->>
->> If the batch size is larger than the virtio queue size, or if there
->> are no flushes at all, then yes the huge write cache gives more
->> opportunity for reordering.  But we're already talking hundreds of
->> requests here.
->>
->> Let's say the virtio queue size was unlimited.  What
->> merging/reordering opportunity are we missing on the host?  Again we
->> have exactly the same information: either the pagecache lru + radix
->> tree that identifies all dirty pages in disk order, or the block
->> queue with pending requests that contains exactly the same
->> information.
->>
->> Something is wrong.  Maybe it's my understanding, but on the other
->> hand it may be a piece of kernel code.
->>
->>      
-> I assume you are talking of dedicated disk partitions and not
-> individual disk images residing on the same partition.
->    
+This patch fixes the oops by calling sync_mm_rss when task->mm
+is set to NULL. I also added BUG_ON to detect any other cases
+where counters get incremented while mm is NULL.
 
-Correct. Images in files introduce new writes which can be optimized.
+The oops I observed looks like this:
 
+BUG: unable to handle kernel NULL pointer dereference at 00000000000002a8
+IP: [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
+PGD 0
+Oops: 0002 [#1] SMP
+last sysfs file: /sys/devices/system/cpu/cpu7/cache/index2/shared_cpu_map
+CPU 2
+Modules linked in: vhost_net(-) tun bridge stp sunrpc ipv6 cpufreq_ondemand acpi_cpufreq freq_table kvm_intel kvm i5000_edac edac_core rtc_cmos bnx2 button i2c_i801 i2c_core rtc_core e1000e sg joydev ide_cd_mod serio_raw pcspkr rtc_lib cdrom virtio_net virtio_blk virtio_pci virtio_ring virtio af_packet e1000 shpchp aacraid uhci_hcd ohci_hcd ehci_hcd [last unloaded: microcode]
+
+Pid: 2046, comm: vhost Not tainted 2.6.34-rc1-vhost #25 System Planar/IBM System x3550 -[7978B3G]-
+RIP: 0010:[<ffffffff810b436d>]  [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
+RSP: 0018:ffff8802379b7e60  EFLAGS: 00010202
+RAX: 0000000000000008 RBX: ffff88023f2390c0 RCX: 0000000000000000
+RDX: ffff88023f2396b0 RSI: 0000000000000000 RDI: ffff88023f2390c0
+RBP: ffff8802379b7e60 R08: 0000000000000000 R09: 0000000000000000
+R10: ffff88023aecfbc0 R11: 0000000000013240 R12: 0000000000000000
+R13: ffffffff81051a6c R14: ffffe8ffffc0f540 R15: 0000000000000000
+FS:  0000000000000000(0000) GS:ffff880001e80000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 00000000000002a8 CR3: 000000023af23000 CR4: 00000000000406e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process vhost (pid: 2046, threadinfo ffff8802379b6000, task ffff88023f2390c0)
+Stack:
+ ffff8802379b7ee0 ffffffff81040687 ffffe8ffffc0f558 ffffffffa00a3e2d
+<0> 0000000000000000 ffff88023f2390c0 ffffffff81055817 ffff8802379b7e98
+<0> ffff8802379b7e98 0000000100000286 ffff8802379b7ee0 ffff88023ad47d78
+Call Trace:
+ [<ffffffff81040687>] do_exit+0x147/0x6c4
+ [<ffffffffa00a3e2d>] ? handle_rx_net+0x0/0x17 [vhost_net]
+ [<ffffffff81055817>] ? autoremove_wake_function+0x0/0x39
+ [<ffffffff81051a6c>] ? worker_thread+0x0/0x229
+ [<ffffffff810553c9>] kthreadd+0x0/0xf2
+ [<ffffffff810038d4>] kernel_thread_helper+0x4/0x10
+ [<ffffffff81055342>] ? kthread+0x0/0x87
+ [<ffffffff810038d0>] ? kernel_thread_helper+0x0/0x10
+Code: 00 8b 87 6c 02 00 00 85 c0 74 14 48 98 f0 48 01 86 a0 02 00 00 c7 87 6c 02 00 00 00 00 00 00 8b 87 70 02 00 00 85 c0 74 14 48 98 <f0> 48 01 86 a8 02 00 00 c7 87 70 02 00 00 00 00 00 00 8b 87 74
+RIP  [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
+ RSP <ffff8802379b7e60>
+CR2: 00000000000002a8
+---[ end trace 41603ba922beddd2 ]---
+Fixing recursive fault but reboot is needed!
+
+(note: handle_rx_net is a work item using workqueue in question).
+sync_mm_rss+0x33/0x6f gave me a hint. I also tried reverting
+34e55232e59f7b19050267a05ff1226e5cd122a5 and the oops goes away.
+
+The module in question calls use_mm and later unuse_mm from a kernel
+thread.  It is when this kernel thread is destroyed that the crash
+happens.
+
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+---
+ mm/memory.c      |    1 +
+ mm/mmu_context.c |    1 +
+ 2 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index d1153e3..27022b3 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -130,6 +130,7 @@ void __sync_task_rss_stat(struct task_struct *task, struct mm_struct *mm)
+ 
+ 	for (i = 0; i < NR_MM_COUNTERS; i++) {
+ 		if (task->rss_stat.count[i]) {
++			BUG_ON(!mm);
+ 			add_mm_counter(mm, i, task->rss_stat.count[i]);
+ 			task->rss_stat.count[i] = 0;
+ 		}
+diff --git a/mm/mmu_context.c b/mm/mmu_context.c
+index 0777654..9e82e93 100644
+--- a/mm/mmu_context.c
++++ b/mm/mmu_context.c
+@@ -53,6 +53,7 @@ void unuse_mm(struct mm_struct *mm)
+ 	struct task_struct *tsk = current;
+ 
+ 	task_lock(tsk);
++	sync_mm_rss(tsk, mm);
+ 	tsk->mm = NULL;
+ 	/* active_mm is still 'mm' */
+ 	enter_lazy_tlb(mm, tsk);
 -- 
-error compiling committee.c: too many arguments to function
+1.7.0.18.g0d53a5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
