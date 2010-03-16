@@ -1,89 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 95C2B6B00B3
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 17:35:28 -0400 (EDT)
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id o2GLZMK8011420
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 22:35:22 +0100
-Received: from pxi3 (pxi3.prod.google.com [10.243.27.3])
-	by spaceape8.eur.corp.google.com with ESMTP id o2GLZGtM025136
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 14:35:21 -0700
-Received: by pxi3 with SMTP id 3so301349pxi.28
-        for <linux-mm@kvack.org>; Tue, 16 Mar 2010 14:35:19 -0700 (PDT)
-Date: Tue, 16 Mar 2010 14:35:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mempolicy: remove redundant check
-In-Reply-To: <1268747703-8343-1-git-send-email-user@bob-laptop>
-Message-ID: <alpine.DEB.2.00.1003161433560.10930@chino.kir.corp.google.com>
-References: <1268747703-8343-1-git-send-email-user@bob-laptop>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7FADB6B0078
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 19:45:38 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2GNjX4L009240
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 17 Mar 2010 08:45:33 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3655945DE4F
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 08:45:33 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AEA745DE54
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 08:45:33 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DE51CE08009
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 08:45:32 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 71B54E08003
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 08:45:32 +0900 (JST)
+Date: Wed, 17 Mar 2010 08:41:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] exit: fix oops in sync_mm_rss
+Message-Id: <20100317084148.df1ee6a7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100316170808.GA29400@redhat.com>
+References: <20100316170808.GA29400@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, lee.schermerhorn@hp.com
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: cl@linux-foundation.org, lee.schermerhorn@hp.com, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Mar 2010, Bob Liu wrote:
+On Tue, 16 Mar 2010 19:08:08 +0200
+"Michael S. Tsirkin" <mst@redhat.com> wrote:
 
-> From: Bob Liu <lliubbo@gmail.com>
+> In 2.6.34-rc1, removing vhost_net module causes an oops in sync_mm_rss
+> (called from do_exit) when workqueue is destroyed. This does not happen on
+> net-next, or with vhost on top of to 2.6.33.
 > 
-> 1. Lee's patch "mempolicy: use MPOL_PREFERRED for system-wide
-> default policy" has made the MPOL_DEFAULT only used in the
-> memory policy APIs. So, no need to check in __mpol_equal also.
+> The issue seems to be introduced by
+> 34e55232e59f7b19050267a05ff1226e5cd122a5: that commit added function
+> sync_mm_rss that is passed task->mm, and dereferences it without
+> checking. If task is a kernel thread, mm might be NULL.
+> I think this might also happen e.g. with aio.
 > 
-> 2. In policy_zonelist() mode MPOL_INTERLEAVE shouldn't happen,
-> so fall through to BUG() instead of break to return.I also fix
-> the comment.
+> This patch fixes the oops by calling sync_mm_rss when task->mm
+> is set to NULL. I also added BUG_ON to detect any other cases
+> where counters get incremented while mm is NULL.
 > 
+> The oops I observed looks like this:
+> 
+> BUG: unable to handle kernel NULL pointer dereference at 00000000000002a8
+> IP: [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
+> PGD 0
+> Oops: 0002 [#1] SMP
+> last sysfs file: /sys/devices/system/cpu/cpu7/cache/index2/shared_cpu_map
+> CPU 2
+> Modules linked in: vhost_net(-) tun bridge stp sunrpc ipv6 cpufreq_ondemand acpi_cpufreq freq_table kvm_intel kvm i5000_edac edac_core rtc_cmos bnx2 button i2c_i801 i2c_core rtc_core e1000e sg joydev ide_cd_mod serio_raw pcspkr rtc_lib cdrom virtio_net virtio_blk virtio_pci virtio_ring virtio af_packet e1000 shpchp aacraid uhci_hcd ohci_hcd ehci_hcd [last unloaded: microcode]
+> 
+> Pid: 2046, comm: vhost Not tainted 2.6.34-rc1-vhost #25 System Planar/IBM System x3550 -[7978B3G]-
+> RIP: 0010:[<ffffffff810b436d>]  [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
+> RSP: 0018:ffff8802379b7e60  EFLAGS: 00010202
+> RAX: 0000000000000008 RBX: ffff88023f2390c0 RCX: 0000000000000000
+> RDX: ffff88023f2396b0 RSI: 0000000000000000 RDI: ffff88023f2390c0
+> RBP: ffff8802379b7e60 R08: 0000000000000000 R09: 0000000000000000
+> R10: ffff88023aecfbc0 R11: 0000000000013240 R12: 0000000000000000
+> R13: ffffffff81051a6c R14: ffffe8ffffc0f540 R15: 0000000000000000
+> FS:  0000000000000000(0000) GS:ffff880001e80000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> CR2: 00000000000002a8 CR3: 000000023af23000 CR4: 00000000000406e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> Process vhost (pid: 2046, threadinfo ffff8802379b6000, task ffff88023f2390c0)
+> Stack:
+>  ffff8802379b7ee0 ffffffff81040687 ffffe8ffffc0f558 ffffffffa00a3e2d
+> <0> 0000000000000000 ffff88023f2390c0 ffffffff81055817 ffff8802379b7e98
+> <0> ffff8802379b7e98 0000000100000286 ffff8802379b7ee0 ffff88023ad47d78
+> Call Trace:
+>  [<ffffffff81040687>] do_exit+0x147/0x6c4
+>  [<ffffffffa00a3e2d>] ? handle_rx_net+0x0/0x17 [vhost_net]
+>  [<ffffffff81055817>] ? autoremove_wake_function+0x0/0x39
+>  [<ffffffff81051a6c>] ? worker_thread+0x0/0x229
+>  [<ffffffff810553c9>] kthreadd+0x0/0xf2
+>  [<ffffffff810038d4>] kernel_thread_helper+0x4/0x10
+>  [<ffffffff81055342>] ? kthread+0x0/0x87
+>  [<ffffffff810038d0>] ? kernel_thread_helper+0x0/0x10
+> Code: 00 8b 87 6c 02 00 00 85 c0 74 14 48 98 f0 48 01 86 a0 02 00 00 c7 87 6c 02 00 00 00 00 00 00 8b 87 70 02 00 00 85 c0 74 14 48 98 <f0> 48 01 86 a8 02 00 00 c7 87 70 02 00 00 00 00 00 00 8b 87 74
+> RIP  [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
+>  RSP <ffff8802379b7e60>
+> CR2: 00000000000002a8
+> ---[ end trace 41603ba922beddd2 ]---
+> Fixing recursive fault but reboot is needed!
+> 
+> (note: handle_rx_net is a work item using workqueue in question).
+> sync_mm_rss+0x33/0x6f gave me a hint. I also tried reverting
+> 34e55232e59f7b19050267a05ff1226e5cd122a5 and the oops goes away.
+> 
+> The module in question calls use_mm and later unuse_mm from a kernel
+> thread.  It is when this kernel thread is destroyed that the crash
+> happens.
+> 
+> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
 
-These are two seperate functional changes, so you'll need to break them 
-out into individual patches.
+Thank you very much.
 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+
 > ---
->  mm/mempolicy.c |    8 ++++----
->  1 files changed, 4 insertions(+), 4 deletions(-)
+>  mm/memory.c      |    1 +
+>  mm/mmu_context.c |    1 +
+>  2 files changed, 2 insertions(+), 0 deletions(-)
 > 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 643f66e..c4b16c9 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1441,15 +1441,15 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
->  		/*
->  		 * Normally, MPOL_BIND allocations are node-local within the
->  		 * allowed nodemask.  However, if __GFP_THISNODE is set and the
-> -		 * current node is part of the mask, we use the zonelist for
-> +		 * current node isn't part of the mask, we use the zonelist for
->  		 * the first node in the mask instead.
->  		 */
->  		if (unlikely(gfp & __GFP_THISNODE) &&
->  				unlikely(!node_isset(nd, policy->v.nodes)))
->  			nd = first_node(policy->v.nodes);
->  		break;
-> -	case MPOL_INTERLEAVE: /* should not happen */
-> -		break;
-> +	case MPOL_INTERLEAVE:
-> +		/* Should not happen, so fall through to BUG()*/
->  	default:
->  		BUG();
->  	}
-
-Looks good.
-
-> @@ -1806,7 +1806,7 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
->  		return 0;
->  	if (a->mode != b->mode)
->  		return 0;
-> -	if (a->mode != MPOL_DEFAULT && !mpol_match_intent(a, b))
-> +	if (!mpol_match_intent(a, b))
->  		return 0;
->  	switch (a->mode) {
->  	case MPOL_BIND:
-
-Ok.  Could you also get rid of mpol_match_intent() and move its logic 
-directly into __mpol_equal() with the other comparison tests?
-
-Thanks.
+> diff --git a/mm/memory.c b/mm/memory.c
+> index d1153e3..27022b3 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -130,6 +130,7 @@ void __sync_task_rss_stat(struct task_struct *task, struct mm_struct *mm)
+>  
+>  	for (i = 0; i < NR_MM_COUNTERS; i++) {
+>  		if (task->rss_stat.count[i]) {
+> +			BUG_ON(!mm);
+>  			add_mm_counter(mm, i, task->rss_stat.count[i]);
+>  			task->rss_stat.count[i] = 0;
+>  		}
+> diff --git a/mm/mmu_context.c b/mm/mmu_context.c
+> index 0777654..9e82e93 100644
+> --- a/mm/mmu_context.c
+> +++ b/mm/mmu_context.c
+> @@ -53,6 +53,7 @@ void unuse_mm(struct mm_struct *mm)
+>  	struct task_struct *tsk = current;
+>  
+>  	task_lock(tsk);
+> +	sync_mm_rss(tsk, mm);
+>  	tsk->mm = NULL;
+>  	/* active_mm is still 'mm' */
+>  	enter_lazy_tlb(mm, tsk);
+> -- 
+> 1.7.0.18.g0d53a5
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
