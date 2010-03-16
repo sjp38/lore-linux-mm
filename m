@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id ABE736B0200
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 20:21:10 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2G0L8bl013819
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 16 Mar 2010 09:21:08 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 32D2845DE7B
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:21:08 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0775545DE60
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:21:08 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C390D1DB8047
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:21:07 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BCB6A1DB8048
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:21:06 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: remove return value of putback_lru_pages
-In-Reply-To: <1268658994.1889.8.camel@barrios-desktop>
-References: <1268658994.1889.8.camel@barrios-desktop>
-Message-Id: <20100316092041.4C34.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 511B36B0203
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 20:43:36 -0400 (EDT)
+Date: Mon, 15 Mar 2010 20:43:07 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
+	parameter
+Message-ID: <20100316004307.GA19470@infradead.org>
+References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com> <4B9EC60A.2070101@codemonkey.ws>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue, 16 Mar 2010 09:21:05 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B9EC60A.2070101@codemonkey.ws>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anthony Liguori <anthony@codemonkey.ws>
+Cc: Chris Webb <chris@arachsys.com>, Avi Kivity <avi@redhat.com>, balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Now putback_lru_page never can fail.
-> So it doesn't matter count of "the number of pages put back".
-> 
-> In addition, users of this functions don't use return value.
-> 
-> Let's remove unnecessary code.
-> 
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+On Mon, Mar 15, 2010 at 06:43:06PM -0500, Anthony Liguori wrote:
+> I knew someone would do this...
+>
+> This really gets down to your definition of "safe" behaviour.  As it  
+> stands, if you suffer a power outage, it may lead to guest corruption.
+>
+> While we are correct in advertising a write-cache, write-caches are  
+> volatile and should a drive lose power, it could lead to data  
+> corruption.  Enterprise disks tend to have battery backed write caches  
+> to prevent this.
+>
+> In the set up you're emulating, the host is acting as a giant write  
+> cache.  Should your host fail, you can get data corruption.
+>
+> cache=writethrough provides a much stronger data guarantee.  Even in the  
+> event of a host failure, data integrity will be preserved.
 
-Thanks.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
-
+Actually cache=writeback is as safe as any normal host is with a
+volatile disk cache, except that in this case the disk cache is
+actually a lot larger.  With a properly implemented filesystem this
+will never cause corruption.  You will lose recent updates after
+the last sync/fsync/etc up to the size of the cache, but filesystem
+metadata should never be corrupted, and data that has been forced to
+disk using fsync/O_SYNC should never be lost either.  If it is that's
+a bug somewhere in the stack, but in my powerfail testing we never did
+so using xfs or ext3/4 after I fixed up the fsync code in the latter
+two.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
