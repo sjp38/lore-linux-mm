@@ -1,99 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 39E076001DA
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 11:06:38 -0400 (EDT)
-Date: Wed, 17 Mar 2010 00:09:00 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [PATCH -mmotm 4/5] memcg: dirty pages accounting and limiting
- infrastructure
-Message-Id: <20100317000900.62e6492c.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20100316141150.GC9144@redhat.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
-	<1268609202-15581-5-git-send-email-arighi@develer.com>
-	<20100316113238.f7d74848.nishimura@mxp.nes.nec.co.jp>
-	<20100316141150.GC9144@redhat.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2FA896B01A5
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 12:01:03 -0400 (EDT)
+Message-ID: <4B9FAAEC.1040604@redhat.com>
+Date: Tue, 16 Mar 2010 17:59:40 +0200
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
+References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com> <4B9F4CBD.3020805@redhat.com> <20100316102637.GA23584@lst.de> <4B9F5F2F.8020501@redhat.com> <20100316104422.GA24258@lst.de> <4B9F66AC.5080400@redhat.com> <20100316142739.GM18054@balbir.in.ibm.com>
+In-Reply-To: <20100316142739.GM18054@balbir.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: balbir@linux.vnet.ibm.com
+Cc: Christoph Hellwig <hch@lst.de>, Chris Webb <chris@arachsys.com>, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kevin Wolf <kwolf@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Mar 2010 10:11:50 -0400
-Vivek Goyal <vgoyal@redhat.com> wrote:
+On 03/16/2010 04:27 PM, Balbir Singh wrote:
+>
+>> Let's assume the guest has virtio (I agree with IDE we need
+>> reordering on the host).  The guest sends batches of I/O separated
+>> by cache flushes.  If the batches are smaller than the virtio queue
+>> length, ideally things look like:
+>>
+>>   io_submit(..., batch_size_1);
+>>   io_getevents(..., batch_size_1);
+>>   fdatasync();
+>>   io_submit(..., batch_size_2);
+>>    io_getevents(..., batch_size_2);
+>>    fdatasync();
+>>    io_submit(..., batch_size_3);
+>>    io_getevents(..., batch_size_3);
+>>    fdatasync();
+>>
+>> (certainly that won't happen today, but it could in principle).
+>>
+>> How does a write cache give any advantage?  The host kernel sees
+>> _exactly_ the same information as it would from a bunch of threaded
+>> pwritev()s followed by fdatasync().
+>>
+>>      
+> Are you suggesting that the model with cache=writeback gives us the
+> same I/O pattern as cache=none, so there are no opportunities for
+> optimization?
+>    
 
-> On Tue, Mar 16, 2010 at 11:32:38AM +0900, Daisuke Nishimura wrote:
-> 
-> [..]
-> > > + * mem_cgroup_page_stat() - get memory cgroup file cache statistics
-> > > + * @item:	memory statistic item exported to the kernel
-> > > + *
-> > > + * Return the accounted statistic value, or a negative value in case of error.
-> > > + */
-> > > +s64 mem_cgroup_page_stat(enum mem_cgroup_read_page_stat_item item)
-> > > +{
-> > > +	struct mem_cgroup_page_stat stat = {};
-> > > +	struct mem_cgroup *mem;
-> > > +
-> > > +	rcu_read_lock();
-> > > +	mem = mem_cgroup_from_task(current);
-> > > +	if (mem && !mem_cgroup_is_root(mem)) {
-> > > +		/*
-> > > +		 * If we're looking for dirtyable pages we need to evaluate
-> > > +		 * free pages depending on the limit and usage of the parents
-> > > +		 * first of all.
-> > > +		 */
-> > > +		if (item == MEMCG_NR_DIRTYABLE_PAGES)
-> > > +			stat.value = memcg_get_hierarchical_free_pages(mem);
-> > > +		/*
-> > > +		 * Recursively evaluate page statistics against all cgroup
-> > > +		 * under hierarchy tree
-> > > +		 */
-> > > +		stat.item = item;
-> > > +		mem_cgroup_walk_tree(mem, &stat, mem_cgroup_page_stat_cb);
-> > > +	} else
-> > > +		stat.value = -EINVAL;
-> > > +	rcu_read_unlock();
-> > > +
-> > > +	return stat.value;
-> > > +}
-> > > +
-> > hmm, mem_cgroup_page_stat() can return negative value, but you place BUG_ON()
-> > in [5/5] to check it returns negative value. What happens if the current is moved
-> > to root between mem_cgroup_has_dirty_limit() and mem_cgroup_page_stat() ?
-> > How about making mem_cgroup_has_dirty_limit() return the target mem_cgroup, and
-> > passing the mem_cgroup to mem_cgroup_page_stat() ?
-> > 
-> 
-> Hmm, if mem_cgroup_has_dirty_limit() retrun pointer to memcg, then one
-> shall have to use rcu_read_lock() and that will look ugly.
-> 
-agreed.
+Yes.  The guest also has a large cache with the same optimization algorithm.
 
-> Why don't we simply look at the return value and if it is negative, we
-> fall back to using global stats and get rid of BUG_ON()?
-> 
-> Or, modify mem_cgroup_page_stat() to return global stats if it can't
-> determine per cgroup stat for some reason. (mem=NULL or root cgroup etc).
-> 
-I don't have any objection as long as we don't hit BUG_ON.
+>
+>    
+>> (wish: IO_CMD_ORDERED_FDATASYNC)
+>>
+>> If the batch size is larger than the virtio queue size, or if there
+>> are no flushes at all, then yes the huge write cache gives more
+>> opportunity for reordering.  But we're already talking hundreds of
+>> requests here.
+>>
+>> Let's say the virtio queue size was unlimited.  What
+>> merging/reordering opportunity are we missing on the host?  Again we
+>> have exactly the same information: either the pagecache lru + radix
+>> tree that identifies all dirty pages in disk order, or the block
+>> queue with pending requests that contains exactly the same
+>> information.
+>>
+>> Something is wrong.  Maybe it's my understanding, but on the other
+>> hand it may be a piece of kernel code.
+>>
+>>      
+> I assume you are talking of dedicated disk partitions and not
+> individual disk images residing on the same partition.
+>    
 
+Correct. Images in files introduce new writes which can be optimized.
 
-Thanks,
-Daisuke Nishimura.
-
-> Vivek
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
