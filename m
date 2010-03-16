@@ -1,106 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 74CEB6B01FE
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 20:06:48 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2G06kjf005959
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 16 Mar 2010 09:06:46 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D2F8445DE51
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:06:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ACF6945DE4D
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:06:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DD621DB8048
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:06:45 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 273E6E38004
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:06:45 +0900 (JST)
-Date: Tue, 16 Mar 2010 09:03:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] memcg: oom kill disable and oom status
-Message-Id: <20100316090309.22493838.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100315150020.0cc28341.akpm@linux-foundation.org>
-References: <20100312143137.f4cf0a04.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100312143435.e648e361.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100312143753.420e7ae7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100315150020.0cc28341.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id ABE736B0200
+	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 20:21:10 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2G0L8bl013819
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 16 Mar 2010 09:21:08 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 32D2845DE7B
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:21:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0775545DE60
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:21:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C390D1DB8047
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:21:07 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BCB6A1DB8048
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 09:21:06 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: remove return value of putback_lru_pages
+In-Reply-To: <1268658994.1889.8.camel@barrios-desktop>
+References: <1268658994.1889.8.camel@barrios-desktop>
+Message-Id: <20100316092041.4C34.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Tue, 16 Mar 2010 09:21:05 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kirill@shutemov.name" <kirill@shutemov.name>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Mar 2010 15:00:20 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Fri, 12 Mar 2010 14:37:53 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> > 
-> > I haven't get enough comment to this patch itself. But works well.
-> > Feel free to request me if you want me to change some details.
-> > 
-> > ==
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > This adds a feature to disable oom-killer for memcg, if disabled,
-> > of course, tasks under memcg will stop.
-> > 
-> > But now, we have oom-notifier for memcg. And the world around
-> > memcg is not under out-of-memory. memcg's out-of-memory just
-> > shows memcg hits limit. Then, administrator or
-> > management daemon can recover the situation by
-> > 	- kill some process
-> > 	- enlarge limit, add more swap.
-> > 	- migrate some tasks
-> > 	- remove file cache on tmps (difficult ?)
-> > 
-> > Unlike OOM-Kill by the kernel, the users can take snapshot or coredump
-> > of guilty process, cgroups.
-> > 
+> Now putback_lru_page never can fail.
+> So it doesn't matter count of "the number of pages put back".
 > 
-> Looks complicated.
+> In addition, users of this functions don't use return value.
 > 
-In code, hooks are in
-	- usage is reduced.
-	- limit is enlarged.
-
-Maybe my explanation is bad. It's simpler than it sounds.
-
-
-> > --- mmotm-2.6.34-Mar9.orig/mm/memcontrol.c
-> > +++ mmotm-2.6.34-Mar9/mm/memcontrol.c
-> > @@ -235,7 +235,8 @@ struct mem_cgroup {
-> >  	 * mem_cgroup ? And what type of charges should we move ?
-> >  	 */
-> >  	unsigned long 	move_charge_at_immigrate;
-> > -
-> > +	/* Disable OOM killer */
-> > +	unsigned long	oom_kill_disable;
-> >  	/*
-> >  	 * percpu counter.
-> >  	 */
+> Let's remove unnecessary code.
 > 
-> Would have been better to make this `int' or `bool', and put it next to
-> some other 32-bit value in this struct.
-> 
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-Sure, will fix.
-
--Kame
+Thanks.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
