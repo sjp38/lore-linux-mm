@@ -1,95 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 78B4C6B0134
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 03:43:48 -0400 (EDT)
-Date: Tue, 16 Mar 2010 16:41:21 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH -mmotm 2/5] memcg: dirty memory documentation
-Message-Id: <20100316164121.024e35d8.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <1268609202-15581-3-git-send-email-arighi@develer.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
-	<1268609202-15581-3-git-send-email-arighi@develer.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CDE006B00AD
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 04:19:39 -0400 (EDT)
+Date: Tue, 16 Mar 2010 04:19:19 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
+	parameter
+Message-ID: <20100316081919.GA4258@infradead.org>
+References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com> <4B9EC60A.2070101@codemonkey.ws> <20100316004307.GA19470@infradead.org> <4B9EDE7D.4040809@codemonkey.ws>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B9EDE7D.4040809@codemonkey.ws>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Anthony Liguori <anthony@codemonkey.ws>
+Cc: Christoph Hellwig <hch@infradead.org>, Chris Webb <chris@arachsys.com>, Avi Kivity <avi@redhat.com>, balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Mar 2010 00:26:39 +0100, Andrea Righi <arighi@develer.com> wrote:
-> Document cgroup dirty memory interfaces and statistics.
-> 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> ---
->  Documentation/cgroups/memory.txt |   36 ++++++++++++++++++++++++++++++++++++
->  1 files changed, 36 insertions(+), 0 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 49f86f3..38ca499 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -310,6 +310,11 @@ cache		- # of bytes of page cache memory.
->  rss		- # of bytes of anonymous and swap cache memory.
->  pgpgin		- # of pages paged in (equivalent to # of charging events).
->  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
-> +filedirty	- # of pages that are waiting to get written back to the disk.
-> +writeback	- # of pages that are actively being written back to the disk.
-> +writeback_tmp	- # of pages used by FUSE for temporary writeback buffers.
-> +nfs		- # of NFS pages sent to the server, but not yet committed to
-> +		  the actual storage.
->  active_anon	- # of bytes of anonymous and  swap cache memory on active
->  		  lru list.
->  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
-> @@ -345,6 +350,37 @@ Note:
->    - a cgroup which uses hierarchy and it has child cgroup.
->    - a cgroup which uses hierarchy and not the root of hierarchy.
->  
-> +5.4 dirty memory
-> +
-> +  Control the maximum amount of dirty pages a cgroup can have at any given time.
-> +
-> +  Limiting dirty memory is like fixing the max amount of dirty (hard to
-> +  reclaim) page cache used by any cgroup. So, in case of multiple cgroup writers,
-> +  they will not be able to consume more than their designated share of dirty
-> +  pages and will be forced to perform write-out if they cross that limit.
-> +
-> +  The interface is equivalent to the procfs interface: /proc/sys/vm/dirty_*.
-> +  It is possible to configure a limit to trigger both a direct writeback or a
-> +  background writeback performed by per-bdi flusher threads.
-> +
-> +  Per-cgroup dirty limits can be set using the following files in the cgroupfs:
-> +
-> +  - memory.dirty_ratio: contains, as a percentage of cgroup memory, the
-> +    amount of dirty memory at which a process which is generating disk writes
-> +    inside the cgroup will start itself writing out dirty data.
-> +
-> +  - memory.dirty_bytes: the amount of dirty memory of the cgroup (expressed in
-> +    bytes) at which a process generating disk writes will start itself writing
-> +    out dirty data.
-> +
-> +  - memory.dirty_background_ratio: contains, as a percentage of the cgroup
-> +    memory, the amount of dirty memory at which background writeback kernel
-> +    threads will start writing out dirty data.
-> +
-> +  - memory.dirty_background_bytes: the amount of dirty memory of the cgroup (in
-> +    bytes) at which background writeback kernel threads will start writing out
-> +    dirty data.
-> +
->  
-It would be better to note that what those files of root cgroup mean.
-We cannot write any value to them, IOW, we cannot control dirty limit about root cgroup.
-And they show the same value as the global one(strictly speaking, it's not true
-because global values can change. We need a hook in mem_cgroup_dirty_read()?).
+On Mon, Mar 15, 2010 at 08:27:25PM -0500, Anthony Liguori wrote:
+>> Actually cache=writeback is as safe as any normal host is with a
+>> volatile disk cache, except that in this case the disk cache is
+>> actually a lot larger.  With a properly implemented filesystem this
+>> will never cause corruption.
+>
+> Metadata corruption, not necessarily corruption of data stored in a file.
 
-Thanks,
-Daisuke Nishimura.
+Again, this will not cause metadata corruption either if the filesystem
+loses barriers, although we may lose up to the cache size of new (data
+or metadata operations).  The consistency of the filesystem is still
+guaranteed.
 
->  6. Hierarchy support
->  
-> -- 
-> 1.6.3.3
-> 
+> Not all software uses fsync as much as they should.  And often times,  
+> it's for good reason (like ext3).
+
+If an application needs data on disk it must call fsync, or there
+is no guaranteed at all, even on ext3.  And with growing disk caches
+these issues show up on normal disks often enough that people have
+realized it by now.
+
+
+> IIUC, an O_DIRECT write using cache=writeback is not actually on the  
+> spindle when the write() completes.  Rather, an explicit fsync() would  
+> be required.  That will cause data corruption in many applications (like  
+> databases) regardless of whether the fs gets metadata corruption.
+
+It's neither for O_DIRECT without qemu involved.  The O_DIRECT write
+goes through the disk cache and requires and explicit fsync or O_SYNC
+open flag to make sure it goes to disk.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
