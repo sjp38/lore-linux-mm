@@ -1,47 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BC1D66B0158
-	for <linux-mm@kvack.org>; Mon, 15 Mar 2010 23:21:36 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id o2G3LVPa005640
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:51:31 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2G3LVLW3121238
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:51:31 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2G3LUEb028790
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 08:51:30 +0530
-Date: Tue, 16 Mar 2010 08:51:29 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
- parameter
-Message-ID: <20100316032129.GH18054@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100315072214.GA18054@balbir.in.ibm.com>
- <20100315084631.a350f066.randy.dunlap@oracle.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D369B6001DA
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 01:47:35 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2G5lWEA017006
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 16 Mar 2010 14:47:33 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DEF145DE4E
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 14:47:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 53FA345DE4D
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 14:47:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F2B341DB8040
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 14:47:31 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 803A9E38004
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 14:47:31 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: + tmpfs-fix-oops-on-remounts-with-mpol=default.patch added to -mm tree
+In-Reply-To: <201003122353.o2CNrC56015250@imap1.linux-foundation.org>
+References: <201003122353.o2CNrC56015250@imap1.linux-foundation.org>
+Message-Id: <20100316143406.4C45.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100315084631.a350f066.randy.dunlap@oracle.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 16 Mar 2010 14:47:30 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: kiran@scalex86.org
+Cc: kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, hugh.dickins@tiscali.co.uk, lee.schermerhorn@hp.com, mel@csn.ul.ie, stable@kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-* Randy Dunlap <randy.dunlap@oracle.com> [2010-03-15 08:46:31]:
-
-> On Mon, 15 Mar 2010 12:52:15 +0530 Balbir Singh wrote:
+> ------------------------------------------------------
+> Subject: tmpfs: fix oops on remounts with mpol=default
+> From: Ravikiran G Thirumalai <kiran@scalex86.org>
 > 
-> Hi,
-> If you go ahead with this, please add the boot parameter & its description
-> to Documentation/kernel-parameters.txt.
->
+> Fix an 'oops' when a tmpfs mount point is remounted with the 'default'
+> mempolicy.
+> 
+> Upon remounting a tmpfs mount point with 'mpol=default' option, the
+> remount code crashed with a null pointer dereference.  The initial problem
+> report was on 2.6.27, but the problem exists in mainline 2.6.34-rc as
+> well.  On examining the code, we see that mpol_new returns NULL if default
+> mempolicy was requested.  This 'NULL' mempolicy is accessed to store the
+> node mask resulting in oops.
+> 
+> The following patch fixes the oops by avoiding dereferencing NULL if the
+> new mempolicy is NULL.  The patch also sets 'err' to 0 if MPOL_DEFAULT is
+> passed (err is initialized to 1 initially at mpol_parse_str())
 
-I certainly will, thanks for keeping a watch. 
+Hi Ravikiran,
 
--- 
-	Three Cheers,
-	Balbir
+I'm glad to your contribution. Unfortunately I've found various related
+issue in mpol_parse_str() while reviewing your patch.
+
+So, I'll post updated patches.
+
+- kosaki
+
+
+> 
+> Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> Cc: <stable@kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/mempolicy.c |   10 +++++++---
+>  1 file changed, 7 insertions(+), 3 deletions(-)
+> 
+> diff -puN mm/mempolicy.c~tmpfs-fix-oops-on-remounts-with-mpol=default mm/mempolicy.c
+> --- a/mm/mempolicy.c~tmpfs-fix-oops-on-remounts-with-mpol=default
+> +++ a/mm/mempolicy.c
+> @@ -2213,10 +2213,14 @@ int mpol_parse_str(char *str, struct mem
+>  			goto out;
+>  		mode = MPOL_PREFERRED;
+>  		break;
+> -
+> +	case MPOL_DEFAULT:
+> +		/*
+> +		 * mpol_new() enforces empty nodemask, ignores flags.
+> +		 */
+> +		err = 0;
+> +		break;
+>  	/*
+>  	 * case MPOL_BIND:    mpol_new() enforces non-empty nodemask.
+> -	 * case MPOL_DEFAULT: mpol_new() enforces empty nodemask, ignores flags.
+>  	 */
+>  	}
+>  
+> @@ -2250,7 +2254,7 @@ int mpol_parse_str(char *str, struct mem
+>  		if (ret) {
+>  			err = 1;
+>  			mpol_put(new);
+> -		} else if (no_context) {
+> +		} else if (no_context && new) {
+>  			/* save for contextualization */
+>  			new->w.user_nodemask = nodes;
+>  		}
+> _
+> 
+> Patches currently in -mm which might be from kiran@scalex86.org are
+> 
+> tmpfs-fix-oops-on-remounts-with-mpol=default.patch
+> slab-leaks3-default-y.patch
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
