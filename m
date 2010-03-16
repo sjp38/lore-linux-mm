@@ -1,34 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A601A6B00E5
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 13:54:13 -0400 (EDT)
-Message-ID: <4B9FC557.2060002@redhat.com>
-Date: Tue, 16 Mar 2010 13:52:23 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B346C6B00B3
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 17:28:47 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id o2GLSgxe019583
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 21:28:43 GMT
+Received: from pxi2 (pxi2.prod.google.com [10.243.27.2])
+	by wpaz21.hot.corp.google.com with ESMTP id o2GLScBr012268
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 14:28:41 -0700
+Received: by pxi2 with SMTP id 2so275646pxi.25
+        for <linux-mm@kvack.org>; Tue, 16 Mar 2010 14:28:38 -0700 (PDT)
+Date: Tue, 16 Mar 2010 14:26:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RESEND][PATCH 2/2] cpuset: alloc nodemask_t at heap not stack
+ (v2)
+In-Reply-To: <4B9F759C.8090300@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1003161426050.10930@chino.kir.corp.google.com>
+References: <4B9F759C.8090300@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] exit: fix oops in sync_mm_rss
-References: <20100316170808.GA29400@redhat.com>
-In-Reply-To: <20100316170808.GA29400@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: cl@linux-foundation.org, lee.schermerhorn@hp.com, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Miao Xie <miaox@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 03/16/2010 01:08 PM, Michael S. Tsirkin wrote:
+On Tue, 16 Mar 2010, Miao Xie wrote:
 
-> (note: handle_rx_net is a work item using workqueue in question).
-> sync_mm_rss+0x33/0x6f gave me a hint. I also tried reverting
-> 34e55232e59f7b19050267a05ff1226e5cd122a5 and the oops goes away.
->
-> The module in question calls use_mm and later unuse_mm from a kernel
-> thread.  It is when this kernel thread is destroyed that the crash
-> happens.
->
-> Signed-off-by: Michael S. Tsirkin<mst@redhat.com>
+> Allocating nodemask_t at heap instead of stack.
+> 
+> Signed-off-by: Miao Xie <miaox@cn.fujitsu.com>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
