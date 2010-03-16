@@ -1,54 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7D0056B00AA
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 05:06:01 -0400 (EDT)
-Message-ID: <4B9F49F1.70202@redhat.com>
-Date: Tue, 16 Mar 2010 11:05:53 +0200
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 169526B00B0
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 05:18:04 -0400 (EDT)
+Message-ID: <4B9F4CBD.3020805@redhat.com>
+Date: Tue, 16 Mar 2010 11:17:49 +0200
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
-References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315091720.GC18054@balbir.in.ibm.com> <4B9DFD9C.8030608@redhat.com> <4B9E810E.9010706@codemonkey.ws>
-In-Reply-To: <4B9E810E.9010706@codemonkey.ws>
+References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com>
+In-Reply-To: <20100315202353.GJ3840@arachsys.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Anthony Liguori <anthony@codemonkey.ws>
-Cc: balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Chris Webb <chris@arachsys.com>
+Cc: balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, Kevin Wolf <kwolf@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 03/15/2010 08:48 PM, Anthony Liguori wrote:
-> On 03/15/2010 04:27 AM, Avi Kivity wrote:
->>
->> That's only beneficial if the cache is shared.  Otherwise, you could 
->> use the balloon to evict cache when memory is tight.
->>
->> Shared cache is mostly a desktop thing where users run similar 
->> workloads.  For servers, it's much less likely.  So a modified-guest 
->> doesn't help a lot here.
+On 03/15/2010 10:23 PM, Chris Webb wrote:
+> Avi Kivity<avi@redhat.com>  writes:
 >
-> Not really.  In many cloud environments, there's a set of common 
-> images that are instantiated on each node.  Usually this is because 
-> you're running a horizontally scalable application or because you're 
-> supporting an ephemeral storage model.
+>    
+>> On 03/15/2010 10:07 AM, Balbir Singh wrote:
+>>
+>>      
+>>> Yes, it is a virtio call away, but is the cost of paying twice in
+>>> terms of memory acceptable?
+>>>        
+>> Usually, it isn't, which is why I recommend cache=off.
+>>      
+> Hi Avi. One observation about your recommendation for cache=none:
+>
+> We run hosts of VMs accessing drives backed by logical volumes carved out
+> from md RAID1. Each host has 32GB RAM and eight cores, divided between (say)
+> twenty virtual machines, which pretty much fill the available memory on the
+> host. Our qemu-kvm is new enough that IDE and SCSI drives with writeback
+> caching turned on get advertised to the guest as having a write-cache, and
+> FLUSH gets translated to fsync() by qemu. (Consequently cache=writeback
+> isn't acting as cache=neverflush like it would have done a year ago. I know
+> that comparing performance for cache=none against that unsafe behaviour
+> would be somewhat unfair!)
+>
+> Wasteful duplication of page cache between guest and host notwithstanding,
+> turning on cache=writeback is a spectacular performance win for our guests.
+> For example, even IDE with cache=writeback easily beats virtio with
+> cache=none in most of the guest filesystem performance tests I've tried. The
+> anecdotal feedback from clients is also very strongly in favour of
+> cache=writeback.
+>    
 
-But will these servers actually benefit from shared cache?  So the 
-images are shared, they boot up, what then?
+Is this with qcow2, raw file, or direct volume access?
 
-- apache really won't like serving static files from the host pagecache
-- dynamic content (java, cgi) will be mostly in anonymous memory, not 
-pagecache
-- ditto for application servers
-- what else are people doing?
+I can understand it for qcow2, but for direct volume access this 
+shouldn't happen.  The guest schedules as many writes as it can, 
+followed by a sync.  The host (and disk) can then reschedule them 
+whether they are in the writeback cache or in the block layer, and must 
+sync in the same way once completed.
 
-> In fact, with ephemeral storage, you typically want to use 
-> cache=writeback since you aren't providing data guarantees across 
-> shutdown/failure.
+Perhaps what we need is bdrv_aio_submit() which can take a number of 
+requests.  For direct volume access, this allows easier reordering 
+(io_submit() should plug the queues before it starts processing and 
+unplug them when done, though I don't see the code for this?).  For 
+qcow2, we can coalesce metadata updates for multiple requests into one 
+RMW (for example, a sequential write split into multiple 64K-256K write 
+requests).
 
-Interesting point.
+Christoph/Kevin?
 
-We'd need a cache=volatile for this use case to avoid the fdatasync()s 
-we do now.  Also useful for -snapshot.  In fact I have a patch for this 
-somewhere I can dig out.
+> With a host full of cache=none guests, IO contention between guests is
+> hugely problematic with non-stop seek from the disks to service tiny
+> O_DIRECT writes (especially without virtio), many of which needn't have been
+> synchronous if only there had been some way for the guest OS to tell qemu
+> that. Running with cache=writeback seems to reduce the frequency of disk
+> flush per guest to a much more manageable level, and to allow the host's
+> elevator to optimise writing out across the guests in between these flushes.
+>    
+
+The host eventually has to turn the writes into synchronous writes, no 
+way around that.
 
 -- 
 error compiling committee.c: too many arguments to function
