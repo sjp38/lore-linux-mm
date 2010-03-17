@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 43FF16B021A
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5985D6B021B
 	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:14:44 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 44/96] c/r: add generic '->checkpoint' f_op to ext fses
-Date: Wed, 17 Mar 2010 12:08:32 -0400
-Message-Id: <1268842164-5590-45-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-44-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 36/96] deferqueue: generic queue to defer work
+Date: Wed, 17 Mar 2010 12:08:24 -0400
+Message-Id: <1268842164-5590-37-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-36-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -43,130 +43,309 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-34-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-35-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-36-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-37-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-38-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-39-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-40-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-41-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-42-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-43-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-44-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Dave Hansen <dave@linux.vnet.ibm.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Add a interface to postpone an action until the end of the entire
+checkpoint or restart operation. This is useful when during the
+scan of tasks an operation cannot be performed in place, to avoid
+the need for a second scan.
 
-This marks ext[234] as being checkpointable.  There will be many
-more to do this to, but this is a start.
+One use case is when restoring an ipc shared memory region that has
+been deleted (but is still attached), during restart it needs to be
+create, attached and then deleted. However, creation and attachment
+are performed in distinct locations, so deletion can not be performed
+on the spot. Instead, this work (delete) is deferred until later.
+(This example is in one of the following patches).
 
-Changelog[ckpt-v19-rc3]:
-  - Rebase to kernel 2.6.33 (ext2)
-Changelog[v1]:
-  - [Serge Hallyn] Use filemap_checkpoint() in ext4_file_vm_ops
+This interface allows chronic procrastination in the kernel:
 
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+deferqueue_create(void):
+    Allocates and returns a new deferqueue.
+
+deferqueue_run(deferqueue):
+    Executes all the pending works in the queue. Returns the number
+    of works executed, or an error upon the first error reported by
+    a deferred work.
+
+deferqueue_add(deferqueue, data, size, func, dtor):
+    Enqueue a deferred work. @function is the callback function to
+    do the work, which will be called with @data as an argument.
+    @size tells the size of data. @dtor is a destructor callback
+    that is invoked for deferred works remaining in the queue when
+    the queue is destroyed. NOTE: for a given deferred work, @dtor
+    is _not_ called if @func was already called (regardless of the
+    return value of the latter).
+
+deferqueue_destroy(deferqueue):
+    Free the deferqueue and any queued items while invoking the
+    @dtor callback for each queued item.
+
+Why aren't we using the existing kernel workqueue mechanism?  We need
+to defer to work until the end of the operation: not earlier, since we
+need other things to be in place; not later, to not block waiting for
+it. However, the workqueue schedules the work for 'some time later'.
+Also, the kernel workqueue may run in any task context, but we require
+many times that an operation be run in the context of some specific
+restarting task (e.g., restoring IPC state of a certain ipc_ns).
+
+Instead, this mechanism is a simple way for the c/r operation as a
+whole, and later a task in particular, to defer some action until
+later (but not arbitrarily later) _in the restore_ operation.
+
+Changelog[v19-rc1]
+  - [Matt Helsley] Check for valid destructor before calling it
+Changelog[v18]
+  - Interface to pass simple pointers as data with deferqueue
+Changelog[v17]
+  - Fix deferqueue_add() function
+
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge E. Hallyn <serue@us.ibm.com>
 Tested-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- fs/ext2/dir.c  |    1 +
- fs/ext2/file.c |    2 ++
- fs/ext3/dir.c  |    1 +
- fs/ext3/file.c |    1 +
- fs/ext4/dir.c  |    1 +
- fs/ext4/file.c |    4 ++++
- 6 files changed, 10 insertions(+), 0 deletions(-)
+ checkpoint/Kconfig         |    5 ++
+ include/linux/deferqueue.h |   78 +++++++++++++++++++++++++++++++
+ kernel/Makefile            |    1 +
+ kernel/deferqueue.c        |  110 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 194 insertions(+), 0 deletions(-)
+ create mode 100644 include/linux/deferqueue.h
+ create mode 100644 kernel/deferqueue.c
 
-diff --git a/fs/ext2/dir.c b/fs/ext2/dir.c
-index 7516957..84c17f9 100644
---- a/fs/ext2/dir.c
-+++ b/fs/ext2/dir.c
-@@ -722,4 +722,5 @@ const struct file_operations ext2_dir_operations = {
- 	.compat_ioctl	= ext2_compat_ioctl,
- #endif
- 	.fsync		= ext2_fsync,
-+	.checkpoint	= generic_file_checkpoint,
- };
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index 586e358..b38d7b9 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -75,6 +75,7 @@ const struct file_operations ext2_file_operations = {
- 	.fsync		= ext2_fsync,
- 	.splice_read	= generic_file_splice_read,
- 	.splice_write	= generic_file_splice_write,
-+	.checkpoint	= generic_file_checkpoint,
- };
+diff --git a/checkpoint/Kconfig b/checkpoint/Kconfig
+index 21fc86b..4a2c845 100644
+--- a/checkpoint/Kconfig
++++ b/checkpoint/Kconfig
+@@ -2,10 +2,15 @@
+ # implemented the hooks for processor state etc. needed by the
+ # core checkpoint/restart code.
  
- #ifdef CONFIG_EXT2_FS_XIP
-@@ -90,6 +91,7 @@ const struct file_operations ext2_xip_file_operations = {
- 	.open		= generic_file_open,
- 	.release	= ext2_release_file,
- 	.fsync		= ext2_fsync,
-+	.checkpoint	= generic_file_checkpoint,
- };
- #endif
- 
-diff --git a/fs/ext3/dir.c b/fs/ext3/dir.c
-index 373fa90..65f98af 100644
---- a/fs/ext3/dir.c
-+++ b/fs/ext3/dir.c
-@@ -48,6 +48,7 @@ const struct file_operations ext3_dir_operations = {
- #endif
- 	.fsync		= ext3_sync_file,	/* BKL held */
- 	.release	= ext3_release_dir,
-+	.checkpoint	= generic_file_checkpoint,
- };
- 
- 
-diff --git a/fs/ext3/file.c b/fs/ext3/file.c
-index 388bbdf..bcd9b88 100644
---- a/fs/ext3/file.c
-+++ b/fs/ext3/file.c
-@@ -67,6 +67,7 @@ const struct file_operations ext3_file_operations = {
- 	.fsync		= ext3_sync_file,
- 	.splice_read	= generic_file_splice_read,
- 	.splice_write	= generic_file_splice_write,
-+	.checkpoint	= generic_file_checkpoint,
- };
- 
- const struct inode_operations ext3_file_inode_operations = {
-diff --git a/fs/ext4/dir.c b/fs/ext4/dir.c
-index 9dc9316..f69404c 100644
---- a/fs/ext4/dir.c
-+++ b/fs/ext4/dir.c
-@@ -48,6 +48,7 @@ const struct file_operations ext4_dir_operations = {
- #endif
- 	.fsync		= ext4_sync_file,
- 	.release	= ext4_release_dir,
-+	.checkpoint	= generic_file_checkpoint,
- };
- 
- 
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 9630583..93a129b 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -84,6 +84,9 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
- static const struct vm_operations_struct ext4_file_vm_ops = {
- 	.fault		= filemap_fault,
- 	.page_mkwrite   = ext4_page_mkwrite,
-+#ifdef CONFIG_CHECKPOINT
-+	.checkpoint	= filemap_checkpoint,
++config DEFERQUEUE
++	bool
++	default n
++
+ config CHECKPOINT
+ 	bool "Checkpoint/restart (EXPERIMENTAL)"
+ 	depends on CHECKPOINT_SUPPORT && EXPERIMENTAL
+ 	depends on CGROUP_FREEZER
++	select DEFERQUEUE
+ 	help
+ 	  Application checkpoint/restart is the ability to save the
+ 	  state of a running application so that it can later resume
+diff --git a/include/linux/deferqueue.h b/include/linux/deferqueue.h
+new file mode 100644
+index 0000000..ea3b620
+--- /dev/null
++++ b/include/linux/deferqueue.h
+@@ -0,0 +1,78 @@
++/*
++ * deferqueue.h --- deferred work queue handling for Linux.
++ */
++
++#ifndef _LINUX_DEFERQUEUE_H
++#define _LINUX_DEFERQUEUE_H
++
++#include <linux/list.h>
++#include <linux/slab.h>
++#include <linux/spinlock.h>
++
++/*
++ * This interface allows chronic procrastination in the kernel:
++ *
++ * deferqueue_create(void):
++ *     Allocates and returns a new deferqueue.
++ *
++ * deferqueue_run(deferqueue):
++ *     Executes all the pending works in the queue. Returns the number
++ *     of works executed, or an error upon the first error reported by
++ *     a deferred work.
++ *
++ * deferqueue_add(deferqueue, data, size, func, dtor):
++ * 	Enqueue a deferred work. @function is the callback function to
++ *      do the work, which will be called with @data as an argument.
++ *      @size tells the size of data. @dtor is a destructor callback
++ *      that is invoked for deferred works remaining in the queue when
++ *      the queue is destroyed. NOTE: for a given deferred work, @dtor
++ *      is _not_ called if @func was already called (regardless of the
++ *      return value of the latter).
++ *
++ * deferqueue_destroy(deferqueue):
++ *      Free the deferqueue and any queued items while invoking the
++ *      @dtor callback for each queued item.
++ *
++ * The following helpers are useful when @data is a simple pointer:
++ *
++ * deferqueue_add_ptr(deferqueue, ptr, func, dtor):
++ *	Enqueue a deferred work whos data is @ptr.
++ *
++ * deferqueue_data_ptr(data):
++ *	Convert a deferqueue @data to a void * pointer.
++ */
++
++
++typedef int (*deferqueue_func_t)(void *);
++
++struct deferqueue_entry {
++	deferqueue_func_t function;
++	deferqueue_func_t destructor;
++	struct list_head list;
++	char data[0];
++};
++
++struct deferqueue_head {
++	spinlock_t lock;
++	struct list_head list;
++};
++
++struct deferqueue_head *deferqueue_create(void);
++void deferqueue_destroy(struct deferqueue_head *head);
++int deferqueue_add(struct deferqueue_head *head, void *data, int size,
++		   deferqueue_func_t func, deferqueue_func_t dtor);
++int deferqueue_run(struct deferqueue_head *head);
++
++static inline int deferqueue_add_ptr(struct deferqueue_head *head, void *ptr,
++				     deferqueue_func_t func,
++				     deferqueue_func_t dtor)
++{
++	return deferqueue_add(head, &ptr, sizeof(ptr), func, dtor);
++}
++
++static inline void *deferqueue_data_ptr(void *data)
++{
++	return *((void **) data);
++}
++
 +#endif
- };
+diff --git a/kernel/Makefile b/kernel/Makefile
+index 864ff75..3c2c303 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -24,6 +24,7 @@ CFLAGS_REMOVE_sched_clock.o = -pg
+ CFLAGS_REMOVE_perf_event.o = -pg
+ endif
  
- static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
-@@ -146,6 +149,7 @@ const struct file_operations ext4_file_operations = {
- 	.fsync		= ext4_sync_file,
- 	.splice_read	= generic_file_splice_read,
- 	.splice_write	= generic_file_splice_write,
-+	.checkpoint	= generic_file_checkpoint,
- };
- 
- const struct inode_operations ext4_file_inode_operations = {
++obj-$(CONFIG_DEFERQUEUE) += deferqueue.o
+ obj-$(CONFIG_FREEZER) += freezer.o
+ obj-$(CONFIG_PROFILING) += profile.o
+ obj-$(CONFIG_SYSCTL_SYSCALL_CHECK) += sysctl_check.o
+diff --git a/kernel/deferqueue.c b/kernel/deferqueue.c
+new file mode 100644
+index 0000000..1204c8b
+--- /dev/null
++++ b/kernel/deferqueue.c
+@@ -0,0 +1,110 @@
++/*
++ *  Infrastructure to manage deferred work
++ *
++ *  This differs from a workqueue in that the work must be deferred
++ *  until specifically run by the caller.
++ *
++ *  As the only user currently is checkpoint/restart, which has
++ *  very simple usage, the locking is kept simple.  Adding rules
++ *  is protected by the head->lock.  But deferqueue_run() is only
++ *  called once, after all entries have been added.  So it is not
++ *  protected.  Similarly, _destroy is only called once when the
++ *  ckpt_ctx is releeased, so it is not locked or refcounted.  These
++ *  can of course be added if needed by other users.
++ *
++ *  Why not use workqueue ?  We need to defer work until the end of an
++ *  operation: not earlier, since we need other things to be in place;
++ *  not later, to not block waiting for it. However, the workqueue
++ *  schedules the work for 'some time later'. Also, workqueue may run
++ *  in any task context, but we require many times that an operation
++ *  be run in the context of some specific restarting task (e.g.,
++ *  restoring IPC state of a certain ipc_ns).
++ *
++ *  Instead, this mechanism is a simple way for the c/r operation as a
++ *  whole, and later a task in particular, to defer some action until
++ *  later (but not arbitrarily later) _in the restore_ operation.
++ *
++ *  Copyright (C) 2009 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ *
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/deferqueue.h>
++
++struct deferqueue_head *deferqueue_create(void)
++{
++	struct deferqueue_head *h = kmalloc(sizeof(*h), GFP_KERNEL);
++	if (h) {
++		spin_lock_init(&h->lock);
++		INIT_LIST_HEAD(&h->list);
++	}
++	return h;
++}
++
++void deferqueue_destroy(struct deferqueue_head *h)
++{
++	if (!list_empty(&h->list)) {
++		struct deferqueue_entry *dq, *n;
++
++		pr_debug("%s: freeing non-empty queue\n", __func__);
++		list_for_each_entry_safe(dq, n, &h->list, list) {
++			if (dq->destructor)
++				dq->destructor(dq->data);
++			list_del(&dq->list);
++			kfree(dq);
++		}
++	}
++	kfree(h);
++}
++
++int deferqueue_add(struct deferqueue_head *head, void *data, int size,
++		   deferqueue_func_t func, deferqueue_func_t dtor)
++{
++	struct deferqueue_entry *dq;
++
++	dq = kmalloc(sizeof(*dq) + size, GFP_KERNEL);
++	if (!dq)
++		return -ENOMEM;
++
++	dq->function = func;
++	dq->destructor = dtor;
++	memcpy(dq->data, data, size);
++
++	pr_debug("%s: adding work %p func %p dtor %p\n",
++		 __func__, dq, func, dtor);
++	spin_lock(&head->lock);
++	list_add_tail(&dq->list, &head->list);
++	spin_unlock(&head->lock);
++	return 0;
++}
++
++/*
++ * deferqueue_run - perform all work in the work queue
++ * @head: deferqueue_head from which to run
++ *
++ * returns: number of works performed, or < 0 on error
++ */
++int deferqueue_run(struct deferqueue_head *head)
++{
++	struct deferqueue_entry *dq, *n;
++	int nr = 0;
++	int ret;
++
++	list_for_each_entry_safe(dq, n, &head->list, list) {
++		pr_debug("doing work %p function %p\n", dq, dq->function);
++		/* don't call destructor - function callback should do it */
++		ret = dq->function(dq->data);
++		if (ret < 0)
++			pr_debug("wq function failed %d\n", ret);
++		list_del(&dq->list);
++		kfree(dq);
++		nr++;
++	}
++
++	return nr;
++}
 -- 
 1.6.3.3
 
