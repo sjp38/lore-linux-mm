@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BCA836B015E
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CB1C46B0170
 	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:21:20 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 07 of 34] add native_set_pmd_at
-Message-Id: <57b4a0586cb3f9b87879.1268839149@v2.random>
+Subject: [PATCH 12 of 34] config_transparent_hugepage
+Message-Id: <8d803156bacf42e0fd62.1268839154@v2.random>
 In-Reply-To: <patchbomb.1268839142@v2.random>
 References: <patchbomb.1268839142@v2.random>
-Date: Wed, 17 Mar 2010 16:19:09 +0100
+Date: Wed, 17 Mar 2010 16:19:14 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,29 +18,34 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Used by paravirt and not paravirt set_pmd_at.
+Add config option.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
- 	native_set_pte(ptep, pte);
- }
+diff --git a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -287,3 +287,17 @@ config NOMMU_INITIAL_TRIM_EXCESS
+ 	  of 1 says that all excess pages should be trimmed.
  
-+static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+				     pmd_t *pmdp , pmd_t pmd)
-+{
-+	native_set_pmd(pmdp, pmd);
-+}
+ 	  See Documentation/nommu-mmap.txt for more information.
 +
- #ifndef CONFIG_PARAVIRT
- /*
-  * Rules for using pte_update - it must be called after any PTE update which
++config TRANSPARENT_HUGEPAGE
++	bool "Transparent Hugepage support" if EMBEDDED
++	depends on X86_64
++	default y
++	help
++	  Transparent Hugepages allows the kernel to use huge pages and
++	  huge tlb transparently to the applications whenever possible.
++	  This feature can improve computing performance to certain
++	  applications by speeding up page faults during memory
++	  allocation, by reducing the number of tlb misses and by speeding
++	  up the pagetable walking.
++
++	  If memory constrained on embedded, you may want to say N.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
