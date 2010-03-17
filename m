@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1434262002A
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:17:22 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E89206B00AF
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:19:01 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 62/96] c/r: add CKPT_COPY() macro
-Date: Wed, 17 Mar 2010 12:08:50 -0400
-Message-Id: <1268842164-5590-63-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-62-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 66/96] c/r: restore file->f_cred
+Date: Wed, 17 Mar 2010 12:08:54 -0400
+Message-Id: <1268842164-5590-67-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-66-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -69,80 +69,88 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-60-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-61-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-62-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-63-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-64-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-65-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-66-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Dan Smith <danms@us.ibm.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-From: Dan Smith <danms@us.ibm.com>
+From: Serge E. Hallyn <serue@us.ibm.com>
 
-As suggested by Dave[1], this provides us a way to make the copy-in and
-copy-out processes symmetric.  CKPT_COPY_ARRAY() provides us a way to do
-the same thing but for arrays.  It's not critical, but it helps us unify
-the checkpoint and restart paths for some things.
+Restore a file's f_cred.  This is set to the cred of the task doing
+the open, so often it will be the same as that of the restarted task.
 
-Changelog:
-    Mar 04:
-            . Removed semicolons
-            . Added build-time check for __must_be_array in CKPT_COPY_ARRAY
-    Feb 27:
-            . Changed CKPT_COPY() to use assignment, eliminating the need
-              for the CKPT_COPY_BIT() macro
-            . Add CKPT_COPY_ARRAY() macro to help copying register arrays,
-              etc
-            . Move the macro definitions inside the CR #ifdef
-    Feb 25:
-            . Changed WARN_ON() to BUILD_BUG_ON()
+Changelog[v1]:
+  - [Nathan Lynch] discard const from struct cred * where appropriate
 
-Signed-off-by: Dan Smith <danms@us.ibm.com>
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
-Acked-by: Serge E. Hallyn <serue@us.ibm.com>
-Tested-by: Serge E. Hallyn <serue@us.ibm.com>
-
-1: https://lists.linux-foundation.org/pipermail/containers/2009-February/015821.html (all the way at the bottom)
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+Acked-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- include/linux/checkpoint.h |   28 ++++++++++++++++++++++++++++
- 1 files changed, 28 insertions(+), 0 deletions(-)
+ checkpoint/files.c             |   18 ++++++++++++++++--
+ include/linux/checkpoint_hdr.h |    2 +-
+ 2 files changed, 17 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 81e2150..9eeb71c 100644
---- a/include/linux/checkpoint.h
-+++ b/include/linux/checkpoint.h
-@@ -260,6 +260,34 @@ static inline int ckpt_validate_errno(int errno)
- 	return (errno >= 0) && (errno < MAX_ERRNO);
- }
+diff --git a/checkpoint/files.c b/checkpoint/files.c
+index 62feadd..63a611f 100644
+--- a/checkpoint/files.c
++++ b/checkpoint/files.c
+@@ -148,15 +148,21 @@ static int scan_fds(struct files_struct *files, int **fdtable)
+ int checkpoint_file_common(struct ckpt_ctx *ctx, struct file *file,
+ 			   struct ckpt_hdr_file *h)
+ {
++	struct cred *f_cred = (struct cred *) file->f_cred;
++
+ 	h->f_flags = file->f_flags;
+ 	h->f_mode = file->f_mode;
+ 	h->f_pos = file->f_pos;
+ 	h->f_version = file->f_version;
  
-+/* useful macros to copy fields and buffers to/from ckpt_hdr_xxx structures */
-+#define CKPT_CPT 1
-+#define CKPT_RST 2
++	h->f_credref = checkpoint_obj(ctx, f_cred, CKPT_OBJ_CRED);
++	if (h->f_credref < 0)
++		return h->f_credref;
 +
-+#define CKPT_COPY(op, SAVE, LIVE)				        \
-+	do {							\
-+		if (op == CKPT_CPT)				\
-+			SAVE = LIVE;				\
-+		else						\
-+			LIVE = SAVE;				\
-+	} while (0)
+ 	ckpt_debug("file %s credref %d", file->f_dentry->d_name.name,
+ 		h->f_credref);
+ 
+-	/* FIX: need also file->uid, file->gid, file->f_owner, etc */
++	/* FIX: need also file->f_owner, etc */
+ 
+ 	return 0;
+ }
+@@ -522,8 +528,16 @@ int restore_file_common(struct ckpt_ctx *ctx, struct file *file,
+ 	fmode_t new_mode = file->f_mode;
+ 	fmode_t saved_mode = (__force fmode_t) h->f_mode;
+ 	int ret;
++	struct cred *cred;
 +
-+/*
-+ * Copy @count items from @LIVE to @SAVE if op is CKPT_CPT (otherwise,
-+ * copy in the reverse direction)
-+ */
-+#define CKPT_COPY_ARRAY(op, SAVE, LIVE, count)				\
-+	do {								\
-+		(void)__must_be_array(SAVE);				\
-+		(void)__must_be_array(LIVE);				\
-+		BUILD_BUG_ON(sizeof(*SAVE) != sizeof(*LIVE));		\
-+		if (op == CKPT_CPT)					\
-+			memcpy(SAVE, LIVE, count * sizeof(*SAVE));	\
-+		else							\
-+			memcpy(LIVE, SAVE, count * sizeof(*SAVE));	\
-+	} while (0)
-+
-+
- /* debugging flags */
- #define CKPT_DBASE	0x1		/* anything */
- #define CKPT_DSYS	0x2		/* generic (system) */
++	/* FIX: need to restore owner etc */
+ 
+-	/* FIX: need to restore uid, gid, owner etc */
++	/* restore the cred */
++	cred = ckpt_obj_fetch(ctx, h->f_credref, CKPT_OBJ_CRED);
++	if (IS_ERR(cred))
++		return PTR_ERR(cred);
++	put_cred(file->f_cred);
++	file->f_cred = get_cred(cred);
+ 
+ 	/* safe to set 1st arg (fd) to 0, as command is F_SETFL */
+ 	ret = vfs_fcntl(0, F_SETFL, h->f_flags & CKPT_SETFL_MASK, file);
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index cbccc81..729be96 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -432,7 +432,7 @@ struct ckpt_hdr_file {
+ 	__u32 f_type;
+ 	__u32 f_mode;
+ 	__u32 f_flags;
+-	__u32 _padding;
++	__s32 f_credref;
+ 	__u64 f_pos;
+ 	__u64 f_version;
+ } __attribute__((aligned(8)));
 -- 
 1.6.3.3
 
