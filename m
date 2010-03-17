@@ -1,62 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 160126B0092
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 21:26:42 -0400 (EDT)
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id o2H1QbXk023115
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 02:26:38 +0100
-Received: from pxi33 (pxi33.prod.google.com [10.243.27.33])
-	by spaceape8.eur.corp.google.com with ESMTP id o2H1QYpS022924
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 18:26:36 -0700
-Received: by pxi33 with SMTP id 33so369449pxi.12
-        for <linux-mm@kvack.org>; Tue, 16 Mar 2010 18:26:34 -0700 (PDT)
-Date: Tue, 16 Mar 2010 18:26:30 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 05/10 -mm v3] oom: badness heuristic rewrite
-In-Reply-To: <20100312152048.e7dc8135.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1003161821400.14676@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1003100236510.30013@chino.kir.corp.google.com> <alpine.DEB.2.00.1003100239150.30013@chino.kir.corp.google.com> <20100312152048.e7dc8135.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 14C016B0087
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 21:44:09 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2H1i86J009645
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 17 Mar 2010 10:44:08 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 776F345DE4D
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 10:44:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B6CD45DE4E
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 10:44:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FB36E38006
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 10:44:08 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C276DE38002
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 10:44:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 01/11] mm,migration: Take a reference to the anon_vma before migrating
+In-Reply-To: <1268412087-13536-2-git-send-email-mel@csn.ul.ie>
+References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie> <1268412087-13536-2-git-send-email-mel@csn.ul.ie>
+Message-Id: <20100317103434.4C8B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 17 Mar 2010 10:44:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Mar 2010, KAMEZAWA Hiroyuki wrote:
+>  rcu_unlock:
+> +
+> +	/* Drop an anon_vma reference if we took one */
+> +	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
+> +		int empty = list_empty(&anon_vma->head);
+> +		spin_unlock(&anon_vma->lock);
+> +		if (empty)
+> +			anon_vma_free(anon_vma);
+> +	}
+> +
 
-> A small concern here.
-> 
-> +u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
-> +{
-> +       return res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-> +}
-> 
-> Because memory cgroup has 2 limit controls as "memory" and "memory+swap",
-> a user may set only "memory" limitation. (Especially on swapless system.)
-> Then, memcg->memsw limit can be infinite in some situation.
-> 
-> So, how about this ? (just an idea after breif thinking..)
-> 
-> u64 mem_cgroup_get_memsw_limit(struct mem_cgroup *memcg)
-> {
-> 	u64 memlimit, memswlimit;
-> 
-> 	memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
-> 	memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-> 	if (memlimit + total_swap_pages > memswlimit)
-> 		return memswlimit;
-> 	return memlimit + total_swap_pages;
-> }
-> 
+Why don't we check ksm_refcount here? Also, why drop_anon_vma() doesn't
+need check migrate_refcount?
 
-I definitely trust your judgment when it comes to memcg, so this is how I 
-implemented it for v4.
+plus, if we add this logic, we can remove SLAB_DESTROY_BY_RCU from 
+anon_vma_cachep and rcu_read_lock() from unmap_and_move(), I think.
+It is for preventing anon_vma recycle logic. but no free directly mean
+no memory recycle.
 
-Is the memcg->memsw RES_LIMIT not initialized to zero for swapless systems 
-or when users don't set a value?  In other words, is this the optimal way 
-to determine how much resident memory and swap that current's memcg is 
-allowed?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
