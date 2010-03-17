@@ -1,78 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AEB262001F
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 15:03:40 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp01.in.ibm.com (8.14.3/8.13.1) with ESMTP id o2HJ2jo2023447
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 00:32:45 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2HJ2j0B3375244
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 00:32:45 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2HJ2i0e011985
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 06:02:45 +1100
-Date: Thu, 18 Mar 2010 00:32:41 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH -mmotm 2/5] memcg: dirty memory documentation
-Message-ID: <20100317190241.GW18054@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
- <1268609202-15581-3-git-send-email-arighi@develer.com>
- <20100316164121.024e35d8.nishimura@mxp.nes.nec.co.jp>
- <49b004811003171048h5f27405oe6ea39a103bc4ee3@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 126B862001F
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 15:07:09 -0400 (EDT)
+Date: Wed, 17 Mar 2010 14:05:53 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 00 of 34] Transparent Hugepage support #14
+In-Reply-To: <patchbomb.1268839142@v2.random>
+Message-ID: <alpine.DEB.2.00.1003171353240.27268@router.home>
+References: <patchbomb.1268839142@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <49b004811003171048h5f27405oe6ea39a103bc4ee3@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-* Greg Thelen <gthelen@google.com> [2010-03-17 09:48:18]:
 
-> On Mon, Mar 15, 2010 at 11:41 PM, Daisuke Nishimura
-> <nishimura@mxp.nes.nec.co.jp> wrote:
-> > On Mon, 15 Mar 2010 00:26:39 +0100, Andrea Righi <arighi@develer.com> wrote:
-> >> Document cgroup dirty memory interfaces and statistics.
-> >>
-> >> Signed-off-by: Andrea Righi <arighi@develer.com>
-> >> ---
-> >>  Documentation/cgroups/memory.txt |   36 ++++++++++++++++++++++++++++++++++++
-> >>  1 files changed, 36 insertions(+), 0 deletions(-)
-> >>
-> >> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> >> index 49f86f3..38ca499 100644
-> >> --- a/Documentation/cgroups/memory.txt
-> >> +++ b/Documentation/cgroups/memory.txt
-> >> @@ -310,6 +310,11 @@ cache            - # of bytes of page cache memory.
-> >>  rss          - # of bytes of anonymous and swap cache memory.
-> >>  pgpgin               - # of pages paged in (equivalent to # of charging events).
-> >>  pgpgout              - # of pages paged out (equivalent to # of uncharging events).
-> >> +filedirty    - # of pages that are waiting to get written back to the disk.
-> >> +writeback    - # of pages that are actively being written back to the disk.
-> >> +writeback_tmp        - # of pages used by FUSE for temporary writeback buffers.
-> >> +nfs          - # of NFS pages sent to the server, but not yet committed to
-> >> +               the actual storage.
-> 
-> Should these new memory.stat counters (filedirty, etc) report byte
-> counts rather than page counts?  I am thinking that byte counters
-> would make reporting more obvious depending on how heterogeneous page
-> sizes are used. Byte counters would also agree with /proc/meminfo.
-> Within the kernel we could still maintain page counts.  The only
-> change would be to the reporting routine, mem_cgroup_get_local_stat(),
-> which would scale the page counts by PAGE_SIZE as it does for for
-> cache,rss,etc.
->
+I am still opposed to this. The patchset results in compound pages be
+managed in 4k segments. The approach so far was that a compound
+page is simply a page struct referring to a larger linear memory
+segment. The compound state is exclusively modified in the first
+page struct which allows an easy conversion of code to deal with compound
+pages since the concept of handling a single page struct is preserved. The
+main difference between the handling of a 4K page and a compound pages
+page struct is that the compound flag is set.
 
-I agree, byte counts would be better than page counts. pgpin and
-pgpout are special cases where the pages matter, the size does not due
-to the nature of the operation. 
+Here compound pages have refcounts in each 4k segment. Critical VM path
+can no longer rely on the page to stay intact since there is this on the
+fly conversion. The on the fly "atomic" conversion requires various forms
+of synchronization and modifications to basic VM primitives like pte
+management and page refcounting.
 
--- 
-	Three Cheers,
-	Balbir
+I would recommend that the conversion between 2M and 4K page work with
+proper synchronization with all those handling references to the page.
+Codepaths handling huge pages should not rely on on the fly conversion but
+properly handle the various sizes. In most cases size does not matter
+since the page state is contained in a single page struct regardless of
+size. This patch here will cause future difficulties in making code handle
+compound pages.
+
+Transparent huge page support better be introduced gradually starting f.e.
+with the support of 2M pages for anonymous pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
