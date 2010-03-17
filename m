@@ -1,69 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 57A58600363
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 19:58:27 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2HNwO0Z029799
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 18 Mar 2010 08:58:24 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3791545DE4F
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:58:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1604945DE4E
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:58:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 860401DB803F
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:58:23 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BB001DB8038
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:58:23 +0900 (JST)
-Date: Thu, 18 Mar 2010 08:54:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
-Message-Id: <20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100317115855.GS18054@balbir.in.ibm.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
-	<1268609202-15581-2-git-send-email-arighi@develer.com>
-	<20100317115855.GS18054@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FC1E600363
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 20:16:53 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e39.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id o2I08wGE008915
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 18:08:58 -0600
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2I0Go5D069580
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 18:16:51 -0600
+Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2I0GnIt015576
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 18:16:50 -0600
+Date: Wed, 17 Mar 2010 16:37:53 -0700
+From: Matt Helsley <matthltc@us.ibm.com>
+Subject: Re: [C/R v20][PATCH 46/96] c/r: add checkpoint operation for
+ opened files of generic filesystems
+Message-ID: <20100317233753.GJ3037@count0.beaverton.ibm.com>
+References: <1268842164-5590-9-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-10-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-11-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-12-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-13-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-14-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-15-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-16-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-17-git-send-email-orenl@cs.columbia.edu>
+ <BA0C23DE-E2B5-42A9-8478-CE216D18A6C6@sun.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BA0C23DE-E2B5-42A9-8478-CE216D18A6C6@sun.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andreas Dilger <adilger@sun.com>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Matt Helsley <matthltc@us.ibm.com>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Mar 2010 17:28:55 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Wed, Mar 17, 2010 at 03:09:00PM -0600, Andreas Dilger wrote:
 
-> * Andrea Righi <arighi@develer.com> [2010-03-15 00:26:38]:
+<snip> (already responded to the first part)
+
+> >static const struct vm_operations_struct nfs_file_vm_ops = {
+> >	.fault = filemap_fault,
+> >	.page_mkwrite = nfs_vm_page_mkwrite,
+> >+#ifdef CONFIG_CHECKPOINT
+> >+	.checkpoint = filemap_checkpoint,
+> >+#endif
+> >};
 > 
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > Now, file-mapped is maintaiend. But more generic update function
-> > will be needed for dirty page accounting.
-> > 
-> > For accountig page status, we have to guarantee lock_page_cgroup()
-> > will be never called under tree_lock held.
-> > To guarantee that, we use trylock at updating status.
-> > By this, we do fuzzy accounting, but in almost all case, it's correct.
-> >
-> 
-> I don't like this at all, but in almost all cases is not acceptable
-> for statistics, since decisions will be made on them and having them
-> incorrect is really bad. Could we do a form of deferred statistics and
-> fix this.
-> 
+> Why is this one conditional, but the others are not?
 
-plz show your implementation which has no performance regresssion.
-For me, I don't neee file_mapped accounting, at all. If we can remove that,
-we can add simple migration lock.
-file_mapped is a feattue you added. please improve it.
+Something like this perhaps (untested, but it should work).
 
+    Move empty filemap_checkpoint definition
+    
+    This makes the operation usable in the nfs vm operation structure
+    and avoids the extra #ifdef.
+    
+    Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
+    Cc: Andreas Dilger <adilger@sun.com>
 
-Thanks,
--Kame
+diff --git a/fs/nfs/file.c b/fs/nfs/file.c
+index 4437ef9..c6f9090 100644
+--- a/fs/nfs/file.c
++++ b/fs/nfs/file.c
+@@ -578,9 +578,7 @@ out_unlock:
+ static const struct vm_operations_struct nfs_file_vm_ops = {
+ 	.fault = filemap_fault,
+ 	.page_mkwrite = nfs_vm_page_mkwrite,
+-#ifdef CONFIG_CHECKPOINT
+ 	.checkpoint = filemap_checkpoint,
+-#endif
+ };
+ 
+ static int nfs_need_sync_write(struct file *filp, struct inode *inode)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 210d8e3..e9d9605 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1206,6 +1206,8 @@ extern int filemap_fault(struct vm_area_struct *, struct vm_fault *);
+ #ifdef CONFIG_CHECKPOINT
+ /* generic vm_area_ops exported for mapped files checkpoint */
+ extern int filemap_checkpoint(struct ckpt_ctx *, struct vm_area_struct *);
++#else /* !CONFIG_CHECKPOINT */
++#define filemap_checkpoint NULL
+ #endif
+ 
+ /* mm/page-writeback.c */
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 4ea28e6..bc98a15 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1678,8 +1678,6 @@ int filemap_restore(struct ckpt_ctx *ctx,
+ 	}
+ 	return ret;
+ }
+-#else /* !CONFIG_CHECKPOINT */
+-#define filemap_checkpoint NULL
+ #endif
+ 
+ const struct vm_operations_struct generic_file_vm_ops = {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
