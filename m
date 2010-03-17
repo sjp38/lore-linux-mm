@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 27A0A6B012D
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 571196B0131
 	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:21:07 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 25 of 34] _GFP_NO_KSWAPD
-Message-Id: <b4d1894d4046b2f73c4c.1268839167@v2.random>
+Subject: [PATCH 08 of 34] add pmd paravirt ops
+Message-Id: <08833cfe9825ecb09f87.1268839150@v2.random>
 In-Reply-To: <patchbomb.1268839142@v2.random>
 References: <patchbomb.1268839142@v2.random>
-Date: Wed, 17 Mar 2010 16:19:27 +0100
+Date: Wed, 17 Mar 2010 16:19:10 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,55 +18,98 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Transparent hugepage allocations must be allowed not to invoke kswapd or any
-other kind of indirect reclaim (especially when the defrag sysfs is control
-disabled). It's unacceptable to swap out anonymous pages (potentially
-anonymous transparent hugepages) in order to create new transparent hugepages.
-This is true for the MADV_HUGEPAGE areas too (swapping out a kvm virtual
-machine and so having it suffer an unbearable slowdown, so another one with
-guest physical memory marked MADV_HUGEPAGE can run 30% faster if it is running
-memory intensive workloads, makes no sense). If a transparent hugepage
-allocation fails the slowdown is minor and there is total fallback, so kswapd
-should never be asked to swapout memory to allow the high order allocation to
-succeed.
+Paravirt ops pmd_update/pmd_update_defer/pmd_set_at. Not all might be necessary
+(vmware needs pmd_update, Xen needs set_pmd_at, nobody needs pmd_update_defer),
+but this is to keep full simmetry with pte paravirt ops, which looks cleaner
+and simpler from a common code POV.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -60,13 +60,15 @@ struct vm_area_struct;
- #define __GFP_NOTRACK	((__force gfp_t)0)
- #endif
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -440,6 +440,11 @@ static inline void pte_update(struct mm_
+ {
+ 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
+ }
++static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
++			      pmd_t *pmdp)
++{
++	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
++}
  
-+#define __GFP_NO_KSWAPD	((__force gfp_t)0x400000u)
+ static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
+ 				    pte_t *ptep)
+@@ -447,6 +452,12 @@ static inline void pte_update_defer(stru
+ 	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
+ }
+ 
++static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
++				    pmd_t *pmdp)
++{
++	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
++}
 +
- /*
-  * This may seem redundant, but it's a way of annotating false positives vs.
-  * allocations that simply cannot be supported (e.g. page tables).
-  */
- #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
+ static inline pte_t __pte(pteval_t val)
+ {
+ 	pteval_t ret;
+@@ -548,6 +559,18 @@ static inline void set_pte_at(struct mm_
+ 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
+ }
  
--#define __GFP_BITS_SHIFT 22	/* Room for 22 __GFP_FOO bits */
-+#define __GFP_BITS_SHIFT 23	/* Room for 23 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
++			      pmd_t *pmdp, pmd_t pmd)
++{
++	if (sizeof(pmdval_t) > sizeof(long))
++		/* 5 arg words */
++		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
++	else
++		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp, pmd.pmd);
++}
++#endif
++
+ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
+ 	pmdval_t val = native_pmd_val(pmd);
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -266,10 +266,16 @@ struct pv_mmu_ops {
+ 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep, pte_t pteval);
+ 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
++	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
++			   pmd_t *pmdp, pmd_t pmdval);
+ 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep);
+ 	void (*pte_update_defer)(struct mm_struct *mm,
+ 				 unsigned long addr, pte_t *ptep);
++	void (*pmd_update)(struct mm_struct *mm, unsigned long addr,
++			   pmd_t *pmdp);
++	void (*pmd_update_defer)(struct mm_struct *mm,
++				 unsigned long addr, pmd_t *pmdp);
  
- /* This equals 0, but use constants in case they ever change */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1844,7 +1844,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, u
- 		goto nopage;
+ 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
+ 					pte_t *ptep);
+diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -422,8 +422,11 @@ struct pv_mmu_ops pv_mmu_ops = {
+ 	.set_pte = native_set_pte,
+ 	.set_pte_at = native_set_pte_at,
+ 	.set_pmd = native_set_pmd,
++	.set_pmd_at = native_set_pmd_at,
+ 	.pte_update = paravirt_nop,
+ 	.pte_update_defer = paravirt_nop,
++	.pmd_update = paravirt_nop,
++	.pmd_update_defer = paravirt_nop,
  
- restart:
--	wake_all_kswapd(order, zonelist, high_zoneidx);
-+	if (!(gfp_mask & __GFP_NO_KSWAPD))
-+		wake_all_kswapd(order, zonelist, high_zoneidx);
- 
- 	/*
- 	 * OK, we're below the kswapd watermark and have kicked background
+ 	.ptep_modify_prot_start = __ptep_modify_prot_start,
+ 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
