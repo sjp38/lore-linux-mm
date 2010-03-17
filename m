@@ -1,76 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 36F2C6B013C
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:48:47 -0400 (EDT)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [10.3.21.5])
-	by smtp-out.google.com with ESMTP id o2HHmemq020217
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 10:48:40 -0700
-Received: from yxe4 (yxe4.prod.google.com [10.190.2.4])
-	by hpaq5.eem.corp.google.com with ESMTP id o2HHmchf027237
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 18:48:39 +0100
-Received: by yxe4 with SMTP id 4so193111yxe.28
-        for <linux-mm@kvack.org>; Wed, 17 Mar 2010 10:48:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100316164121.024e35d8.nishimura@mxp.nes.nec.co.jp>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C4F8362001F
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 14:53:43 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp06.in.ibm.com (8.14.3/8.13.1) with ESMTP id o2HIrXkL015369
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 00:23:33 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2HIrXpO2805934
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 00:23:33 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2HIrW2Y026926
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 05:53:33 +1100
+Date: Thu, 18 Mar 2010 00:23:27 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v7)
+Message-ID: <20100317185327.GV18054@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <1268609202-15581-1-git-send-email-arighi@develer.com>
-	<1268609202-15581-3-git-send-email-arighi@develer.com> <20100316164121.024e35d8.nishimura@mxp.nes.nec.co.jp>
-From: Greg Thelen <gthelen@google.com>
-Date: Wed, 17 Mar 2010 09:48:18 -0800
-Message-ID: <49b004811003171048h5f27405oe6ea39a103bc4ee3@mail.gmail.com>
-Subject: Re: [PATCH -mmotm 2/5] memcg: dirty memory documentation
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+ <20100315171209.GI21127@redhat.com>
+ <20100315171921.GJ21127@redhat.com>
+ <20100317115427.GR18054@balbir.in.ibm.com>
+ <20100317133407.GA9198@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100317133407.GA9198@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 15, 2010 at 11:41 PM, Daisuke Nishimura
-<nishimura@mxp.nes.nec.co.jp> wrote:
-> On Mon, 15 Mar 2010 00:26:39 +0100, Andrea Righi <arighi@develer.com> wro=
-te:
->> Document cgroup dirty memory interfaces and statistics.
->>
->> Signed-off-by: Andrea Righi <arighi@develer.com>
->> ---
->> =A0Documentation/cgroups/memory.txt | =A0 36 +++++++++++++++++++++++++++=
-+++++++++
->> =A01 files changed, 36 insertions(+), 0 deletions(-)
->>
->> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/me=
-mory.txt
->> index 49f86f3..38ca499 100644
->> --- a/Documentation/cgroups/memory.txt
->> +++ b/Documentation/cgroups/memory.txt
->> @@ -310,6 +310,11 @@ cache =A0 =A0 =A0 =A0 =A0 =A0- # of bytes of page c=
-ache memory.
->> =A0rss =A0 =A0 =A0 =A0 =A0- # of bytes of anonymous and swap cache memor=
-y.
->> =A0pgpgin =A0 =A0 =A0 =A0 =A0 =A0 =A0 - # of pages paged in (equivalent =
-to # of charging events).
->> =A0pgpgout =A0 =A0 =A0 =A0 =A0 =A0 =A0- # of pages paged out (equivalent=
- to # of uncharging events).
->> +filedirty =A0 =A0- # of pages that are waiting to get written back to t=
-he disk.
->> +writeback =A0 =A0- # of pages that are actively being written back to t=
-he disk.
->> +writeback_tmp =A0 =A0 =A0 =A0- # of pages used by FUSE for temporary wr=
-iteback buffers.
->> +nfs =A0 =A0 =A0 =A0 =A0- # of NFS pages sent to the server, but not yet=
- committed to
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 the actual storage.
+* Vivek Goyal <vgoyal@redhat.com> [2010-03-17 09:34:07]:
 
-Should these new memory.stat counters (filedirty, etc) report byte
-counts rather than page counts?  I am thinking that byte counters
-would make reporting more obvious depending on how heterogeneous page
-sizes are used. Byte counters would also agree with /proc/meminfo.
-Within the kernel we could still maintain page counts.  The only
-change would be to the reporting routine, mem_cgroup_get_local_stat(),
-which would scale the page counts by PAGE_SIZE as it does for for
-cache,rss,etc.
+> > > 
+> > > root cgroup
+> > > ==========
+> > > #time dd if=/dev/zero of=/root/zerofile bs=4K count=1M
+> > > 4294967296 bytes (4.3 GB) copied, 56.098 s, 76.6 MB/s
+> > > 
+> > > real	0m56.614s
+> > > 
+> > > test1 cgroup with memory limit 100M
+> > > ===================================
+> > > # time dd if=/dev/zero of=/root/zerofile1 bs=4K count=1M
+> > > 4294967296 bytes (4.3 GB) copied, 19.8097 s, 217 MB/s
+> > > 
+> > > real	0m19.992s
+> > > 
+> > 
+> > This is strange, did you flish the cache between the two runs?
+> > NOTE: Since the files are same, we reuse page cache from the
+> > other cgroup.
+> 
+> Files are different. Note suffix "1".
+>
 
---
-Greg
+Thanks, I'll get the perf output and see what I get. 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
