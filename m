@@ -1,76 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 47ABB6B01B3
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:25:09 -0400 (EDT)
-Date: Wed, 17 Mar 2010 15:24:53 +0000
-From: Chris Webb <chris@arachsys.com>
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
- parameter
-Message-ID: <20100317152452.GZ31148@arachsys.com>
-References: <20100315072214.GA18054@balbir.in.ibm.com>
- <4B9DE635.8030208@redhat.com>
- <20100315080726.GB18054@balbir.in.ibm.com>
- <4B9DEF81.6020802@redhat.com>
- <20100315202353.GJ3840@arachsys.com>
- <4B9F4CBD.3020805@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B9F4CBD.3020805@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B133C6B013D
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:50:28 -0400 (EDT)
+From: Oren Laadan <orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 01/96] eclone (1/11): Factor out code to allocate pidmap page
+Date: Wed, 17 Mar 2010 11:48:12 -0400
+Message-Id: <1268840987-4400-2-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268840987-4400-1-git-send-email-orenl@cs.columbia.edu>
+References: <1268840987-4400-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, Kevin Wolf <kwolf@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Avi Kivity <avi@redhat.com> writes:
+From: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
 
-> On 03/15/2010 10:23 PM, Chris Webb wrote:
->
-> >Wasteful duplication of page cache between guest and host notwithstanding,
-> >turning on cache=writeback is a spectacular performance win for our guests.
-> 
-> Is this with qcow2, raw file, or direct volume access?
+To simplify alloc_pidmap(), move code to allocate a pid map page to a
+separate function.
 
-This is with direct access to logical volumes. No file systems or qcow2 in
-the stack. Our typical host has a couple of SATA disks, combined in md
-RAID1, chopped up into volumes with LVM2 (really just dm linear targets).
-The performance measured outside qemu is excellent, inside qemu-kvm is fine
-too until multiple guests are trying to access their drives at once, but
-then everything starts to grind badly.
+Changelog[v4]:
+	- [Oren Laadan] Adapt to kernel 2.6.33-rc5
+Changelog[v3]:
+	- Earlier version of patchset called alloc_pidmap_page() from two
+	  places. But now its called from only one place. Even so, moving
+	  this code out into a separate function simplifies alloc_pidmap().
+Changelog[v2]:
+	- (Matt Helsley, Dave Hansen) Have alloc_pidmap_page() return
+	  -ENOMEM on error instead of -1.
 
-> I can understand it for qcow2, but for direct volume access this
-> shouldn't happen.  The guest schedules as many writes as it can,
-> followed by a sync.  The host (and disk) can then reschedule them
-> whether they are in the writeback cache or in the block layer, and
-> must sync in the same way once completed.
+Signed-off-by: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+Acked-by: Serge E. Hallyn <serue@us.ibm.com>
+Tested-by: Serge E. Hallyn <serue@us.ibm.com>
+Reviewed-by: Oren Laadan <orenl@cs.columbia.edu>
+---
+ kernel/pid.c |   41 ++++++++++++++++++++++++++---------------
+ 1 files changed, 26 insertions(+), 15 deletions(-)
 
-I don't really understand what's going on here, but I wonder if the
-underlying problem might be that all the O_DIRECT/O_SYNC writes from the
-guests go down into the same block device at the bottom of the device mapper
-stack, and thus can't be reordered with respect to one another. For our
-purposes,
-
-  Guest AA   Guest BB       Guest AA   Guest BB       Guest AA   Guest BB
-  write A1                  write A1                             write B1
-             write B1       write A2                  write A1
-  write A2                             write B1       write A2
-
-are all equivalent, but the system isn't allowed to reorder in this way
-because there isn't a separate request queue for each logical volume, just
-the one at the bottom. (I don't know whether nested request queues would
-behave remotely reasonably either, though!)
-
-Also, if my guest kernel issues (say) three small writes, one at the start
-of the disk, one in the middle, one at the end, and then does a flush, can
-virtio really express this as one non-contiguous O_DIRECT write (the three
-components of which can be reordered by the elevator with respect to one
-another) rather than three distinct O_DIRECT writes which can't be permuted?
-Can qemu issue a write like that? cache=writeback + flush allows this to be
-optimised by the block layer in the normal way.
-
-Cheers,
-
-Chris.
+diff --git a/kernel/pid.c b/kernel/pid.c
+index 2e17c9c..39292e6 100644
+--- a/kernel/pid.c
++++ b/kernel/pid.c
+@@ -122,6 +122,30 @@ static void free_pidmap(struct upid *upid)
+ 	atomic_inc(&map->nr_free);
+ }
+ 
++static int alloc_pidmap_page(struct pidmap *map)
++{
++	void *page;
++
++	if (likely(map->page))
++		return 0;
++
++	page = kzalloc(PAGE_SIZE, GFP_KERNEL);
++	/*
++	 * Free the page if someone raced with us installing it:
++	 */
++	spin_lock_irq(&pidmap_lock);
++	if (!map->page) {
++		map->page = page;
++		page = NULL;
++	}
++	spin_unlock_irq(&pidmap_lock);
++	kfree(page);
++	if (unlikely(!map->page))
++		return -1;
++
++	return 0;
++}
++
+ static int alloc_pidmap(struct pid_namespace *pid_ns)
+ {
+ 	int i, offset, max_scan, pid, last = pid_ns->last_pid;
+@@ -134,22 +158,9 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
+ 	map = &pid_ns->pidmap[pid/BITS_PER_PAGE];
+ 	max_scan = (pid_max + BITS_PER_PAGE - 1)/BITS_PER_PAGE - !offset;
+ 	for (i = 0; i <= max_scan; ++i) {
+-		if (unlikely(!map->page)) {
+-			void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
+-			/*
+-			 * Free the page if someone raced with us
+-			 * installing it:
+-			 */
+-			spin_lock_irq(&pidmap_lock);
+-			if (!map->page) {
+-				map->page = page;
+-				page = NULL;
+-			}
+-			spin_unlock_irq(&pidmap_lock);
+-			kfree(page);
+-			if (unlikely(!map->page))
++		if (unlikely(!map->page))
++			if (alloc_pidmap_page(map) < 0)
+ 				break;
+-		}
+ 		if (likely(atomic_read(&map->nr_free))) {
+ 			do {
+ 				if (!test_and_set_bit(offset, map->page)) {
+-- 
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
