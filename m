@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C8FC60023A
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 04:55:41 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [10.3.21.13])
-	by smtp-out.google.com with ESMTP id o2H8tabd011890
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 09:55:36 +0100
-Received: from pwj7 (pwj7.prod.google.com [10.241.219.71])
-	by hpaq13.eem.corp.google.com with ESMTP id o2H8tYP3020368
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 09:55:35 +0100
-Received: by pwj7 with SMTP id 7so543686pwj.38
-        for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:34 -0700 (PDT)
-Date: Wed, 17 Mar 2010 01:55:31 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BA52760023A
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 04:55:42 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [10.3.21.1])
+	by smtp-out.google.com with ESMTP id o2H8tdwa015171
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:40 -0700
+Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
+	by hpaq1.eem.corp.google.com with ESMTP id o2H8tbaG007990
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 09:55:38 +0100
+Received: by pwj4 with SMTP id 4so651568pwj.41
+        for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:37 -0700 (PDT)
+Date: Wed, 17 Mar 2010 01:55:35 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 03/11 -mm v4] oom: select task from tasklist for mempolicy
+Subject: [patch 04/11 -mm v4] oom: remove special handling for pagefault
  ooms
 In-Reply-To: <alpine.DEB.2.00.1003170151540.31796@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1003170153010.31796@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1003170153160.31796@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1003170151540.31796@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,296 +24,160 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The oom killer presently kills current whenever there is no more memory
-free or reclaimable on its mempolicy's nodes.  There is no guarantee that
-current is a memory-hogging task or that killing it will free any
-substantial amount of memory, however.
+It is possible to remove the special pagefault oom handler by simply
+oom locking all system zones and then calling directly into
+out_of_memory().
 
-In such situations, it is better to scan the tasklist for nodes that are
-allowed to allocate on current's set of nodes and kill the task with the
-highest badness() score.  This ensures that the most memory-hogging task,
-or the one configured by the user with /proc/pid/oom_adj, is always
-selected in such scenarios.
+All populated zones must have ZONE_OOM_LOCKED set, otherwise there is a
+parallel oom killing in progress that will lead to eventual memory
+freeing so it's not necessary to needlessly kill another task.  The
+context in which the pagefault is allocating memory is unknown to the oom
+killer, so this is done on a system-wide level.
 
-It is necessary to synchronize the detachment of task->mempolicy with
-task_lock(task) to ensure it is not prematurely destroyed while a user is
-operating on it.
+If a task has already been oom killed and hasn't fully exited yet, this
+will be a no-op since select_bad_process() recognizes tasks across the
+system with TIF_MEMDIE set.
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- include/linux/mempolicy.h |   13 +++++++-
- kernel/exit.c             |    8 ++--
- mm/mempolicy.c            |   44 +++++++++++++++++++++++++
- mm/oom_kill.c             |   77 +++++++++++++++++++++++++++-----------------
- 4 files changed, 107 insertions(+), 35 deletions(-)
+ mm/oom_kill.c |   91 +++++++++++++++++++++++++++++++++++++--------------------
+ 1 files changed, 59 insertions(+), 32 deletions(-)
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -202,6 +202,8 @@ extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
- 				unsigned long addr, gfp_t gfp_flags,
- 				struct mempolicy **mpol, nodemask_t **nodemask);
- extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
-+extern bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-+				const nodemask_t *mask);
- extern unsigned slab_node(struct mempolicy *policy);
- 
- extern enum zone_type policy_zone;
-@@ -329,7 +331,16 @@ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
- 	return node_zonelist(0, gfp_flags);
- }
- 
--static inline bool init_nodemask_of_mempolicy(nodemask_t *m) { return false; }
-+static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
-+{
-+	return false;
-+}
-+
-+static inline bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-+			const nodemask_t *mask)
-+{
-+	return false;
-+}
- 
- static inline int do_migrate_pages(struct mm_struct *mm,
- 			const nodemask_t *from_nodes,
-diff --git a/kernel/exit.c b/kernel/exit.c
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -697,6 +697,10 @@ static void exit_mm(struct task_struct * tsk)
- 	enter_lazy_tlb(mm, current);
- 	/* We don't want this task to be frozen prematurely */
- 	clear_freeze_flag(tsk);
-+#ifdef CONFIG_NUMA
-+	mpol_put(tsk->mempolicy);
-+	tsk->mempolicy = NULL;
-+#endif
- 	task_unlock(tsk);
- 	mm_update_next_owner(mm);
- 	mmput(mm);
-@@ -1001,10 +1005,6 @@ NORET_TYPE void do_exit(long code)
- 	perf_event_exit_task(tsk);
- 
- 	exit_notify(tsk, group_dead);
--#ifdef CONFIG_NUMA
--	mpol_put(tsk->mempolicy);
--	tsk->mempolicy = NULL;
--#endif
- #ifdef CONFIG_FUTEX
- 	if (unlikely(current->pi_state_cache))
- 		kfree(current->pi_state_cache);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1638,6 +1638,50 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
- }
- #endif
- 
-+/*
-+ * mempolicy_nodemask_intersects
-+ *
-+ * If tsk's mempolicy is "default" [NULL], return 'true' to indicate default
-+ * policy.  Otherwise, check for intersection between mask and the policy
-+ * nodemask for 'bind' or 'interleave' policy.  For 'perferred' or 'local'
-+ * policy, always return true since it may allocate elsewhere on fallback.
-+ *
-+ * Takes task_lock(tsk) to prevent freeing of its mempolicy.
-+ */
-+bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-+					const nodemask_t *mask)
-+{
-+	struct mempolicy *mempolicy;
-+	bool ret = true;
-+
-+	if (!mask)
-+		return ret;
-+	task_lock(tsk);
-+	mempolicy = tsk->mempolicy;
-+	if (!mempolicy)
-+		goto out;
-+
-+	switch (mempolicy->mode) {
-+	case MPOL_PREFERRED:
-+		/*
-+		 * MPOL_PREFERRED and MPOL_F_LOCAL are only preferred nodes to
-+		 * allocate from, they may fallback to other nodes when oom.
-+		 * Thus, it's possible for tsk to have allocated memory from
-+		 * nodes in mask.
-+		 */
-+		break;
-+	case MPOL_BIND:
-+	case MPOL_INTERLEAVE:
-+		ret = nodes_intersects(mempolicy->v.nodes, *mask);
-+		break;
-+	default:
-+		BUG();
-+	}
-+out:
-+	task_unlock(tsk);
-+	return ret;
-+}
-+
- /* Allocate a page in interleaved policy.
-    Own path because it needs to do special accounting. */
- static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -26,6 +26,7 @@
- #include <linux/module.h>
- #include <linux/notifier.h>
- #include <linux/memcontrol.h>
-+#include <linux/mempolicy.h>
- #include <linux/security.h>
- 
- int sysctl_panic_on_oom;
-@@ -36,19 +37,35 @@ static DEFINE_SPINLOCK(zone_scan_lock);
- 
- /*
-  * Do all threads of the target process overlap our allowed nodes?
-+ * @tsk: task struct of which task to consider
-+ * @mask: nodemask passed to page allocator for mempolicy ooms
-  */
--static int has_intersects_mems_allowed(struct task_struct *tsk)
-+static bool has_intersects_mems_allowed(struct task_struct *tsk,
-+						const nodemask_t *mask)
- {
--	struct task_struct *t;
-+	struct task_struct *start = tsk;
- 
--	t = tsk;
- 	do {
--		if (cpuset_mems_allowed_intersects(current, t))
--			return 1;
--		t = next_thread(t);
--	} while (t != tsk);
--
--	return 0;
-+		if (mask) {
-+			/*
-+			 * If this is a mempolicy constrained oom, tsk's
-+			 * cpuset is irrelevant.  Only return true if its
-+			 * mempolicy intersects current, otherwise it may be
-+			 * needlessly killed.
-+			 */
-+			if (mempolicy_nodemask_intersects(tsk, mask))
-+				return true;
-+		} else {
-+			/*
-+			 * This is not a mempolicy constrained oom, so only
-+			 * check the mems of tsk's cpuset.
-+			 */
-+			if (cpuset_mems_allowed_intersects(current, tsk))
-+				return true;
-+		}
-+		tsk = next_thread(tsk);
-+	} while (tsk != start);
-+	return false;
+@@ -582,6 +582,44 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
  }
  
- /**
-@@ -236,7 +253,8 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
-  * (not docbooked, we don't want this one cluttering up the manual)
-  */
- static struct task_struct *select_bad_process(unsigned long *ppoints,
--						struct mem_cgroup *mem)
-+		struct mem_cgroup *mem, enum oom_constraint constraint,
-+		const nodemask_t *mask)
- {
- 	struct task_struct *p;
- 	struct task_struct *chosen = NULL;
-@@ -258,7 +276,9 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
- 			continue;
- 		if (mem && !task_in_mem_cgroup(p, mem))
- 			continue;
--		if (!has_intersects_mems_allowed(p))
-+		if (!has_intersects_mems_allowed(p,
-+				constraint == CONSTRAINT_MEMORY_POLICY ? mask :
-+									 NULL))
- 			continue;
- 
- 		/*
-@@ -482,7 +502,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
- 		panic("out of memory(memcg). panic_on_oom is selected.\n");
- 	read_lock(&tasklist_lock);
- retry:
--	p = select_bad_process(&points, mem);
-+	p = select_bad_process(&points, mem, CONSTRAINT_NONE, NULL);
- 	if (PTR_ERR(p) == -1UL)
- 		goto out;
- 
-@@ -564,7 +584,8 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
  /*
++ * Try to acquire the oom killer lock for all system zones.  Returns zero if a
++ * parallel oom killing is taking place, otherwise locks all zones and returns
++ * non-zero.
++ */
++static int try_set_system_oom(void)
++{
++	struct zone *zone;
++	int ret = 1;
++
++	spin_lock(&zone_scan_lock);
++	for_each_populated_zone(zone)
++		if (zone_is_oom_locked(zone)) {
++			ret = 0;
++			goto out;
++		}
++	for_each_populated_zone(zone)
++		zone_set_flag(zone, ZONE_OOM_LOCKED);
++out:
++	spin_unlock(&zone_scan_lock);
++	return ret;
++}
++
++/*
++ * Clears ZONE_OOM_LOCKED for all system zones so that failed allocation
++ * attempts or page faults may now recall the oom killer, if necessary.
++ */
++static void clear_system_oom(void)
++{
++	struct zone *zone;
++
++	spin_lock(&zone_scan_lock);
++	for_each_populated_zone(zone)
++		zone_clear_flag(zone, ZONE_OOM_LOCKED);
++	spin_unlock(&zone_scan_lock);
++}
++
++
++/*
   * Must be called with tasklist_lock held for read.
   */
--static void __out_of_memory(gfp_t gfp_mask, int order)
-+static void __out_of_memory(gfp_t gfp_mask, int order,
-+			enum oom_constraint constraint, const nodemask_t *mask)
- {
- 	struct task_struct *p;
- 	unsigned long points;
-@@ -578,7 +599,7 @@ retry:
- 	 * Rambo mode: Shoot down a process and hope it solves whatever
- 	 * issues we may have.
- 	 */
--	p = select_bad_process(&points, NULL);
-+	p = select_bad_process(&points, NULL, constraint, mask);
+ static void __out_of_memory(gfp_t gfp_mask, int order,
+@@ -616,38 +654,9 @@ retry:
+ 		goto retry;
+ }
  
- 	if (PTR_ERR(p) == -1UL)
- 		return;
-@@ -612,7 +633,8 @@ void pagefault_out_of_memory(void)
- 		panic("out of memory from page fault. panic_on_oom is selected.\n");
- 
- 	read_lock(&tasklist_lock);
--	__out_of_memory(0, 0); /* unknown gfp_mask and order */
-+	/* unknown gfp_mask and order */
-+	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
- 	read_unlock(&tasklist_lock);
- 
- 	/*
-@@ -628,6 +650,7 @@ void pagefault_out_of_memory(void)
-  * @zonelist: zonelist pointer
+-/*
+- * pagefault handler calls into here because it is out of memory but
+- * doesn't know exactly how or why.
+- */
+-void pagefault_out_of_memory(void)
+-{
+-	unsigned long freed = 0;
+-
+-	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+-	if (freed > 0)
+-		/* Got some memory back in the last second. */
+-		return;
+-
+-	if (sysctl_panic_on_oom)
+-		panic("out of memory from page fault. panic_on_oom is selected.\n");
+-
+-	read_lock(&tasklist_lock);
+-	/* unknown gfp_mask and order */
+-	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
+-	read_unlock(&tasklist_lock);
+-
+-	/*
+-	 * Give "p" a good chance of killing itself before we
+-	 * retry to allocate memory.
+-	 */
+-	if (!test_thread_flag(TIF_MEMDIE))
+-		schedule_timeout_uninterruptible(1);
+-}
+-
+ /**
+  * out_of_memory - kill the "best" process when we run out of memory
+- * @zonelist: zonelist pointer
++ * @zonelist: zonelist pointer passed to page allocator
   * @gfp_mask: memory allocation flags
   * @order: amount of memory being requested as a power of 2
-+ * @nodemask: nodemask passed to page allocator
-  *
-  * If we run out of memory, we have the choice between either
-  * killing a random task (bad), letting the system crash (worse)
-@@ -656,24 +679,18 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	 */
- 	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
- 	read_lock(&tasklist_lock);
--
--	switch (constraint) {
--	case CONSTRAINT_MEMORY_POLICY:
--		oom_kill_process(current, gfp_mask, order, 0, NULL,
--				"No available memory (MPOL_BIND)");
--		break;
--
--	case CONSTRAINT_NONE:
--		if (sysctl_panic_on_oom) {
-+	if (unlikely(sysctl_panic_on_oom)) {
-+		/*
-+		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
-+		 * should not panic for cpuset or mempolicy induced memory
-+		 * failures.
-+		 */
-+		if (constraint == CONSTRAINT_NONE) {
- 			dump_header(NULL, gfp_mask, order, NULL);
--			panic("out of memory. panic_on_oom is selected\n");
-+			panic("Out of memory: panic_on_oom is enabled\n");
- 		}
--		/* Fall-through */
--	case CONSTRAINT_CPUSET:
--		__out_of_memory(gfp_mask, order);
--		break;
- 	}
--
-+	__out_of_memory(gfp_mask, order, constraint, nodemask);
- 	read_unlock(&tasklist_lock);
+  * @nodemask: nodemask passed to page allocator
+@@ -661,7 +670,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		int order, nodemask_t *nodemask)
+ {
+ 	unsigned long freed = 0;
+-	enum oom_constraint constraint;
++	enum oom_constraint constraint = CONSTRAINT_NONE;
  
- 	/*
+ 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+ 	if (freed > 0)
+@@ -677,7 +686,8 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
+ 	 */
+-	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
++	if (zonelist)
++		constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
+ 	read_lock(&tasklist_lock);
+ 	if (unlikely(sysctl_panic_on_oom)) {
+ 		/*
+@@ -687,6 +697,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		 */
+ 		if (constraint == CONSTRAINT_NONE) {
+ 			dump_header(NULL, gfp_mask, order, NULL);
++			read_unlock(&tasklist_lock);
+ 			panic("Out of memory: panic_on_oom is enabled\n");
+ 		}
+ 	}
+@@ -700,3 +711,19 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	if (!test_thread_flag(TIF_MEMDIE))
+ 		schedule_timeout_uninterruptible(1);
+ }
++
++/*
++ * The pagefault handler calls here because it is out of memory, so kill a
++ * memory-hogging task.  If a populated zone has ZONE_OOM_LOCKED set, a parallel
++ * oom killing is already in progress so do nothing.  If a task is found with
++ * TIF_MEMDIE set, it has been killed so do nothing and allow it to exit.
++ */
++void pagefault_out_of_memory(void)
++{
++	if (try_set_system_oom()) {
++		out_of_memory(NULL, 0, 0, NULL);
++		clear_system_oom();
++	}
++	if (!test_thread_flag(TIF_MEMDIE))
++		schedule_timeout_uninterruptible(1);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
