@@ -1,63 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B9F3B62001F
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 15:15:52 -0400 (EDT)
-Date: Wed, 17 Mar 2010 15:15:14 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CBF662001F
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 15:17:54 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp07.au.ibm.com (8.14.3/8.13.1) with ESMTP id o2HJHnJm001814
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 06:17:49 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2HJHnNN1851598
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 06:17:49 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2HJHmUj012570
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 06:17:49 +1100
+Date: Thu, 18 Mar 2010 00:47:43 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v7)
-Message-ID: <20100317191514.GC9198@redhat.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com> <20100315171209.GI21127@redhat.com> <20100315171921.GJ21127@redhat.com> <20100317115427.GR18054@balbir.in.ibm.com> <20100317133407.GA9198@redhat.com> <20100317185327.GV18054@balbir.in.ibm.com>
+Message-ID: <20100317191743.GY18054@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1268609202-15581-1-git-send-email-arighi@develer.com>
+ <20100315171209.GI21127@redhat.com>
+ <20100315171921.GJ21127@redhat.com>
+ <20100317115427.GR18054@balbir.in.ibm.com>
+ <20100317133407.GA9198@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100317185327.GV18054@balbir.in.ibm.com>
+In-Reply-To: <20100317133407.GA9198@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Vivek Goyal <vgoyal@redhat.com>
 Cc: Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 18, 2010 at 12:23:27AM +0530, Balbir Singh wrote:
-> * Vivek Goyal <vgoyal@redhat.com> [2010-03-17 09:34:07]:
-> 
+* Vivek Goyal <vgoyal@redhat.com> [2010-03-17 09:34:07]:
+
+> On Wed, Mar 17, 2010 at 05:24:28PM +0530, Balbir Singh wrote:
+> > * Vivek Goyal <vgoyal@redhat.com> [2010-03-15 13:19:21]:
+> > 
+> > > On Mon, Mar 15, 2010 at 01:12:09PM -0400, Vivek Goyal wrote:
+> > > > On Mon, Mar 15, 2010 at 12:26:37AM +0100, Andrea Righi wrote:
+> > > > > Control the maximum amount of dirty pages a cgroup can have at any given time.
+> > > > > 
+> > > > > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
+> > > > > page cache used by any cgroup. So, in case of multiple cgroup writers, they
+> > > > > will not be able to consume more than their designated share of dirty pages and
+> > > > > will be forced to perform write-out if they cross that limit.
+> > > > > 
+> > > > 
+> > > > For me even with this version I see that group with 100M limit is getting
+> > > > much more BW.
 > > > > 
 > > > > root cgroup
 > > > > ==========
 > > > > #time dd if=/dev/zero of=/root/zerofile bs=4K count=1M
-> > > > 4294967296 bytes (4.3 GB) copied, 56.098 s, 76.6 MB/s
+> > > > 4294967296 bytes (4.3 GB) copied, 55.7979 s, 77.0 MB/s
 > > > > 
-> > > > real	0m56.614s
+> > > > real	0m56.209s
 > > > > 
-> > > > test1 cgroup with memory limit 100M
-> > > > ===================================
+> > > > test1 cgroup with memory limit of 100M
+> > > > ======================================
 > > > > # time dd if=/dev/zero of=/root/zerofile1 bs=4K count=1M
-> > > > 4294967296 bytes (4.3 GB) copied, 19.8097 s, 217 MB/s
+> > > > 4294967296 bytes (4.3 GB) copied, 20.9252 s, 205 MB/s
 > > > > 
-> > > > real	0m19.992s
+> > > > real	0m21.096s
+> > > > 
+> > > > Note, these two jobs are not running in parallel. These are running one
+> > > > after the other.
 > > > > 
 > > > 
-> > > This is strange, did you flish the cache between the two runs?
-> > > NOTE: Since the files are same, we reuse page cache from the
-> > > other cgroup.
-> > 
-> > Files are different. Note suffix "1".
-> >
-> 
-> Thanks, I'll get the perf output and see what I get. 
 
-One more thing I noticed and that is, it happens only if we limit the
-memory of cgroup to 100M. If same cgroup test1 is unlimited memory 
-thing, then it did not happen.
+The data is not always repeatable at my end. Are you able to modify
+the order and get repeatable results?
 
-I also did not notice this happening on other system where I have 4G of
-memory. So it also seems to be related with only bigger configurations.
+In fact, I saw
 
-Thanks
-Vivek
+for cgroup != root
+------------------
+4294967296 bytes (4.3 GB) copied, 120.359 s, 35.7 MB/s
 
-> 
-> -- 
-> 	Three Cheers,
-> 	Balbir
+for cgroup = root
+-----------------
+4294967296 bytes (4.3 GB) copied, 84.504 s, 50.8 MB/s
+
+This is without the patches applied.
+
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
