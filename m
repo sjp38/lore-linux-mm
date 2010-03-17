@@ -1,77 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ACFBA620026
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 04:56:01 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id o2H8txSs030294
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:59 -0700
-Received: from pvg12 (pvg12.prod.google.com [10.241.210.140])
-	by kpbe19.cbf.corp.google.com with ESMTP id o2H8tYje004192
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:58 -0700
-Received: by pvg12 with SMTP id 12so422612pvg.24
-        for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:58 -0700 (PDT)
-Date: Wed, 17 Mar 2010 01:55:56 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 11/11 -mm v4] oom: avoid race for oom killed tasks detaching
- mm prior to exit
-In-Reply-To: <alpine.DEB.2.00.1003170151540.31796@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1003170154590.31796@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1003170151540.31796@chino.kir.corp.google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 312F4620026
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 05:11:02 -0400 (EDT)
+Message-ID: <4BA09C9D.1030608@redhat.com>
+Date: Wed, 17 Mar 2010 11:10:53 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
+References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com> <4B9F4CBD.3020805@redhat.com> <20100316102637.GA23584@lst.de> <4B9F5F2F.8020501@redhat.com> <20100316104422.GA24258@lst.de> <4B9F66AC.5080400@redhat.com> <20100317084911.GA9098@lst.de>
+In-Reply-To: <20100317084911.GA9098@lst.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Chris Webb <chris@arachsys.com>, balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kevin Wolf <kwolf@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Tasks detach its ->mm prior to exiting so it's possible that in progress
-oom kills or already exiting tasks may be missed during the oom killer's
-tasklist scan.  When an eligible task is found with either TIF_MEMDIE or
-PF_EXITING set, the oom killer is supposed to be a no-op to avoid
-needlessly killing additional tasks.  This closes the race between a task
-detaching its ->mm and being removed from the tasklist.
+On 03/17/2010 10:49 AM, Christoph Hellwig wrote:
+> On Tue, Mar 16, 2010 at 01:08:28PM +0200, Avi Kivity wrote:
+>    
+>> If the batch size is larger than the virtio queue size, or if there are
+>> no flushes at all, then yes the huge write cache gives more opportunity
+>> for reordering.  But we're already talking hundreds of requests here.
+>>      
+> Yes.  And rememember those don't have to come from the same host.  Also
+> remember that we rather limit execssive reodering of O_DIRECT requests
+> in the I/O scheduler because they are "synchronous" type I/O while
+> we don't do that for pagecache writeback.
+>    
 
-Out of memory conditions as the result of memory controllers will
-automatically filter tasks that have detached their ->mm (since
-task_in_mem_cgroup() will return 0).  This is acceptable, however, since
-memcg constrained ooms aren't the result of a lack of memory resources
-but rather a limit imposed by userspace that requires a task be killed
-regardless.
+Maybe we should relax that for kvm.  Perhaps some of the problem comes 
+from the fact that we call io_submit() once per request.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |   12 ++++++------
- 1 files changed, 6 insertions(+), 6 deletions(-)
+> And we don't have unlimited virtio queue size, in fact it's quite
+> limited.
+>    
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -290,12 +290,6 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 	for_each_process(p) {
- 		unsigned int points;
- 
--		/*
--		 * skip kernel threads and tasks which have already released
--		 * their mm.
--		 */
--		if (!p->mm)
--			continue;
- 		/* skip the init task */
- 		if (is_global_init(p))
- 			continue;
-@@ -336,6 +330,12 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 			*ppoints = 1000;
- 		}
- 
-+		/*
-+		 * skip kernel threads and tasks which have already released
-+		 * their mm.
-+		 */
-+		if (!p->mm)
-+			continue;
- 		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
- 			continue;
- 
+That can be extended easily if it fixes the problem.
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
