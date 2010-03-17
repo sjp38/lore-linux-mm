@@ -1,116 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 739786B004D
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 00:23:07 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2H4N35O010966
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 17 Mar 2010 13:23:03 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CD8045DE7C
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:23:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1610645DE6E
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:23:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EFB071DB8040
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:23:02 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 79BFBE18001
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:23:02 +0900 (JST)
-Date: Wed, 17 Mar 2010 13:19:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
- anonymous pages
-Message-Id: <20100317131912.0712e6b0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <28c262361003162115k79e3d40fka6e1def6472823ef@mail.gmail.com>
-References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
-	<28c262361003141728g4aa40901hb040144c5a4aeeed@mail.gmail.com>
-	<20100315143420.6ec3bdf9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100315112829.GI18274@csn.ul.ie>
-	<1268657329.1889.4.camel@barrios-desktop>
-	<20100315142124.GL18274@csn.ul.ie>
-	<20100316084934.3798576c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100317111234.d224f3fd.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262361003162000w34cc13ecnbd32840a0df80f95@mail.gmail.com>
-	<20100317121551.b619f55b.kamezawa.hiroyu@jp.fujitsu.com>
-	<28c262361003162115k79e3d40fka6e1def6472823ef@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8320D6B00D7
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 02:44:17 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp08.in.ibm.com (8.14.3/8.13.1) with ESMTP id o2H5utcp030233
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:26:55 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2H6i5uZ3530844
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:14:05 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2H6i4Ov004254
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 17:44:05 +1100
+Date: Wed, 17 Mar 2010 12:14:02 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v7)
+Message-ID: <20100317064402.GP18054@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1268609202-15581-1-git-send-email-arighi@develer.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1268609202-15581-1-git-send-email-arighi@develer.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Righi <arighi@develer.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Mar 2010 13:15:14 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+* Andrea Righi <arighi@develer.com> [2010-03-15 00:26:37]:
 
-> On Wed, Mar 17, 2010 at 12:15 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 17 Mar 2010 12:00:15 +0900
-> > Minchan Kim <minchan.kim@gmail.com> wrote:
-> >
-> >> On Wed, Mar 17, 2010 at 11:12 AM, KAMEZAWA Hiroyuki
-> >> > BTW, I doubt freeing anon_vma can happen even when we check mapcount.
-> >> >
-> >> > "unmap" is 2-stage operation.
-> >> > A  A  A  A 1. unmap_vmas() => modify ptes, free pages, etc.
-> >> > A  A  A  A 2. free_pgtables() => free pgtables, unlink vma and free it.
-> >> >
-> >> > Then, if migration is enough slow.
-> >> >
-> >> > A  A  A  A Migration(): A  A  A  A  A  A  A  A  A  A  A  A  A  A Exit():
-> >> > A  A  A  A check mapcount
-> >> > A  A  A  A rcu_read_lock
-> >> > A  A  A  A pte_lock
-> >> > A  A  A  A replace pte with migration pte
-> >> > A  A  A  A pte_unlock
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A pte_lock
-> >> > A  A  A  A copy page etc... A  A  A  A  A  A  A  A  A  A  A  A zap pte (clear pte)
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A pte_unlock
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A free_pgtables
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A ->free vma
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A ->free anon_vma
-> >> > A  A  A  A pte_lock
-> >> > A  A  A  A remap pte with new pfn(fail)
-> >> > A  A  A  A pte_unlock
-> >> >
-> >> > A  A  A  A lock anon_vma->lock A  A  A  A  A  A  # modification after free.
-> >> > A  A  A  A check list is empty
-> >>
-> >> check list is empty?
-> >> Do you mean anon_vma->head?
-> >>
-> > yes.
-> >
-> >> If it is, is it possible that that list isn't empty since anon_vma is
-> >> used by others due to
-> >> SLAB_DESTROY_BY_RCU?
-> >>
-> > There are 4 cases.
-> > A  A  A  A A) anon_vma->list is not empty because anon_vma is not freed.
-> > A  A  A  A B) anon_vma->list is empty because it's freed.
-> > A  A  A  A C) anon_vma->list is empty but it's reused.
-> > A  A  A  A D) anon_vma->list is not empty but it's reused.
+> Control the maximum amount of dirty pages a cgroup can have at any given time.
 > 
-> E) anon_vma is used for other object.
+> Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
+> page cache used by any cgroup. So, in case of multiple cgroup writers, they
+> will not be able to consume more than their designated share of dirty pages and
+> will be forced to perform write-out if they cross that limit.
 > 
-> That's because we don't hold rcu_read_lock.
-> I think Mel met this E) situation.
+> The overall design is the following:
 > 
-Hmm. 
+>  - account dirty pages per cgroup
+>  - limit the number of dirty pages via memory.dirty_ratio / memory.dirty_bytes
+>    and memory.dirty_background_ratio / memory.dirty_background_bytes in
+>    cgroupfs
+>  - start to write-out (background or actively) when the cgroup limits are
+>    exceeded
+> 
+> This feature is supposed to be strictly connected to any underlying IO
+> controller implementation, so we can stop increasing dirty pages in VM layer
+> and enforce a write-out before any cgroup will consume the global amount of
+> dirty pages defined by the /proc/sys/vm/dirty_ratio|dirty_bytes and
+> /proc/sys/vm/dirty_background_ratio|dirty_background_bytes limits.
+> 
+> Changelog (v6 -> v7)
+> ~~~~~~~~~~~~~~~~~~~~~~
+>  * introduce trylock_page_cgroup() to guarantee that lock_page_cgroup()
+>    is never called under tree_lock (no strict accounting, but better overall
+>    performance)
+>  * do not account file cache statistics for the root cgroup (zero
+>    overhead for the root cgroup)
+>  * fix: evaluate cgroup free pages as at the minimum free pages of all
+>    its parents
+> 
+> Results
+> ~~~~~~~
+> The testcase is a kernel build (2.6.33 x86_64_defconfig) on a Intel Core 2 @
+> 1.2GHz:
+> 
+> <before>
+>  - root  cgroup:	11m51.983s
+>  - child cgroup:	11m56.596s
+> 
+> <after>
+>  - root cgroup:		11m51.742s
+>  - child cgroup:	12m5.016s
+> 
+> In the previous version of this patchset, using the "complex" locking scheme
+> with the _locked and _unlocked version of mem_cgroup_update_page_stat(), the
+> child cgroup required 11m57.896s and 12m9.920s with lock_page_cgroup()+irq_disabled.
+> 
+> With this version there's no overhead for the root cgroup (the small difference
+> is in error range). I expected to see less overhead for the child cgroup, I'll
+> do more testing and try to figure better what's happening.
 
-> AFAIU, even slab page of SLAB_BY_RCU can be freed after grace period.
-> Do I miss something?
+I like that the root overhead is going away.
+
 > 
-I miss something. Sorry for noise.
+> In the while, it would be great if someone could perform some tests on a larger
+> system... unfortunately at the moment I don't have a big system available for
+> this kind of tests...
+>
 
-Maybe we need check page_mapped() before calling try_to_unmap() as
-vmscan does. Thank you for your help.
+I'll test this, I have a small machine to test on at the moment, I'll
+revert back with data. 
 
-Thanks,
--Kame
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
