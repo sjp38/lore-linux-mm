@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D0872620027
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:17:11 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 270D4620026
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:17:14 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 60/96] c/r: support semaphore sysv-ipc
-Date: Wed, 17 Mar 2010 12:08:48 -0400
-Message-Id: <1268842164-5590-61-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-60-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 56/96] c/r (ipc): allow allocation of a desired ipc identifier
+Date: Wed, 17 Mar 2010 12:08:44 -0400
+Message-Id: <1268842164-5590-57-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-56-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -63,432 +63,372 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-54-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-55-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-56-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-57-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-58-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-59-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-60-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-Checkpoint of sysvipc semaphores is performed by iterating through all
-sem objects and dumping the contents of each one. The semaphore array
-of each sem is dumped with that object.
-
-The semaphore array (sem->sem_base) holds an array of 'struct sem',
-which is a {int, int}. Because this translates into the same format
-on 32- and 64-bit architectures, the checkpoint format is simply the
-dump of this array as is.
-
-TODO: this patch does not handle semaphore-undo -- this data should be
-saved per-task while iterating through the tasks.
-
-Changelog[v20]:
-    Fix "scheduling in atomic" while restoring ipc sem
-Changelog[v19-rc3]:
-  - Don't free sma if it's an error on restore
-Changelog[v18]:
-  - Handle kmalloc failure in restore_sem_array()
-Changelog[v17]:
-  - Restore objects in the right namespace
-  - Forward declare struct msg_msg (instead of include linux/msg.h)
-  - Fix typo in comment
-  - Don't unlock ipc before calling freeary in error path
+During restart, we need to allocate ipc objects that with the same
+identifiers as recorded during checkpoint. Modify the allocation
+code allow an in-kernel caller to request a specific ipc identifier.
+The system call interface remains unchanged.
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge E. Hallyn <serue@us.ibm.com>
 Tested-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- include/linux/checkpoint_hdr.h |    8 ++
- ipc/Makefile                   |    2 +-
- ipc/checkpoint.c               |    4 -
- ipc/checkpoint_sem.c           |  240 ++++++++++++++++++++++++++++++++++++++++
- ipc/sem.c                      |   11 +-
- ipc/util.h                     |    8 ++
- 6 files changed, 261 insertions(+), 12 deletions(-)
- create mode 100644 ipc/checkpoint_sem.c
+ ipc/msg.c  |   17 ++++++++++++-----
+ ipc/sem.c  |   17 ++++++++++++-----
+ ipc/shm.c  |   19 +++++++++++++------
+ ipc/util.c |   42 +++++++++++++++++++++++++++++-------------
+ ipc/util.h |    9 +++++----
+ 5 files changed, 71 insertions(+), 33 deletions(-)
 
-diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index 07e918e..64c3f8f 100644
---- a/include/linux/checkpoint_hdr.h
-+++ b/include/linux/checkpoint_hdr.h
-@@ -494,6 +494,14 @@ struct ckpt_hdr_ipc_msg_msg {
- 	__u32 m_ts;
- } __attribute__((aligned(8)));
+diff --git a/ipc/msg.c b/ipc/msg.c
+index af42ef8..9230e7c 100644
+--- a/ipc/msg.c
++++ b/ipc/msg.c
+@@ -73,7 +73,7 @@ struct msg_sender {
+ #define msg_unlock(msq)		ipc_unlock(&(msq)->q_perm)
  
-+struct ckpt_hdr_ipc_sem {
-+	struct ckpt_hdr h;
-+	struct ckpt_hdr_ipc_perms perms;
-+	__u64 sem_otime;
-+	__u64 sem_ctime;
-+	__u32 sem_nsems;
-+} __attribute__((aligned(8)));
-+
- 
- #define CKPT_TST_OVERFLOW_16(a, b) \
- 	((sizeof(a) > sizeof(b)) && ((a) > SHORT_MAX))
-diff --git a/ipc/Makefile b/ipc/Makefile
-index 71a257f..3ecba9e 100644
---- a/ipc/Makefile
-+++ b/ipc/Makefile
-@@ -10,4 +10,4 @@ obj-$(CONFIG_POSIX_MQUEUE) += mqueue.o msgutil.o $(obj_mq-y)
- obj-$(CONFIG_IPC_NS) += namespace.o
- obj-$(CONFIG_POSIX_MQUEUE_SYSCTL) += mq_sysctl.o
- obj-$(CONFIG_SYSVIPC_CHECKPOINT) += checkpoint.o \
--		checkpoint_shm.o checkpoint_msg.o
-+		checkpoint_shm.o checkpoint_msg.o checkpoint_sem.o
-diff --git a/ipc/checkpoint.c b/ipc/checkpoint.c
-index 6b1ec0b..4e7ac81 100644
---- a/ipc/checkpoint.c
-+++ b/ipc/checkpoint.c
-@@ -134,12 +134,10 @@ static int do_checkpoint_ipc_ns(struct ckpt_ctx *ctx,
- 		return ret;
- 	ret = checkpoint_ipc_any(ctx, ipc_ns, IPC_MSG_IDS,
- 				 CKPT_HDR_IPC_MSG, checkpoint_ipc_msg);
--#if 0 /* NEXT FEW PATCHES */
- 	if (ret < 0)
- 		return ret;
- 	ret = checkpoint_ipc_any(ctx, ipc_ns, IPC_SEM_IDS,
- 				 CKPT_HDR_IPC_SEM, checkpoint_ipc_sem);
--#endif
- 	return ret;
+ static void freeque(struct ipc_namespace *, struct kern_ipc_perm *);
+-static int newque(struct ipc_namespace *, struct ipc_params *);
++static int newque(struct ipc_namespace *, struct ipc_params *, int);
+ #ifdef CONFIG_PROC_FS
+ static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
+ #endif
+@@ -175,10 +175,12 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
+  * newque - Create a new msg queue
+  * @ns: namespace
+  * @params: ptr to the structure that contains the key and msgflg
++ * @req_id: request desired id if available (-1 if don't care)
+  *
+  * Called with msg_ids.rw_mutex held (writer)
+  */
+-static int newque(struct ipc_namespace *ns, struct ipc_params *params)
++static int
++newque(struct ipc_namespace *ns, struct ipc_params *params, int req_id)
+ {
+ 	struct msg_queue *msq;
+ 	int id, retval;
+@@ -202,7 +204,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
+ 	/*
+ 	 * ipc_addid() locks msq
+ 	 */
+-	id = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni);
++	id = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni, req_id);
+ 	if (id < 0) {
+ 		security_msg_queue_free(msq);
+ 		ipc_rcu_putref(msq);
+@@ -310,7 +312,7 @@ static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
+ 	return security_msg_queue_associate(msq, msgflg);
  }
  
-@@ -332,7 +330,6 @@ static struct ipc_namespace *do_restore_ipc_ns(struct ckpt_ctx *ctx)
+-SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
++int do_msgget(key_t key, int msgflg, int req_id)
+ {
+ 	struct ipc_namespace *ns;
+ 	struct ipc_ops msg_ops;
+@@ -325,7 +327,12 @@ SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
+ 	msg_params.key = key;
+ 	msg_params.flg = msgflg;
  
- 	ret = restore_ipc_any(ctx, ipc_ns, IPC_SHM_IDS,
- 			      CKPT_HDR_IPC_SHM, restore_ipc_shm);
--#if 0 /* NEXT FEW PATCHES */
- 	if (ret < 0)
- 		goto out;
- 	ret = restore_ipc_any(ctx, ipc_ns, IPC_MSG_IDS,
-@@ -341,7 +338,6 @@ static struct ipc_namespace *do_restore_ipc_ns(struct ckpt_ctx *ctx)
- 		goto out;
- 	ret = restore_ipc_any(ctx, ipc_ns, IPC_SEM_IDS,
- 			      CKPT_HDR_IPC_SEM, restore_ipc_sem);
--#endif
- 	if (ret < 0)
- 		goto out;
+-	return ipcget(ns, &msg_ids(ns), &msg_ops, &msg_params);
++	return ipcget(ns, &msg_ids(ns), &msg_ops, &msg_params, req_id);
++}
++
++SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
++{
++	return do_msgget(key, msgflg, -1);
+ }
  
-diff --git a/ipc/checkpoint_sem.c b/ipc/checkpoint_sem.c
-new file mode 100644
-index 0000000..a1a4356
---- /dev/null
-+++ b/ipc/checkpoint_sem.c
-@@ -0,0 +1,240 @@
-+/*
-+ *  Checkpoint/restart - dump state of sysvipc sem
-+ *
-+ *  Copyright (C) 2009 Oren Laadan
-+ *
-+ *  This file is subject to the terms and conditions of the GNU General Public
-+ *  License.  See the file COPYING in the main directory of the Linux
-+ *  distribution for more details.
-+ */
-+
-+/* default debug level for output */
-+#define CKPT_DFLAG  CKPT_DIPC
-+
-+#include <linux/mm.h>
-+#include <linux/sem.h>
-+#include <linux/rwsem.h>
-+#include <linux/sched.h>
-+#include <linux/syscalls.h>
-+#include <linux/nsproxy.h>
-+#include <linux/ipc_namespace.h>
-+
-+struct msg_msg;
-+#include "util.h"
-+
-+#include <linux/checkpoint.h>
-+#include <linux/checkpoint_hdr.h>
-+
-+/************************************************************************
-+ * ipc checkpoint
-+ */
-+
-+/* called with the msgids->rw_mutex is read-held */
-+static int fill_ipc_sem_hdr(struct ckpt_ctx *ctx,
-+			       struct ckpt_hdr_ipc_sem *h,
-+			       struct sem_array *sem)
-+{
-+	int ret = 0;
-+
-+	ret = checkpoint_fill_ipc_perms(&h->perms, &sem->sem_perm);
-+	if (ret < 0)
-+		return ret;
-+
-+	ipc_lock_by_ptr(&sem->sem_perm);
-+	h->sem_otime = sem->sem_otime;
-+	h->sem_ctime = sem->sem_ctime;
-+	h->sem_nsems = sem->sem_nsems;
-+	ipc_unlock(&sem->sem_perm);
-+
-+	ckpt_debug("sem: nsems %u\n", h->sem_nsems);
-+
-+	return 0;
-+}
-+
-+/**
-+ * ckpt_write_sem_array - dump the state of a semaphore array
-+ * @ctx: checkpoint context
-+ * @sem: semphore array
-+ *
-+ * The state of a sempahore is an array of 'struct sem'. This structure
-+ * is {int, int}, which translates to the same format {32 bits, 32 bits}
-+ * on both 32- and 64-bit architectures. So we simply dump the array.
-+ *
-+ * The sem-undo information is not saved per ipc_ns, but rather per task.
-+ */
-+static int checkpoint_sem_array(struct ckpt_ctx *ctx, struct sem_array *sem)
-+{
-+	/* this is a "best-effort" test, so lock not needed */
-+	if (!list_empty(&sem->sem_pending))
-+		return -EBUSY;
-+
-+	/* our caller holds the mutex, so this is safe */
-+	return ckpt_write_buffer(ctx, sem->sem_base,
-+			       sem->sem_nsems * sizeof(*sem->sem_base));
-+}
-+
-+/* called with the msgids->rw_mutex is read-held */
-+int checkpoint_ipc_sem(int id, void *p, void *data)
-+{
-+	struct ckpt_hdr_ipc_sem *h;
-+	struct ckpt_ctx *ctx = (struct ckpt_ctx *) data;
-+	struct kern_ipc_perm *perm = (struct kern_ipc_perm *) p;
-+	struct sem_array *sem;
-+	int ret;
-+
-+	sem = container_of(perm, struct sem_array, sem_perm);
-+
-+	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_IPC_SEM);
-+	if (!h)
-+		return -ENOMEM;
-+
-+	ret = fill_ipc_sem_hdr(ctx, h, sem);
-+	if (ret < 0)
-+		goto out;
-+
-+	ret = ckpt_write_obj(ctx, &h->h);
-+	if (ret < 0)
-+		goto out;
-+
-+	if (h->sem_nsems)
-+		ret = checkpoint_sem_array(ctx, sem);
-+ out:
-+	ckpt_hdr_put(ctx, h);
-+	return ret;
-+}
-+
-+/************************************************************************
-+ * ipc restart
-+ */
-+
-+/* called with the msgids->rw_mutex is write-held */
-+static int load_ipc_sem_hdr(struct ckpt_ctx *ctx,
-+			       struct ckpt_hdr_ipc_sem *h,
-+			       struct sem_array *sem)
-+{
-+	int ret = 0;
-+
-+	ret = restore_load_ipc_perms(&h->perms, &sem->sem_perm);
-+	if (ret < 0)
-+		return ret;
-+
-+	ckpt_debug("sem: nsems %u\n", h->sem_nsems);
-+
-+	sem->sem_otime = h->sem_otime;
-+	sem->sem_ctime = h->sem_ctime;
-+	sem->sem_nsems = h->sem_nsems;
-+
-+	return 0;
-+}
-+
-+/**
-+ * ckpt_read_sem_array - read the state of a semaphore array
-+ * @ctx: checkpoint context
-+ * @sem: semphore array
-+ *
-+ * Expect the data in an array of 'struct sem': {32 bit, 32 bit}.
-+ * See comment in ckpt_write_sem_array().
-+ *
-+ * The sem-undo information is not restored per ipc_ns, but rather per task.
-+ */
-+static struct sem *restore_sem_array(struct ckpt_ctx *ctx, int nsems)
-+{
-+	struct sem *sma;
-+	int i, ret;
-+
-+	sma = kmalloc(nsems * sizeof(*sma), GFP_KERNEL);
-+	if (!sma)
-+		return ERR_PTR(-ENOMEM);
-+	ret = _ckpt_read_buffer(ctx, sma, nsems * sizeof(*sma));
-+	if (ret < 0)
-+		goto out;
-+
-+	/* validate sem array contents */
-+	for (i = 0; i < nsems; i++) {
-+		if (sma[i].semval < 0 || sma[i].sempid < 0) {
-+			ret = -EINVAL;
-+			break;
-+		}
-+	}
-+ out:
-+	if (ret < 0) {
-+		kfree(sma);
-+		sma = ERR_PTR(ret);
-+	}
-+	return sma;
-+}
-+
-+int restore_ipc_sem(struct ckpt_ctx *ctx, struct ipc_namespace *ns)
-+{
-+	struct ckpt_hdr_ipc_sem *h;
-+	struct kern_ipc_perm *ipc;
-+	struct sem_array *sem;
-+	struct sem *sma = NULL;
-+	struct ipc_ids *sem_ids = &ns->ids[IPC_SEM_IDS];
-+	int semflag, ret;
-+
-+	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_IPC_SEM);
-+	if (IS_ERR(h))
-+		return PTR_ERR(h);
-+
-+	ret = -EINVAL;
-+	if (h->perms.id < 0)
-+		goto out;
-+	if (h->sem_nsems < 0)
-+		goto out;
-+
-+	/* read sempahore array state */
-+	sma = restore_sem_array(ctx, h->sem_nsems);
-+	if (IS_ERR(sma)) {
-+		ret = PTR_ERR(sma);
-+		sma = NULL;
-+		goto out;
-+	}
-+
-+	/* restore the message queue now */
-+	semflag = h->perms.mode | IPC_CREAT | IPC_EXCL;
-+	ckpt_debug("sem: do_semget key %d flag %#x id %d\n",
-+		 h->perms.key, semflag, h->perms.id);
-+	ret = do_semget(ns, h->perms.key, h->sem_nsems, semflag, h->perms.id);
-+	ckpt_debug("sem: do_semget ret %d\n", ret);
-+	if (ret < 0)
-+		goto out;
-+
-+	down_write(&sem_ids->rw_mutex);
-+
-+	/*
-+	 * We are the sole owners/users of this brand new ipc-ns, so:
-+	 *
-+	 * 1) The semid could not have been deleted between its creation
-+	 *   and taking the rw_mutex above.
-+	 * 2) No unauthorized task will attempt to gain access to it,
-+	 *   so it is safe to do away with ipc_lock(). This is useful
-+	 *   because we can call functions that sleep.
-+	 * 3) Likewise, we only restore the security bits further below,
-+	 *   so it is safe to ignore this (theoretical only!) race.
-+	 *
-+	 * If/when we allow to restore the ipc state within the parent's
-+	 * ipc-ns, we will need to re-examine this.
-+	 */
-+	ipc = ipc_lock(sem_ids, h->perms.id);
-+	BUG_ON(IS_ERR(ipc));
-+
-+	sem = container_of(ipc, struct sem_array, sem_perm);
-+	memcpy(sem->sem_base, sma, sem->sem_nsems * sizeof(*sma));
-+
-+	/* this is safe because no unauthorized access is possible */
-+	ipc_unlock(ipc);
-+
-+	ret = load_ipc_sem_hdr(ctx, h, sem);
-+	if (ret < 0) {
-+		ipc_lock_by_ptr(&sem->sem_perm);
-+		ckpt_debug("sem: need to remove (%d)\n", ret);
-+		freeary(ns, ipc);
-+		ipc_unlock(ipc);
-+	}
-+	up_write(&sem_ids->rw_mutex);
-+ out:
-+	kfree(sma);
-+	ckpt_hdr_put(ctx, h);
-+	return ret;
-+}
+ static inline unsigned long
 diff --git a/ipc/sem.c b/ipc/sem.c
-index faed3a3..37da85e 100644
+index dbef95b..faed3a3 100644
 --- a/ipc/sem.c
 +++ b/ipc/sem.c
-@@ -93,7 +93,6 @@
+@@ -92,7 +92,7 @@
+ #define sem_unlock(sma)		ipc_unlock(&(sma)->sem_perm)
  #define sem_checkid(sma, semid)	ipc_checkid(&sma->sem_perm, semid)
  
- static int newary(struct ipc_namespace *, struct ipc_params *, int);
--static void freeary(struct ipc_namespace *, struct kern_ipc_perm *);
+-static int newary(struct ipc_namespace *, struct ipc_params *);
++static int newary(struct ipc_namespace *, struct ipc_params *, int);
+ static void freeary(struct ipc_namespace *, struct kern_ipc_perm *);
  #ifdef CONFIG_PROC_FS
  static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
- #endif
-@@ -317,14 +316,12 @@ static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
+@@ -228,11 +228,13 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
+  * newary - Create a new semaphore set
+  * @ns: namespace
+  * @params: ptr to the structure that contains key, semflg and nsems
++ * @req_id: request desired id if available (-1 if don't care)
+  *
+  * Called with sem_ids.rw_mutex held (as a writer)
+  */
+ 
+-static int newary(struct ipc_namespace *ns, struct ipc_params *params)
++static int
++newary(struct ipc_namespace *ns, struct ipc_params *params, int req_id)
+ {
+ 	int id;
+ 	int retval;
+@@ -265,7 +267,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
+ 		return retval;
+ 	}
+ 
+-	id = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
++	id = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni, req_id);
+ 	if (id < 0) {
+ 		security_sem_free(sma);
+ 		ipc_rcu_putref(sma);
+@@ -315,7 +317,7 @@ static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
  	return 0;
  }
  
--int do_semget(key_t key, int nsems, int semflg, int req_id)
-+int do_semget(struct ipc_namespace *ns, key_t key, int nsems,
-+	      int semflg, int req_id)
+-SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
++int do_semget(key_t key, int nsems, int semflg, int req_id)
  {
--	struct ipc_namespace *ns;
+ 	struct ipc_namespace *ns;
  	struct ipc_ops sem_ops;
- 	struct ipc_params sem_params;
+@@ -334,7 +336,12 @@ SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
+ 	sem_params.flg = semflg;
+ 	sem_params.u.nsems = nsems;
  
--	ns = current->nsproxy->ipc_ns;
--
- 	if (nsems < 0 || nsems > ns->sc_semmsl)
- 		return -EINVAL;
- 
-@@ -341,7 +338,7 @@ int do_semget(key_t key, int nsems, int semflg, int req_id)
- 
- SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
- {
--	return do_semget(key, nsems, semflg, -1);
-+	return do_semget(current->nsproxy->ipc_ns, key, nsems, semflg, -1);
+-	return ipcget(ns, &sem_ids(ns), &sem_ops, &sem_params);
++	return ipcget(ns, &sem_ids(ns), &sem_ops, &sem_params, req_id);
++}
++
++SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
++{
++	return do_semget(key, nsems, semflg, -1);
  }
  
  /*
-@@ -574,7 +571,7 @@ static void free_un(struct rcu_head *head)
-  * as a writer and the spinlock for this semaphore set hold. sem_ids.rw_mutex
-  * remains locked on exit.
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 23256b8..5ae0eef 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -61,7 +61,7 @@ static const struct vm_operations_struct shm_vm_ops;
+ #define shm_unlock(shp)			\
+ 	ipc_unlock(&(shp)->shm_perm)
+ 
+-static int newseg(struct ipc_namespace *, struct ipc_params *);
++static int newseg(struct ipc_namespace *, struct ipc_params *, int);
+ static void shm_open(struct vm_area_struct *vma);
+ static void shm_close(struct vm_area_struct *vma);
+ static void shm_destroy (struct ipc_namespace *ns, struct shmid_kernel *shp);
+@@ -82,7 +82,7 @@ void shm_init_ns(struct ipc_namespace *ns)
+  * Called with shm_ids.rw_mutex (writer) and the shp structure locked.
+  * Only shm_ids.rw_mutex remains locked on exit.
   */
--static void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
-+void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
+-static void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
++void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
  {
- 	struct sem_undo *un, *tu;
- 	struct sem_queue *q, *tq;
+ 	struct shmid_kernel *shp;
+ 	shp = container_of(ipcp, struct shmid_kernel, shm_perm);
+@@ -329,11 +329,13 @@ static const struct vm_operations_struct shm_vm_ops = {
+  * newseg - Create a new shared memory segment
+  * @ns: namespace
+  * @params: ptr to the structure that contains key, size and shmflg
++ * @req_id: request desired id if available (-1 if don't care)
+  *
+  * Called with shm_ids.rw_mutex held as a writer.
+  */
+ 
+-static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
++static int
++newseg(struct ipc_namespace *ns, struct ipc_params *params, int req_id)
+ {
+ 	key_t key = params->key;
+ 	int shmflg = params->flg;
+@@ -388,7 +390,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+ 	if (IS_ERR(file))
+ 		goto no_file;
+ 
+-	id = ipc_addid(&shm_ids(ns), &shp->shm_perm, ns->shm_ctlmni);
++	id = ipc_addid(&shm_ids(ns), &shp->shm_perm, ns->shm_ctlmni, req_id);
+ 	if (id < 0) {
+ 		error = id;
+ 		goto no_id;
+@@ -448,7 +450,7 @@ static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
+ 	return 0;
+ }
+ 
+-SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
++int do_shmget(key_t key, size_t size, int shmflg, int req_id)
+ {
+ 	struct ipc_namespace *ns;
+ 	struct ipc_ops shm_ops;
+@@ -464,7 +466,12 @@ SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
+ 	shm_params.flg = shmflg;
+ 	shm_params.u.size = size;
+ 
+-	return ipcget(ns, &shm_ids(ns), &shm_ops, &shm_params);
++	return ipcget(ns, &shm_ids(ns), &shm_ops, &shm_params, req_id);
++}
++
++SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
++{
++	return do_shmget(key, size, shmflg, -1);
+ }
+ 
+ static inline unsigned long copy_shmid_to_user(void __user *buf, struct shmid64_ds *in, int version)
+diff --git a/ipc/util.c b/ipc/util.c
+index 79ce84e..c4ce60d 100644
+--- a/ipc/util.c
++++ b/ipc/util.c
+@@ -247,10 +247,12 @@ int ipc_get_maxid(struct ipc_ids *ids)
+  *	Called with ipc_ids.rw_mutex held as a writer.
+  */
+  
+-int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
++int
++ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size, int req_id)
+ {
+ 	uid_t euid;
+ 	gid_t egid;
++	int lid = 0;
+ 	int id, err;
+ 
+ 	if (size > IPCMNI)
+@@ -259,28 +261,41 @@ int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
+ 	if (ids->in_use >= size)
+ 		return -ENOSPC;
+ 
++	if (req_id >= 0)
++		lid = ipcid_to_idx(req_id);
++
+ 	spin_lock_init(&new->lock);
+ 	new->deleted = 0;
+ 	rcu_read_lock();
+ 	spin_lock(&new->lock);
+ 
+-	err = idr_get_new(&ids->ipcs_idr, new, &id);
++	err = idr_get_new_above(&ids->ipcs_idr, new, lid, &id);
+ 	if (err) {
+ 		spin_unlock(&new->lock);
+ 		rcu_read_unlock();
+ 		return err;
+ 	}
+ 
++	if (req_id >= 0) {
++		if (id != lid) {
++			idr_remove(&ids->ipcs_idr, id);
++			spin_unlock(&new->lock);
++			rcu_read_unlock();
++			return -EBUSY;
++		}
++		new->seq = req_id / SEQ_MULTIPLIER;
++	} else {
++		new->seq = ids->seq++;
++		if (ids->seq > ids->seq_max)
++			ids->seq = 0;
++	}
++
+ 	ids->in_use++;
+ 
+ 	current_euid_egid(&euid, &egid);
+ 	new->cuid = new->uid = euid;
+ 	new->gid = new->cgid = egid;
+ 
+-	new->seq = ids->seq++;
+-	if(ids->seq > ids->seq_max)
+-		ids->seq = 0;
+-
+ 	new->id = ipc_buildid(id, new->seq);
+ 	return id;
+ }
+@@ -296,7 +311,7 @@ int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
+  *	when the key is IPC_PRIVATE.
+  */
+ static int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
+-		struct ipc_ops *ops, struct ipc_params *params)
++		struct ipc_ops *ops, struct ipc_params *params, int req_id)
+ {
+ 	int err;
+ retry:
+@@ -306,7 +321,7 @@ retry:
+ 		return -ENOMEM;
+ 
+ 	down_write(&ids->rw_mutex);
+-	err = ops->getnew(ns, params);
++	err = ops->getnew(ns, params, req_id);
+ 	up_write(&ids->rw_mutex);
+ 
+ 	if (err == -EAGAIN)
+@@ -351,6 +366,7 @@ static int ipc_check_perms(struct kern_ipc_perm *ipcp, struct ipc_ops *ops,
+  *	@ids: IPC identifer set
+  *	@ops: the actual creation routine to call
+  *	@params: its parameters
++ *	@req_id: request desired id if available (-1 if don't care)
+  *
+  *	This routine is called by sys_msgget, sys_semget() and sys_shmget()
+  *	when the key is not IPC_PRIVATE.
+@@ -360,7 +376,7 @@ static int ipc_check_perms(struct kern_ipc_perm *ipcp, struct ipc_ops *ops,
+  *	On success, the ipc id is returned.
+  */
+ static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
+-		struct ipc_ops *ops, struct ipc_params *params)
++		struct ipc_ops *ops, struct ipc_params *params, int req_id)
+ {
+ 	struct kern_ipc_perm *ipcp;
+ 	int flg = params->flg;
+@@ -381,7 +397,7 @@ retry:
+ 		else if (!err)
+ 			err = -ENOMEM;
+ 		else
+-			err = ops->getnew(ns, params);
++			err = ops->getnew(ns, params, req_id);
+ 	} else {
+ 		/* ipc object has been locked by ipc_findkey() */
+ 
+@@ -742,12 +758,12 @@ struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id)
+  * Common routine called by sys_msgget(), sys_semget() and sys_shmget().
+  */
+ int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
+-			struct ipc_ops *ops, struct ipc_params *params)
++		struct ipc_ops *ops, struct ipc_params *params, int req_id)
+ {
+ 	if (params->key == IPC_PRIVATE)
+-		return ipcget_new(ns, ids, ops, params);
++		return ipcget_new(ns, ids, ops, params, req_id);
+ 	else
+-		return ipcget_public(ns, ids, ops, params);
++		return ipcget_public(ns, ids, ops, params, req_id);
+ }
+ 
+ /**
 diff --git a/ipc/util.h b/ipc/util.h
-index 8a223f0..ba080de 100644
+index 764b51a..159a73c 100644
 --- a/ipc/util.h
 +++ b/ipc/util.h
-@@ -193,6 +193,11 @@ void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp);
- int do_msgget(struct ipc_namespace *ns, key_t key, int msgflg, int req_id);
- void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp);
+@@ -71,7 +71,7 @@ struct ipc_params {
+  *      . routine to call for an extra check if needed
+  */
+ struct ipc_ops {
+-	int (*getnew) (struct ipc_namespace *, struct ipc_params *);
++	int (*getnew) (struct ipc_namespace *, struct ipc_params *, int);
+ 	int (*associate) (struct kern_ipc_perm *, int);
+ 	int (*more_checks) (struct kern_ipc_perm *, struct ipc_params *);
+ };
+@@ -94,7 +94,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
+ #define ipcid_to_idx(id) ((id) % SEQ_MULTIPLIER)
  
-+int do_semget(struct ipc_namespace *ns, key_t key, int nsems, int semflg,
-+	      int req_id);
-+void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp);
-+
-+
- #ifdef CONFIG_CHECKPOINT
- extern int checkpoint_fill_ipc_perms(struct ckpt_hdr_ipc_perms *h,
- 				     struct kern_ipc_perm *perm);
-@@ -205,6 +210,9 @@ extern int restore_ipc_shm(struct ckpt_ctx *ctx, struct ipc_namespace *ns);
+ /* must be called with ids->rw_mutex acquired for writing */
+-int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
++int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int, int);
  
- extern int checkpoint_ipc_msg(int id, void *p, void *data);
- extern int restore_ipc_msg(struct ckpt_ctx *ctx, struct ipc_namespace *ns);
-+
-+extern int checkpoint_ipc_sem(int id, void *p, void *data);
-+extern int restore_ipc_sem(struct ckpt_ctx *ctx, struct ipc_namespace *ns);
- #endif
+ /* must be called with ids->rw_mutex acquired for reading */
+ int ipc_get_maxid(struct ipc_ids *);
+@@ -171,7 +171,8 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
  
+ struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id);
+ int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
+-			struct ipc_ops *ops, struct ipc_params *params);
++	   struct ipc_ops *ops, struct ipc_params *params, int req_id);
+ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
+-		void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
++	       void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
++
  #endif
 -- 
 1.6.3.3
