@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AC2162003F
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:29:21 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E1F2162003F
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:29:27 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 89/96] powerpc: checkpoint/restart implementation
-Date: Wed, 17 Mar 2010 12:09:17 -0400
-Message-Id: <1268842164-5590-90-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-89-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 93/96] c/r: add generic LSM c/r support (v7)
+Date: Wed, 17 Mar 2010 12:09:21 -0400
+Message-Id: <1268842164-5590-94-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-93-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -96,679 +96,1315 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-87-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-88-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-89-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-90-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-91-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-92-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-93-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Nathan Lynch <ntl@pobox.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-From: Nathan Lynch <ntl@pobox.com>
+From: Serge E. Hallyn <serue@us.ibm.com>
 
-Support for checkpointing and restarting GPRs, FPU state, DABR, and
-Altivec state.
+Documentation/checkpoint/readme.txt begins:
+"""
+Application checkpoint/restart is the ability to save the state
+of a running application so that it can later resume its execution
+from the time at which it was checkpointed.
+"""
 
-The portion of the checkpoint image manipulated by this code begins
-with a bitmask of features indicating the various contexts saved.
-Fields in image that can vary depending on kernel configuration
-(e.g. FP regs due to VSX) have their sizes explicitly recorded, except
-for GPRS, so migrating between ppc32 and ppc64 won't work yet.
+This patch adds generic support for c/r of LSM credentials.  Support
+for Smack and SELinux (and TOMOYO if appropriate) will be added later.
+Capabilities is already supported through generic creds code.
 
-The restart code ensures that the task is not modified until the
-checkpoint image is validated against the current kernel configuration
-and hardware features (e.g. can't restart a task using Altivec on
-non-Altivec systems).
+This patch supports ipc_perm, msg_msg, cred (task) and file ->security
+fields.  Inodes, superblocks, netif, and xfrm currently are restored
+not through sys_restart() but through container creation, and so the
+security fields should be done then as well.  Network should be added
+when network c/r is added.
 
-What works:
-* self and external checkpoint of simple (single thread, one open
-  file) 32- and 64-bit processes on a ppc64 kernel
+Briefly, all security fields must be exported by the LSM as a simple
+null-terminated string.  They are checkpointed through the
+security_checkpoint_obj() helper, because we must pass it an extra
+sectype field.  Splitting SECURITY_OBJ_SEC into one type per object
+type would not work because, in Smack, one void* security is used for
+all object types.  But we must pass the sectype field because in
+SELinux a different type of structure is stashed in each object type.
 
-What doesn't work:
-* restarting a 32-bit task from a 64-bit task and vice versa
+The RESTART_KEEP_LSM flag indicates that the LSM should
+attempt to reuse checkpointed security labels.  It is always
+invalid when the LSM at restart differs from that at checkpoint.
+It is currently only usable for capabilities.
 
-Untested:
-* ppc32 (but it builds)
+(For capabilities, restart without RESTART_KEEP_LSM is technically
+not implemented.  There actually might be a use case for that,
+but the safety of it is dubious so for now we always re-create
+checkpointed capability sets whether RESTART_KEEP_LSM is
+specified or not)
 
-Changelog[v19]:
-  - [Serge Hallyn] Add hook task_has_saved_sigmask()
-Changelog[v19-rc3]:
-  - [Oren Laadan] Move checkpoint.c from arch/powerpc/{mm->kernel}
-  - [Nathan Lynch] Warn if full register state unavailable
+Changelog[v20]
+  - [Serge Hallyn] Fix unlabeled restore case
+  - [Serge Hallyn] Always restore msg_msg label
+  - [Serge Hallyn] Selinux prevents msgrcv on restore message queues?
+Changelog:
+        sep 3: fix memory leak on LSM restore error path
+        Sep 3: provide 2 hooks, may_restart and checkpoint_header, to facilitate
+                an LSM tracking policy changes.
+        sep 10: merge RESTART_KEEP_LSM patch with basic LSM c/r
+                support patches.
+        sep 10: rename security_xyz_get_ctx() to security_xyz_checkpoint(),
+                in order to avoid confusing with the various other 'context'
+                helpers in the security_ namespace, relating to secids and
+                sysfs xattrs.
+        sep 10: pass context file to security_cred_restore.  SELinux will
+                want the file's security context to authorize it as an
+                entrypoint for the new process context.
+        oct 01: roll up some generic c/r debug hunks from selinux patch.
+        oct 05: address set of Oren comments, including:
+                1. fix memleak in restore_msg_contents_one
+                2. use a separate container checkpoint image section
+                3. define SECURITY_CTX_NONE
+                4. allocate the right size to l in security_checkpoint_obj
+                5. fix ckpt_hdr_lsm alignment
+        oct 09: at checkpoint, key on the void*security in the objhash,
+                and don't cache the ckpt_stored_lsm at all.  At restart,
+                do_restore_security (now moved to security/security.c)
+                creates and caches the ckpt_stored_lsm.
+	oct 19: At checkpoint, we insert the void* security into the
+		objhash.  The first time that we do so, we next write out
+		the string representation of the context to the checkpoint
+		image, along with the value of the objref for the void*
+		security, and insert that into the objhash.  Then at
+		restart, when we read a LSM context, we read the objref
+		which the void* security had at checkpoint, and we then
+		insert the string context with that objref as well.
+	oct 19: Address a bunch of Oren comments: add ckpt_write_err()s,
+		more commenting, use -ENOSYS not -EOPNOTSUPP.  The biggest
+		change is always failing restart when RESTART_KEEP_LSM is
+		used but one of the security_XYZ_restore() returns -ENOSYS.
+	oct 20: SECURITY_CTX_NONE becomes 0 (from -1) and security_checkpoint_obj
+		returns an objref or SECURITY_CTX_NONE on success.
+	nov 11: update ckpt_write_err->ckpt_err.
 
-Signed-off-by: Nathan Lynch <ntl@pobox.com>
-Acked-by: Serge E. Hallyn <serue@us.ibm.com>
-[Oren Laadan <orenl@cs.columbia.edu>] Add arch-specific tty support
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+Acked-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- arch/powerpc/include/asm/Kbuild           |    1 +
- arch/powerpc/include/asm/checkpoint_hdr.h |   37 ++
- arch/powerpc/kernel/Makefile              |    1 +
- arch/powerpc/kernel/checkpoint.c          |  533 +++++++++++++++++++++++++++++
- arch/powerpc/kernel/signal.c              |    6 +
- 5 files changed, 578 insertions(+), 0 deletions(-)
- create mode 100644 arch/powerpc/include/asm/checkpoint_hdr.h
- create mode 100644 arch/powerpc/kernel/checkpoint.c
+ checkpoint/files.c               |   31 ++++++-
+ checkpoint/objhash.c             |  129 +++++++++++++++++++++++++
+ include/linux/checkpoint.h       |    4 +
+ include/linux/checkpoint_hdr.h   |   19 ++++
+ include/linux/checkpoint_types.h |    8 ++
+ include/linux/security.h         |  170 +++++++++++++++++++++++++++++++++
+ ipc/checkpoint.c                 |   26 +++---
+ ipc/checkpoint_msg.c             |   25 ++++-
+ ipc/checkpoint_sem.c             |    4 +-
+ ipc/checkpoint_shm.c             |    4 +-
+ ipc/util.h                       |    6 +-
+ kernel/cred.c                    |   28 +++++-
+ security/capability.c            |   48 ++++++++++
+ security/security.c              |  193 ++++++++++++++++++++++++++++++++++++++
+ 14 files changed, 668 insertions(+), 27 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/Kbuild b/arch/powerpc/include/asm/Kbuild
-index 5ab7d7f..20379f1 100644
---- a/arch/powerpc/include/asm/Kbuild
-+++ b/arch/powerpc/include/asm/Kbuild
-@@ -12,6 +12,7 @@ header-y += shmbuf.h
- header-y += socket.h
- header-y += termbits.h
- header-y += fcntl.h
-+header-y += checkpoint_hdr.h
- header-y += poll.h
- header-y += sockios.h
- header-y += ucontext.h
-diff --git a/arch/powerpc/include/asm/checkpoint_hdr.h b/arch/powerpc/include/asm/checkpoint_hdr.h
-new file mode 100644
-index 0000000..fbb1705
---- /dev/null
-+++ b/arch/powerpc/include/asm/checkpoint_hdr.h
-@@ -0,0 +1,37 @@
-+#ifndef __ASM_POWERPC_CKPT_HDR_H
-+#define __ASM_POWERPC_CKPT_HDR_H
-+
-+#include <linux/types.h>
-+
-+/* arch dependent constants */
-+#define CKPT_ARCH_NSIG 64
-+#define CKPT_TTY_NCC  10
-+
-+#ifdef __KERNEL__
-+
-+#include <asm/signal.h>
-+#if CKPT_ARCH_NSIG != _NSIG
-+#error CKPT_ARCH_NSIG size is wrong per asm/signal.h and asm/checkpoint_hdr.h
-+#endif
-+
-+#include <linux/tty.h>
-+#if CKPT_TTY_NCC != NCC
-+#error CKPT_TTY_NCC size is wrong per asm-generic/termios.h
-+#endif
-+
-+#endif /* __KERNEL__ */
-+
-+#ifdef __KERNEL__
-+#ifdef CONFIG_PPC64
-+#define CKPT_ARCH_ID CKPT_ARCH_PPC64
-+#else
-+#define CKPT_ARCH_ID CKPT_ARCH_PPC32
-+#endif
-+#endif
-+
-+struct ckpt_hdr_header_arch {
-+	struct ckpt_hdr h;
-+	__u32 what;
-+} __attribute__((aligned(8)));
-+
-+#endif /* __ASM_POWERPC_CKPT_HDR_H */
-diff --git a/arch/powerpc/kernel/Makefile b/arch/powerpc/kernel/Makefile
-index c002b04..b5bd090 100644
---- a/arch/powerpc/kernel/Makefile
-+++ b/arch/powerpc/kernel/Makefile
-@@ -63,6 +63,7 @@ obj64-$(CONFIG_HIBERNATION)	+= swsusp_asm64.o
- obj-$(CONFIG_MODULES)		+= module.o module_$(CONFIG_WORD_SIZE).o
- obj-$(CONFIG_44x)		+= cpu_setup_44x.o
- obj-$(CONFIG_FSL_BOOKE)		+= cpu_setup_fsl_booke.o dbell.o
-+obj-$(CONFIG_CHECKPOINT)	+= checkpoint.o
+diff --git a/checkpoint/files.c b/checkpoint/files.c
+index 7855bae..55c5eb3 100644
+--- a/checkpoint/files.c
++++ b/checkpoint/files.c
+@@ -151,6 +151,19 @@ static int scan_fds(struct files_struct *files, int **fdtable)
+ 	return n;
+ }
  
- extra-y				:= head_$(CONFIG_WORD_SIZE).o
- extra-$(CONFIG_PPC_BOOK3E_32)	:= head_new_booke.o
-diff --git a/arch/powerpc/kernel/checkpoint.c b/arch/powerpc/kernel/checkpoint.c
-new file mode 100644
-index 0000000..2634011
---- /dev/null
-+++ b/arch/powerpc/kernel/checkpoint.c
-@@ -0,0 +1,533 @@
-+/*
-+ * PowerPC architecture support for checkpoint/restart.
-+ * Based on x86 implementation.
-+ *
-+ * Copyright (C) 2008 Oren Laadan
-+ * Copyright 2009 IBM Corp.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License version
-+ * 2 as published by the Free Software Foundation.
-+ */
-+
-+#if 0
-+#define DEBUG
-+#endif
-+
-+#include <linux/checkpoint.h>
-+#include <linux/checkpoint_hdr.h>
-+#include <linux/kernel.h>
-+#include <asm/processor.h>
-+#include <asm/ptrace.h>
-+#include <asm/system.h>
-+
-+enum ckpt_cpu_feature {
-+	CKPT_USED_FP,
-+	CKPT_USED_DEBUG,
-+	CKPT_USED_ALTIVEC,
-+	CKPT_USED_SPE,
-+	CKPT_USED_VSX,
-+	CKPT_FTR_END = 31,
-+};
-+
-+#define x(ftr) (1UL << ftr)
-+
-+/* features this kernel can handle for restart */
-+enum {
-+	CKPT_FTRS_POSSIBLE =
-+#ifdef CONFIG_PPC_FPU
-+	x(CKPT_USED_FP) |
-+#endif
-+	x(CKPT_USED_DEBUG) |
-+#ifdef CONFIG_ALTIVEC
-+	x(CKPT_USED_ALTIVEC) |
-+#endif
-+#ifdef CONFIG_SPE
-+	x(CKPT_USED_SPE) |
-+#endif
-+#ifdef CONFIG_VSX
-+	x(CKPT_USED_VSX) |
-+#endif
-+	0,
-+};
-+
-+#undef x
-+
-+struct ckpt_hdr_cpu {
-+	struct ckpt_hdr h;
-+	u32 features_used;
-+	u32 pt_regs_size;
-+	u32 fpr_size;
-+	u64 orig_gpr3;
-+	struct pt_regs pt_regs;
-+	/* relevant fields from thread_struct */
-+	double fpr[32][TS_FPRWIDTH];
-+	u32 fpscr;
-+	s32 fpexc_mode;
-+	u64 dabr;
-+	/* Altivec/VMX state */
-+	vector128 vr[32];
-+	vector128 vscr;
-+	u64 vrsave;
-+	/* SPE state */
-+	u32 evr[32];
-+	u64 acc;
-+	u32 spefscr;
-+};
-+
-+/**************************************************************************
-+ * Checkpoint
-+ */
-+
-+static void ckpt_cpu_feature_set(struct ckpt_hdr_cpu *hdr,
-+				 enum ckpt_cpu_feature ftr)
++#ifdef CONFIG_SECURITY
++int checkpoint_file_security(struct ckpt_ctx *ctx, struct file *file)
 +{
-+	hdr->features_used |= 1ULL << ftr;
-+}
-+
-+static bool ckpt_cpu_feature_isset(const struct ckpt_hdr_cpu *hdr,
-+				 enum ckpt_cpu_feature ftr)
-+{
-+	return hdr->features_used & (1ULL << ftr);
-+}
-+
-+/* determine whether an image has feature bits set that this kernel
-+ * does not support */
-+static bool ckpt_cpu_features_unknown(const struct ckpt_hdr_cpu *hdr)
-+{
-+	return hdr->features_used & ~CKPT_FTRS_POSSIBLE;
-+}
-+
-+static void checkpoint_gprs(struct ckpt_hdr_cpu *cpu_hdr,
-+			    struct task_struct *task)
-+{
-+	struct pt_regs *pt_regs;
-+
-+	pr_debug("%s: saving GPRs\n", __func__);
-+
-+	cpu_hdr->pt_regs_size = sizeof(*pt_regs);
-+	pt_regs = task_pt_regs(task);
-+	WARN_ON(!FULL_REGS(pt_regs));
-+
-+	cpu_hdr->pt_regs = *pt_regs;
-+
-+	if (task == current)
-+		cpu_hdr->pt_regs.gpr[3] = 0;
-+
-+	cpu_hdr->orig_gpr3 = pt_regs->orig_gpr3;
-+}
-+
-+#ifdef CONFIG_PPC_FPU
-+static void checkpoint_fpu(struct ckpt_hdr_cpu *cpu_hdr,
-+			   struct task_struct *task)
-+{
-+	/* easiest to save FP state unconditionally */
-+
-+	pr_debug("%s: saving FPU state\n", __func__);
-+
-+	if (task == current)
-+		flush_fp_to_thread(task);
-+
-+	cpu_hdr->fpr_size = sizeof(cpu_hdr->fpr);
-+	cpu_hdr->fpscr = task->thread.fpscr.val;
-+	cpu_hdr->fpexc_mode = task->thread.fpexc_mode;
-+
-+	memcpy(cpu_hdr->fpr, task->thread.fpr, sizeof(cpu_hdr->fpr));
-+
-+	ckpt_cpu_feature_set(cpu_hdr, CKPT_USED_FP);
++	return security_checkpoint_obj(ctx, file->f_security,
++				       CKPT_SECURITY_FILE);
 +}
 +#else
-+static void checkpoint_fpu(struct ckpt_hdr_cpu *cpu_hdr,
-+			   struct task_struct *task)
++int checkpoint_file_security(struct ckpt_ctx *ctx, struct file *file)
 +{
-+	return;
++	return SECURITY_CTX_NONE;
 +}
 +#endif
 +
-+#ifdef CONFIG_ALTIVEC
-+static void checkpoint_altivec(struct ckpt_hdr_cpu *cpu_hdr,
-+			       struct task_struct *task)
+ int checkpoint_file_common(struct ckpt_ctx *ctx, struct file *file,
+ 			   struct ckpt_hdr_file *h)
+ {
+@@ -165,8 +178,14 @@ int checkpoint_file_common(struct ckpt_ctx *ctx, struct file *file,
+ 	if (h->f_credref < 0)
+ 		return h->f_credref;
+ 
+-	ckpt_debug("file %s credref %d", file->f_dentry->d_name.name,
+-		h->f_credref);
++	h->f_secref = checkpoint_file_security(ctx, file);
++	if (h->f_secref < 0) {
++		ckpt_err(ctx, h->f_secref, "%(T)file->f_security");
++		return h->f_secref;
++	}
++
++	ckpt_debug("file %s credref %d secref %d\n",
++		file->f_dentry->d_name.name, h->f_credref, h->f_secref);
+ 
+ 	/* FIX: need also file->f_owner, etc */
+ 
+@@ -630,6 +649,14 @@ int restore_file_common(struct ckpt_ctx *ctx, struct file *file,
+ 	put_cred(file->f_cred);
+ 	file->f_cred = get_cred(cred);
+ 
++	ret = security_restore_obj(ctx, (void *) file, CKPT_SECURITY_FILE,
++				   h->f_secref);
++	if (ret < 0) {
++		ckpt_err(ctx, ret, "file secref %(O)%(P)\n", h->f_secref,
++			 file);
++		return ret;
++	}
++
+ 	/* safe to set 1st arg (fd) to 0, as command is F_SETFL */
+ 	ret = vfs_fcntl(0, F_SETFL, h->f_flags & CKPT_SETFL_MASK, file);
+ 	if (ret < 0)
+diff --git a/checkpoint/objhash.c b/checkpoint/objhash.c
+index 42998b2..7208382 100644
+--- a/checkpoint/objhash.c
++++ b/checkpoint/objhash.c
+@@ -17,6 +17,7 @@
+ #include <linux/fdtable.h>
+ #include <linux/fs_struct.h>
+ #include <linux/sched.h>
++#include <linux/kref.h>
+ #include <linux/ipc_namespace.h>
+ #include <linux/user_namespace.h>
+ #include <linux/mnt_namespace.h>
+@@ -326,6 +327,36 @@ static int obj_tty_users(void *ptr)
+ 	return atomic_read(&((struct tty_struct *) ptr)->kref.refcount);
+ }
+ 
++void lsm_string_free(struct kref *kref)
 +{
-+	if (!cpu_has_feature(CPU_FTR_ALTIVEC))
-+		return;
-+
-+	if (!task->thread.used_vr)
-+		return;
-+
-+	pr_debug("%s: saving Altivec state\n", __func__);
-+
-+	if (task == current)
-+		flush_altivec_to_thread(task);
-+
-+	cpu_hdr->vrsave = task->thread.vrsave;
-+	memcpy(cpu_hdr->vr, task->thread.vr, sizeof(cpu_hdr->vr));
-+	ckpt_cpu_feature_set(cpu_hdr, CKPT_USED_ALTIVEC);
-+}
-+#else
-+static void checkpoint_altivec(struct ckpt_hdr_cpu *cpu_hdr,
-+			       struct task_struct *task)
-+{
-+	return;
-+}
-+#endif
-+
-+#ifdef CONFIG_SPE
-+static void checkpoint_spe(struct ckpt_hdr_cpu *cpu_hdr,
-+			   struct task_struct *task)
-+{
-+	if (!cpu_has_feature(CPU_FTR_SPE))
-+		return;
-+
-+	if (!task->thread.used_spe)
-+		return;
-+
-+	pr_debug("%s: saving SPE state\n", __func__);
-+
-+	if (task == current)
-+		flush_spe_to_thread(task);
-+
-+	cpu_hdr->acc = task->thread.acc;
-+	cpu_hdr->spefscr = task->thread.spefscr;
-+	memcpy(cpu_hdr->evr, task->thread.evr, sizeof(cpu_hdr->evr));
-+	ckpt_cpu_feature_set(cpu_hdr, CKPT_USED_SPE);
-+}
-+#else
-+static void checkpoint_spe(struct ckpt_hdr_cpu *cpu_hdr,
-+			   struct task_struct *task)
-+{
-+	return;
-+}
-+#endif
-+
-+static void checkpoint_dabr(struct ckpt_hdr_cpu *cpu_hdr,
-+			    const struct task_struct *task)
-+{
-+	if (!task->thread.dabr)
-+		return;
-+
-+	cpu_hdr->dabr = task->thread.dabr;
-+	ckpt_cpu_feature_set(cpu_hdr, CKPT_USED_DEBUG);
++	struct ckpt_lsm_string *s = container_of(kref, struct ckpt_lsm_string,
++					kref);
++	kfree(s->string);
++	kfree(s);
 +}
 +
-+/* dump the thread_struct of a given task */
-+int checkpoint_thread(struct ckpt_ctx *ctx, struct task_struct *t)
++static int lsm_string_grab(void *ptr)
 +{
++	struct ckpt_lsm_string *s = ptr;
++	kref_get(&s->kref);
 +	return 0;
 +}
 +
-+/* dump the cpu state and registers of a given task */
-+int checkpoint_cpu(struct ckpt_ctx *ctx, struct task_struct *t)
++static void lsm_string_drop(void *ptr, int lastref)
 +{
-+	struct ckpt_hdr_cpu *cpu_hdr;
-+	int rc;
-+
-+	rc = -ENOMEM;
-+	cpu_hdr = ckpt_hdr_get_type(ctx, sizeof(*cpu_hdr), CKPT_HDR_CPU);
-+	if (!cpu_hdr)
-+		goto err;
-+
-+	checkpoint_gprs(cpu_hdr, t);
-+	checkpoint_fpu(cpu_hdr, t);
-+	checkpoint_dabr(cpu_hdr, t);
-+	checkpoint_altivec(cpu_hdr, t);
-+	checkpoint_spe(cpu_hdr, t);
-+
-+	rc = ckpt_write_obj(ctx, (struct ckpt_hdr *) cpu_hdr);
-+err:
-+	ckpt_hdr_put(ctx, cpu_hdr);
-+	return rc;
++	struct ckpt_lsm_string *s = ptr;
++	kref_put(&s->kref, lsm_string_free);
 +}
 +
-+int checkpoint_write_header_arch(struct ckpt_ctx *ctx)
++/* security context strings */
++static int checkpoint_lsm_string(struct ckpt_ctx *ctx, void *ptr);
++static struct ckpt_lsm_string *restore_lsm_string(struct ckpt_ctx *ctx);
++static void *restore_lsm_string_wrap(struct ckpt_ctx *ctx)
 +{
-+	struct ckpt_hdr_header_arch *arch_hdr;
++	return (void *)restore_lsm_string(ctx);
++}
++
++
+ static struct ckpt_obj_ops ckpt_obj_ops[] = {
+ 	/* ignored object */
+ 	{
+@@ -492,6 +523,33 @@ static struct ckpt_obj_ops ckpt_obj_ops[] = {
+ 		.checkpoint = checkpoint_tty,
+ 		.restore = restore_tty,
+ 	},
++	/*
++	 * LSM void *security on objhash - at checkpoint
++	 * We don't take a ref because we won't be doing
++	 * anything more with this void* - unless we happen
++	 * to run into it again through some other objects's
++	 * ->security (in which case that object has it pinned).
++	 */
++	{
++		.obj_name = "SECURITY PTR",
++		.obj_type = CKPT_OBJ_SECURITY_PTR,
++		.ref_drop = obj_no_drop,
++		.ref_grab = obj_no_grab,
++	},
++	/*
++	 * LSM security strings - at restart
++	 * This is a struct which we malloc during restart and
++	 * must be freed (by objhash cleanup) at the end of
++	 * restart
++	 */
++	{
++		.obj_name = "SECURITY STRING",
++		.obj_type = CKPT_OBJ_SECURITY,
++		.ref_grab = lsm_string_grab,
++		.ref_drop = lsm_string_drop,
++		.checkpoint = checkpoint_lsm_string,
++		.restore = restore_lsm_string_wrap,
++	},
+ };
+ 
+ 
+@@ -1088,3 +1146,74 @@ void *ckpt_obj_fetch(struct ckpt_ctx *ctx, int objref, enum obj_type type)
+ 	return ret;
+ }
+ EXPORT_SYMBOL(ckpt_obj_fetch);
++
++/*
++ * checkpoint a security context string.  This is done by
++ * security/security.c:security_checkpoint_obj() when it checkpoints
++ * a void*security whose context string has not yet been written out.
++ * The objref for the void*security (which is not itself written out
++ * to the checkpoint image) is stored alongside the context string,
++ * as is the type of object which contained the void* security, i.e.
++ * struct file, struct cred, etc.
++ */
++static int checkpoint_lsm_string(struct ckpt_ctx *ctx, void *ptr)
++{
++	struct ckpt_hdr_lsm *h;
++	struct ckpt_lsm_string *l = ptr;
 +	int ret;
 +
-+	arch_hdr = ckpt_hdr_get_type(ctx, sizeof(*arch_hdr),
-+				     CKPT_HDR_HEADER_ARCH);
-+	if (!arch_hdr)
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_SECURITY);
++	if (!h)
 +		return -ENOMEM;
++	h->sectype = l->sectype;
++	h->ptrref = l->ptrref;
++	ret = ckpt_write_obj(ctx, &h->h);
++	ckpt_hdr_put(ctx, h);
 +
-+	arch_hdr->what = 0xdeadbeef;
++	if (ret < 0)
++		return ret;
++	return ckpt_write_string(ctx, l->string, strlen(l->string)+1);
++}
 +
-+	ret = ckpt_write_obj(ctx, &arch_hdr->h);
-+	ckpt_hdr_put(ctx, arch_hdr);
++/*
++ * callback invoked when a security context string is found in a
++ * checkpoint image at restart.  The context string is saved in the object
++ * hash.  The objref under which the void* security was inserted in the
++ * objhash at checkpoint is also found here, and we re-insert this context
++ * string a second time under that objref.  This is because objects which
++ * had this context will have the objref of the void*security, not of the
++ * context string.
++ */
++static struct ckpt_lsm_string *restore_lsm_string(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_lsm *h;
++	struct ckpt_lsm_string *l;
++
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_SECURITY);
++	if (IS_ERR(h)) {
++		ckpt_debug("ckpt_read_obj_type returned %ld\n", PTR_ERR(h));
++		return ERR_PTR(PTR_ERR(h));
++	}
++
++	l = kzalloc(sizeof(*l), GFP_KERNEL);
++	if (!l) {
++		l = ERR_PTR(-ENOMEM);
++		goto out;
++	}
++	l->string = ckpt_read_string(ctx, CKPT_LSM_STRING_MAX);
++	if (IS_ERR(l->string)) {
++		void *s = l->string;
++		ckpt_debug("ckpt_read_string returned %ld\n", PTR_ERR(s));
++		kfree(l);
++		l = s;
++		goto out;
++	}
++	kref_init(&l->kref);
++	l->sectype = h->sectype;
++	/* l is just a placeholder, don't grab a ref */
++	ckpt_obj_insert(ctx, l, h->ptrref, CKPT_OBJ_SECURITY);
++
++out:
++	ckpt_hdr_put(ctx, h);
++	return l;
++}
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 70198f9..792b523 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -64,6 +64,7 @@ extern long do_sys_restart(pid_t pid, int fd,
+ 	 RESTART_CONN_RESET)
+ 
+ #define CKPT_LSM_INFO_LEN 200
++#define CKPT_LSM_STRING_MAX 1024
+ 
+ extern int walk_task_subtree(struct task_struct *task,
+ 			     int (*func)(struct task_struct *, void *),
+@@ -107,6 +108,9 @@ extern int restore_read_page(struct ckpt_ctx *ctx, struct page *page);
+ extern pid_t ckpt_pid_nr(struct ckpt_ctx *ctx, struct pid *pid);
+ extern struct pid *_ckpt_find_pgrp(struct ckpt_ctx *ctx, pid_t pgid);
+ 
++/* defined in objhash.c and also used in security/security.c */
++extern void lsm_string_free(struct kref *kref);
++
+ /* socket functions */
+ extern int ckpt_sock_getnames(struct ckpt_ctx *ctx,
+ 			      struct socket *socket,
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index fad955f..41412d1 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -80,6 +80,8 @@ enum {
+ #define CKPT_HDR_OBJREF CKPT_HDR_OBJREF
+ 	CKPT_HDR_LSM_INFO,
+ #define CKPT_HDR_LSM_INFO CKPT_HDR_LSM_INFO
++	CKPT_HDR_SECURITY,
++#define CKPT_HDR_SECURITY CKPT_HDR_SECURITY
+ 
+ 	CKPT_HDR_TREE = 101,
+ #define CKPT_HDR_TREE CKPT_HDR_TREE
+@@ -247,6 +249,10 @@ enum obj_type {
+ #define CKPT_OBJ_SOCK CKPT_OBJ_SOCK
+ 	CKPT_OBJ_TTY,
+ #define CKPT_OBJ_TTY CKPT_OBJ_TTY
++	CKPT_OBJ_SECURITY_PTR,
++#define CKPT_OBJ_SECURITY_PTR CKPT_OBJ_SECURITY_PTR
++	CKPT_OBJ_SECURITY,
++#define CKPT_OBJ_SECURITY CKPT_OBJ_SECURITY
+ 	CKPT_OBJ_MAX
+ #define CKPT_OBJ_MAX CKPT_OBJ_MAX
+ };
+@@ -376,6 +382,7 @@ struct ckpt_hdr_cred {
+ 	__u32 gid, sgid, egid, fsgid;
+ 	__s32 user_ref;
+ 	__s32 groupinfo_ref;
++	__s32 sec_ref;
+ 	struct ckpt_capabilities cap_s;
+ } __attribute__((aligned(8)));
+ 
+@@ -388,6 +395,15 @@ struct ckpt_hdr_groupinfo {
+ 	__u32 groups[0];
+ } __attribute__((aligned(8)));
+ 
++struct ckpt_hdr_lsm {
++	struct ckpt_hdr h;
++	__s32 ptrref;
++	__u8 sectype;
++	/*
++	 * This is followed by a string of size len+1,
++	 * null-terminated
++	 */
++} __attribute__((aligned(8)));
+ /*
+  * todo - keyrings and LSM
+  * These may be better done with userspace help though
+@@ -532,6 +548,7 @@ struct ckpt_hdr_file {
+ 	__s32 f_credref;
+ 	__u64 f_pos;
+ 	__u64 f_version;
++	__s32 f_secref;
+ } __attribute__((aligned(8)));
+ 
+ struct ckpt_hdr_file_generic {
+@@ -924,6 +941,7 @@ struct ckpt_hdr_ipc_perms {
+ 	__u32 mode;
+ 	__u32 _padding;
+ 	__u64 seq;
++	__s32 sec_ref;
+ } __attribute__((aligned(8)));
+ 
+ struct ckpt_hdr_ipc_shm {
+@@ -957,6 +975,7 @@ struct ckpt_hdr_ipc_msg_msg {
+ 	struct ckpt_hdr h;
+ 	__s64 m_type;
+ 	__u32 m_ts;
++	__s32 sec_ref;
+ } __attribute__((aligned(8)));
+ 
+ struct ckpt_hdr_ipc_sem {
+diff --git a/include/linux/checkpoint_types.h b/include/linux/checkpoint_types.h
+index efd34b6..ecd3e91 100644
+--- a/include/linux/checkpoint_types.h
++++ b/include/linux/checkpoint_types.h
+@@ -97,6 +97,14 @@ struct ckpt_ctx {
+ #endif
+ };
+ 
++/* stored on hashtable */
++struct ckpt_lsm_string {
++	struct kref kref;
++	int sectype;			/* Containing object (file,cred,&c) */
++	int ptrref;			/* the objref for the void* security */
++	char *string;
++};
++
+ #endif /* __KERNEL__ */
+ 
+ #endif /* _LINUX_CHECKPOINT_TYPES_H_ */
+diff --git a/include/linux/security.h b/include/linux/security.h
+index 980c942..de860ed 100644
+--- a/include/linux/security.h
++++ b/include/linux/security.h
+@@ -43,6 +43,9 @@
+ #define SECURITY_CAP_NOAUDIT 0
+ #define SECURITY_CAP_AUDIT 1
+ 
++/* checkpoint 'N/A' in a checkpoint image for a security context */
++#define SECURITY_CTX_NONE 0
++
+ struct ctl_table;
+ struct audit_krule;
+ 
+@@ -604,6 +607,15 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
+  *	created.
+  *	@file contains the file structure to secure.
+  *	Return 0 if the hook is successful and permission is granted.
++ * @file_checkpoint:
++ *	Return a string representing the security context on a file.
++ *	@security contains the security field.
++ *	Returns a char* which the caller will free, or -error on error.
++ * @file_restore:
++ *	Set a security context on a file according to the checkpointed context.
++ *	@file contains the file.
++ *	@ctx contains a string representation of the checkpointed context.
++ *	Returns 0 on success, -error on failure.
+  * @file_free_security:
+  *	Deallocate and free any security structures stored in file->f_security.
+  *	@file contains the file structure being modified.
+@@ -688,6 +700,17 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
+  *	@gfp indicates the atomicity of any memory allocations.
+  *	Only allocate sufficient memory and attach to @cred such that
+  *	cred_transfer() will not get ENOMEM.
++ * @cred_checkpoint:
++ *	Return a string representing the security context on the task cred.
++ *	@security contains the security field.
++ *	Returns a char* which the caller will free, or -error on error.
++ * @cred_restore:
++ *	Set a security context on a task cred according to the checkpointed
++ *	context.
++ *	@file contains the checkpoint file
++ *	@cred contains the cred.
++ *	@ctx contains a string representation of the checkpointed context.
++ *	Returns 0 on success, -error on failure.
+  * @cred_free:
+  *	@cred points to the credentials.
+  *	Deallocate and clear the cred->security field in a set of credentials.
+@@ -1163,6 +1186,19 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
+  *	@ipcp contains the kernel IPC permission structure.
+  *	@secid contains a pointer to the location where result will be saved.
+  *	In case of failure, @secid will be set to zero.
++ * @ipc_checkpoint:
++ *	Return a string representing the security context on the IPC
++ *	permission structure.
++ *	@security contains the security field.
++ *	Returns a char* which the caller will free, or -error on error.
++ * @ipc_restore:
++ *	Set a security context on a IPC permission structure according to
++ *	the checkpointed context.
++ *	@ipcp contains the IPC permission structure, which will have
++ *	already been allocated and initialized when the IPC structure was
++ *	created.
++ *	@ctx contains a string representation of the checkpointed context.
++ *	Returns 0 on success, -error on failure.
+  *
+  * Security hooks for individual messages held in System V IPC message queues
+  * @msg_msg_alloc_security:
+@@ -1171,6 +1207,16 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
+  *	created.
+  *	@msg contains the message structure to be modified.
+  *	Return 0 if operation was successful and permission is granted.
++ * @msg_msg_checkpoint:
++ *	Return a string representing the security context on an msg_msg
++ *	struct.
++ *	@security contains the security field
++ *	Returns a char* which the caller will free, or -error on error.
++ * @msg_msg_restore:
++ *	Set msg_msg->security according to the checkpointed context.
++ *	@msg contains the message structure to be modified.
++ *	@ctx contains a string representation of the checkpointed context.
++ *	Return 0 on success, -error on failure.
+  * @msg_msg_free_security:
+  *	Deallocate the security structure for this message.
+  *	@msg contains the message structure to be modified.
+@@ -1586,6 +1632,8 @@ struct security_operations {
+ 
+ 	int (*file_permission) (struct file *file, int mask);
+ 	int (*file_alloc_security) (struct file *file);
++	char *(*file_checkpoint) (void *security);
++	int (*file_restore) (struct file *file, char *ctx);
+ 	void (*file_free_security) (struct file *file);
+ 	int (*file_ioctl) (struct file *file, unsigned int cmd,
+ 			   unsigned long arg);
+@@ -1607,6 +1655,10 @@ struct security_operations {
+ 
+ 	int (*task_create) (unsigned long clone_flags);
+ 	int (*cred_alloc_blank) (struct cred *cred, gfp_t gfp);
++
++	char *(*cred_checkpoint) (void *security);
++	int (*cred_restore) (struct file *file, struct cred *cred, char *ctx);
++
+ 	void (*cred_free) (struct cred *cred);
+ 	int (*cred_prepare)(struct cred *new, const struct cred *old,
+ 			    gfp_t gfp);
+@@ -1642,8 +1694,12 @@ struct security_operations {
+ 
+ 	int (*ipc_permission) (struct kern_ipc_perm *ipcp, short flag);
+ 	void (*ipc_getsecid) (struct kern_ipc_perm *ipcp, u32 *secid);
++	char *(*ipc_checkpoint) (void *security);
++	int (*ipc_restore) (struct kern_ipc_perm *ipcp, char *ctx);
+ 
+ 	int (*msg_msg_alloc_security) (struct msg_msg *msg);
++	char *(*msg_msg_checkpoint) (void *security);
++	int (*msg_msg_restore) (struct msg_msg *msg, char *ctx);
+ 	void (*msg_msg_free_security) (struct msg_msg *msg);
+ 
+ 	int (*msg_queue_alloc_security) (struct msg_queue *msq);
+@@ -1862,6 +1918,8 @@ int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer
+ void security_inode_getsecid(const struct inode *inode, u32 *secid);
+ int security_file_permission(struct file *file, int mask);
+ int security_file_alloc(struct file *file);
++char *security_file_checkpoint(void *security);
++int security_file_restore(struct file *file, char *ctx);
+ void security_file_free(struct file *file);
+ int security_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+ int security_file_mmap(struct file *file, unsigned long reqprot,
+@@ -1878,6 +1936,8 @@ int security_file_receive(struct file *file);
+ int security_dentry_open(struct file *file, const struct cred *cred);
+ int security_task_create(unsigned long clone_flags);
+ int security_cred_alloc_blank(struct cred *cred, gfp_t gfp);
++char *security_cred_checkpoint(void *security);
++int security_cred_restore(struct file *file, struct cred *cred, char *ctx);
+ void security_cred_free(struct cred *cred);
+ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
+ void security_commit_creds(struct cred *new, const struct cred *old);
+@@ -1910,7 +1970,11 @@ int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+ void security_task_to_inode(struct task_struct *p, struct inode *inode);
+ int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag);
+ void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid);
++char *security_ipc_checkpoint(void *security);
++int security_ipc_restore(struct kern_ipc_perm *ipcp, char *ctx);
+ int security_msg_msg_alloc(struct msg_msg *msg);
++char *security_msg_msg_checkpoint(void *security);
++int security_msg_msg_restore(struct msg_msg *msg, char *ctx);
+ void security_msg_msg_free(struct msg_msg *msg);
+ int security_msg_queue_alloc(struct msg_queue *msq);
+ void security_msg_queue_free(struct msg_queue *msq);
+@@ -2363,6 +2427,19 @@ static inline int security_file_alloc(struct file *file)
+ 	return 0;
+ }
+ 
++static inline char *security_file_checkpoint(void *security)
++{
++	/* this shouldn't ever get called if SECURITY=n */
++	return ERR_PTR(-EINVAL);
++}
++
++static inline int security_file_restore(struct file *file, char *ctx)
++{
++	/* we're asked to recreate security contexts for an LSM which had
++	 * contexts, but CONFIG_SECURITY=n now! */
++	return -EINVAL;
++}
++
+ static inline void security_file_free(struct file *file)
+ { }
+ 
+@@ -2432,6 +2509,20 @@ static inline int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+ 	return 0;
+ }
+ 
++static inline char *security_cred_checkpoint(void *security)
++{
++	/* this shouldn't ever get called if SECURITY=n */
++	return ERR_PTR(-EINVAL);
++}
++
++static inline int security_cred_restore(struct file *file, struct cred *cred,
++					char *ctx)
++{
++	/* we're asked to recreate security contexts for an LSM which had
++	 * contexts, but CONFIG_SECURITY=n now! */
++	return -EINVAL;
++}
++
+ static inline void security_cred_free(struct cred *cred)
+ { }
+ 
+@@ -2584,11 +2675,37 @@ static inline void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
+ 	*secid = 0;
+ }
+ 
++static inline char *security_ipc_checkpoint(void *security)
++{
++	/* this shouldn't ever get called if SECURITY=n */
++	return ERR_PTR(-EINVAL);
++}
++
++static inline int security_ipc_restore(struct kern_ipc_perm *ipcp, char *ctx)
++{
++	/* we're asked to recreate security contexts for an LSM which had
++	 * contexts, but CONFIG_SECURITY=n now! */
++	return -EINVAL;
++}
++
+ static inline int security_msg_msg_alloc(struct msg_msg *msg)
+ {
+ 	return 0;
+ }
+ 
++static inline char *security_msg_msg_checkpoint(void *security)
++{
++	/* this shouldn't ever get called if SECURITY=n */
++	return ERR_PTR(-EINVAL);
++}
++
++static inline int security_msg_msg_restore(struct msg_msg *msg, char *ctx)
++{
++	/* we're asked to recreate security contexts for an LSM which had
++	 * contexts, but CONFIG_SECURITY=n now! */
++	return -EINVAL;
++}
++
+ static inline void security_msg_msg_free(struct msg_msg *msg)
+ { }
+ 
+@@ -3247,5 +3364,58 @@ static inline void free_secdata(void *secdata)
+ { }
+ #endif /* CONFIG_SECURITY */
+ 
++#ifdef CONFIG_CHECKPOINT
++#define CKPT_SECURITY_MSG_MSG	1
++#define CKPT_SECURITY_IPC	2
++#define CKPT_SECURITY_FILE	3
++#define CKPT_SECURITY_CRED	4
++#define CKPT_SECURITY_MAX	4
++
++#ifdef CONFIG_SECURITY
++/*
++ * @security_checkpoint_obj:
++ *	Checkpoint a LSM security context.  The context is written out
++ *	as a string.  A positive integer objref uniquely representing the
++ *	security context in this checkpoint image will be returned.
++ *	If the security context has already been written out, then the
++ *	objref of that already written-out context will be used.
++ *	@ctx: the checkpoint context.
++ *	@security: the void*security being checkpointed.
++ *	@sectype: represents the type of object which contained the
++ *		void *security.
++ *	Return 0 or a valid objref on success, or -error on error.
++ */
++int security_checkpoint_obj(struct ckpt_ctx *ctx, void *security, int sectype);
++/*
++ * @security_restore_obj:
++ *	Re-create a checkpointed LSM security context.  The LSM will decide
++ *	based upon the string representation which actual security context
++ *	to assign.
++ *	@ctx: the checkpoint context.
++ *	@obj: The object containing the security context to be restored (cast
++ *	to a void *).
++ *	@sectype: represents the type of object which contained the
++ *		void *security.
++ *	@secref: an integer objref for the string representation of the
++ *		security context to be restored.
++ *	Return 0 on success, or -error on error.
++ */
++int security_restore_obj(struct ckpt_ctx *ctx, void *obj,
++				int sectype, int secref);
++#else
++static inline int security_checkpoint_obj(struct ckpt_ctx *ctx, void *security,
++				int sectype)
++{
++	return SECURITY_CTX_NONE;
++}
++static inline int security_restore_obj(struct ckpt_ctx *ctx, void *obj,
++				int sectype, int secref)
++{
++	return 0;
++}
++#endif /* CONFIG_SECURITY */
++
++#endif /* CONFIG_CHECKPOINT */
++
+ #endif /* ! __LINUX_SECURITY_H */
+ 
+diff --git a/ipc/checkpoint.c b/ipc/checkpoint.c
+index 4e7ac81..ca181ae 100644
+--- a/ipc/checkpoint.c
++++ b/ipc/checkpoint.c
+@@ -46,7 +46,8 @@ static char *ipc_ind_to_str[] = { "sem", "msg", "shm" };
+  * (c) The security context perm->security also may only change when the
+  * mutex is taken.
+  */
+-int checkpoint_fill_ipc_perms(struct ckpt_hdr_ipc_perms *h,
++int checkpoint_fill_ipc_perms(struct ckpt_ctx *ctx,
++			      struct ckpt_hdr_ipc_perms *h,
+ 			      struct kern_ipc_perm *perm)
+ {
+ 	if (ipcperms(perm, S_IROTH))
+@@ -61,6 +62,13 @@ int checkpoint_fill_ipc_perms(struct ckpt_hdr_ipc_perms *h,
+ 	h->mode = perm->mode & S_IRWXUGO;
+ 	h->seq = perm->seq;
+ 
++	h->sec_ref = security_checkpoint_obj(ctx, perm->security,
++					     CKPT_SECURITY_IPC);
++	if (h->sec_ref < 0) {
++		ckpt_err(ctx, h->sec_ref, "%(T)ipc_perm->security\n");
++		return h->sec_ref;
++	}
++
+ 	return 0;
+ }
+ 
+@@ -202,7 +210,8 @@ static int validate_created_perms(struct ckpt_hdr_ipc_perms *h)
+  * ipc-ns, only accessible to us, so there will be no attempt for
+  * access validation while we restore the state (by other tasks).
+  */
+-int restore_load_ipc_perms(struct ckpt_hdr_ipc_perms *h,
++int restore_load_ipc_perms(struct ckpt_ctx *ctx,
++			   struct ckpt_hdr_ipc_perms *h,
+ 			   struct kern_ipc_perm *perm)
+ {
+ 	if (h->id < 0)
+@@ -228,16 +237,9 @@ int restore_load_ipc_perms(struct ckpt_hdr_ipc_perms *h,
+ 	perm->cgid = h->cgid;
+ 	perm->mode = h->mode;
+ 
+-	/*
+-	 * Todo: restore perm->security.
+-	 * At the moment it gets set by security_x_alloc() called through
+-	 * ipcget()->ipcget_public()->ops-.getnew (->nequeue for instance)
+-	 * We will want to ask the LSM to consider resetting the
+-	 * checkpointed ->security, based on current_security(),
+-	 * the checkpointed ->security, and the checkpoint file context.
+-	 */
+-
+-	return 0;
++	return security_restore_obj(ctx, (void *)perm,
++				    CKPT_SECURITY_IPC,
++				    h->sec_ref);
+ }
+ 
+ static int restore_ipc_any(struct ckpt_ctx *ctx, struct ipc_namespace *ipc_ns,
+diff --git a/ipc/checkpoint_msg.c b/ipc/checkpoint_msg.c
+index 16ebbb5..e461991 100644
+--- a/ipc/checkpoint_msg.c
++++ b/ipc/checkpoint_msg.c
+@@ -36,7 +36,7 @@ static int fill_ipc_msg_hdr(struct ckpt_ctx *ctx,
+ {
+ 	int ret;
+ 
+-	ret = checkpoint_fill_ipc_perms(&h->perms, &msq->q_perm);
++	ret = checkpoint_fill_ipc_perms(ctx, &h->perms, &msq->q_perm);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -62,14 +62,21 @@ static int checkpoint_msg_contents(struct ckpt_ctx *ctx, struct msg_msg *msg)
+ 	struct ckpt_hdr_ipc_msg_msg *h;
+ 	struct msg_msgseg *seg;
+ 	int total, len;
+-	int ret;
++	int secref, ret;
+ 
++	secref = security_checkpoint_obj(ctx, msg->security,
++				      CKPT_SECURITY_MSG_MSG);
++	if (secref < 0) {
++		ckpt_err(ctx, secref, "%(T)msg_msg->security");
++		return secref;
++	}
+ 	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_IPC_MSG_MSG);
+ 	if (!h)
+ 		return -ENOMEM;
+ 
+ 	h->m_type = msg->m_type;
+ 	h->m_ts = msg->m_ts;
++	h->sec_ref = secref;
+ 
+ 	ret = ckpt_write_obj(ctx, &h->h);
+ 	ckpt_hdr_put(ctx, h);
+@@ -178,7 +185,7 @@ static int load_ipc_msg_hdr(struct ckpt_ctx *ctx,
+ {
+ 	int ret = 0;
+ 
+-	ret = restore_load_ipc_perms(&h->perms, &msq->q_perm);
++	ret = restore_load_ipc_perms(ctx, &h->perms, &msq->q_perm);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -225,6 +232,17 @@ static struct msg_msg *restore_msg_contents_one(struct ckpt_ctx *ctx, int *clen)
+ 	msg->next = NULL;
+ 	pseg = &msg->next;
+ 
++	/* set default MAC attributes */
++	ret = security_msg_msg_alloc(msg);
++	if (ret < 0)
++		goto out;
++
++	/* if requested and allowed, reset checkpointed MAC attributes */
++	ret = security_restore_obj(ctx, (void *) msg, CKPT_SECURITY_MSG_MSG,
++				   h->sec_ref);
++	if (ret < 0)
++		goto out;
++
+ 	ret = _ckpt_read_buffer(ctx, (msg + 1), len);
+ 	if (ret < 0)
+ 		goto out;
+@@ -250,7 +268,6 @@ static struct msg_msg *restore_msg_contents_one(struct ckpt_ctx *ctx, int *clen)
+ 	msg->m_type = h->m_type;
+ 	msg->m_ts = h->m_ts;
+ 	*clen = h->m_ts;
+-	ret = security_msg_msg_alloc(msg);
+  out:
+ 	if (ret < 0 && msg) {
+ 		free_msg(msg);
+diff --git a/ipc/checkpoint_sem.c b/ipc/checkpoint_sem.c
+index a1a4356..890374d 100644
+--- a/ipc/checkpoint_sem.c
++++ b/ipc/checkpoint_sem.c
+@@ -36,7 +36,7 @@ static int fill_ipc_sem_hdr(struct ckpt_ctx *ctx,
+ {
+ 	int ret = 0;
+ 
+-	ret = checkpoint_fill_ipc_perms(&h->perms, &sem->sem_perm);
++	ret = checkpoint_fill_ipc_perms(ctx, &h->perms, &sem->sem_perm);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -114,7 +114,7 @@ static int load_ipc_sem_hdr(struct ckpt_ctx *ctx,
+ {
+ 	int ret = 0;
+ 
+-	ret = restore_load_ipc_perms(&h->perms, &sem->sem_perm);
++	ret = restore_load_ipc_perms(ctx, &h->perms, &sem->sem_perm);
+ 	if (ret < 0)
+ 		return ret;
+ 
+diff --git a/ipc/checkpoint_shm.c b/ipc/checkpoint_shm.c
+index cb26633..bfba5dc 100644
+--- a/ipc/checkpoint_shm.c
++++ b/ipc/checkpoint_shm.c
+@@ -40,7 +40,7 @@ static int fill_ipc_shm_hdr(struct ckpt_ctx *ctx,
+ {
+ 	int ret = 0;
+ 
+-	ret = checkpoint_fill_ipc_perms(&h->perms, &shp->shm_perm);
++	ret = checkpoint_fill_ipc_perms(ctx, &h->perms, &shp->shm_perm);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -177,7 +177,7 @@ static int load_ipc_shm_hdr(struct ckpt_ctx *ctx,
+ {
+ 	int ret;
+ 
+-	ret = restore_load_ipc_perms(&h->perms, &shp->shm_perm);
++	ret = restore_load_ipc_perms(ctx, &h->perms, &shp->shm_perm);
+ 	if (ret < 0)
+ 		return ret;
+ 
+diff --git a/ipc/util.h b/ipc/util.h
+index ba080de..ce34de0 100644
+--- a/ipc/util.h
++++ b/ipc/util.h
+@@ -199,9 +199,11 @@ void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp);
+ 
+ 
+ #ifdef CONFIG_CHECKPOINT
+-extern int checkpoint_fill_ipc_perms(struct ckpt_hdr_ipc_perms *h,
++extern int checkpoint_fill_ipc_perms(struct ckpt_ctx *ctx,
++				     struct ckpt_hdr_ipc_perms *h,
+ 				     struct kern_ipc_perm *perm);
+-extern int restore_load_ipc_perms(struct ckpt_hdr_ipc_perms *h,
++extern int restore_load_ipc_perms(struct ckpt_ctx *ctx,
++				  struct ckpt_hdr_ipc_perms *h,
+ 				  struct kern_ipc_perm *perm);
+ 
+ extern int ckpt_collect_ipc_shm(int id, void *p, void *data);
+diff --git a/kernel/cred.c b/kernel/cred.c
+index 68f69b5..53b6663 100644
+--- a/kernel/cred.c
++++ b/kernel/cred.c
+@@ -1007,10 +1007,22 @@ int cred_setfsgid(struct cred *new, gid_t gid, gid_t *old_fsgid)
+ }
+ 
+ #ifdef CONFIG_CHECKPOINT
++#ifdef CONFIG_SECURITY
++int checkpoint_cred_security(struct ckpt_ctx *ctx, struct cred *cred)
++{
++	return security_checkpoint_obj(ctx, cred->security, CKPT_SECURITY_CRED);
++}
++#else
++int checkpoint_cred_security(struct ckpt_ctx *ctx, struct cred *cred)
++{
++	return SECURITY_CTX_NONE;
++}
++#endif
++
+ static int do_checkpoint_cred(struct ckpt_ctx *ctx, struct cred *cred)
+ {
+ 	int ret;
+-	int groupinfo_ref, user_ref;
++	int groupinfo_ref, user_ref, secref;
+ 	struct ckpt_hdr_cred *h;
+ 
+ 	groupinfo_ref = checkpoint_obj(ctx, cred->group_info,
+@@ -1020,13 +1032,18 @@ static int do_checkpoint_cred(struct ckpt_ctx *ctx, struct cred *cred)
+ 	user_ref = checkpoint_obj(ctx, cred->user, CKPT_OBJ_USER);
+ 	if (user_ref < 0)
+ 		return user_ref;
++	secref = checkpoint_cred_security(ctx, cred);
++	if (secref < 0) {
++		ckpt_err(ctx, secref, "%(T)cred->security");
++		return secref;
++	}
+ 
+ 	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_CRED);
+ 	if (!h)
+ 		return -ENOMEM;
+ 
+-	ckpt_debug("cred uid %d fsuid %d gid %d\n", cred->uid, cred->fsuid,
+-			cred->gid);
++	ckpt_debug("cred uid %d fsuid %d gid %d secref %d\n", cred->uid,
++			cred->fsuid, cred->gid, secref);
+ 
+ 	h->uid = cred->uid;
+ 	h->suid = cred->suid;
+@@ -1037,6 +1054,7 @@ static int do_checkpoint_cred(struct ckpt_ctx *ctx, struct cred *cred)
+ 	h->sgid = cred->sgid;
+ 	h->egid = cred->egid;
+ 	h->fsgid = cred->fsgid;
++	h->sec_ref = secref;
+ 
+ 	checkpoint_capabilities(&h->cap_s, cred);
+ 
+@@ -1110,6 +1128,10 @@ static struct cred *do_restore_cred(struct ckpt_ctx *ctx)
+ 	ret = cred_setfsgid(cred, h->fsgid, &oldgid);
+ 	if (oldgid != h->fsgid && ret < 0)
+ 		goto err_putcred;
++	ret = security_restore_obj(ctx, (void *) cred, CKPT_SECURITY_CRED,
++				   h->sec_ref);
++	if (ret)
++		goto err_putcred;
+ 	ret = restore_capabilities(&h->cap_s, cred);
+ 	if (ret)
+ 		goto err_putcred;
+diff --git a/security/capability.c b/security/capability.c
+index f79911a..24e5974 100644
+--- a/security/capability.c
++++ b/security/capability.c
+@@ -331,6 +331,16 @@ static int cap_file_permission(struct file *file, int mask)
+ 	return 0;
+ }
+ 
++static inline char *cap_file_checkpoint(void *security)
++{
++	return ERR_PTR(-ENOSYS);
++}
++
++static int cap_file_restore(struct file *file, char *ctx)
++{
++	return -ENOSYS;
++}
++
+ static int cap_file_alloc_security(struct file *file)
+ {
+ 	return 0;
+@@ -394,6 +404,16 @@ static int cap_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+ 	return 0;
+ }
+ 
++static char *cap_cred_checkpoint(void *security)
++{
++	return ERR_PTR(-ENOSYS);
++}
++
++static int cap_cred_restore(struct file *file, struct cred *cred, char *ctx)
++{
++	return -ENOSYS;
++}
++
+ static void cap_cred_free(struct cred *cred)
+ {
+ }
+@@ -506,11 +526,31 @@ static void cap_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
+ 	*secid = 0;
+ }
+ 
++static char *cap_ipc_checkpoint(void *security)
++{
++	return ERR_PTR(-ENOSYS);
++}
++
++static int cap_ipc_restore(struct kern_ipc_perm *ipcp, char *ctx)
++{
++	return -ENOSYS;
++}
++
+ static int cap_msg_msg_alloc_security(struct msg_msg *msg)
+ {
+ 	return 0;
+ }
+ 
++static inline char *cap_msg_msg_checkpoint(void *security)
++{
++	return ERR_PTR(-ENOSYS);
++}
++
++static int cap_msg_msg_restore(struct msg_msg *msg, char *ctx)
++{
++	return -ENOSYS;
++}
++
+ static void cap_msg_msg_free_security(struct msg_msg *msg)
+ {
+ }
+@@ -1019,6 +1059,8 @@ void security_fixup_ops(struct security_operations *ops)
+ 	set_to_cap_if_null(ops, path_chroot);
+ #endif
+ 	set_to_cap_if_null(ops, file_permission);
++	set_to_cap_if_null(ops, file_checkpoint);
++	set_to_cap_if_null(ops, file_restore);
+ 	set_to_cap_if_null(ops, file_alloc_security);
+ 	set_to_cap_if_null(ops, file_free_security);
+ 	set_to_cap_if_null(ops, file_ioctl);
+@@ -1032,6 +1074,8 @@ void security_fixup_ops(struct security_operations *ops)
+ 	set_to_cap_if_null(ops, dentry_open);
+ 	set_to_cap_if_null(ops, task_create);
+ 	set_to_cap_if_null(ops, cred_alloc_blank);
++	set_to_cap_if_null(ops, cred_checkpoint);
++	set_to_cap_if_null(ops, cred_restore);
+ 	set_to_cap_if_null(ops, cred_free);
+ 	set_to_cap_if_null(ops, cred_prepare);
+ 	set_to_cap_if_null(ops, cred_commit);
+@@ -1060,7 +1104,11 @@ void security_fixup_ops(struct security_operations *ops)
+ 	set_to_cap_if_null(ops, task_to_inode);
+ 	set_to_cap_if_null(ops, ipc_permission);
+ 	set_to_cap_if_null(ops, ipc_getsecid);
++	set_to_cap_if_null(ops, ipc_checkpoint);
++	set_to_cap_if_null(ops, ipc_restore);
+ 	set_to_cap_if_null(ops, msg_msg_alloc_security);
++	set_to_cap_if_null(ops, msg_msg_checkpoint);
++	set_to_cap_if_null(ops, msg_msg_restore);
+ 	set_to_cap_if_null(ops, msg_msg_free_security);
+ 	set_to_cap_if_null(ops, msg_queue_alloc_security);
+ 	set_to_cap_if_null(ops, msg_queue_free_security);
+diff --git a/security/security.c b/security/security.c
+index abc1142..4b3f932 100644
+--- a/security/security.c
++++ b/security/security.c
+@@ -671,6 +671,16 @@ int security_file_alloc(struct file *file)
+ 	return security_ops->file_alloc_security(file);
+ }
+ 
++char *security_file_checkpoint(void *security)
++{
++	return security_ops->file_checkpoint(security);
++}
++
++int security_file_restore(struct file *file, char *ctx)
++{
++	return security_ops->file_restore(file, ctx);
++}
++
+ void security_file_free(struct file *file)
+ {
+ 	security_ops->file_free_security(file);
+@@ -740,6 +750,16 @@ int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+ 	return security_ops->cred_alloc_blank(cred, gfp);
+ }
+ 
++char *security_cred_checkpoint(void *security)
++{
++	return security_ops->cred_checkpoint(security);
++}
++
++int security_cred_restore(struct file *file, struct cred *cred, char *ctx)
++{
++	return security_ops->cred_restore(file, cred, ctx);
++}
++
+ void security_cred_free(struct cred *cred)
+ {
+ 	security_ops->cred_free(cred);
+@@ -885,11 +905,31 @@ void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
+ 	security_ops->ipc_getsecid(ipcp, secid);
+ }
+ 
++char *security_ipc_checkpoint(void *security)
++{
++	return security_ops->ipc_checkpoint(security);
++}
++
++int security_ipc_restore(struct kern_ipc_perm *ipcp, char *ctx)
++{
++	return security_ops->ipc_restore(ipcp, ctx);
++}
++
+ int security_msg_msg_alloc(struct msg_msg *msg)
+ {
+ 	return security_ops->msg_msg_alloc_security(msg);
+ }
+ 
++char *security_msg_msg_checkpoint(void *security)
++{
++	return security_ops->msg_msg_checkpoint(security);
++}
++
++int security_msg_msg_restore(struct msg_msg *msg, char *ctx)
++{
++	return security_ops->msg_msg_restore(msg, ctx);
++}
++
+ void security_msg_msg_free(struct msg_msg *msg)
+ {
+ 	security_ops->msg_msg_free_security(msg);
+@@ -1371,3 +1411,156 @@ int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
+ }
+ 
+ #endif /* CONFIG_AUDIT */
++
++#ifdef CONFIG_CHECKPOINT
++
++/**
++ * security_checkpoint_obj - called during application checkpoint to
++ * record the security context of objects.
++ *
++ * First we add the void*security address to the objhash as a type
++ * CKPT_OBJ_SECURITY_PTR.  This records the fact that we've seen this
++ * context.  If we've seen the context before, then we simply place the
++ * recorded objref in *secref and return success.
++
++ * If this is the first time we've seen this context for this checkpoint
++ * image, then we
++ * 1. ask the LSM for a string representation of the context
++ * 2. create a struct ckpt_lsm_string pointing to the string and to the
++ *    objref which we got for the void*security in the objhash.
++ * 3. write that out to the checkpoint image as a CKPT_OBJ_SECURITY.  it
++ *    will be freed when the objhash is cleared.
++ *
++ * Returns 0 or a valid objref on success, or -error on error.
++ *
++ * This is only used at checkpoint of course.
++ */
++int security_checkpoint_obj(struct ckpt_ctx *ctx, void *security, int sectype)
++{
++	int new, ret = -ENOMEM;
++	char *str;
++	struct ckpt_lsm_string *l;
++	int secref;
++
++	if (!security)
++		return SECURITY_CTX_NONE;
++
++	secref = ckpt_obj_lookup_add(ctx, security, CKPT_OBJ_SECURITY_PTR,
++				     &new);
++	if (!new)
++		return secref;
++
++	/*
++	 * Ask the LSM for a string representation
++	 */
++	switch (sectype) {
++	case CKPT_SECURITY_MSG_MSG:
++		str = security_msg_msg_checkpoint(security);
++		break;
++	case CKPT_SECURITY_IPC:
++		str = security_ipc_checkpoint(security);
++		break;
++	case CKPT_SECURITY_FILE:
++		str = security_file_checkpoint(security);
++		break;
++	case CKPT_SECURITY_CRED:
++		str = security_cred_checkpoint(security);
++		break;
++	default:
++		str = ERR_PTR(-EINVAL);
++		break;
++	}
++
++	if (IS_ERR(str)) {
++		if (PTR_ERR(str) == -ENOSYS)
++			return SECURITY_CTX_NONE;
++		return PTR_ERR(str);
++	}
++
++	l = kzalloc(sizeof(*l), GFP_KERNEL);
++	if (!l) {
++		kfree(str);
++		return -ENOMEM;
++	}
++	l->ptrref = secref;
++	l->sectype = sectype;
++	l->string = str;
++	kref_init(&l->kref);
++	ret = checkpoint_obj(ctx, l, CKPT_OBJ_SECURITY);
++	kref_put(&l->kref, lsm_string_free);
++	if (ret < 0)
++		return ret;
++
++	return secref;
++}
++
++/*
++ * Choose a security context for an object being restored during
++ * application restart.  @v is an object (file, cred, etc) containing
++ * a security context and being re-created.  It has been type-cast
++ * to a void*.  @sectype tells us what sort of object v is.  @secref
++ * is the objhash id representing the security context.
++ *
++ * If sys_restart() was called without the RESTART_KEEP_LSM flag,
++ * then default security contexts will be assigned to the re-created
++ * object (in fact, they already have by this point).  Otherwise, the
++ * LSM is expected to use the string context representation to assign
++ * the same security context to this object (if allowed).
++ *
++ * At checkpoint time, @secref was the objref for the void*security
++ * (which was not written to disk).  The
++ * checkpoint/objhash.c:restore_lsm_string() function should, before we
++ * get here, have read the context string in the checkpoint image, and
++ * inserted a second copy of the struct ckpt_lsm_string on the objhash,
++ * with this objref.
++ *
++ * Returns 0 on success, -error on error.
++ */
++int security_restore_obj(struct ckpt_ctx *ctx, void *v, int sectype,
++			 int secref)
++{
++	struct ckpt_lsm_string *l;
++	int ret;
++
++	/* return if caller didn't want to restore checkpointed labels */
++	if (!(ctx->uflags & RESTART_KEEP_LSM))
++		/* though msg_msg label must always be restored */
++		if (sectype != CKPT_SECURITY_MSG_MSG)
++			return 0;
++
++	/* return if checkpointed label was "Not Applicable" */
++	if (secref == SECURITY_CTX_NONE)
++		return 0;
++
++	l = ckpt_obj_fetch(ctx, secref, CKPT_OBJ_SECURITY);
++	if (IS_ERR(l))
++		return PTR_ERR(l);
++
++	/* Ask the LSM to apply a void*security to the object
++	 * based on the checkpointed context string */
++	switch (sectype) {
++	case CKPT_SECURITY_IPC:
++		ret = security_ipc_restore((struct kern_ipc_perm *) v,
++					l->string);
++		break;
++	case CKPT_SECURITY_MSG_MSG:
++		ret = security_msg_msg_restore((struct msg_msg *) v,
++						l->string);
++		break;
++	case CKPT_SECURITY_FILE:
++		ret = security_file_restore((struct file *) v, l->string);
++		break;
++	case CKPT_SECURITY_CRED:
++		ret = security_cred_restore(ctx->file, (struct cred *) v,
++						l->string);
++		break;
++	default:
++		ret = -EINVAL;
++	}
++	if (ret)
++		ckpt_err(ctx, ret, "%(O)sectype %d lsm restore hook error\n",
++			   secref, sectype);
 +
 +	return ret;
 +}
-+
-+/* dump the mm->context state */
-+int checkpoint_mm_context(struct ckpt_ctx *ctx, struct mm_struct *mm)
-+{
-+	return 0;
-+}
-+
-+/**************************************************************************
-+ * Restart
-+ */
-+
-+/* read the thread_struct into the current task */
-+int restore_thread(struct ckpt_ctx *ctx)
-+{
-+	return 0;
-+}
-+
-+/* Based on the MSR value from a checkpoint image, produce an MSR
-+ * value that is appropriate for the restored task.  Right now we only
-+ * check for MSR_SF (64-bit) for PPC64.
-+ */
-+static unsigned long sanitize_msr(unsigned long msr_ckpt)
-+{
-+#ifdef CONFIG_PPC32
-+	return MSR_USER;
-+#else
-+	if (msr_ckpt & MSR_SF)
-+		return MSR_USER64;
-+	return MSR_USER32;
 +#endif
-+}
-+
-+static int restore_gprs(const struct ckpt_hdr_cpu *cpu_hdr,
-+			struct task_struct *task, bool update)
-+{
-+	struct pt_regs *regs;
-+	int rc;
-+
-+	rc = -EINVAL;
-+	if (cpu_hdr->pt_regs_size != sizeof(*regs))
-+		goto out;
-+
-+	rc = 0;
-+	if (!update)
-+		goto out;
-+
-+	regs = task_pt_regs(task);
-+	*regs = cpu_hdr->pt_regs;
-+
-+	regs->orig_gpr3 = cpu_hdr->orig_gpr3;
-+
-+	regs->msr = sanitize_msr(regs->msr);
-+out:
-+	return rc;
-+}
-+
-+#ifdef CONFIG_PPC_FPU
-+static int restore_fpu(const struct ckpt_hdr_cpu *cpu_hdr,
-+		       struct task_struct *task, bool update)
-+{
-+	int rc;
-+
-+	rc = -EINVAL;
-+	if (cpu_hdr->fpr_size != sizeof(task->thread.fpr))
-+		goto out;
-+
-+	rc = 0;
-+	if (!update || !ckpt_cpu_feature_isset(cpu_hdr, CKPT_USED_FP))
-+		goto out;
-+
-+	task->thread.fpscr.val = cpu_hdr->fpscr;
-+	task->thread.fpexc_mode = cpu_hdr->fpexc_mode;
-+
-+	memcpy(task->thread.fpr, cpu_hdr->fpr, sizeof(task->thread.fpr));
-+out:
-+	return rc;
-+}
-+#else
-+static int restore_fpu(const struct ckpt_hdr_cpu *cpu_hdr,
-+		       struct task_struct *task, bool update)
-+{
-+	WARN_ON_ONCE(ckpt_cpu_feature_isset(cpu_hdr, CKPT_USED_FP));
-+	return 0;
-+}
-+#endif
-+
-+static int restore_dabr(const struct ckpt_hdr_cpu *cpu_hdr,
-+			struct task_struct *task, bool update)
-+{
-+	int rc;
-+
-+	rc = 0;
-+	if (!ckpt_cpu_feature_isset(cpu_hdr, CKPT_USED_DEBUG))
-+		goto out;
-+
-+	rc = -EINVAL;
-+	if (!debugreg_valid(cpu_hdr->dabr, 0))
-+		goto out;
-+
-+	rc = 0;
-+	if (!update)
-+		goto out;
-+
-+	debugreg_update(task, cpu_hdr->dabr, 0);
-+out:
-+	return rc;
-+}
-+
-+#ifdef CONFIG_ALTIVEC
-+static int restore_altivec(const struct ckpt_hdr_cpu *cpu_hdr,
-+			   struct task_struct *task, bool update)
-+{
-+	int rc;
-+
-+	rc = 0;
-+	if (!ckpt_cpu_feature_isset(cpu_hdr, CKPT_USED_ALTIVEC))
-+		goto out;
-+
-+	rc = -EINVAL;
-+	if (!cpu_has_feature(CPU_FTR_ALTIVEC))
-+		goto out;
-+
-+	rc = 0;
-+	if (!update)
-+		goto out;
-+
-+	task->thread.vrsave = cpu_hdr->vrsave;
-+	task->thread.used_vr = 1;
-+
-+	memcpy(task->thread.vr, cpu_hdr->vr, sizeof(cpu_hdr->vr));
-+out:
-+	return rc;
-+}
-+#else
-+static int restore_altivec(const struct ckpt_hdr_cpu *cpu_hdr,
-+			   struct task_struct *task, bool update)
-+{
-+	WARN_ON_ONCE(ckpt_cpu_feature_isset(CKPT_USED_ALTIVEC));
-+	return 0;
-+}
-+#endif
-+
-+#ifdef CONFIG_SPE
-+static int restore_spe(const struct ckpt_hdr_cpu *cpu_hdr,
-+		       struct task_struct *task, bool update)
-+{
-+	int rc;
-+
-+	rc = 0;
-+	if (!ckpt_cpu_feature_isset(cpu_hdr, CKPT_USED_SPE))
-+		goto out;
-+
-+	rc = -EINVAL;
-+	if (!cpu_has_feature(CPU_FTR_SPE))
-+		goto out;
-+
-+	rc = 0;
-+	if (!update)
-+		goto out;
-+
-+	task->thread.acc = cpu_hdr->acc;
-+	task->thread.spefscr = cpu_hdr->spefscr;
-+	task->thread.used_spe = 1;
-+
-+	memcpy(task->thread.evr, cpu_hdr->evr, sizeof(cpu_hdr->evr));
-+out:
-+	return rc;
-+}
-+#else
-+static int restore_spe(const struct ckpt_hdr_cpu *cpu_hdr,
-+		       struct task_struct *task, bool update)
-+{
-+	WARN_ON_ONCE(ckpt_cpu_feature_isset(cpu_hdr, CKPT_USED_SPE));
-+	return 0;
-+}
-+#endif
-+
-+struct restore_func_desc {
-+	int (*func)(const struct ckpt_hdr_cpu *, struct task_struct *, bool);
-+	const char *info;
-+};
-+
-+typedef int (*restore_func_t)(const struct ckpt_hdr_cpu *,
-+			      struct task_struct *, bool);
-+
-+static const restore_func_t restore_funcs[] = {
-+	restore_gprs,
-+	restore_fpu,
-+	restore_dabr,
-+	restore_altivec,
-+	restore_spe,
-+};
-+
-+static bool bitness_match(const struct ckpt_hdr_cpu *cpu_hdr,
-+			  const struct task_struct *task)
-+{
-+	/* 64-bit image */
-+	if (cpu_hdr->pt_regs.msr & MSR_SF) {
-+		if (task->thread.regs->msr & MSR_SF)
-+			return true;
-+		else
-+			return false;
-+	}
-+
-+	/* 32-bit image */
-+	if (task->thread.regs->msr & MSR_SF)
-+		return false;
-+
-+	return true;
-+}
-+
-+int restore_cpu(struct ckpt_ctx *ctx)
-+{
-+	struct ckpt_hdr_cpu *cpu_hdr;
-+	bool update;
-+	int rc;
-+	int i;
-+
-+	cpu_hdr = ckpt_read_obj_type(ctx, sizeof(*cpu_hdr), CKPT_HDR_CPU);
-+	if (IS_ERR(cpu_hdr))
-+		return PTR_ERR(cpu_hdr);
-+
-+	rc = -EINVAL;
-+	if (ckpt_cpu_features_unknown(cpu_hdr))
-+		goto err;
-+
-+	/* temporary: restoring a 32-bit image from a 64-bit task and
-+	 * vice-versa is known not to work (probably not restoring
-+	 * thread_info correctly); detect this and fail gracefully.
-+	 */
-+	if (!bitness_match(cpu_hdr, current))
-+		goto err;
-+
-+	/* We want to determine whether there's anything wrong with
-+	 * the checkpoint image before changing the task at all.  Run
-+	 * a "check" phase (update = false) first.
-+	 */
-+	update = false;
-+commit:
-+	for (i = 0; i < ARRAY_SIZE(restore_funcs); i++) {
-+		rc = restore_funcs[i](cpu_hdr, current, update);
-+		if (rc == 0)
-+			continue;
-+		pr_debug("%s: restore_func[%i] failed\n", __func__, i);
-+		WARN_ON_ONCE(update);
-+		goto err;
-+	}
-+
-+	if (!update) {
-+		update = true;
-+		goto commit;
-+	}
-+
-+err:
-+	ckpt_hdr_put(ctx, cpu_hdr);
-+	return rc;
-+}
-+
-+int restore_read_header_arch(struct ckpt_ctx *ctx)
-+{
-+	struct ckpt_hdr_header_arch *arch_hdr;
-+
-+	arch_hdr = ckpt_read_obj_type(ctx, sizeof(*arch_hdr),
-+				      CKPT_HDR_HEADER_ARCH);
-+	if (IS_ERR(arch_hdr))
-+		return PTR_ERR(arch_hdr);
-+
-+	ckpt_hdr_put(ctx, arch_hdr);
-+
-+	return 0;
-+}
-+
-+int restore_mm_context(struct ckpt_ctx *ctx, struct mm_struct *mm)
-+{
-+	return 0;
-+}
-diff --git a/arch/powerpc/kernel/signal.c b/arch/powerpc/kernel/signal.c
-index 00b5078..701a064 100644
---- a/arch/powerpc/kernel/signal.c
-+++ b/arch/powerpc/kernel/signal.c
-@@ -188,6 +188,12 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
- 	return ret;
- }
- 
-+int task_has_saved_sigmask(struct task_struct *task)
-+{
-+	struct thread_info *ti = task_thread_info(task);
-+	return !!(ti->local_flags & _TLF_RESTORE_SIGMASK);
-+}
-+
- void do_signal(struct pt_regs *regs, unsigned long thread_info_flags)
- {
- 	if (thread_info_flags & _TIF_SIGPENDING)
 -- 
 1.6.3.3
 
