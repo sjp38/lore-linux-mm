@@ -1,42 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C836D6B0171
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:21:27 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8B0D06B0178
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:21:28 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 11 of 34] comment reminder in destroy_compound_page
-Message-Id: <dcc3593b155659f96325.1268839153@v2.random>
-In-Reply-To: <patchbomb.1268839142@v2.random>
-References: <patchbomb.1268839142@v2.random>
-Date: Wed, 17 Mar 2010 16:19:13 +0100
+Subject: [PATCH 00 of 34] Transparent Hugepage support #14
+Message-Id: <patchbomb.1268839142@v2.random>
+Date: Wed, 17 Mar 2010 16:19:02 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+Hello,
 
-Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
-on its internal behavior.
+This is ported to latest upstream. This update also adds a max_ptes_none sysfs
+control for khugepaged. It also registers khugepaged on vma_merge to allow
+khugepaged to collapse hugepages as the app extends vmas on already faulted
+areas. It adds a test_and_set_bit in __khugepaged_enter (set_bit wasn't
+enough), found by review only.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
----
+	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc1/transparent-hugepage-14/
+	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc1/transparent-hugepage-14.gz
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -334,6 +334,7 @@ void prep_compound_page(struct page *pag
- 	}
- }
- 
-+/* update __split_huge_page_refcount if you change this function */
- static int destroy_compound_page(struct page *page, unsigned long order)
- {
- 	int i;
+Let me know if this is ok, thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
