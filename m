@@ -1,33 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 51F5F6B0087
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 04:49:20 -0400 (EDT)
-Date: Wed, 17 Mar 2010 09:49:11 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
-Message-ID: <20100317084911.GA9098@lst.de>
-References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com> <4B9F4CBD.3020805@redhat.com> <20100316102637.GA23584@lst.de> <4B9F5F2F.8020501@redhat.com> <20100316104422.GA24258@lst.de> <4B9F66AC.5080400@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4B9F66AC.5080400@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 41D8860023A
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 04:55:29 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o2H8tPBd029490
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:26 -0700
+Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
+	by wpaz5.hot.corp.google.com with ESMTP id o2H8tOX8008984
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:24 -0700
+Received: by pzk36 with SMTP id 36so558785pzk.8
+        for <linux-mm@kvack.org>; Wed, 17 Mar 2010 01:55:24 -0700 (PDT)
+Date: Wed, 17 Mar 2010 01:55:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 00/11 -mm v4] oom killer rewrite
+Message-ID: <alpine.DEB.2.00.1003170151540.31796@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>, Chris Webb <chris@arachsys.com>, balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kevin Wolf <kwolf@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 16, 2010 at 01:08:28PM +0200, Avi Kivity wrote:
-> If the batch size is larger than the virtio queue size, or if there are 
-> no flushes at all, then yes the huge write cache gives more opportunity 
-> for reordering.  But we're already talking hundreds of requests here.
+This patchset is a rewrite of the out of memory killer to address several
+issues that have been raised recently.  The most notable change is a
+complete rewrite of the badness heuristic that determines which task is
+killed; the goal was to make it as simple and predictable as possible
+while still addressing issues that plague the VM.
 
-Yes.  And rememember those don't have to come from the same host.  Also
-remember that we rather limit execssive reodering of O_DIRECT requests
-in the I/O scheduler because they are "synchronous" type I/O while
-we don't do that for pagecache writeback.
+Changes for version 4:
 
-And we don't have unlimited virtio queue size, in fact it's quite
-limited.
+ - updated to mmotm-2010-03-11-13-13
+
+ - rewrote mem_cgroup_get_limit() to respect swapless systems or those
+   where users have not configured a swap limit (suggested by KAMEZAWA
+   Hiroyuki).
+
+ - added: [patch 11/11] oom: avoid race for oom killed tasks detaching mm
+			prior to exit
+
+To apply, download the -mm tree from
+http://userweb.kernel.org/~akpm/mmotm/broken-out.tar.gz first.
+
+This patchset is also available for each kernel release from:
+
+	http://www.kernel.org/pub/linux/kernel/people/rientjes/oom-killer-rewrite/
+
+including broken out patches.
+---
+ Documentation/feature-removal-schedule.txt |   30 +
+ Documentation/filesystems/proc.txt         |  100 +++--
+ Documentation/sysctl/vm.txt                |   51 +-
+ fs/proc/base.c                             |  106 +++++
+ include/linux/memcontrol.h                 |    8 
+ include/linux/mempolicy.h                  |   13 
+ include/linux/oom.h                        |   20 -
+ include/linux/sched.h                      |    3 
+ kernel/exit.c                              |    8 
+ kernel/fork.c                              |    1 
+ kernel/sysctl.c                            |   19 
+ mm/memcontrol.c                            |   18 
+ mm/mempolicy.c                             |   44 ++
+ mm/oom_kill.c                              |  579 +++++++++++++++--------------
+ mm/page_alloc.c                            |   29 +
+ 15 files changed, 671 insertions(+), 358 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
