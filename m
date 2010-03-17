@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E75B620049
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:29:29 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 57A35620049
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:29:35 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 94/96] c/r: add smack support to lsm c/r (v4)
-Date: Wed, 17 Mar 2010 12:09:22 -0400
-Message-Id: <1268842164-5590-95-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-94-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 92/96] c/r: add lsm name and lsm_info (policy header) to container info
+Date: Wed, 17 Mar 2010 12:09:20 -0400
+Message-Id: <1268842164-5590-93-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-92-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -99,8 +99,6 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-90-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-91-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-92-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-93-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-94-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org
@@ -108,436 +106,475 @@ List-ID: <linux-mm.kvack.org>
 
 From: Serge E. Hallyn <serue@us.ibm.com>
 
-Documentation/checkpoint/readme.txt begins:
-"""
-Application checkpoint/restart is the ability to save the state
-of a running application so that it can later resume its execution
-from the time at which it was checkpointed.
-"""
-
-This patch implements checkpoint and restore of Smack security
-labels.  The rules are the same as in previous versions:
-
-	1. when objects are created during restore() they are
-	   automatically labeled with current_security().
-	2. if there was a label checkpointed with the object,
-	   and that label != current_security() (which is the
-	   same as obj->security), then the object is relabeled
-	   if the sys_restart() caller has CAP_MAC_ADMIN.
-	   Otherwise we return -EPERM.
-
-This has been tested by checkpointing tasks under labels
-_, vs1, and vs2, and restarting from tasks under _, vs1,
-and vs2, with and without CAP_MAC_ADMIN in the bounding
-set, and with and without the '-k' (keep_lsm) flag to mktree.
-Expected results:
-
-	#shell 1:
-	echo vs1 > /proc/self/attr/current
-	ckpt > out
-	echo vs2 > /proc/self/attr/current
-	mktree -F /cgroup/2 < out
-		(frozen)
-	# shell 2:
-	cat /proc/`pidof ckpt`/attr/current
-		vs2
-	echo THAWED > /cgroup/2/freezer.state
-	# shell 1:
-	mktree -k -F /cgroup/2 < out
-		(frozen)
-	# shell 2:
-	cat /proc/`pidof ckpt`/attr/current
-		vs1
-	echo THAWED > /cgroup/2/freezer.state
-	# shell 1:
-	capsh --drop=cap_mac_admin --
-	mktree -k -F /cgroup/2 < out
-		(permission denied)
-
-There are testcases in git://git.sr71.net/~hallyn/cr_tests.git
-under cr_tests/smack, which automate the above (and pass).
-
-Changelog:
-	sep 3: add a version to smack lsm, accessible through
-		/smack/version  (Casey and Serge)
-	sep 10: rename xyz_get_ctx() to xyz_checkpoint()
+The LSM name is 'selinux', 'smack', 'tomoyo', or 'dummy'.  We
+add that to the container configuration section.  We also add
+a LSM policy configuration section.  That is placed after the LSM
+name.  It is written by the LSM in security_checkpoint_header(),
+called during checkpoint container(), and read by the LSM during
+security_may_restart(), which is called from restore_lsm() in
+restore_container().
 
 Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
-Acked-by: Casey Schaufler <casey@schaufler-ca.com>
 Acked-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- checkpoint/restart.c       |    1 +
- security/smack/smack.h     |    1 +
- security/smack/smack_lsm.c |  144 ++++++++++++++++++++++++++++++++++++++++++++
- security/smack/smackfs.c   |   83 +++++++++++++++++++++++++
- 4 files changed, 229 insertions(+), 0 deletions(-)
+ Documentation/checkpoint/readme.txt |   24 ++++++++++++++
+ checkpoint/checkpoint.c             |   13 +++++++-
+ checkpoint/restart.c                |   41 +++++++++++++++++++++++
+ checkpoint/sys.c                    |   22 ++++++++++++
+ include/linux/checkpoint.h          |    6 +++
+ include/linux/checkpoint_hdr.h      |   16 +++++++++
+ include/linux/checkpoint_types.h    |    2 +
+ include/linux/security.h            |   61 +++++++++++++++++++++++++++++++++++
+ security/capability.c               |   25 ++++++++++++++
+ security/security.c                 |   26 +++++++++++++++
+ 10 files changed, 235 insertions(+), 1 deletions(-)
 
+diff --git a/Documentation/checkpoint/readme.txt b/Documentation/checkpoint/readme.txt
+index 2548bb4..030a001 100644
+--- a/Documentation/checkpoint/readme.txt
++++ b/Documentation/checkpoint/readme.txt
+@@ -343,6 +343,30 @@ So that's why we don't want CAP_SYS_ADMIN required up-front. That way
+ we will be forced to more carefully review each of those features.
+ However, this can be controlled with a sysctl-variable.
+ 
++LSM
++===
++
++Security modules use custom labels on subjects and objects to
++further mediate access decisions beyond DAC controls.  When
++checkpoint applications, these labels are [ work in progress ]
++checkpointed along with the objects.  At restart, the
++RESTART_KEEP_LSM flag tells the kernel whether re-created objects
++whould keep their checkpointed labels, or get automatically
++recalculated labels.  Since checkpointed labels will only make
++sense to the same LSM which was active at checkpoint time,
++sys_restart() with the RESTART_KEEP_LSM flag will fail with
++-EINVAL if the LSM active at restart is not the same as that
++active at checkpoint.  If RESTART_KEEP_LSM is not specified,
++then objects will be given whatever default labels the LSM and
++their optional policy decide.  Of course, when RESTART_KEEP_LSM
++is specified, the LSM may choose a different label than the
++checkpointed one, or fail the entire restart if the caller
++does not have permission to create objects with the checkpointed
++label.
++
++It should always be safe to take a checkpoint of an application
++under LSM_1, and restart it without the RESTART_KEEP_LSM flag
++under LSM_2.
+ 
+ Sockets
+ =======
+diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
+index aaa8500..f27af41 100644
+--- a/checkpoint/checkpoint.c
++++ b/checkpoint/checkpoint.c
+@@ -191,7 +191,18 @@ static int checkpoint_container(struct ckpt_ctx *ctx)
+ 	ret = ckpt_write_obj(ctx, &h->h);
+ 	ckpt_hdr_put(ctx, h);
+ 
+-	return ret;
++	if (ret < 0)
++		return ret;
++
++	memset(ctx->lsm_name, 0, CHECKPOINT_LSM_NAME_MAX + 1);
++	strlcpy(ctx->lsm_name, security_get_lsm_name(),
++				CHECKPOINT_LSM_NAME_MAX + 1);
++	ret = ckpt_write_buffer(ctx, ctx->lsm_name,
++				CHECKPOINT_LSM_NAME_MAX + 1);
++	if (ret < 0)
++		return ret;
++
++	return security_checkpoint_header(ctx);
+ }
+ 
+ /* write the checkpoint trailer */
 diff --git a/checkpoint/restart.c b/checkpoint/restart.c
-index cfcb62b..0d1b9bf 100644
+index 6f206a3..cfcb62b 100644
 --- a/checkpoint/restart.c
 +++ b/checkpoint/restart.c
-@@ -679,6 +679,7 @@ static int restore_lsm(struct ckpt_ctx *ctx)
- 	}
- 
- 	if (strcmp(ctx->lsm_name, "lsm_none") != 0 &&
-+			strcmp(ctx->lsm_name, "smack") != 0 &&
- 			strcmp(ctx->lsm_name, "default") != 0) {
- 		ckpt_debug("c/r: RESTART_KEEP_LSM unsupported for %s\n",
- 				ctx->lsm_name);
-diff --git a/security/smack/smack.h b/security/smack/smack.h
-index c6e9aca..a8917b0 100644
---- a/security/smack/smack.h
-+++ b/security/smack/smack.h
-@@ -216,6 +216,7 @@ u32 smack_to_secid(const char *);
- extern int smack_cipso_direct;
- extern char *smack_net_ambient;
- extern char *smack_onlycap;
-+extern char *smack_version;
- extern const char *smack_cipso_option;
- 
- extern struct smack_known smack_known_floor;
-diff --git a/security/smack/smack_lsm.c b/security/smack/smack_lsm.c
-index 529c9ca..cd1d330 100644
---- a/security/smack/smack_lsm.c
-+++ b/security/smack/smack_lsm.c
-@@ -27,6 +27,7 @@
- #include <linux/udp.h>
- #include <linux/mutex.h>
- #include <linux/pipe_fs_i.h>
-+#include <linux/checkpoint.h>
- #include <net/netlabel.h>
- #include <net/cipso_ipv4.h>
- #include <linux/audit.h>
-@@ -886,6 +887,28 @@ static int smack_file_permission(struct file *file, int mask)
- 	return 0;
+@@ -656,6 +656,42 @@ static int restore_read_header(struct ckpt_ctx *ctx)
+ 	return ret;
  }
  
-+static inline char *smack_file_checkpoint(void *security)
++/* read the LSM configuration section */
++static int restore_lsm(struct ckpt_ctx *ctx)
 +{
-+	return kstrdup((char *)security, GFP_KERNEL);
-+}
++	int ret;
++	char *cur_lsm = security_get_lsm_name();
 +
-+static inline int smack_file_restore(struct file *file, char *ctx)
-+{
-+	char *newsmack = smk_import(ctx, 0);
-+
-+	if (newsmack == NULL)
-+		return -EINVAL;
-+	/* I think by definition, file->f_security == current_security
-+	 * right now, but let's assume somehow it might not be */
-+	if (newsmack == file->f_security)
-+		return 0;
-+	if (!capable(CAP_MAC_ADMIN))
-+		return -EPERM;
-+	file->f_security = newsmack;
-+
-+	return 0;
-+}
-+
- /**
-  * smack_file_alloc_security - assign a file security blob
-  * @file: the object
-@@ -1073,6 +1096,27 @@ static int smack_file_receive(struct file *file)
-  * Task hooks
-  */
- 
-+static inline char *smack_cred_checkpoint(void *security)
-+{
-+	return kstrdup((char *)security, GFP_KERNEL);
-+}
-+
-+static inline int smack_cred_restore(struct file *file, struct cred *cred,
-+					char *ctx)
-+{
-+	char *newsmack = smk_import(ctx, 0);
-+
-+	if (newsmack == NULL)
-+		return -EINVAL;
-+	if (newsmack == cred->security)
-+		return 0;
-+	if (!capable(CAP_MAC_ADMIN))
-+		return -EPERM;
-+	cred->security = newsmack;
-+
-+	return 0;
-+}
-+
- /**
-  * smack_cred_alloc_blank - "allocate" blank task-level security credentials
-  * @new: the new credentials
-@@ -1765,6 +1809,26 @@ static int smack_msg_msg_alloc_security(struct msg_msg *msg)
- 	return 0;
- }
- 
-+static inline char *smack_msg_msg_checkpoint(void *security)
-+{
-+	return kstrdup((char *)security, GFP_KERNEL);
-+}
-+
-+static inline int smack_msg_msg_restore(struct msg_msg *msg, char *ctx)
-+{
-+	char *newsmack = smk_import(ctx, 0);
-+
-+	if (newsmack == NULL)
-+		return -EINVAL;
-+	if (newsmack == msg->security)
-+		return 0;
-+	if (!capable(CAP_MAC_ADMIN))
-+		return -EPERM;
-+	msg->security = newsmack;
-+
-+	return 0;
-+}
-+
- /**
-  * smack_msg_msg_free_security - Clear the security blob for msg_msg
-  * @msg: the object
-@@ -2198,6 +2262,26 @@ static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
- 	*secid = smack_to_secid(smack);
- }
- 
-+static inline char *smack_ipc_checkpoint(void *security)
-+{
-+	return kstrdup((char *)security, GFP_KERNEL);
-+}
-+
-+static inline int smack_ipc_restore(struct kern_ipc_perm *ipcp, char *ctx)
-+{
-+	char *newsmack = smk_import(ctx, 0);
-+
-+	if (newsmack == NULL)
-+		return -EINVAL;
-+	if (newsmack == ipcp->security)
-+		return 0;
-+	if (!capable(CAP_MAC_ADMIN))
-+		return -EPERM;
-+	ipcp->security = newsmack;
-+
-+	return 0;
-+}
-+
- /**
-  * smack_d_instantiate - Make sure the blob is correct on an inode
-  * @opt_dentry: unused
-@@ -3073,6 +3157,51 @@ static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
- 	return 0;
- }
- 
-+#ifdef CONFIG_CHECKPOINT
-+
-+static int smack_may_restart(struct ckpt_ctx *ctx)
-+{
-+	struct ckpt_hdr *chp;
-+	char *saved_version;
-+	int ret = 0;
-+
-+	chp = ckpt_read_buf_type(ctx, CKPT_LSM_INFO_LEN, CKPT_HDR_LSM_INFO);
-+	if (IS_ERR(chp))
-+		return PTR_ERR(chp);
-+
-+	/*
-+	 * After the checkpoint header comes the null terminated
-+	 * Smack "policy" version. This will usually be the
-+	 * floor label "_".
-+	 */
-+	saved_version = (char *)(chp + 1);
-+
-+	/*
-+	 * Of course, it is possible that a "policy" version mismatch
-+	 * is not considered threatening.
-+	 */
-+	if (!(ctx->uflags & RESTART_KEEP_LSM))
-+		goto skip;
-+
-+	if (strcmp(saved_version, smack_version) != 0) {
-+		ckpt_debug("Smack version at checkpoint was"
-+			   "\"%s\", now is \"%s\".\n",
-+				saved_version, smack_version);
-+		ret = -EINVAL;
++	ret = _ckpt_read_buffer(ctx, ctx->lsm_name,
++				CHECKPOINT_LSM_NAME_MAX + 1);
++	if (ret < 0) {
++		ckpt_debug("Error %d reading lsm name\n", ret);
++		return ret;
 +	}
-+skip:
-+	ckpt_hdr_put(ctx, chp);
++
++	if (!(ctx->uflags & RESTART_KEEP_LSM))
++		goto skip_lsm;
++
++	if (strncmp(cur_lsm, ctx->lsm_name, CHECKPOINT_LSM_NAME_MAX + 1) != 0) {
++		ckpt_debug("c/r: checkpointed LSM %s, current is %s.\n",
++			ctx->lsm_name, cur_lsm);
++		return -EPERM;
++	}
++
++	if (strcmp(ctx->lsm_name, "lsm_none") != 0 &&
++			strcmp(ctx->lsm_name, "default") != 0) {
++		ckpt_debug("c/r: RESTART_KEEP_LSM unsupported for %s\n",
++				ctx->lsm_name);
++		return -ENOSYS;
++	}
++
++skip_lsm:
++	ret = security_may_restart(ctx);
++	if (ret < 0)
++		ckpt_debug("security_may_restart returned %d\n", ret);
 +	return ret;
 +}
 +
-+static int smack_checkpoint_header(struct ckpt_ctx *ctx)
+ /* read the container configuration section */
+ static int restore_container(struct ckpt_ctx *ctx)
+ {
+@@ -667,6 +703,11 @@ static int restore_container(struct ckpt_ctx *ctx)
+ 		return PTR_ERR(h);
+ 	ckpt_hdr_put(ctx, h);
+ 
++	/* read the LSM name and info which follow ("are a part of")
++	 * the ckpt_hdr_container */
++	ret = restore_lsm(ctx);
++	if (ret < 0)
++		ckpt_debug("Error %d on LSM configuration\n", ret);
+ 	return ret;
+ }
+ 
+diff --git a/checkpoint/sys.c b/checkpoint/sys.c
+index 62f49ad..9e9df9b 100644
+--- a/checkpoint/sys.c
++++ b/checkpoint/sys.c
+@@ -181,6 +181,28 @@ void *ckpt_hdr_get_type(struct ckpt_ctx *ctx, int len, int type)
+ }
+ EXPORT_SYMBOL(ckpt_hdr_get_type);
+ 
++#define DUMMY_LSM_INFO "dummy"
++
++int ckpt_write_dummy_lsm_info(struct ckpt_ctx *ctx)
 +{
-+	return ckpt_write_obj_type(ctx, smack_version,
-+					strlen(smack_version) + 1,
-+					CKPT_HDR_LSM_INFO);
++	return ckpt_write_obj_type(ctx, DUMMY_LSM_INFO,
++			strlen(DUMMY_LSM_INFO), CKPT_HDR_LSM_INFO);
 +}
-+#endif
-+
- struct security_operations smack_ops = {
- 	.name =				"smack",
- 
-@@ -3108,6 +3237,8 @@ struct security_operations smack_ops = {
- 	.inode_getsecid =		smack_inode_getsecid,
- 
- 	.file_permission = 		smack_file_permission,
-+	.file_checkpoint = 		smack_file_checkpoint,
-+	.file_restore = 		smack_file_restore,
- 	.file_alloc_security = 		smack_file_alloc_security,
- 	.file_free_security = 		smack_file_free_security,
- 	.file_ioctl = 			smack_file_ioctl,
-@@ -3118,6 +3249,10 @@ struct security_operations smack_ops = {
- 	.file_receive = 		smack_file_receive,
- 
- 	.cred_alloc_blank =		smack_cred_alloc_blank,
-+
-+	.cred_checkpoint =		smack_cred_checkpoint,
-+	.cred_restore =			smack_cred_restore,
-+
- 	.cred_free =			smack_cred_free,
- 	.cred_prepare =			smack_cred_prepare,
- 	.cred_commit =			smack_cred_commit,
-@@ -3140,8 +3275,12 @@ struct security_operations smack_ops = {
- 
- 	.ipc_permission = 		smack_ipc_permission,
- 	.ipc_getsecid =			smack_ipc_getsecid,
-+	.ipc_checkpoint =		smack_ipc_checkpoint,
-+	.ipc_restore =			smack_ipc_restore,
- 
- 	.msg_msg_alloc_security = 	smack_msg_msg_alloc_security,
-+	.msg_msg_checkpoint =		smack_msg_msg_checkpoint,
-+	.msg_msg_restore =		smack_msg_msg_restore,
- 	.msg_msg_free_security = 	smack_msg_msg_free_security,
- 
- 	.msg_queue_alloc_security = 	smack_msg_queue_alloc_security,
-@@ -3204,6 +3343,11 @@ struct security_operations smack_ops = {
- 	.inode_notifysecctx =		smack_inode_notifysecctx,
- 	.inode_setsecctx =		smack_inode_setsecctx,
- 	.inode_getsecctx =		smack_inode_getsecctx,
-+
-+#ifdef CONFIG_CHECKPOINT
-+	.may_restart =			smack_may_restart,
-+	.checkpoint_header =		smack_checkpoint_header,
-+#endif
- };
- 
- 
-diff --git a/security/smack/smackfs.c b/security/smack/smackfs.c
-index aeead75..0634a08 100644
---- a/security/smack/smackfs.c
-+++ b/security/smack/smackfs.c
-@@ -42,6 +42,7 @@ enum smk_inos {
- 	SMK_NETLBLADDR	= 8,	/* single label hosts */
- 	SMK_ONLYCAP	= 9,	/* the only "capable" label */
- 	SMK_LOGGING	= 10,	/* logging */
-+	SMK_VERSION	= 11,	/* logging */
- };
- 
- /*
-@@ -51,6 +52,7 @@ static DEFINE_MUTEX(smack_list_lock);
- static DEFINE_MUTEX(smack_cipso_lock);
- static DEFINE_MUTEX(smack_ambient_lock);
- static DEFINE_MUTEX(smk_netlbladdr_lock);
-+static DEFINE_MUTEX(smack_version_lock);
- 
- /*
-  * This is the "ambient" label for network traffic.
-@@ -60,6 +62,16 @@ static DEFINE_MUTEX(smk_netlbladdr_lock);
- char *smack_net_ambient = smack_known_floor.smk_known;
- 
- /*
-+ * This is the policy version. In the interest of simplicity the
-+ * policy version is a string that meets all of the requirements
-+ * of a Smack label. This is enforced by the expedient of
-+ * importing it like a label. The policy version is thus always
-+ * also a valid label on the system. This may prove useful under
-+ * some as yet undiscovered circumstance.
-+ */
-+char *smack_version = smack_known_floor.smk_known;
 +
 +/*
-  * This is the level in a CIPSO header that indicates a
-  * smack label is contained directly in the category set.
-  * It can be reset via smackfs/direct
-@@ -1255,6 +1267,75 @@ static const struct file_operations smk_logging_ops = {
- 	.read		= smk_read_logging,
- 	.write		= smk_write_logging,
- };
-+
-+#define SMK_VERSIONLEN 12
-+/**
-+ * smk_read_version - read() for /smack/version
-+ * @filp: file pointer, not actually used
-+ * @buf: where to put the result
-+ * @cn: maximum to send along
-+ * @ppos: where to start
-+ *
-+ * Returns number of bytes read or error code, as appropriate
++ * ckpt_snarf_lsm_info
++ * If there is a CKPT_HDR_LSM_INFO field, toss it.
++ * Used when the current LSM doesn't care about this field.
 + */
-+static ssize_t smk_read_version(struct file *filp, char __user *buf,
-+				size_t count, loff_t *ppos)
++void ckpt_snarf_lsm_info(struct ckpt_ctx *ctx)
 +{
-+	int rc;
++	struct ckpt_hdr *h;
 +
-+	if (*ppos != 0)
-+		return 0;
-+
-+	mutex_lock(&smack_version_lock);
-+
-+	rc = simple_read_from_buffer(buf, count, ppos, smack_version,
-+					strlen(smack_version) + 1);
-+
-+	mutex_unlock(&smack_version_lock);
-+
-+	return rc;
++	h = ckpt_read_buf_type(ctx, CKPT_LSM_INFO_LEN, CKPT_HDR_LSM_INFO);
++	if (!IS_ERR(h))
++		ckpt_hdr_put(ctx, h);
 +}
 +
-+/**
-+ * smk_write_version - write() for /smack/version
-+ * @file: file pointer, not actually used
-+ * @buf: where to get the data from
-+ * @count: bytes sent
-+ * @ppos: where to start
-+ *
-+ * Returns number of bytes written or error code, as appropriate
-+ */
-+static ssize_t smk_write_version(struct file *file, const char __user *buf,
-+				 size_t count, loff_t *ppos)
-+{
-+	char *smack;
-+	char in[SMK_LABELLEN];
-+
-+	if (!capable(CAP_MAC_ADMIN))
-+		return -EPERM;
-+
-+	if (count >= SMK_LABELLEN)
-+		return -EINVAL;
-+
-+	if (copy_from_user(in, buf, count) != 0)
-+		return -EFAULT;
-+
-+	smack = smk_import(in, count);
-+	if (smack == NULL)
-+		return -EINVAL;
-+
-+	mutex_lock(&smack_version_lock);
-+	smack_version = smack;
-+	mutex_unlock(&smack_version_lock);
-+
-+	return count;
-+}
-+
-+static const struct file_operations smk_version_ops = {
-+	.read		= smk_read_version,
-+	.write		= smk_write_version,
-+};
-+
- /**
-  * smk_fill_super - fill the /smackfs superblock
-  * @sb: the empty superblock
-@@ -1287,6 +1368,8 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
- 			{"onlycap", &smk_onlycap_ops, S_IRUGO|S_IWUSR},
- 		[SMK_LOGGING]	=
- 			{"logging", &smk_logging_ops, S_IRUGO|S_IWUSR},
-+		[SMK_VERSION]	=
-+			{"version", &smk_version_ops, S_IRUGO|S_IWUSR},
- 		/* last one */ {""}
- 	};
+ /*
+  * Helpers to manage c/r contexts: allocated for each checkpoint and/or
+  * restart operation, and persists until the operation is completed.
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 64b4b8a..70198f9 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -19,6 +19,7 @@
+ #define RESTART_TASKSELF	0x1
+ #define RESTART_FROZEN		0x2
+ #define RESTART_GHOST		0x4
++#define RESTART_KEEP_LSM	0x8
+ #define RESTART_CONN_RESET      0x10
  
+ /* misc user visible */
+@@ -59,8 +60,11 @@ extern long do_sys_restart(pid_t pid, int fd,
+ 	(RESTART_TASKSELF | \
+ 	 RESTART_FROZEN | \
+ 	 RESTART_GHOST | \
++	 RESTART_KEEP_LSM | \
+ 	 RESTART_CONN_RESET)
+ 
++#define CKPT_LSM_INFO_LEN 200
++
+ extern int walk_task_subtree(struct task_struct *task,
+ 			     int (*func)(struct task_struct *, void *),
+ 			     void *data);
+@@ -73,6 +77,8 @@ extern void _ckpt_hdr_put(struct ckpt_ctx *ctx, void *ptr, int n);
+ extern void ckpt_hdr_put(struct ckpt_ctx *ctx, void *ptr);
+ extern void *ckpt_hdr_get(struct ckpt_ctx *ctx, int n);
+ extern void *ckpt_hdr_get_type(struct ckpt_ctx *ctx, int n, int type);
++extern int ckpt_write_dummy_lsm_info(struct ckpt_ctx *ctx);
++extern void ckpt_snarf_lsm_info(struct ckpt_ctx *ctx);
+ 
+ extern int ckpt_write_obj(struct ckpt_ctx *ctx, struct ckpt_hdr *h);
+ extern int ckpt_write_obj_type(struct ckpt_ctx *ctx,
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index acf964a..fad955f 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -25,6 +25,15 @@
+ #endif
+ 
+ /*
++ * /usr/include/linux/security.h is not exported to userspace, so
++ * we need this value here for userspace restart.c to read.
++ *
++ * CHECKPOINT_LSM_NAME_MAX should be SECURITY_NAME_MAX
++ * security_may_restart() has a BUILD_BUG_ON to enforce that.
++ */
++#define CHECKPOINT_LSM_NAME_MAX 10
++
++/*
+  * To maintain compatibility between 32-bit and 64-bit architecture flavors,
+  * keep data 64-bit aligned: use padding for structure members, and use
+  * __attribute__((aligned (8))) for the entire structure.
+@@ -69,6 +78,8 @@ enum {
+ #define CKPT_HDR_STRING CKPT_HDR_STRING
+ 	CKPT_HDR_OBJREF,
+ #define CKPT_HDR_OBJREF CKPT_HDR_OBJREF
++	CKPT_HDR_LSM_INFO,
++#define CKPT_HDR_LSM_INFO CKPT_HDR_LSM_INFO
+ 
+ 	CKPT_HDR_TREE = 101,
+ #define CKPT_HDR_TREE CKPT_HDR_TREE
+@@ -296,6 +307,11 @@ struct ckpt_hdr_tail {
+ /* container configuration section header */
+ struct ckpt_hdr_container {
+ 	struct ckpt_hdr h;
++	/*
++	 * the header is followed by the string:
++	 *   char lsm_name[SECURITY_NAME_MAX + 1]
++	 * plus the CKPT_HDR_LSM_INFO section
++	 */
+ } __attribute__((aligned(8)));;
+ 
+ /* task tree */
+diff --git a/include/linux/checkpoint_types.h b/include/linux/checkpoint_types.h
+index 75e198f..efd34b6 100644
+--- a/include/linux/checkpoint_types.h
++++ b/include/linux/checkpoint_types.h
+@@ -21,6 +21,7 @@
+ #include <linux/fs.h>
+ #include <linux/ktime.h>
+ #include <linux/wait.h>
++#include <linux/security.h>
+ 
+ struct ckpt_stats {
+ 	int uts_ns;
+@@ -38,6 +39,7 @@ struct ckpt_ctx {
+ 	struct task_struct *root_task;		/* [container] root task */
+ 	struct nsproxy *root_nsproxy;		/* [container] root nsproxy */
+ 	struct task_struct *root_freezer;	/* [container] root task */
++	char lsm_name[SECURITY_NAME_MAX + 1];   /* security module at ckpt */
+ 
+ 	unsigned long kflags;	/* kerenl flags */
+ 	unsigned long uflags;	/* user flags */
+diff --git a/include/linux/security.h b/include/linux/security.h
+index 2c627d3..980c942 100644
+--- a/include/linux/security.h
++++ b/include/linux/security.h
+@@ -143,6 +143,13 @@ extern int mmap_min_addr_handler(struct ctl_table *table, int write,
+ 				 void __user *buffer, size_t *lenp, loff_t *ppos);
+ #endif
+ 
++#ifdef CONFIG_CHECKPOINT
++struct ckpt_ctx;
++
++void ckpt_snarf_lsm_info(struct ckpt_ctx *ctx);
++int ckpt_write_dummy_lsm_info(struct ckpt_ctx *ctx);
++#endif
++
+ #ifdef CONFIG_SECURITY
+ 
+ struct security_mnt_opts {
+@@ -1375,6 +1382,28 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
+  *	@secdata contains the security context.
+  *	@seclen contains the length of the security context.
+  *
++ * Security hooks for Checkpoint/restart
++ * (In addition to *_checkpoint and *_restore)
++ *
++ * @may_restart:
++ *	Authorize sys_restart().
++ *	Note that all construction of kernel resources, credentials,
++ *	etc is already authorized per the caller's credentials.  This
++ *	hook is intended for the LSM to make further decisions about
++ *	a task not being allowed to restart at all, for instance if
++ *	the policy has changed since checkpoint.
++ *	@ctx is the checkpoint/restart context (see <linux/checkpoint_types.h>)
++ *	Return 0 if allowed, <0 on error.
++ *
++ * @checkpoint_header:
++ *	Optionally write out a LSM-specific checkpoint header.  This is
++ *	a chance to write out policy information, for instance.  The same
++ *	LSM on restart can then use the info in security_may_restart() to
++ * 	refuse restart (for instance) across policy changes.
++ *	The info is to be written as a an object of type CKPT_HDR_LSM_INFO.
++ *	@ctx is the checkpoint/restart context (see <linux/checkpoint_types.h>)
++ *	Return 0 on success, <0 on error.
++ *
+  * Security hooks for Audit
+  *
+  * @audit_rule_init:
+@@ -1657,6 +1686,11 @@ struct security_operations {
+ 	int (*inode_setsecctx)(struct dentry *dentry, void *ctx, u32 ctxlen);
+ 	int (*inode_getsecctx)(struct inode *inode, void **ctx, u32 *ctxlen);
+ 
++#ifdef CONFIG_CHECKPOINT
++	int (*may_restart) (struct ckpt_ctx *ctx);
++	int (*checkpoint_header) (struct ckpt_ctx *ctx);
++#endif
++
+ #ifdef CONFIG_SECURITY_NETWORK
+ 	int (*unix_stream_connect) (struct socket *sock,
+ 				    struct socket *other, struct sock *newsk);
+@@ -1909,6 +1943,14 @@ void security_release_secctx(char *secdata, u32 seclen);
+ int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen);
+ int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen);
+ int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen);
++
++#ifdef CONFIG_CHECKPOINT
++int security_may_restart(struct ckpt_ctx *ctx);
++int security_checkpoint_header(struct ckpt_ctx *ctx);
++#endif /* CONFIG_CHECKPOINT */
++
++char *security_get_lsm_name(void);
++
+ #else /* CONFIG_SECURITY */
+ struct security_mnt_opts {
+ };
+@@ -1931,6 +1973,12 @@ static inline int security_init(void)
+ 	return 0;
+ }
+ 
++#define DEFAULT_LSM_NAME "lsm_none"
++static inline char *security_get_lsm_name(void)
++{
++	return DEFAULT_LSM_NAME;
++}
++
+ static inline int security_ptrace_access_check(struct task_struct *child,
+ 					     unsigned int mode)
+ {
+@@ -2678,6 +2726,19 @@ static inline int security_inode_getsecctx(struct inode *inode, void **ctx, u32
+ {
+ 	return -EOPNOTSUPP;
+ }
++
++#ifdef CONFIG_CHECKPOINT
++static inline int security_may_restart(struct ckpt_ctx *ctx)
++{
++	ckpt_snarf_lsm_info(ctx);
++	return 0;
++}
++static inline int security_checkpoint_header(struct ckpt_ctx *ctx)
++{
++	return ckpt_write_dummy_lsm_info(ctx);
++}
++#endif /* CONFIG_CHECKPOINT */
++
+ #endif	/* CONFIG_SECURITY */
+ 
+ #ifdef CONFIG_SECURITY_NETWORK
+diff --git a/security/capability.c b/security/capability.c
+index 5c700e1..f79911a 100644
+--- a/security/capability.c
++++ b/security/capability.c
+@@ -852,6 +852,27 @@ static int cap_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+ {
+ 	return 0;
+ }
++
++#ifdef CONFIG_CHECKPOINT
++static int cap_may_restart(struct ckpt_ctx *ctx)
++{
++	/*
++	 * Note that all construction of kernel resources, credentials,
++	 * etc is already authorized per the caller's credentials.  This
++	 * hook is intended for the LSM to make further decisions about
++	 * a task not being allowed to restart at all, for instance if
++	 * the policy has changed since checkpoint.
++	 */
++	ckpt_snarf_lsm_info(ctx);
++	return 0;
++}
++
++static int cap_checkpoint_header(struct ckpt_ctx *ctx)
++{
++	return ckpt_write_dummy_lsm_info(ctx);
++}
++#endif
++
+ #ifdef CONFIG_KEYS
+ static int cap_key_alloc(struct key *key, const struct cred *cred,
+ 			 unsigned long flags)
+@@ -1068,6 +1089,10 @@ void security_fixup_ops(struct security_operations *ops)
+ 	set_to_cap_if_null(ops, inode_notifysecctx);
+ 	set_to_cap_if_null(ops, inode_setsecctx);
+ 	set_to_cap_if_null(ops, inode_getsecctx);
++#ifdef CONFIG_CHECKPOINT
++	set_to_cap_if_null(ops, may_restart);
++	set_to_cap_if_null(ops, checkpoint_header);
++#endif
+ #ifdef CONFIG_SECURITY_NETWORK
+ 	set_to_cap_if_null(ops, unix_stream_connect);
+ 	set_to_cap_if_null(ops, unix_may_send);
+diff --git a/security/security.c b/security/security.c
+index 122b748..abc1142 100644
+--- a/security/security.c
++++ b/security/security.c
+@@ -17,6 +17,9 @@
+ #include <linux/kernel.h>
+ #include <linux/security.h>
+ #include <linux/ima.h>
++#ifdef CONFIG_CHECKPOINT
++#include <linux/checkpoint.h>
++#endif
+ 
+ /* Boot-time LSM user choice */
+ static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
+@@ -126,6 +129,11 @@ int register_security(struct security_operations *ops)
+ 	return 0;
+ }
+ 
++char *security_get_lsm_name(void)
++{
++	return security_ops->name;
++}
++
+ /* Security operations */
+ 
+ int security_ptrace_access_check(struct task_struct *child, unsigned int mode)
+@@ -1035,6 +1043,24 @@ int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+ }
+ EXPORT_SYMBOL(security_inode_getsecctx);
+ 
++#ifdef CONFIG_CHECKPOINT
++int security_may_restart(struct ckpt_ctx *ctx)
++{
++	/*
++	 * SECURITY_NAME_MAX is defined in linux/security.h,
++	 * CHECKPOINT_LSM_NAME_MAX in linux/checkpoint_hdr.h
++	 */
++	BUILD_BUG_ON(CHECKPOINT_LSM_NAME_MAX != SECURITY_NAME_MAX);
++
++	return security_ops->may_restart(ctx);
++}
++
++int security_checkpoint_header(struct ckpt_ctx *ctx)
++{
++	return security_ops->checkpoint_header(ctx);
++}
++#endif
++
+ #ifdef CONFIG_SECURITY_NETWORK
+ 
+ int security_unix_stream_connect(struct socket *sock, struct socket *other,
 -- 
 1.6.3.3
 
