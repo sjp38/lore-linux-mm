@@ -1,165 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6E6046B007D
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 00:15:16 -0400 (EDT)
-Received: by pxi34 with SMTP id 34so437049pxi.22
-        for <linux-mm@kvack.org>; Tue, 16 Mar 2010 21:15:14 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100317121551.b619f55b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
-	 <28c262361003141728g4aa40901hb040144c5a4aeeed@mail.gmail.com>
-	 <20100315143420.6ec3bdf9.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100315112829.GI18274@csn.ul.ie>
-	 <1268657329.1889.4.camel@barrios-desktop>
-	 <20100315142124.GL18274@csn.ul.ie>
-	 <20100316084934.3798576c.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100317111234.d224f3fd.kamezawa.hiroyu@jp.fujitsu.com>
-	 <28c262361003162000w34cc13ecnbd32840a0df80f95@mail.gmail.com>
-	 <20100317121551.b619f55b.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 17 Mar 2010 13:15:14 +0900
-Message-ID: <28c262361003162115k79e3d40fka6e1def6472823ef@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 739786B004D
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 00:23:07 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2H4N35O010966
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 17 Mar 2010 13:23:03 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CD8045DE7C
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:23:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1610645DE6E
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:23:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EFB071DB8040
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:23:02 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 79BFBE18001
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 13:23:02 +0900 (JST)
+Date: Wed, 17 Mar 2010 13:19:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
-	anonymous pages
-From: Minchan Kim <minchan.kim@gmail.com>
+ anonymous pages
+Message-Id: <20100317131912.0712e6b0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <28c262361003162115k79e3d40fka6e1def6472823ef@mail.gmail.com>
+References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie>
+	<28c262361003141728g4aa40901hb040144c5a4aeeed@mail.gmail.com>
+	<20100315143420.6ec3bdf9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100315112829.GI18274@csn.ul.ie>
+	<1268657329.1889.4.camel@barrios-desktop>
+	<20100315142124.GL18274@csn.ul.ie>
+	<20100316084934.3798576c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100317111234.d224f3fd.kamezawa.hiroyu@jp.fujitsu.com>
+	<28c262361003162000w34cc13ecnbd32840a0df80f95@mail.gmail.com>
+	<20100317121551.b619f55b.kamezawa.hiroyu@jp.fujitsu.com>
+	<28c262361003162115k79e3d40fka6e1def6472823ef@mail.gmail.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Minchan Kim <minchan.kim@gmail.com>
 Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 17, 2010 at 12:15 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 17 Mar 2010 12:00:15 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> On Wed, Mar 17, 2010 at 11:12 AM, KAMEZAWA Hiroyuki
->> > BTW, I doubt freeing anon_vma can happen even when we check mapcount.
->> >
->> > "unmap" is 2-stage operation.
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A01. unmap_vmas() =3D> modify ptes, free page=
-s, etc.
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A02. free_pgtables() =3D> free pgtables, unli=
-nk vma and free it.
->> >
->> > Then, if migration is enough slow.
->> >
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0Migration(): =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Exit()=
-:
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0check mapcount
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0rcu_read_lock
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0pte_lock
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0replace pte with migration pte
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0pte_unlock
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0pte_lock
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0copy page etc... =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zap pte (clear p=
-te)
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0pte_unlock
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0free_pgtables
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0->free vma
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0->free anon_vma
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0pte_lock
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0remap pte with new pfn(fail)
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0pte_unlock
->> >
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0lock anon_vma->lock =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 # modification after free.
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0check list is empty
->>
->> check list is empty?
->> Do you mean anon_vma->head?
->>
-> yes.
->
->> If it is, is it possible that that list isn't empty since anon_vma is
->> used by others due to
->> SLAB_DESTROY_BY_RCU?
->>
-> There are 4 cases.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0A) anon_vma->list is not empty because anon_vm=
-a is not freed.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0B) anon_vma->list is empty because it's freed.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0C) anon_vma->list is empty but it's reused.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0D) anon_vma->list is not empty but it's reused=
-.
+On Wed, 17 Mar 2010 13:15:14 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-E) anon_vma is used for other object.
+> On Wed, Mar 17, 2010 at 12:15 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Wed, 17 Mar 2010 12:00:15 +0900
+> > Minchan Kim <minchan.kim@gmail.com> wrote:
+> >
+> >> On Wed, Mar 17, 2010 at 11:12 AM, KAMEZAWA Hiroyuki
+> >> > BTW, I doubt freeing anon_vma can happen even when we check mapcount.
+> >> >
+> >> > "unmap" is 2-stage operation.
+> >> > A  A  A  A 1. unmap_vmas() => modify ptes, free pages, etc.
+> >> > A  A  A  A 2. free_pgtables() => free pgtables, unlink vma and free it.
+> >> >
+> >> > Then, if migration is enough slow.
+> >> >
+> >> > A  A  A  A Migration(): A  A  A  A  A  A  A  A  A  A  A  A  A  A Exit():
+> >> > A  A  A  A check mapcount
+> >> > A  A  A  A rcu_read_lock
+> >> > A  A  A  A pte_lock
+> >> > A  A  A  A replace pte with migration pte
+> >> > A  A  A  A pte_unlock
+> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A pte_lock
+> >> > A  A  A  A copy page etc... A  A  A  A  A  A  A  A  A  A  A  A zap pte (clear pte)
+> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A pte_unlock
+> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A free_pgtables
+> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A ->free vma
+> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A ->free anon_vma
+> >> > A  A  A  A pte_lock
+> >> > A  A  A  A remap pte with new pfn(fail)
+> >> > A  A  A  A pte_unlock
+> >> >
+> >> > A  A  A  A lock anon_vma->lock A  A  A  A  A  A  # modification after free.
+> >> > A  A  A  A check list is empty
+> >>
+> >> check list is empty?
+> >> Do you mean anon_vma->head?
+> >>
+> > yes.
+> >
+> >> If it is, is it possible that that list isn't empty since anon_vma is
+> >> used by others due to
+> >> SLAB_DESTROY_BY_RCU?
+> >>
+> > There are 4 cases.
+> > A  A  A  A A) anon_vma->list is not empty because anon_vma is not freed.
+> > A  A  A  A B) anon_vma->list is empty because it's freed.
+> > A  A  A  A C) anon_vma->list is empty but it's reused.
+> > A  A  A  A D) anon_vma->list is not empty but it's reused.
+> 
+> E) anon_vma is used for other object.
+> 
+> That's because we don't hold rcu_read_lock.
+> I think Mel met this E) situation.
+> 
+Hmm. 
 
-That's because we don't hold rcu_read_lock.
-I think Mel met this E) situation.
+> AFAIU, even slab page of SLAB_BY_RCU can be freed after grace period.
+> Do I miss something?
+> 
+I miss something. Sorry for noise.
 
-AFAIU, even slab page of SLAB_BY_RCU can be freed after grace period.
-Do I miss something?
+Maybe we need check page_mapped() before calling try_to_unmap() as
+vmscan does. Thank you for your help.
 
->
->> but such case is handled by page_check_address, vma_address, I think.
->>
-> yes. Then, this corrupt nothing, as I wrote. We just modify anon_vma->loc=
-k
-> and it's safe because of SLAB_DESTROY_BY_RCU.
->
->
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0unlock anon_vma->lock
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0free anon_vma
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0rcu_read_unlock
->> >
->> >
->> > Hmm. IIUC, anon_vma is allocated as SLAB_DESTROY_BY_RCU. Then, while
->> > rcu_read_lock() is taken, anon_vma is anon_vma even if freed. But it
->> > may reused as anon_vma for someone else.
->> > (IOW, it may be reused but never pushed back to general purpose memory
->> > =C2=A0until RCU grace period.)
->> > Then, touching anon_vma->lock never cause any corruption.
->> >
->> > Does use-after-free check for SLAB_DESTROY_BY_RCU correct behavior ?
->>
->> Could you elaborate your point?
->>
->
-> Ah, my point is "how use-after-free is detected ?"
->
-> If use-after-free is detected by free_pages() (DEBUG_PGALLOC), it seems
-> strange because DESTROY_BY_RCU guarantee that never happens.
->
-> So, I assume use-after-free is detected in SLAB layer. If so,
-> in above B), C), D) case, it seems there is use-after free in slab's poin=
-t
-> of view but it works as expected, no corruption.
->
-> Then, my question is
-> "Does use-after-free check for SLAB_DESTROY_BY_RCU work correctly ?"
->
-
-I am not sure Mel found that by DEBUG_PGALLOC.
-But, E) case can be founded by DEBUG_PGALLOC.
-
-> and implies we need this patch ?
-> (But this will prevent unnecessary page copy etc. by easy check.)
->
-> Thanks,
-> -Kame
->
->
->
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
