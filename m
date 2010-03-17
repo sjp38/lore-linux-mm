@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 12CF1600367
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:15:24 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 95045600367
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:15:28 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 47/96] c/r: export shmem_getpage() to support shared memory
-Date: Wed, 17 Mar 2010 12:08:35 -0400
-Message-Id: <1268842164-5590-48-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-47-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 52/96] c/r: checkpoint and restore FIFOs
+Date: Wed, 17 Mar 2010 12:08:40 -0400
+Message-Id: <1268842164-5590-53-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-52-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -54,88 +54,201 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-45-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-46-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-47-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-48-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-49-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-50-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-51-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-52-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-Export functionality to retrieve specific pages from shared memory
-given an inode in shmem-fs; this will be used in the next two patches
-to provide support for c/r of shared memory.
+FIFOs are almost like pipes.
 
-mm/shmem.c:
-- shmem_getpage() and 'enum sgp_type' moved to linux/mm.h
+Checkpoints adds the FIFO pathname. The first time the FIFO is found
+it also assigns an @objref and dumps the contents in the buffers.
+
+To restore, use the @objref only to determine whether a particular
+FIFO has already been restored earlier. Note that it ignores the file
+pointer that matches that @objref (unlike with pipes, where that file
+corresponds to the other end of the pipe). Instead, it creates a new
+FIFO using the saved pathname.
+
+Changelog [v19-rc3]:
+  - Rebase to kernel 2.6.33
+Changelog [v19-rc1]:
+  - Switch to ckpt_obj_try_fetch()
+  - [Matt Helsley] Add cpp definitions for enums
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge E. Hallyn <serue@us.ibm.com>
 Tested-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- include/linux/mm.h |   11 +++++++++++
- mm/shmem.c         |   15 ++-------------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ checkpoint/files.c             |    6 +++
+ fs/pipe.c                      |   81 +++++++++++++++++++++++++++++++++++++++-
+ include/linux/checkpoint_hdr.h |    2 +
+ include/linux/pipe_fs_i.h      |    2 +
+ 4 files changed, 90 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bdeb0b5..b37a9f1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -337,6 +337,17 @@ void put_pages_list(struct list_head *pages);
+diff --git a/checkpoint/files.c b/checkpoint/files.c
+index 1c294fe..c647bfd 100644
+--- a/checkpoint/files.c
++++ b/checkpoint/files.c
+@@ -599,6 +599,12 @@ static struct restore_file_ops restore_file_ops[] = {
+ 		.file_type = CKPT_FILE_PIPE,
+ 		.restore = pipe_file_restore,
+ 	},
++	/* fifo */
++	{
++		.file_name = "FIFO",
++		.file_type = CKPT_FILE_FIFO,
++		.restore = fifo_file_restore,
++	},
+ };
  
- void split_page(struct page *page, unsigned int order);
- 
-+/* Flag allocation requirements to shmem_getpage and shmem_swp_alloc */
-+enum sgp_type {
-+	SGP_READ,	/* don't exceed i_size, don't allocate page */
-+	SGP_CACHE,	/* don't exceed i_size, may allocate page */
-+	SGP_DIRTY,	/* like SGP_CACHE, but set new page dirty */
-+	SGP_WRITE,	/* may exceed i_size, may allocate page */
-+};
-+
-+extern int shmem_getpage(struct inode *inode, unsigned long idx,
-+			 struct page **pagep, enum sgp_type sgp, int *type);
-+
- /*
-  * Compound pages have a destructor function.  Provide a
-  * prototype for that function and accessor functions.
-diff --git a/mm/shmem.c b/mm/shmem.c
-index eef4ebe..d93c394 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -98,14 +98,6 @@ static struct vfsmount *shm_mnt;
- /* Pretend that each entry is of this size in directory's i_size */
- #define BOGO_DIRENT_SIZE 20
- 
--/* Flag allocation requirements to shmem_getpage and shmem_swp_alloc */
--enum sgp_type {
--	SGP_READ,	/* don't exceed i_size, don't allocate page */
--	SGP_CACHE,	/* don't exceed i_size, may allocate page */
--	SGP_DIRTY,	/* like SGP_CACHE, but set new page dirty */
--	SGP_WRITE,	/* may exceed i_size, may allocate page */
--};
--
- #ifdef CONFIG_TMPFS
- static unsigned long shmem_default_max_blocks(void)
- {
-@@ -118,9 +110,6 @@ static unsigned long shmem_default_max_inodes(void)
+ static struct file *do_restore_file(struct ckpt_ctx *ctx)
+diff --git a/fs/pipe.c b/fs/pipe.c
+index 747b2d7..8c79493 100644
+--- a/fs/pipe.c
++++ b/fs/pipe.c
+@@ -830,6 +830,8 @@ pipe_rdwr_open(struct inode *inode, struct file *filp)
+ 	return ret;
  }
+ 
++static struct vfsmount *pipe_mnt __read_mostly;
++
+ #ifdef CONFIG_CHECKPOINT
+ static int checkpoint_pipe(struct ckpt_ctx *ctx, struct inode *inode)
+ {
+@@ -877,7 +879,11 @@ static int pipe_file_checkpoint(struct ckpt_ctx *ctx, struct file *file)
+ 	if (!h)
+ 		return -ENOMEM;
+ 
+-	h->common.f_type = CKPT_FILE_PIPE;
++	/* fifo and pipe are similar at checkpoint, differ on restore */
++	if (inode->i_sb == pipe_mnt->mnt_sb)
++		h->common.f_type = CKPT_FILE_PIPE;
++	else
++		h->common.f_type = CKPT_FILE_FIFO;
+ 	h->pipe_objref = objref;
+ 
+ 	ret = checkpoint_file_common(ctx, file, &h->common);
+@@ -887,6 +893,13 @@ static int pipe_file_checkpoint(struct ckpt_ctx *ctx, struct file *file)
+ 	if (ret < 0)
+ 		goto out;
+ 
++	/* FIFO also needs a file name */
++	if (h->common.f_type == CKPT_FILE_FIFO) {
++		ret = checkpoint_fname(ctx, &file->f_path, &ctx->root_fs_path);
++		if (ret < 0)
++			goto out;
++	}
++
+ 	if (first)
+ 		ret = checkpoint_pipe(ctx, inode);
+  out:
+@@ -978,8 +991,74 @@ struct file *pipe_file_restore(struct ckpt_ctx *ctx, struct ckpt_hdr_file *ptr)
+ 
+ 	return file;
+ }
++
++struct file *fifo_file_restore(struct ckpt_ctx *ctx, struct ckpt_hdr_file *ptr)
++{
++	struct ckpt_hdr_file_pipe *h = (struct ckpt_hdr_file_pipe *) ptr;
++	struct file *file;
++	int first, ret;
++
++	if (ptr->h.type != CKPT_HDR_FILE  ||
++	    ptr->h.len != sizeof(*h) || ptr->f_type != CKPT_FILE_FIFO)
++		return ERR_PTR(-EINVAL);
++
++	if (h->pipe_objref <= 0)
++		return ERR_PTR(-EINVAL);
++
++	/*
++	 * If ckpt_obj_try_fetch() returned ERR_PTR(-EINVAL), this is the
++	 * first time for this fifo.
++	 */
++	file = ckpt_obj_try_fetch(ctx, h->pipe_objref, CKPT_OBJ_FILE);
++	if (!IS_ERR(file))
++		first = 0;
++	else if (PTR_ERR(file) == -EINVAL)
++		first = 1;
++	else
++		return file;
++
++	/*
++	 * To avoid blocking, always open the fifo with O_RDWR;
++	 * then fix flags below.
++	 */
++	file = restore_open_fname(ctx, (ptr->f_flags & ~O_ACCMODE) | O_RDWR);
++	if (IS_ERR(file))
++		return file;
++
++	if ((ptr->f_flags & O_ACCMODE) == O_RDONLY) {
++		file->f_flags = (file->f_flags & ~O_ACCMODE) | O_RDONLY;
++		file->f_mode &= ~FMODE_WRITE;
++	} else if ((ptr->f_flags & O_ACCMODE) == O_WRONLY) {
++		file->f_flags = (file->f_flags & ~O_ACCMODE) | O_WRONLY;
++		file->f_mode &= ~FMODE_READ;
++	} else if ((ptr->f_flags & O_ACCMODE) != O_RDWR) {
++		ret = -EINVAL;
++		goto out;
++	}
++
++	/* first time: add to objhash and restore fifo's contents */
++	if (first) {
++		ret = ckpt_obj_insert(ctx, file, h->pipe_objref, CKPT_OBJ_FILE);
++		if (ret < 0)
++			goto out;
++
++		ret = restore_pipe(ctx, file);
++		if (ret < 0)
++			goto out;
++	}
++
++	ret = restore_file_common(ctx, file, ptr);
++ out:
++	if (ret < 0) {
++		fput(file);
++		file = ERR_PTR(ret);
++	}
++
++	return file;
++}
+ #else
+ #define pipe_file_checkpoint  NULL
++#define fifo_file_checkpoint  NULL
+ #endif /* CONFIG_CHECKPOINT */
+ 
+ /*
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index 885d06b..fce35f3 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -281,6 +281,8 @@ enum file_type {
+ #define CKPT_FILE_GENERIC CKPT_FILE_GENERIC
+ 	CKPT_FILE_PIPE,
+ #define CKPT_FILE_PIPE CKPT_FILE_PIPE
++	CKPT_FILE_FIFO,
++#define CKPT_FILE_FIFO CKPT_FILE_FIFO
+ 	CKPT_FILE_MAX
+ #define CKPT_FILE_MAX CKPT_FILE_MAX
+ };
+diff --git a/include/linux/pipe_fs_i.h b/include/linux/pipe_fs_i.h
+index e526a12..596403e 100644
+--- a/include/linux/pipe_fs_i.h
++++ b/include/linux/pipe_fs_i.h
+@@ -160,6 +160,8 @@ struct ckpt_ctx;
+ struct ckpt_hdr_file;
+ extern struct file *pipe_file_restore(struct ckpt_ctx *ctx,
+ 				      struct ckpt_hdr_file *ptr);
++extern struct file *fifo_file_restore(struct ckpt_ctx *ctx,
++				      struct ckpt_hdr_file *ptr);
  #endif
  
--static int shmem_getpage(struct inode *inode, unsigned long idx,
--			 struct page **pagep, enum sgp_type sgp, int *type);
--
- static inline struct page *shmem_dir_alloc(gfp_t gfp_mask)
- {
- 	/*
-@@ -1213,8 +1202,8 @@ static inline struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
-  * vm. If we swap it in we mark it dirty since we also free the swap
-  * entry since a page cannot live in both the swap and page cache
-  */
--static int shmem_getpage(struct inode *inode, unsigned long idx,
--			struct page **pagep, enum sgp_type sgp, int *type)
-+int shmem_getpage(struct inode *inode, unsigned long idx,
-+		  struct page **pagep, enum sgp_type sgp, int *type)
- {
- 	struct address_space *mapping = inode->i_mapping;
- 	struct shmem_inode_info *info = SHMEM_I(inode);
+ #endif
 -- 
 1.6.3.3
 
