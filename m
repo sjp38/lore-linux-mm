@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D9C716B0214
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:14:11 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C6096B0216
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:14:13 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 33/96] c/r: Save and restore the [compat_]robust_list member of the task struct
-Date: Wed, 17 Mar 2010 12:08:21 -0400
-Message-Id: <1268842164-5590-34-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-33-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 32/96] c/r: support for zombie processes
+Date: Wed, 17 Mar 2010 12:08:20 -0400
+Message-Id: <1268842164-5590-33-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-32-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -39,240 +39,279 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-30-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-31-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-32-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-33-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Matt Helsley <matthltc@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-From: Matt Helsley <matthltc@us.ibm.com>
+During checkpoint, a zombie processes need only save p->comm,
+p->state, p->exit_state, and p->exit_code.
 
-These lists record which futexes the task holds. To keep the overhead of
-robust futexes low the list is kept in userspace. When the task exits the
-kernel carefully walks these lists to recover held futexes that
-other tasks may be attempting to acquire with FUTEX_WAIT.
+During restart, zombie processes are created like all other
+processes. They validate the saved exit_code restore p->comm
+and p->exit_code. Then they call do_exit() instead of waking
+up the next task in line.
 
-Because they point to userspace memory that is saved/restored by
-checkpoint/restart saving the list pointers themselves is safe.
+But before, they place the @ctx in p->checkpoint_ctx, so that
+only at exit time they will wake up the next task in line,
+and drop the reference to the @ctx.
 
-While saving the pointers is safe during checkpoint, restart is tricky
-because the robust futex ABI contains provisions for changes based on
-checking the size of the list head. So we need to save the length of
-the list head too in order to make sure that the kernel used during
-restart is capable of handling that ABI. Since there is only one ABI
-supported at the moment taking the list head's size is simple. Should
-the ABI change we will need to use the same size as specified during
-sys_set_robust_list() and hence some new means of determining the length
-of this userspace structure in sys_checkpoint would be required.
+This provides the guarantee that when the coordinator's wait
+completes, all normal tasks completed their restart, and all
+zombie tasks are already zombified (as opposed to perhap only
+becoming a zombie).
 
-Rather than rewrite the logic that checks and handles the ABI we reuse
-sys_set_robust_list() by factoring out the body of the function and
-calling it during restart.
+Changelog[v19-rc1]:
+  - Simplify logic of tracking restarting tasks
+Changelog[v18]:
+  - Fix leak of ckpt_ctx when restoring zombie tasks
+  - Add a few more ckpt_write_err()s
+Changelog[v17]:
+  - Validate t->exit_signal for both threads and leader
+  - Skip zombies in most of may_checkpoint_task()
+  - Save/restore t->pdeath_signal
+  - Validate ->exit_signal and ->pdeath_signal
 
-Changelog [v19]:
-  - Keep __u32s in even groups for 32-64 bit compatibility
-
-Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
-[orenl@cs.columbia.edu: move save/restore code to checkpoint/process.c]
+Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge E. Hallyn <serue@us.ibm.com>
 Tested-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- checkpoint/process.c           |   49 ++++++++++++++++++++++++++++++++++++++++
- include/linux/checkpoint_hdr.h |    5 ++++
- include/linux/compat.h         |    3 +-
- include/linux/futex.h          |    1 +
- kernel/futex.c                 |   19 +++++++++-----
- kernel/futex_compat.c          |   13 ++++++++--
- 6 files changed, 79 insertions(+), 11 deletions(-)
+ checkpoint/checkpoint.c        |   10 ++++--
+ checkpoint/process.c           |   69 +++++++++++++++++++++++++++++++++++-----
+ checkpoint/restart.c           |   22 +++++++++++--
+ include/linux/checkpoint.h     |    1 +
+ include/linux/checkpoint_hdr.h |    1 +
+ 5 files changed, 89 insertions(+), 14 deletions(-)
 
+diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
+index 1e38ae3..ea1494d 100644
+--- a/checkpoint/checkpoint.c
++++ b/checkpoint/checkpoint.c
+@@ -218,7 +218,7 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 
+ 	ckpt_debug("check %d\n", task_pid_nr_ns(t, ctx->root_nsproxy->pid_ns));
+ 
+-	if (t->state == TASK_DEAD) {
++	if (t->exit_state == EXIT_DEAD) {
+ 		_ckpt_err(ctx, -EBUSY, "%(T)Task state EXIT_DEAD\n");
+ 		return -EBUSY;
+ 	}
+@@ -228,6 +228,10 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 		return -EPERM;
+ 	}
+ 
++	/* zombies are cool (and also don't have nsproxy, below...) */
++	if (t->exit_state)
++		return 0;
++
+ 	/* verify that all tasks belongs to same freezer cgroup */
+ 	if (t != current && !in_same_cgroup_freezer(t, ctx->root_freezer)) {
+ 		_ckpt_err(ctx, -EBUSY, "%(T)Not frozen or wrong cgroup\n");
+@@ -244,8 +248,8 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	 * FIX: for now, disallow siblings of container init created
+ 	 * via CLONE_PARENT (unclear if they will remain possible)
+ 	 */
+-	if (ctx->root_init && t != root && t->tgid != root->tgid &&
+-	    t->real_parent == root->real_parent) {
++	if (ctx->root_init && t != root &&
++	    t->real_parent == root->real_parent && t->tgid != root->tgid) {
+ 		_ckpt_err(ctx, -EINVAL, "%(T)Task is sibling of root\n");
+ 		return -EINVAL;
+ 	}
 diff --git a/checkpoint/process.c b/checkpoint/process.c
-index c47dea1..f36e320 100644
+index 9f2059c..c47dea1 100644
 --- a/checkpoint/process.c
 +++ b/checkpoint/process.c
-@@ -14,10 +14,57 @@
- #include <linux/sched.h>
- #include <linux/posix-timers.h>
- #include <linux/futex.h>
-+#include <linux/compat.h>
- #include <linux/poll.h>
- #include <linux/checkpoint.h>
- #include <linux/checkpoint_hdr.h>
+@@ -35,12 +35,18 @@ static int checkpoint_task_struct(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	h->state = t->state;
+ 	h->exit_state = t->exit_state;
+ 	h->exit_code = t->exit_code;
+-	h->exit_signal = t->exit_signal;
  
-+
-+#ifdef CONFIG_FUTEX
-+static void save_task_robust_futex_list(struct ckpt_hdr_task *h,
-+					struct task_struct *t)
-+{
-+	/*
-+	 * These are __user pointers and thus can be saved without
-+	 * the objhash.
-+	 */
-+	h->robust_futex_list = (unsigned long)t->robust_list;
-+	h->robust_futex_head_len = sizeof(*t->robust_list);
-+#ifdef CONFIG_COMPAT
-+	h->compat_robust_futex_list = ptr_to_compat(t->compat_robust_list);
-+	h->compat_robust_futex_head_len = sizeof(*t->compat_robust_list);
-+#endif
-+}
-+
-+static void restore_task_robust_futex_list(struct ckpt_hdr_task *h)
-+{
-+	/* Since we restore the memory map the address remains the same and
-+	 * this is safe. This is the same as [compat_]sys_set_robust_list() */
-+	if (h->robust_futex_list) {
-+		struct robust_list_head __user *rfl;
-+		rfl = (void __user *)(unsigned long) h->robust_futex_list;
-+		do_set_robust_list(rfl, h->robust_futex_head_len);
-+	}
-+#ifdef CONFIG_COMPAT
-+	if (h->compat_robust_futex_list) {
-+		struct compat_robust_list_head __user *crfl;
-+		crfl = compat_ptr(h->compat_robust_futex_list);
-+		do_compat_set_robust_list(crfl, h->compat_robust_futex_head_len);
-+	}
-+#endif
-+}
-+#else /* !CONFIG_FUTEX */
-+static inline void save_task_robust_futex_list(struct ckpt_hdr_task *h,
-+					       struct task_struct *t)
-+{
-+}
-+
-+static inline void restore_task_robust_futex_list(struct ckpt_hdr_task *h)
-+{
-+}
-+#endif /* CONFIG_FUTEX */
-+
-+
- /***********************************************************************
-  * Checkpoint
-  */
-@@ -46,6 +93,7 @@ static int checkpoint_task_struct(struct ckpt_ctx *ctx, struct task_struct *t)
+-	h->set_child_tid = (unsigned long) t->set_child_tid;
+-	h->clear_child_tid = (unsigned long) t->clear_child_tid;
++	if (t->exit_state) {
++		/* zombie - skip remaining state */
++		BUG_ON(t->exit_state != EXIT_ZOMBIE);
++	} else {
++		/* FIXME: save remaining relevant task_struct fields */
++		h->exit_signal = t->exit_signal;
++		h->pdeath_signal = t->pdeath_signal;
  
- 		h->set_child_tid = (unsigned long) t->set_child_tid;
- 		h->clear_child_tid = (unsigned long) t->clear_child_tid;
-+		save_task_robust_futex_list(h, t);
- 	}
+-	/* FIXME: save remaining relevant task_struct fields */
++		h->set_child_tid = (unsigned long) t->set_child_tid;
++		h->clear_child_tid = (unsigned long) t->clear_child_tid;
++	}
  
  	ret = ckpt_write_obj(ctx, &h->h);
-@@ -249,6 +297,7 @@ static int restore_task_struct(struct ckpt_ctx *ctx)
- 			(int __user *) (unsigned long) h->set_child_tid;
- 		t->clear_child_tid =
- 			(int __user *) (unsigned long) h->clear_child_tid;
-+		restore_task_robust_futex_list(h);
- 	}
- 
- 	memset(t->comm, 0, TASK_COMM_LEN);
-diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index f85b673..651255f 100644
---- a/include/linux/checkpoint_hdr.h
-+++ b/include/linux/checkpoint_hdr.h
-@@ -162,6 +162,11 @@ struct ckpt_hdr_task {
- 	__u32 exit_signal;
- 	__u32 pdeath_signal;
- 
-+	__u32 compat_robust_futex_head_len;
-+	__u32 compat_robust_futex_list; /* a compat __user ptr */
-+	__u32 robust_futex_head_len;
-+	__u64 robust_futex_list; /* a __user ptr */
+ 	ckpt_hdr_put(ctx, h);
+@@ -171,6 +177,11 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	ckpt_debug("task %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
 +
- 	__u64 set_child_tid;
- 	__u64 clear_child_tid;
- } __attribute__((aligned(8)));
-diff --git a/include/linux/compat.h b/include/linux/compat.h
-index ef68119..50ef270 100644
---- a/include/linux/compat.h
-+++ b/include/linux/compat.h
-@@ -209,7 +209,8 @@ struct compat_robust_list_head {
- };
- 
- extern void compat_exit_robust_list(struct task_struct *curr);
--
-+extern long do_compat_set_robust_list(struct compat_robust_list_head __user *head,
-+				      compat_size_t len);
- asmlinkage long
- compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
- 			   compat_size_t len);
-diff --git a/include/linux/futex.h b/include/linux/futex.h
-index ae755f6..c825790 100644
---- a/include/linux/futex.h
-+++ b/include/linux/futex.h
-@@ -185,6 +185,7 @@ union futex_key {
- #define FUTEX_KEY_INIT (union futex_key) { .both = { .ptr = NULL } }
- 
- #ifdef CONFIG_FUTEX
-+extern long do_set_robust_list(struct robust_list_head __user *head, size_t len);
- extern void exit_robust_list(struct task_struct *curr);
- extern void exit_pi_state_list(struct task_struct *curr);
- extern int futex_cmpxchg_enabled;
-diff --git a/kernel/futex.c b/kernel/futex.c
-index 23419c9..baaecb4 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -2342,13 +2342,7 @@ out:
-  * the list. There can only be one such pending lock.
++	/* zombie - we're done here */
++	if (t->exit_state)
++		return 0;
++
+ 	ret = checkpoint_thread(ctx, t);
+ 	ckpt_debug("thread %d\n", ret);
+ 	if (ret < 0)
+@@ -190,6 +201,19 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+  * Restart
   */
  
--/**
-- * sys_set_robust_list() - Set the robust-futex list head of a task
-- * @head:	pointer to the list-head
-- * @len:	length of the list-head, as userspace expects
-- */
--SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
--		size_t, len)
-+long do_set_robust_list(struct robust_list_head __user *head, size_t len)
- {
- 	if (!futex_cmpxchg_enabled)
- 		return -ENOSYS;
-@@ -2364,6 +2358,17 @@ SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
- }
- 
- /**
-+ * sys_set_robust_list() - Set the robust-futex list head of a task
-+ * @head:	pointer to the list-head
-+ * @len:	length of the list-head, as userspace expects
-+ */
-+SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
-+		size_t, len)
++static inline int valid_exit_code(int exit_code)
 +{
-+	return do_set_robust_list(head, len);
++	if (exit_code >= 0x10000)
++		return 0;
++	if (exit_code & 0xff) {
++		if (exit_code & ~0xff)
++			return 0;
++		if (!valid_signal(exit_code & 0xff))
++			return 0;
++	}
++	return 1;
 +}
 +
-+/**
-  * sys_get_robust_list() - Get the robust-futex list head of a task
-  * @pid:	pid of the process [zero for current task]
-  * @head_ptr:	pointer to a list-head pointer, the kernel fills it in
-diff --git a/kernel/futex_compat.c b/kernel/futex_compat.c
-index 2357165..5e1a169 100644
---- a/kernel/futex_compat.c
-+++ b/kernel/futex_compat.c
-@@ -114,9 +114,9 @@ void compat_exit_robust_list(struct task_struct *curr)
- 	}
- }
- 
--asmlinkage long
--compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
--			   compat_size_t len)
-+long
-+do_compat_set_robust_list(struct compat_robust_list_head __user *head,
-+			  compat_size_t len)
+ /* read the task_struct into the current task */
+ static int restore_task_struct(struct ckpt_ctx *ctx)
  {
- 	if (!futex_cmpxchg_enabled)
- 		return -ENOSYS;
-@@ -130,6 +130,13 @@ compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
- }
+@@ -201,15 +225,39 @@ static int restore_task_struct(struct ckpt_ctx *ctx)
+ 	if (IS_ERR(h))
+ 		return PTR_ERR(h);
  
- asmlinkage long
-+compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
-+			   compat_size_t len)
-+{
-+	return do_compat_set_robust_list(head, len);
-+}
++	ret = -EINVAL;
++	if (h->state == TASK_DEAD) {
++		if (h->exit_state != EXIT_ZOMBIE)
++			goto out;
++		if (!valid_exit_code(h->exit_code))
++			goto out;
++		t->exit_code = h->exit_code;
++	} else {
++		if (h->exit_code)
++			goto out;
++		if ((thread_group_leader(t) && !valid_signal(h->exit_signal)) ||
++		    (!thread_group_leader(t) && h->exit_signal != -1))
++			goto out;
++		if (!valid_signal(h->pdeath_signal))
++			goto out;
 +
-+asmlinkage long
- compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
- 			   compat_size_t __user *len_ptr)
++		/* FIXME: restore remaining relevant task_struct fields */
++		t->exit_signal = h->exit_signal;
++		t->pdeath_signal = h->pdeath_signal;
++
++		t->set_child_tid =
++			(int __user *) (unsigned long) h->set_child_tid;
++		t->clear_child_tid =
++			(int __user *) (unsigned long) h->clear_child_tid;
++	}
++
+ 	memset(t->comm, 0, TASK_COMM_LEN);
+ 	ret = _ckpt_read_string(ctx, t->comm, TASK_COMM_LEN);
+ 	if (ret < 0)
+ 		goto out;
+ 
+-	t->set_child_tid = (int __user *) (unsigned long) h->set_child_tid;
+-	t->clear_child_tid = (int __user *) (unsigned long) h->clear_child_tid;
+-
+-	/* FIXME: restore remaining relevant task_struct fields */
++	/* return 1 for zombie, 0 otherwise */
++	ret = (h->state == TASK_DEAD ? 1 : 0);
+  out:
+ 	ckpt_hdr_put(ctx, h);
+ 	return ret;
+@@ -329,6 +377,11 @@ int restore_task(struct ckpt_ctx *ctx)
+ 	ckpt_debug("task %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++
++	/* zombie - we're done here */
++	if (ret)
++		goto out;
++
+ 	ret = restore_thread(ctx);
+ 	ckpt_debug("thread %d\n", ret);
+ 	if (ret < 0)
+diff --git a/checkpoint/restart.c b/checkpoint/restart.c
+index 59c4bd8..e2ed358 100644
+--- a/checkpoint/restart.c
++++ b/checkpoint/restart.c
+@@ -852,7 +852,7 @@ static int wait_sync_threads(void)
+ static int do_restore_task(void)
  {
+ 	struct ckpt_ctx *ctx;
+-	int ret;
++	int zombie, ret;
+ 
+ 	ctx = wait_checkpoint_ctx();
+ 	if (IS_ERR(ctx))
+@@ -862,6 +862,8 @@ static int do_restore_task(void)
+ 	if (ret < 0)
+ 		goto out;
+ 
++	current->flags |= PF_RESTARTING;
++
+ 	ret = wait_sync_threads();
+ 	if (ret < 0)
+ 		goto out;
+@@ -873,9 +875,22 @@ static int do_restore_task(void)
+ 
+ 	restore_debug_running(ctx);
+ 
+-	ret = restore_task(ctx);
+-	if (ret < 0)
++	zombie = restore_task(ctx);
++	if (zombie < 0) {
++		ret = zombie;
+ 		goto out;
++	}
++
++	/*
++	 * zombie: we're done here; do_exit() will notice the @ctx on
++	 * our current->checkpoint_ctx (and our PF_RESTARTING) - it
++	 * will call restore_activate_next() and release the @ctx.
++	 */
++	if (zombie) {
++		restore_debug_exit(ctx);
++		ckpt_ctx_put(ctx);
++		do_exit(current->exit_code);
++	}
+ 
+ 	restore_task_done(ctx);
+ 	ret = wait_task_sync(ctx);
+@@ -884,6 +899,7 @@ static int do_restore_task(void)
+ 	if (ret < 0)
+ 		ckpt_err(ctx, ret, "task restart failed\n");
+ 
++	current->flags &= ~PF_RESTARTING;
+ 	clear_task_ctx(current);
+ 	ckpt_ctx_put(ctx);
+ 	return ret;
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index d1eb722..61581f6 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -113,6 +113,7 @@ extern long do_checkpoint(struct ckpt_ctx *ctx, pid_t pid);
+ extern long do_restart(struct ckpt_ctx *ctx, pid_t pid);
+ 
+ /* task */
++extern int ckpt_activate_next(struct ckpt_ctx *ctx);
+ extern int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t);
+ extern int restore_task(struct ckpt_ctx *ctx);
+ 
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index 083f5d3..f85b673 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -160,6 +160,7 @@ struct ckpt_hdr_task {
+ 	__u32 exit_state;
+ 	__u32 exit_code;
+ 	__u32 exit_signal;
++	__u32 pdeath_signal;
+ 
+ 	__u64 set_child_tid;
+ 	__u64 clear_child_tid;
 -- 
 1.6.3.3
 
