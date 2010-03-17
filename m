@@ -1,94 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8A85D600368
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 18:52:09 -0400 (EDT)
-Date: Wed, 17 Mar 2010 23:52:03 +0100
-From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH -mmotm 4/5] memcg: dirty pages accounting and limiting
- infrastructure
-Message-ID: <20100317225203.GD8467@linux.develer.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
- <1268609202-15581-5-git-send-email-arighi@develer.com>
- <20100316113238.f7d74848.nishimura@mxp.nes.nec.co.jp>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B275B600363
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 19:52:28 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2HNqO3q024576
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 18 Mar 2010 08:52:24 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F56445DE51
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:52:24 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F08A45DE50
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:52:24 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E016E38002
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:52:24 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 072071DB8046
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:52:24 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5] tmpfs: handle MPOL_LOCAL mount option properly
+In-Reply-To: <alpine.LSU.2.00.1003171619410.29003@sister.anvils>
+References: <20100316145022.4C4E.A69D9226@jp.fujitsu.com> <alpine.LSU.2.00.1003171619410.29003@sister.anvils>
+Message-Id: <20100318084915.8723.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100316113238.f7d74848.nishimura@mxp.nes.nec.co.jp>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 18 Mar 2010 08:52:23 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>, lee.schermerhorn@hp.com
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, kiran@scalex86.org, cl@linux-foundation.org, mel@csn.ul.ie, stable@kernel.org, linux-mm <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 16, 2010 at 11:32:38AM +0900, Daisuke Nishimura wrote:
-[snip]
-> > @@ -3190,10 +3512,14 @@ struct {
-> >  } memcg_stat_strings[NR_MCS_STAT] = {
-> >  	{"cache", "total_cache"},
-> >  	{"rss", "total_rss"},
-> > -	{"mapped_file", "total_mapped_file"},
-> >  	{"pgpgin", "total_pgpgin"},
-> >  	{"pgpgout", "total_pgpgout"},
-> >  	{"swap", "total_swap"},
-> > +	{"mapped_file", "total_mapped_file"},
-> > +	{"filedirty", "dirty_pages"},
-> > +	{"writeback", "writeback_pages"},
-> > +	{"writeback_tmp", "writeback_temp_pages"},
-> > +	{"nfs", "nfs_unstable"},
-> >  	{"inactive_anon", "total_inactive_anon"},
-> >  	{"active_anon", "total_active_anon"},
-> >  	{"inactive_file", "total_inactive_file"},
-> Why not using "total_xxx" for total_name ?
-
-Agreed. I would be definitely more clear. Balbir, KAME-san, what do you
-think?
-
+> On Tue, 16 Mar 2010, KOSAKI Motohiro wrote:
 > 
-> > @@ -3212,8 +3538,6 @@ static int mem_cgroup_get_local_stat(struct mem_cgroup *mem, void *data)
-> >  	s->stat[MCS_CACHE] += val * PAGE_SIZE;
-> >  	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_RSS);
-> >  	s->stat[MCS_RSS] += val * PAGE_SIZE;
-> > -	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_MAPPED);
-> > -	s->stat[MCS_FILE_MAPPED] += val * PAGE_SIZE;
-> >  	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_PGPGIN_COUNT);
-> >  	s->stat[MCS_PGPGIN] += val;
-> >  	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_PGPGOUT_COUNT);
-> > @@ -3222,6 +3546,16 @@ static int mem_cgroup_get_local_stat(struct mem_cgroup *mem, void *data)
-> >  		val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_SWAPOUT);
-> >  		s->stat[MCS_SWAP] += val * PAGE_SIZE;
-> >  	}
-> > +	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_MAPPED);
-> > +	s->stat[MCS_FILE_MAPPED] += val * PAGE_SIZE;
-> > +	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_DIRTY);
-> > +	s->stat[MCS_FILE_DIRTY] += val;
-> > +	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_WRITEBACK);
-> > +	s->stat[MCS_WRITEBACK] += val;
-> > +	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_WRITEBACK_TEMP);
-> > +	s->stat[MCS_WRITEBACK_TEMP] += val;
-> > +	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_UNSTABLE_NFS);
-> > +	s->stat[MCS_UNSTABLE_NFS] += val;
-> >  
-> I don't have a strong objection, but I prefer showing them in bytes.
-> And can you add to mem_cgroup_stat_show() something like:
+> > commit 71fe804b6d5 (mempolicy: use struct mempolicy pointer in
+> > shmem_sb_info) added mpol=local mount option. but its feature is
+> > broken since it was born. because such code always return 1 (i.e.
+> > mount failure).
+> > 
+> > This patch fixes it.
+> > 
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Cc: Ravikiran Thirumalai <kiran@scalex86.org>
 > 
-> 	for (i = 0; i < NR_MCS_STAT; i++) {
-> 		if (i == MCS_SWAP && !do_swap_account)
-> 			continue;
-> +		if (i >= MCS_FILE_STAT_STAR && i <= MCS_FILE_STAT_END &&
-> +		   mem_cgroup_is_root(mem_cont))
-> +			continue;
-> 		cb->fill(cb, memcg_stat_strings[i].local_name, mystat.stat[i]);
-> 	}
-
-I like this. And I also prefer to show these values in bytes.
-
+> Thank you both for finding and fixing these mpol embarrassments.
 > 
-> not to show file stat in root cgroup ? It's meaningless value anyway.
-> Of course, you'd better mention it in [2/5] too.
+> But if this "mpol=local" feature was never documented (not even in the
+> commit log), has been broken since birth 20 months ago, and nobody has
+> noticed: wouldn't it be better to save a little bloat and just rip it out?
 
-OK.
+I have no objection if lee agreed, lee?
+Of cource, if we agree it, we can make the new patch soon :)
 
-Thanks,
--Andrea
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
