@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 012BC600372
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:15:42 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 1747162001F
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:17:07 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 51/96] c/r: support for open pipes
-Date: Wed, 17 Mar 2010 12:08:39 -0400
-Message-Id: <1268842164-5590-52-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-51-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 55/96] c/r: support for UTS namespace
+Date: Wed, 17 Mar 2010 12:08:43 -0400
+Message-Id: <1268842164-5590-56-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-55-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -58,333 +58,500 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-49-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-50-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-51-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-52-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-53-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-54-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-55-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Oren Laadan <orenl@cs.columbia.edu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Dan Smith <danms@us.ibm.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-A pipe is a double-headed inode with a buffer attached to it. We
-checkpoint the pipe buffer only once, as soon as we hit one side of
-the pipe, regardless whether it is read- or write- end.
+From: Dan Smith <danms@us.ibm.com>
 
-To checkpoint a file descriptor that refers to a pipe (either end), we
-first lookup the inode in the hash table: If not found, it is the
-first encounter of this pipe. Besides the file descriptor, we also (a)
-save the pipe data, and (b) register the pipe inode in the hash. If
-found, it is the second encounter of this pipe, namely, as we hit the
-other end of the same pipe. In both cases we write the pipe-objref of
-the inode.
+This patch adds a "phase" of checkpoint that saves out information about any
+namespaces the task(s) may have.  Do this by tracking the namespace objects
+of the tasks and making sure that tasks with the same namespace that follow
+get properly referenced in the checkpoint stream.
 
-To restore, create a new pipe and thus have two file pointers (read-
-and write- ends). We only use one of them, depending on which side was
-checkpointed first. We register the file pointer of the other end in
-the hash table, with the pipe_objref given for this pipe from the
-checkpoint, to be used later when the other arrives. At this point we
-also restore the contents of the pipe buffers.
-
-To save the pipe buffer, given a source pipe, use do_tee() to clone
-its contents into a temporary 'struct pipe_inode_info', and then use
-do_splice_from() to transfer it directly to the checkpoint image file.
-
-To restore the pipe buffer, with a fresh newly allocated target pipe,
-use do_splice_to() to splice the data directly between the checkpoint
-image file and the pipe.
-
-Changelog[v19-rc1]:
-  - Switch to ckpt_obj_try_fetch()
+Changes[v20]:
+  - Make uts_ns=n compile
+Changes[v19]:
+  - Restart to handle checkpoint images lacking {uts,ipc}-ns
+Changes[v19-rc1]:
   - [Matt Helsley] Add cpp definitions for enums
-Changelog[v18]:
-  - Adjust format of pipe buffer to include the mandatory pre-header
-Changelog[v17]:
-  - Forward-declare 'ckpt_ctx' et-al, don't use checkpoint_types.h
+Changes[v17]:
+  - Collect nsproxy->uts_ns
+  - Save uts string lengths once in ckpt_hdr_const
+  - Save and restore all fields of uts-ns
+  - Don't overwrite global uts-ns if !CONFIG_UTS_NS
+  - Replace sys_unshare() with create_uts_ns()
+  - Take uts_sem around access to uts data
+Changes:
+  - Remove the kernel restore path
+  - Punt on nested namespaces
+  - Use __NEW_UTS_LEN in nodename and domainname buffers
+  - Add a note to Documentation/checkpoint/internals.txt to indicate where
+    in the save/restore process the UTS information is kept
+  - Store (and track) the objref of the namespace itself instead of the
+    nsproxy (based on comments from Dave on IRC)
+  - Remove explicit check for non-root nsproxy
+  - Store the nodename and domainname lengths and use ckpt_write_string()
+    to store the actual name strings
+  - Catch failure of ckpt_obj_add_ptr() in ckpt_write_namespaces()
+  - Remove "types" bitfield and use the "is this new" flag to determine
+    whether or not we should write out a new ns descriptor
+  - Replace kernel restore path
+  - Move the namespace information to be directly after the task
+    information record
+  - Update Documentation to reflect new location of namespace info
+  - Support checkpoint and restart of nested UTS namespaces
 
+Signed-off-by: Dan Smith <danms@us.ibm.com>
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge E. Hallyn <serue@us.ibm.com>
 Tested-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- checkpoint/files.c             |    7 ++
- fs/pipe.c                      |  157 ++++++++++++++++++++++++++++++++++++++++
- include/linux/checkpoint_hdr.h |    9 +++
- include/linux/pipe_fs_i.h      |    8 ++
- 4 files changed, 181 insertions(+), 0 deletions(-)
+ checkpoint/Makefile              |    1 +
+ checkpoint/checkpoint.c          |    5 +-
+ checkpoint/namespace.c           |  116 ++++++++++++++++++++++++++++++++++++++
+ checkpoint/objhash.c             |   26 +++++++++
+ checkpoint/process.c             |    2 +
+ checkpoint/restart.c             |    6 ++
+ include/linux/checkpoint.h       |    4 +
+ include/linux/checkpoint_hdr.h   |   29 +++++++++-
+ include/linux/checkpoint_types.h |    6 ++
+ include/linux/utsname.h          |    1 +
+ kernel/nsproxy.c                 |   19 ++++++-
+ kernel/utsname.c                 |    3 +-
+ 12 files changed, 212 insertions(+), 6 deletions(-)
+ create mode 100644 checkpoint/namespace.c
 
-diff --git a/checkpoint/files.c b/checkpoint/files.c
-index b404c8f..1c294fe 100644
---- a/checkpoint/files.c
-+++ b/checkpoint/files.c
-@@ -17,6 +17,7 @@
- #include <linux/file.h>
- #include <linux/fdtable.h>
- #include <linux/fsnotify.h>
-+#include <linux/pipe_fs_i.h>
- #include <linux/syscalls.h>
- #include <linux/deferqueue.h>
- #include <linux/checkpoint.h>
-@@ -592,6 +593,12 @@ static struct restore_file_ops restore_file_ops[] = {
- 		.file_type = CKPT_FILE_GENERIC,
- 		.restore = generic_file_restore,
- 	},
-+	/* pipes */
-+	{
-+		.file_name = "PIPE",
-+		.file_type = CKPT_FILE_PIPE,
-+		.restore = pipe_file_restore,
-+	},
- };
- 
- static struct file *do_restore_file(struct ckpt_ctx *ctx)
-diff --git a/fs/pipe.c b/fs/pipe.c
-index 37ba29f..747b2d7 100644
---- a/fs/pipe.c
-+++ b/fs/pipe.c
-@@ -13,11 +13,13 @@
- #include <linux/fs.h>
- #include <linux/mount.h>
- #include <linux/pipe_fs_i.h>
-+#include <linux/splice.h>
- #include <linux/uio.h>
- #include <linux/highmem.h>
- #include <linux/pagemap.h>
- #include <linux/audit.h>
- #include <linux/syscalls.h>
-+#include <linux/checkpoint.h>
- 
- #include <asm/uaccess.h>
- #include <asm/ioctls.h>
-@@ -828,6 +830,158 @@ pipe_rdwr_open(struct inode *inode, struct file *filp)
- 	return ret;
+diff --git a/checkpoint/Makefile b/checkpoint/Makefile
+index f56a7d6..bb2c0ca 100644
+--- a/checkpoint/Makefile
++++ b/checkpoint/Makefile
+@@ -8,5 +8,6 @@ obj-$(CONFIG_CHECKPOINT) += \
+ 	checkpoint.o \
+ 	restart.o \
+ 	process.o \
++	namespace.o \
+ 	files.o \
+ 	memory.o
+diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
+index 9bafb13..2707978 100644
+--- a/checkpoint/checkpoint.c
++++ b/checkpoint/checkpoint.c
+@@ -113,9 +113,12 @@ static void fill_kernel_const(struct ckpt_const *h)
+ 	/* mm->saved_auxv size */
+ 	h->at_vector_size = AT_VECTOR_SIZE;
+ 	/* uts */
++	h->uts_sysname_len = sizeof(uts->sysname);
++	h->uts_nodename_len = sizeof(uts->nodename);
+ 	h->uts_release_len = sizeof(uts->release);
+ 	h->uts_version_len = sizeof(uts->version);
+ 	h->uts_machine_len = sizeof(uts->machine);
++	h->uts_domainname_len = sizeof(uts->domainname);
  }
  
-+#ifdef CONFIG_CHECKPOINT
-+static int checkpoint_pipe(struct ckpt_ctx *ctx, struct inode *inode)
+ /* write the checkpoint header */
+@@ -261,8 +264,6 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 
+ 	rcu_read_lock();
+ 	nsproxy = task_nsproxy(t);
+-	if (nsproxy->uts_ns != ctx->root_nsproxy->uts_ns)
+-		ret = -EPERM;
+ 	if (nsproxy->ipc_ns != ctx->root_nsproxy->ipc_ns)
+ 		ret = -EPERM;
+ 	/* no support for >1 private mntns */
+diff --git a/checkpoint/namespace.c b/checkpoint/namespace.c
+new file mode 100644
+index 0000000..3703577
+--- /dev/null
++++ b/checkpoint/namespace.c
+@@ -0,0 +1,116 @@
++/*
++ *  Checkpoint namespaces
++ *
++ *  Copyright (C) 2009 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
++
++/* default debug level for output */
++#define CKPT_DFLAG  CKPT_DSYS
++
++#include <linux/nsproxy.h>
++#include <linux/user_namespace.h>
++
++#include <linux/checkpoint.h>
++#include <linux/checkpoint_hdr.h>
++
++/*
++ * uts_ns  -  this needs to compile even for !CONFIG_UTS_NS, so
++ *   the code may not reside in kernel/utsname.c (which wouldn't
++ *   compile then).
++ */
++static int do_checkpoint_uts_ns(struct ckpt_ctx *ctx,
++				struct uts_namespace *uts_ns)
 +{
-+	struct pipe_inode_info *pipe;
-+	int len, ret = -ENOMEM;
++	struct ckpt_hdr_utsns *h;
++	struct new_utsname *name;
++	int ret;
 +
-+	pipe = alloc_pipe_info(NULL);
-+	if (!pipe)
-+		return ret;
-+
-+	pipe->readers = 1;	/* bluff link_pipe() below */
-+	len = link_pipe(inode->i_pipe, pipe, INT_MAX, SPLICE_F_NONBLOCK);
-+	if (len == -EAGAIN)
-+		len = 0;
-+	if (len < 0) {
-+		ret = len;
-+		goto out;
-+	}
-+
-+	ret = ckpt_write_obj_type(ctx, NULL, len, CKPT_HDR_PIPE_BUF);
-+	if (ret < 0)
-+		goto out;
-+
-+	ret = do_splice_from(pipe, ctx->file, &ctx->file->f_pos, len, 0);
-+	if (ret < 0)
-+		goto out;
-+	if (ret != len)
-+		ret = -EPIPE;  /* can occur due to an error in target file */
-+ out:
-+	__free_pipe_info(pipe);
-+	return ret;
-+}
-+
-+static int pipe_file_checkpoint(struct ckpt_ctx *ctx, struct file *file)
-+{
-+	struct ckpt_hdr_file_pipe *h;
-+	struct inode *inode = file->f_dentry->d_inode;
-+	int objref, first, ret;
-+
-+	objref = ckpt_obj_lookup_add(ctx, inode, CKPT_OBJ_INODE, &first);
-+	if (objref < 0)
-+		return objref;
-+
-+	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_FILE);
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_UTS_NS);
 +	if (!h)
 +		return -ENOMEM;
 +
-+	h->common.f_type = CKPT_FILE_PIPE;
-+	h->pipe_objref = objref;
++	down_read(&uts_sem);
++	name = &uts_ns->name;
++	memcpy(h->sysname, name->sysname, sizeof(name->sysname));
++	memcpy(h->nodename, name->nodename, sizeof(name->nodename));
++	memcpy(h->release, name->release, sizeof(name->release));
++	memcpy(h->version, name->version, sizeof(name->version));
++	memcpy(h->machine, name->machine, sizeof(name->machine));
++	memcpy(h->domainname, name->domainname, sizeof(name->domainname));
++	up_read(&uts_sem);
 +
-+	ret = checkpoint_file_common(ctx, file, &h->common);
-+	if (ret < 0)
-+		goto out;
-+	ret = ckpt_write_obj(ctx, &h->common.h);
-+	if (ret < 0)
-+		goto out;
-+
-+	if (first)
-+		ret = checkpoint_pipe(ctx, inode);
-+ out:
++	ret = ckpt_write_obj(ctx, &h->h);
 +	ckpt_hdr_put(ctx, h);
 +	return ret;
 +}
 +
-+static int restore_pipe(struct ckpt_ctx *ctx, struct file *file)
++int checkpoint_uts_ns(struct ckpt_ctx *ctx, void *ptr)
 +{
-+	struct pipe_inode_info *pipe;
-+	int len, ret;
-+
-+	len = _ckpt_read_obj_type(ctx, NULL, 0, CKPT_HDR_PIPE_BUF);
-+	if (len < 0)
-+		return len;
-+
-+	pipe = file->f_dentry->d_inode->i_pipe;
-+	ret = do_splice_to(ctx->file, &ctx->file->f_pos, pipe, len, 0);
-+
-+	if (ret >= 0 && ret != len)
-+		ret = -EPIPE;  /* can occur due to an error in source file */
-+
-+	return ret;
++	return do_checkpoint_uts_ns(ctx, (struct uts_namespace *) ptr);
 +}
 +
-+struct file *pipe_file_restore(struct ckpt_ctx *ctx, struct ckpt_hdr_file *ptr)
++#ifdef CONFIG_UTS_NS
++static inline struct uts_namespace *ckpt_do_copy_uts_ns(struct ckpt_ctx *ctx,
++		struct ckpt_hdr_utsns *h)
 +{
-+	struct ckpt_hdr_file_pipe *h = (struct ckpt_hdr_file_pipe *) ptr;
-+	struct file *file;
-+	int fds[2], which, ret;
++	struct new_utsname *name = NULL;
++	struct uts_namespace *uts_ns;
 +
-+	if (ptr->h.type != CKPT_HDR_FILE  ||
-+	    ptr->h.len != sizeof(*h) || ptr->f_type != CKPT_FILE_PIPE)
-+		return ERR_PTR(-EINVAL);
++	uts_ns = create_uts_ns();
++	if (!uts_ns)
++		return ERR_PTR(-ENOMEM);
 +
-+	if (h->pipe_objref <= 0)
-+		return ERR_PTR(-EINVAL);
-+
-+	file = ckpt_obj_try_fetch(ctx, h->pipe_objref, CKPT_OBJ_FILE);
-+	/*
-+	 * If ckpt_obj_try_fetch() returned ERR_PTR(-EINVAL), then this is
-+	 * the first time we see this pipe so need to restore the
-+	 * contents.  Otherwise, use the file pointer skip forward.
-+	 */
-+	if (!IS_ERR(file)) {
-+		get_file(file);
-+	} else if (PTR_ERR(file) == -EINVAL) {
-+		/* first encounter of this pipe: create it */
-+		ret = do_pipe_flags(fds, 0);
-+		if (ret < 0)
-+			return file;
-+
-+		which = (ptr->f_flags & O_WRONLY ? 1 : 0);
-+		/*
-+		 * Below we return the file corersponding to one side
-+		 * of the pipe for our caller to use. Now insert the
-+		 * other side of the pipe to the hash, to be picked up
-+		 * when that side is restored.
-+		 */
-+		file = fget(fds[1-which]);	/* the 'other' side */
-+		if (!file)	/* this should _never_ happen ! */
-+			return ERR_PTR(-EBADF);
-+		ret = ckpt_obj_insert(ctx, file, h->pipe_objref, CKPT_OBJ_FILE);
-+		if (ret < 0)
-+			goto out;
-+
-+		ret = restore_pipe(ctx, file);
-+		fput(file);
-+		if (ret < 0)
-+			return ERR_PTR(ret);
-+
-+		file = fget(fds[which]);	/* 'this' side */
-+		if (!file)	/* this should _never_ happen ! */
-+			return ERR_PTR(-EBADF);
-+
-+		/* get rid of the file descriptors (caller sets that) */
-+		sys_close(fds[which]);
-+		sys_close(fds[1-which]);
-+	} else {
-+		return file;
-+	}
-+
-+	ret = restore_file_common(ctx, file, ptr);
-+ out:
-+	if (ret < 0) {
-+		fput(file);
-+		file = ERR_PTR(ret);
-+	}
-+
-+	return file;
++	down_read(&uts_sem);
++	name = &uts_ns->name;
++	memcpy(name->sysname, h->sysname, sizeof(name->sysname));
++	memcpy(name->nodename, h->nodename, sizeof(name->nodename));
++	memcpy(name->release, h->release, sizeof(name->release));
++	memcpy(name->version, h->version, sizeof(name->version));
++	memcpy(name->machine, h->machine, sizeof(name->machine));
++	memcpy(name->domainname, h->domainname, sizeof(name->domainname));
++	up_read(&uts_sem);
++	return uts_ns;
 +}
 +#else
-+#define pipe_file_checkpoint  NULL
-+#endif /* CONFIG_CHECKPOINT */
++static inline struct uts_namespace *ckpt_do_copy_uts_ns(struct ckpt_ctx *ctx,
++		struct ckpt_hdr_utsns *h)
++{
++	struct uts_namespace *uts_ns;
 +
- /*
-  * The file_operations structs are not static because they
-  * are also used in linux/fs/fifo.c to do operations on FIFOs.
-@@ -844,6 +998,7 @@ const struct file_operations read_pipefifo_fops = {
- 	.open		= pipe_read_open,
- 	.release	= pipe_read_release,
- 	.fasync		= pipe_read_fasync,
-+	.checkpoint	= pipe_file_checkpoint,
- };
- 
- const struct file_operations write_pipefifo_fops = {
-@@ -856,6 +1011,7 @@ const struct file_operations write_pipefifo_fops = {
- 	.open		= pipe_write_open,
- 	.release	= pipe_write_release,
- 	.fasync		= pipe_write_fasync,
-+	.checkpoint	= pipe_file_checkpoint,
- };
- 
- const struct file_operations rdwr_pipefifo_fops = {
-@@ -869,6 +1025,7 @@ const struct file_operations rdwr_pipefifo_fops = {
- 	.open		= pipe_rdwr_open,
- 	.release	= pipe_rdwr_release,
- 	.fasync		= pipe_rdwr_fasync,
-+	.checkpoint	= pipe_file_checkpoint,
- };
- 
- struct pipe_inode_info * alloc_pipe_info(struct inode *inode)
-diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index 6fae6ef..885d06b 100644
---- a/include/linux/checkpoint_hdr.h
-+++ b/include/linux/checkpoint_hdr.h
-@@ -90,6 +90,8 @@ enum {
- #define CKPT_HDR_FILE_NAME CKPT_HDR_FILE_NAME
- 	CKPT_HDR_FILE,
- #define CKPT_HDR_FILE CKPT_HDR_FILE
-+	CKPT_HDR_PIPE_BUF,
-+#define CKPT_HDR_PIPE_BUF CKPT_HDR_PIPE_BUF
- 
- 	CKPT_HDR_MM = 401,
- #define CKPT_HDR_MM CKPT_HDR_MM
-@@ -277,6 +279,8 @@ enum file_type {
- #define CKPT_FILE_IGNORE CKPT_FILE_IGNORE
- 	CKPT_FILE_GENERIC,
- #define CKPT_FILE_GENERIC CKPT_FILE_GENERIC
-+	CKPT_FILE_PIPE,
-+#define CKPT_FILE_PIPE CKPT_FILE_PIPE
- 	CKPT_FILE_MAX
- #define CKPT_FILE_MAX CKPT_FILE_MAX
- };
-@@ -296,6 +300,11 @@ struct ckpt_hdr_file_generic {
- 	struct ckpt_hdr_file common;
- } __attribute__((aligned(8)));
- 
-+struct ckpt_hdr_file_pipe {
-+	struct ckpt_hdr_file common;
-+	__s32 pipe_objref;
-+} __attribute__((aligned(8)));
++	/* complain if image contains multiple namespaces */
++	if (ctx->stats.uts_ns)
++		return ERR_PTR(-EEXIST);
 +
- /* memory layout */
- struct ckpt_hdr_mm {
- 	struct ckpt_hdr h;
-diff --git a/include/linux/pipe_fs_i.h b/include/linux/pipe_fs_i.h
-index b43a9e0..e526a12 100644
---- a/include/linux/pipe_fs_i.h
-+++ b/include/linux/pipe_fs_i.h
-@@ -154,4 +154,12 @@ int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
- int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
- void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
- 
-+/* checkpoint/restart */
-+#ifdef CONFIG_CHECKPOINT
-+struct ckpt_ctx;
-+struct ckpt_hdr_file;
-+extern struct file *pipe_file_restore(struct ckpt_ctx *ctx,
-+				      struct ckpt_hdr_file *ptr);
++	uts_ns = current->nsproxy->uts_ns;
++	get_uts_ns(uts_ns);
++	return uts_ns;
++}
 +#endif
 +
++static struct uts_namespace *do_restore_uts_ns(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_utsns *h;
++	struct uts_namespace *uts_ns;
++
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_UTS_NS);
++	if (IS_ERR(h))
++		return (struct uts_namespace *) h;
++
++	uts_ns = ckpt_do_copy_uts_ns(ctx, h);
++	if (IS_ERR(uts_ns))
++		goto out;
++
++	ctx->stats.uts_ns++;
++ out:
++	ckpt_hdr_put(ctx, h);
++	return uts_ns;
++}
++
++void *restore_uts_ns(struct ckpt_ctx *ctx)
++{
++	return (void *) do_restore_uts_ns(ctx);
++}
+diff --git a/checkpoint/objhash.c b/checkpoint/objhash.c
+index 4368e7b..a2cf082 100644
+--- a/checkpoint/objhash.c
++++ b/checkpoint/objhash.c
+@@ -138,6 +138,22 @@ static int obj_ns_users(void *ptr)
+ 	return atomic_read(&((struct nsproxy *) ptr)->count);
+ }
+ 
++static int obj_uts_ns_grab(void *ptr)
++{
++	get_uts_ns((struct uts_namespace *) ptr);
++	return 0;
++}
++
++static void obj_uts_ns_drop(void *ptr, int lastref)
++{
++	put_uts_ns((struct uts_namespace *) ptr);
++}
++
++static int obj_uts_ns_users(void *ptr)
++{
++	return atomic_read(&((struct uts_namespace *) ptr)->kref.refcount);
++}
++
+ static struct ckpt_obj_ops ckpt_obj_ops[] = {
+ 	/* ignored object */
+ 	{
+@@ -193,6 +209,16 @@ static struct ckpt_obj_ops ckpt_obj_ops[] = {
+ 		.checkpoint = checkpoint_ns,
+ 		.restore = restore_ns,
+ 	},
++	/* uts_ns object */
++	{
++		.obj_name = "UTS_NS",
++		.obj_type = CKPT_OBJ_UTS_NS,
++		.ref_drop = obj_uts_ns_drop,
++		.ref_grab = obj_uts_ns_grab,
++		.ref_users = obj_uts_ns_users,
++		.checkpoint = checkpoint_uts_ns,
++		.restore = restore_uts_ns,
++	},
+ };
+ 
+ 
+diff --git a/checkpoint/process.c b/checkpoint/process.c
+index 961795f..0935cd6 100644
+--- a/checkpoint/process.c
++++ b/checkpoint/process.c
+@@ -17,8 +17,10 @@
+ #include <linux/futex.h>
+ #include <linux/compat.h>
+ #include <linux/poll.h>
++#include <linux/utsname.h>
+ #include <linux/checkpoint.h>
+ #include <linux/checkpoint_hdr.h>
++#include <linux/syscalls.h>
+ 
+ 
+ #ifdef CONFIG_FUTEX
+diff --git a/checkpoint/restart.c b/checkpoint/restart.c
+index 325d03a..e66575c 100644
+--- a/checkpoint/restart.c
++++ b/checkpoint/restart.c
+@@ -567,12 +567,18 @@ static int check_kernel_const(struct ckpt_const *h)
+ 	if (h->at_vector_size != AT_VECTOR_SIZE)
+ 		return -EINVAL;
+ 	/* uts */
++	if (h->uts_sysname_len != sizeof(uts->sysname))
++		return -EINVAL;
++	if (h->uts_nodename_len != sizeof(uts->nodename))
++		return -EINVAL;
+ 	if (h->uts_release_len != sizeof(uts->release))
+ 		return -EINVAL;
+ 	if (h->uts_version_len != sizeof(uts->version))
+ 		return -EINVAL;
+ 	if (h->uts_machine_len != sizeof(uts->machine))
+ 		return -EINVAL;
++	if (h->uts_domainname_len != sizeof(uts->domainname))
++		return -EINVAL;
+ 
+ 	return 0;
+ }
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 22cc8f6..9f2a7ba 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -169,6 +169,10 @@ extern int ckpt_collect_ns(struct ckpt_ctx *ctx, struct task_struct *t);
+ extern int checkpoint_ns(struct ckpt_ctx *ctx, void *ptr);
+ extern void *restore_ns(struct ckpt_ctx *ctx);
+ 
++/* uts-ns */
++extern int checkpoint_uts_ns(struct ckpt_ctx *ctx, void *ptr);
++extern void *restore_uts_ns(struct ckpt_ctx *ctx);
++
+ /* file table */
+ extern int ckpt_collect_file_table(struct ckpt_ctx *ctx, struct task_struct *t);
+ extern int checkpoint_obj_file_table(struct ckpt_ctx *ctx,
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index 7c43266..dc2cadb 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -19,8 +19,6 @@
+ #include <linux/types.h>
  #endif
+ 
+-#include <linux/utsname.h>
+-
+ /*
+  * To maintain compatibility between 32-bit and 64-bit architecture flavors,
+  * keep data 64-bit aligned: use padding for structure members, and use
+@@ -83,6 +81,8 @@ enum {
+ #define CKPT_HDR_CPU CKPT_HDR_CPU
+ 	CKPT_HDR_NS,
+ #define CKPT_HDR_NS CKPT_HDR_NS
++	CKPT_HDR_UTS_NS,
++#define CKPT_HDR_UTS_NS CKPT_HDR_UTS_NS
+ 
+ 	/* 201-299: reserved for arch-dependent */
+ 
+@@ -142,6 +142,8 @@ enum obj_type {
+ #define CKPT_OBJ_MM CKPT_OBJ_MM
+ 	CKPT_OBJ_NS,
+ #define CKPT_OBJ_NS CKPT_OBJ_NS
++	CKPT_OBJ_UTS_NS,
++#define CKPT_OBJ_UTS_NS CKPT_OBJ_UTS_NS
+ 	CKPT_OBJ_MAX
+ #define CKPT_OBJ_MAX CKPT_OBJ_MAX
+ };
+@@ -153,9 +155,12 @@ struct ckpt_const {
+ 	/* mm */
+ 	__u16 at_vector_size;
+ 	/* uts */
++	__u16 uts_sysname_len;
++	__u16 uts_nodename_len;
+ 	__u16 uts_release_len;
+ 	__u16 uts_version_len;
+ 	__u16 uts_machine_len;
++	__u16 uts_domainname_len;
+ } __attribute__((aligned(8)));
+ 
+ /* checkpoint image header */
+@@ -234,6 +239,26 @@ struct ckpt_hdr_task_ns {
+ 
+ struct ckpt_hdr_ns {
+ 	struct ckpt_hdr h;
++	__s32 uts_objref;
++} __attribute__((aligned(8)));
++
++/* cannot include <linux/tty.h> from userspace, so define: */
++#define CKPT_NEW_UTS_LEN  64
++#ifdef __KERNEL__
++#include <linux/utsname.h>
++#if CKPT_NEW_UTS_LEN != __NEW_UTS_LEN
++#error CKPT_NEW_UTS_LEN size is wrong per linux/utsname.h
++#endif
++#endif
++
++struct ckpt_hdr_utsns {
++	struct ckpt_hdr h;
++	char sysname[CKPT_NEW_UTS_LEN + 1];
++	char nodename[CKPT_NEW_UTS_LEN + 1];
++	char release[CKPT_NEW_UTS_LEN + 1];
++	char version[CKPT_NEW_UTS_LEN + 1];
++	char machine[CKPT_NEW_UTS_LEN + 1];
++	char domainname[CKPT_NEW_UTS_LEN + 1];
+ } __attribute__((aligned(8)));
+ 
+ /* task's shared resources */
+diff --git a/include/linux/checkpoint_types.h b/include/linux/checkpoint_types.h
+index 192dd86..ee35488 100644
+--- a/include/linux/checkpoint_types.h
++++ b/include/linux/checkpoint_types.h
+@@ -22,6 +22,10 @@
+ #include <linux/ktime.h>
+ #include <linux/wait.h>
+ 
++struct ckpt_stats {
++	int uts_ns;
++};
++
+ struct ckpt_ctx {
+ 	int crid;		/* unique checkpoint id */
+ 
+@@ -71,6 +75,8 @@ struct ckpt_ctx {
+ 	struct completion complete;	/* container root and other tasks on */
+ 	wait_queue_head_t waitq;	/* start, end, and restart ordering */
+ 
++	struct ckpt_stats stats;	/* statistics */
++
+ #define CKPT_MSG_LEN 1024
+ 	char fmt[CKPT_MSG_LEN];
+ 	char msg[CKPT_MSG_LEN];
+diff --git a/include/linux/utsname.h b/include/linux/utsname.h
+index 69f3997..774001d 100644
+--- a/include/linux/utsname.h
++++ b/include/linux/utsname.h
+@@ -49,6 +49,7 @@ static inline void get_uts_ns(struct uts_namespace *ns)
+ 	kref_get(&ns->kref);
+ }
+ 
++extern struct uts_namespace *create_uts_ns(void);
+ extern struct uts_namespace *copy_utsname(unsigned long flags,
+ 					struct uts_namespace *ns);
+ extern void free_uts_ns(struct kref *kref);
+diff --git a/kernel/nsproxy.c b/kernel/nsproxy.c
+index ccb4fd3..90cba48 100644
+--- a/kernel/nsproxy.c
++++ b/kernel/nsproxy.c
+@@ -245,6 +245,10 @@ int ckpt_collect_ns(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	if (ret < 0 || exists)
+ 		goto out;
+ 
++	ret = ckpt_obj_collect(ctx, nsproxy->uts_ns, CKPT_OBJ_UTS_NS);
++	if (ret < 0)
++		goto out;
++
+ 	/* TODO: collect other namespaces here */
+  out:
+ 	put_nsproxy(nsproxy);
+@@ -260,9 +264,14 @@ static int do_checkpoint_ns(struct ckpt_ctx *ctx, struct nsproxy *nsproxy)
+ 	if (!h)
+ 		return -ENOMEM;
+ 
++	ret = checkpoint_obj(ctx, nsproxy->uts_ns, CKPT_OBJ_UTS_NS);
++	if (ret <= 0)
++		goto out;
++	h->uts_objref = ret;
+ 	/* TODO: Write other namespaces here */
+ 
+ 	ret = ckpt_write_obj(ctx, &h->h);
++ out:
+ 	ckpt_hdr_put(ctx, h);
+ 	return ret;
+ }
+@@ -287,7 +296,15 @@ static struct nsproxy *do_restore_ns(struct ckpt_ctx *ctx)
+ 	if (IS_ERR(h))
+ 		return (struct nsproxy *) h;
+ 
+-	uts_ns = ctx->root_nsproxy->uts_ns;
++	if (h->uts_objref == 0)
++		uts_ns = ctx->root_nsproxy->uts_ns;
++	else
++		uts_ns = ckpt_obj_fetch(ctx, h->uts_objref, CKPT_OBJ_UTS_NS);
++	if (IS_ERR(uts_ns)) {
++		ret = PTR_ERR(uts_ns);
++		goto out;
++	}
++
+ 	ipc_ns = ctx->root_nsproxy->ipc_ns;
+ 	mnt_ns = ctx->root_nsproxy->mnt_ns;
+ 	net_ns = ctx->root_nsproxy->net_ns;
+diff --git a/kernel/utsname.c b/kernel/utsname.c
+index 8a82b4b..c82ed83 100644
+--- a/kernel/utsname.c
++++ b/kernel/utsname.c
+@@ -14,8 +14,9 @@
+ #include <linux/utsname.h>
+ #include <linux/err.h>
+ #include <linux/slab.h>
++#include <linux/checkpoint.h>
+ 
+-static struct uts_namespace *create_uts_ns(void)
++struct uts_namespace *create_uts_ns(void)
+ {
+ 	struct uts_namespace *uts_ns;
+ 
 -- 
 1.6.3.3
 
