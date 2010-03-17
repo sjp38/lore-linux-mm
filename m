@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A16F562003E
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:26:10 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A49362003E
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:26:13 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 83/96] c/r: checkpoint/restart eventfd
-Date: Wed, 17 Mar 2010 12:09:11 -0400
-Message-Id: <1268842164-5590-84-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-83-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 85/96] c/r: preliminary support mounts namespace
+Date: Wed, 17 Mar 2010 12:09:13 -0400
+Message-Id: <1268842164-5590-86-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-85-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -90,193 +90,163 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-81-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-82-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-83-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-84-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-85-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Matt Helsley <matthltc@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-From: Matt Helsley <matthltc@us.ibm.com>
+We only allow c/r when all processes shared a single mounts ns.
 
-Save/restore eventfd files. These are anon_inodes just like epoll
-but instead of a set of files to poll they are a 64-bit counter
-and a flag value. Used for AIO.
+We do intend to implement c/r of mounts and mounts namespaces in the
+kernel.  It shouldn't be ugly or complicate locking to do so.  Just
+haven't gotten around to it. A more complete solution is more than we
+want to take on now for v19.
 
-[Oren Laadan] Added #ifdef's around checkpoint/restart to compile even
-without CONFIG_CHECKPOINT
+But we'd like as much as possible for everything which we don't
+support, to not be checkpointable, since not doing so has in the past
+invited slanderous accusations of being a toy implementation :)
 
-Changelog[v19]:
-  - Fix broken compilation for architectures that don't support c/r
+Meanwhile, we get the following:
+1) Checkpoint bails if not all tasks share the same mnt-ns
+2) Leak detection works for full container checkpoint
 
-Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
-Acked-by: Oren Laadan <orenl@cs.columbia.edu>
-Acked-by: Serge E. Hallyn <serue@us.ibm.com>
-Tested-by: Serge E. Hallyn <serue@us.ibm.com>
+On restart, all tasks inherit the same mnt-ns of the coordinator, by
+default. A follow-up patch to user-cr will add a new switch to the
+'restart' to request a CLONE_NEWMNT flag when creating the root-task
+of the restart.
+
+Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- checkpoint/files.c             |    7 +++++
- fs/eventfd.c                   |   55 ++++++++++++++++++++++++++++++++++++++++
- include/linux/checkpoint_hdr.h |    8 ++++++
- include/linux/eventfd.h        |   12 ++++++++
- 4 files changed, 82 insertions(+), 0 deletions(-)
+ checkpoint/objhash.c           |   25 +++++++++++++++++++++++++
+ include/linux/checkpoint.h     |    2 +-
+ include/linux/checkpoint_hdr.h |    4 ++++
+ kernel/nsproxy.c               |   16 +++++++++++++---
+ 4 files changed, 43 insertions(+), 4 deletions(-)
 
-diff --git a/checkpoint/files.c b/checkpoint/files.c
-index 6aaaf22..4b551fe 100644
---- a/checkpoint/files.c
-+++ b/checkpoint/files.c
-@@ -23,6 +23,7 @@
+diff --git a/checkpoint/objhash.c b/checkpoint/objhash.c
+index 5c4749d..42998b2 100644
+--- a/checkpoint/objhash.c
++++ b/checkpoint/objhash.c
+@@ -19,6 +19,7 @@
+ #include <linux/sched.h>
+ #include <linux/ipc_namespace.h>
+ #include <linux/user_namespace.h>
++#include <linux/mnt_namespace.h>
  #include <linux/checkpoint.h>
  #include <linux/checkpoint_hdr.h>
- #include <linux/eventpoll.h>
-+#include <linux/eventfd.h>
  #include <net/sock.h>
- 
- 
-@@ -644,6 +645,12 @@ static struct restore_file_ops restore_file_ops[] = {
- 		.file_type = CKPT_FILE_EPOLL,
- 		.restore = ep_file_restore,
- 	},
-+	/* eventfd */
-+	{
-+		.file_name = "EVENTFD",
-+		.file_type = CKPT_FILE_EVENTFD,
-+		.restore = eventfd_restore,
-+	},
- };
- 
- static struct file *do_restore_file(struct ckpt_ctx *ctx)
-diff --git a/fs/eventfd.c b/fs/eventfd.c
-index 7758cc3..f2785c0 100644
---- a/fs/eventfd.c
-+++ b/fs/eventfd.c
-@@ -18,6 +18,7 @@
- #include <linux/module.h>
- #include <linux/kref.h>
- #include <linux/eventfd.h>
-+#include <linux/checkpoint.h>
- 
- struct eventfd_ctx {
- 	struct kref kref;
-@@ -287,11 +288,65 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
- 	return res;
+@@ -214,6 +215,22 @@ static int obj_ipc_ns_users(void *ptr)
+ 	return atomic_read(&((struct ipc_namespace *) ptr)->count);
  }
  
-+#ifdef CONFIG_CHECKPOINT
-+static int eventfd_checkpoint(struct ckpt_ctx *ckpt_ctx, struct file *file)
++static int obj_mnt_ns_grab(void *ptr)
 +{
-+	struct eventfd_ctx *ctx;
-+	struct ckpt_hdr_file_eventfd *h;
-+	int ret = -ENOMEM;
-+
-+	h = ckpt_hdr_get_type(ckpt_ctx, sizeof(*h), CKPT_HDR_FILE);
-+	if (!h)
-+		return -ENOMEM;
-+	h->common.f_type = CKPT_FILE_EVENTFD;
-+	ret = checkpoint_file_common(ckpt_ctx, file, &h->common);
-+	if (ret < 0)
-+		goto out;
-+	ctx = file->private_data;
-+	h->count = ctx->count;
-+	h->flags = ctx->flags;
-+	ret = ckpt_write_obj(ckpt_ctx, &h->common.h);
-+out:
-+	ckpt_hdr_put(ckpt_ctx, h);
-+	return ret;
++	get_mnt_ns((struct mnt_namespace *) ptr);
++	return 0;
 +}
 +
-+struct file *eventfd_restore(struct ckpt_ctx *ckpt_ctx,
-+			     struct ckpt_hdr_file *ptr)
++static void obj_mnt_ns_drop(void *ptr, int lastref)
 +{
-+	struct ckpt_hdr_file_eventfd *h = (struct ckpt_hdr_file_eventfd *) ptr;
-+	struct file *evfile;
-+	int evfd, ret;
-+
-+	/* Already know type == CKPT_HDR_FILE and f_type == CKPT_FILE_EVENTFD */
-+	if (h->common.h.len != sizeof(*h))
-+		return ERR_PTR(-EINVAL);
-+
-+	evfd = sys_eventfd2(h->count, h->flags);
-+	if (evfd < 0)
-+		return ERR_PTR(evfd);
-+	evfile = fget(evfd);
-+	sys_close(evfd);
-+	if (!evfile)
-+		return ERR_PTR(-EBUSY);
-+
-+	ret = restore_file_common(ckpt_ctx, evfile, &h->common);
-+	if (ret < 0) {
-+		fput(evfile);
-+		return ERR_PTR(ret);
-+	}
-+	return evfile;
++	put_mnt_ns((struct mnt_namespace *) ptr);
 +}
-+#else
-+#define eventfd_checkpoint NULL
-+#endif
 +
- static const struct file_operations eventfd_fops = {
- 	.release	= eventfd_release,
- 	.poll		= eventfd_poll,
- 	.read		= eventfd_read,
- 	.write		= eventfd_write,
-+	.checkpoint     = eventfd_checkpoint,
- };
++static int obj_mnt_ns_users(void *ptr)
++{
++	return atomic_read(&((struct mnt_namespace *) ptr)->count);
++}
++
+ static int obj_cred_grab(void *ptr)
+ {
+ 	get_cred((struct cred *) ptr);
+@@ -411,6 +428,14 @@ static struct ckpt_obj_ops ckpt_obj_ops[] = {
+ 		.checkpoint = checkpoint_ipc_ns,
+ 		.restore = restore_ipc_ns,
+ 	},
++	/* mnt_ns object */
++	{
++		.obj_name = "MOUNTS NS",
++		.obj_type = CKPT_OBJ_MNT_NS,
++		.ref_grab = obj_mnt_ns_grab,
++		.ref_drop = obj_mnt_ns_drop,
++		.ref_users = obj_mnt_ns_users,
++	},
+ 	/* user_ns object */
+ 	{
+ 		.obj_name = "USER_NS",
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 3e0937a..64b4b8a 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -10,7 +10,7 @@
+  *  distribution for more details.
+  */
  
- /**
+-#define CHECKPOINT_VERSION  4
++#define CHECKPOINT_VERSION  5
+ 
+ /* checkpoint user flags */
+ #define CHECKPOINT_SUBTREE	0x1
 diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index b96d2dc..0b36430 100644
+index 4dc852d..28dfc36 100644
 --- a/include/linux/checkpoint_hdr.h
 +++ b/include/linux/checkpoint_hdr.h
-@@ -481,6 +481,8 @@ enum file_type {
- #define CKPT_FILE_TTY CKPT_FILE_TTY
- 	CKPT_FILE_EPOLL,
- #define CKPT_FILE_EPOLL CKPT_FILE_EPOLL
-+	CKPT_FILE_EVENTFD,
-+#define CKPT_FILE_EVENTFD CKPT_FILE_EVENTFD
- 	CKPT_FILE_MAX
- #define CKPT_FILE_MAX CKPT_FILE_MAX
- };
-@@ -505,6 +507,12 @@ struct ckpt_hdr_file_pipe {
- 	__s32 pipe_objref;
- } __attribute__((aligned(8)));
+@@ -90,6 +90,8 @@ enum {
+ #define CKPT_HDR_UTS_NS CKPT_HDR_UTS_NS
+ 	CKPT_HDR_IPC_NS,
+ #define CKPT_HDR_IPC_NS CKPT_HDR_IPC_NS
++	CKPT_HDR_MNT_NS,
++#define CKPT_HDR_MNT_NS CKPT_HDR_MNT_NS
+ 	CKPT_HDR_CAPABILITIES,
+ #define CKPT_HDR_CAPABILITIES CKPT_HDR_CAPABILITIES
+ 	CKPT_HDR_USER_NS,
+@@ -216,6 +218,8 @@ enum obj_type {
+ #define CKPT_OBJ_UTS_NS CKPT_OBJ_UTS_NS
+ 	CKPT_OBJ_IPC_NS,
+ #define CKPT_OBJ_IPC_NS CKPT_OBJ_IPC_NS
++	CKPT_OBJ_MNT_NS,
++#define CKPT_OBJ_MNT_NS CKPT_OBJ_MNT_NS
+ 	CKPT_OBJ_USER_NS,
+ #define CKPT_OBJ_USER_NS CKPT_OBJ_USER_NS
+ 	CKPT_OBJ_CRED,
+diff --git a/kernel/nsproxy.c b/kernel/nsproxy.c
+index 17b048e..0da0d83 100644
+--- a/kernel/nsproxy.c
++++ b/kernel/nsproxy.c
+@@ -255,10 +255,17 @@ int ckpt_collect_ns(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	 * ipc_ns (shm) may keep references to files: if this is the
+ 	 * first time we see this ipc_ns (ret > 0), proceed inside.
+ 	 */
+-	if (ret)
++	if (ret) {
+ 		ret = ckpt_collect_ipc_ns(ctx, nsproxy->ipc_ns);
++		if (ret < 0)
++			goto out;
++	}
  
-+struct ckpt_hdr_file_eventfd {
-+	struct ckpt_hdr_file common;
-+	__u64 count;
-+	__u32 flags;
-+} __attribute__((aligned(8)));
+-	/* TODO: collect other namespaces here */
++	ret = ckpt_obj_collect(ctx, nsproxy->mnt_ns, CKPT_OBJ_MNT_NS);
++	if (ret < 0)
++		goto out;
 +
- /* socket */
- struct ckpt_hdr_socket {
- 	struct ckpt_hdr h;
-diff --git a/include/linux/eventfd.h b/include/linux/eventfd.h
-index 91bb4f2..2ce8525 100644
---- a/include/linux/eventfd.h
-+++ b/include/linux/eventfd.h
-@@ -39,6 +39,16 @@ ssize_t eventfd_ctx_read(struct eventfd_ctx *ctx, int no_wait, __u64 *cnt);
- int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_t *wait,
- 				  __u64 *cnt);
++	ret = 0;
+  out:
+ 	put_nsproxy(nsproxy);
+ 	return ret;
+@@ -282,7 +289,10 @@ static int do_checkpoint_ns(struct ckpt_ctx *ctx, struct nsproxy *nsproxy)
+ 		goto out;
+ 	h->ipc_objref = ret;
  
-+#ifdef CONFIG_CHECKPOINT
-+struct ckpt_ctx;
-+struct ckpt_hdr_file;
-+
-+struct file *eventfd_restore(struct ckpt_ctx *ckpt_ctx,
-+			     struct ckpt_hdr_file *ptr);
-+#else
-+#define eventfd_restore NULL
-+#endif
-+
- #else /* CONFIG_EVENTFD */
+-	/* TODO: Write other namespaces here */
++	/* FIXME: for now, only marked visited to pacify leaks */
++	ret = ckpt_obj_visit(ctx, nsproxy->mnt_ns, CKPT_OBJ_MNT_NS);
++	if (ret < 0)
++		goto out;
  
- /*
-@@ -77,6 +87,8 @@ static inline int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx,
- 	return -ENOSYS;
- }
- 
-+#define eventfd_restore NULL
-+
- #endif
- 
- #endif /* _LINUX_EVENTFD_H */
+ 	ret = ckpt_write_obj(ctx, &h->h);
+  out:
 -- 
 1.6.3.3
 
