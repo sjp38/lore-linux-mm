@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DE34E6B0139
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:21:09 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A9BE36B0138
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:21:11 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 14 of 34] add pmd mangling generic functions
-Message-Id: <316c898668e3c6b092b8.1268839156@v2.random>
+Subject: [PATCH 33 of 34] transparent hugepage vmstat
+Message-Id: <a77ac13a589bc92a94b4.1268839175@v2.random>
 In-Reply-To: <patchbomb.1268839142@v2.random>
 References: <patchbomb.1268839142@v2.random>
-Date: Wed, 17 Mar 2010 16:19:16 +0100
+Date: Wed, 17 Mar 2010 16:19:35 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
@@ -18,194 +18,117 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Some are needed to build but not actually used on archs not supporting
-transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
+Add hugepage stat information to /proc/vmstat and /proc/meminfo.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -25,6 +25,26 @@
- })
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -101,6 +101,9 @@ static int meminfo_proc_show(struct seq_
+ #ifdef CONFIG_MEMORY_FAILURE
+ 		"HardwareCorrupted: %5lu kB\n"
  #endif
- 
-+#ifndef __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmdp_set_access_flags(__vma, __address, __pmdp, __entry, __dirty) \
-+	({								\
-+		int __changed = !pmd_same(*(__pmdp), __entry);		\
-+		VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);		\
-+		if (__changed) {					\
-+			set_pmd_at((__vma)->vm_mm, __address, __pmdp,	\
-+				   __entry);				\
-+			flush_tlb_range(__vma, __address,		\
-+					(__address) + HPAGE_PMD_SIZE);	\
-+		}							\
-+		__changed;						\
-+	})
-+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#define pmdp_set_access_flags(__vma, __address, __pmdp, __entry, __dirty) \
-+	({ BUG(); 0; })
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++		"AnonHugePages:  %8lu kB\n"
 +#endif
-+
- #ifndef __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
- #define ptep_test_and_clear_young(__vma, __address, __ptep)		\
- ({									\
-@@ -39,6 +59,25 @@
- })
+ 		,
+ 		K(i.totalram),
+ 		K(i.freeram),
+@@ -151,6 +154,10 @@ static int meminfo_proc_show(struct seq_
+ #ifdef CONFIG_MEMORY_FAILURE
+ 		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
  #endif
- 
-+#ifndef __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmdp_test_and_clear_young(__vma, __address, __pmdp)		\
-+({									\
-+	pmd_t __pmd = *(__pmdp);					\
-+	int r = 1;							\
-+	if (!pmd_young(__pmd))						\
-+		r = 0;							\
-+	else								\
-+		set_pmd_at((__vma)->vm_mm, (__address),			\
-+			   (__pmdp), pmd_mkold(__pmd));			\
-+	r;								\
-+})
-+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#define pmdp_test_and_clear_young(__vma, __address, __pmdp)	\
-+	({ BUG(); 0; })
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
++		   HPAGE_PMD_NR)
 +#endif
-+
- #ifndef __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
- #define ptep_clear_flush_young(__vma, __address, __ptep)		\
- ({									\
-@@ -50,6 +89,24 @@
- })
- #endif
+ 		);
  
-+#ifndef __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmdp_clear_flush_young(__vma, __address, __pmdp)		\
-+({									\
-+	int __young;							\
-+	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
-+	__young = pmdp_test_and_clear_young(__vma, __address, __pmdp);	\
-+	if (__young)							\
-+		flush_tlb_range(__vma, __address,			\
-+				(__address) + HPAGE_PMD_SIZE);		\
-+	__young;							\
-+})
-+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#define pmdp_clear_flush_young(__vma, __address, __pmdp)	\
-+	({ BUG(); 0; })
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
- #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR
- #define ptep_get_and_clear(__mm, __address, __ptep)			\
- ({									\
-@@ -59,6 +116,20 @@
- })
+ 	hugetlb_report_meminfo(m);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -112,6 +112,7 @@ enum zone_stat_item {
+ 	NUMA_LOCAL,		/* allocation from local node */
+ 	NUMA_OTHER,		/* allocation from other node */
  #endif
++	NR_ANON_TRANSPARENT_HUGEPAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
  
-+#ifndef __HAVE_ARCH_PMDP_GET_AND_CLEAR
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmdp_get_and_clear(__mm, __address, __pmdp)			\
-+({									\
-+	pmd_t __pmd = *(__pmdp);					\
-+	pmd_clear((__mm), (__address), (__pmdp));			\
-+	__pmd;								\
-+})
-+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#define pmdp_get_and_clear(__mm, __address, __pmdp)	\
-+	({ BUG(); 0; })
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
- #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
- #define ptep_get_and_clear_full(__mm, __address, __ptep, __full)	\
- ({									\
-@@ -90,6 +161,22 @@ do {									\
- })
- #endif
+ /*
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -724,6 +724,9 @@ static void __split_huge_page_refcount(s
+ 		put_page(page_tail);
+ 	}
  
-+#ifndef __HAVE_ARCH_PMDP_CLEAR_FLUSH
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmdp_clear_flush(__vma, __address, __pmdp)			\
-+({									\
-+	pmd_t __pmd;							\
-+	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
-+	__pmd = pmdp_get_and_clear((__vma)->vm_mm, __address, __pmdp);	\
-+	flush_tlb_range(__vma, __address, (__address) + HPAGE_PMD_SIZE);\
-+	__pmd;								\
-+})
-+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#define pmdp_clear_flush(__vma, __address, __pmdp)	\
-+	({ BUG(); 0; })
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
++	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
 +
- #ifndef __HAVE_ARCH_PTEP_SET_WRPROTECT
- struct mm_struct;
- static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long address, pte_t *ptep)
-@@ -99,10 +186,45 @@ static inline void ptep_set_wrprotect(st
- }
- #endif
+ 	ClearPageCompound(page);
+ 	compound_unlock(page);
+ 	spin_unlock_irq(&zone->lru_lock);
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -795,8 +795,13 @@ void page_add_anon_rmap(struct page *pag
+ 	struct vm_area_struct *vma, unsigned long address)
+ {
+ 	int first = atomic_inc_and_test(&page->_mapcount);
+-	if (first)
+-		__inc_zone_page_state(page, NR_ANON_PAGES);
++	if (first) {
++		if (!PageTransHuge(page))
++			__inc_zone_page_state(page, NR_ANON_PAGES);
++		else
++			__inc_zone_page_state(page,
++					      NR_ANON_TRANSPARENT_HUGEPAGES);
++	}
+ 	if (unlikely(PageKsm(page)))
+ 		return;
  
-+#ifndef __HAVE_ARCH_PMDP_SET_WRPROTECT
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long address, pmd_t *pmdp)
-+{
-+	pmd_t old_pmd = *pmdp;
-+	set_pmd_at(mm, address, pmdp, pmd_wrprotect(old_pmd));
-+}
-+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#define pmdp_set_wrprotect(mm, address, pmdp) BUG()
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
-+#ifndef __HAVE_ARCH_PMDP_SPLITTING_FLUSH
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmdp_splitting_flush(__vma, __address, __pmdp)			\
-+({									\
-+	pmd_t __pmd = pmd_mksplitting(*(__pmdp));			\
-+	VM_BUG_ON((__address) & ~HPAGE_PMD_MASK);			\
-+	set_pmd_at((__vma)->vm_mm, __address, __pmdp, __pmd);		\
-+	/* tlb flush only to serialize against gup-fast */		\
-+	flush_tlb_range(__vma, __address, (__address) + HPAGE_PMD_SIZE);\
-+})
-+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#define pmdp_splitting_flush(__vma, __address, __pmdp) BUG()
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
- #ifndef __HAVE_ARCH_PTE_SAME
- #define pte_same(A,B)	(pte_val(A) == pte_val(B))
+@@ -824,7 +829,10 @@ void page_add_new_anon_rmap(struct page 
+ 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+ 	SetPageSwapBacked(page);
+ 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+-	__inc_zone_page_state(page, NR_ANON_PAGES);
++	if (!PageTransHuge(page))
++	    __inc_zone_page_state(page, NR_ANON_PAGES);
++	else
++	    __inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+ 	__page_set_anon_rmap(page, vma, address);
+ 	if (page_evictable(page, vma))
+ 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
+@@ -871,7 +879,11 @@ void page_remove_rmap(struct page *page)
+ 	}
+ 	if (PageAnon(page)) {
+ 		mem_cgroup_uncharge_page(page);
+-		__dec_zone_page_state(page, NR_ANON_PAGES);
++		if (!PageTransHuge(page))
++			__dec_zone_page_state(page, NR_ANON_PAGES);
++		else
++			__dec_zone_page_state(page,
++					      NR_ANON_TRANSPARENT_HUGEPAGES);
+ 	} else {
+ 		__dec_zone_page_state(page, NR_FILE_MAPPED);
+ 		mem_cgroup_update_file_mapped(page, -1);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -657,6 +657,9 @@ static const char * const vmstat_text[] 
+ 	"numa_local",
+ 	"numa_other",
  #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	"nr_anon_transparent_hugepages",
++#endif
  
-+#ifndef __HAVE_ARCH_PMD_SAME
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmd_same(A,B)	(pmd_val(A) == pmd_val(B))
-+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#define pmd_same(A,B)	({ BUG(); 0; })
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif
-+
- #ifndef __HAVE_ARCH_PAGE_TEST_DIRTY
- #define page_test_dirty(page)		(0)
- #endif
-@@ -347,6 +469,9 @@ extern void untrack_pfn_vma(struct vm_ar
- #ifndef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_trans_huge(pmd) 0
- #define pmd_trans_splitting(pmd) 0
-+#ifndef __HAVE_ARCH_PMD_WRITE
-+#define pmd_write(pmd)	({ BUG(); 0; })
-+#endif /* __HAVE_ARCH_PMD_WRITE */
- #endif
- 
- #endif /* !__ASSEMBLY__ */
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ 	"pgpgin",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
