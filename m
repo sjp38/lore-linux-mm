@@ -1,90 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 617D160023A
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 07:51:54 -0400 (EDT)
-Date: Wed, 17 Mar 2010 11:51:34 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
-	anonymous pages
-Message-ID: <20100317115133.GG12388@csn.ul.ie>
-References: <1268657329.1889.4.camel@barrios-desktop> <20100315142124.GL18274@csn.ul.ie> <20100317104734.4C8E.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 2018760023A
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 07:54:38 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp03.au.ibm.com (8.14.3/8.13.1) with ESMTP id o2HBpNtZ002788
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 22:51:23 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2HBme1T1581280
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 22:48:40 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2HBsUk8005039
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 22:54:31 +1100
+Date: Wed, 17 Mar 2010 17:24:28 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v7)
+Message-ID: <20100317115427.GR18054@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1268609202-15581-1-git-send-email-arighi@develer.com>
+ <20100315171209.GI21127@redhat.com>
+ <20100315171921.GJ21127@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100317104734.4C8E.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100315171921.GJ21127@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 17, 2010 at 11:03:05AM +0900, KOSAKI Motohiro wrote:
-> > mm,migration: Do not try to migrate unmapped anonymous pages
+* Vivek Goyal <vgoyal@redhat.com> [2010-03-15 13:19:21]:
+
+> On Mon, Mar 15, 2010 at 01:12:09PM -0400, Vivek Goyal wrote:
+> > On Mon, Mar 15, 2010 at 12:26:37AM +0100, Andrea Righi wrote:
+> > > Control the maximum amount of dirty pages a cgroup can have at any given time.
+> > > 
+> > > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
+> > > page cache used by any cgroup. So, in case of multiple cgroup writers, they
+> > > will not be able to consume more than their designated share of dirty pages and
+> > > will be forced to perform write-out if they cross that limit.
+> > > 
 > > 
-> > rmap_walk_anon() was triggering errors in memory compaction that look like
-> > use-after-free errors. The problem is that between the page being isolated
-> > from the LRU and rcu_read_lock() being taken, the mapcount of the page
-> > dropped to 0 and the anon_vma gets freed. This can happen during memory
-> > compaction if pages being migrated belong to a process that exits before
-> > migration completes. Hence, the use-after-free race looks like
+> > For me even with this version I see that group with 100M limit is getting
+> > much more BW.
 > > 
-> >  1. Page isolated for migration
-> >  2. Process exits
-> >  3. page_mapcount(page) drops to zero so anon_vma was no longer reliable
-> >  4. unmap_and_move() takes the rcu_lock but the anon_vma is already garbage
-> >  4. call try_to_unmap, looks up tha anon_vma and "locks" it but the lock
-> >     is garbage.
+> > root cgroup
+> > ==========
+> > #time dd if=/dev/zero of=/root/zerofile bs=4K count=1M
+> > 4294967296 bytes (4.3 GB) copied, 55.7979 s, 77.0 MB/s
 > > 
-> > This patch checks the mapcount after the rcu lock is taken. If the
-> > mapcount is zero, the anon_vma is assumed to be freed and no further
-> > action is taken.
+> > real	0m56.209s
 > > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > ---
-> >  mm/migrate.c |   13 +++++++++++++
-> >  1 files changed, 13 insertions(+), 0 deletions(-)
+> > test1 cgroup with memory limit of 100M
+> > ======================================
+> > # time dd if=/dev/zero of=/root/zerofile1 bs=4K count=1M
+> > 4294967296 bytes (4.3 GB) copied, 20.9252 s, 205 MB/s
 > > 
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index 98eaaf2..6eb1efe 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -603,6 +603,19 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
-> >  	 */
-> >  	if (PageAnon(page)) {
-> >  		rcu_read_lock();
-> > +
-> > +		/*
-> > +		 * If the page has no mappings any more, just bail. An
-> > +		 * unmapped anon page is likely to be freed soon but worse,
-> > +		 * it's possible its anon_vma disappeared between when
-> > +		 * the page was isolated and when we reached here while
-> > +		 * the RCU lock was not held
-> > +		 */
-> > +		if (!page_mapcount(page)) {
-> > +			rcu_read_unlock();
-> > +			goto uncharge;
-> > +		}
+> > real	0m21.096s
+> > 
+> > Note, these two jobs are not running in parallel. These are running one
+> > after the other.
+> > 
 > 
-> I haven't understand what prevent this check. Why don't we need following scenario?
+> Ok, here is the strange part. I am seeing similar behavior even without
+> your patches applied.
 > 
->  1. Page isolated for migration
->  2. Passed this if (!page_mapcount(page)) check
->  3. Process exits
->  4. page_mapcount(page) drops to zero so anon_vma was no longer reliable
+> root cgroup
+> ==========
+> #time dd if=/dev/zero of=/root/zerofile bs=4K count=1M
+> 4294967296 bytes (4.3 GB) copied, 56.098 s, 76.6 MB/s
 > 
+> real	0m56.614s
 > 
-> Traditionally, page migration logic is, it can touch garbarge of anon_vma, but
-> SLAB_DESTROY_BY_RCU prevent any disaster. Is this broken concept?
+> test1 cgroup with memory limit 100M
+> ===================================
+> # time dd if=/dev/zero of=/root/zerofile1 bs=4K count=1M
+> 4294967296 bytes (4.3 GB) copied, 19.8097 s, 217 MB/s
+> 
+> real	0m19.992s
 > 
 
-The check is made within the RCU read lock. If the count is positive at
-that point but goes to zero due to a process exiting, the anon_vma will
-still be valid until rcu_read_unlock() is called.
+This is strange, did you flish the cache between the two runs?
+NOTE: Since the files are same, we reuse page cache from the
+other cgroup.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
