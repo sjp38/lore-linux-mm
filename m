@@ -1,81 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id ECC9062001F
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 15:49:05 -0400 (EDT)
-Date: Wed, 17 Mar 2010 15:48:30 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH -mmotm 0/5] memcg: per cgroup dirty limit (v7)
-Message-ID: <20100317194830.GD9198@redhat.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com> <20100315171209.GI21127@redhat.com> <20100315171921.GJ21127@redhat.com> <20100317115427.GR18054@balbir.in.ibm.com> <20100317133407.GA9198@redhat.com> <20100317191743.GY18054@balbir.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100317191743.GY18054@balbir.in.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D97766B0184
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 17:09:10 -0400 (EDT)
+Received: from fe-sfbay-09.sun.com ([192.18.43.129])
+	by sca-es-mail-2.sun.com (8.13.7+Sun/8.12.9) with ESMTP id o2HL93hE023875
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 14:09:05 -0700 (PDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; CHARSET=US-ASCII; delsp=yes; format=flowed
+Received: from conversion-daemon.fe-sfbay-09.sun.com by fe-sfbay-09.sun.com
+ (Sun Java(tm) System Messaging Server 7u2-7.04 64bit (built Jul  2 2009))
+ id <0KZG001002HJMB00@fe-sfbay-09.sun.com> for linux-mm@kvack.org; Wed,
+ 17 Mar 2010 14:09:03 -0700 (PDT)
+Date: Wed, 17 Mar 2010 15:09:00 -0600
+From: Andreas Dilger <adilger@sun.com>
+Subject: Re: [C/R v20][PATCH 46/96] c/r: add checkpoint operation for opened
+ files of generic filesystems
+In-reply-to: <1268842164-5590-47-git-send-email-orenl@cs.columbia.edu>
+Message-id: <BA0C23DE-E2B5-42A9-8478-CE216D18A6C6@sun.com>
+References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-4-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-5-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-6-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-7-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-8-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-9-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-10-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-11-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-12-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-13-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-14-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-15-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-16-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-17-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Matt Helsley <matthltc@us.ibm.com>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 18, 2010 at 12:47:43AM +0530, Balbir Singh wrote:
-> * Vivek Goyal <vgoyal@redhat.com> [2010-03-17 09:34:07]:
-> 
-> > On Wed, Mar 17, 2010 at 05:24:28PM +0530, Balbir Singh wrote:
-> > > * Vivek Goyal <vgoyal@redhat.com> [2010-03-15 13:19:21]:
-> > > 
-> > > > On Mon, Mar 15, 2010 at 01:12:09PM -0400, Vivek Goyal wrote:
-> > > > > On Mon, Mar 15, 2010 at 12:26:37AM +0100, Andrea Righi wrote:
-> > > > > > Control the maximum amount of dirty pages a cgroup can have at any given time.
-> > > > > > 
-> > > > > > Per cgroup dirty limit is like fixing the max amount of dirty (hard to reclaim)
-> > > > > > page cache used by any cgroup. So, in case of multiple cgroup writers, they
-> > > > > > will not be able to consume more than their designated share of dirty pages and
-> > > > > > will be forced to perform write-out if they cross that limit.
-> > > > > > 
-> > > > > 
-> > > > > For me even with this version I see that group with 100M limit is getting
-> > > > > much more BW.
-> > > > > 
-> > > > > root cgroup
-> > > > > ==========
-> > > > > #time dd if=/dev/zero of=/root/zerofile bs=4K count=1M
-> > > > > 4294967296 bytes (4.3 GB) copied, 55.7979 s, 77.0 MB/s
-> > > > > 
-> > > > > real	0m56.209s
-> > > > > 
-> > > > > test1 cgroup with memory limit of 100M
-> > > > > ======================================
-> > > > > # time dd if=/dev/zero of=/root/zerofile1 bs=4K count=1M
-> > > > > 4294967296 bytes (4.3 GB) copied, 20.9252 s, 205 MB/s
-> > > > > 
-> > > > > real	0m21.096s
-> > > > > 
-> > > > > Note, these two jobs are not running in parallel. These are running one
-> > > > > after the other.
-> > > > > 
-> > > > 
-> 
-> The data is not always repeatable at my end. Are you able to modify
-> the order and get repeatable results?
-> 
-> In fact, I saw
-> 
-> for cgroup != root
-> ------------------
-> 4294967296 bytes (4.3 GB) copied, 120.359 s, 35.7 MB/s
-> 
-> for cgroup = root
-> -----------------
-> 4294967296 bytes (4.3 GB) copied, 84.504 s, 50.8 MB/s
-> 
-> This is without the patches applied.
+On 2010-03-17, at 10:08, Oren Laadan wrote:
+> These patches extend the use of the generic file checkpoint  
+> operation to
+> non-extX filesystems which have lseek operations that ensure we can  
+> save
+> and restore the files for later use. Note that this does not include
+> things like FUSE, network filesystems, or pseudo-filesystem kernel
+> interfaces.
 
-I lost the access to the big configuration machine but on that machine I
-could reproduce it all the time. But on smaller machine (4core, 4G), I 
-could not.
+I didn't see any other patches posted to linux-fsdevel regarding what  
+this code is, or what it is supposed to be doing.  Could you please  
+repost the patches related to generic_file_checkpoint(), and the  
+overview email that explains what you mean by "checkpoint".  I'm  
+assuming this is related to HPC/process restart/migration, but better  
+to not guess.
 
-I will do some more tests later.
+> @@ -718,6 +718,7 @@ static const struct file_operations  
+> btrfs_ctl_fops = {
+> 	.unlocked_ioctl	 = btrfs_control_ioctl,
+> 	.compat_ioctl = btrfs_control_ioctl,
+> 	.owner	 = THIS_MODULE,
+> +	.checkpoint = generic_file_checkpoint,
+> };
+>
+> const struct file_operations exofs_file_operations = {
+> 	.llseek		= generic_file_llseek,
+> +	.checkpoint	= generic_file_checkpoint,
+> 	.read		= do_sync_read,
+> 	.write		= do_sync_write,
+> 	.aio_read	= generic_file_aio_read,
+>
+> static const struct file_operations hostfs_file_fops = {
+> 	.llseek		= generic_file_llseek,
+> +	.checkpoint	= generic_file_checkpoint,
+> 	.read		= do_sync_read,
+> 	.splice_read	= generic_file_splice_read,
+> 	.aio_read	= generic_file_aio_read,
+> @@ -430,6 +431,7 @@ static const struct file_operations  
+> hostfs_file_fops = {
+>
+> static const struct file_operations hostfs_dir_fops = {
+> 	.llseek		= generic_file_llseek,
+> +	.checkpoint	= generic_file_checkpoint,
+> 	.readdir	= hostfs_readdir,
+> 	.read		= generic_read_dir,
+> };
+>
+> const struct file_operations nilfs_file_operations = {
+> 	.llseek		= generic_file_llseek,
+> +	.checkpoint	= generic_file_checkpoint,
+> 	.read		= do_sync_read,
+> 	.write		= do_sync_write,
+> 	.aio_read	= generic_file_aio_read,
 
-Vivek
+
+Minor nit - it would be good to add this method in the same place in  
+all of the *_file_operation structures for consistency.  Ideally these  
+would already be in the order that they are declared in the structure,  
+but at least new ones should be added consistently.
+
+> static const struct vm_operations_struct nfs_file_vm_ops = {
+> 	.fault = filemap_fault,
+> 	.page_mkwrite = nfs_vm_page_mkwrite,
+> +#ifdef CONFIG_CHECKPOINT
+> +	.checkpoint = filemap_checkpoint,
+> +#endif
+> };
+
+Why is this one conditional, but the others are not?
+
+
+Cheers, Andreas
+--
+Andreas Dilger
+Sr. Staff Engineer, Lustre Group
+Sun Microsystems of Canada, Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
