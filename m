@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DD776B01BD
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:10:15 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B9D76B01BE
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:10:17 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 07/96] eclone (7/11): Define do_fork_with_pids()
-Date: Wed, 17 Mar 2010 12:07:55 -0400
-Message-Id: <1268842164-5590-8-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-7-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 10/96] eclone (10/11): Implement sys_eclone for powerpc
+Date: Wed, 17 Mar 2010 12:07:58 -0400
+Message-Id: <1268842164-5590-11-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-10-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -14,103 +14,177 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-5-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-6-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-7-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-8-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-9-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-10-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Nathan Lynch <ntl@pobox.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+From: Nathan Lynch <ntl@pobox.com>
 
-do_fork_with_pids() is same as do_fork(), except that it takes an
-additional, 'pid_set', parameter. This parameter, currently unused,
-specifies the set of target pids of the process in each of its pid
-namespaces.
+Wired up for both ppc32 and ppc64, but tested only with the latter.
 
-Changelog[v7]:
-	- Drop 'struct pid_set' object and pass in 'pid_t *target_pids'
-	  instead of 'struct pid_set *'.
+Changelog:
+  - Jan 20: (ntl) fix 32-bit build
+  - Nov 17: (serge) remove redundant flags_high check, and
+    	    don't fold it into flags.
 
-Changelog[v6]:
-	- (Nathan Lynch, Arnd Bergmann, H. Peter Anvin, Linus Torvalds)
-	  Change 'pid_set.pids' to a 'pid_t pids[]' so size of 'struct pid_set'
-	  is constant across architectures.
-	- (Nathan Lynch) Change 'pid_set.num_pids' to 'unsigned int'.
-
-Changelog[v4]:
-	- Rename 'struct target_pid_set' to 'struct pid_set' since it may
-	  be useful in other contexts.
-
-Changelog[v3]:
-	- Fix "long-line" warning from checkpatch.pl
-
-Changelog[v2]:
-	- To facilitate moving architecture-inpdendent code to kernel/fork.c
-	  pass in 'struct target_pid_set __user *' to do_fork_with_pids()
-	  rather than 'pid_t *' (next patch moves the arch-independent
-	  code to kernel/fork.c)
-
-Signed-off-by: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
-Acked-by: Serge E. Hallyn <serue@us.ibm.com>
-Tested-by: Serge E. Hallyn <serue@us.ibm.com>
-Reviewed-by: Oren Laadan <orenl@cs.columbia.edu>
+Signed-off-by: Nathan Lynch <ntl@pobox.com>
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- include/linux/sched.h |    3 +++
- kernel/fork.c         |   17 +++++++++++++++--
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ arch/powerpc/include/asm/syscalls.h |    6 ++++
+ arch/powerpc/include/asm/systbl.h   |    1 +
+ arch/powerpc/include/asm/unistd.h   |    3 +-
+ arch/powerpc/kernel/entry_32.S      |    8 +++++
+ arch/powerpc/kernel/entry_64.S      |    5 +++
+ arch/powerpc/kernel/process.c       |   54 ++++++++++++++++++++++++++++++++++-
+ 6 files changed, 75 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index d57eab8..4f079f7 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -2189,6 +2189,9 @@ extern int disallow_signal(int);
+diff --git a/arch/powerpc/include/asm/syscalls.h b/arch/powerpc/include/asm/syscalls.h
+index eb8eb40..1674544 100644
+--- a/arch/powerpc/include/asm/syscalls.h
++++ b/arch/powerpc/include/asm/syscalls.h
+@@ -24,6 +24,12 @@ asmlinkage int sys_execve(unsigned long a0, unsigned long a1,
+ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long usp,
+ 		int __user *parent_tidp, void __user *child_threadptr,
+ 		int __user *child_tidp, int p6, struct pt_regs *regs);
++asmlinkage int sys_eclone(unsigned long flags_low,
++			  struct clone_args __user *args,
++			  size_t args_size,
++			  pid_t __user *pids,
++			  unsigned long p5, unsigned long p6,
++			  struct pt_regs *regs);
+ asmlinkage int sys_fork(unsigned long p1, unsigned long p2,
+ 		unsigned long p3, unsigned long p4, unsigned long p5,
+ 		unsigned long p6, struct pt_regs *regs);
+diff --git a/arch/powerpc/include/asm/systbl.h b/arch/powerpc/include/asm/systbl.h
+index 07d2d19..ee41254 100644
+--- a/arch/powerpc/include/asm/systbl.h
++++ b/arch/powerpc/include/asm/systbl.h
+@@ -326,3 +326,4 @@ SYSCALL_SPU(perf_event_open)
+ COMPAT_SYS_SPU(preadv)
+ COMPAT_SYS_SPU(pwritev)
+ COMPAT_SYS(rt_tgsigqueueinfo)
++PPC_SYS(eclone)
+diff --git a/arch/powerpc/include/asm/unistd.h b/arch/powerpc/include/asm/unistd.h
+index f6ca761..37357a2 100644
+--- a/arch/powerpc/include/asm/unistd.h
++++ b/arch/powerpc/include/asm/unistd.h
+@@ -345,10 +345,11 @@
+ #define __NR_preadv		320
+ #define __NR_pwritev		321
+ #define __NR_rt_tgsigqueueinfo	322
++#define __NR_eclone		323
  
- extern int do_execve(char *, char __user * __user *, char __user * __user *, struct pt_regs *);
- extern long do_fork(unsigned long, unsigned long, struct pt_regs *, unsigned long, int __user *, int __user *);
-+extern long do_fork_with_pids(unsigned long, unsigned long, struct pt_regs *,
-+				unsigned long, int __user *, int __user *,
-+				unsigned int, pid_t __user *);
- struct task_struct *fork_idle(int);
+ #ifdef __KERNEL__
  
- extern void set_task_comm(struct task_struct *tsk, char *from);
-diff --git a/kernel/fork.c b/kernel/fork.c
-index f95cbd2..fb92128 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1375,12 +1375,14 @@ struct task_struct * __cpuinit fork_idle(int cpu)
-  * It copies the process, and if successful kick-starts
-  * it and waits for it to finish using the VM if required.
-  */
--long do_fork(unsigned long clone_flags,
-+long do_fork_with_pids(unsigned long clone_flags,
- 	      unsigned long stack_start,
- 	      struct pt_regs *regs,
- 	      unsigned long stack_size,
- 	      int __user *parent_tidptr,
--	      int __user *child_tidptr)
-+	      int __user *child_tidptr,
-+	      unsigned int num_pids,
-+	      pid_t __user *upids)
- {
- 	struct task_struct *p;
- 	int trace = 0;
-@@ -1483,6 +1485,17 @@ long do_fork(unsigned long clone_flags,
- 	return nr;
- }
+-#define __NR_syscalls		323
++#define __NR_syscalls		324
  
-+long do_fork(unsigned long clone_flags,
-+	      unsigned long stack_start,
-+	      struct pt_regs *regs,
-+	      unsigned long stack_size,
-+	      int __user *parent_tidptr,
-+	      int __user *child_tidptr)
-+{
-+	return do_fork_with_pids(clone_flags, stack_start, regs, stack_size,
-+			parent_tidptr, child_tidptr, 0, NULL);
+ #define __NR__exit __NR_exit
+ #define NR_syscalls	__NR_syscalls
+diff --git a/arch/powerpc/kernel/entry_32.S b/arch/powerpc/kernel/entry_32.S
+index 1175a85..579f1da 100644
+--- a/arch/powerpc/kernel/entry_32.S
++++ b/arch/powerpc/kernel/entry_32.S
+@@ -586,6 +586,14 @@ ppc_clone:
+ 	stw	r0,_TRAP(r1)		/* register set saved */
+ 	b	sys_clone
+ 
++	.globl	ppc_eclone
++ppc_eclone:
++	SAVE_NVGPRS(r1)
++	lwz	r0,_TRAP(r1)
++	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
++	stw	r0,_TRAP(r1)		/* register set saved */
++	b	sys_eclone
++
+ 	.globl	ppc_swapcontext
+ ppc_swapcontext:
+ 	SAVE_NVGPRS(r1)
+diff --git a/arch/powerpc/kernel/entry_64.S b/arch/powerpc/kernel/entry_64.S
+index bdcb557..899f485 100644
+--- a/arch/powerpc/kernel/entry_64.S
++++ b/arch/powerpc/kernel/entry_64.S
+@@ -344,6 +344,11 @@ _GLOBAL(ppc_clone)
+ 	bl	.sys_clone
+ 	b	syscall_exit
+ 
++_GLOBAL(ppc_eclone)
++	bl	.save_nvgprs
++	bl	.sys_eclone
++	b	syscall_exit
++
+ _GLOBAL(ppc32_swapcontext)
+ 	bl	.save_nvgprs
+ 	bl	.compat_sys_swapcontext
+diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
+index 7b816da..4bbc21f 100644
+--- a/arch/powerpc/kernel/process.c
++++ b/arch/powerpc/kernel/process.c
+@@ -885,7 +885,59 @@ int sys_clone(unsigned long clone_flags, unsigned long usp,
+ 		child_tidp = TRUNC_PTR(child_tidp);
+ 	}
+ #endif
+- 	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
++	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
 +}
 +
- #ifndef ARCH_MIN_MMSTRUCT_ALIGN
- #define ARCH_MIN_MMSTRUCT_ALIGN 0
- #endif
++int sys_eclone(unsigned long clone_flags_low,
++	       struct clone_args __user *uclone_args,
++	       size_t size,
++	       pid_t __user *upids,
++	       unsigned long p5, unsigned long p6,
++	       struct pt_regs *regs)
++{
++	struct clone_args kclone_args;
++	unsigned long stack_base;
++	int __user *parent_tidp;
++	int __user *child_tidp;
++	unsigned long stack_sz;
++	unsigned int nr_pids;
++	unsigned long flags;
++	unsigned long usp;
++	int rc;
++
++	CHECK_FULL_REGS(regs);
++
++	rc = fetch_clone_args_from_user(uclone_args, size, &kclone_args);
++	if (rc)
++		return rc;
++
++	stack_sz = kclone_args.child_stack_size;
++	stack_base = kclone_args.child_stack;
++
++	/* powerpc doesn't do anything useful with the stack size */
++	if (stack_sz)
++		return -EINVAL;
++
++	/* Interpret stack_base as the child sp if it is set. */
++	usp = regs->gpr[1];
++	if (stack_base)
++		usp = stack_base;
++
++	flags = clone_flags_low;
++
++	nr_pids = kclone_args.nr_pids;
++
++	parent_tidp = (int __user *)(unsigned long)kclone_args.parent_tid_ptr;
++	child_tidp = (int __user *)(unsigned long)kclone_args.child_tid_ptr;
++
++#ifdef CONFIG_PPC64
++	if (test_thread_flag(TIF_32BIT)) {
++		parent_tidp = TRUNC_PTR(parent_tidp);
++		child_tidp = TRUNC_PTR(child_tidp);
++	}
++#endif
++	return do_fork_with_pids(flags, stack_base, regs, stack_sz,
++				 parent_tidp, child_tidp, nr_pids, upids);
+ }
+ 
+ int sys_fork(unsigned long p1, unsigned long p2, unsigned long p3,
 -- 
 1.6.3.3
 
