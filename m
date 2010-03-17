@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8380362003F
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DF499620045
 	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:29:18 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 88/96] use correct ccr bit for syscall error status
-Date: Wed, 17 Mar 2010 12:09:16 -0400
-Message-Id: <1268842164-5590-89-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-88-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 90/96] powerpc: wire up checkpoint and restart syscalls
+Date: Wed, 17 Mar 2010 12:09:18 -0400
+Message-Id: <1268842164-5590-91-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-90-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
@@ -95,6 +95,8 @@ References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-86-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-87-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-88-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-89-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-90-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Nathan Lynch <ntl@pobox.com>
@@ -102,43 +104,145 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nathan Lynch <ntl@pobox.com>
 
-The powerpc implementations of syscall_get_error and
-syscall_set_return_value should use CCR0:S0 (0x10000000) for testing
-and setting syscall error status.  Fortunately these APIs don't seem
-to be used at the moment.
+Changelog [v19]:
+ - checkpoint/powerpc: fix up checkpoint syscall, tidy restart
 
 Signed-off-by: Nathan Lynch <ntl@pobox.com>
 Acked-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- arch/powerpc/include/asm/syscall.h |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+ arch/powerpc/include/asm/systbl.h |    2 ++
+ arch/powerpc/include/asm/unistd.h |    4 +++-
+ arch/powerpc/kernel/entry_32.S    |   23 +++++++++++++++++++++++
+ arch/powerpc/kernel/entry_64.S    |   16 ++++++++++++++++
+ arch/powerpc/kernel/process.c     |   19 +++++++++++++++++++
+ 5 files changed, 63 insertions(+), 1 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/syscall.h b/arch/powerpc/include/asm/syscall.h
-index efa7f0b..23913e9 100644
---- a/arch/powerpc/include/asm/syscall.h
-+++ b/arch/powerpc/include/asm/syscall.h
-@@ -30,7 +30,7 @@ static inline void syscall_rollback(struct task_struct *task,
- static inline long syscall_get_error(struct task_struct *task,
- 				     struct pt_regs *regs)
- {
--	return (regs->ccr & 0x1000) ? -regs->gpr[3] : 0;
-+	return (regs->ccr & 0x10000000) ? -regs->gpr[3] : 0;
+diff --git a/arch/powerpc/include/asm/systbl.h b/arch/powerpc/include/asm/systbl.h
+index ee41254..2c1dd27 100644
+--- a/arch/powerpc/include/asm/systbl.h
++++ b/arch/powerpc/include/asm/systbl.h
+@@ -327,3 +327,5 @@ COMPAT_SYS_SPU(preadv)
+ COMPAT_SYS_SPU(pwritev)
+ COMPAT_SYS(rt_tgsigqueueinfo)
+ PPC_SYS(eclone)
++PPC_SYS(checkpoint)
++PPC_SYS(restart)
+diff --git a/arch/powerpc/include/asm/unistd.h b/arch/powerpc/include/asm/unistd.h
+index 37357a2..1551242 100644
+--- a/arch/powerpc/include/asm/unistd.h
++++ b/arch/powerpc/include/asm/unistd.h
+@@ -346,10 +346,12 @@
+ #define __NR_pwritev		321
+ #define __NR_rt_tgsigqueueinfo	322
+ #define __NR_eclone		323
++#define __NR_checkpoint		324
++#define __NR_restart		325
+ 
+ #ifdef __KERNEL__
+ 
+-#define __NR_syscalls		324
++#define __NR_syscalls		326
+ 
+ #define __NR__exit __NR_exit
+ #define NR_syscalls	__NR_syscalls
+diff --git a/arch/powerpc/kernel/entry_32.S b/arch/powerpc/kernel/entry_32.S
+index 579f1da..853814b 100644
+--- a/arch/powerpc/kernel/entry_32.S
++++ b/arch/powerpc/kernel/entry_32.S
+@@ -594,6 +594,29 @@ ppc_eclone:
+ 	stw	r0,_TRAP(r1)		/* register set saved */
+ 	b	sys_eclone
+ 
++/* To handle self-checkpoint we must save nvpgprs */
++	.globl	ppc_checkpoint
++ppc_checkpoint:
++	SAVE_NVGPRS(r1)
++	lwz	r0,_TRAP(r1)
++	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
++	stw	r0,_TRAP(r1)		/* register set saved */
++	b	sys_checkpoint
++
++/* The full register set must be restored upon return from restart.
++ * Save nvgprs unconditionally so the caller's state is
++ * restored correctly in case of error.
++ */
++	.globl	ppc_restart
++ppc_restart:
++	SAVE_NVGPRS(r1)
++	lwz	r0,_TRAP(r1)
++	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
++	stw	r0,_TRAP(r1)		/* register set saved */
++	bl	sys_restart
++	REST_NVGPRS(r1)
++	b ret_from_syscall
++
+ 	.globl	ppc_swapcontext
+ ppc_swapcontext:
+ 	SAVE_NVGPRS(r1)
+diff --git a/arch/powerpc/kernel/entry_64.S b/arch/powerpc/kernel/entry_64.S
+index 899f485..87ebb04 100644
+--- a/arch/powerpc/kernel/entry_64.S
++++ b/arch/powerpc/kernel/entry_64.S
+@@ -349,6 +349,22 @@ _GLOBAL(ppc_eclone)
+ 	bl	.sys_eclone
+ 	b	syscall_exit
+ 
++/* To handle self-checkpoint we must save nvpgprs */
++_GLOBAL(ppc_checkpoint)
++	bl	.save_nvgprs
++	bl	.sys_checkpoint
++	b	syscall_exit
++
++/* The full register set must be restored upon return from restart.
++ * Save nvgprs unconditionally so the caller's state is
++ * restored correctly in case of error.
++ */
++_GLOBAL(ppc_restart)
++	bl	.save_nvgprs
++	bl	.sys_restart
++	REST_NVGPRS(r1)
++	b	syscall_exit
++
+ _GLOBAL(ppc32_swapcontext)
+ 	bl	.save_nvgprs
+ 	bl	.compat_sys_swapcontext
+diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
+index 4bbc21f..6457530 100644
+--- a/arch/powerpc/kernel/process.c
++++ b/arch/powerpc/kernel/process.c
+@@ -30,6 +30,7 @@
+ #include <linux/init_task.h>
+ #include <linux/module.h>
+ #include <linux/kallsyms.h>
++#include <linux/checkpoint.h>
+ #include <linux/mqueue.h>
+ #include <linux/hardirq.h>
+ #include <linux/utsname.h>
+@@ -978,6 +979,24 @@ out:
+ 	return error;
  }
  
- static inline long syscall_get_return_value(struct task_struct *task,
-@@ -44,10 +44,10 @@ static inline void syscall_set_return_value(struct task_struct *task,
- 					    int error, long val)
- {
- 	if (error) {
--		regs->ccr |= 0x1000L;
-+		regs->ccr |= 0x10000000L;
- 		regs->gpr[3] = -error;
- 	} else {
--		regs->ccr &= ~0x1000L;
-+		regs->ccr &= ~0x10000000L;
- 		regs->gpr[3] = val;
- 	}
- }
++int sys_checkpoint(unsigned long pid, unsigned long fd, unsigned long flags,
++		   unsigned long logfd, unsigned long p5, unsigned long p6,
++		   struct pt_regs *regs)
++{
++	CHECK_FULL_REGS(regs);
++
++	return do_sys_checkpoint(pid, fd, flags, logfd);
++}
++
++int sys_restart(unsigned long pid, unsigned long fd, unsigned long flags,
++		unsigned long logfd, unsigned long p5, unsigned long p6,
++		struct pt_regs *regs)
++{
++	CHECK_FULL_REGS(regs);
++
++	return do_sys_restart(pid, fd, flags, logfd);
++}
++
+ #ifdef CONFIG_IRQSTACKS
+ static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
+ 				  unsigned long nbytes)
 -- 
 1.6.3.3
 
