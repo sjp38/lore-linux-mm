@@ -1,145 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7FADB6B0078
-	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 19:45:38 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2GNjX4L009240
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 17 Mar 2010 08:45:33 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3655945DE4F
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 08:45:33 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AEA745DE54
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 08:45:33 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DE51CE08009
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 08:45:32 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 71B54E08003
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 08:45:32 +0900 (JST)
-Date: Wed, 17 Mar 2010 08:41:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] exit: fix oops in sync_mm_rss
-Message-Id: <20100317084148.df1ee6a7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100316170808.GA29400@redhat.com>
-References: <20100316170808.GA29400@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4471B6B00A7
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 21:00:48 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id o2H10hCS017025
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 18:00:44 -0700
+Received: from pwj10 (pwj10.prod.google.com [10.241.219.74])
+	by wpaz9.hot.corp.google.com with ESMTP id o2H10eGD022246
+	for <linux-mm@kvack.org>; Tue, 16 Mar 2010 18:00:42 -0700
+Received: by pwj10 with SMTP id 10so459082pwj.12
+        for <linux-mm@kvack.org>; Tue, 16 Mar 2010 18:00:40 -0700 (PDT)
+Date: Tue, 16 Mar 2010 18:00:35 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 00/10 -mm v3] oom killer rewrite
+In-Reply-To: <20100312163415.ff6fb5c5.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1003161747240.7128@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1003100236510.30013@chino.kir.corp.google.com> <20100312163415.ff6fb5c5.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: cl@linux-foundation.org, lee.schermerhorn@hp.com, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Mar 2010 19:08:08 +0200
-"Michael S. Tsirkin" <mst@redhat.com> wrote:
+On Fri, 12 Mar 2010, KAMEZAWA Hiroyuki wrote:
 
-> In 2.6.34-rc1, removing vhost_net module causes an oops in sync_mm_rss
-> (called from do_exit) when workqueue is destroyed. This does not happen on
-> net-next, or with vhost on top of to 2.6.33.
+> BTW, it seems there are still chances for serial-oom-killer.
 > 
-> The issue seems to be introduced by
-> 34e55232e59f7b19050267a05ff1226e5cd122a5: that commit added function
-> sync_mm_rss that is passed task->mm, and dereferences it without
-> checking. If task is a kernel thread, mm might be NULL.
-> I think this might also happen e.g. with aio.
+> Assume I run memory eater (called malloc) on a host.
+> ==
+> Mar 13 13:05:56 localhost kernel: malloc invoked oom-killer: gfp_mask=0x280da, order=0, oom_adj=0, oom_score_adj=0
+> Mar 13 13:05:56 localhost kernel: malloc cpuset=/ mems_allowed=0
+> Mar 13 13:05:56 localhost kernel: Pid: 2525, comm: malloc Not tainted 2.6.34-rc1-mm1+ #3
+> Mar 13 13:05:56 localhost kernel: Call Trace:
+> Mar 13 13:05:56 localhost kernel: [<ffffffff8108aebf>] ? cpuset_print_task_mems_allowed+0x91/0x9c
+> Mar 13 13:05:56 localhost kernel: [<ffffffff810c90c1>] dump_header+0x74/0x1af
+> <snip>
+> Mar 13 13:05:56 localhost kernel: [ 2525]   500  2525   434340   433346   0       0             0 malloc
+> Mar 13 13:05:56 localhost kernel: Out of memory: Kill process 2525 (malloc) with score 967 or sacrifice child
+> Mar 13 13:05:56 localhost kernel: Killed process 2525 (malloc) total-vm:1737360kB, anon-rss:1733364kB, file-rss:20kB
+> Mar 13 13:05:56 localhost kernel: rsyslogd invoked oom-killer: gfp_mask=0x201da, order=0, oom_adj=0, oom_score_adj=0
+> Mar 13 13:05:56 localhost kernel: rsyslogd cpuset=/ mems_allowed=0
+> Mar 13 13:05:56 localhost kernel: Pid: 696, comm: rsyslogd Not tainted 2.6.34-rc1-mm1+ #3
+> Mar 13 13:05:56 localhost kernel: Call Trace:
+> Mar 13 13:05:56 localhost kernel: [<ffffffff8108aebf>] ? cpuset_print_task_mems_allowed+0x91/0x9c
+> Mar 13 13:05:56 localhost kernel: [<ffffffff810c90c1>] dump_header+0x74/0x1af
+> Mar 13 13:05:56 localhost kernel: [<ffffffff81211a8e>] ? ___ratelimit+0xe6/0x104
+> Mar 13 13:05:56 localhost kernel: [<ffffffff810c942a>] oom_kill_process+0x49/0x1ed
+> <snip>
+> Mar 13 13:05:56 localhost kernel: 480 total pagecache pages
+> Mar 13 13:05:56 localhost kernel: 0 pages in swap cache
+> Mar 13 13:05:56 localhost kernel: Swap cache stats: add 0, delete 0, find 0/0
+> Mar 13 13:05:56 localhost kernel: Free swap  = 0kB
+> Mar 13 13:05:56 localhost kernel: Total swap = 0kB
+> Mar 13 13:05:56 localhost kernel: 2097151 pages RAM
+> Mar 13 13:05:56 localhost kernel: 48776 pages reserved
+> Mar 13 13:05:56 localhost kernel: 1356 pages shared
+> Mar 13 13:05:56 localhost kernel: 458132 pages non-shared
+> <snip>
+> Mar 13 13:05:56 localhost kernel: [ 2506]     0  2506     3120       55   0       0             0 anacron
+> Mar 13 13:05:56 localhost kernel: Out of memory: Kill process 1267 (gdm-simple-gree) with score 2 or sacrifice child
+> Mar 13 13:05:56 localhost kernel: Killed process 1267 (gdm-simple-gree) total-vm:359156kB, anon-rss:4012kB, file-rss:472kB
+> ==
 > 
-> This patch fixes the oops by calling sync_mm_rss when task->mm
-> is set to NULL. I also added BUG_ON to detect any other cases
-> where counters get incremented while mm is NULL.
+> Then, at first, malloc, a bad program is killed. But, another oom-kill happens immediately and 
+> gdm-simple-gree is killed.
 > 
-> The oops I observed looks like this:
+> I think there is a task as !p->mm but TIF_MEMDIE task in tasklist.
 > 
-> BUG: unable to handle kernel NULL pointer dereference at 00000000000002a8
-> IP: [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
-> PGD 0
-> Oops: 0002 [#1] SMP
-> last sysfs file: /sys/devices/system/cpu/cpu7/cache/index2/shared_cpu_map
-> CPU 2
-> Modules linked in: vhost_net(-) tun bridge stp sunrpc ipv6 cpufreq_ondemand acpi_cpufreq freq_table kvm_intel kvm i5000_edac edac_core rtc_cmos bnx2 button i2c_i801 i2c_core rtc_core e1000e sg joydev ide_cd_mod serio_raw pcspkr rtc_lib cdrom virtio_net virtio_blk virtio_pci virtio_ring virtio af_packet e1000 shpchp aacraid uhci_hcd ohci_hcd ehci_hcd [last unloaded: microcode]
-> 
-> Pid: 2046, comm: vhost Not tainted 2.6.34-rc1-vhost #25 System Planar/IBM System x3550 -[7978B3G]-
-> RIP: 0010:[<ffffffff810b436d>]  [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
-> RSP: 0018:ffff8802379b7e60  EFLAGS: 00010202
-> RAX: 0000000000000008 RBX: ffff88023f2390c0 RCX: 0000000000000000
-> RDX: ffff88023f2396b0 RSI: 0000000000000000 RDI: ffff88023f2390c0
-> RBP: ffff8802379b7e60 R08: 0000000000000000 R09: 0000000000000000
-> R10: ffff88023aecfbc0 R11: 0000000000013240 R12: 0000000000000000
-> R13: ffffffff81051a6c R14: ffffe8ffffc0f540 R15: 0000000000000000
-> FS:  0000000000000000(0000) GS:ffff880001e80000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> CR2: 00000000000002a8 CR3: 000000023af23000 CR4: 00000000000406e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Process vhost (pid: 2046, threadinfo ffff8802379b6000, task ffff88023f2390c0)
-> Stack:
->  ffff8802379b7ee0 ffffffff81040687 ffffe8ffffc0f558 ffffffffa00a3e2d
-> <0> 0000000000000000 ffff88023f2390c0 ffffffff81055817 ffff8802379b7e98
-> <0> ffff8802379b7e98 0000000100000286 ffff8802379b7ee0 ffff88023ad47d78
-> Call Trace:
->  [<ffffffff81040687>] do_exit+0x147/0x6c4
->  [<ffffffffa00a3e2d>] ? handle_rx_net+0x0/0x17 [vhost_net]
->  [<ffffffff81055817>] ? autoremove_wake_function+0x0/0x39
->  [<ffffffff81051a6c>] ? worker_thread+0x0/0x229
->  [<ffffffff810553c9>] kthreadd+0x0/0xf2
->  [<ffffffff810038d4>] kernel_thread_helper+0x4/0x10
->  [<ffffffff81055342>] ? kthread+0x0/0x87
->  [<ffffffff810038d0>] ? kernel_thread_helper+0x0/0x10
-> Code: 00 8b 87 6c 02 00 00 85 c0 74 14 48 98 f0 48 01 86 a0 02 00 00 c7 87 6c 02 00 00 00 00 00 00 8b 87 70 02 00 00 85 c0 74 14 48 98 <f0> 48 01 86 a8 02 00 00 c7 87 70 02 00 00 00 00 00 00 8b 87 74
-> RIP  [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
->  RSP <ffff8802379b7e60>
-> CR2: 00000000000002a8
-> ---[ end trace 41603ba922beddd2 ]---
-> Fixing recursive fault but reboot is needed!
-> 
-> (note: handle_rx_net is a work item using workqueue in question).
-> sync_mm_rss+0x33/0x6f gave me a hint. I also tried reverting
-> 34e55232e59f7b19050267a05ff1226e5cd122a5 and the oops goes away.
-> 
-> The module in question calls use_mm and later unuse_mm from a kernel
-> thread.  It is when this kernel thread is destroyed that the crash
-> happens.
-> 
-> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
 
-Thank you very much.
+Perhaps, but we should probably handle exit racing conditions with 
+PF_EXITING instead of TIF_MEMDIE.  We also need to filter these tasks 
+according to memcg and cpusets since oom killed tasks in other cgroups 
+shouldn't make the oom killer a no-op for current.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I'll add this:
+---
+ mm/oom_kill.c |   12 ++++++------
+ 1 files changed, 6 insertions(+), 6 deletions(-)
 
-
-> ---
->  mm/memory.c      |    1 +
->  mm/mmu_context.c |    1 +
->  2 files changed, 2 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index d1153e3..27022b3 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -130,6 +130,7 @@ void __sync_task_rss_stat(struct task_struct *task, struct mm_struct *mm)
->  
->  	for (i = 0; i < NR_MM_COUNTERS; i++) {
->  		if (task->rss_stat.count[i]) {
-> +			BUG_ON(!mm);
->  			add_mm_counter(mm, i, task->rss_stat.count[i]);
->  			task->rss_stat.count[i] = 0;
->  		}
-> diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-> index 0777654..9e82e93 100644
-> --- a/mm/mmu_context.c
-> +++ b/mm/mmu_context.c
-> @@ -53,6 +53,7 @@ void unuse_mm(struct mm_struct *mm)
->  	struct task_struct *tsk = current;
->  
->  	task_lock(tsk);
-> +	sync_mm_rss(tsk, mm);
->  	tsk->mm = NULL;
->  	/* active_mm is still 'mm' */
->  	enter_lazy_tlb(mm, tsk);
-> -- 
-> 1.7.0.18.g0d53a5
-> 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -290,12 +290,6 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 	for_each_process(p) {
+ 		unsigned int points;
+ 
+-		/*
+-		 * skip kernel threads and tasks which have already released
+-		 * their mm.
+-		 */
+-		if (!p->mm)
+-			continue;
+ 		/* skip the init task */
+ 		if (is_global_init(p))
+ 			continue;
+@@ -336,6 +330,12 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 			*ppoints = 1000;
+ 		}
+ 
++		/*
++		 * skip kernel threads and tasks which have already released
++		 * their mm.
++		 */
++		if (!p->mm)
++			continue;
+ 		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+ 			continue;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
