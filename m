@@ -1,101 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D0FA6B01CA
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:12:12 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8687F6B01D0
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:12:15 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 04/96] eclone (4/11): Add target_pids parameter to alloc_pid()
-Date: Wed, 17 Mar 2010 12:07:52 -0400
-Message-Id: <1268842164-5590-5-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-4-git-send-email-orenl@cs.columbia.edu>
+Subject: [C/R v20][PATCH 13/96] c/r: break out new_user_ns()
+Date: Wed, 17 Mar 2010 12:08:01 -0400
+Message-Id: <1268842164-5590-14-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-13-git-send-email-orenl@cs.columbia.edu>
 References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
  <1268842164-5590-4-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-5-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-6-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-7-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-8-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-9-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-10-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-11-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-12-git-send-email-orenl@cs.columbia.edu>
+ <1268842164-5590-13-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-From: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+From: Serge E. Hallyn <serue@us.ibm.com>
 
-This parameter is currently NULL, but will be used in a follow-on patch.
+Break out the core function which checks privilege and (if
+allowed) creates a new user namespace, with the passed-in
+creating user_struct.  Note that a user_namespace, unlike
+other namespace pointers, is not stored in the nsproxy.
+Rather it is purely a property of user_structs.
 
-Signed-off-by: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
-Acked-by: Serge E. Hallyn <serue@us.ibm.com>
-Tested-by: Serge E. Hallyn <serue@us.ibm.com>
-Reviewed-by: Oren Laadan <orenl@cs.columbia.edu>
+This will let us keep the task restore code simpler.
+
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+Acked-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- include/linux/pid.h |    2 +-
- kernel/fork.c       |    3 ++-
- kernel/pid.c        |    9 +++++++--
- 3 files changed, 10 insertions(+), 4 deletions(-)
+ include/linux/user_namespace.h |    8 ++++++
+ kernel/user_namespace.c        |   53 ++++++++++++++++++++++++++++------------
+ 2 files changed, 45 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/pid.h b/include/linux/pid.h
-index 49f1c2f..914185d 100644
---- a/include/linux/pid.h
-+++ b/include/linux/pid.h
-@@ -119,7 +119,7 @@ extern struct pid *find_get_pid(int nr);
- extern struct pid *find_ge_pid(int nr, struct pid_namespace *);
- int next_pidmap(struct pid_namespace *pid_ns, int last);
+diff --git a/include/linux/user_namespace.h b/include/linux/user_namespace.h
+index cc4f453..f6ea75d 100644
+--- a/include/linux/user_namespace.h
++++ b/include/linux/user_namespace.h
+@@ -20,6 +20,8 @@ extern struct user_namespace init_user_ns;
  
--extern struct pid *alloc_pid(struct pid_namespace *ns);
-+extern struct pid *alloc_pid(struct pid_namespace *ns, pid_t *target_pids);
- extern void free_pid(struct pid *pid);
+ #ifdef CONFIG_USER_NS
  
- /*
-diff --git a/kernel/fork.c b/kernel/fork.c
-index e9cf524..2e10cb8 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -985,6 +985,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
- 	int retval;
- 	struct task_struct *p;
- 	int cgroup_callbacks_done = 0;
-+	pid_t *target_pids = NULL;
- 
- 	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
- 		return ERR_PTR(-EINVAL);
-@@ -1167,7 +1168,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
- 		goto bad_fork_cleanup_io;
- 
- 	if (pid != &init_struct_pid) {
--		pid = alloc_pid(p->nsproxy->pid_ns);
-+		pid = alloc_pid(p->nsproxy->pid_ns, target_pids);
- 		if (IS_ERR(pid)) {
- 			retval = PTR_ERR(pid);
- 			goto bad_fork_cleanup_io;
-diff --git a/kernel/pid.c b/kernel/pid.c
-index 1f15bb6..b0d7fc9 100644
---- a/kernel/pid.c
-+++ b/kernel/pid.c
-@@ -276,13 +276,14 @@ void free_pid(struct pid *pid)
- 	call_rcu(&pid->rcu, delayed_put_pid);
- }
- 
--struct pid *alloc_pid(struct pid_namespace *ns)
-+struct pid *alloc_pid(struct pid_namespace *ns, pid_t *target_pids)
++struct user_namespace *new_user_ns(struct user_struct *creator,
++				   struct user_struct **newroot);
+ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
  {
- 	struct pid *pid;
- 	enum pid_type type;
- 	int i, nr;
- 	struct pid_namespace *tmp;
- 	struct upid *upid;
-+	pid_t tpid;
+ 	if (ns)
+@@ -38,6 +40,12 @@ static inline void put_user_ns(struct user_namespace *ns)
  
- 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
- 	if (!pid) {
-@@ -292,7 +293,11 @@ struct pid *alloc_pid(struct pid_namespace *ns)
+ #else
  
- 	tmp = ns;
- 	for (i = ns->level; i >= 0; i--) {
--		nr = alloc_pidmap(tmp);
-+		tpid = 0;
-+		if (target_pids)
-+			tpid = target_pids[i];
++static inline struct user_namespace *new_user_ns(struct user_struct *creator,
++				   struct user_struct **newroot)
++{
++	return ERR_PTR(-EINVAL);
++}
 +
-+		nr = set_pidmap(tmp, tpid);
- 		if (nr < 0)
- 			goto out_free;
+ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
+ {
+ 	return &init_user_ns;
+diff --git a/kernel/user_namespace.c b/kernel/user_namespace.c
+index 076c7c8..e624b0f 100644
+--- a/kernel/user_namespace.c
++++ b/kernel/user_namespace.c
+@@ -11,15 +11,8 @@
+ #include <linux/user_namespace.h>
+ #include <linux/cred.h>
+ 
+-/*
+- * Create a new user namespace, deriving the creator from the user in the
+- * passed credentials, and replacing that user with the new root user for the
+- * new namespace.
+- *
+- * This is called by copy_creds(), which will finish setting the target task's
+- * credentials.
+- */
+-int create_user_ns(struct cred *new)
++static struct user_namespace *_new_user_ns(struct user_struct *creator,
++				   struct user_struct **newroot)
+ {
+ 	struct user_namespace *ns;
+ 	struct user_struct *root_user;
+@@ -27,7 +20,7 @@ int create_user_ns(struct cred *new)
+ 
+ 	ns = kmalloc(sizeof(struct user_namespace), GFP_KERNEL);
+ 	if (!ns)
+-		return -ENOMEM;
++		return ERR_PTR(-ENOMEM);
+ 
+ 	kref_init(&ns->kref);
+ 
+@@ -38,12 +31,43 @@ int create_user_ns(struct cred *new)
+ 	root_user = alloc_uid(ns, 0);
+ 	if (!root_user) {
+ 		kfree(ns);
+-		return -ENOMEM;
++		return ERR_PTR(-ENOMEM);
+ 	}
+ 
+ 	/* set the new root user in the credentials under preparation */
+-	ns->creator = new->user;
+-	new->user = root_user;
++	ns->creator = creator;
++
++	/* alloc_uid() incremented the userns refcount.  Just set it to 1 */
++	kref_set(&ns->kref, 1);
++
++	*newroot = root_user;
++	return ns;
++}
++
++struct user_namespace *new_user_ns(struct user_struct *creator,
++				   struct user_struct **newroot)
++{
++	if (!capable(CAP_SYS_ADMIN))
++		return ERR_PTR(-EPERM);
++	return _new_user_ns(creator, newroot);
++}
++
++/*
++ * Create a new user namespace, deriving the creator from the user in the
++ * passed credentials, and replacing that user with the new root user for the
++ * new namespace.
++ *
++ * This is called by copy_creds(), which will finish setting the target task's
++ * credentials.
++ */
++int create_user_ns(struct cred *new)
++{
++	struct user_namespace *ns;
++
++	ns = new_user_ns(new->user, &new->user);
++	if (IS_ERR(ns))
++		return PTR_ERR(ns);
++
+ 	new->uid = new->euid = new->suid = new->fsuid = 0;
+ 	new->gid = new->egid = new->sgid = new->fsgid = 0;
+ 	put_group_info(new->group_info);
+@@ -54,9 +78,6 @@ int create_user_ns(struct cred *new)
+ #endif
+ 	/* tgcred will be cleared in our caller bc CLONE_THREAD won't be set */
+ 
+-	/* alloc_uid() incremented the userns refcount.  Just set it to 1 */
+-	kref_set(&ns->kref, 1);
+-
+ 	return 0;
+ }
  
 -- 
 1.6.3.3
