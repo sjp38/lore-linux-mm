@@ -1,84 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 12E18600368
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 18:38:03 -0400 (EDT)
-Date: Wed, 17 Mar 2010 23:37:58 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4C7E1600368
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 18:43:19 -0400 (EDT)
+Date: Wed, 17 Mar 2010 23:43:15 +0100
 From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH -mmotm 4/5] memcg: dirty pages accounting and limiting
- infrastructure
-Message-ID: <20100317223758.GB8467@linux.develer.com>
+Subject: Re: [PATCH -mmotm 2/5] memcg: dirty memory documentation
+Message-ID: <20100317224314.GC8467@linux.develer.com>
 References: <1268609202-15581-1-git-send-email-arighi@develer.com>
- <1268609202-15581-5-git-send-email-arighi@develer.com>
- <20100316113238.f7d74848.nishimura@mxp.nes.nec.co.jp>
- <20100316141150.GC9144@redhat.com>
+ <1268609202-15581-3-git-send-email-arighi@develer.com>
+ <20100316164121.024e35d8.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100316141150.GC9144@redhat.com>
+In-Reply-To: <20100316164121.024e35d8.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 16, 2010 at 10:11:50AM -0400, Vivek Goyal wrote:
-> On Tue, Mar 16, 2010 at 11:32:38AM +0900, Daisuke Nishimura wrote:
-> 
-> [..]
-> > > + * mem_cgroup_page_stat() - get memory cgroup file cache statistics
-> > > + * @item:	memory statistic item exported to the kernel
-> > > + *
-> > > + * Return the accounted statistic value, or a negative value in case of error.
-> > > + */
-> > > +s64 mem_cgroup_page_stat(enum mem_cgroup_read_page_stat_item item)
-> > > +{
-> > > +	struct mem_cgroup_page_stat stat = {};
-> > > +	struct mem_cgroup *mem;
-> > > +
-> > > +	rcu_read_lock();
-> > > +	mem = mem_cgroup_from_task(current);
-> > > +	if (mem && !mem_cgroup_is_root(mem)) {
-> > > +		/*
-> > > +		 * If we're looking for dirtyable pages we need to evaluate
-> > > +		 * free pages depending on the limit and usage of the parents
-> > > +		 * first of all.
-> > > +		 */
-> > > +		if (item == MEMCG_NR_DIRTYABLE_PAGES)
-> > > +			stat.value = memcg_get_hierarchical_free_pages(mem);
-> > > +		/*
-> > > +		 * Recursively evaluate page statistics against all cgroup
-> > > +		 * under hierarchy tree
-> > > +		 */
-> > > +		stat.item = item;
-> > > +		mem_cgroup_walk_tree(mem, &stat, mem_cgroup_page_stat_cb);
-> > > +	} else
-> > > +		stat.value = -EINVAL;
-> > > +	rcu_read_unlock();
-> > > +
-> > > +	return stat.value;
-> > > +}
-> > > +
-> > hmm, mem_cgroup_page_stat() can return negative value, but you place BUG_ON()
-> > in [5/5] to check it returns negative value. What happens if the current is moved
-> > to root between mem_cgroup_has_dirty_limit() and mem_cgroup_page_stat() ?
-> > How about making mem_cgroup_has_dirty_limit() return the target mem_cgroup, and
-> > passing the mem_cgroup to mem_cgroup_page_stat() ?
+On Tue, Mar 16, 2010 at 04:41:21PM +0900, Daisuke Nishimura wrote:
+> On Mon, 15 Mar 2010 00:26:39 +0100, Andrea Righi <arighi@develer.com> wrote:
+> > Document cgroup dirty memory interfaces and statistics.
 > > 
-> 
-> Hmm, if mem_cgroup_has_dirty_limit() retrun pointer to memcg, then one
-> shall have to use rcu_read_lock() and that will look ugly.
-> 
-> Why don't we simply look at the return value and if it is negative, we
-> fall back to using global stats and get rid of BUG_ON()?
+> > Signed-off-by: Andrea Righi <arighi@develer.com>
+> > ---
+> >  Documentation/cgroups/memory.txt |   36 ++++++++++++++++++++++++++++++++++++
+> >  1 files changed, 36 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> > index 49f86f3..38ca499 100644
+> > --- a/Documentation/cgroups/memory.txt
+> > +++ b/Documentation/cgroups/memory.txt
+> > @@ -310,6 +310,11 @@ cache		- # of bytes of page cache memory.
+> >  rss		- # of bytes of anonymous and swap cache memory.
+> >  pgpgin		- # of pages paged in (equivalent to # of charging events).
+> >  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
+> > +filedirty	- # of pages that are waiting to get written back to the disk.
+> > +writeback	- # of pages that are actively being written back to the disk.
+> > +writeback_tmp	- # of pages used by FUSE for temporary writeback buffers.
+> > +nfs		- # of NFS pages sent to the server, but not yet committed to
+> > +		  the actual storage.
+> >  active_anon	- # of bytes of anonymous and  swap cache memory on active
+> >  		  lru list.
+> >  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+> > @@ -345,6 +350,37 @@ Note:
+> >    - a cgroup which uses hierarchy and it has child cgroup.
+> >    - a cgroup which uses hierarchy and not the root of hierarchy.
+> >  
+> > +5.4 dirty memory
+> > +
+> > +  Control the maximum amount of dirty pages a cgroup can have at any given time.
+> > +
+> > +  Limiting dirty memory is like fixing the max amount of dirty (hard to
+> > +  reclaim) page cache used by any cgroup. So, in case of multiple cgroup writers,
+> > +  they will not be able to consume more than their designated share of dirty
+> > +  pages and will be forced to perform write-out if they cross that limit.
+> > +
+> > +  The interface is equivalent to the procfs interface: /proc/sys/vm/dirty_*.
+> > +  It is possible to configure a limit to trigger both a direct writeback or a
+> > +  background writeback performed by per-bdi flusher threads.
+> > +
+> > +  Per-cgroup dirty limits can be set using the following files in the cgroupfs:
+> > +
+> > +  - memory.dirty_ratio: contains, as a percentage of cgroup memory, the
+> > +    amount of dirty memory at which a process which is generating disk writes
+> > +    inside the cgroup will start itself writing out dirty data.
+> > +
+> > +  - memory.dirty_bytes: the amount of dirty memory of the cgroup (expressed in
+> > +    bytes) at which a process generating disk writes will start itself writing
+> > +    out dirty data.
+> > +
+> > +  - memory.dirty_background_ratio: contains, as a percentage of the cgroup
+> > +    memory, the amount of dirty memory at which background writeback kernel
+> > +    threads will start writing out dirty data.
+> > +
+> > +  - memory.dirty_background_bytes: the amount of dirty memory of the cgroup (in
+> > +    bytes) at which background writeback kernel threads will start writing out
+> > +    dirty data.
+> > +
+> >  
+> It would be better to note that what those files of root cgroup mean.
+> We cannot write any value to them, IOW, we cannot control dirty limit about root cgroup.
 
-I vote for this one. IMHO the caller of mem_cgroup_page_stat() should
-fallback to the equivalent global stats. This allows to keep the things
-separated and put in mm/memcontrol.c only the memcg stuff.
+OK.
 
-> 
-> Or, modify mem_cgroup_page_stat() to return global stats if it can't
-> determine per cgroup stat for some reason. (mem=NULL or root cgroup etc).
-> 
-> Vivek
+> And they show the same value as the global one(strictly speaking, it's not true
+> because global values can change. We need a hook in mem_cgroup_dirty_read()?).
+
+OK, we can just return system-wide value if mem_cgroup_is_root() in
+mem_cgroup_dirty_read(). Will change this in the next version.
 
 Thanks,
 -Andrea
