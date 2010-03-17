@@ -1,157 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 556E96B01AE
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:21:40 -0400 (EDT)
-Content-Type: text/plain; charset="us-ascii"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 47ABB6B01B3
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 11:25:09 -0400 (EDT)
+Date: Wed, 17 Mar 2010 15:24:53 +0000
+From: Chris Webb <chris@arachsys.com>
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
+ parameter
+Message-ID: <20100317152452.GZ31148@arachsys.com>
+References: <20100315072214.GA18054@balbir.in.ibm.com>
+ <4B9DE635.8030208@redhat.com>
+ <20100315080726.GB18054@balbir.in.ibm.com>
+ <4B9DEF81.6020802@redhat.com>
+ <20100315202353.GJ3840@arachsys.com>
+ <4B9F4CBD.3020805@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Subject: [PATCH 17 of 34] pte alloc trans splitting
-Message-Id: <f07200b55a87fc6e5d5b.1268839159@v2.random>
-In-Reply-To: <patchbomb.1268839142@v2.random>
-References: <patchbomb.1268839142@v2.random>
-Date: Wed, 17 Mar 2010 16:19:19 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4B9F4CBD.3020805@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Avi Kivity <avi@redhat.com>
+Cc: balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, Kevin Wolf <kwolf@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+Avi Kivity <avi@redhat.com> writes:
 
-pte alloc routines must wait for split_huge_page if the pmd is not
-present and not null (i.e. pmd_trans_splitting). The additional
-branches are optimized away at compile time by pmd_trans_splitting if
-the config option is off. However we must pass the vma down in order
-to know the anon_vma lock to wait for.
+> On 03/15/2010 10:23 PM, Chris Webb wrote:
+>
+> >Wasteful duplication of page cache between guest and host notwithstanding,
+> >turning on cache=writeback is a spectacular performance win for our guests.
+> 
+> Is this with qcow2, raw file, or direct volume access?
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
----
+This is with direct access to logical volumes. No file systems or qcow2 in
+the stack. Our typical host has a couple of SATA disks, combined in md
+RAID1, chopped up into volumes with LVM2 (really just dm linear targets).
+The performance measured outside qemu is excellent, inside qemu-kvm is fine
+too until multiple guests are trying to access their drives at once, but
+then everything starts to grind badly.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1066,7 +1066,8 @@ static inline int __pmd_alloc(struct mm_
- int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
- #endif
- 
--int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
-+int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-+		pmd_t *pmd, unsigned long address);
- int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
- 
- /*
-@@ -1135,12 +1136,14 @@ static inline void pgtable_page_dtor(str
- 	pte_unmap(pte);					\
- } while (0)
- 
--#define pte_alloc_map(mm, pmd, address)			\
--	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
--		NULL: pte_offset_map(pmd, address))
-+#define pte_alloc_map(mm, vma, pmd, address)				\
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, vma,	\
-+							pmd, address))?	\
-+	 NULL: pte_offset_map(pmd, address))
- 
- #define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
--	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
-+	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, NULL,	\
-+							pmd, address))?	\
- 		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
- 
- #define pte_alloc_kernel(pmd, address)			\
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -395,9 +395,11 @@ void free_pgtables(struct mmu_gather *tl
- 	}
- }
- 
--int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
-+int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-+		pmd_t *pmd, unsigned long address)
- {
- 	pgtable_t new = pte_alloc_one(mm, address);
-+	int wait_split_huge_page;
- 	if (!new)
- 		return -ENOMEM;
- 
-@@ -417,14 +419,18 @@ int __pte_alloc(struct mm_struct *mm, pm
- 	smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
- 
- 	spin_lock(&mm->page_table_lock);
--	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
-+	wait_split_huge_page = 0;
-+	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
- 		mm->nr_ptes++;
- 		pmd_populate(mm, pmd, new);
- 		new = NULL;
--	}
-+	} else if (unlikely(pmd_trans_splitting(*pmd)))
-+		wait_split_huge_page = 1;
- 	spin_unlock(&mm->page_table_lock);
- 	if (new)
- 		pte_free(mm, new);
-+	if (wait_split_huge_page)
-+		wait_split_huge_page(vma->anon_vma, pmd);
- 	return 0;
- }
- 
-@@ -437,10 +443,11 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
- 	smp_wmb(); /* See comment in __pte_alloc */
- 
- 	spin_lock(&init_mm.page_table_lock);
--	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
-+	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
- 		pmd_populate_kernel(&init_mm, pmd, new);
- 		new = NULL;
--	}
-+	} else
-+		VM_BUG_ON(pmd_trans_splitting(*pmd));
- 	spin_unlock(&init_mm.page_table_lock);
- 	if (new)
- 		pte_free_kernel(&init_mm, new);
-@@ -3118,7 +3125,7 @@ int handle_mm_fault(struct mm_struct *mm
- 	pmd = pmd_alloc(mm, pud, address);
- 	if (!pmd)
- 		return VM_FAULT_OOM;
--	pte = pte_alloc_map(mm, pmd, address);
-+	pte = pte_alloc_map(mm, vma, pmd, address);
- 	if (!pte)
- 		return VM_FAULT_OOM;
- 
-diff --git a/mm/mremap.c b/mm/mremap.c
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -48,7 +48,8 @@ static pmd_t *get_old_pmd(struct mm_stru
- 	return pmd;
- }
- 
--static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
-+static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
-+			    unsigned long addr)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-@@ -63,7 +64,7 @@ static pmd_t *alloc_new_pmd(struct mm_st
- 	if (!pmd)
- 		return NULL;
- 
--	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
-+	if (!pmd_present(*pmd) && __pte_alloc(mm, vma, pmd, addr))
- 		return NULL;
- 
- 	return pmd;
-@@ -148,7 +149,7 @@ unsigned long move_page_tables(struct vm
- 		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
- 		if (!old_pmd)
- 			continue;
--		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
-+		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
- 		if (!new_pmd)
- 			break;
- 		next = (new_addr + PMD_SIZE) & PMD_MASK;
+> I can understand it for qcow2, but for direct volume access this
+> shouldn't happen.  The guest schedules as many writes as it can,
+> followed by a sync.  The host (and disk) can then reschedule them
+> whether they are in the writeback cache or in the block layer, and
+> must sync in the same way once completed.
+
+I don't really understand what's going on here, but I wonder if the
+underlying problem might be that all the O_DIRECT/O_SYNC writes from the
+guests go down into the same block device at the bottom of the device mapper
+stack, and thus can't be reordered with respect to one another. For our
+purposes,
+
+  Guest AA   Guest BB       Guest AA   Guest BB       Guest AA   Guest BB
+  write A1                  write A1                             write B1
+             write B1       write A2                  write A1
+  write A2                             write B1       write A2
+
+are all equivalent, but the system isn't allowed to reorder in this way
+because there isn't a separate request queue for each logical volume, just
+the one at the bottom. (I don't know whether nested request queues would
+behave remotely reasonably either, though!)
+
+Also, if my guest kernel issues (say) three small writes, one at the start
+of the disk, one in the middle, one at the end, and then does a flush, can
+virtio really express this as one non-contiguous O_DIRECT write (the three
+components of which can be reordered by the elevator with respect to one
+another) rather than three distinct O_DIRECT writes which can't be permuted?
+Can qemu issue a write like that? cache=writeback + flush allows this to be
+optimised by the block layer in the normal way.
+
+Cheers,
+
+Chris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
