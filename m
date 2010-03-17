@@ -1,45 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 312F4620026
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 05:11:02 -0400 (EDT)
-Message-ID: <4BA09C9D.1030608@redhat.com>
-Date: Wed, 17 Mar 2010 11:10:53 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B7F4C6B00D1
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 06:31:58 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2HAVsJ0008946
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 17 Mar 2010 19:31:55 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A1B545DE53
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 19:31:54 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 743CA45DE51
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 19:31:54 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 515D9E18001
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 19:31:54 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 05F1D1DB803C
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 19:31:54 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 07/11] Memory compaction core
+In-Reply-To: <1268412087-13536-8-git-send-email-mel@csn.ul.ie>
+References: <1268412087-13536-1-git-send-email-mel@csn.ul.ie> <1268412087-13536-8-git-send-email-mel@csn.ul.ie>
+Message-Id: <20100317170116.870A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot parameter
-References: <20100315072214.GA18054@balbir.in.ibm.com> <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com> <4B9DEF81.6020802@redhat.com> <20100315202353.GJ3840@arachsys.com> <4B9F4CBD.3020805@redhat.com> <20100316102637.GA23584@lst.de> <4B9F5F2F.8020501@redhat.com> <20100316104422.GA24258@lst.de> <4B9F66AC.5080400@redhat.com> <20100317084911.GA9098@lst.de>
-In-Reply-To: <20100317084911.GA9098@lst.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 17 Mar 2010 19:31:53 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@lst.de>
-Cc: Chris Webb <chris@arachsys.com>, balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kevin Wolf <kwolf@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/17/2010 10:49 AM, Christoph Hellwig wrote:
-> On Tue, Mar 16, 2010 at 01:08:28PM +0200, Avi Kivity wrote:
->    
->> If the batch size is larger than the virtio queue size, or if there are
->> no flushes at all, then yes the huge write cache gives more opportunity
->> for reordering.  But we're already talking hundreds of requests here.
->>      
-> Yes.  And rememember those don't have to come from the same host.  Also
-> remember that we rather limit execssive reodering of O_DIRECT requests
-> in the I/O scheduler because they are "synchronous" type I/O while
-> we don't do that for pagecache writeback.
->    
+nit
 
-Maybe we should relax that for kvm.  Perhaps some of the problem comes 
-from the fact that we call io_submit() once per request.
+> +static int compact_zone(struct zone *zone, struct compact_control *cc)
+> +{
+> +	int ret = COMPACT_INCOMPLETE;
+> +
+> +	/* Setup to move all movable pages to the end of the zone */
+> +	cc->migrate_pfn = zone->zone_start_pfn;
+> +	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
+> +	cc->free_pfn &= ~(pageblock_nr_pages-1);
+> +
+> +	for (; ret == COMPACT_INCOMPLETE; ret = compact_finished(zone, cc)) {
+> +		unsigned long nr_migrate, nr_remaining;
+> +		if (!isolate_migratepages(zone, cc))
+> +			continue;
+> +
+> +		nr_migrate = cc->nr_migratepages;
+> +		migrate_pages(&cc->migratepages, compaction_alloc,
+> +						(unsigned long)cc, 0);
+> +		update_nr_listpages(cc);
+> +		nr_remaining = cc->nr_migratepages;
+> +
+> +		count_vm_event(COMPACTBLOCKS);
 
-> And we don't have unlimited virtio queue size, in fact it's quite
-> limited.
->    
+V1 did compaction per pageblock. but current patch doesn't.
+so, Is COMPACTBLOCKS still good name?
 
-That can be extended easily if it fixes the problem.
 
--- 
-error compiling committee.c: too many arguments to function
+> +		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
+> +		if (nr_remaining)
+> +			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
+> +
+> +		/* Release LRU pages not migrated */
+> +		if (!list_empty(&cc->migratepages)) {
+> +			putback_lru_pages(&cc->migratepages);
+> +			cc->nr_migratepages = 0;
+> +		}
+> +
+> +		mod_zone_page_state(zone, NR_ISOLATED_ANON, -cc->nr_anon);
+> +		mod_zone_page_state(zone, NR_ISOLATED_FILE, -cc->nr_file);
+
+I think you don't need decrease this vmstatistics here. migrate_pages() and
+putback_lru_pages() alredy does.
+
+
+other parts, looks good.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
