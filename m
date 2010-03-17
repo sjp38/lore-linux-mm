@@ -1,132 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E325162003F
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:26:13 -0400 (EDT)
-From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [C/R v20][PATCH 86/96] powerpc: reserve checkpoint arch identifiers
-Date: Wed, 17 Mar 2010 12:09:14 -0400
-Message-Id: <1268842164-5590-87-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1268842164-5590-86-git-send-email-orenl@cs.columbia.edu>
-References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-2-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-3-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-4-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-5-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-6-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-7-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-8-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-9-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-10-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-11-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-12-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-13-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-14-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-15-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-16-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-17-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-18-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-19-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-20-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-21-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-22-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-23-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-24-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-25-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-26-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-27-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-28-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-29-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-30-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-31-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-32-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-33-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-34-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-35-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-36-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-37-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-38-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-39-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-40-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-41-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-42-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-43-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-44-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-45-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-46-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-47-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-48-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-49-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-50-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-51-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-52-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-53-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-54-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-55-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-56-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-57-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-58-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-59-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-60-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-61-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-62-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-63-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-64-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-65-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-66-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-67-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-68-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-69-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-70-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-71-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-72-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-73-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-74-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-75-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-76-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-77-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-78-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-79-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-80-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-81-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-82-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-83-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-84-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-85-git-send-email-orenl@cs.columbia.edu>
- <1268842164-5590-86-git-send-email-orenl@cs.columbia.edu>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EA35162003F
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 12:27:03 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id o2HGQwYL029020
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 09:26:58 -0700
+Received: from fxm8 (fxm8.prod.google.com [10.184.13.8])
+	by wpaz13.hot.corp.google.com with ESMTP id o2HGQtOL009657
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 09:26:57 -0700
+Received: by fxm8 with SMTP id 8so450728fxm.25
+        for <linux-mm@kvack.org>; Wed, 17 Mar 2010 09:26:55 -0700 (PDT)
+Date: Wed, 17 Mar 2010 16:26:41 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 3/5] tmpfs: handle MPOL_LOCAL mount option properly
+In-Reply-To: <20100316145022.4C4E.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1003171619410.29003@sister.anvils>
+References: <201003122353.o2CNrC56015250@imap1.linux-foundation.org> <20100316143406.4C45.A69D9226@jp.fujitsu.com> <20100316145022.4C4E.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Nathan Lynch <ntl@pobox.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, kiran@scalex86.org, cl@linux-foundation.org, lee.schermerhorn@hp.com, mel@csn.ul.ie, stable@kernel.org, linux-mm <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-From: Nathan Lynch <ntl@pobox.com>
+On Tue, 16 Mar 2010, KOSAKI Motohiro wrote:
 
-Changelog [v19-rc1]:
-  - [Matt Helsley] Add cpp definitions for enums
+> commit 71fe804b6d5 (mempolicy: use struct mempolicy pointer in
+> shmem_sb_info) added mpol=local mount option. but its feature is
+> broken since it was born. because such code always return 1 (i.e.
+> mount failure).
+> 
+> This patch fixes it.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Ravikiran Thirumalai <kiran@scalex86.org>
 
-Signed-off-by: Nathan Lynch <ntl@pobox.com>
-Acked-by: Serge E. Hallyn <serue@us.ibm.com>
-Tested-by: Serge E. Hallyn <serue@us.ibm.com>
----
- include/linux/checkpoint_hdr.h |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+Thank you both for finding and fixing these mpol embarrassments.
 
-diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index 28dfc36..acf964a 100644
---- a/include/linux/checkpoint_hdr.h
-+++ b/include/linux/checkpoint_hdr.h
-@@ -185,6 +185,10 @@ enum {
- #define CKPT_ARCH_X86_64 CKPT_ARCH_X86_64
- 	CKPT_ARCH_S390X,
- #define CKPT_ARCH_S390X CKPT_ARCH_S390X
-+	CKPT_ARCH_PPC32,
-+#define CKPT_ARCH_PPC32 CKPT_ARCH_PPC32
-+	CKPT_ARCH_PPC64,
-+#define CKPT_ARCH_PPC64 CKPT_ARCH_PPC64
- };
- 
- /* shared objrects (objref) */
--- 
-1.6.3.3
+But if this "mpol=local" feature was never documented (not even in the
+commit log), has been broken since birth 20 months ago, and nobody has
+noticed: wouldn't it be better to save a little bloat and just rip it out?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
