@@ -1,115 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C39C6B0127
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 07:43:23 -0400 (EDT)
-Date: Thu, 18 Mar 2010 11:43:03 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 07/11] Memory compaction core
-Message-ID: <20100318114302.GM12388@csn.ul.ie>
-References: <20100317170116.870A.A69D9226@jp.fujitsu.com> <20100317114045.GE12388@csn.ul.ie> <20100318085741.8729.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100318085741.8729.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id F36F46B010C
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:46:30 -0400 (EDT)
+Received: by pxi34 with SMTP id 34so1509674pxi.22
+        for <linux-mm@kvack.org>; Thu, 18 Mar 2010 05:46:28 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH 1/2] mempolicy:del case MPOL_INTERLEAVE in policy_zonelist()
+Date: Thu, 18 Mar 2010 20:46:16 +0800
+Message-Id: <1268916376-8695-1-git-send-email-user@bob-laptop>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, Bob Liu <lliubbo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 18, 2010 at 11:35:46AM +0900, KOSAKI Motohiro wrote:
-> > On Wed, Mar 17, 2010 at 07:31:53PM +0900, KOSAKI Motohiro wrote:
-> > > nit
-> > > 
-> > > > +static int compact_zone(struct zone *zone, struct compact_control *cc)
-> > > > +{
-> > > > +	int ret = COMPACT_INCOMPLETE;
-> > > > +
-> > > > +	/* Setup to move all movable pages to the end of the zone */
-> > > > +	cc->migrate_pfn = zone->zone_start_pfn;
-> > > > +	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
-> > > > +	cc->free_pfn &= ~(pageblock_nr_pages-1);
-> > > > +
-> > > > +	for (; ret == COMPACT_INCOMPLETE; ret = compact_finished(zone, cc)) {
-> > > > +		unsigned long nr_migrate, nr_remaining;
-> > > > +		if (!isolate_migratepages(zone, cc))
-> > > > +			continue;
-> > > > +
-> > > > +		nr_migrate = cc->nr_migratepages;
-> > > > +		migrate_pages(&cc->migratepages, compaction_alloc,
-> > > > +						(unsigned long)cc, 0);
-> > > > +		update_nr_listpages(cc);
-> > > > +		nr_remaining = cc->nr_migratepages;
-> > > > +
-> > > > +		count_vm_event(COMPACTBLOCKS);
-> > > 
-> > > V1 did compaction per pageblock. but current patch doesn't.
-> > > so, Is COMPACTBLOCKS still good name?
-> > 
-> > It's not such a minor nit. I wondered about that myself but it's still a
-> > block - just not a pageblock. Would COMPACTCLUSTER be a better name as it's
-> > related to COMPACT_CLUSTER_MAX?
-> 
-> I've looked at this code again. honestly I'm a abit confusing even though both your
-> suggestions seems reasonable.  
-> 
-> now COMPACTBLOCKS is tracking #-of-called-migrate_pages. but I can't imazine
-> how to use it. can you please explain this ststics purpose? probably this is only useful
-> when conbination other stats, and the name should be consist with such combination one.
-> 
+From: Bob Liu <lliubbo@gmail.com>
 
-It is intended to count how many steps compaction took, the fewer the
-better so minimally, the lower this number is the better. Specifically, the
-"goodness" is related to the number of pages that were successfully allocated
-due to compaction. Assuming the only high-order allocation was huge pages,
-one possible calculation for "goodness" is;
+In policy_zonelist() mode MPOL_INTERLEAVE shouldn't happen,
+so fall through to BUG() instead of break to return.I also fix
+the comment.
 
-hugepage_clusters = (1 << HUGE HUGETLB_PAGE_ORDER) / COMPACT_CLUSTER_MAX
-goodness = (compactclusters / hugepage_clusters) / compactsuccess
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/mempolicy.c |    4 +---
+ 1 files changed, 1 insertions(+), 3 deletions(-)
 
-The value of goodness is undefined if "compactsuccess" is 0.
-
-Otherwise, the closer the "goodness" is to 1, the better. A value of 1
-implies that compaction is selecting exactly the right blocks for migration
-and the minimum number of pages are being moved around. The greater the value,
-the more "useless" work compaction is doing.
-
-If there are a mix of high-orders that are resulting in compaction, calculating
-the goodness is a lot harder and compactcluster is just a rule of thumb as
-to how much work compaction is doing.
-
-Does that make sense?
-
-> 
-> > > > +		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
-> > > > +		if (nr_remaining)
-> > > > +			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
-> > > > +
-> > > > +		/* Release LRU pages not migrated */
-> > > > +		if (!list_empty(&cc->migratepages)) {
-> > > > +			putback_lru_pages(&cc->migratepages);
-> > > > +			cc->nr_migratepages = 0;
-> > > > +		}
-> > > > +
-> > > > +		mod_zone_page_state(zone, NR_ISOLATED_ANON, -cc->nr_anon);
-> > > > +		mod_zone_page_state(zone, NR_ISOLATED_FILE, -cc->nr_file);
-> > > 
-> > > I think you don't need decrease this vmstatistics here. migrate_pages() and
-> > > putback_lru_pages() alredy does.
-> > > 
-> > 
-> > Hmm, I do need to decrease the vmstats here but not by this much. The
-> > pages migrated need to be accounted for but not the ones that failed. I
-> > missed this because migration was always succeeding. Thanks. I'll get it
-> > fixed for V5
-> 
-> thanks.
-> 
-> 
-
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 643f66e..b88e914 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1441,15 +1441,13 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
+ 		/*
+ 		 * Normally, MPOL_BIND allocations are node-local within the
+ 		 * allowed nodemask.  However, if __GFP_THISNODE is set and the
+-		 * current node is part of the mask, we use the zonelist for
++		 * current node isn't part of the mask, we use the zonelist for
+ 		 * the first node in the mask instead.
+ 		 */
+ 		if (unlikely(gfp & __GFP_THISNODE) &&
+ 				unlikely(!node_isset(nd, policy->v.nodes)))
+ 			nd = first_node(policy->v.nodes);
+ 		break;
+-	case MPOL_INTERLEAVE: /* should not happen */
+-		break;
+ 	default:
+ 		BUG();
+ 	}
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.5.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
