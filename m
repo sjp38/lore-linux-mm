@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AE0256B010C
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 08:48:07 -0400 (EDT)
-Received: by pxi34 with SMTP id 34so1510389pxi.22
-        for <linux-mm@kvack.org>; Thu, 18 Mar 2010 05:48:06 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 17A036B0138
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 09:20:39 -0400 (EDT)
+Received: by pzk30 with SMTP id 30so1367841pzk.12
+        for <linux-mm@kvack.org>; Thu, 18 Mar 2010 06:20:38 -0700 (PDT)
 From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH 2/2] mempolicy: remove redundant check
-Date: Thu, 18 Mar 2010 20:47:43 +0800
-Message-Id: <1268916463-8757-1-git-send-email-user@bob-laptop>
+Subject: [RESEND][PATCH 2/2] mempolicy: remove redundant check
+Date: Thu, 18 Mar 2010 21:20:31 +0800
+Message-Id: <1268918431-9686-1-git-send-email-user@bob-laptop>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, Bob Liu <lliubbo@gmail.com>
@@ -27,7 +27,7 @@ Signed-off-by: Bob Liu <lliubbo@gmail.com>
  1 files changed, 5 insertions(+), 11 deletions(-)
 
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index b88e914..17df048 100644
+index b88e914..cca9405 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
 @@ -1787,16 +1787,6 @@ struct mempolicy *__mpol_cond_copy(struct mempolicy *tompol,
@@ -47,19 +47,20 @@ index b88e914..17df048 100644
  /* Slow path of a mempolicy comparison */
  int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
  {
-@@ -1804,7 +1794,11 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
+@@ -1804,8 +1794,12 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
  		return 0;
  	if (a->mode != b->mode)
  		return 0;
 -	if (a->mode != MPOL_DEFAULT && !mpol_match_intent(a, b))
 +	if (a->flags != b->flags)
-+		return 0;
-+	if (mpol_store_user_nodemask(a))
-+		return 0;
-+	if (!nodes_equal(a->w.user_nodemask, b->w.user_nodemask))
  		return 0;
++	if (mpol_store_user_nodemask(a))
++		if (!nodes_equal(a->w.user_nodemask, b->w.user_nodemask))
++			return 0;
++
  	switch (a->mode) {
  	case MPOL_BIND:
+ 		/* Fall through */
 -- 
 1.5.6.3
 
