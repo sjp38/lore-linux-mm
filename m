@@ -1,87 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 40D446B00BC
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 02:25:18 -0400 (EDT)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp02.au.ibm.com (8.14.3/8.13.1) with ESMTP id o2I6LsKs012821
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 17:21:54 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2I6P9Yk1781926
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 17:25:10 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2I6P89K015268
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 17:25:09 +1100
-Date: Thu, 18 Mar 2010 11:55:03 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
-Message-ID: <20100318062503.GC18054@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
- <1268609202-15581-2-git-send-email-arighi@develer.com>
- <20100317115855.GS18054@balbir.in.ibm.com>
- <20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
- <20100318041944.GA18054@balbir.in.ibm.com>
- <20100318132114.d5680e1e.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100318132114.d5680e1e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 402F16B00E3
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 02:50:19 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH -mmotm 4/5] memcg: dirty pages accounting and limiting infrastructure
+Date: Wed, 17 Mar 2010 23:48:38 -0700
+Message-Id: <1268894918-26797-1-git-send-email-gthelen@google.com>
+In-Reply-To: <1268609202-15581-5-git-send-email-arighi@develer.com>
+References: <1268609202-15581-5-git-send-email-arighi@develer.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 13:21:14]:
+I have a proposed change to "[PATCH -mmotm 4/5] memcg: dirty pages accounting
+and limiting infrastructure" v6.  The change is small and I am presenting it
+as a git patch (below) to be applied after 4/5 v6 has been applied.
+The change is fairly simple.  An alternative would be to reject my
+patch (below) and enhance get_vm_dirty_param() to loop for consistenty in all
+cases.
 
-> On Thu, 18 Mar 2010 09:49:44 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 08:54:11]:
-> > 
-> > > On Wed, 17 Mar 2010 17:28:55 +0530
-> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > * Andrea Righi <arighi@develer.com> [2010-03-15 00:26:38]:
-> > > > 
-> > > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > > 
-> > > > > Now, file-mapped is maintaiend. But more generic update function
-> > > > > will be needed for dirty page accounting.
-> > > > > 
-> > > > > For accountig page status, we have to guarantee lock_page_cgroup()
-> > > > > will be never called under tree_lock held.
-> > > > > To guarantee that, we use trylock at updating status.
-> > > > > By this, we do fuzzy accounting, but in almost all case, it's correct.
-> > > > >
-> > > > 
-> > > > I don't like this at all, but in almost all cases is not acceptable
-> > > > for statistics, since decisions will be made on them and having them
-> > > > incorrect is really bad. Could we do a form of deferred statistics and
-> > > > fix this.
-> > > > 
-> > > 
-> > > plz show your implementation which has no performance regresssion.
-> > > For me, I don't neee file_mapped accounting, at all. If we can remove that,
-> > > we can add simple migration lock.
-> > 
-> > That doesn't matter, if you need it, I think the larger user base
-> > matters. Unmapped and mapped page cache is critical and I use it
-> > almost daily.
-> > 
-> > > file_mapped is a feattue you added. please improve it.
-> > >
-> > 
-> > I will, but please don't break it silently
-> > 
-> I never do silently. All e-mails are open.
->
+---patch snip here, rest of email is git patch of 4/5 v6 ---
 
-No, I meant it from the Documentation update perspective. The end user
-will be confused when looking at stats without proper documentation. 
+Removed unneeded looping from get_vm_dirty_param().  The only caller of
+get_vm_dirty_param() gracefully handles inconsistent values, so there is no
+need for get_vm_dirty_param() to loop to ensure consistency.  The previous
+looping was inconsistent because it did not loop for the case where memory
+cgroups were disabled.
 
+Signed-off-by: Greg Thelen <gthelen@google.com>
+---
+ mm/memcontrol.c |   28 ++++++++++++----------------
+ 1 files changed, 12 insertions(+), 16 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4d00c0f..990a907 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1081,6 +1081,10 @@ static void __mem_cgroup_get_dirty_param(struct vm_dirty_param *param,
+  * The function fills @param with the current memcg dirty memory settings. If
+  * memory cgroup is disabled or in case of error the structure is filled with
+  * the global dirty memory settings.
++ *
++ * Because global and memcg vm_dirty_param are not protected, inconsistent
++ * values may be returned.  If consistent values are required, then the caller
++ * should call this routine until dirty_param_is_valid() returns true.
+  */
+ void get_vm_dirty_param(struct vm_dirty_param *param)
+ {
+@@ -1090,28 +1094,20 @@ void get_vm_dirty_param(struct vm_dirty_param *param)
+ 		get_global_vm_dirty_param(param);
+ 		return;
+ 	}
++
+ 	/*
+ 	 * It's possible that "current" may be moved to other cgroup while we
+ 	 * access cgroup. But precise check is meaningless because the task can
+ 	 * be moved after our access and writeback tends to take long time.
+ 	 * At least, "memcg" will not be freed under rcu_read_lock().
+ 	 */
+-	while (1) {
+-		rcu_read_lock();
+-		memcg = mem_cgroup_from_task(current);
+-		if (likely(memcg))
+-			__mem_cgroup_get_dirty_param(param, memcg);
+-		else
+-			get_global_vm_dirty_param(param);
+-		rcu_read_unlock();
+-		/*
+-		 * Since global and memcg vm_dirty_param are not protected we
+-		 * try to speculatively read them and retry if we get
+-		 * inconsistent values.
+-		 */
+-		if (likely(dirty_param_is_valid(param)))
+-			break;
+-	}
++	rcu_read_lock();
++	memcg = mem_cgroup_from_task(current);
++	if (likely(memcg))
++		__mem_cgroup_get_dirty_param(param, memcg);
++	else
++		get_global_vm_dirty_param(param);
++	rcu_read_unlock();
+ }
+ 
+ /*
 -- 
-	Three Cheers,
-	Balbir
+1.7.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
