@@ -1,79 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EFD76B01AA
-	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 21:55:45 -0400 (EDT)
-Subject: Re: [PATCH 3/5] tmpfs: handle MPOL_LOCAL mount option properly
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20100318084915.8723.A69D9226@jp.fujitsu.com>
-References: <20100316145022.4C4E.A69D9226@jp.fujitsu.com>
-	 <alpine.LSU.2.00.1003171619410.29003@sister.anvils>
-	 <20100318084915.8723.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Wed, 17 Mar 2010 21:55:38 -0400
-Message-Id: <1268877338.4773.151.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with SMTP id 2987D6B00F3
+	for <linux-mm@kvack.org>; Wed, 17 Mar 2010 22:35:51 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2I2Zmfn029693
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 18 Mar 2010 11:35:48 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EB4145DE4F
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 11:35:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 55F6945DE57
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 11:35:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3466A1DB803B
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 11:35:48 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DDE4D1DB8042
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 11:35:47 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 07/11] Memory compaction core
+In-Reply-To: <20100317114045.GE12388@csn.ul.ie>
+References: <20100317170116.870A.A69D9226@jp.fujitsu.com> <20100317114045.GE12388@csn.ul.ie>
+Message-Id: <20100318085741.8729.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 18 Mar 2010 11:35:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, LKML <linux-kernel@vger.kernel.org>, kiran@scalex86.org, cl@linux-foundation.org, mel@csn.ul.ie, stable@kernel.org, linux-mm <linux-mm@kvack.org>, akpm@linux-foundation.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-03-18 at 08:52 +0900, KOSAKI Motohiro wrote:
-> > On Tue, 16 Mar 2010, KOSAKI Motohiro wrote:
+> On Wed, Mar 17, 2010 at 07:31:53PM +0900, KOSAKI Motohiro wrote:
+> > nit
 > > 
-> > > commit 71fe804b6d5 (mempolicy: use struct mempolicy pointer in
-> > > shmem_sb_info) added mpol=local mount option. but its feature is
-> > > broken since it was born. because such code always return 1 (i.e.
-> > > mount failure).
-> > > 
-> > > This patch fixes it.
-> > > 
-> > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > Cc: Ravikiran Thirumalai <kiran@scalex86.org>
+> > > +static int compact_zone(struct zone *zone, struct compact_control *cc)
+> > > +{
+> > > +	int ret = COMPACT_INCOMPLETE;
+> > > +
+> > > +	/* Setup to move all movable pages to the end of the zone */
+> > > +	cc->migrate_pfn = zone->zone_start_pfn;
+> > > +	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
+> > > +	cc->free_pfn &= ~(pageblock_nr_pages-1);
+> > > +
+> > > +	for (; ret == COMPACT_INCOMPLETE; ret = compact_finished(zone, cc)) {
+> > > +		unsigned long nr_migrate, nr_remaining;
+> > > +		if (!isolate_migratepages(zone, cc))
+> > > +			continue;
+> > > +
+> > > +		nr_migrate = cc->nr_migratepages;
+> > > +		migrate_pages(&cc->migratepages, compaction_alloc,
+> > > +						(unsigned long)cc, 0);
+> > > +		update_nr_listpages(cc);
+> > > +		nr_remaining = cc->nr_migratepages;
+> > > +
+> > > +		count_vm_event(COMPACTBLOCKS);
 > > 
-> > Thank you both for finding and fixing these mpol embarrassments.
-> > 
-> > But if this "mpol=local" feature was never documented (not even in the
-> > commit log), has been broken since birth 20 months ago, and nobody has
-> > noticed: wouldn't it be better to save a little bloat and just rip it out?
+> > V1 did compaction per pageblock. but current patch doesn't.
+> > so, Is COMPACTBLOCKS still good name?
 > 
-> I have no objection if lee agreed, lee?
-> Of cource, if we agree it, we can make the new patch soon :)
+> It's not such a minor nit. I wondered about that myself but it's still a
+> block - just not a pageblock. Would COMPACTCLUSTER be a better name as it's
+> related to COMPACT_CLUSTER_MAX?
+
+I've looked at this code again. honestly I'm a abit confusing even though both your
+suggestions seems reasonable.  
+
+now COMPACTBLOCKS is tracking #-of-called-migrate_pages. but I can't imazine
+how to use it. can you please explain this ststics purpose? probably this is only useful
+when conbination other stats, and the name should be consist with such combination one.
+
+
+> > > +		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
+> > > +		if (nr_remaining)
+> > > +			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
+> > > +
+> > > +		/* Release LRU pages not migrated */
+> > > +		if (!list_empty(&cc->migratepages)) {
+> > > +			putback_lru_pages(&cc->migratepages);
+> > > +			cc->nr_migratepages = 0;
+> > > +		}
+> > > +
+> > > +		mod_zone_page_state(zone, NR_ISOLATED_ANON, -cc->nr_anon);
+> > > +		mod_zone_page_state(zone, NR_ISOLATED_FILE, -cc->nr_file);
+> > 
+> > I think you don't need decrease this vmstatistics here. migrate_pages() and
+> > putback_lru_pages() alredy does.
+> > 
 > 
+> Hmm, I do need to decrease the vmstats here but not by this much. The
+> pages migrated need to be accounted for but not the ones that failed. I
+> missed this because migration was always succeeding. Thanks. I'll get it
+> fixed for V5
 
-Well, given the other issues with mpol_parse_str(), I suspect the entire
-tmpfs mpol option is not used all that often in the mainline kernel.  I
-recall that this feature was introduced by SGI for some of their
-customers who may depend on it.  There have been cases where I could
-have used it were it supported for the SYSV shm and MAP_ANON_MAP_SHARED
-internal tmpfs mount.  Further, note that the addition of "mpol=local"
-occurred between when the major "enterprise distributions" selected a
-new mainline kernel.  Production users of those distros, who are the
-likely users of this feature, tend not to live on the bleeding edge.
-So, maybe we shouldn't read too much into it not being discovered until
-now.
-
-That being said, I suppose I wouldn't be all that opposed to deprecating
-the entire tmpfs mpol option, and see who yells.   If the mpol mount
-options stays, I'd like to see the 'local' option stay.  It's a
-legitimate behavior that one can specify via the system calls and see
-via numa_maps, so I think the mpol mount option, if it exists, should
-support a way to specify it.  
-
-As for bloat, the additional code on the mount option side to support it
-is:
-
-        case MPOL_LOCAL:
-                /*
-                 * Don't allow a nodelist;  mpol_new() checks flags
-                 */
-                if (nodelist)
-                        goto out;
-                mode = MPOL_PREFERRED;
-                break;
-
-Lee
-
+thanks.
 
 
 --
