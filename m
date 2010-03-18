@@ -1,88 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8DE626B0139
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 09:23:34 -0400 (EDT)
-Received: by pxi34 with SMTP id 34so1531687pxi.22
-        for <linux-mm@kvack.org>; Thu, 18 Mar 2010 06:23:32 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5C0DC6B0095
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 12:29:25 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp05.in.ibm.com (8.14.3/8.13.1) with ESMTP id o2IGT0IY021429
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 21:59:00 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2IGT0883248226
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 21:59:00 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2IGSxTL019329
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 21:58:59 +0530
+Date: Thu, 18 Mar 2010 21:58:55 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
+Message-ID: <20100318162855.GG18054@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1268609202-15581-1-git-send-email-arighi@develer.com>
+ <1268609202-15581-2-git-send-email-arighi@develer.com>
+ <20100317115855.GS18054@balbir.in.ibm.com>
+ <20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100318041944.GA18054@balbir.in.ibm.com>
+ <20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1268916463-8757-1-git-send-email-user@bob-laptop>
-References: <1268916463-8757-1-git-send-email-user@bob-laptop>
-Date: Thu, 18 Mar 2010 21:19:49 +0800
-Message-ID: <cf18f8341003180619va7d06fbt5904592dedbc373d@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mempolicy: remove redundant check
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, Bob Liu <lliubbo@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 18, 2010 at 8:47 PM, Bob Liu <lliubbo@gmail.com> wrote:
-> From: Bob Liu <lliubbo@gmail.com>
->
-> Lee's patch "mempolicy: use MPOL_PREFERRED for system-wide
-> default policy" has made the MPOL_DEFAULT only used in the
-> memory policy APIs. So, no need to check in __mpol_equal also.
-> Also get rid of mpol_match_intent() and move its logic directly
-> into __mpol_equal().
->
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
-> =C2=A0mm/mempolicy.c | =C2=A0 16 +++++-----------
-> =C2=A01 files changed, 5 insertions(+), 11 deletions(-)
->
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index b88e914..17df048 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1787,16 +1787,6 @@ struct mempolicy *__mpol_cond_copy(struct mempolic=
-y *tompol,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return tompol;
-> =C2=A0}
->
-> -static int mpol_match_intent(const struct mempolicy *a,
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0const struct mempolicy *b)
-> -{
-> - =C2=A0 =C2=A0 =C2=A0 if (a->flags !=3D b->flags)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
-> - =C2=A0 =C2=A0 =C2=A0 if (!mpol_store_user_nodemask(a))
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 1;
-> - =C2=A0 =C2=A0 =C2=A0 return nodes_equal(a->w.user_nodemask, b->w.user_n=
-odemask);
-> -}
-> -
-> =C2=A0/* Slow path of a mempolicy comparison */
-> =C2=A0int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
-> =C2=A0{
-> @@ -1804,7 +1794,11 @@ int __mpol_equal(struct mempolicy *a, struct mempo=
-licy *b)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (a->mode !=3D b->mode)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
-> - =C2=A0 =C2=A0 =C2=A0 if (a->mode !=3D MPOL_DEFAULT && !mpol_match_inten=
-t(a, b))
-> + =C2=A0 =C2=A0 =C2=A0 if (a->flags !=3D b->flags)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
-> + =C2=A0 =C2=A0 =C2=A0 if (mpol_store_user_nodemask(a))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
-> + =C2=A0 =C2=A0 =C2=A0 if (!nodes_equal(a->w.user_nodemask, b->w.user_nod=
-emask))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0switch (a->mode) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0case MPOL_BIND:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 13:35:27]:
 
-This patch is uncorrect, I have resend a new one :-)
+> On Thu, 18 Mar 2010 09:49:44 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 08:54:11]:
+> > 
+> > > On Wed, 17 Mar 2010 17:28:55 +0530
+> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > 
+> > > > * Andrea Righi <arighi@develer.com> [2010-03-15 00:26:38]:
+> > > > 
+> > > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > > > 
+> > > > > Now, file-mapped is maintaiend. But more generic update function
+> > > > > will be needed for dirty page accounting.
+> > > > > 
+> > > > > For accountig page status, we have to guarantee lock_page_cgroup()
+> > > > > will be never called under tree_lock held.
+> > > > > To guarantee that, we use trylock at updating status.
+> > > > > By this, we do fuzzy accounting, but in almost all case, it's correct.
+> > > > >
+> > > > 
+> > > > I don't like this at all, but in almost all cases is not acceptable
+> > > > for statistics, since decisions will be made on them and having them
+> > > > incorrect is really bad. Could we do a form of deferred statistics and
+> > > > fix this.
+> > > > 
+> > > 
+> > > plz show your implementation which has no performance regresssion.
+> > > For me, I don't neee file_mapped accounting, at all. If we can remove that,
+> > > we can add simple migration lock.
+> > 
+> > That doesn't matter, if you need it, I think the larger user base
+> > matters. Unmapped and mapped page cache is critical and I use it
+> > almost daily.
+> > 
+> > > file_mapped is a feattue you added. please improve it.
+> > >
+> > 
+> > I will, but please don't break it silently
+> > 
+> Andrea, could you go in following way ?
+> 
+> 	- don't touch FILE_MAPPED stuff.
+> 	- add new functions for other dirty accounting stuff as in this series.
+> 	  (using trylock is ok.)
+> 
+> Then, no probelm. It's ok to add mem_cgroup_udpate_stat() indpendent from
+> mem_cgroup_update_file_mapped(). The look may be messy but it's not your
+> fault. But please write "why add new function" to patch description.
+> 
+> I'm sorry for wasting your time.
 
-> --
-> 1.5.6.3
->
->
+Do we need to go down this route? We could check the stat and do the
+correct thing. In case of FILE_MAPPED, always grab page_cgroup_lock
+and for others potentially look at trylock. It is OK for different
+stats to be protected via different locks.
 
---=20
-Regards,
--Bob Liu
+/me takes a look at the code again.
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
