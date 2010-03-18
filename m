@@ -1,59 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E77CB6B00D7
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 07:14:56 -0400 (EDT)
-Date: Thu, 18 Mar 2010 11:14:36 +0000
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DE346B00ED
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 07:24:34 -0400 (EDT)
+Date: Thu, 18 Mar 2010 11:24:14 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
-	anonymous pages
-Message-ID: <20100318111436.GK12388@csn.ul.ie>
-References: <20100317104734.4C8E.A69D9226@jp.fujitsu.com> <20100317115133.GG12388@csn.ul.ie> <20100318094720.872F.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 04/11] Allow CONFIG_MIGRATION to be set without
+	CONFIG_NUMA or memory hot-remove
+Message-ID: <20100318112414.GL12388@csn.ul.ie>
+References: <20100317113205.GC12388@csn.ul.ie> <alpine.DEB.2.00.1003171135390.27268@router.home> <20100318085226.8726.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100318094720.872F.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100318085226.8726.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 18, 2010 at 09:48:08AM +0900, KOSAKI Motohiro wrote:
-> > > > +		/*
-> > > > +		 * If the page has no mappings any more, just bail. An
-> > > > +		 * unmapped anon page is likely to be freed soon but worse,
-> > > > +		 * it's possible its anon_vma disappeared between when
-> > > > +		 * the page was isolated and when we reached here while
-> > > > +		 * the RCU lock was not held
-> > > > +		 */
-> > > > +		if (!page_mapcount(page)) {
-> > > > +			rcu_read_unlock();
-> > > > +			goto uncharge;
-> > > > +		}
-> > > 
-> > > I haven't understand what prevent this check. Why don't we need following scenario?
-> > > 
-> > >  1. Page isolated for migration
-> > >  2. Passed this if (!page_mapcount(page)) check
-> > >  3. Process exits
-> > >  4. page_mapcount(page) drops to zero so anon_vma was no longer reliable
-> > > 
-> > > Traditionally, page migration logic is, it can touch garbarge of anon_vma, but
-> > > SLAB_DESTROY_BY_RCU prevent any disaster. Is this broken concept?
+On Thu, Mar 18, 2010 at 08:56:23AM +0900, KOSAKI Motohiro wrote:
+> > On Wed, 17 Mar 2010, Mel Gorman wrote:
 > > 
-> > The check is made within the RCU read lock. If the count is positive at
-> > that point but goes to zero due to a process exiting, the anon_vma will
-> > still be valid until rcu_read_unlock() is called.
+> > > > If select MIGRATION works, we can remove "depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE"
+> > > > line from config MIGRATION.
+> > > >
+> > >
+> > > I'm not quite getting why this would be an advantage. COMPACTION
+> > > requires MIGRATION but conceivable both NUMA and HOTREMOVE can work
+> > > without it.
+> > 
+> > Avoids having to add additional CONFIG_XXX on the page migration "depends"
+> > line in the future.
 > 
-> Thank you!
-> 
-> then, this logic depend on SLAB_DESTROY_BY_RCU, not refcount.
-> So, I think we don't need your [1/11] patch.
-> 
-> Am I missing something?
+> Yes, Kconfig mess freqently shot ourself in past days. if we have a chance
+> to remove unnecessary dependency, we should do. that's my intention of the last mail.
 > 
 
-The refcount is still needed. The anon_vma might be valid, but the
-refcount is what ensures that the anon_vma is not freed and reused.
+But if the depends line is removed, it could be set without NUMA, memory
+hot-remove or compaction enabled. That wouldn't be very useful. I'm
+missing something obvious.
 
 -- 
 Mel Gorman
