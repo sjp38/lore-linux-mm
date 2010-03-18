@@ -1,41 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BF8FB6B0197
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 01:12:44 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp01.in.ibm.com (8.14.3/8.13.1) with ESMTP id o2I5Cctv018921
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 10:42:38 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2I5Ccrh3162226
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 10:42:38 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2I5CbxF001839
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 10:42:37 +0530
-Date: Thu, 18 Mar 2010 10:42:32 +0530
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 40D446B00BC
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 02:25:18 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp02.au.ibm.com (8.14.3/8.13.1) with ESMTP id o2I6LsKs012821
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 17:21:54 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2I6P9Yk1781926
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 17:25:10 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2I6P89K015268
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 17:25:09 +1100
+Date: Thu, 18 Mar 2010 11:55:03 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
-Message-ID: <20100318051232.GB18054@balbir.in.ibm.com>
+Message-ID: <20100318062503.GC18054@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 References: <1268609202-15581-1-git-send-email-arighi@develer.com>
  <1268609202-15581-2-git-send-email-arighi@develer.com>
  <20100317115855.GS18054@balbir.in.ibm.com>
  <20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
- <20100318094519.cd1eed72.kamezawa.hiroyu@jp.fujitsu.com>
- <20100318111653.92f899e6.nishimura@mxp.nes.nec.co.jp>
+ <20100318041944.GA18054@balbir.in.ibm.com>
+ <20100318132114.d5680e1e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100318111653.92f899e6.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100318132114.d5680e1e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Righi <arighi@develer.com>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2010-03-18 11:16:53]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 13:21:14]:
 
-> On Thu, 18 Mar 2010 09:45:19 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Thu, 18 Mar 2010 08:54:11 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 18 Mar 2010 09:49:44 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 08:54:11]:
 > > 
 > > > On Wed, 17 Mar 2010 17:28:55 +0530
 > > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
@@ -62,58 +63,21 @@ List-ID: <linux-mm.kvack.org>
 > > > plz show your implementation which has no performance regresssion.
 > > > For me, I don't neee file_mapped accounting, at all. If we can remove that,
 > > > we can add simple migration lock.
+> > 
+> > That doesn't matter, if you need it, I think the larger user base
+> > matters. Unmapped and mapped page cache is critical and I use it
+> > almost daily.
+> > 
 > > > file_mapped is a feattue you added. please improve it.
-> > > 
+> > >
 > > 
-> > BTW, I should explain how acculate this accounting is in this patch itself.
+> > I will, but please don't break it silently
 > > 
-> > Now, lock_page_cgroup/unlock_page_cgroup happens when
-> > 	- charge/uncharge/migrate/move accounting
-> > 
-> > Then, the lock contention (trylock failure) seems to occur in conflict
-> > with
-> > 	- charge, uncharge, migarate. move accounting
-> > 
-> > About dirty accounting, charge/uncharge/migarate are operation in synchronous
-> > manner with radix-tree (holding treelock etc). Then no account leak.
-> > move accounting is only source for inacculacy...but I don't think this move-task
-> > is ciritial....moreover, we don't move any file pages at task-move, now.
-> > (But Nishimura-san has a plan to do so.)
-> > So, contention will happen only at confliction with force_empty.
-> > 
-> > About FILE_MAPPED accounting, it's not synchronous with radix-tree operaton.
-> > Then, accounting-miss seems to happen when charge/uncharge/migrate/account move.
-> > But
-> > 	charge .... we don't account a page as FILE_MAPPED before it's charged.
-> > 	uncharge .. usual operation in turncation is unmap->remove-from-radix-tree.
-> > 		    Then, it's sequential in almost all case. The race exists when...
-> > 		    Assume there are 2 threads A and B. A truncate a file, B map/unmap that.
-> > 		    This is very unusal confliction.
-> > 	migrate.... we do try_to_unmap before migrating pages. Then, FILE_MAPPED
-> > 		    is properly handled.
-> > 	move account .... we don't have move-account-mapped-file, yet.
-> > 
-> FILE_MAPPED is updated under pte lock. OTOH, move account is also done under
-> pte lock. page cgroup lock is held under pte lock in both cases, so move account
-> is not so problem as for FILE_MAPPED.
+> I never do silently. All e-mails are open.
 >
-True
- 
-> 
-> > Then, this trylock contention happens at contention with force_empty and truncate.
-> > 
-> > 
-> > Then, main issue for contention is force_empty. But it's called for removing memcg,
-> > accounting for such memcg is not important.
-> > Then, I say "this accounting is Okay."
-> > 
-> > To do more accurate, we may need another "migration lock". But to get better
-> > performance for root cgroup, we have to call mem_cgroup_is_root() before
-> > taking lock and there will be another complicated race.
 
-Agreed, we need to find a simpler way of doing this without affecting
-the accuracy of accounting - may be two accounting routines for two
-code paths. I have not thought through this yet.
+No, I meant it from the Documentation update perspective. The end user
+will be confused when looking at stats without proper documentation. 
 
 -- 
 	Three Cheers,
