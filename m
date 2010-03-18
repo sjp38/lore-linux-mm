@@ -1,68 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FE046B009A
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 13:42:44 -0400 (EDT)
-Date: Thu, 18 Mar 2010 17:42:21 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
-	pressure
-Message-ID: <20100318174220.GP12388@csn.ul.ie>
-References: <1268048904-19397-1-git-send-email-mel@csn.ul.ie> <20100311154124.e1e23900.akpm@linux-foundation.org> <4B99E19E.6070301@linux.vnet.ibm.com> <20100312020526.d424f2a8.akpm@linux-foundation.org> <20100312104712.GB18274@csn.ul.ie> <4B9A3049.7010602@linux.vnet.ibm.com> <20100312093755.b2393b33.akpm@linux-foundation.org> <4B9E296A.2010605@linux.vnet.ibm.com> <20100315130935.f8b0a2d7.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B1BEA6B009C
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 17:22:18 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [10.3.21.3])
+	by smtp-out.google.com with ESMTP id o2ILMBN1030585
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 14:22:12 -0700
+Received: from fg-out-1718.google.com (fgg16.prod.google.com [10.86.7.16])
+	by hpaq3.eem.corp.google.com with ESMTP id o2ILLpfv000354
+	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 22:22:10 +0100
+Received: by fg-out-1718.google.com with SMTP id 16so113660fgg.3
+        for <linux-mm@kvack.org>; Thu, 18 Mar 2010 14:22:09 -0700 (PDT)
+Date: Thu, 18 Mar 2010 21:21:58 +0000 (GMT)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 3/5] tmpfs: handle MPOL_LOCAL mount option properly
+In-Reply-To: <1268877338.4773.151.camel@useless.americas.hpqcorp.net>
+Message-ID: <alpine.LSU.2.00.1003182112010.11097@sister.anvils>
+References: <20100316145022.4C4E.A69D9226@jp.fujitsu.com>  <alpine.LSU.2.00.1003171619410.29003@sister.anvils>  <20100318084915.8723.A69D9226@jp.fujitsu.com> <1268877338.4773.151.camel@useless.americas.hpqcorp.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100315130935.f8b0a2d7.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, kiran@scalex86.org, cl@linux-foundation.org, mel@csn.ul.ie, stable@kernel.org, linux-mm <linux-mm@kvack.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 15, 2010 at 01:09:35PM -0700, Andrew Morton wrote:
-> On Mon, 15 Mar 2010 13:34:50 +0100
-> Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com> wrote:
-> 
-> > c) If direct reclaim did reasonable progress in try_to_free but did not
-> > get a page, AND there is no write in flight at all then let it try again
-> > to free up something.
-> > This could be extended by some kind of max retry to avoid some weird
-> > looping cases as well.
+On Wed, 17 Mar 2010, Lee Schermerhorn wrote:
+> On Thu, 2010-03-18 at 08:52 +0900, KOSAKI Motohiro wrote:
+> > > On Tue, 16 Mar 2010, KOSAKI Motohiro wrote:
+> > > 
+> > > > commit 71fe804b6d5 (mempolicy: use struct mempolicy pointer in
+> > > > shmem_sb_info) added mpol=local mount option. but its feature is
+> > > > broken since it was born. because such code always return 1 (i.e.
+> > > > mount failure).
+> > > > 
+> > > > This patch fixes it.
+> > > > 
+> > > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > > Cc: Ravikiran Thirumalai <kiran@scalex86.org>
+> > > 
+> > > Thank you both for finding and fixing these mpol embarrassments.
+> > > 
+> > > But if this "mpol=local" feature was never documented (not even in the
+> > > commit log),
+
+Sorry, I was absolutely wrong to say that: I seem to have been looking at
+the wrong commit, but 3f226aa1 does document mpol=local, and does explain
+why mpol=default differed; and KOSAKI-san's 5/5 corrects the mpol=default
+description in tmpfs.txt, as well as adding mpol=local description.
+
+
+> > > has been broken since birth 20 months ago, and nobody has
+> > > noticed: wouldn't it be better to save a little bloat and just rip it out?
 > > 
-> > d) Another way might be as easy as letting congestion_wait return
-> > immediately if there are no outstanding writes - this would keep the 
-> > behavior for cases with write and avoid the "running always in full 
-> > timeout" issue without writes.
+> > I have no objection if lee agreed, lee?
+> > Of cource, if we agree it, we can make the new patch soon :)
+> > 
 > 
-> They're pretty much equivalent and would work.  But there are two
-> things I still don't understand:
+> Well, given the other issues with mpol_parse_str(), I suspect the entire
+> tmpfs mpol option is not used all that often in the mainline kernel.  I
+> recall that this feature was introduced by SGI for some of their
+> customers who may depend on it.  There have been cases where I could
+> have used it were it supported for the SYSV shm and MAP_ANON_MAP_SHARED
+> internal tmpfs mount.  Further, note that the addition of "mpol=local"
+> occurred between when the major "enterprise distributions" selected a
+> new mainline kernel.  Production users of those distros, who are the
+> likely users of this feature, tend not to live on the bleeding edge.
+> So, maybe we shouldn't read too much into it not being discovered until
+> now.
+
+True.
+
 > 
-> 1: Why is direct reclaim calling congestion_wait() at all?  If no
-> writes are going on there's lots of clean pagecache around so reclaim
-> should trivially succeed.  What's preventing it from doing so?
+> That being said, I suppose I wouldn't be all that opposed to deprecating
+> the entire tmpfs mpol option, and see who yells.   If the mpol mount
+> options stays, I'd like to see the 'local' option stay.  It's a
+> legitimate behavior that one can specify via the system calls and see
+> via numa_maps, so I think the mpol mount option, if it exists, should
+> support a way to specify it.  
 > 
-> 2: This is, I think, new behaviour.  A regression.  What caused it?
+> As for bloat, the additional code on the mount option side to support it
+> is:
 > 
+>         case MPOL_LOCAL:
+>                 /*
+>                  * Don't allow a nodelist;  mpol_new() checks flags
+>                  */
+>                 if (nodelist)
+>                         goto out;
+>                 mode = MPOL_PREFERRED;
+>                 break;
 
-I looked at this a bit closer using an iozone test very similar to
-Christian's. Despite buying a number of disks, I still can't reproduce his
-problem but I instrumented congestion_wait counts and times similar to
-what he did.
+Shocking :)
 
-2.6.29-instrument:congestion_waittime 990
-2.6.30-instrument:congestion_waittime 2823
-2.6.31-instrument:congestion_waittime 193169
-2.6.32-instrument:congestion_waittime 228890
-2.6.33-instrument:congestion_waittime 785529
-2.6.34-rc1-instrument:congestion_waittime 797178
+Yes, I withdraw my objection.  I'd been puzzled by why you would have
+added an option which nobody was interested in, including yourself;
+but as I see it now, you'd noticed a bug in mpol=default, and felt
+that the right way to provide the missing functionality was to add
+mpol=local: fair enough, let's keep it.
 
-So in the problem window, there was *definite* increases in the time spent
-in congestion_wait and the number of times it was called. I'll look
-closer at this tomorrow and Monday and see can I pin down what is
-happening.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
