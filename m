@@ -1,78 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4B31F6B0089
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 02:21:56 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2J6Lsg7031271
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 19 Mar 2010 15:21:54 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C911D45DE7A
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 15:21:53 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A13FC45DE60
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 15:21:53 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88618E18003
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 15:21:53 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 38F071DB8037
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 15:21:53 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 07/11] Memory compaction core
-In-Reply-To: <20100318114302.GM12388@csn.ul.ie>
-References: <20100318085741.8729.A69D9226@jp.fujitsu.com> <20100318114302.GM12388@csn.ul.ie>
-Message-Id: <20100319152102.876C.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 19 Mar 2010 15:21:52 +0900 (JST)
+	by kanga.kvack.org (Postfix) with ESMTP id 2F24F6B00A2
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 02:27:59 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 2/2] [BUGFIX] pagemap: fix pfn calculation for hugepage
+Date: Fri, 19 Mar 2010 15:26:36 +0900
+Message-Id: <1268979996-12297-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, andi.kleen@intel.com, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-> > > > V1 did compaction per pageblock. but current patch doesn't.
-> > > > so, Is COMPACTBLOCKS still good name?
-> > > 
-> > > It's not such a minor nit. I wondered about that myself but it's still a
-> > > block - just not a pageblock. Would COMPACTCLUSTER be a better name as it's
-> > > related to COMPACT_CLUSTER_MAX?
-> > 
-> > I've looked at this code again. honestly I'm a abit confusing even though both your
-> > suggestions seems reasonable.  
-> > 
-> > now COMPACTBLOCKS is tracking #-of-called-migrate_pages. but I can't imazine
-> > how to use it. can you please explain this ststics purpose? probably this is only useful
-> > when conbination other stats, and the name should be consist with such combination one.
-> > 
-> 
-> It is intended to count how many steps compaction took, the fewer the
-> better so minimally, the lower this number is the better. Specifically, the
-> "goodness" is related to the number of pages that were successfully allocated
-> due to compaction. Assuming the only high-order allocation was huge pages,
-> one possible calculation for "goodness" is;
-> 
-> hugepage_clusters = (1 << HUGE HUGETLB_PAGE_ORDER) / COMPACT_CLUSTER_MAX
-> goodness = (compactclusters / hugepage_clusters) / compactsuccess
-> 
-> The value of goodness is undefined if "compactsuccess" is 0.
-> 
-> Otherwise, the closer the "goodness" is to 1, the better. A value of 1
-> implies that compaction is selecting exactly the right blocks for migration
-> and the minimum number of pages are being moved around. The greater the value,
-> the more "useless" work compaction is doing.
-> 
-> If there are a mix of high-orders that are resulting in compaction, calculating
-> the goodness is a lot harder and compactcluster is just a rule of thumb as
-> to how much work compaction is doing.
-> 
-> Does that make sense?
+When we look into pagemap using page-types with option -p, the value
+of pfn for hugepages looks wrong (see below.)
+This is because pte was evaluated only once for one vma
+although it should be updated for each hugepage. This patch fixes it.
 
-Sure! then, now I fully agree with COMPACTCLUSTER.
+$ page-types -p 3277 -Nl -b huge
+voffset   offset  len     flags
+7f21e8a00 11e400  1       ___U___________H_G________________
+7f21e8a01 11e401  1ff     ________________TG________________
+7f21e8c00 11e400  1       ___U___________H_G________________
+7f21e8c01 11e401  1ff     ________________TG________________
+             ^^^
+             should not be the same
 
-Thanks.
+With this patch applied:
 
+$ page-types -p 3386 -Nl -b huge
+voffset   offset   len    flags
+7fec7a600 112c00   1      ___UD__________H_G________________
+7fec7a601 112c01   1ff    ________________TG________________
+7fec7a800 113200   1      ___UD__________H_G________________
+7fec7a801 113201   1ff    ________________TG________________
+             ^^^
+             OK
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ fs/proc/task_mmu.c |   37 +++++++++++++++++++------------------
+ include/linux/mm.h |    4 ++--
+ mm/pagewalk.c      |   14 ++++----------
+ 3 files changed, 25 insertions(+), 30 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 2a3ef17..cc14479 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -662,31 +662,32 @@ static u64 huge_pte_to_pagemap_entry(pte_t pte, int offset)
+ 	return pme;
+ }
+ 
+-static int pagemap_hugetlb_range(pte_t *pte, unsigned long addr,
++/* This function walks only within @vma */
++static int pagemap_hugetlb_range(struct vm_area_struct *vma, unsigned long addr,
+ 				 unsigned long end, struct mm_walk *walk)
+ {
+-	struct vm_area_struct *vma;
++	struct mm_struct *mm = walk->mm;
+ 	struct pagemapread *pm = walk->private;
+ 	struct hstate *hs = NULL;
+ 	int err = 0;
+-
+-	vma = find_vma(walk->mm, addr);
+-	if (vma)
+-		hs = hstate_vma(vma);
++	pte_t *pte = NULL;
++
++	BUG_ON(!mm);
++	BUG_ON(!vma || !is_vm_hugetlb_page(vma));
++	BUG_ON(addr < vma->vm_start || addr >= vma->vm_end);
++	hs = hstate_vma(vma);
++	BUG_ON(!hs);
++	pte = huge_pte_offset(mm, addr);
++	if (!pte)
++		return err;
+ 	for (; addr != end; addr += PAGE_SIZE) {
+ 		u64 pfn = PM_NOT_PRESENT;
+-
+-		if (vma && (addr >= vma->vm_end)) {
+-			vma = find_vma(walk->mm, addr);
+-			if (vma)
+-				hs = hstate_vma(vma);
+-		}
+-
+-		if (vma && (vma->vm_start <= addr) && is_vm_hugetlb_page(vma)) {
+-			/* calculate pfn of the "raw" page in the hugepage. */
+-			int offset = (addr & ~huge_page_mask(hs)) >> PAGE_SHIFT;
+-			pfn = huge_pte_to_pagemap_entry(*pte, offset);
+-		}
++		/* calculate pfn of the "raw" page in the hugepage. */
++		int offset = (addr & ~huge_page_mask(hs)) >> PAGE_SHIFT;
++		/* next hugepage */
++		if (!offset)
++			pte = huge_pte_offset(mm, addr);
++		pfn = huge_pte_to_pagemap_entry(*pte, offset);
+ 		err = add_to_pagemap(addr, pfn, pm);
+ 		if (err)
+ 			return err;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 3899395..5faafc2 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -783,8 +783,8 @@ struct mm_walk {
+ 	int (*pmd_entry)(pmd_t *, unsigned long, unsigned long, struct mm_walk *);
+ 	int (*pte_entry)(pte_t *, unsigned long, unsigned long, struct mm_walk *);
+ 	int (*pte_hole)(unsigned long, unsigned long, struct mm_walk *);
+-	int (*hugetlb_entry)(pte_t *, unsigned long, unsigned long,
+-			     struct mm_walk *);
++	int (*hugetlb_entry)(struct vm_area_struct *,
++			     unsigned long, unsigned long, struct mm_walk *);
+ 	struct mm_struct *mm;
+ 	void *private;
+ };
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+index 7b47a57..3148dc5 100644
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -128,20 +128,14 @@ int walk_page_range(unsigned long addr, unsigned long end,
+ 		vma = find_vma(walk->mm, addr);
+ #ifdef CONFIG_HUGETLB_PAGE
+ 		if (vma && is_vm_hugetlb_page(vma)) {
+-			pte_t *pte;
+-			struct hstate *hs;
+-
+ 			if (vma->vm_end < next)
+ 				next = vma->vm_end;
+-			hs = hstate_vma(vma);
+-			pte = huge_pte_offset(walk->mm,
+-					      addr & huge_page_mask(hs));
+-			if (pte && !huge_pte_none(huge_ptep_get(pte))
+-			    && walk->hugetlb_entry)
+-				err = walk->hugetlb_entry(pte, addr,
+-							  next, walk);
++			if (walk->hugetlb_entry)
++				err = walk->hugetlb_entry(vma, addr, next,
++							  walk);
+ 			if (err)
+ 				break;
++			pgd = pgd_offset(walk->mm, next);
+ 			continue;
+ 		}
+ #endif
+-- 
+1.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
