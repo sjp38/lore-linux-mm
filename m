@@ -1,55 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B31036B01B7
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 14:51:24 -0400 (EDT)
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 19 Mar 2010 15:00:10 -0400
-Message-Id: <20100319190010.21430.41771.sendpatchset@localhost.localdomain>
-In-Reply-To: <20100319185933.21430.72039.sendpatchset@localhost.localdomain>
-References: <20100319185933.21430.72039.sendpatchset@localhost.localdomain>
-Subject: [PATCH 6/6] Mempolicy: document cpuset interaction with tmpfs mpol mount option
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 180066B01B1
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:07:06 -0400 (EDT)
+Subject: Re: [PATCH 1/2] pagemap: add #ifdefs CONFIG_HUGETLB_PAGE on code
+ walking hugetlb vma
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <1268979996-12297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1268979996-12297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 19 Mar 2010 15:07:01 -0500
+Message-ID: <1269029221.9534.145.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-numa@vger.kernel.org
-Cc: akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Ravikiran Thirumalai <kiran@scalex86.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, andi.kleen@intel.com, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-Update Documentation/filesystems/tmpfs.txt to describe the
-interaction of tmpfs mount option memory policy with tasks'
-cpuset mems_allowed.
+On Fri, 2010-03-19 at 15:26 +0900, Naoya Horiguchi wrote:
+> If !CONFIG_HUGETLB_PAGE, pagemap_hugetlb_range() is never called.
+> So put it (and its calling function) into #ifdef block.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Note:  the mount(8) man page [in the util-linux-ng package]
-requires similiar updates.
+Acked-by: Matt Mackall <mpm@selenic.com>
 
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> ---
+>  fs/proc/task_mmu.c |    4 ++++
+>  1 files changed, 4 insertions(+), 0 deletions(-)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 183f8ff..2a3ef17 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -652,6 +652,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  	return err;
+>  }
+>  
+> +#ifdef CONFIG_HUGETLB_PAGE
+>  static u64 huge_pte_to_pagemap_entry(pte_t pte, int offset)
+>  {
+>  	u64 pme = 0;
+> @@ -695,6 +696,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long addr,
+>  
+>  	return err;
+>  }
+> +#endif /* HUGETLB_PAGE */
+>  
+>  /*
+>   * /proc/pid/pagemap - an array mapping virtual pages to pfns
+> @@ -788,7 +790,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+>  
+>  	pagemap_walk.pmd_entry = pagemap_pte_range;
+>  	pagemap_walk.pte_hole = pagemap_pte_hole;
+> +#ifdef CONFIG_HUGETLB_PAGE
+>  	pagemap_walk.hugetlb_entry = pagemap_hugetlb_range;
+> +#endif
+>  	pagemap_walk.mm = mm;
+>  	pagemap_walk.private = &pm;
+>  
 
- Documentation/filesystems/tmpfs.txt |   10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
 
-Index: linux-2.6.34-rc1-mmotm-100311-1313/Documentation/filesystems/tmpfs.txt
-===================================================================
---- linux-2.6.34-rc1-mmotm-100311-1313.orig/Documentation/filesystems/tmpfs.txt	2010-03-19 09:06:15.000000000 -0400
-+++ linux-2.6.34-rc1-mmotm-100311-1313/Documentation/filesystems/tmpfs.txt	2010-03-19 11:22:37.000000000 -0400
-@@ -94,11 +94,19 @@ NodeList format is a comma-separated lis
- a range being two hyphen-separated decimal numbers, the smallest and
- largest node numbers in the range.  For example, mpol=bind:0-3,5,7,9-15
- 
-+A memory policy with a valid NodeList will be saved, as specified, for
-+use at file creation time.  When a task allocates a file in the file
-+system, the mount option memory policy will be applied with a NodeList,
-+if any, modified by the calling task's cpuset constraints
-+[See Documentation/cgroups/cpusets.txt] and any optional flags, listed
-+below.  If the resulting NodeLists is the empty set, the effective memory
-+policy for the file will revert to "default" policy.
-+
- NUMA memory allocation policies have optional flags that can be used in
- conjunction with their modes.  These optional flags can be specified
- when tmpfs is mounted by appending them to the mode before the NodeList.
- See Documentation/vm/numa_memory_policy.txt for a list of all available
--memory allocation policy mode flags.
-+memory allocation policy mode flags and their effect on memory policy.
- 
- 	=static		is equivalent to	MPOL_F_STATIC_NODES
- 	=relative	is equivalent to	MPOL_F_RELATIVE_NODES
+
+-- 
+http://selenic.com : development and support for Mercurial and Linux
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
