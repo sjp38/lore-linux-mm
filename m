@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8D7A36B00AE
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 03:18:47 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2J7Ij4e026514
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 19 Mar 2010 16:18:45 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FC2745DE60
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:18:44 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E5CA45DE79
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:18:43 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 087B3E18003
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:18:43 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D78721DB803B
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:18:41 +0900 (JST)
-Date: Fri, 19 Mar 2010 16:15:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] pagemap: add #ifdefs CONFIG_HUGETLB_PAGE on code
- walking hugetlb vma
-Message-Id: <20100319161504.2c5c65b5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100319065334.GB12389@spritzerA.linux.bs1.fc.nec.co.jp>
-References: <1268979996-12297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<20100319152934.c4243698.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100319065334.GB12389@spritzerA.linux.bs1.fc.nec.co.jp>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CB9F36B00B0
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 03:24:17 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e39.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id o2J7GCoN027381
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:16:12 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2J7Ntov053200
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:23:55 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2J7NsvL010198
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:23:55 -0600
+Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
+ parameter
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4B9F49F1.70202@redhat.com>
+References: <20100315072214.GA18054@balbir.in.ibm.com>
+	 <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com>
+	 <4B9DEF81.6020802@redhat.com> <20100315091720.GC18054@balbir.in.ibm.com>
+	 <4B9DFD9C.8030608@redhat.com> <4B9E810E.9010706@codemonkey.ws>
+	 <4B9F49F1.70202@redhat.com>
+Content-Type: text/plain
+Date: Fri, 19 Mar 2010 00:23:52 -0700
+Message-Id: <1268983432.10438.5685.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, andi.kleen@intel.com, fengguang.wu@intel.com
+To: Avi Kivity <avi@redhat.com>
+Cc: Anthony Liguori <anthony@codemonkey.ws>, balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Mar 2010 15:53:34 +0900
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-
-> On Fri, Mar 19, 2010 at 03:29:34PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Fri, 19 Mar 2010 15:26:35 +0900
-> > Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> > 
-> > > If !CONFIG_HUGETLB_PAGE, pagemap_hugetlb_range() is never called.
-> > > So put it (and its calling function) into #ifdef block.
-> > > 
-> > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > 
-> > Hmm? What is benefit ? Is this broken now ?
-> > 
+On Tue, 2010-03-16 at 11:05 +0200, Avi Kivity wrote:
+> > Not really.  In many cloud environments, there's a set of common 
+> > images that are instantiated on each node.  Usually this is because 
+> > you're running a horizontally scalable application or because you're 
+> > supporting an ephemeral storage model.
 > 
-> Not broken, but this is needed to avoid build error with patch 2/2 applied,
-> where I move huge_pte_offset() (not defined when !HUGETLB_PAGE)
-> into pagemap_hugetlb_range().
+> But will these servers actually benefit from shared cache?  So the 
+> images are shared, they boot up, what then?
 > 
+> - apache really won't like serving static files from the host pagecache
+> - dynamic content (java, cgi) will be mostly in anonymous memory, not 
+> pagecache
+> - ditto for application servers
+> - what else are people doing?
 
-I think this should be merged with 2/2....if necessary.
+Think of an OpenVZ-style model where you're renting out a bunch of
+relatively tiny VMs and they're getting used pretty sporadically.  They
+either have relatively little memory, or they've been ballooned down to
+a pretty small footprint.
 
-Thanks,
--Kame
+The more you shrink them down, the more similar they become.  You'll end
+up having things like init, cron, apache, bash and libc start to
+dominate the memory footprint in the VM.
+
+That's *certainly* a case where this makes a lot of sense.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
