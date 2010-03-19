@@ -1,83 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C176D6B0098
-	for <linux-mm@kvack.org>; Thu, 18 Mar 2010 23:04:36 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2J34Y60007928
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 19 Mar 2010 12:04:34 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DF7C745DE4F
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 12:04:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EFC4645DE4D
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 12:04:32 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CBDB51DB8055
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 12:04:32 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B2E241DB8047
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 12:04:31 +0900 (JST)
-Date: Fri, 19 Mar 2010 12:00:49 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
-Message-Id: <20100319120049.3dbf8440.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100319024039.GH18054@balbir.in.ibm.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
-	<1268609202-15581-2-git-send-email-arighi@develer.com>
-	<20100317115855.GS18054@balbir.in.ibm.com>
-	<20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100318041944.GA18054@balbir.in.ibm.com>
-	<20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100318162855.GG18054@balbir.in.ibm.com>
-	<20100319102332.f1d81c8d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100319024039.GH18054@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CFB976B0047
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 02:21:29 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2J6LRE0031154
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 19 Mar 2010 15:21:27 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E44D45DE4D
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 15:21:27 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D36CB45DE52
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 15:21:26 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C8B55EF8006
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 15:21:24 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 79FB3E38003
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 15:21:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 04/11] Allow CONFIG_MIGRATION to be set without CONFIG_NUMA or memory hot-remove
+In-Reply-To: <20100318112414.GL12388@csn.ul.ie>
+References: <20100318085226.8726.A69D9226@jp.fujitsu.com> <20100318112414.GL12388@csn.ul.ie>
+Message-Id: <20100319152106.8775.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 19 Mar 2010 15:21:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Mar 2010 08:10:39 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-19 10:23:32]:
-> 
-> > On Thu, 18 Mar 2010 21:58:55 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 13:35:27]:
-> > 
-> > > > Then, no probelm. It's ok to add mem_cgroup_udpate_stat() indpendent from
-> > > > mem_cgroup_update_file_mapped(). The look may be messy but it's not your
-> > > > fault. But please write "why add new function" to patch description.
-> > > > 
-> > > > I'm sorry for wasting your time.
+> On Thu, Mar 18, 2010 at 08:56:23AM +0900, KOSAKI Motohiro wrote:
+> > > On Wed, 17 Mar 2010, Mel Gorman wrote:
 > > > 
-> > > Do we need to go down this route? We could check the stat and do the
-> > > correct thing. In case of FILE_MAPPED, always grab page_cgroup_lock
-> > > and for others potentially look at trylock. It is OK for different
-> > > stats to be protected via different locks.
+> > > > > If select MIGRATION works, we can remove "depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE"
+> > > > > line from config MIGRATION.
+> > > > >
+> > > >
+> > > > I'm not quite getting why this would be an advantage. COMPACTION
+> > > > requires MIGRATION but conceivable both NUMA and HOTREMOVE can work
+> > > > without it.
 > > > 
+> > > Avoids having to add additional CONFIG_XXX on the page migration "depends"
+> > > line in the future.
 > > 
-> > I _don't_ want to see a mixture of spinlock and trylock in a function.
-> >
+> > Yes, Kconfig mess freqently shot ourself in past days. if we have a chance
+> > to remove unnecessary dependency, we should do. that's my intention of the last mail.
+> > 
 > 
-> A well documented well written function can help. The other thing is to
-> of-course solve this correctly by introducing different locking around
-> the statistics. Are you suggesting the later?
-> 
+> But if the depends line is removed, it could be set without NUMA, memory
+> hot-remove or compaction enabled. That wouldn't be very useful. I'm
+> missing something obvious.
 
-No. As I wrote.
-	- don't modify codes around FILE_MAPPED in this series.
-	- add a new functions for new statistics
-Then,
-	- think about clean up later, after we confirm all things work as expected.
+Perhaps I'm missing something. 
 
-Thanks,
--Kame
+my point is, force enabling useless config is not good idea (yes, i agree). but config 
+selectability doesn't cause any failure. IOW, usefulness and dependency aren't 
+related so much. personally I dislike _unnecessary_ dependency.
+
+If my opinion cause any bad thing, I'll withdraw it. of course.
+
 
 
 --
