@@ -1,74 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8720C6B01B0
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 14:51:06 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BE706B01B3
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 14:51:12 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 19 Mar 2010 14:59:52 -0400
-Message-Id: <20100319185952.21430.8872.sendpatchset@localhost.localdomain>
+Date: Fri, 19 Mar 2010 14:59:58 -0400
+Message-Id: <20100319185958.21430.93050.sendpatchset@localhost.localdomain>
 In-Reply-To: <20100319185933.21430.72039.sendpatchset@localhost.localdomain>
 References: <20100319185933.21430.72039.sendpatchset@localhost.localdomain>
-Subject: [PATCH 3/6] Mempolicy: rename policy_types and cleanup initialization
+Subject: [PATCH 4/6] Mempolicy: factor mpol_shared_policy_init() return paths
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-numa@vger.kernel.org
 Cc: akpm@linux-foundation.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Ravikiran Thirumalai <kiran@scalex86.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Rename 'policy_types[]' to 'policy_modes[]' to better match the
-array contents.
-
-Use designated intializer syntax for policy_modes[].
+Factor out duplicate put/frees in mpol_shared_policy_init() to
+a common return path.
 
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
- mm/mempolicy.c |   18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ mm/mempolicy.c |   16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
 
 Index: linux-2.6.34-rc1-mmotm-100311-1313/mm/mempolicy.c
 ===================================================================
---- linux-2.6.34-rc1-mmotm-100311-1313.orig/mm/mempolicy.c	2010-03-19 09:03:21.000000000 -0400
-+++ linux-2.6.34-rc1-mmotm-100311-1313/mm/mempolicy.c	2010-03-19 12:22:17.000000000 -0400
-@@ -2127,9 +2127,15 @@ void numa_default_policy(void)
-  * "local" is pseudo-policy:  MPOL_PREFERRED with MPOL_F_LOCAL flag
-  * Used only for mpol_parse_str() and mpol_to_str()
-  */
--#define MPOL_LOCAL (MPOL_INTERLEAVE + 1)
--static const char * const policy_types[] =
--	{ "default", "prefer", "bind", "interleave", "local" };
-+#define MPOL_LOCAL MPOL_MAX
-+static const char * const policy_modes[] =
-+{
-+ 	[MPOL_DEFAULT]    = "default",
-+ 	[MPOL_PREFERRED]  = "prefer",
-+	[MPOL_BIND]       = "bind",
-+	[MPOL_INTERLEAVE] = "interleave",
-+	[MPOL_LOCAL]      = "local"
-+};
+--- linux-2.6.34-rc1-mmotm-100311-1313.orig/mm/mempolicy.c	2010-03-19 09:03:22.000000000 -0400
++++ linux-2.6.34-rc1-mmotm-100311-1313/mm/mempolicy.c	2010-03-19 09:06:09.000000000 -0400
+@@ -2001,26 +2001,22 @@ void mpol_shared_policy_init(struct shar
+ 			return;
+ 		/* contextualize the tmpfs mount point mempolicy */
+ 		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
+-		if (IS_ERR(new)) {
+-			mpol_put(mpol);	/* drop our ref on sb mpol */
+-			NODEMASK_SCRATCH_FREE(scratch);
+-			return;		/* no valid nodemask intersection */
+-		}
++		if (IS_ERR(new))
++			goto put_free; /* no valid nodemask intersection */
  
+ 		task_lock(current);
+ 		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask, scratch);
+ 		task_unlock(current);
+ 		mpol_put(mpol);	/* drop our ref on sb mpol */
+-		if (ret) {
+-			NODEMASK_SCRATCH_FREE(scratch);
+-			mpol_put(new);
+-			return;
+-		}
++		if (ret)
++			goto put_free;
  
- #ifdef CONFIG_TMPFS
-@@ -2175,7 +2181,7 @@ int mpol_parse_str(char *str, struct mem
- 		*flags++ = '\0';	/* terminate mode string */
- 
- 	for (mode = 0; mode <= MPOL_LOCAL; mode++) {
--		if (!strcmp(str, policy_types[mode])) {
-+		if (!strcmp(str, policy_modes[mode])) {
- 			break;
- 		}
+ 		/* Create pseudo-vma that contains just the policy */
+ 		memset(&pvma, 0, sizeof(struct vm_area_struct));
+ 		pvma.vm_end = TASK_SIZE;	/* policy covers entire file */
+ 		mpol_set_shared_policy(sp, &pvma, new); /* adds ref */
++
++put_free:
+ 		mpol_put(new);			/* drop initial ref */
+ 		NODEMASK_SCRATCH_FREE(scratch);
  	}
-@@ -2330,11 +2336,11 @@ int mpol_to_str(char *buffer, int maxlen
- 		BUG();
- 	}
- 
--	l = strlen(policy_types[mode]);
-+	l = strlen(policy_modes[mode]);
- 	if (buffer + maxlen < p + l + 1)
- 		return -ENOSPC;
- 
--	strcpy(p, policy_types[mode]);
-+	strcpy(p, policy_modes[mode]);
- 	p += l;
- 
- 	if (flags & MPOL_MODE_FLAGS) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
