@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D8096B00BA
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 04:48:32 -0400 (EDT)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [10.3.21.5])
-	by smtp-out.google.com with ESMTP id o2J8mQPw014152
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 09:48:26 +0100
-Received: from pwj1 (pwj1.prod.google.com [10.241.219.65])
-	by hpaq5.eem.corp.google.com with ESMTP id o2J8mOOK017637
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 09:48:24 +0100
-Received: by pwj1 with SMTP id 1so2407061pwj.37
-        for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:48:23 -0700 (PDT)
-Date: Fri, 19 Mar 2010 01:48:22 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 9C1C56B00BC
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 04:50:13 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id o2J8oAdn032594
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:50:10 -0700
+Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
+	by wpaz9.hot.corp.google.com with ESMTP id o2J8o8fx004946
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:50:09 -0700
+Received: by pwi7 with SMTP id 7so2171462pwi.35
+        for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:50:08 -0700 (PDT)
+Date: Fri, 19 Mar 2010 01:50:05 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mempolicy:del case MPOL_INTERLEAVE in
- policy_zonelist()
-In-Reply-To: <1268916376-8695-1-git-send-email-user@bob-laptop>
-Message-ID: <alpine.DEB.2.00.1003190148060.26509@chino.kir.corp.google.com>
-References: <1268916376-8695-1-git-send-email-user@bob-laptop>
+Subject: Re: [RESEND][PATCH 2/2] mempolicy: remove redundant check
+In-Reply-To: <1268918431-9686-1-git-send-email-user@bob-laptop>
+Message-ID: <alpine.DEB.2.00.1003190149490.26509@chino.kir.corp.google.com>
+References: <1268918431-9686-1-git-send-email-user@bob-laptop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -28,9 +27,11 @@ On Thu, 18 Mar 2010, Bob Liu wrote:
 
 > From: Bob Liu <lliubbo@gmail.com>
 > 
-> In policy_zonelist() mode MPOL_INTERLEAVE shouldn't happen,
-> so fall through to BUG() instead of break to return.I also fix
-> the comment.
+> Lee's patch "mempolicy: use MPOL_PREFERRED for system-wide
+> default policy" has made the MPOL_DEFAULT only used in the
+> memory policy APIs. So, no need to check in __mpol_equal also.
+> Also get rid of mpol_match_intent() and move its logic directly
+> into __mpol_equal().
 > 
 > Signed-off-by: Bob Liu <lliubbo@gmail.com>
 
