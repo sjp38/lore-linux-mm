@@ -1,62 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9F36B00B0
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 03:24:17 -0400 (EDT)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e39.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id o2J7GCoN027381
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:16:12 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2J7Ntov053200
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:23:55 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2J7NsvL010198
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 01:23:55 -0600
-Subject: Re: [PATCH][RF C/T/D] Unmapped page cache control - via boot
- parameter
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <4B9F49F1.70202@redhat.com>
-References: <20100315072214.GA18054@balbir.in.ibm.com>
-	 <4B9DE635.8030208@redhat.com> <20100315080726.GB18054@balbir.in.ibm.com>
-	 <4B9DEF81.6020802@redhat.com> <20100315091720.GC18054@balbir.in.ibm.com>
-	 <4B9DFD9C.8030608@redhat.com> <4B9E810E.9010706@codemonkey.ws>
-	 <4B9F49F1.70202@redhat.com>
-Content-Type: text/plain
-Date: Fri, 19 Mar 2010 00:23:52 -0700
-Message-Id: <1268983432.10438.5685.camel@nimitz>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id CA1FA6B00B2
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 03:31:15 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2J7VAYo032437
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 19 Mar 2010 16:31:10 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F70C45DE4F
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:31:10 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 207E845DE4E
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:31:10 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EBE71E08002
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:31:09 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8A3D1DB8037
+	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:31:09 +0900 (JST)
+Date: Fri, 19 Mar 2010 16:27:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] [BUGFIX] pagemap: fix pfn calculation for hugepage
+Message-Id: <20100319162732.58633847.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100319161023.d6a4ea8d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1268979996-12297-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20100319161023.d6a4ea8d.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Anthony Liguori <anthony@codemonkey.ws>, balbir@linux.vnet.ibm.com, KVM development list <kvm@vger.kernel.org>, Rik van Riel <riel@surriel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, andi.kleen@intel.com, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-03-16 at 11:05 +0200, Avi Kivity wrote:
-> > Not really.  In many cloud environments, there's a set of common 
-> > images that are instantiated on each node.  Usually this is because 
-> > you're running a horizontally scalable application or because you're 
-> > supporting an ephemeral storage model.
+On Fri, 19 Mar 2010 16:10:23 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Fri, 19 Mar 2010 15:26:36 +0900
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 > 
-> But will these servers actually benefit from shared cache?  So the 
-> images are shared, they boot up, what then?
+> > When we look into pagemap using page-types with option -p, the value
+> > of pfn for hugepages looks wrong (see below.)
+> > This is because pte was evaluated only once for one vma
+> > although it should be updated for each hugepage. This patch fixes it.
+> > 
+> > $ page-types -p 3277 -Nl -b huge
+> > voffset   offset  len     flags
+> > 7f21e8a00 11e400  1       ___U___________H_G________________
+> > 7f21e8a01 11e401  1ff     ________________TG________________
+> > 7f21e8c00 11e400  1       ___U___________H_G________________
+> > 7f21e8c01 11e401  1ff     ________________TG________________
+> >              ^^^
+> >              should not be the same
+> > 
+> > With this patch applied:
+> > 
+> > $ page-types -p 3386 -Nl -b huge
+> > voffset   offset   len    flags
+> > 7fec7a600 112c00   1      ___UD__________H_G________________
+> > 7fec7a601 112c01   1ff    ________________TG________________
+> > 7fec7a800 113200   1      ___UD__________H_G________________
+> > 7fec7a801 113201   1ff    ________________TG________________
+> >              ^^^
+> >              OK
+> > 
+> Hmm. Is this bug ? To me, it's just shown in hugepage's pagesize, by design.
 > 
-> - apache really won't like serving static files from the host pagecache
-> - dynamic content (java, cgi) will be mostly in anonymous memory, not 
-> pagecache
-> - ditto for application servers
-> - what else are people doing?
+I'm sorry it seems this is bugfix.
 
-Think of an OpenVZ-style model where you're renting out a bunch of
-relatively tiny VMs and they're getting used pretty sporadically.  They
-either have relatively little memory, or they've been ballooned down to
-a pretty small footprint.
+But, this means hugeltb_entry() is not called per hugetlb entry...isn't it ?
 
-The more you shrink them down, the more similar they become.  You'll end
-up having things like init, cron, apache, bash and libc start to
-dominate the memory footprint in the VM.
+Why hugetlb_entry() cannot be called per hugeltb entry ? Don't we need a code
+for a case as pmd_size != hugetlb_size in walk_page_range() for generic fix ?
 
-That's *certainly* a case where this makes a lot of sense.
-
--- Dave
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
