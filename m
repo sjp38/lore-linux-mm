@@ -1,70 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 180066B01B1
-	for <linux-mm@kvack.org>; Fri, 19 Mar 2010 16:07:06 -0400 (EDT)
-Subject: Re: [PATCH 1/2] pagemap: add #ifdefs CONFIG_HUGETLB_PAGE on code
- walking hugetlb vma
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <1268979996-12297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1268979996-12297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 19 Mar 2010 15:07:01 -0500
-Message-ID: <1269029221.9534.145.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8C75D6B01AC
+	for <linux-mm@kvack.org>; Sun, 21 Mar 2010 05:38:45 -0400 (EDT)
+Received: by pxi32 with SMTP id 32so269440pxi.1
+        for <linux-mm@kvack.org>; Sun, 21 Mar 2010 02:38:46 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1002232014200.15526@router.home>
+References: <17cb70ee1002231646m508f6483mcb667d4e67d9807f@mail.gmail.com>
+	 <alpine.DEB.2.00.1002231744110.3435@chino.kir.corp.google.com>
+	 <alpine.DEB.2.00.1002232014200.15526@router.home>
+Date: Sun, 21 Mar 2010 10:38:45 +0100
+Message-ID: <17cb70ee1003210238u72aedb0dr78f7909ee4964d4b@mail.gmail.com>
+Subject: Re: way to allocate memory within a range ?
+From: Auguste Mome <augustmome@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, andi.kleen@intel.com, fengguang.wu@intel.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-03-19 at 15:26 +0900, Naoya Horiguchi wrote:
-> If !CONFIG_HUGETLB_PAGE, pagemap_hugetlb_range() is never called.
-> So put it (and its calling function) into #ifdef block.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+OK thanks for your comments, I found that mempool() API can do the job
+I need, because
+I can live with a fixed size for allocated object, so I plan to
+populate the pool by adding all the
+"cells" of the given range.
+My use case is another module aside Linux that would map the the same
+memory area.
 
-Acked-by: Matt Mackall <mpm@selenic.com>
+August.
 
-> ---
->  fs/proc/task_mmu.c |    4 ++++
->  1 files changed, 4 insertions(+), 0 deletions(-)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 183f8ff..2a3ef17 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -652,6 +652,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  	return err;
->  }
->  
-> +#ifdef CONFIG_HUGETLB_PAGE
->  static u64 huge_pte_to_pagemap_entry(pte_t pte, int offset)
->  {
->  	u64 pme = 0;
-> @@ -695,6 +696,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long addr,
->  
->  	return err;
->  }
-> +#endif /* HUGETLB_PAGE */
->  
->  /*
->   * /proc/pid/pagemap - an array mapping virtual pages to pfns
-> @@ -788,7 +790,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
->  
->  	pagemap_walk.pmd_entry = pagemap_pte_range;
->  	pagemap_walk.pte_hole = pagemap_pte_hole;
-> +#ifdef CONFIG_HUGETLB_PAGE
->  	pagemap_walk.hugetlb_entry = pagemap_hugetlb_range;
-> +#endif
->  	pagemap_walk.mm = mm;
->  	pagemap_walk.private = &pm;
->  
-
-
-
--- 
-http://selenic.com : development and support for Mercurial and Linux
-
+On Wed, Feb 24, 2010 at 4:35 PM, Christoph Lameter
+<cl@linux-foundation.org> wrote:
+> On Tue, 23 Feb 2010, David Rientjes wrote:
+>
+>> > Or slab/slub system is not designed for this, I should forget it and
+>> > opt for another system?
+>> >
+>>
+>> No slab allocator is going to be designed for that other than SLAB_DMA t=
+o
+>> allocate from lowmem. =C2=A0If you don't have need for lowmem, why do yo=
+u need
+>> memory only from a certain range? =C2=A0I can imagine it would have a us=
+ecase
+>> for memory hotplug to avoid allocating slab that cannot be reclaimed on
+>> certain nodes, but ZONE_MOVABLE seems more appropriate to guarantee such
+>> migration properties.
+>
+> Awhile ago I posted a patch to do just that. It was called
+> alloc_pages_range() and the intend was to replace the dma zone.
+>
+> http://lkml.indiana.edu/hypermail/linux/kernel/0609.2/2096.html
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
