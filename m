@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B44036B01AE
-	for <linux-mm@kvack.org>; Mon, 22 Mar 2010 14:21:01 -0400 (EDT)
-Date: Mon, 22 Mar 2010 19:20:28 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 00 of 34] Transparent Hugepage support #14
-Message-ID: <20100322182028.GA13114@cmpxchg.org>
-References: <patchbomb.1268839142@v2.random> <alpine.DEB.2.00.1003171353240.27268@router.home> <20100318234923.GV29874@random.random> <alpine.DEB.2.00.1003190812560.10759@router.home> <20100319144101.GB29874@random.random> <alpine.DEB.2.00.1003221027590.16606@router.home> <20100322163523.GA12407@cmpxchg.org> <alpine.DEB.2.00.1003221139300.17230@router.home>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C2FAE6B01AD
+	for <linux-mm@kvack.org>; Mon, 22 Mar 2010 16:28:19 -0400 (EDT)
+From: Andrew Hastings <abh@cray.com>
+Message-Id: <201003222028.o2MKSDsD006611@pogo.us.cray.com>
+Date: Mon, 22 Mar 2010 15:28:13 -0500
+Subject: BUG: Use after free in free_huge_page()
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1003221139300.17230@router.home>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: linux-mm@kvack.org
+Cc: Adam Litke <agl@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 22, 2010 at 11:46:01AM -0500, Christoph Lameter wrote:
-> On Mon, 22 Mar 2010, Johannes Weiner wrote:
-> 
-> > > entries while walking the page tables! Go incrementally use what
-> > > is there.
-> >
-> > That only works if you merely read the tables.  If the VMA gets broken
-> > up in the middle of a huge page, you definitely have to map ptes again.
-> 
-> Yes then follow the established system for remapping stuff.
+It looks like there's a use-after-free issue in free_huge_page().
 
-This is not comparable.  The existing remapping code does not have to deal
-with structural changes in the page tables.
+free_huge_page() says:
 
-> > And as already said, allowing it to happen always-succeeding and
-> > atomically allows to switch users step by step.
-> 
-> It results in a volatility in the page table entries that requires new
-> synchronization procedures. It also increases the difficulty in
-> establishing a reliable state of the pages / page tables for
-> operations since there is potentially on-the-fly atomic conversion
-> wizardry going on.
+        mapping = (struct address_space *) page_private(page);
+	...
+        if (mapping)
+                hugetlb_put_quota(mapping, 1);
 
-I really fail to see how.  Right now, when you want a stable entry, you
-take the pte lock.  This is exactly the same for huge page entries.
+Running a kernel with CONFIG_DEBUG_SLAB, we get a "Oops: <NULL>" in
+hugetlb_put_quota.  The stack backtrace looks like:
 
-Migration happens on the fly as well, you can just hide it better for
-cases like mremap(), which is unaffected by the actual entries it copies.
+  free_huge_page
+  put_page
+  ... driver functions ...
+  __fput
+  fput
+  filp_close
+  put_files_struct
+  exit_files
+  do_exit
+  do_group_exit
+  get_signal_to_deliver
+  do_notify_resume
+  ptregscall_common
 
-It becomes only visible at sites affected by the entries themselves,
-which are not that many, the fault handler e.g.  It is much easier to
-keep that stuff centralized.
+'mapping' points to memory containing POISON_FREE:
 
-But pmd splitting affects everyone sensitive to the page table structure
-itself and that ends up being everyone, well, walking page tables.
+>> dump 0xffff880407464f20 16
+0xffff880407464f20: 6b6b6b6b6b6b6b6b 6b6b6b6b6b6b6b6b : kkkkkkkkkkkkkkkk
+0xffff880407464f30: 6b6b6b6b6b6b6b6b 6b6b6b6b6b6b6b6b : kkkkkkkkkkkkkkkk
 
-> > That sure sounds more incremental to me than being required to do
-> > non-trivial adjustments to all the places at once!
-> 
-> You do not need to do this all at once. Again the huge page subsystem has
-> been around for years and we have established mechanisms to move/remap.
-> There nothing hindering us from implementing huge page -> regular page
-> conversion using the known methods or also implementing explicit huge page
-> support in more portions of the kernel.
+I think what happens is:
+1.  Driver does get_user_pages() for pages mapped by hugetlbfs.
+2.  Process exits.
+3.  hugetlbfs file is closed; the vma->vm_file->f_mapping value stored in
+    page_private now points to freed memory
+4.  Driver file is closed; driver's release() function calls put_page()
+    which calls free_huge_page() which passes bogus mapping value to
+    hugetlb_put_quota().
 
-I see the real complexity in actually dealing with dynamically changing
-page table structure and none of the existing code does that.
+We've seen this with 2.6.27.42 but free_huge_page() is unchanged in 2.6.33.1.
+
+git commit c79fb75e5a514a5a35f22c229042aa29f4237e3a ("hugetlb: fix quota
+management for private mappings") is what introduced the reliance on mapping
+in free_huge_page().
+
+I'd like to help with a fix, but it's not immediately obvious to me what
+the right path is.  Should hugetlb_no_page() always call add_to_page_cache()
+even if VM_MAYSHARE is clear?
+
+-Andrew Hastings
+ Cray Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
