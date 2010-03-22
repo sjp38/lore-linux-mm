@@ -1,120 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AD69A6B01B5
-	for <linux-mm@kvack.org>; Mon, 22 Mar 2010 13:08:16 -0400 (EDT)
-Date: Mon, 22 Mar 2010 18:06:19 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 34] Transparent Hugepage support #14
-Message-ID: <20100322170619.GQ29874@random.random>
-References: <patchbomb.1268839142@v2.random>
- <alpine.DEB.2.00.1003171353240.27268@router.home>
- <20100318234923.GV29874@random.random>
- <alpine.DEB.2.00.1003190812560.10759@router.home>
- <20100319144101.GB29874@random.random>
- <alpine.DEB.2.00.1003221027590.16606@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1003221027590.16606@router.home>
+	by kanga.kvack.org (Postfix) with ESMTP id 702B66B01B7
+	for <linux-mm@kvack.org>; Mon, 22 Mar 2010 13:11:52 -0400 (EDT)
+Date: Mon, 22 Mar 2010 10:09:54 -0400
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 15610] New: fsck leads to swapper - BUG:
+ unable to handle kernel NULL pointer dereference & panic
+Message-Id: <20100322100954.5ecaec4b.akpm@linux-foundation.org>
+In-Reply-To: <bug-15610-10286@https.bugzilla.kernel.org/>
+References: <bug-15610-10286@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, ozgur.yuksel@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 22, 2010 at 10:38:23AM -0500, Christoph Lameter wrote:
-> On Fri, 19 Mar 2010, Andrea Arcangeli wrote:
+
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+This is a post-2.6.33 regression.
+
+On Mon, 22 Mar 2010 15:59:44 GMT bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=15610
 > 
-> > > Look at the patches. They add synchronization to pte operations.
-> >
-> > The whole point is that it's fundamentally unavoidable and not
-> > specific to any of split_huge_page, compound_lock or
-> > get_page/put_page!
+>            Summary: fsck leads to swapper - BUG: unable to handle kernel
+>                     NULL pointer dereference & panic
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 2.6.34-rc2-220bf991b0366cc50a94feede3d7341fa5710ee4
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: ozgur.yuksel@oracle.com
+>         Regression: No
 > 
-> Really? Why did no one else run into this before?
-
-Of course we run into this before too, and the locking in fact already
-exists and you probably added it yourself when introducing the more
-scalare PT lock for the pte.
-
-For the pmd we always used the page_table_lock and I kept using
-it. Except that before it was only necessary in __pte_alloc (see
-mainline), now it's needed in more places because the pmd can be
-modified as it points to actual pages that can go away, and not only
-to ptes.
-
-> > Problem with O_DIRECT is that I couldn't use mmu notifier to prevent
-> > it to take the pin on the page, because there is no way to interrupt
-> > DMA synchronously before mmu_notifier_invalidate_* returns... So I had
-> > to add compound_lock and keep gup API backwards compatible and have
-> > the proper serialization happen _only_ for PageTail inside put_page.
 > 
-> You can take a refcount *before* breaking up a 2M page then you dont have
-> to fear the put_page.
+> During fsck.ext3 being performed (even with regular / clean forced runs), we
+> get a swapper crash:
+> [  159.557737] BUG: unable to handle kernel NULL pointer dereference at (null)
+> [  159.561687] IP: [<c01304aa>] __wake_up_common+0x1a/0x70
 
-If you take it _before_ it will go into the head page regardless of
-which subpage was returned by gup. We need to know which subpages are
-under DMA. The pin has to go to the tail pages or head page depending
-on the physical address that was requested by gup. To fix this we need
-at the very least to change gup api to ask for hugepages which it
-can't right now because it'd break all drivers.
+err, what the heck?  zone->wait_table didn't get initialised?  I can't
+think of anything we did which might have caused that.  Sorry to have
+to ask this, but...  would it be possible for you to do a bisection of
+this?  http://landley.net/writing/git-quick.html has some tips.
 
-> Keep a reference count in the head page and a pointer to the subpage? Page
-> can only be broken up if all page references of the 2M page can be
-> accounted for. This implies no "atomic" breakup but this way it does not
-> require changes to synchronization.
 
-"can only broken up". See my last sentence of my previous reply to
-figure out exactly why we're not ok if "page cannot be broken up".
+Thanks.
 
-besides even if we add a error retval, we can't have mprotect/mremap
-fail at most swapout could be deferred because "page cannot be broken
-up" but even that is risky and I've been extra careful not to require
-any memory allocation or sleeping lock in split_huge_page to make it
-ideal to use in swap path without risking any functional regression
-whatsoever.
-
-> That is the basic crux here. Do not require that it cannot fail. Its a bad
-> move and results in a mess.
-
-Allowing it to fail would result in a mess. Obviously I wasn't clear
-enough in the last sentence of my previous mail so I'll have to
-repeate: any effort in handling the failure (which in some case it
-can't be handled as syscalls can't fail just because a page is 2M)
-should instead be spent to _remove_ the split_huge_page call.
-
-> No its not. I am proposing to *keep* the existing syncronization methods.
-> Use what is there. Do not invent new synchronization.
-
-You don't see the huge value of the invention. When you go around
-implementing your own split_huge_page that will fail, you might see
-it (or we can compare the size of the two patches then, knowing that
-I add 1 line to mremap and you add hundreds or maybe you can't use
-your split_huge_page there at all forcing you to handle 2M pages
-immediately from the start). And mremap is not the big deal, it's that
-if you can't use it in mremap you practically won't be able to use it
-anywhere except in swap, where you will introduce a nasty unknown and
-potential livelock or deadlock.
-
-> We already have 2M pmd handling in the kernel and can consider huge pmd
-> entries while walking the page tables! Go incrementally use what
-> is there.
-
-There's no such thing unless you talk about the hugetlbfs paths. In
-the core paths that the only thing I care about in transparent
-hugepage, pmd is only checked to be present. If it's present it can't
-go away. This is not true anymore as it can point to user pages and
-not ptes. I am definitely reusing the same synchronization for ptes
-that already is used by __pte_alloc which is the only bit that
-requires synchronization right now, to atomically check if the pmd is
-still not present, before overwriting it.
-
-Best of all, I had to add zero atomic ops and just 1 branch in already
-hot l1 cache (and no writes to the l1 cache either, just 1 more read)
-in order to add the pagefault slow path for huge pmd. So unless you
-actively take advantage of hugepages, the page_table_lock locking will
-be zero cost and in the future nothing prevents us to add a more
-scalar PMD lock like it exists for the pte (but keep in mind it's much
-512 times less important for PMD than it is for the PTE).
+> [  159.561687] *pdpt = 0000000000853001 *pde = 0000000000000000
+> [  159.561687] Oops: 0000 [#1] SMP
+> [  159.561687] last sysfs file: /sys/kernel/uevent_seqnum
+> [  159.561687] Modules linked in: snd_hda_codec_idt snd_hda_intel snd_hda_codec
+> snd_hwdep snd_pcm_oss snd_mixer_oss snd_pcmt
+> [  159.561687]
+> [  159.561687] Pid: 0, comm: swapper Not tainted 2.6.34-rc2 #10 0KU184/Latitude
+> D630
+> [  159.561687] EIP: 0060:[<c01304aa>] EFLAGS: 00010086 CPU: 1
+> [  159.561687] EIP is at __wake_up_common+0x1a/0x70
+> [  159.561687] EAX: c4f32f00 EBX: fffffff4 ECX: 00000001 EDX: 00000000
+> [  159.561687] ESI: 00000003 EDI: 00000096 EBP: f747bc84 ESP: f747bc68
+> [  159.561687]  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
+> [  159.561687] Process swapper (pid: 0, ti=f747a000 task=f743e600
+> task.ti=f747a000)
+> [  159.561687] Stack:
+> [  159.561687]  f747bc70 00000001 00000003 c058d79a c4f32efc 00000003 00000096
+> f747bca4
+> [  159.561687] <0> c0136cd7 00000000 f747bcb0 00000001 c0e00000 c07b2700
+> c0e00000 f747bcb8
+> [  159.561687] <0> c0161689 f747bcb0 c0e00000 00000002 f747bcc8 c01616ea
+> c0e00000 c539be20
+> [  159.561687] Call Trace:
+> [  159.561687]  [<c058d79a>] ? _raw_spin_lock_irqsave+0x2a/0x40
+> [  159.561687]  [<c0136cd7>] ? __wake_up+0x37/0x50
+> [  159.561687]  [<c0161689>] ? __wake_up_bit+0x29/0x30
+> [  159.561687]  [<c01616ea>] ? wake_up_bit+0x5a/0x60
+> [  159.561687]  [<c02199b1>] ? unlock_buffer+0x11/0x20
+> [  159.561687]  [<c0219b72>] ? end_buffer_async_read+0x62/0x120
+> [  159.561687]  [<c02191de>] ? end_bio_bh_io_sync+0x1e/0x40
+> [  159.561687]  [<c021cd35>] ? bio_endio+0x15/0x30
+> [  159.561687]  [<c030fb22>] ? req_bio_endio+0xa2/0x100
+> [  159.561687]  [<c0310889>] ? blk_update_request+0xe9/0x3e0
+> [  159.561687]  [<c011df46>] ? lapic_next_event+0x16/0x20
+> [  159.561687]  [<c016f6c7>] ? clockevents_program_event+0x87/0x140
+> [  159.561687]  [<c0310b96>] ? blk_update_bidi_request+0x16/0x60
+> [  159.561687]  [<c0311ad3>] ? blk_end_bidi_request+0x23/0x70
+> [  159.561687]  [<c0311b72>] ? blk_end_request+0x12/0x20
+> [  159.561687]  [<c03d1afe>] ? scsi_io_completion+0x8e/0x550
+> [  159.561687]  [<c03f9068>] ? ata_sff_hsm_move+0x188/0x770
+> [  159.561687]  [<c03d1953>] ? scsi_device_unbusy+0x93/0xa0
+> [  159.561687]  [<c03ca5a8>] ? scsi_finish_command+0x98/0x100
+> [  159.561687]  [<c03ce0ad>] ? scsi_decide_disposition+0x16d/0x1a0
+> [  159.561687]  [<c03d20db>] ? scsi_softirq_done+0x10b/0x130
+> [  159.561687]  [<c0317122>] ? blk_done_softirq+0x62/0x70
+> [  159.561687]  [<c014c4f0>] ? __do_softirq+0x90/0x1a0
+> [  159.561687]  [<c0120e4a>] ? ack_apic_level+0x6a/0x200
+> [  159.561687]  [<c014c63d>] ? do_softirq+0x3d/0x40
+> [  159.561687]  [<c014c79d>] ? irq_exit+0x5d/0x70
+> [  159.561687]  [<c01044e0>] ? do_IRQ+0x50/0xc0
+> [  159.561687]  [<c0167694>] ? sched_clock_local+0xa4/0x180
+> [  159.561687]  [<c01035b0>] ? common_interrupt+0x30/0x40
+> [  159.561687]  [<c016007b>] ? parse_args+0x23b/0x2d0
+> [  159.561687]  [<c037d4ae>] ? acpi_idle_enter_bm+0x25e/0x28f
+> [  159.561687]  [<c0486b6e>] ? cpuidle_idle_call+0x6e/0xf0
+> [  159.561687]  [<c0101d0c>] ? cpu_idle+0x8c/0xd0
+> [  159.561687]  [<c05888eb>] ? start_secondary+0x1f5/0x1fb
+> [  159.561687] Code: 90 55 89 e5 e8 68 ff ff ff 5d c3 8d b6 00 00 00 00 55 89
+> e5 57 56 53 83 ec 10 89 55 ec 89 4d e8 8b 50
+> [  159.561687] EIP: [<c01304aa>] __wake_up_common+0x1a/0x70 SS:ESP
+> 0068:f747bc68
+> [  159.561687] CR2: 0000000000000000
+> [  159.561687] ---[ end trace 0fd75502f6ca2e6e ]---
+> 
+> and panic:
+> [  159.561687] Kernel panic - not syncing: Fatal exception in interrupt
+> [  159.561687] Pid: 0, comm: swapper Tainted: G      D    2.6.34-rc2 #10
+> [  159.561687] Call Trace:
+> [  159.561687]  [<c058b0a7>] ? printk+0x18/0x21
+> [  159.561687]  [<c058b01e>] panic+0x42/0xb3
+> [  159.561687]  [<c058ef87>] oops_end+0x97/0xa0
+> [  159.561687]  [<c0128e8e>] no_context+0xbe/0x190
+> [  159.561687]  [<c0128f97>] __bad_area_nosemaphore+0x37/0x160
+> [  159.561687]  [<c013fd41>] ? enqueue_task_fair+0x41/0x90
+> [  159.561687]  [<c012f649>] ? enqueue_task+0x79/0x90
+> [  159.561687]  [<c01290d2>] bad_area_nosemaphore+0x12/0x20
+> [  159.561687]  [<c0591106>] do_page_fault+0x2f6/0x380
+> [  159.561687]  [<c013ae5c>] ? try_to_wake_up+0x2bc/0x430
+> [  159.561687]  [<c0590e10>] ? do_page_fault+0x0/0x380
+> [  159.561687]  [<c058e463>] error_code+0x73/0x80
+> [  159.561687]  [<c013007b>] ? __sched_fork+0xcb/0x2b0
+> [  159.561687]  [<c01304aa>] ? __wake_up_common+0x1a/0x70
+> [  159.561687]  [<c058d79a>] ? _raw_spin_lock_irqsave+0x2a/0x40
+> [  159.561687]  [<c0136cd7>] __wake_up+0x37/0x50
+> [  159.561687]  [<c0161689>] __wake_up_bit+0x29/0x30
+> [  159.561687]  [<c01616ea>] wake_up_bit+0x5a/0x60
+> [  159.561687]  [<c02199b1>] unlock_buffer+0x11/0x20
+> [  159.561687]  [<c0219b72>] end_buffer_async_read+0x62/0x120
+> [  159.561687]  [<c02191de>] end_bio_bh_io_sync+0x1e/0x40
+> [  159.561687]  [<c021cd35>] bio_endio+0x15/0x30
+> [  159.561687]  [<c030fb22>] req_bio_endio+0xa2/0x100
+> [  159.561687]  [<c0310889>] blk_update_request+0xe9/0x3e0
+> [  159.561687]  [<c011df46>] ? lapic_next_event+0x16/0x20
+> [  159.561687]  [<c016f6c7>] ? clockevents_program_event+0x87/0x140
+> [  159.561687]  [<c0310b96>] blk_update_bidi_request+0x16/0x60
+> [  159.561687]  [<c0311ad3>] blk_end_bidi_request+0x23/0x70
+> [  159.561687]  [<c0311b72>] blk_end_request+0x12/0x20
+> [  159.561687]  [<c03d1afe>] scsi_io_completion+0x8e/0x550
+> [  159.561687]  [<c03f9068>] ? ata_sff_hsm_move+0x188/0x770
+> [  159.561687]  [<c03d1953>] ? scsi_device_unbusy+0x93/0xa0
+> [  159.561687]  [<c03ca5a8>] scsi_finish_command+0x98/0x100
+> [  159.561687]  [<c03ce0ad>] ? scsi_decide_disposition+0x16d/0x1a0
+> [  159.561687]  [<c03d20db>] scsi_softirq_done+0x10b/0x130
+> [  159.561687]  [<c0317122>] blk_done_softirq+0x62/0x70
+> [  159.561687]  [<c014c4f0>] __do_softirq+0x90/0x1a0
+> [  159.561687]  [<c0120e4a>] ? ack_apic_level+0x6a/0x200
+> [  159.561687]  [<c014c63d>] do_softirq+0x3d/0x40
+> [  159.561687]  [<c014c79d>] irq_exit+0x5d/0x70
+> [  159.561687]  [<c01044e0>] do_IRQ+0x50/0xc0
+> [  159.561687]  [<c0167694>] ? sched_clock_local+0xa4/0x180
+> [  159.561687]  [<c01035b0>] common_interrupt+0x30/0x40
+> [  159.561687]  [<c016007b>] ? parse_args+0x23b/0x2d0
+> [  159.561687]  [<c037d4ae>] ? acpi_idle_enter_bm+0x25e/0x28f
+> [  159.561687]  [<c0486b6e>] cpuidle_idle_call+0x6e/0xf0
+> [  159.561687]  [<c0101d0c>] cpu_idle+0x8c/0xd0
+> [  159.561687]  [<c05888eb>] start_secondary+0x1f5/0x1fb
+> [  159.561687] [drm:drm_fb_helper_panic] *ERROR* panic occurred, switching back
+> to text console
+> ...
+> full serial console dump to be attached.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
