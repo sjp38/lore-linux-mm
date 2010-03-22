@@ -1,73 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A6E36B01AD
-	for <linux-mm@kvack.org>; Mon, 22 Mar 2010 18:40:19 -0400 (EDT)
-Date: Fri, 19 Mar 2010 17:40:23 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/2] [BUGFIX] pagemap: fix pfn calculation for hugepage
-Message-ID: <20100319084023.GC13107@spritzerA.linux.bs1.fc.nec.co.jp>
-References: <1268979996-12297-2-git-send-email-n-horiguchi@ah.jp.nec.com> <20100319161023.d6a4ea8d.kamezawa.hiroyu@jp.fujitsu.com> <20100319162732.58633847.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 97C616B01AD
+	for <linux-mm@kvack.org>; Mon, 22 Mar 2010 19:26:00 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [C/R v20][PATCH 15/96] cgroup freezer: Fix buggy resume test for tasks frozen with cgroup freezer
+Date: Tue, 23 Mar 2010 00:28:40 +0100
+References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu> <1268842164-5590-15-git-send-email-orenl@cs.columbia.edu> <1268842164-5590-16-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1268842164-5590-16-git-send-email-orenl@cs.columbia.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Disposition: inline
-In-Reply-To: <20100319162732.58633847.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201003230028.40915.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, andi.kleen@intel.com, fengguang.wu@intel.com
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Matt Helsley <matthltc@us.ibm.com>, Cedric Le Goater <legoater@free.fr>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Pavel Machek <pavel@ucw.cz>, linux-pm@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 19, 2010 at 04:27:32PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 19 Mar 2010 16:10:23 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Wednesday 17 March 2010, Oren Laadan wrote:
+> From: Matt Helsley <matthltc@us.ibm.com>
 > 
-> > On Fri, 19 Mar 2010 15:26:36 +0900
-> > Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> > 
-> > > When we look into pagemap using page-types with option -p, the value
-> > > of pfn for hugepages looks wrong (see below.)
-> > > This is because pte was evaluated only once for one vma
-> > > although it should be updated for each hugepage. This patch fixes it.
-> > > 
-> > > $ page-types -p 3277 -Nl -b huge
-> > > voffset   offset  len     flags
-> > > 7f21e8a00 11e400  1       ___U___________H_G________________
-> > > 7f21e8a01 11e401  1ff     ________________TG________________
-> > > 7f21e8c00 11e400  1       ___U___________H_G________________
-> > > 7f21e8c01 11e401  1ff     ________________TG________________
-> > >              ^^^
-> > >              should not be the same
-> > > 
-> > > With this patch applied:
-> > > 
-> > > $ page-types -p 3386 -Nl -b huge
-> > > voffset   offset   len    flags
-> > > 7fec7a600 112c00   1      ___UD__________H_G________________
-> > > 7fec7a601 112c01   1ff    ________________TG________________
-> > > 7fec7a800 113200   1      ___UD__________H_G________________
-> > > 7fec7a801 113201   1ff    ________________TG________________
-> > >              ^^^
-> > >              OK
-> > > 
-> > Hmm. Is this bug ? To me, it's just shown in hugepage's pagesize, by design.
-> > 
-> I'm sorry it seems this is bugfix.
+> When the cgroup freezer is used to freeze tasks we do not want to thaw
+> those tasks during resume. Currently we test the cgroup freezer
+> state of the resuming tasks to see if the cgroup is FROZEN.  If so
+> then we don't thaw the task. However, the FREEZING state also indicates
+> that the task should remain frozen.
 > 
-> But, this means hugeltb_entry() is not called per hugetlb entry...isn't it ?
+> This also avoids a problem pointed out by Oren Ladaan: the freezer state
+> transition from FREEZING to FROZEN is updated lazily when userspace reads
+> or writes the freezer.state file in the cgroup filesystem. This means that
+> resume will thaw tasks in cgroups which should be in the FROZEN state if
+> there is no read/write of the freezer.state file to trigger this
+> transition before suspend.
 > 
-
-Correct. Hugetlb_entry() is called per vma.
-
-> Why hugetlb_entry() cannot be called per hugeltb entry ? Don't we need a code
-> for a case as pmd_size != hugetlb_size in walk_page_range() for generic fix ?
+> NOTE: Another "simple" solution would be to always update the cgroup
+> freezer state during resume. However it's a bad choice for several reasons:
+> Updating the cgroup freezer state is somewhat expensive because it requires
+> walking all the tasks in the cgroup and checking if they are each frozen.
+> Worse, this could easily make resume run in N^2 time where N is the number
+> of tasks in the cgroup. Finally, updating the freezer state from this code
+> path requires trickier locking because of the way locks must be ordered.
 > 
+> Instead of updating the freezer state we rely on the fact that lazy
+> updates only manage the transition from FREEZING to FROZEN. We know that
+> a cgroup with the FREEZING state may actually be FROZEN so test for that
+> state too. This makes sense in the resume path even for partially-frozen
+> cgroups -- those that really are FREEZING but not FROZEN.
+> 
+> Reported-by: Oren Ladaan <orenl@cs.columbia.edu>
+> Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
+> Cc: Cedric Le Goater <legoater@free.fr>
+> Cc: Paul Menage <menage@google.com>
+> Cc: Li Zefan <lizf@cn.fujitsu.com>
+> Cc: Rafael J. Wysocki <rjw@sisk.pl>
+> Cc: Pavel Machek <pavel@ucw.cz>
+> Cc: linux-pm@lists.linux-foundation.org
 
-Because in some architecture there is no generic means to know whether
-a pgd/pmd/pud/pte is hugetlb entry or not.
-For second question, vma-based walking is generic solution and
-works for "pmd_size != hugetlb_size" case.
+Looks reasonable.
 
-Thanks,
-Naoya Horiguchi
+Is anyone handling that already or do you want me to take it to my tree?
+
+Rafael
+
+
+> Seems like a candidate for -stable.
+> ---
+>  include/linux/freezer.h |    7 +++++--
+>  kernel/cgroup_freezer.c |    9 ++++++---
+>  kernel/power/process.c  |    2 +-
+>  3 files changed, 12 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/freezer.h b/include/linux/freezer.h
+> index 5a361f8..da7e52b 100644
+> --- a/include/linux/freezer.h
+> +++ b/include/linux/freezer.h
+> @@ -64,9 +64,12 @@ extern bool freeze_task(struct task_struct *p, bool sig_only);
+>  extern void cancel_freezing(struct task_struct *p);
+>  
+>  #ifdef CONFIG_CGROUP_FREEZER
+> -extern int cgroup_frozen(struct task_struct *task);
+> +extern int cgroup_freezing_or_frozen(struct task_struct *task);
+>  #else /* !CONFIG_CGROUP_FREEZER */
+> -static inline int cgroup_frozen(struct task_struct *task) { return 0; }
+> +static inline int cgroup_freezing_or_frozen(struct task_struct *task)
+> +{
+> +	return 0;
+> +}
+>  #endif /* !CONFIG_CGROUP_FREEZER */
+>  
+>  /*
+> diff --git a/kernel/cgroup_freezer.c b/kernel/cgroup_freezer.c
+> index 59e9ef6..eb3f34d 100644
+> --- a/kernel/cgroup_freezer.c
+> +++ b/kernel/cgroup_freezer.c
+> @@ -47,17 +47,20 @@ static inline struct freezer *task_freezer(struct task_struct *task)
+>  			    struct freezer, css);
+>  }
+>  
+> -int cgroup_frozen(struct task_struct *task)
+> +int cgroup_freezing_or_frozen(struct task_struct *task)
+>  {
+>  	struct freezer *freezer;
+>  	enum freezer_state state;
+>  
+>  	task_lock(task);
+>  	freezer = task_freezer(task);
+> -	state = freezer->state;
+> +	if (!freezer->css.cgroup->parent)
+> +		state = CGROUP_THAWED; /* root cgroup can't be frozen */
+> +	else
+> +		state = freezer->state;
+>  	task_unlock(task);
+>  
+> -	return state == CGROUP_FROZEN;
+> +	return (state == CGROUP_FREEZING) || (state == CGROUP_FROZEN);
+>  }
+>  
+>  /*
+> diff --git a/kernel/power/process.c b/kernel/power/process.c
+> index 5ade1bd..de53015 100644
+> --- a/kernel/power/process.c
+> +++ b/kernel/power/process.c
+> @@ -145,7 +145,7 @@ static void thaw_tasks(bool nosig_only)
+>  		if (nosig_only && should_send_signal(p))
+>  			continue;
+>  
+> -		if (cgroup_frozen(p))
+> +		if (cgroup_freezing_or_frozen(p))
+>  			continue;
+>  
+>  		thaw_process(p);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
