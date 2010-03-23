@@ -1,40 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C456A6B01C7
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 14:19:29 -0400 (EDT)
-Received: by pwj1 with SMTP id 1so4495830pwj.9
-        for <linux-mm@kvack.org>; Tue, 23 Mar 2010 11:19:27 -0700 (PDT)
-Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression in performance
-Mime-Version: 1.0 (Apple Message framework v1077)
-Content-Type: text/plain; charset=us-ascii
-From: Anton Starikov <ant.starikov@gmail.com>
-In-Reply-To: <20100323111351.756c8752.akpm@linux-foundation.org>
-Date: Tue, 23 Mar 2010 19:19:22 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <1BAC48C3-2AF2-4FA2-9762-85727068BF64@gmail.com>
-References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <20100323111351.756c8752.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 37BF06B01BF
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 14:23:01 -0400 (EDT)
+Date: Tue, 23 Mar 2010 11:21:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge
+ regression in performance
+Message-Id: <20100323112141.7f248f2b.akpm@linux-foundation.org>
+In-Reply-To: <15090451-C292-44D6-B2BA-DCBCBEEF429D@gmail.com>
+References: <bug-15618-10286@https.bugzilla.kernel.org/>
+	<20100323102208.512c16cc.akpm@linux-foundation.org>
+	<20100323173409.GA24845@elte.hu>
+	<alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
+	<20100323180002.GA2965@elte.hu>
+	<15090451-C292-44D6-B2BA-DCBCBEEF429D@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Anton Starikov <ant.starikov@gmail.com>
 Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Mar 23, 2010, at 7:13 PM, Andrew Morton wrote:
-> Anton, we have an executable binary in the bugzilla report but it =
-would
-> be nice to also have at least a description of what that code is
-> actually doing.  A quick strace shows quite a lot of mprotect =
-activity.
-> A pseudo-code walkthrough, perhaps?
+On Tue, 23 Mar 2010 19:03:36 +0100
+Anton Starikov <ant.starikov@gmail.com> wrote:
 
+> 
+> On Mar 23, 2010, at 7:00 PM, Ingo Molnar wrote:
+> >> NOTE! None of those are in 2.6.33 - they were merged afterwards. But they 
+> >> are in 2.6.34-rc1 (and obviously current -git). So Anton would have to 
+> >> compile his own kernel to test his load.
+> > 
+> > another option is to run the rawhide kernel via something like:
+> > 
+> > 	yum update --enablerepo=development kernel
+> > 
+> > this will give kernel-2.6.34-0.13.rc1.git1.fc14.x86_64, which has those 
+> > changes included.
+> 
+> I will apply this commits to 2.6.32, I afraid current OFED (which I need also) will not work on 2.6.33+.
+> 
 
-Right now can't say too much about the code (we just gave a chance to =
-neighbor group to run their code on our cluster, so I'm totally =
-unfriendly with this code). I will forward your question to them.
-
-But probably right now you can get more information (including sources) =
-here http://fmt.cs.utwente.nl/tools/ltsmin/
-
-Anton=
+You should be able to simply set CONFIG_RWSEM_GENERIC_SPINLOCK=n,
+CONFIG_RWSEM_XCHGADD_ALGORITHM=y by hand, as I mentioned earlier?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
