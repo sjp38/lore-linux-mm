@@ -1,39 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D8B016B01AC
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 18:45:23 -0400 (EDT)
-Received: by pxi32 with SMTP id 32so2068461pxi.1
-        for <linux-mm@kvack.org>; Tue, 23 Mar 2010 15:45:20 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 241016B01B6
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 19:10:06 -0400 (EDT)
+Date: Tue, 23 Mar 2010 16:04:35 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression
+ in performance
+In-Reply-To: <9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com>
+Message-ID: <alpine.LFD.2.00.1003231602130.18017@i5.linux-foundation.org>
+References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org> <9D040E9A-80F2-468F-A6CD-A4912615CD3F@gmail.com>
+ <alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org> <9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1269347146-7461-10-git-send-email-mel@csn.ul.ie>
-References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie>
-	 <1269347146-7461-10-git-send-email-mel@csn.ul.ie>
-Date: Wed, 24 Mar 2010 07:45:20 +0900
-Message-ID: <28c262361003231545i78104ccfr14b68f50dc85bfc2@mail.gmail.com>
-Subject: Re: [PATCH 09/11] Add /sys trigger for per-node memory compaction
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anton Starikov <ant.starikov@gmail.com>, Greg KH <greg@kroah.com>, stable@kernel.org
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 23, 2010 at 9:25 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> This patch adds a per-node sysfs file called compact. When the file is
-> written to, each zone in that node is compacted. The intention that this
-> would be used by something like a job scheduler in a batch system before
-> a job starts so that the job can allocate the maximum number of
-> hugepages without significant start-up cost.
+
+
+On Tue, 23 Mar 2010, Anton Starikov wrote:
 >
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> I think we got a winner!
+> 
+> Problem seems to be fixed.
+> 
+> Just for record, I used next patches:
+> 
+> 59c33fa7791e9948ba467c2b83e307a0d087ab49
+> 5d0b7235d83eefdafda300656e97d368afcafc9a
+> 1838ef1d782f7527e6defe87e180598622d2d071
+> 4126faf0ab7417fbc6eb99fb0fd407e01e9e9dfe
+> bafaecd11df15ad5b1e598adc7736afcd38ee13d
+> 0d1622d7f526311d87d7da2ee7dd14b73e45d3fc
 
+Ok. If you have performance numbers for before/after these patches for 
+your actual workload, I'd suggest posting them to stable@kernel.org, and 
+maybe those rwsem fixes will get back-ported.
 
--- 
-Kind regards,
-Minchan Kim
+The patches are pretty small, and should be fairly safe. So they are 
+certainly stable material.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
