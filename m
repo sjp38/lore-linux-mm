@@ -1,56 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2BB1F6B01C1
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 13:57:44 -0400 (EDT)
-Date: Tue, 23 Mar 2010 12:56:30 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 07/11] Memory compaction core
-In-Reply-To: <1269347146-7461-8-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1003231253180.10178@router.home>
-References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-8-git-send-email-mel@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B2D3F6B01C3
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 14:00:17 -0400 (EDT)
+Date: Tue, 23 Mar 2010 19:00:02 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge
+ regression in performance
+Message-ID: <20100323180002.GA2965@elte.hu>
+References: <bug-15618-10286@https.bugzilla.kernel.org/>
+ <20100323102208.512c16cc.akpm@linux-foundation.org>
+ <20100323173409.GA24845@elte.hu>
+ <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, ant.starikov@gmail.com, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Mar 2010, Mel Gorman wrote:
 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 1f59d93..cf8bba7 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -238,6 +239,11 @@ static inline void lru_cache_add_active_file(struct page *page)
->  	__lru_cache_add(page, LRU_ACTIVE_FILE);
->  }
->
-> +/* LRU Isolation modes. */
-> +#define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
-> +#define ISOLATE_ACTIVE 1	/* Isolate active pages. */
-> +#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
-> +
->  /* linux/mm/vmscan.c */
->  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  					gfp_t gfp_mask, nodemask_t *mask);
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 79c8098..ef89600 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -839,11 +839,6 @@ keep:
->  	return nr_reclaimed;
->  }
->
-> -/* LRU Isolation modes. */
-> -#define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
-> -#define ISOLATE_ACTIVE 1	/* Isolate active pages. */
-> -#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
-> -
->  /*
->   * Attempt to remove the specified page from its LRU.  Only take this page
->   * if it is of the appropriate PageActive status.  Pages which are being
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-Put the above in a separate patch?
+> On Tue, 23 Mar 2010, Ingo Molnar wrote:
+> > 
+> > It shows a very brutal amount of page fault invoked mmap_sem spinning 
+> > overhead.
+> 
+> Isn't this already fixed? It's the same old "x86-64 rwsemaphores are using 
+> the shit-for-brains generic version" thing, and it's fixed by
+> 
+> 	1838ef1 x86-64, rwsem: 64-bit xadd rwsem implementation
+> 	5d0b723 x86: clean up rwsem type system
+> 	59c33fa x86-32: clean up rwsem inline asm statements
+
+Ah, indeed!
+
+> NOTE! None of those are in 2.6.33 - they were merged afterwards. But they 
+> are in 2.6.34-rc1 (and obviously current -git). So Anton would have to 
+> compile his own kernel to test his load.
+
+another option is to run the rawhide kernel via something like:
+
+	yum update --enablerepo=development kernel
+
+this will give kernel-2.6.34-0.13.rc1.git1.fc14.x86_64, which has those 
+changes included.
+
+OTOH that kernel has debugging [lockdep] enabled so it might not be 
+comparable.
+
+> We could mark them as stable material if the load in question is a real load 
+> rather than just a test-case. On one of the random page-fault benchmarks the 
+> rwsem fix was something like a 400% performance improvement, and it was 
+> apparently visible in real life on some crazy SGI "initialize huge heap 
+> concurrently on lots of threads" load.
+> 
+> Side note: the reason the spinlock sucks is because of the fair ticket 
+> locks, it really does all the wrong things for the rwsem code. That's why 
+> old kernels don't show it - the old unfair locks didn't show the same kind 
+> of behavior.
+
+Yeah.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
