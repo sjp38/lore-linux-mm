@@ -1,73 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ACC0A6B01B0
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 12:03:02 -0400 (EDT)
-Message-ID: <4BA8E659.1030702@cs.columbia.edu>
-Date: Tue, 23 Mar 2010 12:03:37 -0400
-From: Oren Laadan <orenl@cs.columbia.edu>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id F16586B0071
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 13:08:59 -0400 (EDT)
+Date: Tue, 23 Mar 2010 12:06:59 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 00 of 34] Transparent Hugepage support #14
+In-Reply-To: <20100322170619.GQ29874@random.random>
+Message-ID: <alpine.DEB.2.00.1003231200430.10178@router.home>
+References: <patchbomb.1268839142@v2.random> <alpine.DEB.2.00.1003171353240.27268@router.home> <20100318234923.GV29874@random.random> <alpine.DEB.2.00.1003190812560.10759@router.home> <20100319144101.GB29874@random.random> <alpine.DEB.2.00.1003221027590.16606@router.home>
+ <20100322170619.GQ29874@random.random>
 MIME-Version: 1.0
-Subject: Re: [C/R v20][PATCH 15/96] cgroup freezer: Fix buggy resume test
- for tasks frozen with cgroup freezer
-References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu> <1268842164-5590-15-git-send-email-orenl@cs.columbia.edu> <1268842164-5590-16-git-send-email-orenl@cs.columbia.edu> <201003230028.40915.rjw@sisk.pl>
-In-Reply-To: <201003230028.40915.rjw@sisk.pl>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Matt Helsley <matthltc@us.ibm.com>, Cedric Le Goater <legoater@free.fr>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Pavel Machek <pavel@ucw.cz>, linux-pm@lists.linux-foundation.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 22 Mar 2010, Andrea Arcangeli wrote:
 
+> > > Problem with O_DIRECT is that I couldn't use mmu notifier to prevent
+> > > it to take the pin on the page, because there is no way to interrupt
+> > > DMA synchronously before mmu_notifier_invalidate_* returns... So I had
+> > > to add compound_lock and keep gup API backwards compatible and have
+> > > the proper serialization happen _only_ for PageTail inside put_page.
+> >
+> > You can take a refcount *before* breaking up a 2M page then you dont have
+> > to fear the put_page.
+>
+> If you take it _before_ it will go into the head page regardless of
+> which subpage was returned by gup. We need to know which subpages are
+> under DMA. The pin has to go to the tail pages or head page depending
+> on the physical address that was requested by gup. To fix this we need
+> at the very least to change gup api to ask for hugepages which it
+> can't right now because it'd break all drivers.
 
-Rafael J. Wysocki wrote:
-> On Wednesday 17 March 2010, Oren Laadan wrote:
->> From: Matt Helsley <matthltc@us.ibm.com>
->>
->> When the cgroup freezer is used to freeze tasks we do not want to thaw
->> those tasks during resume. Currently we test the cgroup freezer
->> state of the resuming tasks to see if the cgroup is FROZEN.  If so
->> then we don't thaw the task. However, the FREEZING state also indicates
->> that the task should remain frozen.
->>
->> This also avoids a problem pointed out by Oren Ladaan: the freezer state
->> transition from FREEZING to FROZEN is updated lazily when userspace reads
->> or writes the freezer.state file in the cgroup filesystem. This means that
->> resume will thaw tasks in cgroups which should be in the FROZEN state if
->> there is no read/write of the freezer.state file to trigger this
->> transition before suspend.
->>
->> NOTE: Another "simple" solution would be to always update the cgroup
->> freezer state during resume. However it's a bad choice for several reasons:
->> Updating the cgroup freezer state is somewhat expensive because it requires
->> walking all the tasks in the cgroup and checking if they are each frozen.
->> Worse, this could easily make resume run in N^2 time where N is the number
->> of tasks in the cgroup. Finally, updating the freezer state from this code
->> path requires trickier locking because of the way locks must be ordered.
->>
->> Instead of updating the freezer state we rely on the fact that lazy
->> updates only manage the transition from FREEZING to FROZEN. We know that
->> a cgroup with the FREEZING state may actually be FROZEN so test for that
->> state too. This makes sense in the resume path even for partially-frozen
->> cgroups -- those that really are FREEZING but not FROZEN.
->>
->> Reported-by: Oren Ladaan <orenl@cs.columbia.edu>
->> Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
->> Cc: Cedric Le Goater <legoater@free.fr>
->> Cc: Paul Menage <menage@google.com>
->> Cc: Li Zefan <lizf@cn.fujitsu.com>
->> Cc: Rafael J. Wysocki <rjw@sisk.pl>
->> Cc: Pavel Machek <pavel@ucw.cz>
->> Cc: linux-pm@lists.linux-foundation.org
-> 
-> Looks reasonable.
-> 
-> Is anyone handling that already or do you want me to take it to my tree?
+A 2M page needs to be treated as a single page. Under DMA would mean that
+the whole of the page is considered under DMA! Sectioning off the 2M page
+causes all sorts of problems. The page state needs to be complete in a
+single page struct.
 
-Yes, please do.
+> besides even if we add a error retval, we can't have mprotect/mremap
+> fail at most swapout could be deferred because "page cannot be broken
+> up" but even that is risky and I've been extra careful not to require
+> any memory allocation or sleeping lock in split_huge_page to make it
+> ideal to use in swap path without risking any functional regression
+> whatsoever.
 
-Thanks !
+We can go to sleep in mprotect and mremap and wait for the breaking up to
+be successful.
 
-Oren.
+> Allowing it to fail would result in a mess. Obviously I wasn't clear
+> enough in the last sentence of my previous mail so I'll have to
+> repeate: any effort in handling the failure (which in some case it
+> can't be handled as syscalls can't fail just because a page is 2M)
+> should instead be spent to _remove_ the split_huge_page call.
+
+Its not advisable to do this. Splitting the huge page may cause surprises
+to another kernel function that is operating on the assumption that this
+is a 2M page. If you do this then new synchronization methods are
+required.
+
+> > We already have 2M pmd handling in the kernel and can consider huge pmd
+> > entries while walking the page tables! Go incrementally use what
+> > is there.
+>
+> There's no such thing unless you talk about the hugetlbfs paths. In
+
+Indeed I am.
+
+> Best of all, I had to add zero atomic ops and just 1 branch in already
+> hot l1 cache (and no writes to the l1 cache either, just 1 more read)
+> in order to add the pagefault slow path for huge pmd. So unless you
+> actively take advantage of hugepages, the page_table_lock locking will
+> be zero cost and in the future nothing prevents us to add a more
+> scalar PMD lock like it exists for the pte (but keep in mind it's much
+> 512 times less important for PMD than it is for the PTE).
+
+Its not much use to have fake 2M pages that can splinter below you at any
+time. In order to take full advantage of huge pages you need to be able
+to do VM operations on them and for that these things need to be treated
+as a single unit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
