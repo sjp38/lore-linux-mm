@@ -1,43 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B3E9A6B01C3
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 14:03:42 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id l26so1024823fgb.8
-        for <linux-mm@kvack.org>; Tue, 23 Mar 2010 11:03:39 -0700 (PDT)
-Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression in performance
-Mime-Version: 1.0 (Apple Message framework v1077)
-Content-Type: text/plain; charset=us-ascii
-From: Anton Starikov <ant.starikov@gmail.com>
-In-Reply-To: <20100323180002.GA2965@elte.hu>
-Date: Tue, 23 Mar 2010 19:03:36 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <15090451-C292-44D6-B2BA-DCBCBEEF429D@gmail.com>
-References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org> <20100323180002.GA2965@elte.hu>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 37F436B01C4
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 14:04:37 -0400 (EDT)
+Date: Tue, 23 Mar 2010 18:04:18 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
+	anonymous pages
+Message-ID: <20100323180418.GB5870@csn.ul.ie>
+References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1003231221030.10178@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1003231221030.10178@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Mar 23, 2010 at 12:22:57PM -0500, Christoph Lameter wrote:
+> On Tue, 23 Mar 2010, Mel Gorman wrote:
+> 
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 98eaaf2..6eb1efe 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -603,6 +603,19 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+> >  	 */
+> >  	if (PageAnon(page)) {
+> >  		rcu_read_lock();
+> > +
+> > +		/*
+> > +		 * If the page has no mappings any more, just bail. An
+> > +		 * unmapped anon page is likely to be freed soon but worse,
+> > +		 * it's possible its anon_vma disappeared between when
+> > +		 * the page was isolated and when we reached here while
+> > +		 * the RCU lock was not held
+> > +		 */
+> > +		if (!page_mapcount(page)) {
+> > +			rcu_read_unlock();
+> > +			goto uncharge;
+> > +		}
+> > +
+> >  		rcu_locked = 1;
+> >  		anon_vma = page_anon_vma(page);
+> >  		atomic_inc(&anon_vma->migrate_refcount);
+> 
+> A way to make this simpler would be to move "rcu_locked = 1" before the
+> if statement and then do
+> 
+> if (!page_mapcount(page))
+> 	goto rcu_unlock;
+> 
 
-On Mar 23, 2010, at 7:00 PM, Ingo Molnar wrote:
->> NOTE! None of those are in 2.6.33 - they were merged afterwards. But =
-they=20
->> are in 2.6.34-rc1 (and obviously current -git). So Anton would have =
-to=20
->> compile his own kernel to test his load.
->=20
-> another option is to run the rawhide kernel via something like:
->=20
-> 	yum update --enablerepo=3Ddevelopment kernel
->=20
-> this will give kernel-2.6.34-0.13.rc1.git1.fc14.x86_64, which has =
-those=20
-> changes included.
+True. Fixed.
 
-I will apply this commits to 2.6.32, I afraid current OFED (which I need =
-also) will not work on 2.6.33+.
-
-Anton.=
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
