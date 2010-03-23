@@ -1,51 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CB94E6B01AE
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 13:50:04 -0400 (EDT)
-Date: Tue, 23 Mar 2010 10:45:08 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression
- in performance
-In-Reply-To: <20100323173409.GA24845@elte.hu>
-Message-ID: <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
-References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu>
+	by kanga.kvack.org (Postfix) with ESMTP id EBE836B01AE
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 13:56:59 -0400 (EDT)
+Date: Tue, 23 Mar 2010 17:56:39 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: BUG: Use after free in free_huge_page()
+Message-ID: <20100323175639.GA5870@csn.ul.ie>
+References: <201003222028.o2MKSDsD006611@pogo.us.cray.com> <4BA8C9E0.2090300@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4BA8C9E0.2090300@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, ant.starikov@gmail.com, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Adam Litke <agl@us.ibm.com>
+Cc: Andrew Hastings <abh@cray.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Mar 23, 2010 at 09:02:08AM -0500, Adam Litke wrote:
+> Hi Andrew, thanks for the detailed report.  I am taking a look at this  
+> but it seems a lot has happened since I last looked at this code.  (If  
+> anyone else knows what might be going on here, please do chime in).
+>
+> Andrew Hastings wrote:
+>> I think what happens is:
+>> 1.  Driver does get_user_pages() for pages mapped by hugetlbfs.
+>> 2.  Process exits.
+>> 3.  hugetlbfs file is closed; the vma->vm_file->f_mapping value stored in
+>>     page_private now points to freed memory
+>> 4.  Driver file is closed; driver's release() function calls put_page()
+>>     which calls free_huge_page() which passes bogus mapping value to
+>>     hugetlb_put_quota().
+>
+> :( Definitely seems plausible.
+>
 
+I haven't had a chance to look at this closely yet and it'll be a
+minimum of a few days before I do. Hopefully Adam will spot something in
+the meantime but I do have a question.
 
-On Tue, 23 Mar 2010, Ingo Molnar wrote:
-> 
-> It shows a very brutal amount of page fault invoked mmap_sem spinning 
-> overhead.
+What driver is calling get_user_pages() on pages mapped by hugetlbfs?
+It's not clear what "driver file" is involved but clearly it's not mapped
+or it would have called get_file() as part of the mapping.
 
-Isn't this already fixed? It's the same old "x86-64 rwsemaphores are using 
-the shit-for-brains generic version" thing, and it's fixed by
+Again, without thinking about this too much, it seems more like a
+reference-count problem rather than a race if the file is disappaering
+before the pages being backed by it are freed.
 
-	1838ef1 x86-64, rwsem: 64-bit xadd rwsem implementation
-	5d0b723 x86: clean up rwsem type system
-	59c33fa x86-32: clean up rwsem inline asm statements
+>> I'd like to help with a fix, but it's not immediately obvious to me what
+>> the right path is.  Should hugetlb_no_page() always call add_to_page_cache()
+>> even if VM_MAYSHARE is clear?
+>
+> Are you seeing any corruption in the HugePages_Rsvd: counter?  Would it  
+> be possible for you to run the libhugetlbfs test suite before and after  
+> trigerring the bug and let me know if any additional tests fail after  
+> you reproduce this?
+>
+> Thanks.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
-NOTE! None of those are in 2.6.33 - they were merged afterwards. But they 
-are in 2.6.34-rc1 (and obviously current -git). So Anton would have to 
-compile his own kernel to test his load.
-
-We could mark them as stable material if the load in question is a real 
-load rather than just a test-case. On one of the random page-fault 
-benchmarks the rwsem fix was something like a 400% performance 
-improvement, and it was apparently visible in real life on some crazy SGI 
-"initialize huge heap concurrently on lots of threads" load.
-
-Side note: the reason the spinlock sucks is because of the fair ticket 
-locks, it really does all the wrong things for the rwsem code. That's why 
-old kernels don't show it - the old unfair locks didn't show the same kind 
-of behavior.
-
-			Linus
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
