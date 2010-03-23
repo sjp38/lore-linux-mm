@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 308136B01B3
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 13:57:41 -0400 (EDT)
-Received: by fxm10 with SMTP id 10so1004732fxm.30
-        for <linux-mm@kvack.org>; Tue, 23 Mar 2010 10:57:38 -0700 (PDT)
-Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression in performance
-Mime-Version: 1.0 (Apple Message framework v1077)
-Content-Type: text/plain; charset=us-ascii
-From: Anton Starikov <ant.starikov@gmail.com>
-In-Reply-To: <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
-Date: Tue, 23 Mar 2010 18:57:34 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <54F3A3FB-E99F-4278-AAAB-5B6A09247C4B@gmail.com>
-References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2BB1F6B01C1
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 13:57:44 -0400 (EDT)
+Date: Tue, 23 Mar 2010 12:56:30 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 07/11] Memory compaction core
+In-Reply-To: <1269347146-7461-8-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1003231253180.10178@router.home>
+References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-8-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 23 Mar 2010, Mel Gorman wrote:
 
-On Mar 23, 2010, at 6:45 PM, Linus Torvalds wrote:
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 1f59d93..cf8bba7 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -238,6 +239,11 @@ static inline void lru_cache_add_active_file(struct page *page)
+>  	__lru_cache_add(page, LRU_ACTIVE_FILE);
+>  }
+>
+> +/* LRU Isolation modes. */
+> +#define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
+> +#define ISOLATE_ACTIVE 1	/* Isolate active pages. */
+> +#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
+> +
+>  /* linux/mm/vmscan.c */
+>  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+>  					gfp_t gfp_mask, nodemask_t *mask);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 79c8098..ef89600 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -839,11 +839,6 @@ keep:
+>  	return nr_reclaimed;
+>  }
+>
+> -/* LRU Isolation modes. */
+> -#define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
+> -#define ISOLATE_ACTIVE 1	/* Isolate active pages. */
+> -#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
+> -
+>  /*
+>   * Attempt to remove the specified page from its LRU.  Only take this page
+>   * if it is of the appropriate PageActive status.  Pages which are being
 
->=20
->=20
-> On Tue, 23 Mar 2010, Ingo Molnar wrote:
->>=20
->> It shows a very brutal amount of page fault invoked mmap_sem spinning=20=
-
->> overhead.
->=20
-> Isn't this already fixed? It's the same old "x86-64 rwsemaphores are =
-using=20
-> the shit-for-brains generic version" thing, and it's fixed by
->=20
-> 	1838ef1 x86-64, rwsem: 64-bit xadd rwsem implementation
-> 	5d0b723 x86: clean up rwsem type system
-> 	59c33fa x86-32: clean up rwsem inline asm statements
->=20
-> NOTE! None of those are in 2.6.33 - they were merged afterwards. But =
-they=20
-> are in 2.6.34-rc1 (and obviously current -git). So Anton would have to=20=
-
-> compile his own kernel to test his load.
-
-Thanks for info, I will try it now.
-
-> We could mark them as stable material if the load in question is a =
-real=20
-> load rather than just a test-case. On one of the random page-fault=20
-> benchmarks the rwsem fix was something like a 400% performance=20
-> improvement, and it was apparently visible in real life on some crazy =
-SGI=20
-> "initialize huge heap concurrently on lots of threads" load.
-
-It is not just a test-case, it is real-life code. With real-life =
-problems on 2.6.32 and later :)
-
-
-Anton.=
+Put the above in a separate patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
