@@ -1,82 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5F4156B01B9
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 16:44:00 -0400 (EDT)
-Received: by bwz19 with SMTP id 19so5584807bwz.6
-        for <linux-mm@kvack.org>; Tue, 23 Mar 2010 13:43:58 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AF1956B01C2
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 17:19:26 -0400 (EDT)
+Received: by bwz19 with SMTP id 19so5617363bwz.6
+        for <linux-mm@kvack.org>; Tue, 23 Mar 2010 14:19:24 -0700 (PDT)
 Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression in performance
 Mime-Version: 1.0 (Apple Message framework v1077)
 Content-Type: text/plain; charset=us-ascii
 From: Anton Starikov <ant.starikov@gmail.com>
-In-Reply-To: <alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org>
-Date: Tue, 23 Mar 2010 21:43:54 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com>
-References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org> <9D040E9A-80F2-468F-A6CD-A4912615CD3F@gmail.com> <alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org>
+In-Reply-To: <20100323111351.756c8752.akpm@linux-foundation.org>
+Date: Tue, 23 Mar 2010 22:19:21 +0100
+Content-Transfer-Encoding: 7bit
+Message-Id: <7FF95EC7-EF76-4321-A7A0-E9018F1B1A90@gmail.com>
+References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <20100323111351.756c8752.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-I think we got a winner!
+Although case is solved, I will post description for testcase program.
+Just in case someone wonder or would like to keep it for some later tests.
 
-Problem seems to be fixed.
+------------------------------------------------------------------------
+It is a parallel model checker. The command line you used does reachability
+on the state space of mode anderson.6, meaning that it searches through all
+possible states (int vectors). Each thread gets a vector from the queue,
+calculates its successor states and puts them in a lock-less static hash
+table (pseudo BFS exploration because the threads each have there own
+queue).
 
-Just for record, I used next patches:
+How did ingo run the binary? Because the static table size should be chosen
+to fit into memory. "-s 27" allocates 2^27 * (|vector| + 1 ) * sizeof(int)
+bytes. |vector| is equal to 19 for anderson.6, ergo the table size is 10GB.
+This could explain the huge number of page faults ingo gets.
 
-59c33fa7791e9948ba467c2b83e307a0d087ab49
-5d0b7235d83eefdafda300656e97d368afcafc9a
-1838ef1d782f7527e6defe87e180598622d2d071
-4126faf0ab7417fbc6eb99fb0fd407e01e9e9dfe
-bafaecd11df15ad5b1e598adc7736afcd38ee13d
-0d1622d7f526311d87d7da2ee7dd14b73e45d3fc
+But anyway, you can imagine that the code is quiet jumpy and has a big
+memory footprint, so the page faults may also be normal.
+------------------------------------------------------------------------
 
+On Mar 23, 2010, at 7:13 PM, Andrew Morton wrote:
 
-Thanks,
-Anton.
-
-On Mar 23, 2010, at 8:54 PM, Linus Torvalds wrote:
-
->=20
->=20
-> On Tue, 23 Mar 2010, Anton Starikov wrote:
->=20
->>=20
->> On Mar 23, 2010, at 6:45 PM, Linus Torvalds wrote:
->>=20
->>>=20
->>>=20
->>> On Tue, 23 Mar 2010, Ingo Molnar wrote:
->>>>=20
->>>> It shows a very brutal amount of page fault invoked mmap_sem =
-spinning=20
->>>> overhead.
->>>=20
->>> Isn't this already fixed? It's the same old "x86-64 rwsemaphores are =
-using=20
->>> the shit-for-brains generic version" thing, and it's fixed by
->>>=20
->>> 	1838ef1 x86-64, rwsem: 64-bit xadd rwsem implementation
->>> 	5d0b723 x86: clean up rwsem type system
->>> 	59c33fa x86-32: clean up rwsem inline asm statements
->>>=20
->>> NOTE! None of those are in 2.6.33 - they were merged afterwards. But =
-they=20
->>> are in 2.6.34-rc1 (and obviously current -git). So Anton would have =
-to=20
->>> compile his own kernel to test his load.
->>=20
->>=20
->> Applied mentioned patches. Things didn't improve too much.
->=20
-> Yeah, I missed at least one commit, namely
->=20
-> 	bafaecd x86-64: support native xadd rwsem implementation
->=20
-> which is the one that actually makes x86-64 able to use the xadd =
-version.
->=20
-> 		Linus
+> Anton, we have an executable binary in the bugzilla report but it would
+> be nice to also have at least a description of what that code is
+> actually doing.  A quick strace shows quite a lot of mprotect activity.
+> A pseudo-code walkthrough, perhaps?
+> 
+> Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
