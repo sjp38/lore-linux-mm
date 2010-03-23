@@ -1,140 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 91FF66B01C3
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 10:36:57 -0400 (EDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/5] mincore: do nested page table walks
-Date: Tue, 23 Mar 2010 15:35:01 +0100
-Message-Id: <1269354902-18975-5-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1269354902-18975-1-git-send-email-hannes@cmpxchg.org>
-References: <1269354902-18975-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC0A6B01B0
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 12:03:02 -0400 (EDT)
+Message-ID: <4BA8E659.1030702@cs.columbia.edu>
+Date: Tue, 23 Mar 2010 12:03:37 -0400
+From: Oren Laadan <orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Subject: Re: [C/R v20][PATCH 15/96] cgroup freezer: Fix buggy resume test
+ for tasks frozen with cgroup freezer
+References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu> <1268842164-5590-15-git-send-email-orenl@cs.columbia.edu> <1268842164-5590-16-git-send-email-orenl@cs.columbia.edu> <201003230028.40915.rjw@sisk.pl>
+In-Reply-To: <201003230028.40915.rjw@sisk.pl>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Matt Helsley <matthltc@us.ibm.com>, Cedric Le Goater <legoater@free.fr>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Pavel Machek <pavel@ucw.cz>, linux-pm@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Do page table walks with the well-known nested loops we use in several
-other places already.
 
-This avoids doing full page table walks after every pte range and also
-allows to handle unmapped areas bigger than one pte range in one go.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/mincore.c |   82 +++++++++++++++++++++++++++++++++++++++++-----------------
- 1 files changed, 58 insertions(+), 24 deletions(-)
+Rafael J. Wysocki wrote:
+> On Wednesday 17 March 2010, Oren Laadan wrote:
+>> From: Matt Helsley <matthltc@us.ibm.com>
+>>
+>> When the cgroup freezer is used to freeze tasks we do not want to thaw
+>> those tasks during resume. Currently we test the cgroup freezer
+>> state of the resuming tasks to see if the cgroup is FROZEN.  If so
+>> then we don't thaw the task. However, the FREEZING state also indicates
+>> that the task should remain frozen.
+>>
+>> This also avoids a problem pointed out by Oren Ladaan: the freezer state
+>> transition from FREEZING to FROZEN is updated lazily when userspace reads
+>> or writes the freezer.state file in the cgroup filesystem. This means that
+>> resume will thaw tasks in cgroups which should be in the FROZEN state if
+>> there is no read/write of the freezer.state file to trigger this
+>> transition before suspend.
+>>
+>> NOTE: Another "simple" solution would be to always update the cgroup
+>> freezer state during resume. However it's a bad choice for several reasons:
+>> Updating the cgroup freezer state is somewhat expensive because it requires
+>> walking all the tasks in the cgroup and checking if they are each frozen.
+>> Worse, this could easily make resume run in N^2 time where N is the number
+>> of tasks in the cgroup. Finally, updating the freezer state from this code
+>> path requires trickier locking because of the way locks must be ordered.
+>>
+>> Instead of updating the freezer state we rely on the fact that lazy
+>> updates only manage the transition from FREEZING to FROZEN. We know that
+>> a cgroup with the FREEZING state may actually be FROZEN so test for that
+>> state too. This makes sense in the resume path even for partially-frozen
+>> cgroups -- those that really are FREEZING but not FROZEN.
+>>
+>> Reported-by: Oren Ladaan <orenl@cs.columbia.edu>
+>> Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
+>> Cc: Cedric Le Goater <legoater@free.fr>
+>> Cc: Paul Menage <menage@google.com>
+>> Cc: Li Zefan <lizf@cn.fujitsu.com>
+>> Cc: Rafael J. Wysocki <rjw@sisk.pl>
+>> Cc: Pavel Machek <pavel@ucw.cz>
+>> Cc: linux-pm@lists.linux-foundation.org
+> 
+> Looks reasonable.
+> 
+> Is anyone handling that already or do you want me to take it to my tree?
 
-diff --git a/mm/mincore.c b/mm/mincore.c
-index eb50daa..28cab9d 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -144,6 +144,61 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 	pte_unmap_unlock(ptep - 1, ptl);
- }
- 
-+static void mincore_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-+			unsigned long addr, unsigned long end,
-+			unsigned char *vec)
-+{
-+	unsigned long next;
-+	pmd_t *pmd;
-+
-+	pmd = pmd_offset(pud, addr);
-+	split_huge_page_vma(vma, pmd);
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(pmd))
-+			mincore_unmapped_range(vma, addr, next, vec);
-+		else
-+			mincore_pte_range(vma, pmd, addr, next, vec);
-+		vec += (next - addr) >> PAGE_SHIFT;
-+	} while (pmd++, addr = next, addr != end);
-+}
-+
-+static void mincore_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-+			unsigned long addr, unsigned long end,
-+			unsigned char *vec)
-+{
-+	unsigned long next;
-+	pud_t *pud;
-+
-+	pud = pud_offset(pgd, addr);
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(pud))
-+			mincore_unmapped_range(vma, addr, next, vec);
-+		else
-+			mincore_pmd_range(vma, pud, addr, next, vec);
-+		vec += (next - addr) >> PAGE_SHIFT;
-+	} while (pud++, addr = next, addr != end);
-+}
-+
-+static void mincore_page_range(struct vm_area_struct *vma,
-+			unsigned long addr, unsigned long end,
-+			unsigned char *vec)
-+{
-+	unsigned long next;
-+	pgd_t *pgd;
-+
-+	pgd = pgd_offset(vma->vm_mm, addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
-+			mincore_unmapped_range(vma, addr, next, vec);
-+		else
-+			mincore_pud_range(vma, pgd, addr, next, vec);
-+		vec += (next - addr) >> PAGE_SHIFT;
-+	} while (pgd++, addr = next, addr != end);
-+}
-+
- /*
-  * Do a chunk of "sys_mincore()". We've already checked
-  * all the arguments, we hold the mmap semaphore: we should
-@@ -151,9 +206,6 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-  */
- static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
- {
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
- 	struct vm_area_struct *vma;
- 	unsigned long end;
- 
-@@ -163,29 +215,11 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
- 
- 	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
- 
--	if (is_vm_hugetlb_page(vma)) {
-+	if (is_vm_hugetlb_page(vma))
- 		mincore_hugetlb_page_range(vma, addr, end, vec);
--		return (end - addr) >> PAGE_SHIFT;
--	}
--
--	end = pmd_addr_end(addr, end);
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	if (pgd_none_or_clear_bad(pgd))
--		goto none_mapped;
--	pud = pud_offset(pgd, addr);
--	if (pud_none_or_clear_bad(pud))
--		goto none_mapped;
--	pmd = pmd_offset(pud, addr);
--	split_huge_page_vma(vma, pmd);
--	if (pmd_none_or_clear_bad(pmd))
--		goto none_mapped;
--
--	mincore_pte_range(vma, pmd, addr, end, vec);
--	return (end - addr) >> PAGE_SHIFT;
-+	else
-+		mincore_page_range(vma, addr, end, vec);
- 
--none_mapped:
--	mincore_unmapped_range(vma, addr, end, vec);
- 	return (end - addr) >> PAGE_SHIFT;
- }
- 
--- 
-1.7.0.2
+Yes, please do.
+
+Thanks !
+
+Oren.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
