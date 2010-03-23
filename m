@@ -1,56 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 59E936B01B4
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 10:02:50 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o2NDs9nZ024953
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 09:54:09 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2NE2hA6084184
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 10:02:43 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2NE2W6w012013
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 11:02:33 -0300
-Message-ID: <4BA8C9E0.2090300@us.ibm.com>
-Date: Tue, 23 Mar 2010 09:02:08 -0500
-From: Adam Litke <agl@us.ibm.com>
-MIME-Version: 1.0
-Subject: Re: BUG: Use after free in free_huge_page()
-References: <201003222028.o2MKSDsD006611@pogo.us.cray.com>
-In-Reply-To: <201003222028.o2MKSDsD006611@pogo.us.cray.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C333A6B01B4
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 10:35:39 -0400 (EDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [rfc 5/5] mincore: transparent huge page support
+Date: Tue, 23 Mar 2010 15:35:02 +0100
+Message-Id: <1269354902-18975-6-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1269354902-18975-1-git-send-email-hannes@cmpxchg.org>
+References: <1269354902-18975-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Hastings <abh@cray.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew, thanks for the detailed report.  I am taking a look at this 
-but it seems a lot has happened since I last looked at this code.  (If 
-anyone else knows what might be going on here, please do chime in).
+Handle transparent huge page pmd entries natively instead of splitting
+them into subpages.
 
-Andrew Hastings wrote:
-> I think what happens is:
-> 1.  Driver does get_user_pages() for pages mapped by hugetlbfs.
-> 2.  Process exits.
-> 3.  hugetlbfs file is closed; the vma->vm_file->f_mapping value stored in
->     page_private now points to freed memory
-> 4.  Driver file is closed; driver's release() function calls put_page()
->     which calls free_huge_page() which passes bogus mapping value to
->     hugetlb_put_quota().
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/mincore.c |   37 ++++++++++++++++++++++++++++++++++---
+ 1 files changed, 34 insertions(+), 3 deletions(-)
 
-:( Definitely seems plausible.
-
-> I'd like to help with a fix, but it's not immediately obvious to me what
-> the right path is.  Should hugetlb_no_page() always call add_to_page_cache()
-> even if VM_MAYSHARE is clear?
-
-Are you seeing any corruption in the HugePages_Rsvd: counter?  Would it 
-be possible for you to run the libhugetlbfs test suite before and after 
-trigerring the bug and let me know if any additional tests fail after 
-you reproduce this?
-
-Thanks.
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 28cab9d..d4cddc1 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -15,6 +15,7 @@
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
+ #include <linux/hugetlb.h>
++#include <linux/rmap.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+@@ -144,6 +145,35 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 	pte_unmap_unlock(ptep - 1, ptl);
+ }
+ 
++static int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++			unsigned long addr, unsigned long end,
++			unsigned char *vec)
++{
++	int huge = 0;
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	spin_lock(&vma->vm_mm->page_table_lock);
++	if (likely(pmd_trans_huge(*pmd))) {
++		huge = !pmd_trans_splitting(*pmd);
++		spin_unlock(&vma->vm_mm->page_table_lock);
++		/*
++		 * If we have an intact huge pmd entry, all pages in
++		 * the range are present in the mincore() sense of
++		 * things.
++		 *
++		 * But if the entry is currently being split into
++		 * normal page mappings, wait for it to finish and
++		 * signal the fallback to ptes.
++		 */
++		if (huge)
++			memset(vec, 1, (end - addr) >> PAGE_SHIFT);
++		else
++			wait_split_huge_page(vma->anon_vma, pmd);
++	} else
++		spin_unlock(&vma->vm_mm->page_table_lock);
++#endif
++	return huge;
++}
++
+ static void mincore_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+ 			unsigned long addr, unsigned long end,
+ 			unsigned char *vec)
+@@ -152,12 +182,13 @@ static void mincore_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+ 	pmd_t *pmd;
+ 
+ 	pmd = pmd_offset(pud, addr);
+-	split_huge_page_vma(vma, pmd);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd))
++		/* XXX: pmd_none_or_clear_bad() triggers on _PAGE_PSE */
++		if (pmd_none(*pmd))
+ 			mincore_unmapped_range(vma, addr, next, vec);
+-		else
++		else if (!pmd_trans_huge(*pmd) ||
++			 !mincore_huge_pmd(vma, pmd, addr, next, vec))
+ 			mincore_pte_range(vma, pmd, addr, next, vec);
+ 		vec += (next - addr) >> PAGE_SHIFT;
+ 	} while (pmd++, addr = next, addr != end);
+-- 
+1.7.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
