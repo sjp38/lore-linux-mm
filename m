@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B1B516B01B0
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 08:25:53 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BDD566B01B2
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 08:25:54 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 02/11] mm,migration: Do not try to migrate unmapped anonymous pages
-Date: Tue, 23 Mar 2010 12:25:37 +0000
-Message-Id: <1269347146-7461-3-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 06/11] Export fragmentation index via /proc/extfrag_index
+Date: Tue, 23 Mar 2010 12:25:41 +0000
+Message-Id: <1269347146-7461-7-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1269347146-7461-1-git-send-email-mel@csn.ul.ie>
 References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,56 +13,166 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-rmap_walk_anon() was triggering errors in memory compaction that look like
-use-after-free errors. The problem is that between the page being isolated
-from the LRU and rcu_read_lock() being taken, the mapcount of the page
-dropped to 0 and the anon_vma gets freed. This can happen during memory
-compaction if pages being migrated belong to a process that exits before
-migration completes. Hence, the use-after-free race looks like
-
- 1. Page isolated for migration
- 2. Process exits
- 3. page_mapcount(page) drops to zero so anon_vma was no longer reliable
- 4. unmap_and_move() takes the rcu_lock but the anon_vma is already garbage
- 4. call try_to_unmap, looks up tha anon_vma and "locks" it but the lock
-    is garbage.
-
-This patch checks the mapcount after the rcu lock is taken. If the
-mapcount is zero, the anon_vma is assumed to be freed and no further
-action is taken.
+Fragmentation index is a value that makes sense when an allocation of a
+given size would fail. The index indicates whether an allocation failure is
+due to a lack of memory (values towards 0) or due to external fragmentation
+(value towards 1).  For the most part, the huge page size will be the size
+of interest but not necessarily so it is exported on a per-order and per-zone
+basis via /proc/extfrag_index
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
- mm/migrate.c |   13 +++++++++++++
- 1 files changed, 13 insertions(+), 0 deletions(-)
+ Documentation/filesystems/proc.txt |   14 ++++++-
+ mm/vmstat.c                        |   81 +++++++++++++++++++++++++++++++++
+ 2 files changed, 94 insertions(+), 1 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 98eaaf2..6eb1efe 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -603,6 +603,19 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 	 */
- 	if (PageAnon(page)) {
- 		rcu_read_lock();
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 5c4b0fb..582ff3d 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -421,6 +421,7 @@ Table 1-5: Kernel info in /proc
+  filesystems Supported filesystems                             
+  driver	     Various drivers grouped here, currently rtc (2.4)
+  execdomains Execdomains, related to security			(2.4)
++ extfrag_index Additional page allocator information (see text) (2.5)
+  fb	     Frame Buffer devices				(2.4)
+  fs	     File system parameters, currently nfs/exports	(2.4)
+  ide         Directory containing info about the IDE subsystem 
+@@ -610,7 +611,7 @@ ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE
+ available in ZONE_NORMAL, etc... 
+ 
+ More information relevant to external fragmentation can be found in
+-pagetypeinfo and unusable_index
++pagetypeinfo, unusable_index and extfrag_index.
+ 
+ > cat /proc/pagetypeinfo
+ Page block order: 9
+@@ -661,6 +662,17 @@ value between 0 and 1. The higher the value, the more of free memory is
+ unusable and by implication, the worse the external fragmentation is. This
+ can be expressed as a percentage by multiplying by 100.
+ 
++> cat /proc/extfrag_index
++Node 0, zone      DMA -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.00
++Node 0, zone   Normal -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.954
 +
-+		/*
-+		 * If the page has no mappings any more, just bail. An
-+		 * unmapped anon page is likely to be freed soon but worse,
-+		 * it's possible its anon_vma disappeared between when
-+		 * the page was isolated and when we reached here while
-+		 * the RCU lock was not held
-+		 */
-+		if (!page_mapcount(page)) {
-+			rcu_read_unlock();
-+			goto uncharge;
-+		}
++The external fragmentation index, is only meaningful if an allocation
++would fail and indicates what the failure is due to. A value of -1 such as
++in many of the examples above states that the allocation would succeed.
++If it would fail, the value is between 0 and 1. A value tending towards
++0 implies the allocation failed due to a lack of memory. A value tending
++towards 1 implies it failed due to external fragmentation.
 +
- 		rcu_locked = 1;
- 		anon_vma = page_anon_vma(page);
- 		atomic_inc(&anon_vma->migrate_refcount);
+ ..............................................................................
+ 
+ meminfo:
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index ca42e10..7377da6 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -553,6 +553,67 @@ static int unusable_show(struct seq_file *m, void *arg)
+ 	return 0;
+ }
+ 
++/*
++ * A fragmentation index only makes sense if an allocation of a requested
++ * size would fail. If that is true, the fragmentation index indicates
++ * whether external fragmentation or a lack of memory was the problem.
++ * The value can be used to determine if page reclaim or compaction
++ * should be used
++ */
++int fragmentation_index(unsigned int order, struct contig_page_info *info)
++{
++	unsigned long requested = 1UL << order;
++
++	if (!info->free_blocks_total)
++		return 0;
++
++	/* Fragmentation index only makes sense when a request would fail */
++	if (info->free_blocks_suitable)
++		return -1000;
++
++	/*
++	 * Index is between 0 and 1 so return within 3 decimal places
++	 *
++	 * 0 => allocation would fail due to lack of memory
++	 * 1 => allocation would fail due to fragmentation
++	 */
++	return 1000 - ( (1000+(info->free_pages * 1000 / requested)) / info->free_blocks_total);
++}
++
++
++static void extfrag_show_print(struct seq_file *m,
++					pg_data_t *pgdat, struct zone *zone)
++{
++	unsigned int order;
++	int index;
++
++	/* Alloc on stack as interrupts are disabled for zone walk */
++	struct contig_page_info info;
++
++	seq_printf(m, "Node %d, zone %8s ",
++				pgdat->node_id,
++				zone->name);
++	for (order = 0; order < MAX_ORDER; ++order) {
++		fill_contig_page_info(zone, order, &info);
++		index = fragmentation_index(order, &info);
++		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
++	}
++
++	seq_putc(m, '\n');
++}
++
++/*
++ * Display fragmentation index for orders that allocations would fail for
++ */
++static int extfrag_show(struct seq_file *m, void *arg)
++{
++	pg_data_t *pgdat = (pg_data_t *)arg;
++
++	walk_zones_in_node(m, pgdat, extfrag_show_print);
++
++	return 0;
++}
++
+ static void pagetypeinfo_showfree_print(struct seq_file *m,
+ 					pg_data_t *pgdat, struct zone *zone)
+ {
+@@ -722,6 +783,25 @@ static const struct file_operations unusable_file_ops = {
+ 	.release	= seq_release,
+ };
+ 
++static const struct seq_operations extfrag_op = {
++	.start	= frag_start,
++	.next	= frag_next,
++	.stop	= frag_stop,
++	.show	= extfrag_show,
++};
++
++static int extfrag_open(struct inode *inode, struct file *file)
++{
++	return seq_open(file, &extfrag_op);
++}
++
++static const struct file_operations extfrag_file_ops = {
++	.open		= extfrag_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= seq_release,
++};
++
+ #ifdef CONFIG_ZONE_DMA
+ #define TEXT_FOR_DMA(xx) xx "_dma",
+ #else
+@@ -1067,6 +1147,7 @@ static int __init setup_vmstat(void)
+ 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+ 	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
+ 	proc_create("unusable_index", S_IRUGO, NULL, &unusable_file_ops);
++	proc_create("extfrag_index", S_IRUGO, NULL, &extfrag_file_ops);
+ 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+ 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+ #endif
 -- 
 1.6.5
 
