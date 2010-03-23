@@ -1,58 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 12A996B01C9
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 14:32:48 -0400 (EDT)
-Date: Tue, 23 Mar 2010 18:32:28 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 08/11] Add /proc trigger for memory compaction
-Message-ID: <20100323183228.GE5870@csn.ul.ie>
-References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-9-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1003231323410.10178@router.home>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9FE5F6B01C9
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 14:33:54 -0400 (EDT)
+Date: Tue, 23 Mar 2010 13:31:43 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 11/11] Do not compact within a preferred zone after a
+ compaction failure
+In-Reply-To: <1269347146-7461-12-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1003231327580.10178@router.home>
+References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-12-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1003231323410.10178@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 23, 2010 at 01:25:47PM -0500, Christoph Lameter wrote:
-> On Tue, 23 Mar 2010, Mel Gorman wrote:
-> 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 0d2e8aa..faa9b53 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -346,3 +347,63 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >  	return ret;
-> >  }
-> >
-> > +/* Compact all zones within a node */
-> > +static int compact_node(int nid)
-> > +{
-> > +	int zoneid;
-> > +	pg_data_t *pgdat;
-> > +	struct zone *zone;
-> > +
-> > +	if (nid < 0 || nid > nr_node_ids || !node_online(nid))
-> 
-> Must be nid >= nr_node_ids.
-> 
+On Tue, 23 Mar 2010, Mel Gorman wrote:
 
-Oops, correct. It should be "impossible" to supply an incorrect nid here
-but still.
+> The fragmentation index may indicate that a failure it due to external
 
-> Otherwise
-> 
-> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-> 
+s/it/is/
 
-Thanks
+> fragmentation, a compaction run complete and an allocation failure still
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+???
+
+> fail. There are two obvious reasons as to why
+>
+>   o Page migration cannot move all pages so fragmentation remains
+>   o A suitable page may exist but watermarks are not met
+>
+> In the event of compaction and allocation failure, this patch prevents
+> compaction happening for a short interval. It's only recorded on the
+
+compaction is "recorded"? deferred?
+
+> preferred zone but that should be enough coverage. This could have been
+> implemented similar to the zonelist_cache but the increased size of the
+> zonelist did not appear to be justified.
+
+> @@ -1787,6 +1787,9 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+>  			 */
+>  			count_vm_event(COMPACTFAIL);
+>
+> +			/* On failure, avoid compaction for a short time. */
+> +			defer_compaction(preferred_zone, jiffies + HZ/50);
+> +
+
+20ms? How was that interval determined?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
