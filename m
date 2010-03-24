@@ -1,52 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B8BA96B01E7
-	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 09:56:06 -0400 (EDT)
-Subject: Re: [rfc][patch] mm: lockdep page lock
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20100316022153.GJ2869@laptop>
-References: <20100315155859.GE2869@laptop>
-	 <20100315180759.GA7744@quack.suse.cz>  <20100316022153.GJ2869@laptop>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 24 Mar 2010 14:54:59 +0100
-Message-ID: <1269438899.5109.264.camel@twins>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 336B86B01E9
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 10:50:52 -0400 (EDT)
+Date: Wed, 24 Mar 2010 14:50:29 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
+	pressure
+Message-ID: <20100324145028.GD2024@csn.ul.ie>
+References: <20100322235053.GD9590@csn.ul.ie> <4BA940E7.2030308@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4BA940E7.2030308@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com, Corrado Zoccolo <czoccolo@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-03-16 at 13:21 +1100, Nick Piggin wrote:
-> > locking rule here is that we always lock pages in index increasing orde=
-r. I
-> > don't think lockdep will be able to handle something like that. Probabl=
-y we
-> > can just avoid lockdep checking in these functions (or just acquire the
-> > page lock class for the first page) but definitely there will be some
->=20
-> You are right, I don't think lockdep would work with that, so just
-> checking the lock for the first page should be better than nothing.
-> It might require some lockdep support in order to add context so it
-> doesn't go mad when unlock_page is called (would rather not add any
-> page flags to track that).
->=20
-> If we were really clever and able to get back to the address of
-> struct page that _is_ holding the lock, we could just do a simple
-> check to ensure its index is < the index of the page we are trying
-> to take.
->=20
-> That would give reasonable nesting checking without requiring lockdep
-> to track new chains for every page (obviously not feasible).
+On Tue, Mar 23, 2010 at 06:29:59PM -0400, Rik van Riel wrote:
+> On 03/22/2010 07:50 PM, Mel Gorman wrote:
+>
+>> Test scenario
+>> =============
+>> X86-64 machine 1 socket 4 cores
+>> 4 consumer-grade disks connected as RAID-0 - software raid. RAID controller
+>> 	on-board and a piece of crap, and a decent RAID card could blow
+>> 	the budget.
+>> Booted mem=256 to ensure it is fully IO-bound and match closer to what
+>> 	Christian was doing
+>
+> With that many disks, you can easily have dozens of megabytes
+> of data in flight to the disk at once.  That is a major
+> fraction of memory.
+>
 
-Right, so lockdep does indeed not fancy such recursion things. Since the
-page frames are static you could basically make each lock its own class,
-but that will run lockdep out of chain storage real quick.
+That is easily possible. Note, I'm not maintaining this workload configuration
+is a good idea.
 
-Another thing you can do is look at spin_lock_nest_lock() which
-basically refcounts the class, you could do something like that for the
-page frame class, where you teach lockdep about the index rule.
+The background to this problem is Christian running a disk-intensive iozone
+workload over many CPUs and disks with limited memory. It's already known
+that if he added a small amount of extra memory, the problem went away.
+The problem was a massive throughput regression and a bisect pinpointed
+two patches (both mine) but neither make sense. One altered the order pages
+come back from lists but not availability and his hardware does no automatic
+merging. A second does alter the availility of pages via the per-cpu lists
+but reverting the behaviour didn't help.
 
+The first fix to this was to replace congestion_wait with a waitqueue
+that woke up processes if the watermarks were met. This fixed
+Christian's problem but Andrew wants to pin the underlying cause.
+
+I strongly suspect that evict-once behaves sensibly when memory is ample
+but in this particular case, it's not helping.
+
+> In fact, you might have all of the inactive file pages under
+> IO...
+>
+
+Possibly. The tests have a write and a read phase but I wasn't
+collecting the data with sufficient granularity to see which of the
+tests are actually stalling.
+
+>> 3. Page reclaim evict-once logic from 56e49d21 hurts really badly
+>> 	fix title: revertevict
+>> 	fixed in mainline? no
+>> 	affects: 2.6.31 to now
+>>
+>> 	For reasons that are not immediately obvious, the evict-once patches
+>> 	*really* hurt the time spent on congestion and the number of pages
+>> 	reclaimed. Rik, I'm afaid I'm punting this to you for explanation
+>> 	because clearly you tested this for AIM7 and might have some
+>> 	theories. For the purposes of testing, I just reverted the changes.
+>
+> The patch helped IO tests with reasonable amounts of memory
+> available, because the VM can cache frequently used data
+> much more effectively.
+>
+> This comes at the cost of caching less recently accessed
+> use-once data, which should not be an issue since the data
+> is only used once...
+>
+
+Indeed. With or without evict-once, I'd have an expectation of all the
+pages being recycled anyway because of the amount of data involved.
+
+>> Rik, any theory on evict-once?
+>
+> No real theories yet, just the observation that your revert
+> appears to be buggy (see below) and the possibility that your
+> test may have all of the inactive file pages under IO...
+>
+
+Bah. I had the initial revert right and screwed up reverting from
+2.6.32.10 on. I'm rerunning the tests. Is this right?
+
+-       if (is_active_lru(lru)) {
+-               if (inactive_list_is_low(zone, sc, file))
+-                   shrink_active_list(nr_to_scan, zone, sc, priority, file);
++       if (is_active_lru(lru)) {
++               shrink_active_list(nr_to_scan, zone, sc, priority, file);
+                return 0;
+
+
+> Can you reproduce the stall if you lower the dirty limits?
+>
+
+I'm rerunning the revertevict patches at the moment. When they complete,
+I'll experiment with dirty limits. Any suggested values or will I just
+increase it by some arbitrary amount and see what falls out? e.g.
+increse dirty_ratio to 80.
+
+>>   static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+>>   	struct zone *zone, struct scan_control *sc, int priority)
+>>   {
+>>   	int file = is_file_lru(lru);
+>>
+>> -	if (is_active_lru(lru)) {
+>> -		if (inactive_list_is_low(zone, sc, file))
+>> -		    shrink_active_list(nr_to_scan, zone, sc, priority, file);
+>> +	if (lru == LRU_ACTIVE_FILE) {
+>> +		shrink_active_list(nr_to_scan, zone, sc, priority, file);
+>>   		return 0;
+>>   	}
+>
+> Your revert is buggy.  With this change, anonymous pages will
+> never get deactivated via shrink_list.
+>
+
+/me slaps self
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
