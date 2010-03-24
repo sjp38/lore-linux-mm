@@ -1,52 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8555D6B020E
-	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 18:06:56 -0400 (EDT)
-Date: Wed, 24 Mar 2010 23:06:24 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9AA186B0211
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 18:32:37 -0400 (EDT)
+Date: Wed, 24 Mar 2010 23:32:32 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 07/11] Memory compaction core
-Message-ID: <20100324220624.GN10659@random.random>
-References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie>
- <1269347146-7461-8-git-send-email-mel@csn.ul.ie>
- <20100324133347.9b4b2789.akpm@linux-foundation.org>
- <20100324145946.372f3f31@bike.lwn.net>
- <20100324211924.GH10659@random.random>
- <20100324152854.48f72171@bike.lwn.net>
- <20100324214742.GL10659@random.random>
- <20100324155423.68c3d5b6@bike.lwn.net>
+Subject: Re: mincore and transparent huge pages
+Message-ID: <20100324223232.GO10659@random.random>
+References: <1269354902-18975-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100324155423.68c3d5b6@bike.lwn.net>
+In-Reply-To: <1269354902-18975-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 24, 2010 at 03:54:23PM -0600, Jonathan Corbet wrote:
-> Ah, but that's the point: these NULL pointer dereferences were not DoS
-> vulnerabilities - they were full privilege-escalation affairs.  Since
-> then, some problems have been fixed and some distributors have started
-> shipping smarter configurations.  But, on quite a few systems a NULL
-> dereference still has the potential to be fully exploitable; if there's
-> a possibility of it happening I think we should test for it.  A DoS is
-> a much better outcome...
+Hi Johannes,
 
-You're pointing the finger at lack of VM_BUG_ON but the finger should
-be pointed in the code that shall enforce mmap_min_addr. That is the
-exploitable bug. I can't imagine any other ways VM_BUG_ON could help
-in preventing an exploit. Let's concentrate on mmap_min_addr and leave
-the code fast.
+On Tue, Mar 23, 2010 at 03:34:57PM +0100, Johannes Weiner wrote:
+> 
+> Hi,
+> 
+> I wanted to make mincore() handle huge pmds natively over the weekend
+> but I chose do beef up the code a bit first (1-4).
+> 
+> Andrew, 1-4 may have merit without transparent huge pages, so they
+> could go in independently.  They are based on Andrea's patches but the
+> only thing huge page in them is the split_huge_page_vma() call, so it
+> would be easy to rebase (I can do that).
+> 
+> Below is also an ugly hack I used to test transparent huge pages on my
+> 32bit netbook.  The VM_ flags, oh, the VM_ flags!
 
-If it's a small structure (<4096 bytes) we're talking about, I stand
-that VM_BUG_ON() is just pure CPU overhead.
+Thanks a lot for this effort.
 
-I do agree however for structures that may grow larger than 4096 bytes
-VM_BUG_ON isn't bad idea, and furthermore I think it's wrong to keep
-the min address at only 4096 bytes, it shall be like 100M or
-something. Then all of them can go away. That is way more effective
-than having to remember to add VM_BUG_ON(!null) when cpu can do it
-zero cost.
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 85fa92a..b6aec57 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -106,10 +106,11 @@ extern unsigned int kobjsize(const void *objp);
+>  #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
+>  #define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
+>  #define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
+> +#ifdef CONFIG_KSM
+> +#error no more VM_ flags
+>  #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
+> -#if BITS_PER_LONG > 32
+> -#define VM_HUGEPAGE	0x100000000UL	/* MADV_HUGEPAGE marked this vma */
+>  #endif
+> +#define VM_HUGEPAGE	0x80000000	/* MADV_HUGEPAGE marked this vma */
+>  
+>  #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
+>  #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
+
+The moment we say we need 32bit archs, I suggest to takeover VM_SAO, I
+think it's more likely you need ksm on 32bit x86, than transparent
+hugepage on ppc32. I also doubt VM_RESERVED is still actual these
+days, but I guess I won't take the tangent to go after it (if somebody
+does that's welcome, otherwise later after transparent hugepage is in,
+after ksm works on transparent hugepages, after memory compaction is
+in, and after slab gets its front huge-allocator to make sure it allocates
+fine with 4k granularity but if a hugepage is available it eats from
+there first). It's not like a big priority to nuke VM_RESERVED
+compared to all the rest...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
