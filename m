@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 994A36B01B1
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 22:15:19 -0400 (EDT)
-Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression in performance
-From: Andi Kleen <andi@firstfloor.org>
-References: <bug-15618-10286@https.bugzilla.kernel.org/>
-	<20100323102208.512c16cc.akpm@linux-foundation.org>
-	<20100323173409.GA24845@elte.hu>
-	<alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
-	<9D040E9A-80F2-468F-A6CD-A4912615CD3F@gmail.com>
-	<alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org>
-	<9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com>
-	<alpine.LFD.2.00.1003231602130.18017@i5.linux-foundation.org>
-	<20100323233640.GA16798@elte.hu>
-	<alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org>
-Date: Wed, 24 Mar 2010 03:15:12 +0100
-In-Reply-To: <alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org> (Linus Torvalds's message of "Tue, 23 Mar 2010 16:55:42 -0700 (PDT)")
-Message-ID: <871vfah3db.fsf@basil.nowhere.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C8BAB6B01B1
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 22:38:58 -0400 (EDT)
+Date: Tue, 23 Mar 2010 19:38:37 -0700
+From: Greg KH <gregkh@suse.de>
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
+	pressure
+Message-ID: <20100324023837.GH4359@suse.de>
+References: <20100315130935.f8b0a2d7.akpm@linux-foundation.org> <20100322235053.GD9590@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100322235053.GD9590@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Anton Starikov <ant.starikov@gmail.com>, Greg KH <greg@kroah.com>, stable@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, Corrado Zoccolo <czoccolo@gmail.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds <torvalds@linux-foundation.org> writes:
+On Mon, Mar 22, 2010 at 11:50:54PM +0000, Mel Gorman wrote:
+> 2. TTY using high order allocations more frequently
+> 	fix title: ttyfix
+> 	fixed in mainline? yes, in 2.6.34-rc2
+> 	affects: 2.6.31 to 2.6.34-rc1
+> 
+> 	2.6.31 made pty's use the same buffering logic as tty.	Unfortunately,
+> 	it was also allowed to make high-order GFP_ATOMIC allocations. This
+> 	triggers some high-order reclaim and introduces some stalls. It's
+> 	fixed in 2.6.34-rc2 but needs back-porting.
 
-> On Wed, 24 Mar 2010, Ingo Molnar wrote:
->> 
->> We havent had any stability problems with them, except one trivial build bug, 
->> so -stable would be nice.
->
-> Oh, you're right. There was that UML build bug. But I think that was 
-> included in the list of commits Anton had - commit 4126faf0ab ("x86: Fix 
-> breakage of UML from the changes in the rwsem system").
+It will go to the other stable kernels for their next round of releases
+now that it is in Linus's tree.
 
-It would be also nice to get that change into 2.6.32 stable. That is
-widely used on larger systems.
+> Next Steps
+> ==========
+> 
+> Jens, any problems with me backporting the async/sync fixes from 2.6.31 to
+> 2.6.30.x (assuming that is still maintained, Greg?)?
 
--Andi
+No, .30 is no longer being maintained.
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
