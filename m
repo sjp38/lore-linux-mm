@@ -1,47 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C8BAB6B01B1
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 22:38:58 -0400 (EDT)
-Date: Tue, 23 Mar 2010 19:38:37 -0700
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
-	pressure
-Message-ID: <20100324023837.GH4359@suse.de>
-References: <20100315130935.f8b0a2d7.akpm@linux-foundation.org> <20100322235053.GD9590@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C13AC6B01B3
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 23:06:08 -0400 (EDT)
+Date: Tue, 23 Mar 2010 20:00:54 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression
+ in performance
+In-Reply-To: <871vfah3db.fsf@basil.nowhere.org>
+Message-ID: <alpine.LFD.2.00.1003231957420.18017@i5.linux-foundation.org>
+References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org> <9D040E9A-80F2-468F-A6CD-A4912615CD3F@gmail.com>
+ <alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org> <9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com> <alpine.LFD.2.00.1003231602130.18017@i5.linux-foundation.org> <20100323233640.GA16798@elte.hu> <alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org>
+ <871vfah3db.fsf@basil.nowhere.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100322235053.GD9590@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, Corrado Zoccolo <czoccolo@gmail.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Anton Starikov <ant.starikov@gmail.com>, Greg KH <greg@kroah.com>, stable@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 22, 2010 at 11:50:54PM +0000, Mel Gorman wrote:
-> 2. TTY using high order allocations more frequently
-> 	fix title: ttyfix
-> 	fixed in mainline? yes, in 2.6.34-rc2
-> 	affects: 2.6.31 to 2.6.34-rc1
+
+
+On Wed, 24 Mar 2010, Andi Kleen wrote:
 > 
-> 	2.6.31 made pty's use the same buffering logic as tty.	Unfortunately,
-> 	it was also allowed to make high-order GFP_ATOMIC allocations. This
-> 	triggers some high-order reclaim and introduces some stalls. It's
-> 	fixed in 2.6.34-rc2 but needs back-porting.
+> It would be also nice to get that change into 2.6.32 stable. That is
+> widely used on larger systems.
 
-It will go to the other stable kernels for their next round of releases
-now that it is in Linus's tree.
+Looking at the changes to the files in question, it looks like it should 
+all apply cleanly to 2.6.32, so I don't see any reason not to backport 
+further back.
 
-> Next Steps
-> ==========
-> 
-> Jens, any problems with me backporting the async/sync fixes from 2.6.31 to
-> 2.6.30.x (assuming that is still maintained, Greg?)?
+Somebody should double-check, though.
 
-No, .30 is no longer being maintained.
-
-thanks,
-
-greg k-h
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
