@@ -1,79 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AC9756B01C1
-	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 04:18:30 -0400 (EDT)
-Subject: [PATCH 1/2] mm/vmalloc: Export purge_vmap_area_lazy()
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A0ED36B01C3
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 04:18:34 -0400 (EDT)
+Subject: [PATCH 2/2] powerpc/pseries: Flush lazy kernel mappings after
+ unplug operations
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 24 Mar 2010 18:56:31 +1100
-Message-ID: <1269417391.8599.188.camel@pasglop>
+Date: Wed, 24 Mar 2010 18:56:35 +1100
+Message-ID: <1269417395.8599.189.camel@pasglop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Nathan Fontenot <nfont@austin.ibm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nathan Fontenot <nfont@austin.ibm.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Some powerpc code needs to ensure that all previous iounmap/vunmap has
-really been flushed out of the MMU hash table. Without that, various
-hotplug operations may fail when trying to return those pieces to
-the hypervisor due to existing active mappings.
-
-This exports purge_vmap_area_lazy() to allow the powerpc code to perform
-that purge when unplugging devices.
+This ensures that the translations for unmapped IO mappings or
+unmapped memory are properly removed from the MMU hash table
+before such an unplug. Without this, the hypervisor refuses the
+unplug operations due to those resources still being mapped by
+the partition.
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- include/linux/vmalloc.h |    1 +
- mm/vmalloc.c            |    5 ++---
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ arch/powerpc/platforms/pseries/hotplug-memory.c |    7 +++++++
+ drivers/pci/hotplug/rpadlpar_core.c             |    3 +++
+ drivers/pci/hotplug/rpaphp_core.c               |    3 +++
+ 3 files changed, 13 insertions(+), 0 deletions(-)
 
-Nick, care to give me an Ack so I can get that upstream along with
-the next patch ASAP (and back into distros) ?
-
-Thanks !
-Ben.
-
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 227c2a5..0d0ae4e 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -99,6 +99,7 @@ extern int map_kernel_range_noflush(unsigned long start, unsigned long size,
- 				    pgprot_t prot, struct page **pages);
- extern void unmap_kernel_range_noflush(unsigned long addr, unsigned long size);
- extern void unmap_kernel_range(unsigned long addr, unsigned long size);
-+extern void purge_vmap_area_lazy(void);
+diff --git a/arch/powerpc/platforms/pseries/hotplug-memory.c b/arch/powerpc/platforms/pseries/hotplug-memory.c
+index 9b21ee6..8a0a32e 100644
+--- a/arch/powerpc/platforms/pseries/hotplug-memory.c
++++ b/arch/powerpc/platforms/pseries/hotplug-memory.c
+@@ -11,6 +11,7 @@
  
- /* Allocate/destroy a 'vmalloc' VM area. */
- extern struct vm_struct *alloc_vm_area(size_t size);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index ae00746..d25c741 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -317,8 +317,6 @@ static void __insert_vmap_area(struct vmap_area *va)
- 		list_add_rcu(&va->list, &vmap_area_list);
+ #include <linux/of.h>
+ #include <linux/lmb.h>
++#include <linux/vmalloc.h>
+ #include <asm/firmware.h>
+ #include <asm/machdep.h>
+ #include <asm/pSeries_reconfig.h>
+@@ -54,6 +55,12 @@ static int pseries_remove_lmb(unsigned long base, unsigned int lmb_size)
+ 	 */
+ 	start = (unsigned long)__va(base);
+ 	ret = remove_section_mapping(start, start + lmb_size);
++
++	/* Ensure all vmalloc mappings are flushed in case they also
++	 * hit that section of memory
++	 */
++	purge_vmap_area_lazy();
++
+ 	return ret;
  }
  
--static void purge_vmap_area_lazy(void);
--
- /*
-  * Allocate a region of KVA of the specified size and alignment, within the
-  * vstart and vend.
-@@ -590,12 +588,13 @@ static void try_purge_vmap_area_lazy(void)
- /*
-  * Kick off a purge of the outstanding lazy areas.
-  */
--static void purge_vmap_area_lazy(void)
-+void purge_vmap_area_lazy(void)
- {
- 	unsigned long start = ULONG_MAX, end = 0;
+diff --git a/drivers/pci/hotplug/rpadlpar_core.c b/drivers/pci/hotplug/rpadlpar_core.c
+index 4e3e038..99cb3f9 100644
+--- a/drivers/pci/hotplug/rpadlpar_core.c
++++ b/drivers/pci/hotplug/rpadlpar_core.c
+@@ -20,6 +20,7 @@
+ #include <linux/init.h>
+ #include <linux/pci.h>
+ #include <linux/string.h>
++#include <linux/vmalloc.h>
  
- 	__purge_vmap_area_lazy(&start, &end, 1, 0);
+ #include <asm/pci-bridge.h>
+ #include <linux/mutex.h>
+@@ -430,6 +431,8 @@ int dlpar_remove_slot(char *drc_name)
+ 			rc = dlpar_remove_pci_slot(drc_name, dn);
+ 			break;
+ 	}
++	purge_vmap_area_lazy();
++
+ 	printk(KERN_INFO "%s: slot %s removed\n", DLPAR_MODULE_NAME, drc_name);
+ exit:
+ 	mutex_unlock(&rpadlpar_mutex);
+diff --git a/drivers/pci/hotplug/rpaphp_core.c b/drivers/pci/hotplug/rpaphp_core.c
+index dcaae72..2394ec0 100644
+--- a/drivers/pci/hotplug/rpaphp_core.c
++++ b/drivers/pci/hotplug/rpaphp_core.c
+@@ -30,6 +30,7 @@
+ #include <linux/slab.h>
+ #include <linux/smp.h>
+ #include <linux/init.h>
++#include <linux/vmalloc.h>
+ #include <asm/eeh.h>       /* for eeh_add_device() */
+ #include <asm/rtas.h>		/* rtas_call */
+ #include <asm/pci-bridge.h>	/* for pci_controller */
+@@ -419,6 +420,8 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
+ 		return -EINVAL;
+ 
+ 	pcibios_remove_pci_devices(slot->bus);
++	purge_vmap_area_lazy();
++
+ 	slot->state = NOT_CONFIGURED;
+ 	return 0;
  }
-+EXPORT_SYMBOL_GPL(purge_vmap_area_lazy);
- 
- /*
-  * Free and unmap a vmap area, caller ensuring flush_cache_vunmap had been
 
 
 --
