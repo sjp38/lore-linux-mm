@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D21D66B020B
-	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 17:54:31 -0400 (EDT)
-Date: Wed, 24 Mar 2010 15:54:23 -0600
-From: Jonathan Corbet <corbet@lwn.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 899176B0206
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 17:57:42 -0400 (EDT)
+Date: Wed, 24 Mar 2010 22:57:29 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH 07/11] Memory compaction core
-Message-ID: <20100324155423.68c3d5b6@bike.lwn.net>
-In-Reply-To: <20100324214742.GL10659@random.random>
+Message-ID: <20100324215729.GM10659@random.random>
 References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie>
-	<1269347146-7461-8-git-send-email-mel@csn.ul.ie>
-	<20100324133347.9b4b2789.akpm@linux-foundation.org>
-	<20100324145946.372f3f31@bike.lwn.net>
-	<20100324211924.GH10659@random.random>
-	<20100324152854.48f72171@bike.lwn.net>
-	<20100324214742.GL10659@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+ <1269347146-7461-8-git-send-email-mel@csn.ul.ie>
+ <20100324133347.9b4b2789.akpm@linux-foundation.org>
+ <20100324145946.372f3f31@bike.lwn.net>
+ <20100324211924.GH10659@random.random>
+ <20100324152854.48f72171@bike.lwn.net>
+ <20100324214742.GL10659@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100324214742.GL10659@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
+To: Jonathan Corbet <corbet@lwn.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Mar 2010 22:47:42 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
+On Wed, Mar 24, 2010 at 10:47:42PM +0100, Andrea Arcangeli wrote:
+> As far as I can tell, VM_BUG_ON would make _zero_ differences there.
+> 
 > I think you mistaken a VM_BUG_ON for a:
 > 
 >   if (could_be_null->something) {
+
+Ooops, I wrote ->something to indicate that "could_be_null" was going
+to later be dereferenced for ->something and here we're checking if it
+could be null when we dereference something, but now I think it could
+be very confusing as I use strict C for all the rest, so maybe I
+should clarify in C it would be !could_be_null.
+
 >      WARN_ON(1);
 >      return -ESOMETHING;
 >   }
 > 
 > adding a VM_BUG_ON(inode->something) would _still_ be as exploitable
-> as the null pointer deference, because it's a DoS. It's not really a
-> big deal of an exploit but it _sure_ need fixing.
 
-Ah, but that's the point: these NULL pointer dereferences were not DoS
-vulnerabilities - they were full privilege-escalation affairs.  Since
-then, some problems have been fixed and some distributors have started
-shipping smarter configurations.  But, on quite a few systems a NULL
-dereference still has the potential to be fully exploitable; if there's
-a possibility of it happening I think we should test for it.  A DoS is
-a much better outcome...
-
-jon
+here the same !inode.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
