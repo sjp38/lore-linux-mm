@@ -1,37 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C13AC6B01B3
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 23:06:08 -0400 (EDT)
-Date: Tue, 23 Mar 2010 20:00:54 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression
- in performance
-In-Reply-To: <871vfah3db.fsf@basil.nowhere.org>
-Message-ID: <alpine.LFD.2.00.1003231957420.18017@i5.linux-foundation.org>
-References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org> <9D040E9A-80F2-468F-A6CD-A4912615CD3F@gmail.com>
- <alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org> <9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com> <alpine.LFD.2.00.1003231602130.18017@i5.linux-foundation.org> <20100323233640.GA16798@elte.hu> <alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org>
- <871vfah3db.fsf@basil.nowhere.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C132C6B01AE
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 01:19:29 -0400 (EDT)
+Date: Wed, 24 Mar 2010 14:18:45 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/2] [BUGFIX] pagemap: fix pfn calculation for hugepage
+Message-ID: <20100324051845.GA9017@spritzerA.linux.bs1.fc.nec.co.jp>
+References: <1268979996-12297-2-git-send-email-n-horiguchi@ah.jp.nec.com> <20100319161023.d6a4ea8d.kamezawa.hiroyu@jp.fujitsu.com> <20100319162732.58633847.kamezawa.hiroyu@jp.fujitsu.com> <20100319171310.7d82f8eb.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <20100319171310.7d82f8eb.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Anton Starikov <ant.starikov@gmail.com>, Greg KH <greg@kroah.com>, stable@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, andi.kleen@intel.com, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Wed, 24 Mar 2010, Andi Kleen wrote:
+On Fri, Mar 19, 2010 at 05:13:10PM +0900, KAMEZAWA Hiroyuki wrote:
+...
+> > 
+> > But, this means hugeltb_entry() is not called per hugetlb entry...isn't it ?
+> > 
+> > Why hugetlb_entry() cannot be called per hugeltb entry ? Don't we need a code
+> > for a case as pmd_size != hugetlb_size in walk_page_range() for generic fix ?
+> > 
 > 
-> It would be also nice to get that change into 2.6.32 stable. That is
-> widely used on larger systems.
+> How about this style ? This is an idea-level patch. not tested at all.
+> (I have no test enviroment for multiple hugepage size.)
+> 
+> feel free to reuse fragments from this patch.
+>
 
-Looking at the changes to the files in question, it looks like it should 
-all apply cleanly to 2.6.32, so I don't see any reason not to backport 
-further back.
+So the point is calling hugetlb_entry() for each huge page, right?
 
-Somebody should double-check, though.
+It looks good.
+I've rewritten my patch based on your idea and make sure it works.
+Is it ok to add your Signed-off-by?
 
-		Linus
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
