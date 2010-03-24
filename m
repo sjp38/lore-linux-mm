@@ -1,397 +1,526 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DD156B01CD
-	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 07:41:21 -0400 (EDT)
-Date: Wed, 24 Mar 2010 11:40:57 +0000
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 815B26B01CF
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 07:48:27 -0400 (EDT)
+Date: Wed, 24 Mar 2010 11:48:05 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 10/11] Direct compact when a high-order allocation fails
-Message-ID: <20100324114056.GE21147@csn.ul.ie>
-References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-11-git-send-email-mel@csn.ul.ie> <20100324101927.0d54f4ad.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone
+	pressure
+Message-ID: <20100324114804.GF21147@csn.ul.ie>
+References: <20100315130935.f8b0a2d7.akpm@linux-foundation.org> <20100322235053.GD9590@csn.ul.ie> <4e5e476b1003231435i47e5d95fg9d7eac0d14d3e26b@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100324101927.0d54f4ad.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4e5e476b1003231435i47e5d95fg9d7eac0d14d3e26b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Corrado Zoccolo <czoccolo@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 24, 2010 at 10:19:27AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Tue, 23 Mar 2010 12:25:45 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Tue, Mar 23, 2010 at 10:35:20PM +0100, Corrado Zoccolo wrote:
+> Hi Mel,
+> On Tue, Mar 23, 2010 at 12:50 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > On Mon, Mar 15, 2010 at 01:09:35PM -0700, Andrew Morton wrote:
+> >> On Mon, 15 Mar 2010 13:34:50 +0100
+> >> Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com> wrote:
+> >>
+> >> > c) If direct reclaim did reasonable progress in try_to_free but did not
+> >> > get a page, AND there is no write in flight at all then let it try again
+> >> > to free up something.
+> >> > This could be extended by some kind of max retry to avoid some weird
+> >> > looping cases as well.
+> >> >
+> >> > d) Another way might be as easy as letting congestion_wait return
+> >> > immediately if there are no outstanding writes - this would keep the
+> >> > behavior for cases with write and avoid the "running always in full
+> >> > timeout" issue without writes.
+> >>
+> >> They're pretty much equivalent and would work.  But there are two
+> >> things I still don't understand:
+> >>
+> >> 1: Why is direct reclaim calling congestion_wait() at all?  If no
+> >> writes are going on there's lots of clean pagecache around so reclaim
+> >> should trivially succeed.  What's preventing it from doing so?
+> >>
+> >> 2: This is, I think, new behaviour.  A regression.  What caused it?
+> >>
+> >
+> > 120+ kernels and a lot of hurt later;
+> >
+> > Short summary - The number of times kswapd and the page allocator have been
+> >        calling congestion_wait and the length of time it spends in there
+> >        has been increasing since 2.6.29. Oddly, it has little to do
+> >        with the page allocator itself.
+> >
+> > Test scenario
+> > =============
+> > X86-64 machine 1 socket 4 cores
+> > 4 consumer-grade disks connected as RAID-0 - software raid. RAID controller
+> >        on-board and a piece of crap, and a decent RAID card could blow
+> >        the budget.
+> > Booted mem=256 to ensure it is fully IO-bound and match closer to what
+> >        Christian was doing
+> >
+> > At each test, the disks are partitioned, the raid arrays created and an
+> > ext2 filesystem created. iozone sequential read/write tests are run with
+> > increasing number of processes up to 64. Each test creates 8G of files. i.e.
+> > 1 process = 8G. 2 processes = 2x4G etc
+> >
+> >        iozone -s 8388608 -t 1 -r 64 -i 0 -i 1
+> >        iozone -s 4194304 -t 2 -r 64 -i 0 -i 1
+> >        etc.
+> >
+> > Metrics
+> > =======
+> >
+> > Each kernel was instrumented to collected the following stats
+> >
+> >        pg-Stall        Page allocator stalled calling congestion_wait
+> >        pg-Wait         The amount of time spent in congestion_wait
+> >        pg-Rclm         Pages reclaimed by direct reclaim
+> >        ksd-stall       balance_pgdat() (ie kswapd) staled on congestion_wait
+> >        ksd-wait        Time spend by balance_pgdat in congestion_wait
+> >
+> > Large differences in this do not necessarily show up in iozone because the
+> > disks are so slow that the stalls are a tiny percentage overall. However, in
+> > the event that there are many disks, it might be a greater problem. I believe
+> > Christian is hitting a corner case where small delays trigger a much larger
+> > stall.
+> >
+> > Why The Increases
+> > =================
+> >
+> > The big problem here is that there was no one change. Instead, it has been
+> > a steady build-up of a number of problems. The ones I identified are in the
+> > block IO, CFQ IO scheduler, tty and page reclaim. Some of these are fixed
+> > but need backporting and others I expect are a major surprise. Whether they
+> > are worth backporting or not heavily depends on whether Christian's problem
+> > is resolved.
+> >
+> > Some of the "fixes" below are obviously not fixes at all. Gathering this data
+> > took a significant amount of time. It'd be nice if people more familiar with
+> > the relevant problem patches could spring a theory or patch.
+> >
+> > The Problems
+> > ============
+> >
+> > 1. Block layer congestion queue async/sync difficulty
+> >        fix title: asyncconfusion
+> >        fixed in mainline? yes, in 2.6.31
+> >        affects: 2.6.30
+> >
+> >        2.6.30 replaced congestion queues based on read/write with sync/async
+> >        in commit 1faa16d2. Problems were identified with this and fixed in
+> >        2.6.31 but not backported. Backporting 8aa7e847 and 373c0a7e brings
+> >        2.6.30 in line with 2.6.29 performance. It's not an issue for 2.6.31.
+> >
+> > 2. TTY using high order allocations more frequently
+> >        fix title: ttyfix
+> >        fixed in mainline? yes, in 2.6.34-rc2
+> >        affects: 2.6.31 to 2.6.34-rc1
+> >
+> >        2.6.31 made pty's use the same buffering logic as tty.  Unfortunately,
+> >        it was also allowed to make high-order GFP_ATOMIC allocations. This
+> >        triggers some high-order reclaim and introduces some stalls. It's
+> >        fixed in 2.6.34-rc2 but needs back-porting.
+> >
+> > 3. Page reclaim evict-once logic from 56e49d21 hurts really badly
+> >        fix title: revertevict
+> >        fixed in mainline? no
+> >        affects: 2.6.31 to now
+> >
+> >        For reasons that are not immediately obvious, the evict-once patches
+> >        *really* hurt the time spent on congestion and the number of pages
+> >        reclaimed. Rik, I'm afaid I'm punting this to you for explanation
+> >        because clearly you tested this for AIM7 and might have some
+> >        theories. For the purposes of testing, I just reverted the changes.
+> >
+> > 4. CFQ scheduler fairness commit 718eee057 causes some hurt
+> >        fix title: none available
+> >        fixed in mainline? no
+> >        affects: 2.6.33 to now
+> >
+> >        A bisection finger printed this patch as being a problem introduced
+> >        between 2.6.32 and 2.6.33. It increases a small amount the number of
+> >        times the page allocator stalls but drastically increased the number
+> >        of pages reclaimed. It's not clear why the commit is such a problem.
+> >
+> >        Unfortunately, I could not test a revert of this patch. The CFQ and
+> >        block IO changes made in this window were extremely convulated and
+> >        overlapped heavily with a large number of patches altering the same
+> >        code as touched by commit 718eee057. I tried reverting everything
+> >        made on and after this commit but the results were unsatisfactory.
+> >
+> >        Hence, there is no fix in the results below
+> >
+> > Results
+> > =======
+> >
+> > Here are the highlights of kernels tested. I'm omitting the bisection
+> > results for obvious reasons. The metrics were gathered at two points;
+> > after filesystem creation and after IOZone completed.
+> >
+> > The lower the number for each metric, the better.
+> >
+> >                                                     After Filesystem Setup                                       After IOZone
+> >                                         pg-Stall  pg-Wait  pg-Rclm  ksd-stall  ksd-wait        pg-Stall  pg-Wait  pg-Rclm  ksd-stall  ksd-wait
+> > 2.6.29                                          0        0        0          2         1               4        3      183        152         0
+> > 2.6.30                                          1        5       34          1        25             783     3752    31939         76         0
+> > 2.6.30-asyncconfusion                           0        0        0          3         1              44       60     2656        893         0
+> > 2.6.30.10                                       0        0        0          2        43             777     3699    32661         74         0
+> > 2.6.30.10-asyncconfusion                        0        0        0          2         1              36       88     1699       1114         0
+> >
+> > asyncconfusion can be back-ported easily to 2.6.30.10. Performance is not
+> > perfectly in line with 2.6.29 but it's better.
+> >
+> > 2.6.31                                          0        0        0          3         1           49175   245727  2730626     176344         0
+> > 2.6.31-revertevict                              0        0        0          3         2              31      147     1887        114         0
+> > 2.6.31-ttyfix                                   0        0        0          2         2           46238   231000  2549462     170912         0
+> > 2.6.31-ttyfix-revertevict                       0        0        0          3         0               7       35      448        121         0
+> > 2.6.31.12                                       0        0        0          2         0           68897   344268  4050646     183523         0
+> > 2.6.31.12-revertevict                           0        0        0          3         1              18       87     1009        147         0
+> > 2.6.31.12-ttyfix                                0        0        0          2         0           62797   313805  3786539     173398         0
+> > 2.6.31.12-ttyfix-revertevict                    0        0        0          3         2               7       35      448        199         0
+> >
+> > Applying the tty fixes from 2.6.34-rc2 and getting rid of the evict-once
+> > patches bring things back in line with 2.6.29 again.
+> >
+> > Rik, any theory on evict-once?
+> >
+> > 2.6.32                                          0        0        0          3         2           44437   221753  2760857     132517         0
+> > 2.6.32-revertevict                              0        0        0          3         2              35       14     1570        460         0
+> > 2.6.32-ttyfix                                   0        0        0          2         0           60770   303206  3659254     166293         0
+> > 2.6.32-ttyfix-revertevict                       0        0        0          3         0              55       62     2496        494         0
+> > 2.6.32.10                                       0        0        0          2         1           90769   447702  4251448     234868         0
+> > 2.6.32.10-revertevict                           0        0        0          3         2             148      597     8642        478         0
+> > 2.6.32.10-ttyfix                                0        0        0          3         0           91729   453337  4374070     238593         0
+> > 2.6.32.10-ttyfix-revertevict                    0        0        0          3         1              65      146     3408        347         0
+> >
+> > Again, fixing tty and reverting evict-once helps bring figures more in line
+> > with 2.6.29.
+> >
+> > 2.6.33                                          0        0        0          3         0          152248   754226  4940952     267214         0
+> > 2.6.33-revertevict                              0        0        0          3         0             883     4306    28918        507         0
+> > 2.6.33-ttyfix                                   0        0        0          3         0          157831   782473  5129011     237116         0
+> > 2.6.33-ttyfix-revertevict                       0        0        0          2         0            1056     5235    34796        519         0
+> > 2.6.33.1                                        0        0        0          3         1          156422   776724  5078145     234938         0
+> > 2.6.33.1-revertevict                            0        0        0          2         0            1095     5405    36058        477         0
+> > 2.6.33.1-ttyfix                                 0        0        0          3         1          136324   673148  4434461     236597         0
+> > 2.6.33.1-ttyfix-revertevict                     0        0        0          1         1            1339     6624    43583        466         0
+> >
+> > At this point, the CFQ commit "cfq-iosched: fairness for sync no-idle
+> > queues" has lodged itself deep within CGQ and I couldn't tear it out or
+> > see how to fix it. Fixing tty and reverting evict-once helps but the number
+> > of stalls is significantly increased and a much larger number of pages get
+> > reclaimed overall.
+> >
+> > Corrado?
 > 
-> > Ordinarily when a high-order allocation fails, direct reclaim is entered to
-> > free pages to satisfy the allocation.  With this patch, it is determined if
-> > an allocation failed due to external fragmentation instead of low memory
-> > and if so, the calling process will compact until a suitable page is
-> > freed. Compaction by moving pages in memory is considerably cheaper than
-> > paging out to disk and works where there are locked pages or no swap. If
-> > compaction fails to free a page of a suitable size, then reclaim will
-> > still occur.
-> > 
-> > Direct compaction returns as soon as possible. As each block is compacted,
-> > it is checked if a suitable page has been freed and if so, it returns.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > ---
-> >  include/linux/compaction.h |   16 +++++-
-> >  include/linux/vmstat.h     |    1 +
-> >  mm/compaction.c            |  118 ++++++++++++++++++++++++++++++++++++++++++++
-> >  mm/page_alloc.c            |   26 ++++++++++
-> >  mm/vmstat.c                |   15 +++++-
-> >  5 files changed, 172 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> > index c94890b..b851428 100644
-> > --- a/include/linux/compaction.h
-> > +++ b/include/linux/compaction.h
-> > @@ -1,14 +1,26 @@
-> >  #ifndef _LINUX_COMPACTION_H
-> >  #define _LINUX_COMPACTION_H
-> >  
-> > -/* Return values for compact_zone() */
-> > +/* Return values for compact_zone() and try_to_compact_pages() */
-> >  #define COMPACT_INCOMPLETE	0
-> > -#define COMPACT_COMPLETE	1
-> > +#define COMPACT_PARTIAL		1
-> > +#define COMPACT_COMPLETE	2
-> >  
-> >  #ifdef CONFIG_COMPACTION
-> >  extern int sysctl_compact_memory;
-> >  extern int sysctl_compaction_handler(struct ctl_table *table, int write,
-> >  			void __user *buffer, size_t *length, loff_t *ppos);
-> > +
-> > +extern int fragmentation_index(struct zone *zone, unsigned int order);
-> > +extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
-> > +			int order, gfp_t gfp_mask, nodemask_t *mask);
-> > +#else
-> > +static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
-> > +			int order, gfp_t gfp_mask, nodemask_t *nodemask)
-> > +{
-> > +	return COMPACT_INCOMPLETE;
-> > +}
-> > +
-> >  #endif /* CONFIG_COMPACTION */
-> >  
-> >  #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-> > diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> > index 56e4b44..b4b4d34 100644
-> > --- a/include/linux/vmstat.h
-> > +++ b/include/linux/vmstat.h
-> > @@ -44,6 +44,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
-> >  		KSWAPD_SKIP_CONGESTION_WAIT,
-> >  		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-> >  		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
-> > +		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
-> >  #ifdef CONFIG_HUGETLB_PAGE
-> >  		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
-> >  #endif
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 8df6e3d..6688700 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -34,6 +34,8 @@ struct compact_control {
-> >  	unsigned long nr_anon;
-> >  	unsigned long nr_file;
-> >  
-> > +	unsigned int order;		/* order a direct compactor needs */
-> > +	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
-> >  	struct zone *zone;
+> The major changes in I/O scheduing behaviour are:
+> * buffered writes:
+>    before we could schedule few writes, then interrupt them to do
+>   some reads, and then go back to writes; now we guarantee some
+>   uninterruptible time slice for writes, but the delay between two
+>   slices is increased. The total write throughput averaged over a time
+>   window larger than 300ms should be comparable, or even better with
+>   2.6.33. Note that the commit you cite has introduced a bug regarding
+>   write throughput on NCQ disks that was later fixed by 1efe8fe1, merged
+>   before 2.6.33 (this may lead to confusing bisection results).
+
+This is true. The CFQ and block IO changes in that window are almost
+impossible to properly bisect and isolate individual changes. There were
+multiple dependant patches that modified each others changes. It's unclear
+if this modification can even be isolated although your suggestion below
+is the best bet.
+
+> * reads (and sync writes):
+>   * before, we serviced a single process for 100ms, then switched to
+>     an other, and so on.
+>   * after, we go round robin for random requests (they get a unified
+>     time slice, like buffered writes do), and we have consecutive time
+>     slices for sequential requests, but the length of the slice is reduced
+>     when the number of concurrent processes doing I/O increases.
+> 
+> This means that with 16 processes doing sequential I/O on the same
+> disk, before you were switching between processes every 100ms, and now
+> every 32ms. The old behaviour can be brought back by setting
+> /sys/block/sd*/queue/iosched/low_latency to 0.
+
+Will try this and see what happens.
+
+> For random I/O, the situation (going round robin, it will translate to
+> switching every 8 ms on average) is not revertable via flags.
+> 
+
+At the moment, I'm not testing random IO so it shouldn't be a factor in
+the tests.
+
+> >
+> > 2.6.34-rc1                                      0        0        0          1         1          150629   746901  4895328     239233         0
+> > 2.6.34-rc1-revertevict                          0        0        0          1         0            2595    12901    84988        622         0
+> > 2.6.34-rc1-ttyfix                               0        0        0          1         1          159603   791056  5186082     223458         0
+> > 2.6.34-rc1-ttyfix-revertevict                   0        0        0          0         0            1549     7641    50484        679         0
+> >
+> > Again, ttyfix and revertevict help a lot but CFQ needs to be fixed to get
+> > back to 2.6.29 performance.
+> >
+> > Next Steps
+> > ==========
+> >
+> > Jens, any problems with me backporting the async/sync fixes from 2.6.31 to
+> > 2.6.30.x (assuming that is still maintained, Greg?)?
+> >
+> > Rik, any suggestions on what can be done with evict-once?
+> >
+> > Corrado, any suggestions on what can be done with CFQ?
+> 
+> If my intuition that switching between processes too often is
+> detrimental when you have memory pressure (higher probability to need
+> to re-page-in some of the pages that were just discarded), I suggest
+> trying setting low_latency to 0, and maybe increasing the slice_sync
+> (to get more slice to a single process before switching to an other),
+> slice_async (to give more uninterruptible time to buffered writes) and
+> slice_async_rq (to higher the limit of consecutive write requests can
+> be sent to disk).
+> While this would normally lead to a bad user experience on a system
+> with plenty of memory, it should keep things acceptable when paging in
+> / swapping / dirty page writeback is overwhelming.
+> 
+
+Christian, would you be able to follow the same instructions and see can
+you make a difference to your test? It is known for your situation that
+memory is unusually low for size of your workload so it's a possibility.
+
+Thanks Corrado.
+
+> Corrado
+> 
+> >
+> > Christian, can you test the following amalgamated patch on 2.6.32.10 and
+> > 2.6.33 please? Note it's 2.6.32.10 because the patches below will not apply
+> > cleanly to 2.6.32 but it will against 2.6.33. It's a combination of ttyfix
+> > and revertevict. If your problem goes away, it implies that the stalls I
+> > can measure are roughly correlated to the more significant problem you have.
+> >
+> > ===== CUT HERE =====
+> >
+> > From d9661adfb8e53a7647360140af3b92284cbe52d4 Mon Sep 17 00:00:00 2001
+> > From: Alan Cox <alan@linux.intel.com>
+> > Date: Thu, 18 Feb 2010 16:43:47 +0000
+> > Subject: [PATCH] tty: Keep the default buffering to sub-page units
+> >
+> > We allocate during interrupts so while our buffering is normally diced up
+> > small anyway on some hardware at speed we can pressure the VM excessively
+> > for page pairs. We don't really need big buffers to be linear so don't try
+> > so hard.
+> >
+> > In order to make this work well we will tidy up excess callers to request_room,
+> > which cannot itself enforce this break up.
+> >
+> > Signed-off-by: Alan Cox <alan@linux.intel.com>
+> > Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
+> >
+> > diff --git a/drivers/char/tty_buffer.c b/drivers/char/tty_buffer.c
+> > index 66fa4e1..f27c4d6 100644
+> > --- a/drivers/char/tty_buffer.c
+> > +++ b/drivers/char/tty_buffer.c
+> > @@ -247,7 +247,8 @@ int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars,
+> >  {
+> >        int copied = 0;
+> >        do {
+> > -               int space = tty_buffer_request_room(tty, size - copied);
+> > +               int goal = min(size - copied, TTY_BUFFER_PAGE);
+> > +               int space = tty_buffer_request_room(tty, goal);
+> >                struct tty_buffer *tb = tty->buf.tail;
+> >                /* If there is no space then tb may be NULL */
+> >                if (unlikely(space == 0))
+> > @@ -283,7 +284,8 @@ int tty_insert_flip_string_flags(struct tty_struct *tty,
+> >  {
+> >        int copied = 0;
+> >        do {
+> > -               int space = tty_buffer_request_room(tty, size - copied);
+> > +               int goal = min(size - copied, TTY_BUFFER_PAGE);
+> > +               int space = tty_buffer_request_room(tty, goal);
+> >                struct tty_buffer *tb = tty->buf.tail;
+> >                /* If there is no space then tb may be NULL */
+> >                if (unlikely(space == 0))
+> > diff --git a/include/linux/tty.h b/include/linux/tty.h
+> > index 6abfcf5..d96e588 100644
+> > --- a/include/linux/tty.h
+> > +++ b/include/linux/tty.h
+> > @@ -68,6 +68,16 @@ struct tty_buffer {
+> >        unsigned long data[0];
 > >  };
-> >  
-> > @@ -301,10 +303,31 @@ static void update_nr_listpages(struct compact_control *cc)
-> >  static inline int compact_finished(struct zone *zone,
-> >  						struct compact_control *cc)
-> >  {
-> > +	unsigned int order;
-> > +	unsigned long watermark = low_wmark_pages(zone) + (1 << cc->order);
-> > +
-> >  	/* Compaction run completes if the migrate and free scanner meet */
-> >  	if (cc->free_pfn <= cc->migrate_pfn)
-> >  		return COMPACT_COMPLETE;
-> >  
-> > +	/* Compaction run is not finished if the watermark is not met */
-> > +	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
-> > +		return COMPACT_INCOMPLETE;
-> > +
-> > +	if (cc->order == -1)
-> > +		return COMPACT_INCOMPLETE;
-> > +
-> > +	/* Direct compactor: Is a suitable page free? */
-> > +	for (order = cc->order; order < MAX_ORDER; order++) {
-> > +		/* Job done if page is free of the right migratetype */
-> > +		if (!list_empty(&zone->free_area[order].free_list[cc->migratetype]))
-> > +			return COMPACT_PARTIAL;
-> > +
-> > +		/* Job done if allocation would set block type */
-> > +		if (order >= pageblock_order && zone->free_area[order].nr_free)
-> > +			return COMPACT_PARTIAL;
-> > +	}
-> > +
-> >  	return COMPACT_INCOMPLETE;
-> >  }
-> >  
-> > @@ -348,6 +371,101 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >  	return ret;
-> >  }
-> >  
-> > +static inline unsigned long compact_zone_order(struct zone *zone,
-> > +						int order, gfp_t gfp_mask)
-> > +{
-> > +	struct compact_control cc = {
-> > +		.nr_freepages = 0,
-> > +		.nr_migratepages = 0,
-> > +		.order = order,
-> > +		.migratetype = allocflags_to_migratetype(gfp_mask),
-> > +		.zone = zone,
-> > +	};
-> > +	INIT_LIST_HEAD(&cc.freepages);
-> > +	INIT_LIST_HEAD(&cc.migratepages);
-> > +
-> > +	return compact_zone(zone, &cc);
-> > +}
-> > +
-> > +/**
-> > + * try_to_compact_pages - Direct compact to satisfy a high-order allocation
-> > + * @zonelist: The zonelist used for the current allocation
-> > + * @order: The order of the current allocation
-> > + * @gfp_mask: The GFP mask of the current allocation
-> > + * @nodemask: The allowed nodes to allocate from
-> > + *
-> > + * This is the main entry point for direct page compaction.
+> >
+> > +/*
+> > + * We default to dicing tty buffer allocations to this many characters
+> > + * in order to avoid multiple page allocations. We assume tty_buffer itself
+> > + * is under 256 bytes. See tty_buffer_find for the allocation logic this
+> > + * must match
 > > + */
-> > +unsigned long try_to_compact_pages(struct zonelist *zonelist,
-> > +			int order, gfp_t gfp_mask, nodemask_t *nodemask)
-> > +{
-> > +	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
-> > +	int may_enter_fs = gfp_mask & __GFP_FS;
-> > +	int may_perform_io = gfp_mask & __GFP_IO;
-> > +	unsigned long watermark;
-> > +	struct zoneref *z;
-> > +	struct zone *zone;
-> > +	int rc = COMPACT_INCOMPLETE;
 > > +
-> > +	/* Check whether it is worth even starting compaction */
-> > +	if (order == 0 || !may_enter_fs || !may_perform_io)
-> > +		return rc;
-> > +
-> > +	/*
-> > +	 * We will not stall if the necessary conditions are not met for
-> > +	 * migration but direct reclaim seems to account stalls similarly
-> > +	 */
-> > +	count_vm_event(COMPACTSTALL);
-> > +
-> > +	/* Compact each zone in the list */
-> > +	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
-> > +								nodemask) {
-> > +		int fragindex;
-> > +		int status;
-> > +
-> > +		/*
-> > +		 * Watermarks for order-0 must be met for compaction. Note
-> > +		 * the 2UL. This is because during migration, copies of
-> > +		 * pages need to be allocated and for a short time, the
-> > +		 * footprint is higher
-> > +		 */
-> > +		watermark = low_wmark_pages(zone) + (2UL << order);
-> > +		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-> > +			continue;
-> > +
-> > +		/*
-> > +		 * fragmentation index determines if allocation failures are
-> > +		 * due to low memory or external fragmentation
-> > +		 *
-> > +		 * index of -1 implies allocations might succeed depending
-> > +		 * 	on watermarks
-> > +		 * index < 500 implies alloc failure is due to lack of memory
-> > +		 *
-> > +		 * XXX: The choice of 500 is arbitrary. Reinvestigate
-> > +		 *      appropriately to determine a sensible default.
-> > +		 *      and what it means when watermarks are also taken
-> > +		 *      into account. Consider making it a sysctl
-> > +		 */
-> > +		fragindex = fragmentation_index(zone, order);
-> > +		if (fragindex >= 0 && fragindex <= 500)
-> > +			continue;
-> > +
-> > +		if (fragindex == -1 && zone_watermark_ok(zone, order, watermark, 0, 0)) {
-> > +			rc = COMPACT_PARTIAL;
-> > +			break;
-> > +		}
-> > +
-> > +		status = compact_zone_order(zone, order, gfp_mask);
-> > +		rc = max(status, rc);
-> 
-> Hm...then, scanning over the whole zone until success of migration at
-> each failure?
-
-Sorry for my lack of understanding but your question is difficult to
-understand.
-
-You might mean "scanning over the whole zonelist" rather than zone. In that
-case, the zone_watermark_ok before and after the compaction will exit the
-loop rather than moving to the next zone in the list.
-
-I'm not sure what you mean by "at each failure". The worst-case scenario
-is that a process compacts the entire zone and still fails to meet the
-watermarks. The best-case scenario is that it does a small amount of
-compaction in the compact_zone() loop and finds that compact_finished()
-causes the loop to exit before the whole zone is compacted.
-
-> Is it meaningful that multiple tasks run direct-compaction against
-> a zone (from zone->start_pfn to zone->end_pfn) in parallel ?
-> ex) running order=3 compaction while other thread runs order=5 compaction.
-> 
-
-It is meaningful in that "it will work" but there is a good chance that it's
-pointless. To what degree it's pointless depends on what happened between
-Compaction Process A starting and Compaction Process B. If kswapd is also
-awake, then it might be worthwhile. By and large, the scanning is fast enough
-that it won't be very noticeable.
-
-My feeling is that multiple processes entering compaction at all is a bad
-situation to be in. It implies there are multiple processes are requiring
-high-order pages. Maybe if transparent huge pages were merged, it'd be
-expected but otherwise it'd be a surprise.
-
-> Can't we find a clever way to find [start_pfn, end_pfn) for scanning rather than
-> [zone->start_pfn, zone->start_pfn + zone->spanned_pages) ?
-> 
-
-For sure. An early iteration of these patches stored the PFNs last scanned
-for migration in struct zone and would use that as a starting point. It'd
-wrap around at least once when it encountered the free page scanner so
-that the zone would be scanned at least once. A more convulated
-iteration stored a list of compactors in a linked list. When selecting a
-pageblock to migrate pages from, it'd check the list and avoid scanning
-the same block as any other process.
-
-I dropped these modifications for a few reasons
-
-a) It added complexity for a situation that may not be encountered in
-   practice.
-b) Arguably, it would also make sense to simply allow only one compactor
-   within a zone at a time and use a mutex
-c) I had no data on why multiple processes would be direct compacting
-
-The last point was the most important. I wanted to avoid complexity unless
-there was a good reason for it. If we do encounter a situation where
-multiple compactors are causing problems, I'd be more likely to ask "why
-are there so many high-order allocations happening simultaneously?" than
-"how can we make compaction smarter?"
-
-> I'm sorry if I miss something...
-> 
-
-I don't think you have. Sorry for my poor understanding if I missed
-answering any of your queries.
-
-> > +	}
-> > +
-> > +	return rc;
-> > +}
+> > +#define TTY_BUFFER_PAGE                ((PAGE_SIZE  - 256) / 2)
 > > +
 > > +
-> >  /* Compact all zones within a node */
-> >  static int compact_node(int nid)
-> >  {
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 9708143..e301108 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -49,6 +49,7 @@
-> >  #include <linux/debugobjects.h>
-> >  #include <linux/kmemleak.h>
-> >  #include <linux/memory.h>
-> > +#include <linux/compaction.h>
-> >  #include <trace/events/kmem.h>
-> >  #include <linux/ftrace_event.h>
-> >  
-> > @@ -1765,6 +1766,31 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
-> >  
-> >  	cond_resched();
-> >  
-> > +	/* Try memory compaction for high-order allocations before reclaim */
-> > +	if (order) {
-> > +		*did_some_progress = try_to_compact_pages(zonelist,
-> > +						order, gfp_mask, nodemask);
-> > +		if (*did_some_progress != COMPACT_INCOMPLETE) {
-> > +			page = get_page_from_freelist(gfp_mask, nodemask,
-> > +					order, zonelist, high_zoneidx,
-> > +					alloc_flags, preferred_zone,
-> > +					migratetype);
-> > +			if (page) {
-> > +				__count_vm_event(COMPACTSUCCESS);
-> > +				return page;
-> > +			}
-> > +
-> > +			/*
-> > +			 * It's bad if compaction run occurs and fails.
-> > +			 * The most likely reason is that pages exist,
-> > +			 * but not enough to satisfy watermarks.
-> > +			 */
-> > +			count_vm_event(COMPACTFAIL);
-> > +
-> > +			cond_resched();
-> > +		}
-> > +	}
-> > +
-> >  	/* We now go into synchronous reclaim */
-> >  	cpuset_memory_pressure_bump();
-> >  	p->flags |= PF_MEMALLOC;
-> > diff --git a/mm/vmstat.c b/mm/vmstat.c
-> > index af88647..c88f285 100644
-> > --- a/mm/vmstat.c
-> > +++ b/mm/vmstat.c
-> > @@ -560,7 +560,7 @@ static int unusable_show(struct seq_file *m, void *arg)
-> >   * The value can be used to determine if page reclaim or compaction
-> >   * should be used
-> >   */
-> > -int fragmentation_index(unsigned int order, struct contig_page_info *info)
-> > +int __fragmentation_index(unsigned int order, struct contig_page_info *info)
-> >  {
-> >  	unsigned long requested = 1UL << order;
-> >  
-> > @@ -580,6 +580,14 @@ int fragmentation_index(unsigned int order, struct contig_page_info *info)
-> >  	return 1000 - ( (1000+(info->free_pages * 1000 / requested)) / info->free_blocks_total);
+> >  struct tty_bufhead {
+> >        struct delayed_work work;
+> >        spinlock_t lock;
+> > From 352fa6ad16b89f8ffd1a93b4419b1a8f2259feab Mon Sep 17 00:00:00 2001
+> > From: Mel Gorman <mel@csn.ul.ie>
+> > Date: Tue, 2 Mar 2010 22:24:19 +0000
+> > Subject: [PATCH] tty: Take a 256 byte padding into account when buffering below sub-page units
+> >
+> > The TTY layer takes some care to ensure that only sub-page allocations
+> > are made with interrupts disabled. It does this by setting a goal of
+> > "TTY_BUFFER_PAGE" to allocate. Unfortunately, while TTY_BUFFER_PAGE takes the
+> > size of tty_buffer into account, it fails to account that tty_buffer_find()
+> > rounds the buffer size out to the next 256 byte boundary before adding on
+> > the size of the tty_buffer.
+> >
+> > This patch adjusts the TTY_BUFFER_PAGE calculation to take into account the
+> > size of the tty_buffer and the padding. Once applied, tty_buffer_alloc()
+> > should not require high-order allocations.
+> >
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Cc: stable <stable@kernel.org>
+> > Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
+> >
+> > diff --git a/include/linux/tty.h b/include/linux/tty.h
+> > index 568369a..593228a 100644
+> > --- a/include/linux/tty.h
+> > +++ b/include/linux/tty.h
+> > @@ -70,12 +70,13 @@ struct tty_buffer {
+> >
+> >  /*
+> >  * We default to dicing tty buffer allocations to this many characters
+> > - * in order to avoid multiple page allocations. We assume tty_buffer itself
+> > - * is under 256 bytes. See tty_buffer_find for the allocation logic this
+> > - * must match
+> > + * in order to avoid multiple page allocations. We know the size of
+> > + * tty_buffer itself but it must also be taken into account that the
+> > + * the buffer is 256 byte aligned. See tty_buffer_find for the allocation
+> > + * logic this must match
+> >  */
+> >
+> > -#define TTY_BUFFER_PAGE                ((PAGE_SIZE  - 256) / 2)
+> > +#define TTY_BUFFER_PAGE        (((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
+> >
+> >
+> >  struct tty_bufhead {
+> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > index bf9213b..5ba0d9a 100644
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> > @@ -94,7 +94,6 @@ extern void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
+> >  extern void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
+> >                                                        int priority);
+> >  int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
+> > -int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
+> >  unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+> >                                       struct zone *zone,
+> >                                       enum lru_list lru);
+> > @@ -243,12 +242,6 @@ mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+> >        return 1;
 > >  }
-> >  
-> > +/* Same as __fragmentation index but allocs contig_page_info on stack */
-> > +int fragmentation_index(struct zone *zone, unsigned int order)
-> > +{
-> > +	struct contig_page_info info;
-> > +
-> > +	fill_contig_page_info(zone, order, &info);
-> > +	return __fragmentation_index(order, &info);
-> > +}
-> >  
-> >  static void extfrag_show_print(struct seq_file *m,
-> >  					pg_data_t *pgdat, struct zone *zone)
-> > @@ -595,7 +603,7 @@ static void extfrag_show_print(struct seq_file *m,
-> >  				zone->name);
-> >  	for (order = 0; order < MAX_ORDER; ++order) {
-> >  		fill_contig_page_info(zone, order, &info);
-> > -		index = fragmentation_index(order, &info);
-> > +		index = __fragmentation_index(order, &info);
-> >  		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
-> >  	}
-> >  
-> > @@ -895,6 +903,9 @@ static const char * const vmstat_text[] = {
-> >  	"compact_blocks_moved",
-> >  	"compact_pages_moved",
-> >  	"compact_pagemigrate_failed",
-> > +	"compact_stall",
-> > +	"compact_fail",
-> > +	"compact_success",
-> >  
-> >  #ifdef CONFIG_HUGETLB_PAGE
-> >  	"htlb_buddy_alloc_success",
-> > -- 
-> > 1.6.5
-> > 
-> > 
-> 
+> >
+> > -static inline int
+> > -mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
+> > -{
+> > -       return 1;
+> > -}
+> > -
+> >  static inline unsigned long
+> >  mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
+> >                         enum lru_list lru)
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 66035bf..bbb0eda 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -843,17 +843,6 @@ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+> >        return 0;
+> >  }
+> >
+> > -int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
+> > -{
+> > -       unsigned long active;
+> > -       unsigned long inactive;
+> > -
+> > -       inactive = mem_cgroup_get_local_zonestat(memcg, LRU_INACTIVE_FILE);
+> > -       active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_FILE);
+> > -
+> > -       return (active > inactive);
+> > -}
+> > -
+> >  unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+> >                                       struct zone *zone,
+> >                                       enum lru_list lru)
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 692807f..5512301 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1428,59 +1428,13 @@ static int inactive_anon_is_low(struct zone *zone, struct scan_control *sc)
+> >        return low;
+> >  }
+> >
+> > -static int inactive_file_is_low_global(struct zone *zone)
+> > -{
+> > -       unsigned long active, inactive;
+> > -
+> > -       active = zone_page_state(zone, NR_ACTIVE_FILE);
+> > -       inactive = zone_page_state(zone, NR_INACTIVE_FILE);
+> > -
+> > -       return (active > inactive);
+> > -}
+> > -
+> > -/**
+> > - * inactive_file_is_low - check if file pages need to be deactivated
+> > - * @zone: zone to check
+> > - * @sc:   scan control of this context
+> > - *
+> > - * When the system is doing streaming IO, memory pressure here
+> > - * ensures that active file pages get deactivated, until more
+> > - * than half of the file pages are on the inactive list.
+> > - *
+> > - * Once we get to that situation, protect the system's working
+> > - * set from being evicted by disabling active file page aging.
+> > - *
+> > - * This uses a different ratio than the anonymous pages, because
+> > - * the page cache uses a use-once replacement algorithm.
+> > - */
+> > -static int inactive_file_is_low(struct zone *zone, struct scan_control *sc)
+> > -{
+> > -       int low;
+> > -
+> > -       if (scanning_global_lru(sc))
+> > -               low = inactive_file_is_low_global(zone);
+> > -       else
+> > -               low = mem_cgroup_inactive_file_is_low(sc->mem_cgroup);
+> > -       return low;
+> > -}
+> > -
+> > -static int inactive_list_is_low(struct zone *zone, struct scan_control *sc,
+> > -                               int file)
+> > -{
+> > -       if (file)
+> > -               return inactive_file_is_low(zone, sc);
+> > -       else
+> > -               return inactive_anon_is_low(zone, sc);
+> > -}
+> > -
+> >  static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+> >        struct zone *zone, struct scan_control *sc, int priority)
+> >  {
+> >        int file = is_file_lru(lru);
+> >
+> > -       if (is_active_lru(lru)) {
+> > -               if (inactive_list_is_low(zone, sc, file))
+> > -                   shrink_active_list(nr_to_scan, zone, sc, priority, file);
+> > +       if (lru == LRU_ACTIVE_FILE) {
+> > +               shrink_active_list(nr_to_scan, zone, sc, priority, file);
+> >                return 0;
+> >        }
+> >
 
 -- 
 Mel Gorman
