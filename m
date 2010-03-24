@@ -1,44 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B0C8D6B0203
-	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 17:20:18 -0400 (EDT)
-Date: Wed, 24 Mar 2010 22:19:24 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A2C576B0205
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 17:23:55 -0400 (EDT)
+Date: Wed, 24 Mar 2010 22:22:49 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 07/11] Memory compaction core
-Message-ID: <20100324211924.GH10659@random.random>
-References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie>
- <1269347146-7461-8-git-send-email-mel@csn.ul.ie>
- <20100324133347.9b4b2789.akpm@linux-foundation.org>
- <20100324145946.372f3f31@bike.lwn.net>
+Subject: Re: [PATCH 00 of 34] Transparent Hugepage support #14
+Message-ID: <20100324212249.GI10659@random.random>
+References: <patchbomb.1268839142@v2.random>
+ <alpine.DEB.2.00.1003171353240.27268@router.home>
+ <20100318234923.GV29874@random.random>
+ <alpine.DEB.2.00.1003190812560.10759@router.home>
+ <20100319144101.GB29874@random.random>
+ <alpine.DEB.2.00.1003221027590.16606@router.home>
+ <20100322170619.GQ29874@random.random>
+ <alpine.DEB.2.00.1003231200430.10178@router.home>
+ <20100323190805.GH10659@random.random>
+ <alpine.DEB.2.00.1003241600001.16492@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100324145946.372f3f31@bike.lwn.net>
+In-Reply-To: <alpine.DEB.2.00.1003241600001.16492@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Jonathan,
+On Wed, Mar 24, 2010 at 04:03:03PM -0500, Christoph Lameter wrote:
+> If a delay is "altered behavior" then we should no longer run reclaim
+> because it "alters" the behavior of VM functions.
 
-On Wed, Mar 24, 2010 at 02:59:46PM -0600, Jonathan Corbet wrote:
-> On Wed, 24 Mar 2010 13:33:47 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > > +	VM_BUG_ON(cc == NULL);  
-> > 
-> > It's a bit strange to test this when we're about to oops anyway.  The
-> > oops will tell us the same thing.
-> 
-> ...except that we've seen a fair number of null pointer dereference
-> exploits that have told us something altogether different.  Are we
-> *sure* we don't want to test for null pointers...?
-
-Examples? Maybe WARN_ON != oops, but VM_BUG_ON still an oops that is
-and without serial console it would go lost too. I personally don't
-see how it's needed. Plus those things are mostly for debug to check
-for invariant condition, how long it takes to sort it out isn't very
-relevant. So I'm on Andrew camp ;).
+You're comparing the speed of ram with speed of disk. If why it's not
+acceptable to me isn't clear try booting with mem=100m and I'm sure
+you'll get it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
