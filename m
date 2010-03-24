@@ -1,45 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E74576B01B9
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 20:03:13 -0400 (EDT)
-Received: by bwz19 with SMTP id 19so5740438bwz.6
-        for <linux-mm@kvack.org>; Tue, 23 Mar 2010 17:03:11 -0700 (PDT)
-Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression in performance
-Mime-Version: 1.0 (Apple Message framework v1077)
-Content-Type: text/plain; charset=us-ascii
-From: Anton Starikov <ant.starikov@gmail.com>
-In-Reply-To: <alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org>
-Date: Wed, 24 Mar 2010 01:03:09 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <5D95EFF7-F924-4B0D-8B05-0D85697E315D@gmail.com>
-References: <bug-15618-10286@https.bugzilla.kernel.org/> <20100323102208.512c16cc.akpm@linux-foundation.org> <20100323173409.GA24845@elte.hu> <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org> <9D040E9A-80F2-468F-A6CD-A4912615CD3F@gmail.com> <alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org> <9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com> <alpine.LFD.2.00.1003231602130.18017@i5.linux-foundation.org> <20100323233640.GA16798@elte.hu> <alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id EFB566B01B9
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 20:06:56 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2O06sO9005692
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 24 Mar 2010 09:06:54 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EBE4145DE50
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 09:06:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CBCC245DE4E
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 09:06:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AB5BFE38003
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 09:06:53 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 544F41DB8038
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 09:06:53 +0900 (JST)
+Date: Wed, 24 Mar 2010 09:03:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 05/11] Export unusable free space index via
+ /proc/unusable_index
+Message-Id: <20100324090312.4e1cc725.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1269347146-7461-6-git-send-email-mel@csn.ul.ie>
+References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie>
+	<1269347146-7461-6-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Greg KH <greg@kroah.com>, stable@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Yes, it is included into my list.
-When I will submit it into stable, I will include it also.
+On Tue, 23 Mar 2010 12:25:40 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-Anton
+> Unusable free space index is a measure of external fragmentation that
+> takes the allocation size into account. For the most part, the huge page
+> size will be the size of interest but not necessarily so it is exported
+> on a per-order and per-zone basis via /proc/unusable_index.
+> 
+> The index is a value between 0 and 1. It can be expressed as a
+> percentage by multiplying by 100 as documented in
+> Documentation/filesystems/proc.txt.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+>  Documentation/filesystems/proc.txt |   13 ++++-
+>  mm/vmstat.c                        |  120 +++++++++++++++++++++++++++++++++
+>  2 files changed, 132 insertions(+), 1 deletions(-)
+> 
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index 5e132b5..5c4b0fb 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -452,6 +452,7 @@ Table 1-5: Kernel info in /proc
+>   sys         See chapter 2                                     
+>   sysvipc     Info of SysVIPC Resources (msg, sem, shm)		(2.4)
+>   tty	     Info of tty drivers
+> + unusable_index Additional page allocator information (see text)(2.5)
+>   uptime      System uptime                                     
+>   version     Kernel version                                    
+>   video	     bttv info of video resources			(2.4)
+> @@ -609,7 +610,7 @@ ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE
+>  available in ZONE_NORMAL, etc... 
+>  
+>  More information relevant to external fragmentation can be found in
+> -pagetypeinfo.
+> +pagetypeinfo and unusable_index
+>  
+>  > cat /proc/pagetypeinfo
+>  Page block order: 9
+> @@ -650,6 +651,16 @@ unless memory has been mlock()'d. Some of the Reclaimable blocks should
+>  also be allocatable although a lot of filesystem metadata may have to be
+>  reclaimed to achieve this.
+>  
+> +> cat /proc/unusable_index
+> +Node 0, zone      DMA 0.000 0.000 0.000 0.001 0.005 0.013 0.021 0.037 0.037 0.101 0.230
+> +Node 0, zone   Normal 0.000 0.000 0.000 0.001 0.002 0.002 0.005 0.015 0.028 0.028 0.054
+> +
+> +The unusable free space index measures how much of the available free
+> +memory cannot be used to satisfy an allocation of a given size and is a
+> +value between 0 and 1. The higher the value, the more of free memory is
+> +unusable and by implication, the worse the external fragmentation is. This
+> +can be expressed as a percentage by multiplying by 100.
+> +
+>  ..............................................................................
+>  
+>  meminfo:
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 7f760cb..ca42e10 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -453,6 +453,106 @@ static int frag_show(struct seq_file *m, void *arg)
+>  	return 0;
+>  }
+>  
+> +
+> +struct contig_page_info {
+> +	unsigned long free_pages;
+> +	unsigned long free_blocks_total;
+> +	unsigned long free_blocks_suitable;
+> +};
+> +
+> +/*
+> + * Calculate the number of free pages in a zone, how many contiguous
+> + * pages are free and how many are large enough to satisfy an allocation of
+> + * the target size. Note that this function makes to attempt to estimate
+> + * how many suitable free blocks there *might* be if MOVABLE pages were
+> + * migrated. Calculating that is possible, but expensive and can be
+> + * figured out from userspace
+> + */
+> +static void fill_contig_page_info(struct zone *zone,
+> +				unsigned int suitable_order,
+> +				struct contig_page_info *info)
+> +{
+> +	unsigned int order;
+> +
+> +	info->free_pages = 0;
+> +	info->free_blocks_total = 0;
+> +	info->free_blocks_suitable = 0;
+> +
+> +	for (order = 0; order < MAX_ORDER; order++) {
+> +		unsigned long blocks;
+> +
+> +		/* Count number of free blocks */
+> +		blocks = zone->free_area[order].nr_free;
+> +		info->free_blocks_total += blocks;
 
-On Mar 24, 2010, at 12:55 AM, Linus Torvalds wrote:
+....for what this free_blocks_total is ?
 
->=20
->=20
-> On Wed, 24 Mar 2010, Ingo Molnar wrote:
->>=20
->> We havent had any stability problems with them, except one trivial =
-build bug,=20
->> so -stable would be nice.
->=20
-> Oh, you're right. There was that UML build bug. But I think that was=20=
-
-> included in the list of commits Anton had - commit 4126faf0ab ("x86: =
-Fix=20
-> breakage of UML from the changes in the rwsem system").
->=20
-> 		Linus
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
