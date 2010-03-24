@@ -1,79 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A0EA16B01B1
-	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 22:10:15 -0400 (EDT)
-Received: by pxi32 with SMTP id 32so2129728pxi.1
-        for <linux-mm@kvack.org>; Tue, 23 Mar 2010 19:10:14 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 994A36B01B1
+	for <linux-mm@kvack.org>; Tue, 23 Mar 2010 22:15:19 -0400 (EDT)
+Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge regression in performance
+From: Andi Kleen <andi@firstfloor.org>
+References: <bug-15618-10286@https.bugzilla.kernel.org/>
+	<20100323102208.512c16cc.akpm@linux-foundation.org>
+	<20100323173409.GA24845@elte.hu>
+	<alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
+	<9D040E9A-80F2-468F-A6CD-A4912615CD3F@gmail.com>
+	<alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org>
+	<9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com>
+	<alpine.LFD.2.00.1003231602130.18017@i5.linux-foundation.org>
+	<20100323233640.GA16798@elte.hu>
+	<alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org>
+Date: Wed, 24 Mar 2010 03:15:12 +0100
+In-Reply-To: <alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org> (Linus Torvalds's message of "Tue, 23 Mar 2010 16:55:42 -0700 (PDT)")
+Message-ID: <871vfah3db.fsf@basil.nowhere.org>
 MIME-Version: 1.0
-In-Reply-To: <20100324105311.2f41e82b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie>
-	 <1269347146-7461-8-git-send-email-mel@csn.ul.ie>
-	 <20100324100334.8d6f0739.kamezawa.hiroyu@jp.fujitsu.com>
-	 <28c262361003231847q1e4b7c7agdf82c4b2e920ada4@mail.gmail.com>
-	 <20100324105311.2f41e82b.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 24 Mar 2010 11:10:14 +0900
-Message-ID: <28c262361003231910w27dbe52fqe02afad2b0238c9a@mail.gmail.com>
-Subject: Re: [PATCH 07/11] Memory compaction core
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Anton Starikov <ant.starikov@gmail.com>, Greg KH <greg@kroah.com>, stable@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 24, 2010 at 10:53 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 24 Mar 2010 10:47:41 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> On Wed, Mar 24, 2010 at 10:03 AM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > On Tue, 23 Mar 2010 12:25:42 +0000
->> > Mel Gorman <mel@csn.ul.ie> wrote:
->> >
->> >> This patch is the core of a mechanism which compacts memory in a zone by
->> >> relocating movable pages towards the end of the zone.
->> >>
->> >> A single compaction run involves a migration scanner and a free scanner.
->> >> Both scanners operate on pageblock-sized areas in the zone. The migration
->> >> scanner starts at the bottom of the zone and searches for all movable pages
->> >> within each area, isolating them onto a private list called migratelist.
->> >> The free scanner starts at the top of the zone and searches for suitable
->> >> areas and consumes the free pages within making them available for the
->> >> migration scanner. The pages isolated for migration are then migrated to
->> >> the newly isolated free pages.
->> >>
->> >> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
->> >> Acked-by: Rik van Riel <riel@redhat.com>
->> >> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
->> >
->> > I think lru_add_drain() or lru_add_drain_all() should be called somewhere
->> > when we do __isolate_lru_page(). But it's (_all is) slow....
->> >
->>
->> migrate_prep does it.
->>
-> Thanks.
->
-> Hmm...then, lru_add_drain_all() is called at each (32page migrate) itelation.
-> Isn't it too slow to be called in such frequency ?
+Linus Torvalds <torvalds@linux-foundation.org> writes:
 
-I agree. We can move migrate_prep in compact_zone.
+> On Wed, 24 Mar 2010, Ingo Molnar wrote:
+>> 
+>> We havent had any stability problems with them, except one trivial build bug, 
+>> so -stable would be nice.
+>
+> Oh, you're right. There was that UML build bug. But I think that was 
+> included in the list of commits Anton had - commit 4126faf0ab ("x86: Fix 
+> breakage of UML from the changes in the rwsem system").
 
->
-> Thanks,
-> -Kame
->
->
->
->
->
+It would be also nice to get that change into 2.6.32 stable. That is
+widely used on larger systems.
 
-
+-Andi
 
 -- 
-Kind regards,
-Minchan Kim
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
