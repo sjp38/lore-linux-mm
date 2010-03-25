@@ -1,98 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 96B7C6B0071
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 05:21:51 -0400 (EDT)
-Date: Thu, 25 Mar 2010 09:21:32 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
-	anonymous pages
-Message-ID: <20100325092131.GK2024@csn.ul.ie>
-References: <20100325083235.GF2024@csn.ul.ie> <20100325180221.e1d9bae7.kamezawa.hiroyu@jp.fujitsu.com> <20100325180726.6C89.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100325180726.6C89.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A19D16B0071
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 05:40:13 -0400 (EDT)
+Received: from e35131.upc-e.chello.nl ([213.93.35.131] helo=dyad.programming.kicks-ass.net)
+	by casper.infradead.org with esmtpsa (Exim 4.69 #1 (Red Hat Linux))
+	id 1NujXt-0004zt-VC
+	for linux-mm@kvack.org; Thu, 25 Mar 2010 09:40:10 +0000
+Subject: Re: [rfc][patch] mm: lockdep page lock
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20100325053608.GB7493@laptop.nomadix.com>
+References: <20100315155859.GE2869@laptop>
+	 <20100315180759.GA7744@quack.suse.cz> <20100316022153.GJ2869@laptop>
+	 <1269437291.5109.238.camel@twins>
+	 <20100325053608.GB7493@laptop.nomadix.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 25 Mar 2010 10:40:05 +0100
+Message-ID: <1269510005.12097.26.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 25, 2010 at 06:09:34PM +0900, KOSAKI Motohiro wrote:
-> > On Thu, 25 Mar 2010 08:32:35 +0000
-> > Mel Gorman <mel@csn.ul.ie> wrote:
+On Thu, 2010-03-25 at 16:36 +1100, Nick Piggin wrote:
+> On Wed, Mar 24, 2010 at 02:28:11PM +0100, Peter Zijlstra wrote:
+> > On Tue, 2010-03-16 at 13:21 +1100, Nick Piggin wrote:
+> > > 
+> > > 
+> > > Agreed (btw. Peter is there any way to turn lock debugging back on?
+> > > it's annoying when cpufreq hotplug code or something early breaks and
+> > > you have to reboot in order to do any testing).
 > > 
-> > > On Thu, Mar 25, 2010 at 11:49:23AM +0900, KOSAKI Motohiro wrote:
-> > > > > On Fri, Mar 19, 2010 at 03:21:41PM +0900, KOSAKI Motohiro wrote: 
-> > > > Hmmm...
-> > > > I haven't understand your mention because I guess I was wrong.
-> > > > 
-> > > > probably my last question was unclear. I mean,
-> > > > 
-> > > > 1) If we still need SLAB_DESTROY_BY_RCU, why do we need to add refcount?
-> > > >     Which difference is exist between normal page migration and compaction?
-> > > 
-> > > The processes typically calling migration today own the page they are moving
-> > > and is not going to exit unexpectedly during migration.
-> > > 
-> > > > 2) If we added refcount, which race will solve?
-> > > > 
-> > > 
-> > > The process exiting and the last anon_vma being dropped while compaction
-> > > is running. This can be reliably triggered with compaction.
-> > > 
-> > > > IOW, Is this patch fix old issue or compaction specific issue?
-> > > > 
-> > > 
-> > > Strictly speaking, it's an old issue but in practice it's impossible to
-> > > trigger because the process migrating always owns the page. Compaction
-> > > moves pages belonging to arbitrary processes.
-> > > 
-> > Kosaki-san,
+> > Not really, the only way to do that is to get the full system back into
+> > a known (zero) lock state and then fully reset the lockdep state.
 > > 
-> >  IIUC, the race in memory-hotunplug was fixed by this patch [2/11].
-> > 
-> >  But, this behavior of unmap_and_move() requires access to _freed_
-> >  objects (spinlock). Even if it's safe because of SLAB_DESTROY_BY_RCU,
-> >  it't not good habit in general.
-> > 
-> >  After direct compaction, page-migration will be one of "core" code of
-> >  memory management. Then, I agree to patch [1/11] as our direction for
-> >  keeping sanity and showing direction to more updates. Maybe adding
-> >  refcnt and removing RCU in futuer is good.
+> > It might be possible using the freezer, but I haven't really looked at
+> > that, its usually simpler to simply fix the offending code or simply not
+> > build it in your kernel.
 > 
-> But Christoph seems oppose to remove SLAB_DESTROY_BY_RCU. then refcount
-> is meaningless now.
+> Right, but sometimes that is not possible (or you don't want to
+> turn off cpufreq). I guess you could have an option to NOT turn
+> it off in the first place. You could just turn off warnings, but
+> leave everything else running, couldn't you?
+> 
+> And then the option would just be to turn the printing back on.
 
-Christoph is opposed to removing it because of cache-hotness issues more
-so than use-after-free concerns. The refcount is needed with or without
-SLAB_DESTROY_BY_RCU.
+Well, once there are cycles in the class graph you could end up finding
+that cycle again and again. So the easiest option is to simply bail
+after printing the acquisition that established the cycle.
 
-> I agree you if we will remove SLAB_DESTROY_BY_RCU
-> in the future.
-> 
-> refcount is easy understanding than rcu trick.
-> 
-> 
-> >  IMHO, pushing this patch [2/11] as "BUGFIX" independent of this set and
-> >  adding anon_vma->refcnt [1/11] and [3/11] in 1st Direct-compaction patch
-> >  series  to show the direction will makse sense.
-> >  (I think merging 1/11 and 3/11 will be okay...)
-> 
-> agreed.
-> 
-> > 
-> > Thanks,
-> > -Kame
-> > 
-> > 
-> 
-> 
-> 
+Alternatively you'd have to undo the cycle creation and somehow mark a
+class as bad and ignore it afterwards, which of course carries the risk
+that you'll not detect other cycles which would depend on that class.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+You could do as you suggest, but I would not trust the answers you get
+after that because you already have cycles in the graph so interpreting
+the things gets more and more interesting.
+
+So non of the options really work well, and fixing, reverting or simply
+not building is by far the easier thing to do.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
