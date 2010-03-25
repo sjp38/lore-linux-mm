@@ -1,32 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D6566B0071
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 04:28:19 -0400 (EDT)
-Subject: Re: [PATCH 1/2] mm/vmalloc: Export purge_vmap_area_lazy()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20100325052814.GA7493@laptop.nomadix.com>
-References: <1269417391.8599.188.camel@pasglop>
-	 <20100325052814.GA7493@laptop.nomadix.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 25 Mar 2010 19:25:59 +1100
-Message-ID: <1269505559.8599.239.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B00FD6B0071
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 04:32:57 -0400 (EDT)
+Date: Thu, 25 Mar 2010 08:32:35 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
+	anonymous pages
+Message-ID: <20100325083235.GF2024@csn.ul.ie>
+References: <20100319152103.876F.A69D9226@jp.fujitsu.com> <20100319085949.GQ12388@csn.ul.ie> <20100325095349.944E.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100325095349.944E.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nathan Fontenot <nfont@austin.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Mar 25, 2010 at 11:49:23AM +0900, KOSAKI Motohiro wrote:
+> > On Fri, Mar 19, 2010 at 03:21:41PM +0900, KOSAKI Motohiro wrote:
+> > > > > then, this logic depend on SLAB_DESTROY_BY_RCU, not refcount.
+> > > > > So, I think we don't need your [1/11] patch.
+> > > > > 
+> > > > > Am I missing something?
+> > > > > 
+> > > > 
+> > > > The refcount is still needed. The anon_vma might be valid, but the
+> > > > refcount is what ensures that the anon_vma is not freed and reused.
+> > > 
+> > > please please why do we need both mechanism. now cristoph is very busy and I am
+> > > de fact reviewer of page migration and mempolicy code. I really hope to understand
+> > > your patch.
+> > 
+> > As in, why not drop the RCU protection of anon_vma altogeter? Mainly, because I
+> > think it would be reaching too far for this patchset and it should be done as
+> > a follow-up. Putting the ref-count everywhere will change the cache-behaviour
+> > of anon_vma more than I'd like to slip into a patchset like this. Secondly,
+> > Christoph mentions that SLAB_DESTROY_BY_RCU is used to keep anon_vma cache-hot.
+> > For these reasons, removing RCU from these paths and adding the refcount
+> > in others is a patch that should stand on its own.
+> 
+> Hmmm...
+> I haven't understand your mention because I guess I was wrong.
+> 
+> probably my last question was unclear. I mean,
+> 
+> 1) If we still need SLAB_DESTROY_BY_RCU, why do we need to add refcount?
+>     Which difference is exist between normal page migration and compaction?
 
-> You want vm_unmap_aliases(), which also flushes entries in the
-> per-cpu vmap allocator (and is already exported for other code
-> that has similar problems).
+The processes typically calling migration today own the page they are moving
+and is not going to exit unexpectedly during migration.
 
-Ok, I missed that one. I'll update my patch. Thanks.
+> 2) If we added refcount, which race will solve?
+> 
 
-Cheers,
-Ben.
+The process exiting and the last anon_vma being dropped while compaction
+is running. This can be reliably triggered with compaction.
 
+> IOW, Is this patch fix old issue or compaction specific issue?
+> 
+
+Strictly speaking, it's an old issue but in practice it's impossible to
+trigger because the process migrating always owns the page. Compaction
+moves pages belonging to arbitrary processes.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
