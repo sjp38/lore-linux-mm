@@ -1,108 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 19B186B0071
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 06:17:00 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2PAGGE1026756
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 25 Mar 2010 19:16:16 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5212D45DE4E
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 19:16:16 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1ABD145DE4F
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 19:16:16 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D8D33E38002
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 19:16:15 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 89CA91DB804A
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 19:16:15 +0900 (JST)
-Date: Thu, 25 Mar 2010 19:12:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
- anonymous pages
-Message-Id: <20100325191229.8e3d2ba1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100325185200.6C8C.A69D9226@jp.fujitsu.com>
-References: <20100325092131.GK2024@csn.ul.ie>
-	<20100325184123.e3e3b009.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100325185200.6C8C.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E0D196B0071
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 06:17:13 -0400 (EDT)
+Date: Thu, 25 Mar 2010 10:16:54 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 10/11] Direct compact when a high-order allocation fails
+Message-ID: <20100325101653.GN2024@csn.ul.ie>
+References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-11-git-send-email-mel@csn.ul.ie> <20100324101927.0d54f4ad.kamezawa.hiroyu@jp.fujitsu.com> <20100324114056.GE21147@csn.ul.ie> <20100325093006.cd0361e6.kamezawa.hiroyu@jp.fujitsu.com> <20100325094826.GM2024@csn.ul.ie> <20100325185021.63e16884.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100325185021.63e16884.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Mar 2010 18:59:25 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> > > > > Kosaki-san,
-> > > > > 
-> > > > >  IIUC, the race in memory-hotunplug was fixed by this patch [2/11].
-> > > > > 
-> > > > >  But, this behavior of unmap_and_move() requires access to _freed_
-> > > > >  objects (spinlock). Even if it's safe because of SLAB_DESTROY_BY_RCU,
-> > > > >  it't not good habit in general.
-> > > > > 
-> > > > >  After direct compaction, page-migration will be one of "core" code of
-> > > > >  memory management. Then, I agree to patch [1/11] as our direction for
-> > > > >  keeping sanity and showing direction to more updates. Maybe adding
-> > > > >  refcnt and removing RCU in futuer is good.
-> > > > 
-> > > > But Christoph seems oppose to remove SLAB_DESTROY_BY_RCU. then refcount
-> > > > is meaningless now.
-> > > 
-> > > Christoph is opposed to removing it because of cache-hotness issues more
-> > > so than use-after-free concerns. The refcount is needed with or without
-> > > SLAB_DESTROY_BY_RCU.
+On Thu, Mar 25, 2010 at 06:50:21PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 25 Mar 2010 09:48:26 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > > In that case, compact_finished() can't
+> > > find there is a free chunk and do more work.  How about using a function like
+> > > 	 free_pcppages_bulk(zone, pcp->batch, pcp);
+> > > to bypass pcp list and freeing pages at once ?
 > > > 
 > > 
-> > I wonder a code which the easiest to be read will be like following.
-> > ==
+> > I think you mean to drain the PCP lists while compaction is happening
+> > but is it justified? It's potentially a lot of IPI calls just to check
+> > if compaction can finish a little earlier. If the pages on the PCP lists
+> > are making that much of a difference to high-order page availability, it
+> > implies that the zone is pretty full and it's likely that compaction was
+> > avoided and we direct reclaimed.
 > > 
-> >         if (PageAnon(page)) {
-> >                 struct anon_vma anon = page_lock_anon_vma(page);
-> > 		/* to take this lock, this page must be mapped. */
-> > 		if (!anon_vma)
-> > 			goto uncharge;
-> > 		increase refcnt
-> > 		page_unlock_anon_vma(anon);
-> >         }
-> > 	....
-> > ==
-> 
-> This seems very good and acceptable to me. This refcnt usage
-> obviously reduce rcu-lock holding time.
-> 
-> I still think no refcount doesn't cause any disaster. but I agree
-> this is forward step patch.
+> Ah, sorry for my short word again. I mean draining "local" pcp list because
+> a thread which run direct-compaction freed pages. IPI is not necessary and
+> overkill.
 > 
 
-BTW, by above change and the change in patch [2/11], 
-"A page turnd to be SwapCache and free unmapped but not freed"
-page will be never migrated.
+Ah, I see now. There are two places that pages get freed.  release_freepages()
+at the end of compaction when it's too late for compact_finished() to be
+helped and within migration itself. Migration frees with either
+free_page() or more commonly put_page() with put_page() being the most
+frequently used. As free_page() is called on failure to migrate (rare),
+there is little help in changing it and I'd rather not modify how
+put_page() works.
 
-Mel, could you change the check as this ??
+I could add a variant of drain_local_pages() that drains just the local PCP of
+a given zone before compact_finished() is called. The cost would be a doubling
+of the number of times zone->lock is taken to do the drain. Is it
+justified? It seems overkill to me to take the zone->lock just in case
+compaction can finish a little earlier. It feels like it would be adding
+a guaranteed cost for a potential saving.
 
-	if (PageAnon(page)) {
-		rcu_read_lock();
-		if (!page_mapcount(page)) {
-			rcu_read_unlock();
-			if (!PageSwapCache(page))
-				goto uncharge;
-			/* unmapped swap cache can be migrated */
-		} else {
-			...
-		}
-	.....
-	} else 
-
-
-Thx,
--Kame
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
