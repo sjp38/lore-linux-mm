@@ -1,36 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CD6D06B0071
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 01:28:22 -0400 (EDT)
-Date: Thu, 25 Mar 2010 16:28:14 +1100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E28306B0071
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 01:36:12 -0400 (EDT)
+Date: Thu, 25 Mar 2010 16:36:08 +1100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 1/2] mm/vmalloc: Export purge_vmap_area_lazy()
-Message-ID: <20100325052814.GA7493@laptop.nomadix.com>
-References: <1269417391.8599.188.camel@pasglop>
+Subject: Re: [rfc][patch] mm: lockdep page lock
+Message-ID: <20100325053608.GB7493@laptop.nomadix.com>
+References: <20100315155859.GE2869@laptop>
+ <20100315180759.GA7744@quack.suse.cz>
+ <20100316022153.GJ2869@laptop>
+ <1269437291.5109.238.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1269417391.8599.188.camel@pasglop>
+In-Reply-To: <1269437291.5109.238.camel@twins>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nathan Fontenot <nfont@austin.ibm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 24, 2010 at 06:56:31PM +1100, Benjamin Herrenschmidt wrote:
-> Some powerpc code needs to ensure that all previous iounmap/vunmap has
-> really been flushed out of the MMU hash table. Without that, various
-> hotplug operations may fail when trying to return those pieces to
-> the hypervisor due to existing active mappings.
+On Wed, Mar 24, 2010 at 02:28:11PM +0100, Peter Zijlstra wrote:
+> On Tue, 2010-03-16 at 13:21 +1100, Nick Piggin wrote:
+> > 
+> > 
+> > Agreed (btw. Peter is there any way to turn lock debugging back on?
+> > it's annoying when cpufreq hotplug code or something early breaks and
+> > you have to reboot in order to do any testing).
 > 
-> This exports purge_vmap_area_lazy() to allow the powerpc code to perform
-> that purge when unplugging devices.
+> Not really, the only way to do that is to get the full system back into
+> a known (zero) lock state and then fully reset the lockdep state.
+> 
+> It might be possible using the freezer, but I haven't really looked at
+> that, its usually simpler to simply fix the offending code or simply not
+> build it in your kernel.
 
-You want vm_unmap_aliases(), which also flushes entries in the
-per-cpu vmap allocator (and is already exported for other code
-that has similar problems).
+Right, but sometimes that is not possible (or you don't want to
+turn off cpufreq). I guess you could have an option to NOT turn
+it off in the first place. You could just turn off warnings, but
+leave everything else running, couldn't you?
 
-Thanks,
-Nick
+And then the option would just be to turn the printing back on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
