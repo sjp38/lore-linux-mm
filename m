@@ -1,114 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E46116B0071
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 09:39:56 -0400 (EDT)
-Date: Thu, 25 Mar 2010 13:39:36 +0000
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C8FF16B0071
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 10:12:23 -0400 (EDT)
+Date: Thu, 25 Mar 2010 14:11:42 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
-	anonymous pages
-Message-ID: <20100325133936.GR2024@csn.ul.ie>
-References: <20100325092131.GK2024@csn.ul.ie> <20100325184123.e3e3b009.kamezawa.hiroyu@jp.fujitsu.com> <20100325185200.6C8C.A69D9226@jp.fujitsu.com> <20100325191229.8e3d2ba1.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 06/11] Export fragmentation index via
+	/proc/extfrag_index
+Message-ID: <20100325141142.GS2024@csn.ul.ie>
+References: <20100325102342.945A.A69D9226@jp.fujitsu.com> <20100325084730.GG2024@csn.ul.ie> <20100325200919.6C8F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100325191229.8e3d2ba1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100325200919.6C8F.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 25, 2010 at 07:12:29PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 25 Mar 2010 18:59:25 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > > > > > Kosaki-san,
+On Thu, Mar 25, 2010 at 08:20:04PM +0900, KOSAKI Motohiro wrote:
+> > On Thu, Mar 25, 2010 at 11:47:17AM +0900, KOSAKI Motohiro wrote:
+> > > > On Tue, Mar 23, 2010 at 09:22:04AM +0900, KOSAKI Motohiro wrote:
+> > > > > > > > +	/*
+> > > > > > > > +	 * Index is between 0 and 1 so return within 3 decimal places
+> > > > > > > > +	 *
+> > > > > > > > +	 * 0 => allocation would fail due to lack of memory
+> > > > > > > > +	 * 1 => allocation would fail due to fragmentation
+> > > > > > > > +	 */
+> > > > > > > > +	return 1000 - ( (1000+(info->free_pages * 1000 / requested)) / info->free_blocks_total);
+> > > > > > > > +}
+> > > > > > > 
+> > > > > > > Dumb question.
+> > > > > > > your paper (http://portal.acm.org/citation.cfm?id=1375634.1375641) says
+> > > > > > > fragmentation_index = 1 - (TotalFree/SizeRequested)/BlocksFree
+> > > > > > > but your code have extra '1000+'. Why?
 > > > > > > 
-> > > > > >  IIUC, the race in memory-hotunplug was fixed by this patch [2/11].
-> > > > > > 
-> > > > > >  But, this behavior of unmap_and_move() requires access to _freed_
-> > > > > >  objects (spinlock). Even if it's safe because of SLAB_DESTROY_BY_RCU,
-> > > > > >  it't not good habit in general.
-> > > > > > 
-> > > > > >  After direct compaction, page-migration will be one of "core" code of
-> > > > > >  memory management. Then, I agree to patch [1/11] as our direction for
-> > > > > >  keeping sanity and showing direction to more updates. Maybe adding
-> > > > > >  refcnt and removing RCU in futuer is good.
+> > > > > > To get an approximation to three decimal places.
 > > > > > 
-> > > > > But Christoph seems oppose to remove SLAB_DESTROY_BY_RCU. then refcount
-> > > > > is meaningless now.
+> > > > > Do you mean this is poor man's round up logic?
 > > > > 
-> > > > Christoph is opposed to removing it because of cache-hotness issues more
-> > > > so than use-after-free concerns. The refcount is needed with or without
-> > > > SLAB_DESTROY_BY_RCU.
+> > > > Not exactly.
 > > > > 
+> > > > The intention is to have a value of 968 instead of 0.968231. i.e.
+> > > > instead of a value between 0 and 1, it'll be a value between 0 and 1000
+> > > > that matches the first three digits after the decimal place.
 > > > 
-> > > I wonder a code which the easiest to be read will be like following.
-> > > ==
+> > > Let's consider extream case.
 > > > 
-> > >         if (PageAnon(page)) {
-> > >                 struct anon_vma anon = page_lock_anon_vma(page);
-> > > 		/* to take this lock, this page must be mapped. */
-> > > 		if (!anon_vma)
-> > > 			goto uncharge;
-> > > 		increase refcnt
-> > > 		page_unlock_anon_vma(anon);
-> > >         }
-> > > 	....
-> > > ==
+> > > free_pages: 1
+> > > requested: 1
+> > > free_blocks_total: 1
+> > > 
+> > > frag_index = 1000  - ((1000 + 1*1000/1))/1 = -1000
+> > > 
+> > > This is not your intension, I guess. 
 > > 
-> > This seems very good and acceptable to me. This refcnt usage
-> > obviously reduce rcu-lock holding time.
+> > Why not?
 > > 
-> > I still think no refcount doesn't cause any disaster. but I agree
-> > this is forward step patch.
+> > See this comment
 > > 
+> > /* Fragmentation index only makes sense when a request would fail */
+> > 
+> > In your example, there is a free page of the requested size so the allocation
+> > would succeed. In this case, fragmentation index does indeed go negative
+> > but the value is not useful.
+> >
+> > > Probably we don't need any round_up/round_down logic. because fragmentation_index
+> > > is only used "if (fragindex >= 0 && fragindex <= 500)" check in try_to_compact_pages().
+> > > +1 or -1 inaccurate can be ignored. iow, I think we can remove '1000+' expression.
+> > > 
+> > 
+> > This isn't about rounding, it's about having a value that normally is
+> > between 0 and 1 expressed as a number between 0 and 1000 because we
+> > can't use double in the kernel.
 > 
-> BTW, by above change and the change in patch [2/11], 
-> "A page turnd to be SwapCache and free unmapped but not freed"
-> page will be never migrated.
+> Sorry, My example was wrong. new example is here.
+> 
+> free_pages: 4
+> requested: 2
+> free_blocks_total: 4
+> 
+> theory: 1 - (TotalFree/SizeRequested)/BlocksFree
+>             = 1 - (4/2)/4 = 0.5
+> 
+> code : 1000 - ((1000 + 4*1000/2))/4 = 1000 - (1000 + 2000)/4 = 1000/4 = 250
+> 
+> I don't think this is three decimal picking up code. This seems might makes
+> lots compaction invocation rather than theory.
 > 
 
-Good point.
+Ok, I cannot apologise for this enough.
 
-> Mel, could you change the check as this ??
-> 
-> 	if (PageAnon(page)) {
-> 		rcu_read_lock();
-> 		if (!page_mapcount(page)) {
-> 			rcu_read_unlock();
-> 			if (!PageSwapCache(page))
-> 				goto uncharge;
-> 			/* unmapped swap cache can be migrated */
-> 		} else {
-> 			...
-> 		}
-> 	.....
-> 	} else 
-> 
+Since that paper was published, further work showed that the equation could
+be much improved. As part of that, I updated the equation to the following;
 
-There were minor changes in how the rcu_read_lock is taken and released
-based on other comments. With your suggestion, the block now looks like;
+double index = 1    - ( (1    + ((double)info->free_pages        / requested)) / info->free_blocks_total);
 
-        if (PageAnon(page)) {
-                rcu_read_lock();
-                rcu_locked = 1;
+or when approximated to three decimal places
 
-                /*
-                 * If the page has no mappings any more, just bail. An
-                 * unmapped anon page is likely to be freed soon but
-                 * worse,
-                 * it's possible its anon_vma disappeared between when
-                 * the page was isolated and when we reached here while
-                 * the RCU lock was not held
-                 */
-                if (!page_mapcount(page) && !PageSwapCache(page))
-                        goto rcu_unlock;
+int index =    1000 - ( (1000 + (        info->free_pages * 1000 / requested)) / info->free_blocks_total);
 
-                anon_vma = page_anon_vma(page);
-                atomic_inc(&anon_vma->external_refcount);
-        }
+Your analysis of the paper is perfect. When slotted into a driver program
+with your example figures, I get the following results
 
-Thanks.
+old equation = 0.500000
+current equation = 0.250000
+integer approximation = 250
+
+The code as-is is correct and is what I intended. My explanation on the
+other hand sucks and I should have remembered that I updated equation since
+I published that paper 2 years ago.
+
+Again, I am extremely sorry for misleading you.
 
 -- 
 Mel Gorman
