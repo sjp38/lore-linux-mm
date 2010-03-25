@@ -1,138 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B11576B01AC
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 12:16:40 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id d23so1842063fga.8
-        for <linux-mm@kvack.org>; Thu, 25 Mar 2010 09:16:38 -0700 (PDT)
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
- anonymous pages
-From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <20100325180221.e1d9bae7.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100319152103.876F.A69D9226@jp.fujitsu.com>
-	 <20100319085949.GQ12388@csn.ul.ie>
-	 <20100325095349.944E.A69D9226@jp.fujitsu.com>
-	 <20100325083235.GF2024@csn.ul.ie>
-	 <20100325180221.e1d9bae7.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 26 Mar 2010 01:16:24 +0900
-Message-ID: <1269533784.1814.64.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 054CC6B01AC
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:18:28 -0400 (EDT)
+Date: Thu, 25 Mar 2010 17:17:23 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 00 of 34] Transparent Hugepage support #14
+In-Reply-To: <20100324212249.GI10659@random.random>
+Message-ID: <alpine.DEB.2.00.1003251708170.10999@router.home>
+References: <patchbomb.1268839142@v2.random> <alpine.DEB.2.00.1003171353240.27268@router.home> <20100318234923.GV29874@random.random> <alpine.DEB.2.00.1003190812560.10759@router.home> <20100319144101.GB29874@random.random> <alpine.DEB.2.00.1003221027590.16606@router.home>
+ <20100322170619.GQ29874@random.random> <alpine.DEB.2.00.1003231200430.10178@router.home> <20100323190805.GH10659@random.random> <alpine.DEB.2.00.1003241600001.16492@router.home> <20100324212249.GI10659@random.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-03-25 at 18:02 +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 25 Mar 2010 08:32:35 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > On Thu, Mar 25, 2010 at 11:49:23AM +0900, KOSAKI Motohiro wrote:
-> > > > On Fri, Mar 19, 2010 at 03:21:41PM +0900, KOSAKI Motohiro wrote: 
-> > > Hmmm...
-> > > I haven't understand your mention because I guess I was wrong.
-> > > 
-> > > probably my last question was unclear. I mean,
-> > > 
-> > > 1) If we still need SLAB_DESTROY_BY_RCU, why do we need to add refcount?
-> > >     Which difference is exist between normal page migration and compaction?
-> > 
-> > The processes typically calling migration today own the page they are moving
-> > and is not going to exit unexpectedly during migration.
-> > 
-> > > 2) If we added refcount, which race will solve?
-> > > 
-> > 
-> > The process exiting and the last anon_vma being dropped while compaction
-> > is running. This can be reliably triggered with compaction.
-> > 
-> > > IOW, Is this patch fix old issue or compaction specific issue?
-> > > 
-> > 
-> > Strictly speaking, it's an old issue but in practice it's impossible to
-> > trigger because the process migrating always owns the page. Compaction
-> > moves pages belonging to arbitrary processes.
-> > 
-> Kosaki-san,
-> 
->  IIUC, the race in memory-hotunplug was fixed by this patch [2/11].
-> 
->  But, this behavior of unmap_and_move() requires access to _freed_
->  objects (spinlock). Even if it's safe because of SLAB_DESTROY_BY_RCU,
->  it't not good habit in general.
+On Wed, 24 Mar 2010, Andrea Arcangeli wrote:
 
-I agree kosaki's opinion. 
+> On Wed, Mar 24, 2010 at 04:03:03PM -0500, Christoph Lameter wrote:
+> > If a delay is "altered behavior" then we should no longer run reclaim
+> > because it "alters" the behavior of VM functions.
+>
+> You're comparing the speed of ram with speed of disk. If why it's not
+> acceptable to me isn't clear try booting with mem=100m and I'm sure
+> you'll get it.
 
-I guess Mel met the problem before this patch. 
-Apparently, It had a problem like Mel's description. 
-But we can close race window by this patch. 
-so we don't need to new ref counter. 
+Are you talking about the wait for writeback to be complete? Dirty pages
+can be migrated. With some effort you could avoid the writeback complete
+wait since you are not actually moving the page.
 
-At least, rcu_read_lock prevent anon_vma's free. 
-so we can hold spinlock of anon_vma although it's not good habit.
-About reusing anon_vma by SLAB_XXX_RCU, page_check_address and 
-vma_address can prevent wrong working in try_to_unmap.  
-
-
->  After direct compaction, page-migration will be one of "core" code of
->  memory management. Then, I agree to patch [1/11] as our direction for
->  keeping sanity and showing direction to more updates. Maybe adding
->  refcnt and removing RCU in futuer is good.
-
-
-I agree. (use one locking rule) 
-I don't mean that we have to remove SLAB_XXX_RCU.
-I want to reduce two locking rule with just one if we can. 
-As far as we can do, I hope hide rcu_read_lock by Kame's version.
-(Kame's version copy & page)
-==
-
-       if (PageAnon(page)) {
-               struct anon_vma anon = page_lock_anon_vma(page);
-               /* to take this lock, this page must be mapped. */
-               if (!anon_vma)
-                       goto uncharge;
-               increase refcnt
-               page_unlock_anon_vma(anon);
-       }
-       ....
-==
-and
-==
-void anon_vma_free(struct anon_vma *anon)
-{
-       /*
-        * To increase refcnt of anon-vma, anon_vma->lock should be held by
-        * page_lock_anon_vma(). It means anon_vma has a "mapped" page.
-        * If this anon is freed by unmap or exit, all pages under this anon
-        * must be unmapped. Then, just checking refcnt without lock is ok.
-        */
-       if (check refcnt > 0)
-               return do nothing
-       kmem_cache_free(anon);
-}
-==
-Many locking rule would make many contributor very hard.
-
-> 
->  IMHO, pushing this patch [2/11] as "BUGFIX" independent of this set and
->  adding anon_vma->refcnt [1/11] and [3/11] in 1st Direct-compaction patch
->  series  to show the direction will makse sense.
->  (I think merging 1/11 and 3/11 will be okay...)
-
-Yes. For reducing locking, We can enhance it step by step after merge 
-[1/11] and [3/11] if others doesn't oppose it any more. 
-
-> 
-> Thanks,
-> -Kame
-> 
-> 
-
-
--- 
-Kind regards,
-Minchan Kim
 
 
 --
