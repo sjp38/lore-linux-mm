@@ -1,204 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 719A96B01AC
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 01:59:11 -0400 (EDT)
-Date: Thu, 25 Mar 2010 14:58:13 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH] [BUGFIX] pagemap: fix pfn calculation for hugepage (v3)
-Message-ID: <20100325055813.GA3835@spritzerA.linux.bs1.fc.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Disposition: inline
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 98D786B0071
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 02:35:09 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2P6Z6fd018967
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 25 Mar 2010 15:35:06 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5871845DE52
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:35:06 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0758745DE51
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:35:06 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DFCEFE18008
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:35:05 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 78D17E18003
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:35:05 +0900 (JST)
+Date: Thu, 25 Mar 2010 15:31:10 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Somebody take a look please! (some kind of kernel bug?)
+Message-Id: <20100325153110.6be9a3df.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <2375c9f91003242029p1efbbea1v8e313e460b118f14@mail.gmail.com>
+References: <03ca01cacb92$195adf50$0400a8c0@dcccs>
+	<2375c9f91003242029p1efbbea1v8e313e460b118f14@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Matt Mackall <mpm@selenic.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: =?UTF-8?B?QW3DqXJpY28=?= Wang <xiyou.wangcong@gmail.com>
+Cc: Janos Haar <janos.haar@netcenter.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When we look into pagemap using page-types with option -p, the value
-of pfn for hugepages looks wrong (see below.)
-This is because pte was evaluated only once for one vma
-although it should be updated for each hugepage. This patch fixes it.
+On Thu, 25 Mar 2010 11:29:25 +0800
+AmA(C)rico Wang <xiyou.wangcong@gmail.com> wrote:
 
-  $ page-types -p 3277 -Nl -b huge
-  voffset   offset  len     flags
-  7f21e8a00 11e400  1       ___U___________H_G________________
-  7f21e8a01 11e401  1ff     ________________TG________________
-               ^^^
-  7f21e8c00 11e400  1       ___U___________H_G________________
-  7f21e8c01 11e401  1ff     ________________TG________________
-               ^^^
+> (Cc'ing linux-mm)
+> 
+Hmm..here is summary of corruption (from log), but no idea.
 
-One hugepage contains 1 head page and 511 tail pages in x86_64 and
-each two lines represent each hugepage. Voffset and offset mean
-virtual address and physical address in the page unit, respectively.
-The different hugepages should not have the same offset value.
+==
+process's address		pte	      pnf->pte->page
 
-With this patch applied:
+00000037b4008000		  2bf1e025 -> PG_reserved
+00000037b400a000		d900000000 -> bad swap
+00000037b400c000		  2bfe8025 -> PG_reserved
+00000037b400d000  		 12bfe9025 -> belongs to some other files' page cache
+00000037b400e000 		ff00000000 -> bad swap
+00000037b400f000 		5400000000 -> bad swap
+...
+00000037b4019000		ff00000000 -> bad swap
+==
+All ptes are on the same pmd 1535b5067.
+.
+I doubt some kind of buffer overflow bug overwrites page table...
+Because ptes for adddress of 00000037b4008000...00000037b400f000 are on head of
+a page (used for pmd), some data on page [0x1535b4000..0x1535b5000) caused buffer
+overflow and broke page table in [0x1535b5000...0x1535b6000)
 
-  $ page-types -p 3386 -Nl -b huge
-  voffset   offset   len    flags
-  7fec7a600 112c00   1      ___UD__________H_G________________
-  7fec7a601 112c01   1ff    ________________TG________________
-               ^^^
-  7fec7a800 113200   1      ___UD__________H_G________________
-  7fec7a801 113201   1ff    ________________TG________________
-               ^^^
-               OK
+Is this bug found from 2.6.28.10 ?
 
-More info.
- - This patch modifies walk_page_range()'s hugepage walker.
-   But the change only affects pagemap_read(), which is the only
-   caller of hugepage callback.
- - Without this patch, hugetlb_entry() callback is called per vma,
-   that doesn't match the natural expectation from its name.
- - With this patch, hugetlb_entry() is called per hugepte entry
-   and the callback can become much simpler.
+If I investigate this issue, I'll check the owner of page 0x1535b4000 by
+crash dump.
 
-Changelog from v2:
- - update description
+Thanks,
+-Kame
 
-Changelog from v1:
- - add hugetlb entry walker in mm/pagewalk.c
-   (the idea based on Kamezawa-san's patch)
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Matt Mackall <mpm@selenic.com>
----
- fs/proc/task_mmu.c |   27 +++++++--------------------
- include/linux/mm.h |    4 ++--
- mm/pagewalk.c      |   47 +++++++++++++++++++++++++++++++++++++----------
- 3 files changed, 46 insertions(+), 32 deletions(-)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 2a3ef17..9635f0b 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -662,31 +662,18 @@ static u64 huge_pte_to_pagemap_entry(pte_t pte, int offset)
- 	return pme;
- }
- 
--static int pagemap_hugetlb_range(pte_t *pte, unsigned long addr,
--				 unsigned long end, struct mm_walk *walk)
-+/* This function walks within one hugetlb entry in the single call */
-+static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
-+				 unsigned long addr, unsigned long end,
-+				 struct mm_walk *walk)
- {
--	struct vm_area_struct *vma;
- 	struct pagemapread *pm = walk->private;
--	struct hstate *hs = NULL;
- 	int err = 0;
-+	u64 pfn;
- 
--	vma = find_vma(walk->mm, addr);
--	if (vma)
--		hs = hstate_vma(vma);
- 	for (; addr != end; addr += PAGE_SIZE) {
--		u64 pfn = PM_NOT_PRESENT;
--
--		if (vma && (addr >= vma->vm_end)) {
--			vma = find_vma(walk->mm, addr);
--			if (vma)
--				hs = hstate_vma(vma);
--		}
--
--		if (vma && (vma->vm_start <= addr) && is_vm_hugetlb_page(vma)) {
--			/* calculate pfn of the "raw" page in the hugepage. */
--			int offset = (addr & ~huge_page_mask(hs)) >> PAGE_SHIFT;
--			pfn = huge_pte_to_pagemap_entry(*pte, offset);
--		}
-+		int offset = (addr & ~hmask) >> PAGE_SHIFT;
-+		pfn = huge_pte_to_pagemap_entry(*pte, offset);
- 		err = add_to_pagemap(addr, pfn, pm);
- 		if (err)
- 			return err;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f3b473a..86bf8a8 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -783,8 +783,8 @@ struct mm_walk {
- 	int (*pmd_entry)(pmd_t *, unsigned long, unsigned long, struct mm_walk *);
- 	int (*pte_entry)(pte_t *, unsigned long, unsigned long, struct mm_walk *);
- 	int (*pte_hole)(unsigned long, unsigned long, struct mm_walk *);
--	int (*hugetlb_entry)(pte_t *, unsigned long, unsigned long,
--			     struct mm_walk *);
-+	int (*hugetlb_entry)(pte_t *, unsigned long,
-+			     unsigned long, unsigned long, struct mm_walk *);
- 	struct mm_struct *mm;
- 	void *private;
- };
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 7b47a57..8b1a2ce 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -80,6 +80,37 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
- 	return err;
- }
- 
-+#ifdef CONFIG_HUGETLB_PAGE
-+static unsigned long hugetlb_entry_end(struct hstate *h, unsigned long addr,
-+				       unsigned long end)
-+{
-+	unsigned long boundary = (addr & huge_page_mask(h)) + huge_page_size(h);
-+	return boundary < end ? boundary : end;
-+}
-+
-+static int walk_hugetlb_range(struct vm_area_struct *vma,
-+			      unsigned long addr, unsigned long end,
-+			      struct mm_walk *walk)
-+{
-+	struct hstate *h = hstate_vma(vma);
-+	unsigned long next;
-+	unsigned long hmask = huge_page_mask(h);
-+	pte_t *pte;
-+	int err = 0;
-+
-+	do {
-+		next = hugetlb_entry_end(h, addr, end);
-+		pte = huge_pte_offset(walk->mm, addr & hmask);
-+		if (pte && walk->hugetlb_entry)
-+			err = walk->hugetlb_entry(pte, hmask, addr, next, walk);
-+		if (err)
-+			return err;
-+	} while (addr = next, addr != end);
-+
-+	return 0;
-+}
-+#endif
-+
- /**
-  * walk_page_range - walk a memory map's page tables with a callback
-  * @mm: memory map to walk
-@@ -128,20 +159,16 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 		vma = find_vma(walk->mm, addr);
- #ifdef CONFIG_HUGETLB_PAGE
- 		if (vma && is_vm_hugetlb_page(vma)) {
--			pte_t *pte;
--			struct hstate *hs;
--
- 			if (vma->vm_end < next)
- 				next = vma->vm_end;
--			hs = hstate_vma(vma);
--			pte = huge_pte_offset(walk->mm,
--					      addr & huge_page_mask(hs));
--			if (pte && !huge_pte_none(huge_ptep_get(pte))
--			    && walk->hugetlb_entry)
--				err = walk->hugetlb_entry(pte, addr,
--							  next, walk);
-+			/*
-+			 * Hugepage is very tightly coupled with vma, so
-+			 * walk through hugetlb entries within a given vma.
-+			 */
-+			err = walk_hugetlb_range(vma, addr, next, walk);
- 			if (err)
- 				break;
-+			pgd = pgd_offset(walk->mm, next);
- 			continue;
- 		}
- #endif
--- 
-1.7.0
+> 2010/3/25 Janos Haar <janos.haar@netcenter.hu>:
+> > Dear developers,
+> >
+> > This is one of my productive servers, wich suddenly starts to freeze (crash)
+> > some weeks before.
+> > I have done all what i can, (i think) please somebody give to me some
+> > suggestion:
+> >
+> > Mar 24 19:22:28 alfa kernel: BUG: Bad page map in process httpd pte:2bf1e025
+> > pmd:1535b5067
+> > Mar 24 19:22:28 alfa kernel: page:ffffea0000f1b250 flags:4000000000000404
+> > count:1 mapcount:-1 mapping:(null) index:0
+> > Mar 24 19:22:28 alfa kernel: addr:00000037b4008000 vm_flags:08000875
+> > anon_vma:(null) mapping:ffff88022b5d25a8 index:8
+> > Mar 24 19:22:28 alfa kernel: vma->vm_ops->fault: filemap_fault+0x0/0x34d
+> > Mar 24 19:22:28 alfa kernel: vma->vm_file->f_op->mmap:
+> > xfs_file_mmap+0x0/0x33
+> > Mar 24 19:22:28 alfa kernel: Pid: 7512, comm: httpd Not tainted 2.6.32.10 #2
+> > Mar 24 19:22:28 alfa kernel: Call Trace:
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c2ea3>] print_bad_pte+0x210/0x229
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c3c98>] unmap_vmas+0x44b/0x787
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c81d5>] exit_mmap+0xb0/0x133
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81041f83>] mmput+0x48/0xb9
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810463b0>] exit_mm+0x105/0x110
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81371287>] ?
+> > tty_audit_exit+0x28/0x85
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810477a0>] do_exit+0x1e9/0x6d2
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81053c37>] ?
+> > __dequeue_signal+0xf1/0x127
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81047d00>] do_group_exit+0x77/0xa1
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810560f7>]
+> > get_signal_to_deliver+0x32c/0x37f
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff8100a484>]
+> > do_notify_resume+0x90/0x740
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff8102724b>] ?
+> > __bad_area_nosemaphore+0x178/0x1a2
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810272b9>] ? __bad_area+0x44/0x4d
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff8100bba2>] retint_signal+0x46/0x84
+> > Mar 24 19:22:28 alfa kernel: Disabling lock debugging due to kernel taint
+> > Mar 24 19:22:28 alfa kernel: swap_free: Bad swap file entry 6c800000
+> > Mar 24 19:22:28 alfa kernel: BUG: Bad page map in process httpd
+> > pte:d900000000 pmd:1535b5067
+> > Mar 24 19:22:28 alfa kernel: addr:00000037b400a000 vm_flags:08000875
+> > anon_vma:(null) mapping:ffff88022b5d25a8 index:a
+> > Mar 24 19:22:28 alfa kernel: vma->vm_ops->fault: filemap_fault+0x0/0x34d
+> > Mar 24 19:22:28 alfa kernel: vma->vm_file->f_op->mmap:
+> > xfs_file_mmap+0x0/0x33
+> > Mar 24 19:22:28 alfa kernel: Pid: 7512, comm: httpd Tainted: G A  A B
+> > 2.6.32.10 #2
+> > Mar 24 19:22:28 alfa kernel: Call Trace:
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81044551>] ? add_taint+0x32/0x3e
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c2ea3>] print_bad_pte+0x210/0x229
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c3d47>] unmap_vmas+0x4fa/0x787
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c81d5>] exit_mmap+0xb0/0x133
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81041f83>] mmput+0x48/0xb9
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810463b0>] exit_mm+0x105/0x110
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81371287>] ?
+> > tty_audit_exit+0x28/0x85
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810477a0>] do_exit+0x1e9/0x6d2
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81053c37>] ?
+> > __dequeue_signal+0xf1/0x127
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81047d00>] do_group_exit+0x77/0xa1
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810560f7>]
+> > get_signal_to_deliver+0x32c/0x37f
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff8100a484>]
+> > do_notify_resume+0x90/0x740
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff8102724b>] ?
+> > __bad_area_nosemaphore+0x178/0x1a2
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810272b9>] ? __bad_area+0x44/0x4d
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff8100bba2>] retint_signal+0x46/0x84
+> > Mar 24 19:22:28 alfa kernel: BUG: Bad page map in process httpd pte:2bfe8025
+> > pmd:1535b5067
+> > Mar 24 19:22:28 alfa kernel: page:ffffea0000f1f7c0 flags:4000000000000404
+> > count:1 mapcount:-1 mapping:(null) index:0
+> > Mar 24 19:22:28 alfa kernel: addr:00000037b400c000 vm_flags:08000875
+> > anon_vma:(null) mapping:ffff88022b5d25a8 index:c
+> > Mar 24 19:22:28 alfa kernel: vma->vm_ops->fault: filemap_fault+0x0/0x34d
+> > Mar 24 19:22:28 alfa kernel: vma->vm_file->f_op->mmap:
+> > xfs_file_mmap+0x0/0x33
+> > Mar 24 19:22:28 alfa kernel: Pid: 7512, comm: httpd Tainted: G A  A B
+> > 2.6.32.10 #2
+> > Mar 24 19:22:28 alfa kernel: Call Trace:
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81044551>] ? add_taint+0x32/0x3e
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c2ea3>] print_bad_pte+0x210/0x229
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c3c98>] unmap_vmas+0x44b/0x787
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810c81d5>] exit_mmap+0xb0/0x133
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff81041f83>] mmput+0x48/0xb9
+> > Mar 24 19:22:28 alfa kernel: A [<ffffffff810463b0>] exit_mm+0x105/0x110
+> > .....
+> >
+> > The entire log is here:
+> > http://download.netcenter.hu/bughunt/20100324/messages
+> >
+> > The actual kernel is 2.6.32.10, but the crash-series started @ 2.6.28.10.
+> >
+> > I have forwarded the tasks to another server, removed this from the room,
+> > and the hw survived memtest86 in >7 days continously + i have tested the
+> > HDDs one by one with badblocks -vvw, all is good.
+> > For me looks like this is not a hw problem.
+> >
+> > Somebody have any idea?
+> >
+> > Thanks a lot,
+> > Janos Haar
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at A http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at A http://www.tux.org/lkml/
+> >
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
