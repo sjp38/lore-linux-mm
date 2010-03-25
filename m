@@ -1,36 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 054CC6B01AC
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:18:28 -0400 (EDT)
-Date: Thu, 25 Mar 2010 17:17:23 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 00 of 34] Transparent Hugepage support #14
-In-Reply-To: <20100324212249.GI10659@random.random>
-Message-ID: <alpine.DEB.2.00.1003251708170.10999@router.home>
-References: <patchbomb.1268839142@v2.random> <alpine.DEB.2.00.1003171353240.27268@router.home> <20100318234923.GV29874@random.random> <alpine.DEB.2.00.1003190812560.10759@router.home> <20100319144101.GB29874@random.random> <alpine.DEB.2.00.1003221027590.16606@router.home>
- <20100322170619.GQ29874@random.random> <alpine.DEB.2.00.1003231200430.10178@router.home> <20100323190805.GH10659@random.random> <alpine.DEB.2.00.1003241600001.16492@router.home> <20100324212249.GI10659@random.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2986B01AE
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:33:23 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [10.3.21.11])
+	by smtp-out.google.com with ESMTP id o2PMXGhH008108
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:33:17 -0700
+Received: from pxi36 (pxi36.prod.google.com [10.243.27.36])
+	by hpaq11.eem.corp.google.com with ESMTP id o2PMXCfK006422
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 23:33:15 +0100
+Received: by pxi36 with SMTP id 36so3670485pxi.21
+        for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:33:12 -0700 (PDT)
+Date: Thu, 25 Mar 2010 15:33:08 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm: default to node zonelist ordering when nodes have only
+ lowmem
+Message-ID: <alpine.DEB.2.00.1003251532150.7950@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Mar 2010, Andrea Arcangeli wrote:
+There are two types of zonelist ordering methodologies:
 
-> On Wed, Mar 24, 2010 at 04:03:03PM -0500, Christoph Lameter wrote:
-> > If a delay is "altered behavior" then we should no longer run reclaim
-> > because it "alters" the behavior of VM functions.
->
-> You're comparing the speed of ram with speed of disk. If why it's not
-> acceptable to me isn't clear try booting with mem=100m and I'm sure
-> you'll get it.
+ - node order, preferring allocations on a node to stay local to and
 
-Are you talking about the wait for writeback to be complete? Dirty pages
-can be migrated. With some effort you could avoid the writeback complete
-wait since you are not actually moving the page.
+ - zone order, preferring allocations come from a higher zone to avoid
+   allocating in lowmem zones even though they may not be local.
 
+The ordering technique used by the kernel is configurable on the command
+line, but also has some logic to determine what the default should be.
 
+This logic currently lacks knowledge of systems where a node may only
+have lowmem.  For such systems, it is necessary to use node order so that
+GFP_KERNEL allocations may be satisfied by nodes consisting of only
+lowmem.
+
+If zone order is used, GFP_KERNEL allocations to such nodes are actually
+allocated on a node with local affinity that includes ZONE_NORMAL.
+
+This change defaults to node zonelist ordering if any node lacks
+ZONE_NORMAL.
+
+To force zone order, append 'numa_zonelist_order=zone' to the kernel
+command line.
+
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/page_alloc.c |   11 ++++++++++-
+ 1 files changed, 10 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2582,7 +2582,7 @@ static int default_zonelist_order(void)
+          * ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
+ 	 * If they are really small and used heavily, the system can fall
+ 	 * into OOM very easily.
+-	 * This function detect ZONE_DMA/DMA32 size and confgigures zone order.
++	 * This function detect ZONE_DMA/DMA32 size and configures zone order.
+ 	 */
+ 	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
+ 	low_kmem_size = 0;
+@@ -2594,6 +2594,15 @@ static int default_zonelist_order(void)
+ 				if (zone_type < ZONE_NORMAL)
+ 					low_kmem_size += z->present_pages;
+ 				total_size += z->present_pages;
++			} else if (zone_type == ZONE_NORMAL) {
++				/*
++				 * If any node has only lowmem, then node order
++				 * is preferred to allow kernel allocations
++				 * locally; otherwise, they can easily infringe
++				 * on other nodes when there is an abundance of
++				 * lowmem available to allocate from.
++				 */
++				return ZONELIST_ORDER_NODE;
+ 			}
+ 		}
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
