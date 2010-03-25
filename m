@@ -1,66 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 62DB16B0071
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 05:12:34 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2P9CViM026983
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 25 Mar 2010 18:12:32 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BC4BE45DE7C
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:12:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9290145DE70
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:12:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C10BE18008
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:12:31 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 26E15E18003
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:12:31 +0900 (JST)
-Date: Thu, 25 Mar 2010 18:08:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
- anonymous pages
-Message-Id: <20100325180846.c6ded3ab.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100325180726.6C89.A69D9226@jp.fujitsu.com>
-References: <20100325083235.GF2024@csn.ul.ie>
-	<20100325180221.e1d9bae7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100325180726.6C89.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A9D46B0071
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 05:14:10 -0400 (EDT)
+Date: Thu, 25 Mar 2010 09:13:49 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 07/11] Memory compaction core
+Message-ID: <20100325091349.GI2024@csn.ul.ie>
+References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-8-git-send-email-mel@csn.ul.ie> <20100324133347.9b4b2789.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100324133347.9b4b2789.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Mar 2010 18:09:34 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> > On Thu, 25 Mar 2010 08:32:35 +0000
-> > Mel Gorman <mel@csn.ul.ie> wrote:
-
-> >  IIUC, the race in memory-hotunplug was fixed by this patch [2/11].
-> > 
-> >  But, this behavior of unmap_and_move() requires access to _freed_
-> >  objects (spinlock). Even if it's safe because of SLAB_DESTROY_BY_RCU,
-> >  it't not good habit in general.
-> > 
-> >  After direct compaction, page-migration will be one of "core" code of
-> >  memory management. Then, I agree to patch [1/11] as our direction for
-> >  keeping sanity and showing direction to more updates. Maybe adding
-> >  refcnt and removing RCU in futuer is good.
+On Wed, Mar 24, 2010 at 01:33:47PM -0700, Andrew Morton wrote:
+> On Tue, 23 Mar 2010 12:25:42 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> But Christoph seems oppose to remove SLAB_DESTROY_BY_RCU. then refcount
-> is meaningless now. I agree you if we will remove SLAB_DESTROY_BY_RCU
-> in the future.
+> > This patch is the core of a mechanism which compacts memory in a zone by
+> > relocating movable pages towards the end of the zone.
+> > 
+> > A single compaction run involves a migration scanner and a free scanner.
+> > Both scanners operate on pageblock-sized areas in the zone. The migration
+> > scanner starts at the bottom of the zone and searches for all movable pages
+> > within each area, isolating them onto a private list called migratelist.
+> > The free scanner starts at the top of the zone and searches for suitable
+> > areas and consumes the free pages within making them available for the
+> > migration scanner. The pages isolated for migration are then migrated to
+> > the newly isolated free pages.
 > 
-removing rcu_read_lock/unlock in unmap_and_move() and removing
-SLAB_DESTROY_BY_RCU is different story.
+> General comment: it looks like there are some codepaths which could
+> hold zone->lock for a long time.  It's unclear that they're all
+> constrained by COMPACT_CLUSTER_MAX. Is there a a latency issue here?
+> 
 
-Thanks,
--Kame
+I don't think so. There are two points where zone-related locks are
+held.
+
+zone->lock is held in isolate_freepages() while it gets the free pages
+	necessary for migration to complete. The size of the list of pages
+	being migrated is constrained by COMPACT_CLUSTER_MAX so it is bounded
+	by that. Worst case scenario is the zone is almost fully
+	scanned.
+
+zone->lru_lock is held in isolate_migratepages) while it gets pages for
+	migration. It's released if COMPACT_CLUSTER_MAX pages are
+	isolated. Again, worst case scenario is that the zone is
+	almost fully scanned.
+
+The worst-case scenario in both cases is the lock is held while the zone
+is scanned. The concern would be if we managed to scan almost a full
+zone and that zone is very large. I could add an additional check to
+release the lock when a large number of pages has been scanned but I
+don't think it's necessary. I find it very unlikely that a large zone
+would not have COMPACT_CLUSTER_MAX pages found quickly for isolation.
+
+> >
+> > ...
+> >
+> > +static struct page *compaction_alloc(struct page *migratepage,
+> > +					unsigned long data,
+> > +					int **result)
+> > +{
+> > +	struct compact_control *cc = (struct compact_control *)data;
+> > +	struct page *freepage;
+> > +
+> > +	VM_BUG_ON(cc == NULL);
+> 
+> It's a bit strange to test this when we're about to oops anyway.  The
+> oops will tell us the same thing.
+> 
+
+It was paranoia after the bugs related to NULL-offsets but unnecessary
+paranoia in this case. It would require migration to be very broken for it to
+trigger. Even if it was, I cannot imagine a case where it would be exploited
+because it's a small structure and not offset by any userspace-supplied
+piece of data. I will drop the check.
+
+> > +	/* Isolate free pages if necessary */
+> > +	if (list_empty(&cc->freepages)) {
+> > +		isolate_freepages(cc->zone, cc);
+> > +
+> > +		if (list_empty(&cc->freepages))
+> > +			return NULL;
+> > +	}
+> > +
+> > +	freepage = list_entry(cc->freepages.next, struct page, lru);
+> > +	list_del(&freepage->lru);
+> > +	cc->nr_freepages--;
+> > +
+> > +	return freepage;
+> > +}
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
