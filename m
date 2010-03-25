@@ -1,92 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DED426B0071
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 04:47:50 -0400 (EDT)
-Date: Thu, 25 Mar 2010 08:47:30 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 06/11] Export fragmentation index via
-	/proc/extfrag_index
-Message-ID: <20100325084730.GG2024@csn.ul.ie>
-References: <20100323050910.A473.A69D9226@jp.fujitsu.com> <20100323120329.GE9590@csn.ul.ie> <20100325102342.945A.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A8A046B0071
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 04:56:29 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2P8uRhV020021
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 25 Mar 2010 17:56:27 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C3D7045DE4E
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 17:56:26 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A19C45DE51
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 17:56:26 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EF6C1DB803A
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 17:56:26 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 276171DB803E
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 17:56:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped anonymous pages
+In-Reply-To: <20100325083235.GF2024@csn.ul.ie>
+References: <20100325095349.944E.A69D9226@jp.fujitsu.com> <20100325083235.GF2024@csn.ul.ie>
+Message-Id: <20100325175034.6C86.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100325102342.945A.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 25 Mar 2010 17:56:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 25, 2010 at 11:47:17AM +0900, KOSAKI Motohiro wrote:
-> > On Tue, Mar 23, 2010 at 09:22:04AM +0900, KOSAKI Motohiro wrote:
-> > > > > > +	/*
-> > > > > > +	 * Index is between 0 and 1 so return within 3 decimal places
-> > > > > > +	 *
-> > > > > > +	 * 0 => allocation would fail due to lack of memory
-> > > > > > +	 * 1 => allocation would fail due to fragmentation
-> > > > > > +	 */
-> > > > > > +	return 1000 - ( (1000+(info->free_pages * 1000 / requested)) / info->free_blocks_total);
-> > > > > > +}
+> On Thu, Mar 25, 2010 at 11:49:23AM +0900, KOSAKI Motohiro wrote:
+> > > On Fri, Mar 19, 2010 at 03:21:41PM +0900, KOSAKI Motohiro wrote:
+> > > > > > then, this logic depend on SLAB_DESTROY_BY_RCU, not refcount.
+> > > > > > So, I think we don't need your [1/11] patch.
+> > > > > > 
+> > > > > > Am I missing something?
+> > > > > > 
 > > > > > 
-> > > > > Dumb question.
-> > > > > your paper (http://portal.acm.org/citation.cfm?id=1375634.1375641) says
-> > > > > fragmentation_index = 1 - (TotalFree/SizeRequested)/BlocksFree
-> > > > > but your code have extra '1000+'. Why?
+> > > > > The refcount is still needed. The anon_vma might be valid, but the
+> > > > > refcount is what ensures that the anon_vma is not freed and reused.
 > > > > 
-> > > > To get an approximation to three decimal places.
+> > > > please please why do we need both mechanism. now cristoph is very busy and I am
+> > > > de fact reviewer of page migration and mempolicy code. I really hope to understand
+> > > > your patch.
 > > > 
-> > > Do you mean this is poor man's round up logic?
+> > > As in, why not drop the RCU protection of anon_vma altogeter? Mainly, because I
+> > > think it would be reaching too far for this patchset and it should be done as
+> > > a follow-up. Putting the ref-count everywhere will change the cache-behaviour
+> > > of anon_vma more than I'd like to slip into a patchset like this. Secondly,
+> > > Christoph mentions that SLAB_DESTROY_BY_RCU is used to keep anon_vma cache-hot.
+> > > For these reasons, removing RCU from these paths and adding the refcount
+> > > in others is a patch that should stand on its own.
 > > 
-> > Not exactly.
+> > Hmmm...
+> > I haven't understand your mention because I guess I was wrong.
 > > 
-> > The intention is to have a value of 968 instead of 0.968231. i.e.
-> > instead of a value between 0 and 1, it'll be a value between 0 and 1000
-> > that matches the first three digits after the decimal place.
-> 
-> Let's consider extream case.
-> 
-> free_pages: 1
-> requested: 1
-> free_blocks_total: 1
-> 
-> frag_index = 1000  - ((1000 + 1*1000/1))/1 = -1000
-> 
-> This is not your intension, I guess. 
-
-Why not?
-
-See this comment
-
-/* Fragmentation index only makes sense when a request would fail */
-
-In your example, there is a free page of the requested size so the allocation
-would succeed. In this case, fragmentation index does indeed go negative
-but the value is not useful.
-
-> Probably we don't need any round_up/round_down logic. because fragmentation_index
-> is only used "if (fragindex >= 0 && fragindex <= 500)" check in try_to_compact_pages().
-> +1 or -1 inaccurate can be ignored. iow, I think we can remove '1000+' expression.
-> 
-
-This isn't about rounding, it's about having a value that normally is
-between 0 and 1 expressed as a number between 0 and 1000 because we
-can't use double in the kernel.
-
-> 
-> > > Why don't you use DIV_ROUND_UP? likes following,
-> > > 
-> > > return 1000 - (DIV_ROUND_UP(info->free_pages * 1000 / requested) /  info->free_blocks_total);
-> > > 
+> > probably my last question was unclear. I mean,
 > > 
-> > Because it's not doing the same thing unless I missed something.
+> > 1) If we still need SLAB_DESTROY_BY_RCU, why do we need to add refcount?
+> >     Which difference is exist between normal page migration and compaction?
 > 
+> The processes typically calling migration today own the page they are moving
+> and is not going to exit unexpectedly during migration.
 > 
+> > 2) If we added refcount, which race will solve?
+> > 
 > 
+> The process exiting and the last anon_vma being dropped while compaction
+> is running. This can be reliably triggered with compaction.
+> 
+> > IOW, Is this patch fix old issue or compaction specific issue?
+> 
+> Strictly speaking, it's an old issue but in practice it's impossible to
+> trigger because the process migrating always owns the page. Compaction
+> moves pages belonging to arbitrary processes.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Do you mean current memroy hotplug code is broken???
+I think compaction need refcount, hotplug also need it. both they migrate another
+task's page.
+
+but , I haven't seen hotplug failure. Am I  missing something? or the compaction
+have its specific race situation?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
