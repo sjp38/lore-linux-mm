@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 50E266B01AE
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:42:24 -0400 (EDT)
-Date: Thu, 25 Mar 2010 23:41:19 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 34] Transparent Hugepage support #14
-Message-ID: <20100325224119.GY10659@random.random>
-References: <20100318234923.GV29874@random.random>
- <alpine.DEB.2.00.1003190812560.10759@router.home>
- <20100319144101.GB29874@random.random>
- <alpine.DEB.2.00.1003221027590.16606@router.home>
- <20100322170619.GQ29874@random.random>
- <alpine.DEB.2.00.1003231200430.10178@router.home>
- <20100323190805.GH10659@random.random>
- <alpine.DEB.2.00.1003241600001.16492@router.home>
- <20100324212249.GI10659@random.random>
- <alpine.DEB.2.00.1003251708170.10999@router.home>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D726A6B01AE
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 18:53:20 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id o2PMrHAq032563
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:53:18 -0700
+Received: from pzk29 (pzk29.prod.google.com [10.243.19.157])
+	by kpbe20.cbf.corp.google.com with ESMTP id o2PMqe8S012371
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:53:16 -0700
+Received: by pzk29 with SMTP id 29so1489783pzk.27
+        for <linux-mm@kvack.org>; Thu, 25 Mar 2010 15:53:16 -0700 (PDT)
+Date: Thu, 25 Mar 2010 15:53:10 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm] oom: move sysctl declarations to oom.h
+Message-ID: <alpine.DEB.2.00.1003251552350.18932@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1003251708170.10999@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 25, 2010 at 05:17:23PM -0500, Christoph Lameter wrote:
-> On Wed, 24 Mar 2010, Andrea Arcangeli wrote:
-> 
-> > On Wed, Mar 24, 2010 at 04:03:03PM -0500, Christoph Lameter wrote:
-> > > If a delay is "altered behavior" then we should no longer run reclaim
-> > > because it "alters" the behavior of VM functions.
-> >
-> > You're comparing the speed of ram with speed of disk. If why it's not
-> > acceptable to me isn't clear try booting with mem=100m and I'm sure
-> > you'll get it.
-> 
-> Are you talking about the wait for writeback to be complete? Dirty pages
-> can be migrated. With some effort you could avoid the writeback complete
-> wait since you are not actually moving the page.
+The three oom killer sysctl variables (sysctl_panic_on_oom,
+sysctl_oom_forkbomb_thres, and sysctl_oom_kill_quick) are better declared
+in include/linux/oom.h rather than kernel/sysctl.c.
 
-It seems we're derailing, let's try to go back to the context. You
-said we can avoid get_page/put_page changes if we do like
-migration. Migration bails out if there's a gup reference on the
-page. It's _gup_ not writeback we're talking about. gup is used for
-I/O too like O_DIRECT (which is mandatory feature for virtual
-machines, if not for databases). So the I/O I'm talking about is the
-one that any driver or subsystem can do after calling gup. And it's
-not a lock on the page or a writeback bitflag, but the gup reference
-that we're waiting the I/O to complete, in order to be released. Not
-to tell drivers like old KVM pre-mmu-notifier that may never release
-the gup reference (these days any driver keeping gup references for
-"indefinite" time has to use mmu notifier to play nicely with the VM
-but there will always be temporary I/O at the speed-of-disk and
-hanging mprotect and mremap on that isn't ok with me).
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/oom.h |    6 ++++++
+ kernel/sysctl.c     |    4 +---
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -61,5 +61,11 @@ static inline void oom_killer_enable(void)
+ {
+ 	oom_killer_disabled = false;
+ }
++
++/* sysctls */
++extern int sysctl_panic_on_oom;
++extern int sysctl_oom_forkbomb_thres;
++extern int sysctl_oom_kill_quick;
++
+ #endif /* __KERNEL__*/
+ #endif /* _INCLUDE_LINUX_OOM_H */
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -53,6 +53,7 @@
+ #include <linux/slow-work.h>
+ #include <linux/perf_event.h>
+ #include <linux/kprobes.h>
++#include <linux/oom.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/processor.h>
+@@ -81,9 +82,6 @@
+ /* External variables not in a header file. */
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
+-extern int sysctl_panic_on_oom;
+-extern int sysctl_oom_kill_quick;
+-extern int sysctl_oom_forkbomb_thres;
+ extern int max_threads;
+ extern int core_uses_pid;
+ extern int suid_dumpable;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
