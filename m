@@ -1,82 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A90696B01C7
-	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 22:47:21 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2P2lJKb018806
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 24A106B01C7
+	for <linux-mm@kvack.org>; Wed, 24 Mar 2010 22:49:28 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2P2nPDp008674
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 25 Mar 2010 11:47:19 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F9D245DE51
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 11:47:19 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 16C8145DE4F
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 11:47:19 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CDC8E1DB8013
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 11:47:18 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EF541DB8014
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 11:47:18 +0900 (JST)
+	Thu, 25 Mar 2010 11:49:25 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F3D7E45DE7B
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 11:49:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CD42145DE6E
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 11:49:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A1D78E18009
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 11:49:24 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 53DC9E18004
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 11:49:24 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 06/11] Export fragmentation index via /proc/extfrag_index
-In-Reply-To: <20100323120329.GE9590@csn.ul.ie>
-References: <20100323050910.A473.A69D9226@jp.fujitsu.com> <20100323120329.GE9590@csn.ul.ie>
-Message-Id: <20100325102342.945A.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped anonymous pages
+In-Reply-To: <20100319085949.GQ12388@csn.ul.ie>
+References: <20100319152103.876F.A69D9226@jp.fujitsu.com> <20100319085949.GQ12388@csn.ul.ie>
+Message-Id: <20100325095349.944E.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 25 Mar 2010 11:47:17 +0900 (JST)
+Date: Thu, 25 Mar 2010 11:49:23 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Mar 23, 2010 at 09:22:04AM +0900, KOSAKI Motohiro wrote:
-> > > > > +	/*
-> > > > > +	 * Index is between 0 and 1 so return within 3 decimal places
-> > > > > +	 *
-> > > > > +	 * 0 => allocation would fail due to lack of memory
-> > > > > +	 * 1 => allocation would fail due to fragmentation
-> > > > > +	 */
-> > > > > +	return 1000 - ( (1000+(info->free_pages * 1000 / requested)) / info->free_blocks_total);
-> > > > > +}
+> On Fri, Mar 19, 2010 at 03:21:41PM +0900, KOSAKI Motohiro wrote:
+> > > > then, this logic depend on SLAB_DESTROY_BY_RCU, not refcount.
+> > > > So, I think we don't need your [1/11] patch.
 > > > > 
-> > > > Dumb question.
-> > > > your paper (http://portal.acm.org/citation.cfm?id=1375634.1375641) says
-> > > > fragmentation_index = 1 - (TotalFree/SizeRequested)/BlocksFree
-> > > > but your code have extra '1000+'. Why?
+> > > > Am I missing something?
+> > > > 
 > > > 
-> > > To get an approximation to three decimal places.
+> > > The refcount is still needed. The anon_vma might be valid, but the
+> > > refcount is what ensures that the anon_vma is not freed and reused.
 > > 
-> > Do you mean this is poor man's round up logic?
+> > please please why do we need both mechanism. now cristoph is very busy and I am
+> > de fact reviewer of page migration and mempolicy code. I really hope to understand
+> > your patch.
 > 
-> Not exactly.
-> 
-> The intention is to have a value of 968 instead of 0.968231. i.e.
-> instead of a value between 0 and 1, it'll be a value between 0 and 1000
-> that matches the first three digits after the decimal place.
+> As in, why not drop the RCU protection of anon_vma altogeter? Mainly, because I
+> think it would be reaching too far for this patchset and it should be done as
+> a follow-up. Putting the ref-count everywhere will change the cache-behaviour
+> of anon_vma more than I'd like to slip into a patchset like this. Secondly,
+> Christoph mentions that SLAB_DESTROY_BY_RCU is used to keep anon_vma cache-hot.
+> For these reasons, removing RCU from these paths and adding the refcount
+> in others is a patch that should stand on its own.
 
-Let's consider extream case.
+Hmmm...
+I haven't understand your mention because I guess I was wrong.
 
-free_pages: 1
-requested: 1
-free_blocks_total: 1
+probably my last question was unclear. I mean,
 
-frag_index = 1000  - ((1000 + 1*1000/1))/1 = -1000
+1) If we still need SLAB_DESTROY_BY_RCU, why do we need to add refcount?
+    Which difference is exist between normal page migration and compaction?
+2) If we added refcount, which race will solve?
 
-This is not your intension, I guess. 
-Probably we don't need any round_up/round_down logic. because fragmentation_index
-is only used "if (fragindex >= 0 && fragindex <= 500)" check in try_to_compact_pages().
-+1 or -1 inaccurate can be ignored. iow, I think we can remove '1000+' expression.
-
-
-> > Why don't you use DIV_ROUND_UP? likes following,
-> > 
-> > return 1000 - (DIV_ROUND_UP(info->free_pages * 1000 / requested) /  info->free_blocks_total);
-> > 
-> 
-> Because it's not doing the same thing unless I missed something.
+IOW, Is this patch fix old issue or compaction specific issue?
 
 
 
