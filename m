@@ -1,67 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A19D16B0071
-	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 05:40:13 -0400 (EDT)
-Received: from e35131.upc-e.chello.nl ([213.93.35.131] helo=dyad.programming.kicks-ass.net)
-	by casper.infradead.org with esmtpsa (Exim 4.69 #1 (Red Hat Linux))
-	id 1NujXt-0004zt-VC
-	for linux-mm@kvack.org; Thu, 25 Mar 2010 09:40:10 +0000
-Subject: Re: [rfc][patch] mm: lockdep page lock
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20100325053608.GB7493@laptop.nomadix.com>
-References: <20100315155859.GE2869@laptop>
-	 <20100315180759.GA7744@quack.suse.cz> <20100316022153.GJ2869@laptop>
-	 <1269437291.5109.238.camel@twins>
-	 <20100325053608.GB7493@laptop.nomadix.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 25 Mar 2010 10:40:05 +0100
-Message-ID: <1269510005.12097.26.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3219D6B01AC
+	for <linux-mm@kvack.org>; Thu, 25 Mar 2010 05:40:56 -0400 (EDT)
+Date: Thu, 25 Mar 2010 09:40:36 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 11/11] Do not compact within a preferred zone after a
+	compaction failure
+Message-ID: <20100325094035.GL2024@csn.ul.ie>
+References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-12-git-send-email-mel@csn.ul.ie> <20100324135347.7a9eb37b.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100324135347.7a9eb37b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-03-25 at 16:36 +1100, Nick Piggin wrote:
-> On Wed, Mar 24, 2010 at 02:28:11PM +0100, Peter Zijlstra wrote:
-> > On Tue, 2010-03-16 at 13:21 +1100, Nick Piggin wrote:
-> > > 
-> > > 
-> > > Agreed (btw. Peter is there any way to turn lock debugging back on?
-> > > it's annoying when cpufreq hotplug code or something early breaks and
-> > > you have to reboot in order to do any testing).
-> > 
-> > Not really, the only way to do that is to get the full system back into
-> > a known (zero) lock state and then fully reset the lockdep state.
-> > 
-> > It might be possible using the freezer, but I haven't really looked at
-> > that, its usually simpler to simply fix the offending code or simply not
-> > build it in your kernel.
+On Wed, Mar 24, 2010 at 01:53:47PM -0700, Andrew Morton wrote:
+> On Tue, 23 Mar 2010 12:25:46 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> Right, but sometimes that is not possible (or you don't want to
-> turn off cpufreq). I guess you could have an option to NOT turn
-> it off in the first place. You could just turn off warnings, but
-> leave everything else running, couldn't you?
+> > The fragmentation index may indicate that a failure it due to external
+> > fragmentation, a compaction run complete and an allocation failure still
+> > fail. There are two obvious reasons as to why
+> > 
+> >   o Page migration cannot move all pages so fragmentation remains
+> >   o A suitable page may exist but watermarks are not met
+> > 
+> > In the event of compaction and allocation failure, this patch prevents
+> > compaction happening for a short interval. It's only recorded on the
+> > preferred zone but that should be enough coverage. This could have been
+> > implemented similar to the zonelist_cache but the increased size of the
+> > zonelist did not appear to be justified.
+> > 
+> >
+> > ...
+> >
+> > +/* defer_compaction - Do not compact within a zone until a given time */
+> > +static inline void defer_compaction(struct zone *zone, unsigned long resume)
+> > +{
+> > +	/*
+> > +	 * This function is called when compaction fails to result in a page
+> > +	 * allocation success. This is somewhat unsatisfactory as the failure
+> > +	 * to compact has nothing to do with time and everything to do with
+> > +	 * the requested order, the number of free pages and watermarks. How
+> > +	 * to wait on that is more unclear, but the answer would apply to
+> > +	 * other areas where the VM waits based on time.
 > 
-> And then the option would just be to turn the printing back on.
+> um.  "Two wrongs don't make a right".  We should fix the other sites,
+> not use them as excuses ;)
+> 
 
-Well, once there are cycles in the class graph you could end up finding
-that cycle again and again. So the easiest option is to simply bail
-after printing the acquisition that established the cycle.
+Heh, one of those sites is currently in dispute. Specifically, the patch
+that replaces congestion_wait() with a waitqueue that is woken when
+watermarks are reached. I wrote that comment around about the same time
+that patch was being developed which is why I found the situation
+particularly unsatisfactory.
 
-Alternatively you'd have to undo the cycle creation and somehow mark a
-class as bad and ignore it afterwards, which of course carries the risk
-that you'll not detect other cycles which would depend on that class.
+> What _is_ a good measure of "time" in this code?  "number of pages
+> scanned" is a pretty good one in reclaim. 
 
-You could do as you suggest, but I would not trust the answers you get
-after that because you already have cycles in the graph so interpreting
-the things gets more and more interesting.
+In this case, a strong possibility is number of pages freed since deferral.
+It's not perfect though because heavy memory pressure would mean those
+pages are getting allocated again and the compaction is still not going
+to succeed. I could use NR_FREE_PAGES to make a guess at how much has
+changed since and whether it's worth trying to compact again but even
+that is not perfect.
 
-So non of the options really work well, and fixing, reverting or simply
-not building is by far the easier thing to do.
+Lets say for example that compaction failed because the zone was mostly slab
+pages. If all those were freed and replaced with migratable pages then the
+counters would look similar but compaction will now succeed.  I could make
+some sort of guess based on number of free, anon and file pages in the zone but
+ultimately it would be hard to tell if the heuristic was any better than time.
 
+I think this is only worth worrying about if a workload is found where
+compact_fail is rising rapidly.
 
+> We want something which will
+> adapt itself to amount-of-memory, number-of-cpus, speed-of-cpus,
+> nature-of-workload, etc, etc.
+> 
+> Is it possible to come up with some simple metric which approximately
+> reflects how busy this code is, then pace ourselves via that?
+> 
+
+I think a simple metric would be based on free anon and file pages but
+I think we would need a workload that was hitting compact_fail to devise
+it properly.
+
+> > +	 */
+> > +	zone->compact_resume = resume;
+> > +}
+> > +
+> > +static inline int compaction_deferred(struct zone *zone)
+> > +{
+> > +	/* init once if necessary */
+> > +	if (unlikely(!zone->compact_resume)) {
+> > +		zone->compact_resume = jiffies;
+> > +		return 0;
+> > +	}
+> > +
+> > +	return time_before(jiffies, zone->compact_resume);
+> > +}
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
