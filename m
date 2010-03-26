@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 693376B022E
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:17:14 -0400 (EDT)
-Message-ID: <4BACEBF8.90909@redhat.com>
-Date: Fri, 26 Mar 2010 13:16:40 -0400
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 791486B0230
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:21:34 -0400 (EDT)
+Message-ID: <4BACECEC.6010406@redhat.com>
+Date: Fri, 26 Mar 2010 13:20:44 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 35 of 41] don't leave orhpaned swap cache after ksm merging
-References: <patchbomb.1269622804@v2.random> <6a19c093c020d009e736.1269622839@v2.random>
-In-Reply-To: <6a19c093c020d009e736.1269622839@v2.random>
+Subject: Re: [PATCH 36 of 41] skip transhuge pages in ksm for now
+References: <patchbomb.1269622804@v2.random> <b47a953ba6a1366903e1.1269622840@v2.random>
+In-Reply-To: <b47a953ba6a1366903e1.1269622840@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,10 +19,8 @@ List-ID: <linux-mm.kvack.org>
 On 03/26/2010 01:00 PM, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> When swapcache is replaced by a ksm page don't leave orhpaned swap cache.
-
-Why is this part of the hugepage series?
-
+> Skip transhuge pages in ksm for now.
+>
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
