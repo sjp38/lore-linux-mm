@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 390D26B0208
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 214DB6B0204
 	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:14 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 01 of 41] define MADV_HUGEPAGE
-Message-Id: <f573bea259db0cf22083.1269622805@v2.random>
+Subject: [PATCH 28 of 41] verify pmd_trans_huge isn't leaking
+Message-Id: <195a52abd6e373f9a676.1269622832@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:05 +0100
+Date: Fri, 26 Mar 2010 18:00:32 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,73 +18,52 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Define MADV_HUGEPAGE.
+pte_trans_huge must not leak in certain vmas like the mmio special pfn or
+filebacked mappings.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
 
-diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
---- a/arch/alpha/include/asm/mman.h
-+++ b/arch/alpha/include/asm/mman.h
-@@ -53,6 +53,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1421,6 +1421,7 @@ int __get_user_pages(struct task_struct 
+ 			pmd = pmd_offset(pud, pg);
+ 			if (pmd_none(*pmd))
+ 				return i ? : -EFAULT;
++			VM_BUG_ON(pmd_trans_huge(*pmd));
+ 			pte = pte_offset_map(pmd, pg);
+ 			if (pte_none(*pte)) {
+ 				pte_unmap(pte);
+@@ -1622,8 +1623,10 @@ pte_t *get_locked_pte(struct mm_struct *
+ 	pud_t * pud = pud_alloc(mm, pgd, addr);
+ 	if (pud) {
+ 		pmd_t * pmd = pmd_alloc(mm, pud, addr);
+-		if (pmd)
++		if (pmd) {
++			VM_BUG_ON(pmd_trans_huge(*pmd));
+ 			return pte_alloc_map_lock(mm, pmd, addr, ptl);
++		}
+ 	}
+ 	return NULL;
+ }
+@@ -1842,6 +1845,7 @@ static inline int remap_pmd_range(struct
+ 	pmd = pmd_alloc(mm, pud, addr);
+ 	if (!pmd)
+ 		return -ENOMEM;
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+ 		if (remap_pte_range(mm, pmd, addr, next,
+@@ -3317,6 +3321,7 @@ static int follow_pte(struct mm_struct *
+ 		goto out;
  
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
+ 	pmd = pmd_offset(pud, address);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+ 		goto out;
  
-diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
---- a/arch/mips/include/asm/mman.h
-+++ b/arch/mips/include/asm/mman.h
-@@ -77,6 +77,8 @@
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- #define MADV_HWPOISON    100		/* poison a page for testing */
- 
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
---- a/arch/parisc/include/asm/mman.h
-+++ b/arch/parisc/include/asm/mman.h
-@@ -59,6 +59,8 @@
- #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
- 
-+#define MADV_HUGEPAGE	67		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- #define MAP_VARIABLE	0
-diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
---- a/arch/xtensa/include/asm/mman.h
-+++ b/arch/xtensa/include/asm/mman.h
-@@ -83,6 +83,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- 
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
---- a/include/asm-generic/mman-common.h
-+++ b/include/asm-generic/mman-common.h
-@@ -45,7 +45,7 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- 
--#define MADV_HUGEPAGE	15		/* Worth backing with hugepages */
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
- 
- /* compatibility flags */
- #define MAP_FILE	0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
