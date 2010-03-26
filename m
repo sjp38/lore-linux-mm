@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1B19D6B01E4
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 265C06B01E5
 	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:12:54 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 36 of 41] skip transhuge pages in ksm for now
-Message-Id: <b47a953ba6a1366903e1.1269622840@v2.random>
+Subject: [PATCH 35 of 41] don't leave orhpaned swap cache after ksm merging
+Message-Id: <6a19c093c020d009e736.1269622839@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:40 +0100
+Date: Fri, 26 Mar 2010 18:00:39 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,7 +18,7 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Skip transhuge pages in ksm for now.
+When swapcache is replaced by a ksm page don't leave orhpaned swap cache.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
@@ -26,37 +26,15 @@ Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 diff --git a/mm/ksm.c b/mm/ksm.c
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
-@@ -1294,7 +1294,19 @@ next_mm:
- 			if (ksm_test_exit(mm))
- 				break;
- 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
--			if (*page && PageAnon(*page)) {
-+			if (!*page) {
-+				ksm_scan.address += PAGE_SIZE;
-+				cond_resched();
-+				continue;
-+			}
-+			if (PageTransHuge(*page)) {
-+				put_page(*page);
-+				ksm_scan.address &= HPAGE_PMD_MASK;
-+				ksm_scan.address += HPAGE_PMD_SIZE;
-+				cond_resched();
-+				continue;
-+			}
-+			if (PageAnon(*page)) {
- 				flush_anon_page(vma, *page, ksm_scan.address);
- 				flush_dcache_page(*page);
- 				rmap_item = get_next_rmap_item(slot,
-@@ -1308,8 +1320,7 @@ next_mm:
- 				up_read(&mm->mmap_sem);
- 				return rmap_item;
- 			}
--			if (*page)
--				put_page(*page);
-+			put_page(*page);
- 			ksm_scan.address += PAGE_SIZE;
- 			cond_resched();
- 		}
+@@ -817,7 +817,7 @@ static int replace_page(struct vm_area_s
+ 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
+ 
+ 	page_remove_rmap(page);
+-	put_page(page);
++	free_page_and_swap_cache(page);
+ 
+ 	pte_unmap_unlock(ptep, ptl);
+ 	err = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
