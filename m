@@ -1,78 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 223376B01AC
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 05:40:25 -0400 (EDT)
-Date: Fri, 26 Mar 2010 09:40:01 +0000
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 318646B01AC
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 06:46:40 -0400 (EDT)
+Date: Fri, 26 Mar 2010 10:46:18 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 10/11] Direct compact when a high-order allocation fails
-Message-ID: <20100326094001.GX2024@csn.ul.ie>
-References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-11-git-send-email-mel@csn.ul.ie> <20100324101927.0d54f4ad.kamezawa.hiroyu@jp.fujitsu.com> <20100324114056.GE21147@csn.ul.ie> <20100325093006.cd0361e6.kamezawa.hiroyu@jp.fujitsu.com> <20100325094826.GM2024@csn.ul.ie> <20100325185021.63e16884.kamezawa.hiroyu@jp.fujitsu.com> <20100325101653.GN2024@csn.ul.ie> <20100326100308.564ebb7b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 08/11] Add /proc trigger for memory compaction
+Message-ID: <20100326104618.GZ2024@csn.ul.ie>
+References: <1269347146-7461-1-git-send-email-mel@csn.ul.ie> <1269347146-7461-9-git-send-email-mel@csn.ul.ie> <20100324133351.c7730969.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100326100308.564ebb7b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100324133351.c7730969.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 26, 2010 at 10:03:08AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 25 Mar 2010 10:16:54 +0000
+On Wed, Mar 24, 2010 at 01:33:51PM -0700, Andrew Morton wrote:
+> On Tue, 23 Mar 2010 12:25:43 +0000
 > Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> > On Thu, Mar 25, 2010 at 06:50:21PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Thu, 25 Mar 2010 09:48:26 +0000
-> > > Mel Gorman <mel@csn.ul.ie> wrote:
-> > > 
-> > > > > In that case, compact_finished() can't
-> > > > > find there is a free chunk and do more work.  How about using a function like
-> > > > > 	 free_pcppages_bulk(zone, pcp->batch, pcp);
-> > > > > to bypass pcp list and freeing pages at once ?
-> > > > > 
-> > > > 
-> > > > I think you mean to drain the PCP lists while compaction is happening
-> > > > but is it justified? It's potentially a lot of IPI calls just to check
-> > > > if compaction can finish a little earlier. If the pages on the PCP lists
-> > > > are making that much of a difference to high-order page availability, it
-> > > > implies that the zone is pretty full and it's likely that compaction was
-> > > > avoided and we direct reclaimed.
-> > > > 
-> > > Ah, sorry for my short word again. I mean draining "local" pcp list because
-> > > a thread which run direct-compaction freed pages. IPI is not necessary and
-> > > overkill.
-> > > 
+> > This patch adds a proc file /proc/sys/vm/compact_memory. When an arbitrary
+> > value is written to the file, all zones are compacted. The expected user
+> > of such a trigger is a job scheduler that prepares the system before the
+> > target application runs.
 > > 
-> > Ah, I see now. There are two places that pages get freed.  release_freepages()
-> > at the end of compaction when it's too late for compact_finished() to be
-> > helped and within migration itself. Migration frees with either
-> > free_page() or more commonly put_page() with put_page() being the most
-> > frequently used. As free_page() is called on failure to migrate (rare),
-> > there is little help in changing it and I'd rather not modify how
-> > put_page() works.
-> > 
-> > I could add a variant of drain_local_pages() that drains just the local PCP of
-> > a given zone before compact_finished() is called. The cost would be a doubling
-> > of the number of times zone->lock is taken to do the drain. Is it
-> > justified? It seems overkill to me to take the zone->lock just in case
-> > compaction can finish a little earlier. It feels like it would be adding
-> > a guaranteed cost for a potential saving.
-> > 
-> If you want to keep code comapct, I don't ask more.
+> >
+> > ...
+> >
+> > +/* This is the entry point for compacting all nodes via /proc/sys/vm */
+> > +int sysctl_compaction_handler(struct ctl_table *table, int write,
+> > +			void __user *buffer, size_t *length, loff_t *ppos)
+> > +{
+> > +	if (write)
+> > +		return compact_nodes();
+> > +
+> > +	return 0;
+> > +}
 > 
-> I worried about that just because memory hot-unplug were suffered by pagevec
-> and pcp list before using  MIGRATE_ISOLATE and proper lru_add_drain().
+> Neato.  When I saw the overall description I was afraid that this stuff
+> would be fiddling with kernel threads.
 > 
 
-What I can do to cover that situation that won't cost much is to call
-drain_local_pages after compaction completes.
+Not yet anyway. It has been floated in the past to have a kcompactd
+similar to kswapd but right now there is no justification for it. Like
+other suggestions made in the past, it has potential but needs data to
+justify.
 
-Thanks
+> The underlying compaction code can at times cause rather large amounts
+> of memory to be put onto private lists, so it's lost to the rest of the
+> kernel.  What happens if 10000 processes simultaneously write to this
+> thing?  It's root-only so I guess the answer is "root becomes unemployed".
+> 
+
+Well, root becomes unemployed but I shouldn't be supplying the rope.
+Lets keep min_free_kbytes as the "fall off the cliff" tunable. I added
+too_many_isolated()-like logic and also handling of fatal signals.
+
+> I fear that the overall effect of this feature is that people will come
+> up with ghastly hacks which keep on poking this tunable as a workaround
+> for some VM shortcoming.  This will lead to more shortcomings, and
+> longer-lived ones.
+> 
+
+That would be very unfortunate and also a self-defeating measure in the short
+run, let alone the long run.  I consider the tunable to be more like the
+"drop_caches" tunable. It can be used for good or bad and all the bad uses
+kick you in the ass because it does not resolve the underlying problem and
+is expensive to use.
+
+I had three legit uses in mind for it
+
+1. Batch-systems that compact memory before a job is scheduler to reduce
+   start-up time of applications using huge pages. Depending on their
+   setup, sysfs might be a better fit for them
+
+2. Illustrate a bug in direct compaction. i.e. I'd get a report on some
+   allocation failure that was consistent but when the tunable is poked,
+   it works perfectly
+
+3. Development uses. Measuring worst-case scenarios for compaction (rare
+   obviously), stress testing compaction to try catch bugs in migration
+   and measuring how effective compaction currently is.
+
+Do these justify the existance of the tunable or is the risk of abuse
+too high?
+
+This is what the isolate logic looks like
 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff --git a/mm/compaction.c b/mm/compaction.c
+index e0e8100..a6a6958 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -13,6 +13,7 @@
+ #include <linux/mm_inline.h>
+ #include <linux/sysctl.h>
+ #include <linux/sysfs.h>
++#include <linux/backing-dev.h>
+ #include "internal.h"
+ 
+ /*
+@@ -197,6 +198,20 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ 	__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
+ }
+ 
++/* Similar to reclaim, but different enough that they don't share logic */
++static int too_many_isolated(struct zone *zone)
++{
++
++	unsigned long inactive, isolated;
++
++	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
++					zone_page_state(zone, NR_INACTIVE_ANON);
++	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
++					zone_page_state(zone, NR_ISOLATED_ANON);
++
++	return isolated > inactive;
++}
++
+ /*
+  * Isolate all pages that can be migrated from the block pointed to by
+  * the migrate scanner within compact_control.
+@@ -223,6 +238,14 @@ static unsigned long isolate_migratepages(struct zone *zone,
+ 		return 0;
+ 	}
+ 
++	/* Do not isolate the world */
++	while (unlikely(too_many_isolated(zone))) {
++		congestion_wait(BLK_RW_ASYNC, HZ/10);
++
++		if (fatal_signal_pending(current))
++			return 0;
++	}
++
+ 	/* Time to isolate some pages for migration */
+ 	spin_lock_irq(&zone->lru_lock);
+ 	for (; low_pfn < end_pfn; low_pfn++) {
+@@ -309,6 +332,9 @@ static int compact_finished(struct zone *zone,
+ 	unsigned int order;
+ 	unsigned long watermark = low_wmark_pages(zone) + (1 << cc->order);
+ 
++	if (fatal_signal_pending(current))
++		return COMPACT_PARTIAL;
++
+ 	/* Compaction run completes if the migrate and free scanner meet */
+ 	if (cc->free_pfn <= cc->migrate_pfn)
+ 		return COMPACT_COMPLETE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
