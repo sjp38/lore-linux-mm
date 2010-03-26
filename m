@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 698FC6B01B5
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A2E766B01B6
 	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:56:43 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 02 of 41] compound_lock
-Message-Id: <b656d4a46e8e09658ad0.1269622083@v2.random>
+Subject: [PATCH 11 of 41] comment reminder in destroy_compound_page
+Message-Id: <8b07fc699c6b50d6a0ab.1269622092@v2.random>
 In-Reply-To: <patchbomb.1269622081@v2.random>
 References: <patchbomb.1269622081@v2.random>
-Date: Fri, 26 Mar 2010 17:48:03 +0100
+Date: Fri, 26 Mar 2010 17:48:12 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,81 +18,25 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add a new compound_lock() needed to serialize put_page against
-__split_huge_page_refcount().
+Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
+on its internal behavior.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -13,6 +13,7 @@
- #include <linux/debug_locks.h>
- #include <linux/mm_types.h>
- #include <linux/range.h>
-+#include <linux/bit_spinlock.h>
- 
- struct mempolicy;
- struct anon_vma;
-@@ -297,6 +298,20 @@ static inline int is_vmalloc_or_module_a
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -334,6 +334,7 @@ void prep_compound_page(struct page *pag
+ 	}
  }
- #endif
  
-+static inline void compound_lock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_lock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
-+static inline void compound_unlock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_unlock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
- static inline struct page *compound_head(struct page *page)
++/* update __split_huge_page_refcount if you change this function */
+ static int destroy_compound_page(struct page *page, unsigned long order)
  {
- 	if (unlikely(PageTail(page)))
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -108,6 +108,9 @@ enum pageflags {
- #ifdef CONFIG_MEMORY_FAILURE
- 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	PG_compound_lock,
-+#endif
- 	__NR_PAGEFLAGS,
- 
- 	/* Filesystems */
-@@ -399,6 +402,12 @@ static inline void __ClearPageTail(struc
- #define __PG_MLOCKED		0
- #endif
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
-+#else
-+#define __PG_COMPOUND_LOCK		0
-+#endif
-+
- /*
-  * Flags checked when a page is freed.  Pages being freed should not have
-  * these flags set.  It they are, there is a problem.
-@@ -408,7 +417,8 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
-+	 __PG_COMPOUND_LOCK)
- 
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
+ 	int i;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
