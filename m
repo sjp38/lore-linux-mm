@@ -1,46 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 890306B0217
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:47:22 -0400 (EDT)
-Date: Fri, 26 Mar 2010 13:44:23 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #15
-In-Reply-To: <20100326182311.GD5825@random.random>
-Message-ID: <alpine.DEB.2.00.1003261335210.31938@router.home>
-References: <patchbomb.1269622804@v2.random> <alpine.DEB.2.00.1003261256080.31109@router.home> <20100326182311.GD5825@random.random>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 12EAA6B0236
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 15:05:19 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id o2QJ5Bdh004913
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 20:05:12 +0100
+Received: from iwn10 (iwn10.prod.google.com [10.241.68.74])
+	by wpaz24.hot.corp.google.com with ESMTP id o2QJ5Akx019196
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:05:10 -0700
+Received: by iwn10 with SMTP id 10so2987547iwn.10
+        for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:05:10 -0700 (PDT)
+Date: Fri, 26 Mar 2010 12:05:06 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: default to node zonelist ordering when nodes have
+ only lowmem
+In-Reply-To: <20100326140735.GB2024@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1003261158190.24081@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1003251532150.7950@chino.kir.corp.google.com> <20100326140735.GB2024@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Mar 2010, Andrea Arcangeli wrote:
+On Fri, 26 Mar 2010, Mel Gorman wrote:
 
-> BTW, unfortunately according to tons of measurements done so far, SLUB
-> is too slow on most workstations and small/mid servers (usually single
-> digits but in some case even double digits percentage slowdowns
-> depending on the workload, hackbench tends to stress it the
-> most). It's a tradeoff between avoiding wasting tons of ram on
-> 1024-way and running fast. Either that or something's wrong with SLUB
-> implementation (and I'm talking about 2.6.32, no earlier code). I'd
-> also like to save memory so it'd be great if SLUB can be fixed to
-> perform faster!
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2582,7 +2582,7 @@ static int default_zonelist_order(void)
+> >           * ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
+> >  	 * If they are really small and used heavily, the system can fall
+> >  	 * into OOM very easily.
+> > -	 * This function detect ZONE_DMA/DMA32 size and confgigures zone order.
+> > +	 * This function detect ZONE_DMA/DMA32 size and configures zone order.
+> >  	 */
+> 
+> Spurious change here but it's not very important.
+> 
+> >  	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
+> >  	low_kmem_size = 0;
+> > @@ -2594,6 +2594,15 @@ static int default_zonelist_order(void)
+> >  				if (zone_type < ZONE_NORMAL)
+> >  					low_kmem_size += z->present_pages;
+> >  				total_size += z->present_pages;
+> > +			} else if (zone_type == ZONE_NORMAL) {
+> > +				/*
+> 
+> What if it was ZONE_DMA32?
+> 
 
-The SLUB fastpath is the fastest there is. Problems arise because of
-locality constraints in SLUB. SLAB can throw gobs of memory at it to
-guarantee a high cache hit rate but to cover all angles on NUMA requires
-to throw the gobs multiple times. The weakness is SLUBs free functions
-which frees the object directly to the slab page instead of
-running through a series of caching structures. If frees occur to
-locally dispersed objects then SLUB is at a disadvantage since its hitting cold
-cache lines for metadata on free.
+This is part of a zone iteration for each node, so if the node consists of 
+only ZONE_DMA then it wouldn't have a populated ZONE_NORMAL either and 
+will return ZONELIST_ORDER_NODE on the next iteration.
 
-On the other hand SLUB hands out objects in a locality aware fashion and
-not randomly from everywhere like SLAB. This is certainly good to reduce
-TLB pressure. Huge pages would accellerate SLUB since more objects can be
-served from the same page than before.
+> > +				 * If any node has only lowmem, then node order
+> > +				 * is preferred to allow kernel allocations
+> > +				 * locally; otherwise, they can easily infringe
+> > +				 * on other nodes when there is an abundance of
+> > +				 * lowmem available to allocate from.
+> > +				 */
+> > +				return ZONELIST_ORDER_NODE;
+> 
+> It might be clearer if it was done as a similar check later
+> 
+> 		if (low_kmem_size &&
+> 		    total_size > average_size && /* ignore small node */
+> 		    low_kmem_size > total_size * 70/100)
+> 			return ZONELIST_ORDER_NODE;
+> 
+> This is saying if low memory is > 70% of total, then use nodes. To take
+> yours into account, it'd look something like;
+> 
+> if (low_kmwm_size && total_size > average_size) {
+> 	if (lowmem_size == total_size)
+> 		return ZONELIST_ORDER_ZONE;
+> 
+> 	if (lowmem_size > total_size * 70/100)
+> 		return ZONELIST_ORDER_NODE;
+> }
 
+There's no guarantee that we'd ever detect the node consisiting of solely 
+lowmem here since it may be asymmetrically smaller than the average node 
+size.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
