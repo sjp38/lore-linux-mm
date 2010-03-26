@@ -1,67 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2F22F6B01C8
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 18:35:40 -0400 (EDT)
-Date: Fri, 26 Mar 2010 23:33:56 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] oom killer: break from infinite loop
-Message-ID: <20100326223356.GA20833@redhat.com>
-References: <1269447905-5939-1-git-send-email-anfei.zhou@gmail.com> <20100326150805.f5853d1c.akpm@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B85176B01F6
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 18:50:41 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [C/R v20][PATCH 15/96] cgroup freezer: Fix buggy resume test for tasks frozen with cgroup freezer
+Date: Fri, 26 Mar 2010 23:53:26 +0100
+References: <1268842164-5590-1-git-send-email-orenl@cs.columbia.edu> <201003230028.40915.rjw@sisk.pl> <4BA8E659.1030702@cs.columbia.edu>
+In-Reply-To: <4BA8E659.1030702@cs.columbia.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100326150805.f5853d1c.akpm@linux-foundation.org>
+Content-Type: Text/Plain;
+  charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201003262353.26181.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Anfei Zhou <anfei.zhou@gmail.com>, rientjes@google.com, kosaki.motohiro@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, containers@lists.linux-foundation.org, Matt Helsley <matthltc@us.ibm.com>, Cedric Le Goater <legoater@free.fr>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Pavel Machek <pavel@ucw.cz>, linux-pm@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/26, Andrew Morton wrote:
->
-> On Thu, 25 Mar 2010 00:25:05 +0800
-> Anfei Zhou <anfei.zhou@gmail.com> wrote:
->
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -381,6 +381,8 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
-> >   */
-> >  static void __oom_kill_task(struct task_struct *p, int verbose)
-> >  {
-> > +	struct task_struct *t;
-> > +
-> >  	if (is_global_init(p)) {
-> >  		WARN_ON(1);
-> >  		printk(KERN_WARNING "tried to kill init!\n");
-> > @@ -412,6 +414,8 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
-> >  	 */
-> >  	p->rt.time_slice = HZ;
-> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
-> > +	for (t = next_thread(p); t != p; t = next_thread(t))
-> > +		set_tsk_thread_flag(t, TIF_MEMDIE);
-> >
-> >  	force_sig(SIGKILL, p);
->
-> Don't we need some sort of locking while walking that ring?
+On Tuesday 23 March 2010, Oren Laadan wrote:
+> 
+> Rafael J. Wysocki wrote:
+> > On Wednesday 17 March 2010, Oren Laadan wrote:
+> >> From: Matt Helsley <matthltc@us.ibm.com>
+> >>
+> >> When the cgroup freezer is used to freeze tasks we do not want to thaw
+> >> those tasks during resume. Currently we test the cgroup freezer
+> >> state of the resuming tasks to see if the cgroup is FROZEN.  If so
+> >> then we don't thaw the task. However, the FREEZING state also indicates
+> >> that the task should remain frozen.
+> >>
+> >> This also avoids a problem pointed out by Oren Ladaan: the freezer state
+> >> transition from FREEZING to FROZEN is updated lazily when userspace reads
+> >> or writes the freezer.state file in the cgroup filesystem. This means that
+> >> resume will thaw tasks in cgroups which should be in the FROZEN state if
+> >> there is no read/write of the freezer.state file to trigger this
+> >> transition before suspend.
+> >>
+> >> NOTE: Another "simple" solution would be to always update the cgroup
+> >> freezer state during resume. However it's a bad choice for several reasons:
+> >> Updating the cgroup freezer state is somewhat expensive because it requires
+> >> walking all the tasks in the cgroup and checking if they are each frozen.
+> >> Worse, this could easily make resume run in N^2 time where N is the number
+> >> of tasks in the cgroup. Finally, updating the freezer state from this code
+> >> path requires trickier locking because of the way locks must be ordered.
+> >>
+> >> Instead of updating the freezer state we rely on the fact that lazy
+> >> updates only manage the transition from FREEZING to FROZEN. We know that
+> >> a cgroup with the FREEZING state may actually be FROZEN so test for that
+> >> state too. This makes sense in the resume path even for partially-frozen
+> >> cgroups -- those that really are FREEZING but not FROZEN.
+> >>
+> >> Reported-by: Oren Ladaan <orenl@cs.columbia.edu>
+> >> Signed-off-by: Matt Helsley <matthltc@us.ibm.com>
+> >> Cc: Cedric Le Goater <legoater@free.fr>
+> >> Cc: Paul Menage <menage@google.com>
+> >> Cc: Li Zefan <lizf@cn.fujitsu.com>
+> >> Cc: Rafael J. Wysocki <rjw@sisk.pl>
+> >> Cc: Pavel Machek <pavel@ucw.cz>
+> >> Cc: linux-pm@lists.linux-foundation.org
+> > 
+> > Looks reasonable.
+> > 
+> > Is anyone handling that already or do you want me to take it to my tree?
+> 
+> Yes, please do.
 
-This should be always called under tasklist_lock, I think.
-At least this seems to be true in Linus's tree.
+Applied.
 
-I'd suggest to do
-
-	- set_tsk_thread_flag(p, TIF_MEMDIE);
-	+ t = p;
-	+ do {
-	+	 set_tsk_thread_flag(t, TIF_MEMDIE);
-	+ } while_each_thread(p, t);
-
-but this is matter of taste.
-
-Off-topic, but we shouldn't use force_sig(), SIGKILL doesn't
-need "force" semantics.
-
-I'd wish I could understand the changelog ;)
-
-Oleg.
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
