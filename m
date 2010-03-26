@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0C0B36B0238
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:25:25 -0400 (EDT)
-Message-ID: <4BACFBE4.4090505@redhat.com>
-Date: Fri, 26 Mar 2010 14:24:36 -0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BE9076B0236
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:27:24 -0400 (EDT)
+Message-ID: <4BACFC52.4040703@redhat.com>
+Date: Fri, 26 Mar 2010 14:26:26 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 39 of 41] add pmd_modify
-References: <patchbomb.1269622804@v2.random> <bbaa9ff62c11a8053180.1269622843@v2.random>
-In-Reply-To: <bbaa9ff62c11a8053180.1269622843@v2.random>
+Subject: Re: [PATCH 40 of 41] mprotect: pass vma down to page table walkers
+References: <patchbomb.1269622804@v2.random> <0519ba13957b4a86663c.1269622844@v2.random>
+In-Reply-To: <0519ba13957b4a86663c.1269622844@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,7 +19,9 @@ List-ID: <linux-mm.kvack.org>
 On 03/26/2010 01:00 PM, Andrea Arcangeli wrote:
 > From: Johannes Weiner<hannes@cmpxchg.org>
 >
-> Add pmd_modify() for use with mprotect() on huge pmds.
+> Waiting for huge pmds to finish splitting requires the vma's anon_vma,
+> so pass along the vma instead of the mm, we can always get the latter
+> when we need it.
 >
 > Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
