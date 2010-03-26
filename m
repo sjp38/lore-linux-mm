@@ -1,56 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F176B01AC
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 09:49:52 -0400 (EDT)
-Date: Fri, 26 Mar 2010 13:49:30 +0000
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BAA2A6B01AC
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 10:07:56 -0400 (EDT)
+Date: Fri, 26 Mar 2010 14:07:35 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
-	anonymous pages
-Message-ID: <20100326134930.GA2024@csn.ul.ie>
-References: <20100325191229.8e3d2ba1.kamezawa.hiroyu@jp.fujitsu.com> <20100325133936.GR2024@csn.ul.ie> <20100326120429.6C98.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch] mm: default to node zonelist ordering when nodes have
+	only lowmem
+Message-ID: <20100326140735.GB2024@csn.ul.ie>
+References: <alpine.DEB.2.00.1003251532150.7950@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100326120429.6C98.A69D9226@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1003251532150.7950@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 26, 2010 at 12:07:02PM +0900, KOSAKI Motohiro wrote:
-> very small nit
+On Thu, Mar 25, 2010 at 03:33:08PM -0700, David Rientjes wrote:
+> There are two types of zonelist ordering methodologies:
 > 
-> > There were minor changes in how the rcu_read_lock is taken and released
-> > based on other comments. With your suggestion, the block now looks like;
-> > 
-> >         if (PageAnon(page)) {
-> >                 rcu_read_lock();
-> >                 rcu_locked = 1;
-> > 
-> >                 /*
-> >                  * If the page has no mappings any more, just bail. An
-> >                  * unmapped anon page is likely to be freed soon but
-> >                  * worse,
-> >                  * it's possible its anon_vma disappeared between when
-> >                  * the page was isolated and when we reached here while
-> >                  * the RCU lock was not held
-> >                  */
-> >                 if (!page_mapcount(page) && !PageSwapCache(page))
+>  - node order, preferring allocations on a node to stay local to and
 > 
->                         page_mapped?
+>  - zone order, preferring allocations come from a higher zone to avoid
+>    allocating in lowmem zones even though they may not be local.
 > 
+> The ordering technique used by the kernel is configurable on the command
+> line, but also has some logic to determine what the default should be.
+> 
+> This logic currently lacks knowledge of systems where a node may only
+> have lowmem.  For such systems, it is necessary to use node order so that
+> GFP_KERNEL allocations may be satisfied by nodes consisting of only
+> lowmem.
+> 
+> If zone order is used, GFP_KERNEL allocations to such nodes are actually
+> allocated on a node with local affinity that includes ZONE_NORMAL.
+> 
+> This change defaults to node zonelist ordering if any node lacks
+> ZONE_NORMAL.
+> 
+> To force zone order, append 'numa_zonelist_order=zone' to the kernel
+> command line.
+> 
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/page_alloc.c |   11 ++++++++++-
+>  1 files changed, 10 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2582,7 +2582,7 @@ static int default_zonelist_order(void)
+>           * ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
+>  	 * If they are really small and used heavily, the system can fall
+>  	 * into OOM very easily.
+> -	 * This function detect ZONE_DMA/DMA32 size and confgigures zone order.
+> +	 * This function detect ZONE_DMA/DMA32 size and configures zone order.
+>  	 */
 
-Will be fixed in V6.
+Spurious change here but it's not very important.
 
-Thanks
+>  	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
+>  	low_kmem_size = 0;
+> @@ -2594,6 +2594,15 @@ static int default_zonelist_order(void)
+>  				if (zone_type < ZONE_NORMAL)
+>  					low_kmem_size += z->present_pages;
+>  				total_size += z->present_pages;
+> +			} else if (zone_type == ZONE_NORMAL) {
+> +				/*
 
-> >                         goto rcu_unlock;
-> > 
-> >                 anon_vma = page_anon_vma(page);
-> >                 atomic_inc(&anon_vma->external_refcount);
-> >         }
-> 
-> 
+What if it was ZONE_DMA32?
+
+> +				 * If any node has only lowmem, then node order
+> +				 * is preferred to allow kernel allocations
+> +				 * locally; otherwise, they can easily infringe
+> +				 * on other nodes when there is an abundance of
+> +				 * lowmem available to allocate from.
+> +				 */
+> +				return ZONELIST_ORDER_NODE;
+
+It might be clearer if it was done as a similar check later
+
+		if (low_kmem_size &&
+		    total_size > average_size && /* ignore small node */
+		    low_kmem_size > total_size * 70/100)
+			return ZONELIST_ORDER_NODE;
+
+This is saying if low memory is > 70% of total, then use nodes. To take
+yours into account, it'd look something like;
+
+if (low_kmwm_size && total_size > average_size) {
+	if (lowmem_size == total_size)
+		return ZONELIST_ORDER_ZONE;
+
+	if (lowmem_size > total_size * 70/100)
+		return ZONELIST_ORDER_NODE;
+}
+
+>  			}
+>  		}
+>  	}
 > 
 
 -- 
