@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 31B706B01B1
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 091DB6B01AF
 	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:56:29 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 04 of 41] update futex compound knowledge
-Message-Id: <3e3b1ab4ec0005de6c24.1269622085@v2.random>
+Subject: [PATCH 03 of 41] alter compound get_page/put_page
+Message-Id: <6d4254b360b850e292d4.1269622084@v2.random>
 In-Reply-To: <patchbomb.1269622081@v2.random>
 References: <patchbomb.1269622081@v2.random>
-Date: Fri, 26 Mar 2010 17:48:05 +0100
+Date: Fri, 26 Mar 2010 17:48:04 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,135 +18,196 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Futex code is smarter than most other gup_fast O_DIRECT code and knows about
-the compound internals. However now doing a put_page(head_page) will not
-release the pin on the tail page taken by gup-fast, leading to all sort of
-refcounting bugchecks. Getting a stable head_page is a little tricky.
-
-page_head = page is there because if this is not a tail page it's also the
-page_head. Only in case this is a tail page, compound_head is called, otherwise
-it's guaranteed unnecessary. And if it's a tail page compound_head has to run
-atomically inside irq disabled section __get_user_pages_fast before returning.
-Otherwise ->first_page won't be a stable pointer.
-
-Disableing irq before __get_user_page_fast and releasing irq after running
-compound_head is needed because if __get_user_page_fast returns == 1, it means
-the huge pmd is established and cannot go away from under us.
-pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
-for local_irq_enable before the IPI delivery can return. This means
-__split_huge_page_refcount can't be running from under us, and in turn when we
-run compound_head(page) we're not reading a dangling pointer from
-tailpage->first_page. Then after we get to stable head page, we are always safe
-to call compound_lock and after taking the compound lock on head page we can
-finally re-check if the page returned by gup-fast is still a tail page. in
-which case we're set and we didn't need to split the hugepage in order to take
-a futex on it.
+Alter compound get_page/put_page to keep references on subpages too, in order
+to allow __split_huge_page_refcount to split an hugepage even while subpages
+have been pinned by one of the get_user_pages() variants.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/kernel/futex.c b/kernel/futex.c
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
- {
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
--	struct page *page;
-+	struct page *page, *page_head;
- 	int err;
+diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
+--- a/arch/powerpc/mm/gup.c
++++ b/arch/powerpc/mm/gup.c
+@@ -16,6 +16,16 @@
  
- 	/*
-@@ -250,10 +250,53 @@ again:
- 	if (err < 0)
- 		return err;
+ #ifdef __HAVE_ARCH_PTE_SPECIAL
  
--	page = compound_head(page);
--	lock_page(page);
--	if (!page->mapping) {
--		unlock_page(page);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	page_head = page;
-+	if (unlikely(PageTail(page))) {
-+		put_page(page);
-+		/* serialize against __split_huge_page_splitting() */
-+		local_irq_disable();
-+		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
-+			page_head = compound_head(page);
-+			/*
-+			 * page_head is valid pointer but we must pin
-+			 * it before taking the PG_lock and/or
-+			 * PG_compound_lock. The moment we re-enable
-+			 * irqs __split_huge_page_splitting() can
-+			 * return and the head page can be freed from
-+			 * under us. We can't take the PG_lock and/or
-+			 * PG_compound_lock on a page that could be
-+			 * freed from under us.
-+			 */
-+			if (page != page_head)
-+				get_page(page_head);
-+			local_irq_enable();
-+		} else {
-+			local_irq_enable();
-+			goto again;
-+		}
-+	}
-+#else
-+	page_head = compound_head(page);
-+	if (page != page_head)
-+		get_page(page_head);
-+#endif
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
 +
-+	lock_page(page_head);
-+	if (unlikely(page_head != page)) {
-+		compound_lock(page_head);
-+		if (unlikely(!PageTail(page))) {
-+			compound_unlock(page_head);
-+			unlock_page(page_head);
-+			put_page(page_head);
-+			put_page(page);
-+			goto again;
-+		}
-+	}
-+	if (!page_head->mapping) {
-+		unlock_page(page_head);
-+		if (page_head != page)
-+			put_page(page_head);
- 		put_page(page);
- 		goto again;
- 	}
-@@ -265,19 +308,25 @@ again:
- 	 * it's a read-only handle, it's expected that futexes attach to
- 	 * the object not the particular process.
- 	 */
--	if (PageAnon(page)) {
-+	if (PageAnon(page_head)) {
- 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
- 		key->private.mm = mm;
- 		key->private.address = address;
- 	} else {
- 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
--		key->shared.inode = page->mapping->host;
--		key->shared.pgoff = page->index;
-+		key->shared.inode = page_head->mapping->host;
-+		key->shared.pgoff = page_head->index;
- 	}
+ /*
+  * The performance critical leaf functions are made noinline otherwise gcc
+  * inlines everything into a single function which results in too much
+@@ -47,6 +57,8 @@ static noinline int gup_pte_range(pmd_t 
+ 			put_page(page);
+ 			return 0;
+ 		}
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		pages[*nr] = page;
+ 		(*nr)++;
  
- 	get_futex_key_refs(key);
- 
--	unlock_page(page);
-+	unlock_page(page_head);
-+	if (page != page_head) {
-+		VM_BUG_ON(!PageTail(page));
-+		/* releasing compound_lock after page_lock won't matter */
-+		compound_unlock(page_head);
-+		put_page(page_head);
-+	}
- 	put_page(page);
- 	return 0;
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -105,6 +105,16 @@ static inline void get_head_page_multipl
+ 	atomic_add(nr, &page->_count);
  }
+ 
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
++
+ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+@@ -128,6 +138,8 @@ static noinline int gup_huge_pmd(pmd_t p
+ 	do {
+ 		VM_BUG_ON(compound_head(page) != head);
+ 		pages[*nr] = page;
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		(*nr)++;
+ 		page++;
+ 		refs++;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -326,9 +326,17 @@ static inline int page_count(struct page
+ 
+ static inline void get_page(struct page *page)
+ {
+-	page = compound_head(page);
+-	VM_BUG_ON(atomic_read(&page->_count) == 0);
++	VM_BUG_ON(atomic_read(&page->_count) < !PageTail(page));
+ 	atomic_inc(&page->_count);
++	if (unlikely(PageTail(page))) {
++		/*
++		 * This is safe only because
++		 * __split_huge_page_refcount can't run under
++		 * get_page().
++		 */
++		VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
++		atomic_inc(&page->first_page->_count);
++	}
+ }
+ 
+ static inline struct page *virt_to_head_page(const void *x)
+diff --git a/mm/swap.c b/mm/swap.c
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -55,17 +55,82 @@ static void __page_cache_release(struct 
+ 		del_page_from_lru(zone, page);
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
++}
++
++static void __put_single_page(struct page *page)
++{
++	__page_cache_release(page);
+ 	free_hot_cold_page(page, 0);
+ }
+ 
++static void __put_compound_page(struct page *page)
++{
++	compound_page_dtor *dtor;
++
++	__page_cache_release(page);
++	dtor = get_compound_page_dtor(page);
++	(*dtor)(page);
++}
++
+ static void put_compound_page(struct page *page)
+ {
+-	page = compound_head(page);
+-	if (put_page_testzero(page)) {
+-		compound_page_dtor *dtor;
+-
+-		dtor = get_compound_page_dtor(page);
+-		(*dtor)(page);
++	if (unlikely(PageTail(page))) {
++		/* __split_huge_page_refcount can run under us */
++		struct page *page_head = page->first_page;
++		smp_rmb();
++		if (likely(PageTail(page) && get_page_unless_zero(page_head))) {
++			if (unlikely(!PageHead(page_head))) {
++				/* PageHead is cleared after PageTail */
++				smp_rmb();
++				VM_BUG_ON(PageTail(page));
++				goto out_put_head;
++			}
++			/*
++			 * Only run compound_lock on a valid PageHead,
++			 * after having it pinned with
++			 * get_page_unless_zero() above.
++			 */
++			smp_mb();
++			/* page_head wasn't a dangling pointer */
++			compound_lock(page_head);
++			if (unlikely(!PageTail(page))) {
++				/* __split_huge_page_refcount run before us */
++				compound_unlock(page_head);
++				VM_BUG_ON(PageHead(page_head));
++			out_put_head:
++				if (put_page_testzero(page_head))
++					__put_single_page(page_head);
++			out_put_single:
++				if (put_page_testzero(page))
++					__put_single_page(page);
++				return;
++			}
++			VM_BUG_ON(page_head != page->first_page);
++			/*
++			 * We can release the refcount taken by
++			 * get_page_unless_zero now that
++			 * split_huge_page_refcount is blocked on the
++			 * compound_lock.
++			 */
++			if (put_page_testzero(page_head))
++				VM_BUG_ON(1);
++			/* __split_huge_page_refcount will wait now */
++			VM_BUG_ON(atomic_read(&page->_count) <= 0);
++			atomic_dec(&page->_count);
++			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
++			compound_unlock(page_head);
++			if (put_page_testzero(page_head))
++				__put_compound_page(page_head);
++		} else {
++			/* page_head is a dangling pointer */
++			VM_BUG_ON(PageTail(page));
++			goto out_put_single;
++		}
++	} else if (put_page_testzero(page)) {
++		if (PageHead(page))
++			__put_compound_page(page);
++		else
++			__put_single_page(page);
+ 	}
+ }
+ 
+@@ -74,7 +139,7 @@ void put_page(struct page *page)
+ 	if (unlikely(PageCompound(page)))
+ 		put_compound_page(page);
+ 	else if (put_page_testzero(page))
+-		__page_cache_release(page);
++		__put_single_page(page);
+ }
+ EXPORT_SYMBOL(put_page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
