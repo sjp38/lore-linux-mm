@@ -1,96 +1,416 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 034956B021B
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:47 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3BD766B021B
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:50 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 38 of 41] mincore transparent hugepage support
-Message-Id: <4d2ad42d2b298965afda.1269622842@v2.random>
+Subject: [PATCH 37 of 41] add x86 32bit support
+Message-Id: <2a644b64b34162f323c5.1269622841@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:42 +0100
+Date: Fri, 26 Mar 2010 18:00:41 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Johannes Weiner <hannes@cmpxchg.org>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Handle transparent huge page pmd entries natively instead of splitting
-them into subpages.
+Add support for transparent hugepages to x86 32bit.
+
+Share the same VM_ bitflag for VM_MAPPED_COPY. mm/nommu.c will never support
+transparent hugepages.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -19,6 +19,9 @@ extern struct page *follow_trans_huge_pm
- extern int zap_huge_pmd(struct mmu_gather *tlb,
- 			struct vm_area_struct *vma,
- 			pmd_t *pmd);
-+extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+			unsigned long addr, unsigned long end,
-+			unsigned char *vec);
+diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
+--- a/arch/x86/include/asm/pgtable-2level.h
++++ b/arch/x86/include/asm/pgtable-2level.h
+@@ -46,6 +46,15 @@ static inline pte_t native_ptep_get_and_
+ #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
+ #endif
  
- enum transparent_hugepage_flag {
- 	TRANSPARENT_HUGEPAGE_FLAG,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -936,6 +936,31 @@ int zap_huge_pmd(struct mmu_gather *tlb,
- 	return ret;
++#ifdef CONFIG_SMP
++static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
++{
++	return __pmd(xchg((pmdval_t *)xp, 0));
++}
++#else
++#define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
++#endif
++
+ /*
+  * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE and _PAGE_BIT_PROTNONE are taken,
+  * split up the 29 bits of offset into this range:
+diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
+--- a/arch/x86/include/asm/pgtable-3level.h
++++ b/arch/x86/include/asm/pgtable-3level.h
+@@ -104,6 +104,29 @@ static inline pte_t native_ptep_get_and_
+ #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
+ #endif
+ 
++#ifdef CONFIG_SMP
++union split_pmd {
++	struct {
++		u32 pmd_low;
++		u32 pmd_high;
++	};
++	pmd_t pmd;
++};
++static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
++{
++	union split_pmd res, *orig = (union pmd_parts *)pmdp;
++
++	/* xchg acts as a barrier before setting of the high bits */
++	res.pmd_low = xchg(&orig->pmd_low, 0);
++	res.pmd_high = orig->pmd_high;
++	orig->pmd_high = 0;
++
++	return res.pmd;
++}
++#else
++#define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
++#endif
++
+ /*
+  * Bits 0, 6 and 7 are taken in the low part of the pte,
+  * put the 32 bits of offset into the high part.
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -95,6 +95,11 @@ static inline int pte_young(pte_t pte)
+ 	return pte_flags(pte) & _PAGE_ACCESSED;
  }
  
-+int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long addr, unsigned long end,
-+		unsigned char *vec)
++static inline int pmd_young(pmd_t pmd)
 +{
-+	int ret = 0;
-+
-+	spin_lock(&vma->vm_mm->page_table_lock);
-+	if (likely(pmd_trans_huge(*pmd))) {
-+		ret = !pmd_trans_splitting(*pmd);
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+		if (unlikely(!ret))
-+			wait_split_huge_page(vma->anon_vma, pmd);
-+		else {
-+			/*
-+			 * All logical pages in the range are present
-+			 * if backed by a huge page.
-+			 */
-+			memset(vec, 1, (end - addr) >> PAGE_SHIFT);
-+		}
-+	} else
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+
-+	return ret;
++	return pmd_flags(pmd) & _PAGE_ACCESSED;
 +}
 +
- pmd_t *page_check_address_pmd(struct page *page,
- 			      struct mm_struct *mm,
- 			      unsigned long address,
-diff --git a/mm/mincore.c b/mm/mincore.c
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -154,7 +154,13 @@ static void mincore_pmd_range(struct vm_
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
--		split_huge_page_pmd(vma->vm_mm, pmd);
-+		if (pmd_trans_huge(*pmd)) {
-+			if (mincore_huge_pmd(vma, pmd, addr, next, vec)) {
-+				vec += (next - addr) >> PAGE_SHIFT;
-+				continue;
-+			}
-+			/* fall through */
-+		}
- 		if (pmd_none_or_clear_bad(pmd))
- 			mincore_unmapped_range(vma, addr, next, vec);
- 		else
+ static inline int pte_write(pte_t pte)
+ {
+ 	return pte_flags(pte) & _PAGE_RW;
+@@ -143,6 +148,18 @@ static inline int pmd_large(pmd_t pte)
+ 		(_PAGE_PSE | _PAGE_PRESENT);
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline int pmd_trans_splitting(pmd_t pmd)
++{
++	return pmd_val(pmd) & _PAGE_SPLITTING;
++}
++
++static inline int pmd_trans_huge(pmd_t pmd)
++{
++	return pmd_val(pmd) & _PAGE_PSE;
++}
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++
+ static inline pte_t pte_set_flags(pte_t pte, pteval_t set)
+ {
+ 	pteval_t v = native_pte_val(pte);
+@@ -217,6 +234,55 @@ static inline pte_t pte_mkspecial(pte_t 
+ 	return pte_set_flags(pte, _PAGE_SPECIAL);
+ }
+ 
++static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
++{
++	pmdval_t v = native_pmd_val(pmd);
++
++	return __pmd(v | set);
++}
++
++static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
++{
++	pmdval_t v = native_pmd_val(pmd);
++
++	return __pmd(v & ~clear);
++}
++
++static inline pmd_t pmd_mkold(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
++}
++
++static inline pmd_t pmd_wrprotect(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_RW);
++}
++
++static inline pmd_t pmd_mkdirty(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_DIRTY);
++}
++
++static inline pmd_t pmd_mkhuge(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_PSE);
++}
++
++static inline pmd_t pmd_mkyoung(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_ACCESSED);
++}
++
++static inline pmd_t pmd_mkwrite(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_RW);
++}
++
++static inline pmd_t pmd_mknotpresent(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_PRESENT);
++}
++
+ /*
+  * Mask out unsupported bits in a present pgprot.  Non-present pgprots
+  * can use those bits for other purposes, so leave them be.
+@@ -525,6 +591,14 @@ static inline pte_t native_local_ptep_ge
+ 	return res;
+ }
+ 
++static inline pmd_t native_local_pmdp_get_and_clear(pmd_t *pmdp)
++{
++	pmd_t res = *pmdp;
++
++	native_pmd_clear(pmdp);
++	return res;
++}
++
+ static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
+ 				     pte_t *ptep , pte_t pte)
+ {
+@@ -612,6 +686,49 @@ static inline void ptep_set_wrprotect(st
+ 	pte_update(mm, addr, ptep);
+ }
+ 
++#define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
++
++#define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
++extern int pmdp_set_access_flags(struct vm_area_struct *vma,
++				 unsigned long address, pmd_t *pmdp,
++				 pmd_t entry, int dirty);
++
++#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
++extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
++				     unsigned long addr, pmd_t *pmdp);
++
++#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
++extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
++				  unsigned long address, pmd_t *pmdp);
++
++
++#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
++extern void pmdp_splitting_flush(struct vm_area_struct *vma,
++				 unsigned long addr, pmd_t *pmdp);
++
++#define __HAVE_ARCH_PMD_WRITE
++static inline int pmd_write(pmd_t pmd)
++{
++	return pmd_flags(pmd) & _PAGE_RW;
++}
++
++#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
++static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm, unsigned long addr,
++				       pmd_t *pmdp)
++{
++	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
++	pmd_update(mm, addr, pmdp);
++	return pmd;
++}
++
++#define __HAVE_ARCH_PMDP_SET_WRPROTECT
++static inline void pmdp_set_wrprotect(struct mm_struct *mm,
++				      unsigned long addr, pmd_t *pmdp)
++{
++	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
++	pmd_update(mm, addr, pmdp);
++}
++
+ /*
+  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+  *
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -182,115 +182,6 @@ extern void cleanup_highmap(void);
+ 
+ #define __HAVE_ARCH_PTE_SAME
+ 
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-static inline int pmd_trans_splitting(pmd_t pmd)
+-{
+-	return pmd_val(pmd) & _PAGE_SPLITTING;
+-}
+-
+-static inline int pmd_trans_huge(pmd_t pmd)
+-{
+-	return pmd_val(pmd) & _PAGE_PSE;
+-}
+-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+-
+-#define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
+-
+-#define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
+-extern int pmdp_set_access_flags(struct vm_area_struct *vma,
+-				 unsigned long address, pmd_t *pmdp,
+-				 pmd_t entry, int dirty);
+-
+-#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+-extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+-				     unsigned long addr, pmd_t *pmdp);
+-
+-#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
+-extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+-				  unsigned long address, pmd_t *pmdp);
+-
+-
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+-				 unsigned long addr, pmd_t *pmdp);
+-
+-#define __HAVE_ARCH_PMD_WRITE
+-static inline int pmd_write(pmd_t pmd)
+-{
+-	return pmd_flags(pmd) & _PAGE_RW;
+-}
+-
+-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm, unsigned long addr,
+-				       pmd_t *pmdp)
+-{
+-	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
+-	pmd_update(mm, addr, pmdp);
+-	return pmd;
+-}
+-
+-#define __HAVE_ARCH_PMDP_SET_WRPROTECT
+-static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+-				      unsigned long addr, pmd_t *pmdp)
+-{
+-	clear_bit(_PAGE_BIT_RW, (unsigned long *)&pmdp->pmd);
+-	pmd_update(mm, addr, pmdp);
+-}
+-
+-static inline int pmd_young(pmd_t pmd)
+-{
+-	return pmd_flags(pmd) & _PAGE_ACCESSED;
+-}
+-
+-static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
+-{
+-	pmdval_t v = native_pmd_val(pmd);
+-
+-	return native_make_pmd(v | set);
+-}
+-
+-static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
+-{
+-	pmdval_t v = native_pmd_val(pmd);
+-
+-	return native_make_pmd(v & ~clear);
+-}
+-
+-static inline pmd_t pmd_mkold(pmd_t pmd)
+-{
+-	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
+-}
+-
+-static inline pmd_t pmd_wrprotect(pmd_t pmd)
+-{
+-	return pmd_clear_flags(pmd, _PAGE_RW);
+-}
+-
+-static inline pmd_t pmd_mkdirty(pmd_t pmd)
+-{
+-	return pmd_set_flags(pmd, _PAGE_DIRTY);
+-}
+-
+-static inline pmd_t pmd_mkhuge(pmd_t pmd)
+-{
+-	return pmd_set_flags(pmd, _PAGE_PSE);
+-}
+-
+-static inline pmd_t pmd_mkyoung(pmd_t pmd)
+-{
+-	return pmd_set_flags(pmd, _PAGE_ACCESSED);
+-}
+-
+-static inline pmd_t pmd_mkwrite(pmd_t pmd)
+-{
+-	return pmd_set_flags(pmd, _PAGE_RW);
+-}
+-
+-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+-{
+-	return pmd_clear_flags(pmd, _PAGE_PRESENT);
+-}
+-
+ #endif /* !__ASSEMBLY__ */
+ 
+ #endif /* _ASM_X86_PGTABLE_64_H */
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -351,7 +351,7 @@ int pmdp_test_and_clear_young(struct vm_
+ 
+ 	if (pmd_young(*pmdp))
+ 		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
+-					 (unsigned long *) &pmdp->pmd);
++					 (unsigned long *)pmdp);
+ 
+ 	if (ret)
+ 		pmd_update(vma->vm_mm, addr, pmdp);
+@@ -393,7 +393,7 @@ void pmdp_splitting_flush(struct vm_area
+ 	int set;
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
+-				(unsigned long *)&pmdp->pmd);
++				(unsigned long *)pmdp);
+ 	if (set) {
+ 		pmd_update(vma->vm_mm, address, pmdp);
+ 		/* need tlb flush only to serialize against gup-fast */
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -98,7 +98,11 @@ extern unsigned int kobjsize(const void 
+ #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
+ #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
+ #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
+ #define VM_MAPPED_COPY	0x01000000	/* T if mapped copy of data (nommu mmap) */
++#else
++#define VM_HUGEPAGE	0x01000000	/* MADV_HUGEPAGE marked this vma */
++#endif
+ #define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
+ #define VM_ALWAYSDUMP	0x04000000	/* Always include in core dumps */
+ 
+@@ -107,9 +111,6 @@ extern unsigned int kobjsize(const void 
+ #define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
+ #define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
+ #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
+-#if BITS_PER_LONG > 32
+-#define VM_HUGEPAGE	0x100000000UL	/* MADV_HUGEPAGE marked this vma */
+-#endif
+ 
+ #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
+ #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
+diff --git a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -290,7 +290,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
+ 
+ config TRANSPARENT_HUGEPAGE
+ 	bool "Transparent Hugepage support" if EMBEDDED
+-	depends on X86_64
++	depends on X86
+ 	default y
+ 	help
+ 	  Transparent Hugepages allows the kernel to use huge pages and
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
