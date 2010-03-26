@@ -1,34 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1F7946B023E
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:28:29 -0400 (EDT)
-Message-ID: <4BACFCAF.1040000@redhat.com>
-Date: Fri, 26 Mar 2010 14:27:59 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 890306B0217
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:47:22 -0400 (EDT)
+Date: Fri, 26 Mar 2010 13:44:23 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #15
+In-Reply-To: <20100326182311.GD5825@random.random>
+Message-ID: <alpine.DEB.2.00.1003261335210.31938@router.home>
+References: <patchbomb.1269622804@v2.random> <alpine.DEB.2.00.1003261256080.31109@router.home> <20100326182311.GD5825@random.random>
 MIME-Version: 1.0
-Subject: Re: [PATCH 41 of 41] mprotect: transparent huge page support
-References: <patchbomb.1269622804@v2.random> <e0467843382f2ee9714a.1269622845@v2.random>
-In-Reply-To: <e0467843382f2ee9714a.1269622845@v2.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On 03/26/2010 01:00 PM, Andrea Arcangeli wrote:
-> From: Johannes Weiner<hannes@cmpxchg.org>
->
-> Natively handle huge pmds when changing page tables on behalf of
-> mprotect().
->
-> I left out update_mmu_cache() because we do not need it on x86 anyway
-> but more importantly the interface works on ptes, not pmds.
->
-> Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+On Fri, 26 Mar 2010, Andrea Arcangeli wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> BTW, unfortunately according to tons of measurements done so far, SLUB
+> is too slow on most workstations and small/mid servers (usually single
+> digits but in some case even double digits percentage slowdowns
+> depending on the workload, hackbench tends to stress it the
+> most). It's a tradeoff between avoiding wasting tons of ram on
+> 1024-way and running fast. Either that or something's wrong with SLUB
+> implementation (and I'm talking about 2.6.32, no earlier code). I'd
+> also like to save memory so it'd be great if SLUB can be fixed to
+> perform faster!
+
+The SLUB fastpath is the fastest there is. Problems arise because of
+locality constraints in SLUB. SLAB can throw gobs of memory at it to
+guarantee a high cache hit rate but to cover all angles on NUMA requires
+to throw the gobs multiple times. The weakness is SLUBs free functions
+which frees the object directly to the slab page instead of
+running through a series of caching structures. If frees occur to
+locally dispersed objects then SLUB is at a disadvantage since its hitting cold
+cache lines for metadata on free.
+
+On the other hand SLUB hands out objects in a locality aware fashion and
+not randomly from everywhere like SLAB. This is certainly good to reduce
+TLB pressure. Huge pages would accellerate SLUB since more objects can be
+served from the same page than before.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
