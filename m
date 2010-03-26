@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CEB596B0217
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:45 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9D3776B021A
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:46 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 39 of 41] add pmd_modify
-Message-Id: <bbaa9ff62c11a8053180.1269622843@v2.random>
+Subject: [PATCH 40 of 41] mprotect: pass vma down to page table walkers
+Message-Id: <0519ba13957b4a86663c.1269622844@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:43 +0100
+Date: Fri, 26 Mar 2010 18:00:44 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,43 +18,75 @@ List-ID: <linux-mm.kvack.org>
 
 From: Johannes Weiner <hannes@cmpxchg.org>
 
-Add pmd_modify() for use with mprotect() on huge pmds.
+Waiting for huge pmds to finish splitting requires the vma's anon_vma,
+so pass along the vma instead of the mm, we can always get the latter
+when we need it.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -323,6 +323,16 @@ static inline pte_t pte_modify(pte_t pte
- 	return __pte(val);
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -36,10 +36,11 @@ static inline pgprot_t pgprot_modify(pgp
+ }
+ #endif
+ 
+-static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
++static void change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable)
+ {
++	struct mm_struct *mm = vma->vm_mm;
+ 	pte_t *pte, oldpte;
+ 	spinlock_t *ptl;
+ 
+@@ -79,7 +80,7 @@ static void change_pte_range(struct mm_s
+ 	pte_unmap_unlock(pte - 1, ptl);
  }
  
-+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
-+{
-+	pmdval_t val = pmd_val(pmd);
-+
-+	val &= _HPAGE_CHG_MASK;
-+	val |= massage_pgprot(newprot) & ~_HPAGE_CHG_MASK;
-+
-+	return __pmd(val);
-+}
-+
- /* mprotect needs to preserve PAT bits when updating vm_page_prot */
- #define pgprot_modify pgprot_modify
- static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -72,6 +72,7 @@
- /* Set of bits not changed in pte_modify */
- #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
- 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY)
-+#define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
+-static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
++static inline void change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable)
+ {
+@@ -89,14 +90,14 @@ static inline void change_pmd_range(stru
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+-		split_huge_page_pmd(mm, pmd);
++		split_huge_page_pmd(vma->vm_mm, pmd);
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+-		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
++		change_pte_range(vma, pmd, addr, next, newprot, dirty_accountable);
+ 	} while (pmd++, addr = next, addr != end);
+ }
  
- #define _PAGE_CACHE_MASK	(_PAGE_PCD | _PAGE_PWT)
- #define _PAGE_CACHE_WB		(0)
+-static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
++static inline void change_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable)
+ {
+@@ -108,7 +109,7 @@ static inline void change_pud_range(stru
+ 		next = pud_addr_end(addr, end);
+ 		if (pud_none_or_clear_bad(pud))
+ 			continue;
+-		change_pmd_range(mm, pud, addr, next, newprot, dirty_accountable);
++		change_pmd_range(vma, pud, addr, next, newprot, dirty_accountable);
+ 	} while (pud++, addr = next, addr != end);
+ }
+ 
+@@ -128,7 +129,7 @@ static void change_protection(struct vm_
+ 		next = pgd_addr_end(addr, end);
+ 		if (pgd_none_or_clear_bad(pgd))
+ 			continue;
+-		change_pud_range(mm, pgd, addr, next, newprot, dirty_accountable);
++		change_pud_range(vma, pgd, addr, next, newprot, dirty_accountable);
+ 	} while (pgd++, addr = next, addr != end);
+ 	flush_tlb_range(vma, start, end);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
