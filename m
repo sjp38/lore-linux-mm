@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8A98B6B01B9
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:56:47 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4ABDC6B01B9
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:56:51 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 06 of 41] clear compound mapping
-Message-Id: <0e23dd76bcaeae9cd53a.1269622087@v2.random>
+Subject: [PATCH 09 of 41] no paravirt version of pmd ops
+Message-Id: <c9052226855bdc127ece.1269622090@v2.random>
 In-Reply-To: <patchbomb.1269622081@v2.random>
 References: <patchbomb.1269622081@v2.random>
-Date: Fri, 26 Mar 2010 17:48:07 +0100
+Date: Fri, 26 Mar 2010 17:48:10 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,26 +18,33 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Clear compound mapping for anonymous compound pages like it already happens for
-regular anonymous pages.
+No paravirt version of set_pmd_at/pmd_update/pmd_update_defer.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -629,6 +629,8 @@ static void __free_pages_ok(struct page 
- 	trace_mm_page_free_direct(page, order);
- 	kmemcheck_free_shadow(page, order);
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -33,6 +33,7 @@ extern struct list_head pgd_list;
+ #else  /* !CONFIG_PARAVIRT */
+ #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
+ #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
++#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
  
-+	if (PageAnon(page))
-+		page->mapping = NULL;
- 	for (i = 0 ; i < (1 << order) ; ++i)
- 		bad += free_pages_check(page + i);
- 	if (bad)
+ #define set_pte_atomic(ptep, pte)					\
+ 	native_set_pte_atomic(ptep, pte)
+@@ -57,6 +58,8 @@ extern struct list_head pgd_list;
+ 
+ #define pte_update(mm, addr, ptep)              do { } while (0)
+ #define pte_update_defer(mm, addr, ptep)        do { } while (0)
++#define pmd_update(mm, addr, ptep)              do { } while (0)
++#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
+ 
+ #define pgd_val(x)	native_pgd_val(x)
+ #define __pgd(x)	native_make_pgd(x)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
