@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A2E766B01B6
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C079F6B01B8
 	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:56:43 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 11 of 41] comment reminder in destroy_compound_page
-Message-Id: <8b07fc699c6b50d6a0ab.1269622092@v2.random>
+Subject: [PATCH 07 of 41] add native_set_pmd_at
+Message-Id: <3d415963e8033d1dea15.1269622088@v2.random>
 In-Reply-To: <patchbomb.1269622081@v2.random>
 References: <patchbomb.1269622081@v2.random>
-Date: Fri, 26 Mar 2010 17:48:12 +0100
+Date: Fri, 26 Mar 2010 17:48:08 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,25 +18,29 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
-on its internal behavior.
+Used by paravirt and not paravirt set_pmd_at.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -334,6 +334,7 @@ void prep_compound_page(struct page *pag
- 	}
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
+ 	native_set_pte(ptep, pte);
  }
  
-+/* update __split_huge_page_refcount if you change this function */
- static int destroy_compound_page(struct page *page, unsigned long order)
- {
- 	int i;
++static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
++				     pmd_t *pmdp , pmd_t pmd)
++{
++	native_set_pmd(pmdp, pmd);
++}
++
+ #ifndef CONFIG_PARAVIRT
+ /*
+  * Rules for using pte_update - it must be called after any PTE update which
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
