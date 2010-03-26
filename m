@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C079F6B01B8
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:56:43 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1246D6B01B9
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 12:56:47 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 07 of 41] add native_set_pmd_at
-Message-Id: <3d415963e8033d1dea15.1269622088@v2.random>
+Subject: [PATCH 10 of 41] export maybe_mkwrite
+Message-Id: <72254779c37584dad1af.1269622091@v2.random>
 In-Reply-To: <patchbomb.1269622081@v2.random>
 References: <patchbomb.1269622081@v2.random>
-Date: Fri, 26 Mar 2010 17:48:08 +0100
+Date: Fri, 26 Mar 2010 17:48:11 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,29 +18,60 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Used by paravirt and not paravirt set_pmd_at.
+huge_memory.c needs it too when it fallbacks in copying hugepages into regular
+fragmented pages if hugepage allocation fails during COW.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
- 	native_set_pte(ptep, pte);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -390,6 +390,19 @@ static inline void set_compound_order(st
  }
  
-+static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+				     pmd_t *pmdp , pmd_t pmd)
+ /*
++ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
++ * servicing faults for write access.  In the normal case, do always want
++ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
++ * that do not have writing enabled, when used by access_process_vm.
++ */
++static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
 +{
-+	native_set_pmd(pmdp, pmd);
++	if (likely(vma->vm_flags & VM_WRITE))
++		pte = pte_mkwrite(pte);
++	return pte;
 +}
 +
- #ifndef CONFIG_PARAVIRT
- /*
-  * Rules for using pte_update - it must be called after any PTE update which
++/*
+  * Multiple processes may "see" the same page. E.g. for untouched
+  * mappings of /dev/null, all processes see the same page full of
+  * zeroes, and text pages of executables and shared libraries have
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2031,19 +2031,6 @@ static inline int pte_unmap_same(struct 
+ 	return same;
+ }
+ 
+-/*
+- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
+- * servicing faults for write access.  In the normal case, do always want
+- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
+- * that do not have writing enabled, when used by access_process_vm.
+- */
+-static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+-{
+-	if (likely(vma->vm_flags & VM_WRITE))
+-		pte = pte_mkwrite(pte);
+-	return pte;
+-}
+-
+ static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+ {
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
