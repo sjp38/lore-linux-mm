@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9D3776B021A
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:46 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 034956B021B
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:47 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 40 of 41] mprotect: pass vma down to page table walkers
-Message-Id: <0519ba13957b4a86663c.1269622844@v2.random>
+Subject: [PATCH 38 of 41] mincore transparent hugepage support
+Message-Id: <4d2ad42d2b298965afda.1269622842@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:44 +0100
+Date: Fri, 26 Mar 2010 18:00:42 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,75 +18,79 @@ List-ID: <linux-mm.kvack.org>
 
 From: Johannes Weiner <hannes@cmpxchg.org>
 
-Waiting for huge pmds to finish splitting requires the vma's anon_vma,
-so pass along the vma instead of the mm, we can always get the latter
-when we need it.
+Handle transparent huge page pmd entries natively instead of splitting
+them into subpages.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -36,10 +36,11 @@ static inline pgprot_t pgprot_modify(pgp
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -19,6 +19,9 @@ extern struct page *follow_trans_huge_pm
+ extern int zap_huge_pmd(struct mmu_gather *tlb,
+ 			struct vm_area_struct *vma,
+ 			pmd_t *pmd);
++extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++			unsigned long addr, unsigned long end,
++			unsigned char *vec);
+ 
+ enum transparent_hugepage_flag {
+ 	TRANSPARENT_HUGEPAGE_FLAG,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -936,6 +936,31 @@ int zap_huge_pmd(struct mmu_gather *tlb,
+ 	return ret;
  }
- #endif
  
--static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
-+static void change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
- {
-+	struct mm_struct *mm = vma->vm_mm;
- 	pte_t *pte, oldpte;
- 	spinlock_t *ptl;
- 
-@@ -79,7 +80,7 @@ static void change_pte_range(struct mm_s
- 	pte_unmap_unlock(pte - 1, ptl);
- }
- 
--static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
-+static inline void change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
- {
-@@ -89,14 +90,14 @@ static inline void change_pmd_range(stru
++int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++		unsigned long addr, unsigned long end,
++		unsigned char *vec)
++{
++	int ret = 0;
++
++	spin_lock(&vma->vm_mm->page_table_lock);
++	if (likely(pmd_trans_huge(*pmd))) {
++		ret = !pmd_trans_splitting(*pmd);
++		spin_unlock(&vma->vm_mm->page_table_lock);
++		if (unlikely(!ret))
++			wait_split_huge_page(vma->anon_vma, pmd);
++		else {
++			/*
++			 * All logical pages in the range are present
++			 * if backed by a huge page.
++			 */
++			memset(vec, 1, (end - addr) >> PAGE_SHIFT);
++		}
++	} else
++		spin_unlock(&vma->vm_mm->page_table_lock);
++
++	return ret;
++}
++
+ pmd_t *page_check_address_pmd(struct page *page,
+ 			      struct mm_struct *mm,
+ 			      unsigned long address,
+diff --git a/mm/mincore.c b/mm/mincore.c
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -154,7 +154,13 @@ static void mincore_pmd_range(struct vm_
  	pmd = pmd_offset(pud, addr);
  	do {
  		next = pmd_addr_end(addr, end);
--		split_huge_page_pmd(mm, pmd);
-+		split_huge_page_pmd(vma->vm_mm, pmd);
+-		split_huge_page_pmd(vma->vm_mm, pmd);
++		if (pmd_trans_huge(*pmd)) {
++			if (mincore_huge_pmd(vma, pmd, addr, next, vec)) {
++				vec += (next - addr) >> PAGE_SHIFT;
++				continue;
++			}
++			/* fall through */
++		}
  		if (pmd_none_or_clear_bad(pmd))
- 			continue;
--		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
-+		change_pte_range(vma, pmd, addr, next, newprot, dirty_accountable);
- 	} while (pmd++, addr = next, addr != end);
- }
- 
--static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
-+static inline void change_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
- {
-@@ -108,7 +109,7 @@ static inline void change_pud_range(stru
- 		next = pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
--		change_pmd_range(mm, pud, addr, next, newprot, dirty_accountable);
-+		change_pmd_range(vma, pud, addr, next, newprot, dirty_accountable);
- 	} while (pud++, addr = next, addr != end);
- }
- 
-@@ -128,7 +129,7 @@ static void change_protection(struct vm_
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		change_pud_range(mm, pgd, addr, next, newprot, dirty_accountable);
-+		change_pud_range(vma, pgd, addr, next, newprot, dirty_accountable);
- 	} while (pgd++, addr = next, addr != end);
- 	flush_tlb_range(vma, start, end);
- }
+ 			mincore_unmapped_range(vma, addr, next, vec);
+ 		else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
