@@ -1,41 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5FFF56B0238
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:02:34 -0400 (EDT)
-Date: Fri, 26 Mar 2010 13:00:12 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6AB126B023A
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:07:45 -0400 (EDT)
+Date: Fri, 26 Mar 2010 19:07:01 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #15
-In-Reply-To: <patchbomb.1269622804@v2.random>
-Message-ID: <alpine.DEB.2.00.1003261256080.31109@router.home>
+Message-ID: <20100326180701.GC5825@random.random>
 References: <patchbomb.1269622804@v2.random>
+ <20100326173655.GC2024@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100326173655.GC2024@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Mar 2010, Andrea Arcangeli wrote:
+On Fri, Mar 26, 2010 at 05:36:55PM +0000, Mel Gorman wrote:
+> Correct, slab pages currently cannot migrate. Framentation within slab
+> is minimised by anti-fragmentation by distinguishing between reclaimable
+> and unreclaimable slab and grouping them appropriately. The objective is
+> to put all the unmovable pages in as few 2M (or 4M or 16M) pages as
+> possible. If min_free_kbytes is tuned as hugeadm
+> --recommended-min_free_kbytes suggests, this works pretty well.
 
-> 2) writing a HPAGE_PMD_ORDER front slab allocator. I don't think memory
->    compaction is capable of relocating slab entries in-use (correct me if I'm
->    wrong, I think it's impossible as long as the slab entries are mapped by 2M
+Awesome. So this feature is already part of your memory compaction
+code? As you may have noticed I didn't start looking deep on your code
+yet.
 
-SLUB is capable of using huge pages. Specify slub_min_order=9 on boot and
-it will make the kernel use huge pages.
+> Again, if min_free_kbytes is tuned appropriately, anti-frag should
+> mitigate most of the fragmentation-related damage.
 
->    pages and not 4k ptes like vmalloc). So the idea is that we should have the
->    slab allocate 2M if it fails, 1M if it fails 512k etc... until it fallbacks
->    to 4k. Otherwise the slab will fragment the memory badly by allocating with
->    alloc_page(). Basically the buddy allocator will guarantee the slab will
->    generate as much fragement as possible because it does its best to keep the
->    high order pages for who asks for them. Probably the fallback should
+I don't see the relation of why this logic should be connected to
+min_free_kbytes. Maybe I'll get it if I read the code. But
+min_free_kbytes is about the PF_MEMALLOC pool and GFP_ATOMIC memory. I
+can't see any connection with min_free_kbytes setting, and in to
+trying to keep all non relocatable entries in the same HPAGE_PMD_SIZEd
+pages.
 
-Fallback is another issue. SLUB can handle various orders of pages in the
-same slab cache and already implements fallback to order 0. To implement
-a scheme as you suggest here would not require any changes to data
-structures but only to the slab allocation functions. See allocate_slab()
-in mm/slub.c
+> On the notion of having a 2M front slab allocator, SLUB is not far off
+> being capable of such a thing but there are risks. If a 2M page is
+> dedicated to a slab, then other slabs will need their own 2M pages.
+> Overall memory usage grows and you end up worse off.
+>
+> If you suggest that slab uses 2M pages and breaks them up for slabs, you
+> are very close to what anti-frag already does. The difference might be
+
+That's exactly what I meant yes. Doing it per-slab would be useless.
+
+The idea was for slub to simply call alloc_page_not_relocatable(order)
+instead of alloc_page() every time it allocates an order <=
+HPAGE_PMD_ORDER. That means this 2M page would be shared for _all_
+slabs, otherwise it wouldn't work.
+
+The page freeing could even go back in the buddy initially. So the max
+waste would be 2M per cpu of ram (the front page has to be per-cpu to
+perform).
+
+> that slab would guarantee that the 2M page is only use for slab. Again,
+> you could force this situation with anti-frag but the decision was made
+> to allow a certain amount of fragmentation to avoid the memory overhead
+> of such a thing. Again, tuning min_free_kbytes + anti-fragmentation gets
+> much of what you need.
+
+Well if this 2M page is shared by other not relocatable entities
+that might be even better in some scenario (maybe worse in others) but
+I'm totally fine with a more elaborate approach. Clearly some driver
+could also start to call alloc_pages_not_relocatable() and then it'd
+also share the same memory as slab. I think it has to be an
+universally available feature, just like you implemented. Except right
+now the main problem is slab so that's the first user for sure ;).
+
+> Arguably, min_free_kbytes should be tuned appropriately once it's detected
+> that huge pages are in use. It would not be hard at all, we just don't do it.
+> 
+> Stronger guarantees on layout are possible but not done today because of
+> the cost.
+
+Could you elaborate what "guarantees of layout" means?
+
+> 
+> >    Basically the buddy allocator will guarantee the slab will
+> >    generate as much fragement as possible because it does its best to keep the
+> >    high order pages for who asks for them.
+> 
+> Again, already does this up to a point. rmqueue_fallback() could refuse to
+> break up small contiguous pages for slab to force better layout in terms of
+> fragmentation but it costs heavily when memory is low because you now have to
+> reclaim (or relocate) more pages than necessary to satisfy anti-fragmentation.
+
+I guess this will require a sysfs control. Do you have a
+/sys/kernel/mm/defrag directory or something? If hugepages are
+absolutely mandatory (like with hypervisor-only usage) it is worth
+invoking memory compaction to satisfy what i call "front allocator"
+and give a full 2M page to slab instead of using the already available
+fragment. And to rmqueue-fallback only if defrag fails.
+
+> Sounds very similar to anti-frag again.
+
+Indeed.
+
+> You could force such a situation by always having X number of lower blocks
+> MIGRATE_UNMOVABLE and forcing a situation where fallback never happens to those
+> areas. You'd need to do some juggling with counters and watermarks. It's not
+> impossible and I considered doing it when anti-fragmentation was introduced
+> but again, there was insufficient data to support such a move.
+
+Agreed. I also like a more dynamic approach, the whole idea of
+transparent hugepage is that the admin does nothing, no reservation,
+and in this case no decision of how much memory to be
+MIGRATE_UNMOVABLE.
+
+Looking forward to see transparent hugepage taking full advantage of
+your patchset!
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
