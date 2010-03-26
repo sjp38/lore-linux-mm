@@ -1,100 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7C7106B022B
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:14:02 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6E89D6B0225
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:14:03 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 41 of 41] mprotect: transparent huge page support
-Message-Id: <e0467843382f2ee9714a.1269622845@v2.random>
+Subject: [PATCH 30 of 41] pmd_trans_huge migrate bugcheck
+Message-Id: <573314fe37b491fabd92.1269622834@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:45 +0100
+Date: Fri, 26 Mar 2010 18:00:34 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Johannes Weiner <hannes@cmpxchg.org>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Natively handle huge pmds when changing page tables on behalf of
-mprotect().
+No pmd_trans_huge should ever materialize in migration ptes areas, because
+we split the hugepage before migration ptes are instantiated.
 
-I left out update_mmu_cache() because we do not need it on x86 anyway
-but more importantly the interface works on ptes, not pmds.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
 diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
 --- a/include/linux/huge_mm.h
 +++ b/include/linux/huge_mm.h
-@@ -22,6 +22,8 @@ extern int zap_huge_pmd(struct mmu_gathe
- extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, unsigned long end,
- 			unsigned char *vec);
-+extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+			unsigned long addr, pgprot_t newprot);
- 
- enum transparent_hugepage_flag {
- 	TRANSPARENT_HUGEPAGE_FLAG,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -961,6 +961,33 @@ int mincore_huge_pmd(struct vm_area_stru
- 	return ret;
+@@ -105,6 +105,10 @@ static inline int PageTransHuge(struct p
+ 	VM_BUG_ON(PageTail(page));
+ 	return PageHead(page);
  }
- 
-+int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long addr, pgprot_t newprot)
++static inline int PageTransCompound(struct page *page)
 +{
-+	struct mm_struct *mm = vma->vm_mm;
-+	int ret = 0;
-+
-+	spin_lock(&mm->page_table_lock);
-+	if (likely(pmd_trans_huge(*pmd))) {
-+		if (unlikely(pmd_trans_splitting(*pmd))) {
-+			spin_unlock(&mm->page_table_lock);
-+			wait_split_huge_page(vma->anon_vma, pmd);
-+		} else {
-+			pmd_t entry;
-+
-+			entry = pmdp_get_and_clear(mm, addr, pmd);
-+			entry = pmd_modify(entry, newprot);
-+			set_pmd_at(mm, addr, pmd, entry);
-+			spin_unlock(&vma->vm_mm->page_table_lock);
-+			flush_tlb_range(vma, addr, addr + HPAGE_PMD_SIZE);
-+			ret = 1;
-+		}
-+	} else
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+
-+	return ret;
++	return PageCompound(page);
 +}
-+
- pmd_t *page_check_address_pmd(struct page *page,
- 			      struct mm_struct *mm,
- 			      unsigned long address,
-diff --git a/mm/mprotect.c b/mm/mprotect.c
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -90,7 +90,13 @@ static inline void change_pmd_range(stru
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUG(); 0; })
+ #define HPAGE_PMD_MASK ({ BUG(); 0; })
+@@ -122,6 +126,7 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++#define PageTransCompound(page) 0
+ static inline int hugepage_madvise(unsigned long *vm_flags)
+ {
+ 	BUG_ON(0);
+diff --git a/mm/migrate.c b/mm/migrate.c
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -94,6 +94,7 @@ static int remove_migration_pte(struct p
+ 		goto out;
+ 
  	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
--		split_huge_page_pmd(vma->vm_mm, pmd);
-+		if (pmd_trans_huge(*pmd)) {
-+			if (next - addr != HPAGE_PMD_SIZE)
-+				split_huge_page_pmd(vma->vm_mm, pmd);
-+			else if (change_huge_pmd(vma, pmd, addr, newprot))
-+				continue;
-+			/* fall through */
-+		}
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		change_pte_range(vma, pmd, addr, next, newprot, dirty_accountable);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (!pmd_present(*pmd))
+ 		goto out;
+ 
+@@ -810,6 +811,10 @@ static int do_move_page_to_node_array(st
+ 		if (PageReserved(page) || PageKsm(page))
+ 			goto put_and_set;
+ 
++		if (unlikely(PageTransCompound(page)))
++			if (unlikely(split_huge_page(page)))
++				goto put_and_set;
++
+ 		pp->page = page;
+ 		err = page_to_nid(page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
