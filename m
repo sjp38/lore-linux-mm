@@ -1,152 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id ACA996B01DE
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:12:48 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5E4806B01E0
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:12:50 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 04 of 41] update futex compound knowledge
-Message-Id: <3e3b1ab4ec0005de6c24.1269622808@v2.random>
-In-Reply-To: <patchbomb.1269622804@v2.random>
-References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:08 +0100
+Subject: [PATCH 00 of 41] Transparent Hugepage Support #15
+Message-Id: <patchbomb.1269622804@v2.random>
+Date: Fri, 26 Mar 2010 18:00:04 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+Hello,
 
-Futex code is smarter than most other gup_fast O_DIRECT code and knows about
-the compound internals. However now doing a put_page(head_page) will not
-release the pin on the tail page taken by gup-fast, leading to all sort of
-refcounting bugchecks. Getting a stable head_page is a little tricky.
+this fixes a potential issue with regard to simultaneous 4k and 2M TLB entries
+in split_huge_page (at pratically zero cost, so I didn't need to add a fake
+feature flag and it's a lot safer to do it this way just in case).
+split_large_page in change_page_attr has the same issue too, but I've no idea
+how to fix it there because the pmd cannot be marked non present at any given
+time as change_page_attr may be running on ram below 640k and that is the same
+pmd where the kernel .text resides. However I doubt it'll ever be a practical
+problem. Other cpus also has a lot of warnings and risks in allowing
+simultaneous TLB entries of different size.
 
-page_head = page is there because if this is not a tail page it's also the
-page_head. Only in case this is a tail page, compound_head is called, otherwise
-it's guaranteed unnecessary. And if it's a tail page compound_head has to run
-atomically inside irq disabled section __get_user_pages_fast before returning.
-Otherwise ->first_page won't be a stable pointer.
+Johannes also sent a cute optimization to split split_huge_page_vma/mm he 
+converted those in a single split_huge_page_pmd and in addition he also sent
+native support for hugepages in both mincore and mprotect. Which shows how
+deep he already understands the whole huge_memory.c and its usage in the
+callers.  Seeing significant contributions like this I think further confirms
+this is the way to go. Thanks a lot Johannes.
 
-Disableing irq before __get_user_page_fast and releasing irq after running
-compound_head is needed because if __get_user_page_fast returns == 1, it means
-the huge pmd is established and cannot go away from under us.
-pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
-for local_irq_enable before the IPI delivery can return. This means
-__split_huge_page_refcount can't be running from under us, and in turn when we
-run compound_head(page) we're not reading a dangling pointer from
-tailpage->first_page. Then after we get to stable head page, we are always safe
-to call compound_lock and after taking the compound lock on head page we can
-finally re-check if the page returned by gup-fast is still a tail page. in
-which case we're set and we didn't need to split the hugepage in order to take
-a futex on it.
+The ability to bisect before the mincore and mprotect native implementations 
+is one of the huge benefits of this approach. The hardest of all will be to 
+add swap native support to 2M pages later (as it involves to make the 
+swapcache 2M capable and that in turn means it expodes more than the rest all
+over the pagecache code) but I think first we've other priorities:
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
----
+1) merge memory compaction
+2) writing a HPAGE_PMD_ORDER front slab allocator. I don't think memory
+   compaction is capable of relocating slab entries in-use (correct me if I'm
+   wrong, I think it's impossible as long as the slab entries are mapped by 2M
+   pages and not 4k ptes like vmalloc). So the idea is that we should have the
+   slab allocate 2M if it fails, 1M if it fails 512k etc... until it fallbacks
+   to 4k. Otherwise the slab will fragment the memory badly by allocating with
+   alloc_page(). Basically the buddy allocator will guarantee the slab will
+   generate as much fragement as possible because it does its best to keep the
+   high order pages for who asks for them. Probably the fallback should
+   happen inside the buddy allocator instead of calling alloc_pages
+   repeteadly, that should avoid taking a flood of locks. Basically
+   the buddy should give the worst possible fragmentation effect to users that
+   should be relocated, while the other users that cannot be relocated and
+   only use 4k pages will better use a front allocator on top of alloc_pages.
+   Something like alloc_page_not_relocatable() that will do its stuff
+   internally and try to keep those in the same 2M pages. This alone should
+   help tremendously and I think it's orthogonal to the memory compaction of
+   the relocatable stuff. Or maybe we should just live with a large chunk of
+   the memory not being relocatable, but I like this idea because it's more
+   dynamic and it won't have fixed rule "limit the slab to 0-1g range". And
+   it'd tend to try to keep fragmentation down even if we spill over the 1G
+   range. (1g is purely made up number)
+3) teach ksm to merge hugepages. I talked about this with Izik and we agree
+   the current ksm tree algorithm will be the best at that compared to ksm
+   algorithms.
 
-diff --git a/kernel/futex.c b/kernel/futex.c
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
- {
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
--	struct page *page;
-+	struct page *page, *page_head;
- 	int err;
- 
- 	/*
-@@ -250,10 +250,53 @@ again:
- 	if (err < 0)
- 		return err;
- 
--	page = compound_head(page);
--	lock_page(page);
--	if (!page->mapping) {
--		unlock_page(page);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	page_head = page;
-+	if (unlikely(PageTail(page))) {
-+		put_page(page);
-+		/* serialize against __split_huge_page_splitting() */
-+		local_irq_disable();
-+		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
-+			page_head = compound_head(page);
-+			/*
-+			 * page_head is valid pointer but we must pin
-+			 * it before taking the PG_lock and/or
-+			 * PG_compound_lock. The moment we re-enable
-+			 * irqs __split_huge_page_splitting() can
-+			 * return and the head page can be freed from
-+			 * under us. We can't take the PG_lock and/or
-+			 * PG_compound_lock on a page that could be
-+			 * freed from under us.
-+			 */
-+			if (page != page_head)
-+				get_page(page_head);
-+			local_irq_enable();
-+		} else {
-+			local_irq_enable();
-+			goto again;
-+		}
-+	}
-+#else
-+	page_head = compound_head(page);
-+	if (page != page_head)
-+		get_page(page_head);
-+#endif
-+
-+	lock_page(page_head);
-+	if (unlikely(page_head != page)) {
-+		compound_lock(page_head);
-+		if (unlikely(!PageTail(page))) {
-+			compound_unlock(page_head);
-+			unlock_page(page_head);
-+			put_page(page_head);
-+			put_page(page);
-+			goto again;
-+		}
-+	}
-+	if (!page_head->mapping) {
-+		unlock_page(page_head);
-+		if (page_head != page)
-+			put_page(page_head);
- 		put_page(page);
- 		goto again;
- 	}
-@@ -265,19 +308,25 @@ again:
- 	 * it's a read-only handle, it's expected that futexes attach to
- 	 * the object not the particular process.
- 	 */
--	if (PageAnon(page)) {
-+	if (PageAnon(page_head)) {
- 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
- 		key->private.mm = mm;
- 		key->private.address = address;
- 	} else {
- 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
--		key->shared.inode = page->mapping->host;
--		key->shared.pgoff = page->index;
-+		key->shared.inode = page_head->mapping->host;
-+		key->shared.pgoff = page_head->index;
- 	}
- 
- 	get_futex_key_refs(key);
- 
--	unlock_page(page);
-+	unlock_page(page_head);
-+	if (page != page_head) {
-+		VM_BUG_ON(!PageTail(page));
-+		/* releasing compound_lock after page_lock won't matter */
-+		compound_unlock(page_head);
-+		put_page(page_head);
-+	}
- 	put_page(page);
- 	return 0;
- }
+
+To run KVM on top on this and take advantage of hugepages you need a few liner
+patch I posted to qemu-devel to take care of aligning the start of the guest
+memory so that the guest physical address and host virtual address will have
+the same subpage numbers.
+
+	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc2-mm1/transparent_hugepage-15
+	http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc2-mm1/transparent_hugepage-15.gz
+
+I'd be nice to have this merged in -mm.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
