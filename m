@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7EDDD6B01ED
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B834E6B01EE
 	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:12:58 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 33 of 41] transparent hugepage vmstat
-Message-Id: <a130f772ded64981d015.1269622837@v2.random>
+Subject: [PATCH 18 of 41] add pmd mmu_notifier helpers
+Message-Id: <b9e43747e398685e89d9.1269622822@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:37 +0100
+Date: Fri, 26 Mar 2010 18:00:22 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,117 +18,77 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add hugepage stat information to /proc/vmstat and /proc/meminfo.
+Add mmu notifier helpers to handle pmd huge operations.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -101,6 +101,9 @@ static int meminfo_proc_show(struct seq_
- #ifdef CONFIG_MEMORY_FAILURE
- 		"HardwareCorrupted: %5lu kB\n"
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		"AnonHugePages:  %8lu kB\n"
-+#endif
- 		,
- 		K(i.totalram),
- 		K(i.freeram),
-@@ -151,6 +154,10 @@ static int meminfo_proc_show(struct seq_
- #ifdef CONFIG_MEMORY_FAILURE
- 		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
-+		   HPAGE_PMD_NR)
-+#endif
- 		);
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -243,6 +243,32 @@ static inline void mmu_notifier_mm_destr
+ 	__pte;								\
+ })
  
- 	hugetlb_report_meminfo(m);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -112,6 +112,7 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-+	NR_ANON_TRANSPARENT_HUGEPAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
- 
- /*
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -724,6 +724,9 @@ static void __split_huge_page_refcount(s
- 		put_page(page_tail);
- 	}
- 
-+	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
++#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
++({									\
++	pmd_t __pmd;							\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
++	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
++					    (__address)+HPAGE_PMD_SIZE);\
++	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
++	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
++					  (__address)+HPAGE_PMD_SIZE);	\
++	__pmd;								\
++})
 +
- 	ClearPageCompound(page);
- 	compound_unlock(page);
- 	spin_unlock_irq(&zone->lru_lock);
-diff --git a/mm/rmap.c b/mm/rmap.c
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -795,8 +795,13 @@ void page_add_anon_rmap(struct page *pag
- 	struct vm_area_struct *vma, unsigned long address)
- {
- 	int first = atomic_inc_and_test(&page->_mapcount);
--	if (first)
--		__inc_zone_page_state(page, NR_ANON_PAGES);
-+	if (first) {
-+		if (!PageTransHuge(page))
-+			__inc_zone_page_state(page, NR_ANON_PAGES);
-+		else
-+			__inc_zone_page_state(page,
-+					      NR_ANON_TRANSPARENT_HUGEPAGES);
-+	}
- 	if (unlikely(PageKsm(page)))
- 		return;
++#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
++({									\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
++	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
++					    (__address)+HPAGE_PMD_SIZE);\
++	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
++	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
++					  (__address)+HPAGE_PMD_SIZE);	\
++})
++
+ #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
+ ({									\
+ 	int __young;							\
+@@ -254,6 +280,17 @@ static inline void mmu_notifier_mm_destr
+ 	__young;							\
+ })
  
-@@ -824,7 +829,10 @@ void page_add_new_anon_rmap(struct page 
- 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
- 	SetPageSwapBacked(page);
- 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
--	__inc_zone_page_state(page, NR_ANON_PAGES);
-+	if (!PageTransHuge(page))
-+	    __inc_zone_page_state(page, NR_ANON_PAGES);
-+	else
-+	    __inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
- 	__page_set_anon_rmap(page, vma, address);
- 	if (page_evictable(page, vma))
- 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
-@@ -871,7 +879,11 @@ void page_remove_rmap(struct page *page)
- 	}
- 	if (PageAnon(page)) {
- 		mem_cgroup_uncharge_page(page);
--		__dec_zone_page_state(page, NR_ANON_PAGES);
-+		if (!PageTransHuge(page))
-+			__dec_zone_page_state(page, NR_ANON_PAGES);
-+		else
-+			__dec_zone_page_state(page,
-+					      NR_ANON_TRANSPARENT_HUGEPAGES);
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
- 		mem_cgroup_update_file_mapped(page, -1);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -657,6 +657,9 @@ static const char * const vmstat_text[] 
- 	"numa_local",
- 	"numa_other",
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	"nr_anon_transparent_hugepages",
-+#endif
++#define pmdp_clear_flush_young_notify(__vma, __address, __pmdp)		\
++({									\
++	int __young;							\
++	struct vm_area_struct *___vma = __vma;				\
++	unsigned long ___address = __address;				\
++	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
++	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
++						  ___address);		\
++	__young;							\
++})
++
+ #define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
+ ({									\
+ 	struct mm_struct *___mm = __mm;					\
+@@ -305,7 +342,10 @@ static inline void mmu_notifier_mm_destr
+ }
  
- #ifdef CONFIG_VM_EVENT_COUNTERS
- 	"pgpgin",
+ #define ptep_clear_flush_young_notify ptep_clear_flush_young
++#define pmdp_clear_flush_young_notify pmdp_clear_flush_young
+ #define ptep_clear_flush_notify ptep_clear_flush
++#define pmdp_clear_flush_notify pmdp_clear_flush
++#define pmdp_splitting_flush_notify pmdp_splitting_flush
+ #define set_pte_at_notify set_pte_at
+ 
+ #endif /* CONFIG_MMU_NOTIFIER */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
