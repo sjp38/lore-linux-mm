@@ -1,22 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B5CE36B01AC
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 08:51:18 -0400 (EDT)
-Received: by wyf22 with SMTP id 22so3845338wyf.14
-        for <linux-mm@kvack.org>; Fri, 26 Mar 2010 05:51:16 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B4F176B01AC
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 09:49:52 -0400 (EDT)
+Date: Fri, 26 Mar 2010 13:49:30 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 02/11] mm,migration: Do not try to migrate unmapped
+	anonymous pages
+Message-ID: <20100326134930.GA2024@csn.ul.ie>
+References: <20100325191229.8e3d2ba1.kamezawa.hiroyu@jp.fujitsu.com> <20100325133936.GR2024@csn.ul.ie> <20100326120429.6C98.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Date: Fri, 26 Mar 2010 14:51:16 +0200
-Message-ID: <cc557aab1003260551x7518d3cau5296f0513176023f@mail.gmail.com>
-Subject: Broken mmotm.git at zen-kernel.org
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100326120429.6C98.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: James Toy <mail@wfys.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Any ideas what has happened with mmotm.git at zen-kernel.org? Last
-four tags point to v2.6.34-rc2.
+On Fri, Mar 26, 2010 at 12:07:02PM +0900, KOSAKI Motohiro wrote:
+> very small nit
+> 
+> > There were minor changes in how the rcu_read_lock is taken and released
+> > based on other comments. With your suggestion, the block now looks like;
+> > 
+> >         if (PageAnon(page)) {
+> >                 rcu_read_lock();
+> >                 rcu_locked = 1;
+> > 
+> >                 /*
+> >                  * If the page has no mappings any more, just bail. An
+> >                  * unmapped anon page is likely to be freed soon but
+> >                  * worse,
+> >                  * it's possible its anon_vma disappeared between when
+> >                  * the page was isolated and when we reached here while
+> >                  * the RCU lock was not held
+> >                  */
+> >                 if (!page_mapcount(page) && !PageSwapCache(page))
+> 
+>                         page_mapped?
+> 
+
+Will be fixed in V6.
+
+Thanks
+
+> >                         goto rcu_unlock;
+> > 
+> >                 anon_vma = page_anon_vma(page);
+> >                 atomic_inc(&anon_vma->external_refcount);
+> >         }
+> 
+> 
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
