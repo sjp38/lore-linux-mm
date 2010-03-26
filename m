@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 588636B0206
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:12 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 390D26B0208
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:14 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 12 of 41] config_transparent_hugepage
-Message-Id: <ba8fd4669000d74356d6.1269622816@v2.random>
+Subject: [PATCH 01 of 41] define MADV_HUGEPAGE
+Message-Id: <f573bea259db0cf22083.1269622805@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:16 +0100
+Date: Fri, 26 Mar 2010 18:00:05 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,34 +18,73 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add config option.
+Define MADV_HUGEPAGE.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
 
-diff --git a/mm/Kconfig b/mm/Kconfig
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -287,3 +287,17 @@ config NOMMU_INITIAL_TRIM_EXCESS
- 	  of 1 says that all excess pages should be trimmed.
+diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
+--- a/arch/alpha/include/asm/mman.h
++++ b/arch/alpha/include/asm/mman.h
+@@ -53,6 +53,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
  
- 	  See Documentation/nommu-mmap.txt for more information.
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
 +
-+config TRANSPARENT_HUGEPAGE
-+	bool "Transparent Hugepage support" if EMBEDDED
-+	depends on X86_64
-+	default y
-+	help
-+	  Transparent Hugepages allows the kernel to use huge pages and
-+	  huge tlb transparently to the applications whenever possible.
-+	  This feature can improve computing performance to certain
-+	  applications by speeding up page faults during memory
-+	  allocation, by reducing the number of tlb misses and by speeding
-+	  up the pagetable walking.
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
+--- a/arch/mips/include/asm/mman.h
++++ b/arch/mips/include/asm/mman.h
+@@ -77,6 +77,8 @@
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+ #define MADV_HWPOISON    100		/* poison a page for testing */
+ 
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
 +
-+	  If memory constrained on embedded, you may want to say N.
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
+--- a/arch/parisc/include/asm/mman.h
++++ b/arch/parisc/include/asm/mman.h
+@@ -59,6 +59,8 @@
+ #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
+ 
++#define MADV_HUGEPAGE	67		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ #define MAP_VARIABLE	0
+diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
+--- a/arch/xtensa/include/asm/mman.h
++++ b/arch/xtensa/include/asm/mman.h
+@@ -83,6 +83,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+ 
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+--- a/include/asm-generic/mman-common.h
++++ b/include/asm-generic/mman-common.h
+@@ -45,7 +45,7 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+ 
+-#define MADV_HUGEPAGE	15		/* Worth backing with hugepages */
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
+ 
+ /* compatibility flags */
+ #define MAP_FILE	0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
