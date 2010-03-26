@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 265C06B01E5
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C74C16B01E9
 	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:12:54 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 35 of 41] don't leave orhpaned swap cache after ksm merging
-Message-Id: <6a19c093c020d009e736.1269622839@v2.random>
+Subject: [PATCH 26 of 41] don't alloc harder for gfp nomemalloc even if nowait
+Message-Id: <7d05fb910d35a21ab923.1269622830@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:39 +0100
+Date: Fri, 26 Mar 2010 18:00:30 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,23 +18,30 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-When swapcache is replaced by a ksm page don't leave orhpaned swap cache.
+Not worth throwing away the precious reserved free memory pool for allocations
+that can fail gracefully (either through mempool or because they're transhuge
+allocations later falling back to 4k allocations).
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/ksm.c b/mm/ksm.c
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -817,7 +817,7 @@ static int replace_page(struct vm_area_s
- 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1811,7 +1811,11 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+ 	 */
+ 	alloc_flags |= (gfp_mask & __GFP_HIGH);
  
- 	page_remove_rmap(page);
--	put_page(page);
-+	free_page_and_swap_cache(page);
- 
- 	pte_unmap_unlock(ptep, ptl);
- 	err = 0;
+-	if (!wait) {
++	/*
++	 * Not worth trying to allocate harder for __GFP_NOMEMALLOC
++	 * even if it can't schedule.
++	 */
++	if (!wait && !(gfp_mask & __GFP_NOMEMALLOC)) {
+ 		alloc_flags |= ALLOC_HARDER;
+ 		/*
+ 		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
