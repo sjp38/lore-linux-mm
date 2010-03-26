@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 723B86B0220
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B742F6B021E
 	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 13:13:58 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 20 of 41] add pmd_huge_pte to mm_struct
-Message-Id: <09c6724f3f83d3cfad30.1269622824@v2.random>
+Subject: [PATCH 32 of 41] memcg huge memory
+Message-Id: <d3b08bdcff0c52227a1e.1269622836@v2.random>
 In-Reply-To: <patchbomb.1269622804@v2.random>
 References: <patchbomb.1269622804@v2.random>
-Date: Fri, 26 Mar 2010 18:00:24 +0100
+Date: Fri, 26 Mar 2010 18:00:36 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,59 +18,94 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-This increase the size of the mm struct a bit but it is needed to preallocate
-one pte for each hugepage so that split_huge_page will not require a fail path.
-Guarantee of success is a fundamental property of split_huge_page to avoid
-decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
-would otherwise force the hugepage-unaware VM code to learn rolling back in the
-middle of its pte mangling operations (if something we need it to learn
-handling pmd_trans_huge natively rather being capable of rollback). When
-split_huge_page runs a pte is needed to succeed the split, to map the newly
-splitted regular pages with a regular pte.  This way all existing VM code
-remains backwards compatible by just adding a split_huge_page* one liner. The
-memory waste of those preallocated ptes is negligible and so it is worth it.
+Add memcg charge/uncharge to hugepage faults in huge_memory.c.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -310,6 +310,9 @@ struct mm_struct {
- #ifdef CONFIG_MMU_NOTIFIER
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
-+#endif
- };
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -225,6 +225,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	VM_BUG_ON(!PageCompound(page));
+ 	pgtable = pte_alloc_one(mm, haddr);
+ 	if (unlikely(!pgtable)) {
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		return VM_FAULT_OOM;
+ 	}
+@@ -235,6 +236,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_none(*pmd))) {
+ 		spin_unlock(&mm->page_table_lock);
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		pte_free(mm, pgtable);
+ 	} else {
+@@ -278,6 +280,10 @@ int do_huge_pmd_anonymous_page(struct mm
+ 		page = alloc_hugepage(transparent_hugepage_defrag(vma));
+ 		if (unlikely(!page))
+ 			goto out;
++		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
++			put_page(page);
++			goto out;
++		}
  
- /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-diff --git a/kernel/fork.c b/kernel/fork.c
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -522,6 +522,9 @@ void __mmdrop(struct mm_struct *mm)
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
- 	mmu_notifier_mm_destroy(mm);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	VM_BUG_ON(mm->pmd_huge_pte);
-+#endif
- 	free_mm(mm);
+ 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
+ 	}
+@@ -377,9 +383,15 @@ static int do_huge_pmd_wp_page_fallback(
+ 	for (i = 0; i < HPAGE_PMD_NR; i++) {
+ 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+ 					  vma, address);
+-		if (unlikely(!pages[i])) {
+-			while (--i >= 0)
++		if (unlikely(!pages[i] ||
++			     mem_cgroup_newpage_charge(pages[i], mm,
++						       GFP_KERNEL))) {
++			if (pages[i])
+ 				put_page(pages[i]);
++			while (--i >= 0) {
++				mem_cgroup_uncharge_page(pages[i]);
++				put_page(pages[i]);
++			}
+ 			kfree(pages);
+ 			ret |= VM_FAULT_OOM;
+ 			goto out;
+@@ -438,8 +450,10 @@ out:
+ 
+ out_free_pages:
+ 	spin_unlock(&mm->page_table_lock);
+-	for (i = 0; i < HPAGE_PMD_NR; i++)
++	for (i = 0; i < HPAGE_PMD_NR; i++) {
++		mem_cgroup_uncharge_page(pages[i]);
+ 		put_page(pages[i]);
++	}
+ 	kfree(pages);
+ 	goto out;
  }
- EXPORT_SYMBOL_GPL(__mmdrop);
-@@ -662,6 +665,10 @@ struct mm_struct *dup_mm(struct task_str
- 	mm->token_priority = 0;
- 	mm->last_interval = 0;
+@@ -482,13 +496,19 @@ int do_huge_pmd_wp_page(struct mm_struct
+ 		goto out;
+ 	}
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	mm->pmd_huge_pte = NULL;
-+#endif
-+
- 	if (!mm_init(mm, tsk))
- 		goto fail_nomem;
++	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
++		put_page(new_page);
++		ret |= VM_FAULT_OOM;
++		goto out;
++	}
+ 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
  
+ 	spin_lock(&mm->page_table_lock);
+-	if (unlikely(!pmd_same(*pmd, orig_pmd)))
++	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
++		mem_cgroup_uncharge_page(new_page);
+ 		put_page(new_page);
+-	else {
++	} else {
+ 		pmd_t entry;
+ 		entry = mk_pmd(new_page, vma->vm_page_prot);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
