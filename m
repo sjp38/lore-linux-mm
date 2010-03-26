@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BE9076B0236
-	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:27:24 -0400 (EDT)
-Message-ID: <4BACFC52.4040703@redhat.com>
-Date: Fri, 26 Mar 2010 14:26:26 -0400
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1F7946B023E
+	for <linux-mm@kvack.org>; Fri, 26 Mar 2010 14:28:29 -0400 (EDT)
+Message-ID: <4BACFCAF.1040000@redhat.com>
+Date: Fri, 26 Mar 2010 14:27:59 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 40 of 41] mprotect: pass vma down to page table walkers
-References: <patchbomb.1269622804@v2.random> <0519ba13957b4a86663c.1269622844@v2.random>
-In-Reply-To: <0519ba13957b4a86663c.1269622844@v2.random>
+Subject: Re: [PATCH 41 of 41] mprotect: transparent huge page support
+References: <patchbomb.1269622804@v2.random> <e0467843382f2ee9714a.1269622845@v2.random>
+In-Reply-To: <e0467843382f2ee9714a.1269622845@v2.random>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,9 +19,11 @@ List-ID: <linux-mm.kvack.org>
 On 03/26/2010 01:00 PM, Andrea Arcangeli wrote:
 > From: Johannes Weiner<hannes@cmpxchg.org>
 >
-> Waiting for huge pmds to finish splitting requires the vma's anon_vma,
-> so pass along the vma instead of the mm, we can always get the latter
-> when we need it.
+> Natively handle huge pmds when changing page tables on behalf of
+> mprotect().
+>
+> I left out update_mmu_cache() because we do not need it on x86 anyway
+> but more importantly the interface works on ptes, not pmds.
 >
 > Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
 > Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
