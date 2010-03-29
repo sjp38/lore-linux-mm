@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 16DE26B01FE
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:54 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8E7276B01FE
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:55 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 01 of 41] define MADV_HUGEPAGE
-Message-Id: <c258e9884fe7bf808358.1269887834@v2.random>
+Subject: [PATCH 03 of 41] alter compound get_page/put_page
+Message-Id: <92d6daab35e4daa4bce9.1269887836@v2.random>
 In-Reply-To: <patchbomb.1269887833@v2.random>
 References: <patchbomb.1269887833@v2.random>
-Date: Mon, 29 Mar 2010 20:37:14 +0200
+Date: Mon, 29 Mar 2010 20:37:16 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,73 +18,196 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Define MADV_HUGEPAGE.
+Alter compound get_page/put_page to keep references on subpages too, in order
+to allow __split_huge_page_refcount to split an hugepage even while subpages
+have been pinned by one of the get_user_pages() variants.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
 
-diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
---- a/arch/alpha/include/asm/mman.h
-+++ b/arch/alpha/include/asm/mman.h
-@@ -53,6 +53,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
+--- a/arch/powerpc/mm/gup.c
++++ b/arch/powerpc/mm/gup.c
+@@ -16,6 +16,16 @@
  
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
+ #ifdef __HAVE_ARCH_PTE_SPECIAL
+ 
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
 +
- /* compatibility flags */
- #define MAP_FILE	0
+ /*
+  * The performance critical leaf functions are made noinline otherwise gcc
+  * inlines everything into a single function which results in too much
+@@ -47,6 +57,8 @@ static noinline int gup_pte_range(pmd_t 
+ 			put_page(page);
+ 			return 0;
+ 		}
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		pages[*nr] = page;
+ 		(*nr)++;
  
-diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
---- a/arch/mips/include/asm/mman.h
-+++ b/arch/mips/include/asm/mman.h
-@@ -77,6 +77,8 @@
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
- #define MADV_HWPOISON    100		/* poison a page for testing */
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -105,6 +105,16 @@ static inline void get_head_page_multipl
+ 	atomic_add(nr, &page->_count);
+ }
  
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++static inline void pin_huge_page_tail(struct page *page)
++{
++	/*
++	 * __split_huge_page_refcount() cannot run
++	 * from under us.
++	 */
++	VM_BUG_ON(atomic_read(&page->_count) < 0);
++	atomic_inc(&page->_count);
++}
 +
- /* compatibility flags */
- #define MAP_FILE	0
+ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+@@ -128,6 +138,8 @@ static noinline int gup_huge_pmd(pmd_t p
+ 	do {
+ 		VM_BUG_ON(compound_head(page) != head);
+ 		pages[*nr] = page;
++		if (PageTail(page))
++			pin_huge_page_tail(page);
+ 		(*nr)++;
+ 		page++;
+ 		refs++;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -326,9 +326,17 @@ static inline int page_count(struct page
  
-diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
---- a/arch/parisc/include/asm/mman.h
-+++ b/arch/parisc/include/asm/mman.h
-@@ -59,6 +59,8 @@
- #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
+ static inline void get_page(struct page *page)
+ {
+-	page = compound_head(page);
+-	VM_BUG_ON(atomic_read(&page->_count) == 0);
++	VM_BUG_ON(atomic_read(&page->_count) < !PageTail(page));
+ 	atomic_inc(&page->_count);
++	if (unlikely(PageTail(page))) {
++		/*
++		 * This is safe only because
++		 * __split_huge_page_refcount can't run under
++		 * get_page().
++		 */
++		VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
++		atomic_inc(&page->first_page->_count);
++	}
+ }
  
-+#define MADV_HUGEPAGE	67		/* Worth backing with hugepages */
+ static inline struct page *virt_to_head_page(const void *x)
+diff --git a/mm/swap.c b/mm/swap.c
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -55,17 +55,82 @@ static void __page_cache_release(struct 
+ 		del_page_from_lru(zone, page);
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
++}
 +
- /* compatibility flags */
- #define MAP_FILE	0
- #define MAP_VARIABLE	0
-diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
---- a/arch/xtensa/include/asm/mman.h
-+++ b/arch/xtensa/include/asm/mman.h
-@@ -83,6 +83,8 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
++static void __put_single_page(struct page *page)
++{
++	__page_cache_release(page);
+ 	free_hot_cold_page(page, 0);
+ }
  
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++static void __put_compound_page(struct page *page)
++{
++	compound_page_dtor *dtor;
 +
- /* compatibility flags */
- #define MAP_FILE	0
++	__page_cache_release(page);
++	dtor = get_compound_page_dtor(page);
++	(*dtor)(page);
++}
++
+ static void put_compound_page(struct page *page)
+ {
+-	page = compound_head(page);
+-	if (put_page_testzero(page)) {
+-		compound_page_dtor *dtor;
+-
+-		dtor = get_compound_page_dtor(page);
+-		(*dtor)(page);
++	if (unlikely(PageTail(page))) {
++		/* __split_huge_page_refcount can run under us */
++		struct page *page_head = page->first_page;
++		smp_rmb();
++		if (likely(PageTail(page) && get_page_unless_zero(page_head))) {
++			if (unlikely(!PageHead(page_head))) {
++				/* PageHead is cleared after PageTail */
++				smp_rmb();
++				VM_BUG_ON(PageTail(page));
++				goto out_put_head;
++			}
++			/*
++			 * Only run compound_lock on a valid PageHead,
++			 * after having it pinned with
++			 * get_page_unless_zero() above.
++			 */
++			smp_mb();
++			/* page_head wasn't a dangling pointer */
++			compound_lock(page_head);
++			if (unlikely(!PageTail(page))) {
++				/* __split_huge_page_refcount run before us */
++				compound_unlock(page_head);
++				VM_BUG_ON(PageHead(page_head));
++			out_put_head:
++				if (put_page_testzero(page_head))
++					__put_single_page(page_head);
++			out_put_single:
++				if (put_page_testzero(page))
++					__put_single_page(page);
++				return;
++			}
++			VM_BUG_ON(page_head != page->first_page);
++			/*
++			 * We can release the refcount taken by
++			 * get_page_unless_zero now that
++			 * split_huge_page_refcount is blocked on the
++			 * compound_lock.
++			 */
++			if (put_page_testzero(page_head))
++				VM_BUG_ON(1);
++			/* __split_huge_page_refcount will wait now */
++			VM_BUG_ON(atomic_read(&page->_count) <= 0);
++			atomic_dec(&page->_count);
++			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
++			compound_unlock(page_head);
++			if (put_page_testzero(page_head))
++				__put_compound_page(page_head);
++		} else {
++			/* page_head is a dangling pointer */
++			VM_BUG_ON(PageTail(page));
++			goto out_put_single;
++		}
++	} else if (put_page_testzero(page)) {
++		if (PageHead(page))
++			__put_compound_page(page);
++		else
++			__put_single_page(page);
+ 	}
+ }
  
-diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
---- a/include/asm-generic/mman-common.h
-+++ b/include/asm-generic/mman-common.h
-@@ -45,7 +45,7 @@
- #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
- #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+@@ -74,7 +139,7 @@ void put_page(struct page *page)
+ 	if (unlikely(PageCompound(page)))
+ 		put_compound_page(page);
+ 	else if (put_page_testzero(page))
+-		__page_cache_release(page);
++		__put_single_page(page);
+ }
+ EXPORT_SYMBOL(put_page);
  
--#define MADV_HUGEPAGE	15		/* Worth backing with hugepages */
-+#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
- 
- /* compatibility flags */
- #define MAP_FILE	0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
