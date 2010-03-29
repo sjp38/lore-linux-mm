@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 809D16B01EE
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:38 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6E5886B01EF
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:40 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 04 of 41] update futex compound knowledge
-Message-Id: <4d63601494f585c90176.1269887837@v2.random>
+Subject: [PATCH 10 of 41] export maybe_mkwrite
+Message-Id: <5606e5b219520358f0c3.1269887843@v2.random>
 In-Reply-To: <patchbomb.1269887833@v2.random>
 References: <patchbomb.1269887833@v2.random>
-Date: Mon, 29 Mar 2010 20:37:17 +0200
+Date: Mon, 29 Mar 2010 20:37:23 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,135 +18,60 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Futex code is smarter than most other gup_fast O_DIRECT code and knows about
-the compound internals. However now doing a put_page(head_page) will not
-release the pin on the tail page taken by gup-fast, leading to all sort of
-refcounting bugchecks. Getting a stable head_page is a little tricky.
-
-page_head = page is there because if this is not a tail page it's also the
-page_head. Only in case this is a tail page, compound_head is called, otherwise
-it's guaranteed unnecessary. And if it's a tail page compound_head has to run
-atomically inside irq disabled section __get_user_pages_fast before returning.
-Otherwise ->first_page won't be a stable pointer.
-
-Disableing irq before __get_user_page_fast and releasing irq after running
-compound_head is needed because if __get_user_page_fast returns == 1, it means
-the huge pmd is established and cannot go away from under us.
-pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
-for local_irq_enable before the IPI delivery can return. This means
-__split_huge_page_refcount can't be running from under us, and in turn when we
-run compound_head(page) we're not reading a dangling pointer from
-tailpage->first_page. Then after we get to stable head page, we are always safe
-to call compound_lock and after taking the compound lock on head page we can
-finally re-check if the page returned by gup-fast is still a tail page. in
-which case we're set and we didn't need to split the hugepage in order to take
-a futex on it.
+huge_memory.c needs it too when it fallbacks in copying hugepages into regular
+fragmented pages if hugepage allocation fails during COW.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/kernel/futex.c b/kernel/futex.c
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
- {
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
--	struct page *page;
-+	struct page *page, *page_head;
- 	int err;
- 
- 	/*
-@@ -250,10 +250,53 @@ again:
- 	if (err < 0)
- 		return err;
- 
--	page = compound_head(page);
--	lock_page(page);
--	if (!page->mapping) {
--		unlock_page(page);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	page_head = page;
-+	if (unlikely(PageTail(page))) {
-+		put_page(page);
-+		/* serialize against __split_huge_page_splitting() */
-+		local_irq_disable();
-+		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
-+			page_head = compound_head(page);
-+			/*
-+			 * page_head is valid pointer but we must pin
-+			 * it before taking the PG_lock and/or
-+			 * PG_compound_lock. The moment we re-enable
-+			 * irqs __split_huge_page_splitting() can
-+			 * return and the head page can be freed from
-+			 * under us. We can't take the PG_lock and/or
-+			 * PG_compound_lock on a page that could be
-+			 * freed from under us.
-+			 */
-+			if (page != page_head)
-+				get_page(page_head);
-+			local_irq_enable();
-+		} else {
-+			local_irq_enable();
-+			goto again;
-+		}
-+	}
-+#else
-+	page_head = compound_head(page);
-+	if (page != page_head)
-+		get_page(page_head);
-+#endif
-+
-+	lock_page(page_head);
-+	if (unlikely(page_head != page)) {
-+		compound_lock(page_head);
-+		if (unlikely(!PageTail(page))) {
-+			compound_unlock(page_head);
-+			unlock_page(page_head);
-+			put_page(page_head);
-+			put_page(page);
-+			goto again;
-+		}
-+	}
-+	if (!page_head->mapping) {
-+		unlock_page(page_head);
-+		if (page_head != page)
-+			put_page(page_head);
- 		put_page(page);
- 		goto again;
- 	}
-@@ -265,19 +308,25 @@ again:
- 	 * it's a read-only handle, it's expected that futexes attach to
- 	 * the object not the particular process.
- 	 */
--	if (PageAnon(page)) {
-+	if (PageAnon(page_head)) {
- 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
- 		key->private.mm = mm;
- 		key->private.address = address;
- 	} else {
- 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
--		key->shared.inode = page->mapping->host;
--		key->shared.pgoff = page->index;
-+		key->shared.inode = page_head->mapping->host;
-+		key->shared.pgoff = page_head->index;
- 	}
- 
- 	get_futex_key_refs(key);
- 
--	unlock_page(page);
-+	unlock_page(page_head);
-+	if (page != page_head) {
-+		VM_BUG_ON(!PageTail(page));
-+		/* releasing compound_lock after page_lock won't matter */
-+		compound_unlock(page_head);
-+		put_page(page_head);
-+	}
- 	put_page(page);
- 	return 0;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -390,6 +390,19 @@ static inline void set_compound_order(st
  }
+ 
+ /*
++ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
++ * servicing faults for write access.  In the normal case, do always want
++ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
++ * that do not have writing enabled, when used by access_process_vm.
++ */
++static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
++{
++	if (likely(vma->vm_flags & VM_WRITE))
++		pte = pte_mkwrite(pte);
++	return pte;
++}
++
++/*
+  * Multiple processes may "see" the same page. E.g. for untouched
+  * mappings of /dev/null, all processes see the same page full of
+  * zeroes, and text pages of executables and shared libraries have
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2031,19 +2031,6 @@ static inline int pte_unmap_same(struct 
+ 	return same;
+ }
+ 
+-/*
+- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
+- * servicing faults for write access.  In the normal case, do always want
+- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
+- * that do not have writing enabled, when used by access_process_vm.
+- */
+-static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+-{
+-	if (likely(vma->vm_flags & VM_WRITE))
+-		pte = pte_mkwrite(pte);
+-	return pte;
+-}
+-
+ static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+ {
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
