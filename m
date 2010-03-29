@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A933C6B01F5
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:47 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5AB206B01F4
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:49 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 21 of 41] split_huge_page_mm/vma
-Message-Id: <4aac688f1ddef7d333a3.1269887854@v2.random>
+Subject: [PATCH 29 of 41] madvise(MADV_HUGEPAGE)
+Message-Id: <dc56ad548492da12c137.1269887862@v2.random>
 In-Reply-To: <patchbomb.1269887833@v2.random>
 References: <patchbomb.1269887833@v2.random>
-Date: Mon, 29 Mar 2010 20:37:34 +0200
+Date: Mon, 29 Mar 2010 20:37:42 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,82 +18,88 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-split_huge_page_pmd compat code. Each one of those would need to be expanded to
-hundred of lines of complex code without a fully reliable
-split_huge_page_pmd design.
+Add madvise MADV_HUGEPAGE to mark regions that are important to be hugepage
+backed. Return -EINVAL if the vma is not of an anonymous type, or the feature
+isn't built into the kernel. Never silently return success.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
 
-diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
---- a/arch/x86/kernel/vm86_32.c
-+++ b/arch/x86/kernel/vm86_32.c
-@@ -179,6 +179,7 @@ static void mark_screen_rdonly(struct mm
- 	if (pud_none_or_clear_bad(pud))
- 		goto out;
- 	pmd = pmd_offset(pud, 0xA0000);
-+	split_huge_page_pmd(mm, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		goto out;
- 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -443,6 +443,7 @@ static inline int check_pmd_range(struct
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_pmd(vma->vm_mm, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		if (check_pte_range(vma, pmd, addr, next, nodes,
-diff --git a/mm/mincore.c b/mm/mincore.c
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -154,6 +154,7 @@ static void mincore_pmd_range(struct vm_
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_pmd(vma->vm_mm, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			mincore_unmapped_range(vma, addr, next, vec);
- 		else
-diff --git a/mm/mprotect.c b/mm/mprotect.c
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -89,6 +89,7 @@ static inline void change_pmd_range(stru
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_pmd(mm, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
-diff --git a/mm/mremap.c b/mm/mremap.c
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -42,6 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
- 		return NULL;
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -99,6 +99,7 @@ extern void __split_huge_page_pmd(struct
+ #endif
  
- 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_pmd(mm, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		return NULL;
+ extern unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
++extern int hugepage_madvise(unsigned long *vm_flags);
+ static inline int PageTransHuge(struct page *page)
+ {
+ 	VM_BUG_ON(PageTail(page));
+@@ -121,6 +122,11 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++static inline int hugepage_madvise(unsigned long *vm_flags)
++{
++	BUG_ON(0);
++	return 0;
++}
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -34,6 +34,7 @@ static int walk_pmd_range(pud_t *pud, un
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		split_huge_page_pmd(walk->mm, pmd);
- 		if (pmd_none_or_clear_bad(pmd)) {
- 			if (walk->pte_hole)
- 				err = walk->pte_hole(addr, next, walk);
+ #endif /* _LINUX_HUGE_MM_H */
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -840,6 +840,22 @@ out:
+ 	return ret;
+ }
+ 
++int hugepage_madvise(unsigned long *vm_flags)
++{
++	/*
++	 * Be somewhat over-protective like KSM for now!
++	 */
++	if (*vm_flags & (VM_HUGEPAGE | VM_SHARED  | VM_MAYSHARE   |
++			 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
++			 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
++			 VM_MIXEDMAP | VM_SAO))
++		return -EINVAL;
++
++	*vm_flags |= VM_HUGEPAGE;
++
++	return 0;
++}
++
+ void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	struct page *page;
+diff --git a/mm/madvise.c b/mm/madvise.c
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -71,6 +71,11 @@ static long madvise_behavior(struct vm_a
+ 		if (error)
+ 			goto out;
+ 		break;
++	case MADV_HUGEPAGE:
++		error = hugepage_madvise(&new_flags);
++		if (error)
++			goto out;
++		break;
+ 	}
+ 
+ 	if (new_flags == vma->vm_flags) {
+@@ -283,6 +288,9 @@ madvise_behavior_valid(int behavior)
+ 	case MADV_MERGEABLE:
+ 	case MADV_UNMERGEABLE:
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	case MADV_HUGEPAGE:
++#endif
+ 		return 1;
+ 
+ 	default:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
