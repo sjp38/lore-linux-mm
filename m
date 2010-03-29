@@ -1,74 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id ECA6F6B0236
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 16:02:16 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o2TK2Bsa021582
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 22:02:12 +0200
-Received: from fxm6 (fxm6.prod.google.com [10.184.13.6])
-	by kpbe16.cbf.corp.google.com with ESMTP id o2TK29O9022099
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 13:02:10 -0700
-Received: by fxm6 with SMTP id 6so208459fxm.18
-        for <linux-mm@kvack.org>; Mon, 29 Mar 2010 13:02:09 -0700 (PDT)
-Date: Mon, 29 Mar 2010 13:01:58 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom killer: break from infinite loop
-In-Reply-To: <20100329140633.GA26464@desktop>
-Message-ID: <alpine.DEB.2.00.1003291259400.14859@chino.kir.corp.google.com>
-References: <1269447905-5939-1-git-send-email-anfei.zhou@gmail.com> <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com>
- <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329140633.GA26464@desktop>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 01FC76B01EF
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 16:24:43 -0400 (EDT)
+Subject: Re: [PATCH 36 of 41] remove PG_buddy
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <1269888584.12097.371.camel@laptop>
+References: <patchbomb.1269887833@v2.random>
+	 <27d13ddf7c8f7ca03652.1269887869@v2.random>
+	 <1269888584.12097.371.camel@laptop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 30 Mar 2010 07:18:47 +1100
+Message-ID: <1269893927.7101.19.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: anfei <anfei.zhou@gmail.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Mar 2010, anfei wrote:
-
-> I think this method is okay, but it's easy to trigger another bug of
-> oom.  See select_bad_process():
-> 	if (!p->mm)
-> 		continue;
-> !p->mm is not always an unaccepted condition.  e.g. "p" is killed and
-> doing exit, setting tsk->mm to NULL is before releasing the memory.
-> And in multi threading environment, this happens much more.
-> In __out_of_memory(), it panics if select_bad_process returns NULL.
-> The simple way to fix it is as mem_cgroup_out_of_memory() does.
+On Mon, 2010-03-29 at 20:49 +0200, Peter Zijlstra wrote:
+> On Mon, 2010-03-29 at 20:37 +0200, Andrea Arcangeli wrote:
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > PG_buddy can be converted to page->_count == -1. So the PG_compound_lock can be
+> > added to page->flags without overflowing (because of the section bits
+> > increasing) with CONFIG_X86_PAE=y.
 > 
+> This seems to break the assumption that all free pages have a zero page
+> count relied upon by things like page_cache_get_speculative().
+> 
+> What if a page-cache pages gets freed and used as a head in the buddy
+> list while a concurrent lockless page-cache lookup tries to get a page
+> ref?
 
-This is fixed by 
-oom-avoid-race-for-oom-killed-tasks-detaching-mm-prior-to-exit.patch in 
-the -mm tree.
+And here goes me wanting to hijack it for PG_arch_2 :-)
 
-See 
-http://userweb.kernel.org/~akpm/mmotm/broken-out/oom-avoid-race-for-oom-killed-tasks-detaching-mm-prior-to-exit.patch
+Is there any other page flag we could hijack ? I need it only when the
+page is allocated, so a flag that's only used when the page sits in the
+buddy would be fine.
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index afeab2a..9aae208 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -588,12 +588,8 @@ retry:
->  	if (PTR_ERR(p) == -1UL)
->  		return;
->  
-> -	/* Found nothing?!?! Either we hang forever, or we panic. */
-> -	if (!p) {
-> -		read_unlock(&tasklist_lock);
-> -		dump_header(NULL, gfp_mask, order, NULL);
-> -		panic("Out of memory and no killable processes...\n");
-> -	}
-> +	if (!p)
-> +		p = current;
->  
->  	if (oom_kill_process(p, gfp_mask, order, points, NULL,
->  			     "Out of memory"))
+Cheers,
+Ben.
 
-The reason p wasn't selected is because it fails to meet the criteria for 
-candidacy in select_bad_process(), not necessarily because of a race with 
-the !p->mm check that the -mm patch cited above fixes.  It's quite 
-possible that current has an oom_adj value of OOM_DISABLE, for example, 
-where this would be wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
