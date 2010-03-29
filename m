@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7D99C6B01F2
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CFB616B01F3
 	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:42 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 09 of 41] no paravirt version of pmd ops
-Message-Id: <4a7042b152cd7b549cb8.1269887842@v2.random>
+Subject: [PATCH 19 of 41] clear page compound
+Message-Id: <cb05bfc74a5b99f58112.1269887852@v2.random>
 In-Reply-To: <patchbomb.1269887833@v2.random>
 References: <patchbomb.1269887833@v2.random>
-Date: Mon, 29 Mar 2010 20:37:22 +0200
+Date: Mon, 29 Mar 2010 20:37:32 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,33 +18,55 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No paravirt version of set_pmd_at/pmd_update/pmd_update_defer.
+split_huge_page must transform a compound page to a regular page and needs
+ClearPageCompound.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -33,6 +33,7 @@ extern struct list_head pgd_list;
- #else  /* !CONFIG_PARAVIRT */
- #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
- #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
-+#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -349,7 +349,7 @@ static inline void set_page_writeback(st
+  * tests can be used in performance sensitive paths. PageCompound is
+  * generally not used in hot code paths.
+  */
+-__PAGEFLAG(Head, head)
++__PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
+ __PAGEFLAG(Tail, tail)
  
- #define set_pte_atomic(ptep, pte)					\
- 	native_set_pte_atomic(ptep, pte)
-@@ -57,6 +58,8 @@ extern struct list_head pgd_list;
+ static inline int PageCompound(struct page *page)
+@@ -357,6 +357,13 @@ static inline int PageCompound(struct pa
+ 	return page->flags & ((1L << PG_head) | (1L << PG_tail));
  
- #define pte_update(mm, addr, ptep)              do { } while (0)
- #define pte_update_defer(mm, addr, ptep)        do { } while (0)
-+#define pmd_update(mm, addr, ptep)              do { } while (0)
-+#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
+ }
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void ClearPageCompound(struct page *page)
++{
++	BUG_ON(!PageHead(page));
++	ClearPageHead(page);
++}
++#endif
+ #else
+ /*
+  * Reduce page flag use as much as possible by overlapping
+@@ -394,6 +401,14 @@ static inline void __ClearPageTail(struc
+ 	page->flags &= ~PG_head_tail_mask;
+ }
  
- #define pgd_val(x)	native_pgd_val(x)
- #define __pgd(x)	native_make_pgd(x)
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void ClearPageCompound(struct page *page)
++{
++	BUG_ON((page->flags & PG_head_tail_mask) != (1 << PG_compound));
++	clear_bit(PG_compound, &page->flags);
++}
++#endif
++
+ #endif /* !PAGEFLAGS_EXTENDED */
+ 
+ #ifdef CONFIG_MMU
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
