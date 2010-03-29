@@ -1,92 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A8FAB6B022F
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 18:30:53 -0400 (EDT)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e33.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id o2TMR8in007771
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 16:27:08 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2TMUgcH111242
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 16:30:43 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2TMUeS2022682
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 16:30:41 -0600
-Subject: Re: [PATCH 36 of 41] remove PG_buddy
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20100329221718.GA5825@random.random>
-References: <patchbomb.1269887833@v2.random>
-	 <27d13ddf7c8f7ca03652.1269887869@v2.random>
-	 <1269888584.12097.371.camel@laptop>  <20100329221718.GA5825@random.random>
-Content-Type: text/plain
-Date: Mon, 29 Mar 2010 15:30:37 -0700
-Message-Id: <1269901837.9160.43341.camel@nimitz>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 045F26B022D
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 19:41:24 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2TNfMFd007982
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 30 Mar 2010 08:41:22 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EEE9C45DE51
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 08:41:21 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CAD4845DE3E
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 08:41:21 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B132C1DB8041
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 08:41:21 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FF511DB8042
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 08:41:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] migrate_pages:skip migration between intersect nodes
+In-Reply-To: <1269876708.13829.30.camel@useless.americas.hpqcorp.net>
+References: <1269874629-1736-1-git-send-email-lliubbo@gmail.com> <1269876708.13829.30.camel@useless.americas.hpqcorp.net>
+Message-Id: <20100330083638.8E87.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Mar 2010 08:41:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, cl@linux-foundation.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Bob Liu <lliubbo@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, minchar.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-03-30 at 00:17 +0200, Andrea Arcangeli wrote:
-> On Mon, Mar 29, 2010 at 08:49:44PM +0200, Peter Zijlstra wrote:
-> > On Mon, 2010-03-29 at 20:37 +0200, Andrea Arcangeli wrote:
-> > > From: Andrea Arcangeli <aarcange@redhat.com>
-> > > 
-> > > PG_buddy can be converted to page->_count == -1. So the PG_compound_lock can be
-> > > added to page->flags without overflowing (because of the section bits
-> > > increasing) with CONFIG_X86_PAE=y.
-> > 
-> > This seems to break the assumption that all free pages have a zero page
-> > count relied upon by things like page_cache_get_speculative().
-> > 
-> > What if a page-cache pages gets freed and used as a head in the buddy
-> > list while a concurrent lockless page-cache lookup tries to get a page
-> > ref?
+> I believe that the current code matches the intended semantics.  I can't
+> find a man pages for the migrate_pages() system call, but the
+> migratepages(8) man page says:
 > 
-> I forgot about get_page_unless_zero, still the concept remains the
-> same, we've just to move from _count to _mapcount or some other field
-> in the page that we know will never to be some fixed value. Mapcount
-> is the next candidate as it uses atomic ops and it starts from -1 but
-> it should only be available on already allocated pages and to be
-> guaranteed -1 when inside the buddy, so we can set mapcount -2 to
-> signal the page is in the buddy. Or something like that, to me
-> mapcount looks ideal but it's likely doubt in other means. The basic
-> idea is that PG_buddy is a waste of ram
+> "If  multiple  nodes  are specified for from-nodes or to-nodes then an
+> attempt is made to preserve the relative location of each page in each
+> nodeset."
 
-Don't forget that include/linux/memory_hotplug.h uses mapcount a bit for
-marking bootmem.  So, just for clarity, we'd probably want to use -5 or
-something.
-        
-        /*
-         * Types for free bootmem.
-         * The normal smallest mapcount is -1. Here is smaller value than it.
-         */
-        #define SECTION_INFO            (-1 - 1)
-        #define MIX_SECTION_INFO        (-1 - 2)
-        #define NODE_INFO               (-1 - 3)
-        
-Looks like SLUB also uses _mapcount for some fun purposes:
-        
-        struct page {
-                unsigned long flags;            /* Atomic flags, some possibly
-                                                 * updated asynchronously */
-                atomic_t _count;                /* Usage count, see below. */
-                union {
-                        atomic_t _mapcount;     /* Count of ptes mapped in mms,
-                                                 * to show when page is mapped
-                                                 * & limit reverse map searches.
-                                                 */
-                        struct {                /* SLUB */
-                                u16 inuse;
-                                u16 objects;
-                        };
-                };
+Offtopic>
+Christoph, Why migrate_pages(2) doesn't have man pages? Is it unrecommended
+syscall?
 
-I guess those don't *really* become a problem in practice until we get a
-really large page size that can hold >=64k objects.  But, at that point,
-we're overflowing the types anyway (or really close to it).  
 
--- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
