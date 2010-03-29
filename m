@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B4A6A6B01F5
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:49 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D5EBA6B01F4
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:50 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 07 of 41] add native_set_pmd_at
-Message-Id: <88493730e6bbfe1f7b0c.1269887840@v2.random>
+Subject: [PATCH 35 of 41] skip transhuge pages in ksm for now
+Message-Id: <d3cd17d34ee1bb162026.1269887868@v2.random>
 In-Reply-To: <patchbomb.1269887833@v2.random>
 References: <patchbomb.1269887833@v2.random>
-Date: Mon, 29 Mar 2010 20:37:20 +0200
+Date: Mon, 29 Mar 2010 20:37:48 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,29 +18,46 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Used by paravirt and not paravirt set_pmd_at.
+Skip transhuge pages in ksm for now.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
- 	native_set_pte(ptep, pte);
- }
- 
-+static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+				     pmd_t *pmdp , pmd_t pmd)
-+{
-+	native_set_pmd(pmdp, pmd);
-+}
-+
- #ifndef CONFIG_PARAVIRT
- /*
-  * Rules for using pte_update - it must be called after any PTE update which
+diff --git a/mm/ksm.c b/mm/ksm.c
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1294,7 +1294,19 @@ next_mm:
+ 			if (ksm_test_exit(mm))
+ 				break;
+ 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
+-			if (*page && PageAnon(*page)) {
++			if (!*page) {
++				ksm_scan.address += PAGE_SIZE;
++				cond_resched();
++				continue;
++			}
++			if (PageTransHuge(*page)) {
++				put_page(*page);
++				ksm_scan.address &= HPAGE_PMD_MASK;
++				ksm_scan.address += HPAGE_PMD_SIZE;
++				cond_resched();
++				continue;
++			}
++			if (PageAnon(*page)) {
+ 				flush_anon_page(vma, *page, ksm_scan.address);
+ 				flush_dcache_page(*page);
+ 				rmap_item = get_next_rmap_item(slot,
+@@ -1308,8 +1320,7 @@ next_mm:
+ 				up_read(&mm->mmap_sem);
+ 				return rmap_item;
+ 			}
+-			if (*page)
+-				put_page(*page);
++			put_page(*page);
+ 			ksm_scan.address += PAGE_SIZE;
+ 			cond_resched();
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
