@@ -1,120 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2E8B06B01AD
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 10:02:33 -0400 (EDT)
-Date: Mon, 29 Mar 2010 16:01:25 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 35 of 41] don't leave orhpaned swap cache after ksm
- merging
-Message-ID: <20100329140125.GT5825@random.random>
-References: <patchbomb.1269622804@v2.random>
- <6a19c093c020d009e736.1269622839@v2.random>
- <4BACEBF8.90909@redhat.com>
- <20100326172321.GA5825@random.random>
- <alpine.LSU.2.00.1003262113310.8896@sister.anvils>
- <20100327010818.GI5825@random.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 34FBA6B01AC
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 10:06:47 -0400 (EDT)
+Date: Mon, 29 Mar 2010 22:06:33 +0800
+From: anfei <anfei.zhou@gmail.com>
+Subject: Re: [PATCH] oom killer: break from infinite loop
+Message-ID: <20100329140633.GA26464@desktop>
+References: <1269447905-5939-1-git-send-email-anfei.zhou@gmail.com>
+ <20100326150805.f5853d1c.akpm@linux-foundation.org>
+ <20100326223356.GA20833@redhat.com>
+ <20100328145528.GA14622@desktop>
+ <20100328162821.GA16765@redhat.com>
+ <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100327010818.GI5825@random.random>
+In-Reply-To: <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 27, 2010 at 02:08:18AM +0100, Andrea Arcangeli wrote:
-> more familiar with, only takes the PG_lock during page_wrprotect! Why
-> do you keep the PG_lock during replace_page too? do_wp_page can't run
-> as we re-verify the pte didn't change. Maybe is just to be safer?
+On Sun, Mar 28, 2010 at 02:21:01PM -0700, David Rientjes wrote:
+> On Sun, 28 Mar 2010, Oleg Nesterov wrote:
+> 
+> > I see. But still I can't understand. To me, the problem is not that
+> > B can't exit, the problem is that A doesn't know it should exit. All
+> > threads should exit and free ->mm. Even if B could exit, this is not
+> > enough. And, to some extent, it doesn't matter if it holds mmap_sem
+> > or not.
+> > 
+> > Don't get me wrong. Even if I don't understand oom_kill.c the patch
+> > looks obviously good to me, even from "common sense" pov. I am just
+> > curious.
+> > 
+> > So, my understanding is: we are going to kill the whole thread group
+> > but TIF_MEMDIE is per-thread. Mark the whole thread group as TIF_MEMDIE
+> > so that any thread can notice this flag and (say, __alloc_pages_slowpath)
+> > fail asap.
+> > 
+> > Is my understanding correct?
+> > 
+> 
+> [Adding Mel Gorman <mel@csn.ul.ie> to the cc]
+> 
+> The problem with this approach is that we could easily deplete all memory 
+> reserves if the oom killed task has an extremely large number of threads, 
+> there has always been only a single thread with TIF_MEMDIE set per cpuset 
+> or memcg; for systems that don't run with cpusets or memory controller,
+> this has been limited to one thread with TIF_MEMDIE for the entire system.
+> 
+> There's risk involved with suddenly allowing 1000 threads to have 
+> TIF_MEMDIE set and the chances of fully depleting all allowed zones is 
+> much higher if they allocate memory prior to exit, for example.
+> 
+> An alternative is to fail allocations if they are failable and the 
+> allocating task has a pending SIGKILL.  It's better to preempt the oom 
+> killer since current is going to be exiting anyway and this avoids a 
+> needless kill.
+> 
+I think this method is okay, but it's easy to trigger another bug of
+oom.  See select_bad_process():
+	if (!p->mm)
+		continue;
+!p->mm is not always an unaccepted condition.  e.g. "p" is killed and
+doing exit, setting tsk->mm to NULL is before releasing the memory.
+And in multi threading environment, this happens much more.
+In __out_of_memory(), it panics if select_bad_process returns NULL.
+The simple way to fix it is as mem_cgroup_out_of_memory() does.
 
-I re-read it and I can't see any valid reason to hold the PG_lock
-after write_protect_page returns. The only reason we added the PG_lock
-is needed is to abort the page merging if there's any GUP pin on the
-page. And so we must prevent the swapcache to alter the page_count
-while we read PageSwapCache and we include it in the page_count
-comparison. We also must read the pte value inside that critical
-section to re-check it later inside replace_page with pte_same with
-the PT lock hold to serialize against the VM.
+So I think both of these 2 patches are needed.
 
-So I think returning to the previous locking should be the preferred
-way. What do you think? I don't think the fact kpage can be swapped
-can affect it, "page" should always be a regular anon page and never a
-ksm page. Otherwise it would be futile to try to wrprotect it in the
-first place for example.
-
-Let me know if you think something like this could be ok, and I'll
-send it to Andrew separately (not more mixed with the rest).
-
-Thanks again for spotting it ;).
-Andrea
-
-Subject: don't leave orhpaned swap cache after ksm merging
-
-From: Andrea Arcangeli <aarcange@redhat.com>
-
-When swapcache is replaced by a ksm page don't leave orhpaned swap cache.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
-
-diff --git a/mm/ksm.c b/mm/ksm.c
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -817,7 +817,7 @@ static int replace_page(struct vm_area_s
- 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index afeab2a..9aae208 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -588,12 +588,8 @@ retry:
+ 	if (PTR_ERR(p) == -1UL)
+ 		return;
  
- 	page_remove_rmap(page);
--	put_page(page);
-+	free_page_and_swap_cache(page);
- 
- 	pte_unmap_unlock(ptep, ptl);
- 	err = 0;
-@@ -863,7 +863,18 @@ static int try_to_merge_one_page(struct 
- 	 * ptes are necessarily already write-protected.  But in either
- 	 * case, we need to lock and check page_count is not raised.
- 	 */
--	if (write_protect_page(vma, page, &orig_pte) == 0) {
-+	err = write_protect_page(vma, page, &orig_pte);
-+
-+	/*
-+	 * After this mapping is wrprotected we don't need further
-+	 * checks for PageSwapCache vs page_count unlock_page(page)
-+	 * and we rely only on the pte_same() check run under PT lock
-+	 * to ensure the pte didn't change since when we wrprotected
-+	 * it under PG_lock.
-+	 */
-+	unlock_page(page);
-+
-+	if (!err) {
- 		if (!kpage) {
- 			/*
- 			 * While we hold page lock, upgrade page from
-@@ -872,22 +883,20 @@ static int try_to_merge_one_page(struct 
- 			 */
- 			set_page_stable_node(page, NULL);
- 			mark_page_accessed(page);
--			err = 0;
- 		} else if (pages_identical(page, kpage))
- 			err = replace_page(vma, page, kpage, orig_pte);
+-	/* Found nothing?!?! Either we hang forever, or we panic. */
+-	if (!p) {
+-		read_unlock(&tasklist_lock);
+-		dump_header(NULL, gfp_mask, order, NULL);
+-		panic("Out of memory and no killable processes...\n");
 -	}
-+	} else
-+		err = -EFAULT;
++	if (!p)
++		p = current;
  
- 	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
- 		munlock_vma_page(page);
- 		if (!PageMlocked(kpage)) {
--			unlock_page(page);
- 			lock_page(kpage);
- 			mlock_vma_page(kpage);
--			page = kpage;		/* for final unlock */
-+			unlock_page(kpage);
- 		}
- 	}
- 
--	unlock_page(page);
- out:
- 	return err;
- }
+ 	if (oom_kill_process(p, gfp_mask, order, points, NULL,
+ 			     "Out of memory"))
+
+
+> That's possible if it's guaranteed that __GFP_NOFAIL allocations with a 
+> pending SIGKILL are granted ALLOC_NO_WATERMARKS to prevent them from 
+> endlessly looping while making no progress.
+> 
+> Comments?
+> ---
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1610,13 +1610,21 @@ try_next_zone:
+>  }
+>  
+>  static inline int
+> -should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+> +should_alloc_retry(struct task_struct *p, gfp_t gfp_mask, unsigned int order,
+>  				unsigned long pages_reclaimed)
+>  {
+>  	/* Do not loop if specifically requested */
+>  	if (gfp_mask & __GFP_NORETRY)
+>  		return 0;
+>  
+> +	/* Loop if specifically requested */
+> +	if (gfp_mask & __GFP_NOFAIL)
+> +		return 1;
+> +
+> +	/* Task is killed, fail the allocation if possible */
+> +	if (fatal_signal_pending(p))
+> +		return 0;
+> +
+>  	/*
+>  	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
+>  	 * means __GFP_NOFAIL, but that may not be true in other
+> @@ -1635,13 +1643,6 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+>  	if (gfp_mask & __GFP_REPEAT && pages_reclaimed < (1 << order))
+>  		return 1;
+>  
+> -	/*
+> -	 * Don't let big-order allocations loop unless the caller
+> -	 * explicitly requests that.
+> -	 */
+> -	if (gfp_mask & __GFP_NOFAIL)
+> -		return 1;
+> -
+>  	return 0;
+>  }
+>  
+> @@ -1798,6 +1799,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+>  	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+>  		if (!in_interrupt() &&
+>  		    ((p->flags & PF_MEMALLOC) ||
+> +		     (fatal_signal_pending(p) && (gfp_mask & __GFP_NOFAIL)) ||
+>  		     unlikely(test_thread_flag(TIF_MEMDIE))))
+>  			alloc_flags |= ALLOC_NO_WATERMARKS;
+>  	}
+> @@ -1812,6 +1814,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	int migratetype)
+>  {
+>  	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> +	const gfp_t nofail = gfp_mask & __GFP_NOFAIL;
+>  	struct page *page = NULL;
+>  	int alloc_flags;
+>  	unsigned long pages_reclaimed = 0;
+> @@ -1876,7 +1879,7 @@ rebalance:
+>  		goto nopage;
+>  
+>  	/* Avoid allocations with no watermarks from looping endlessly */
+> -	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+> +	if (test_thread_flag(TIF_MEMDIE) && !nofail)
+>  		goto nopage;
+>  
+>  	/* Try direct reclaim and then allocating */
+> @@ -1888,6 +1891,10 @@ rebalance:
+>  	if (page)
+>  		goto got_pg;
+>  
+> +	/* Task is killed, fail the allocation if possible */
+> +	if (fatal_signal_pending(p) && !nofail)
+> +		goto nopage;
+> +
+>  	/*
+>  	 * If we failed to make any progress reclaiming, then we are
+>  	 * running out of options and have to consider going OOM
+> @@ -1909,8 +1916,7 @@ rebalance:
+>  			 * made, there are no other options and retrying is
+>  			 * unlikely to help.
+>  			 */
+> -			if (order > PAGE_ALLOC_COSTLY_ORDER &&
+> -						!(gfp_mask & __GFP_NOFAIL))
+> +			if (order > PAGE_ALLOC_COSTLY_ORDER && !nofail)
+>  				goto nopage;
+>  
+>  			goto restart;
+> @@ -1919,7 +1925,7 @@ rebalance:
+>  
+>  	/* Check if we should retry the allocation */
+>  	pages_reclaimed += did_some_progress;
+> -	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
+> +	if (should_alloc_retry(p, gfp_mask, order, pages_reclaimed)) {
+>  		/* Wait for some write requests to complete then retry */
+>  		congestion_wait(BLK_RW_ASYNC, HZ/50);
+>  		goto rebalance;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
