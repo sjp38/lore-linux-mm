@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 16D0E6B0221
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:41:18 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6E9926B0224
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:41:26 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 20 of 41] add pmd_huge_pte to mm_struct
-Message-Id: <968d721b3e5dfba84206.1269887853@v2.random>
+Subject: [PATCH 13 of 41] special pmd_trans_* functions
+Message-Id: <eef62bb80b397548ccd6.1269887846@v2.random>
 In-Reply-To: <patchbomb.1269887833@v2.random>
 References: <patchbomb.1269887833@v2.random>
-Date: Mon, 29 Mar 2010 20:37:33 +0200
+Date: Mon, 29 Mar 2010 20:37:26 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,59 +18,75 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-This increase the size of the mm struct a bit but it is needed to preallocate
-one pte for each hugepage so that split_huge_page will not require a fail path.
-Guarantee of success is a fundamental property of split_huge_page to avoid
-decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
-would otherwise force the hugepage-unaware VM code to learn rolling back in the
-middle of its pte mangling operations (if something we need it to learn
-handling pmd_trans_huge natively rather being capable of rollback). When
-split_huge_page runs a pte is needed to succeed the split, to map the newly
-splitted regular pages with a regular pte.  This way all existing VM code
-remains backwards compatible by just adding a split_huge_page* one liner. The
-memory waste of those preallocated ptes is negligible and so it is worth it.
+These returns 0 at compile time when the config option is disabled, to allow
+gcc to eliminate the transparent hugepage function calls at compile time
+without additional #ifdefs (only the export of those functions have to be
+visible to gcc but they won't be required at link time and huge_memory.o can be
+not built at all).
+
+_PAGE_BIT_UNUSED1 is never used for pmd, only on pte.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -310,6 +310,9 @@ struct mm_struct {
- #ifdef CONFIG_MMU_NOTIFIER
- 	struct mmu_notifier_mm *mmu_notifier_mm;
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -168,6 +168,19 @@ extern void cleanup_highmap(void);
+ #define	kc_offset_to_vaddr(o) ((o) | ~__VIRTUAL_MASK)
+ 
+ #define __HAVE_ARCH_PTE_SAME
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline int pmd_trans_splitting(pmd_t pmd)
++{
++	return pmd_val(pmd) & _PAGE_SPLITTING;
++}
++
++static inline int pmd_trans_huge(pmd_t pmd)
++{
++	return pmd_val(pmd) & _PAGE_PSE;
++}
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++
+ #endif /* !__ASSEMBLY__ */
+ 
+ #endif /* _ASM_X86_PGTABLE_64_H */
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -22,6 +22,7 @@
+ #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
+ #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
+ #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
++#define _PAGE_BIT_SPLITTING	_PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
+ #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
+ 
+ /* If _PAGE_BIT_PRESENT is clear, we use these: */
+@@ -45,6 +46,7 @@
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+ #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
++#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
+ #define __HAVE_ARCH_PTE_SPECIAL
+ 
+ #ifdef CONFIG_KMEMCHECK
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -344,6 +344,11 @@ extern void untrack_pfn_vma(struct vm_ar
+ 				unsigned long size);
  #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
-+#endif
- };
  
- /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-diff --git a/kernel/fork.c b/kernel/fork.c
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -522,6 +522,9 @@ void __mmdrop(struct mm_struct *mm)
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
- 	mmu_notifier_mm_destroy(mm);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	VM_BUG_ON(mm->pmd_huge_pte);
-+#endif
- 	free_mm(mm);
- }
- EXPORT_SYMBOL_GPL(__mmdrop);
-@@ -662,6 +665,10 @@ struct mm_struct *dup_mm(struct task_str
- 	mm->token_priority = 0;
- 	mm->last_interval = 0;
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	mm->pmd_huge_pte = NULL;
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
++#define pmd_trans_huge(pmd) 0
++#define pmd_trans_splitting(pmd) 0
 +#endif
 +
- 	if (!mm_init(mm, tsk))
- 		goto fail_nomem;
+ #endif /* !__ASSEMBLY__ */
  
+ #endif /* _ASM_GENERIC_PGTABLE_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
