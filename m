@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id CFB616B01F3
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:42 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 1D83E6B01F4
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:46 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 19 of 41] clear page compound
-Message-Id: <cb05bfc74a5b99f58112.1269887852@v2.random>
+Subject: [PATCH 05 of 41] fix bad_page to show the real reason the page is bad
+Message-Id: <c016e106c227f8b80136.1269887838@v2.random>
 In-Reply-To: <patchbomb.1269887833@v2.random>
 References: <patchbomb.1269887833@v2.random>
-Date: Mon, 29 Mar 2010 20:37:32 +0200
+Date: Mon, 29 Mar 2010 20:37:18 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,55 +18,26 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-split_huge_page must transform a compound page to a regular page and needs
-ClearPageCompound.
+page_count shows the count of the head page, but the actual check is done on
+the tail page, so show what is really being checked.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -349,7 +349,7 @@ static inline void set_page_writeback(st
-  * tests can be used in performance sensitive paths. PageCompound is
-  * generally not used in hot code paths.
-  */
--__PAGEFLAG(Head, head)
-+__PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
- __PAGEFLAG(Tail, tail)
- 
- static inline int PageCompound(struct page *page)
-@@ -357,6 +357,13 @@ static inline int PageCompound(struct pa
- 	return page->flags & ((1L << PG_head) | (1L << PG_tail));
- 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5291,7 +5291,7 @@ void dump_page(struct page *page)
+ {
+ 	printk(KERN_ALERT
+ 	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
+-		page, page_count(page), page_mapcount(page),
++		page, atomic_read(&page->_count), page_mapcount(page),
+ 		page->mapping, page->index);
+ 	dump_page_flags(page->flags);
  }
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON(!PageHead(page));
-+	ClearPageHead(page);
-+}
-+#endif
- #else
- /*
-  * Reduce page flag use as much as possible by overlapping
-@@ -394,6 +401,14 @@ static inline void __ClearPageTail(struc
- 	page->flags &= ~PG_head_tail_mask;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON((page->flags & PG_head_tail_mask) != (1 << PG_compound));
-+	clear_bit(PG_compound, &page->flags);
-+}
-+#endif
-+
- #endif /* !PAGEFLAGS_EXTENDED */
- 
- #ifdef CONFIG_MMU
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
