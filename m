@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1D83E6B01F4
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BFD736B01F4
 	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 14:40:46 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 05 of 41] fix bad_page to show the real reason the page is bad
-Message-Id: <c016e106c227f8b80136.1269887838@v2.random>
+Subject: [PATCH 17 of 41] pte alloc trans splitting
+Message-Id: <943c0e0104d82819a04a.1269887850@v2.random>
 In-Reply-To: <patchbomb.1269887833@v2.random>
 References: <patchbomb.1269887833@v2.random>
-Date: Mon, 29 Mar 2010 20:37:18 +0200
+Date: Mon, 29 Mar 2010 20:37:30 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,26 +18,140 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-page_count shows the count of the head page, but the actual check is done on
-the tail page, so show what is really being checked.
+pte alloc routines must wait for split_huge_page if the pmd is not
+present and not null (i.e. pmd_trans_splitting). The additional
+branches are optimized away at compile time by pmd_trans_splitting if
+the config option is off. However we must pass the vma down in order
+to know the anon_vma lock to wait for.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5291,7 +5291,7 @@ void dump_page(struct page *page)
- {
- 	printk(KERN_ALERT
- 	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
--		page, page_count(page), page_mapcount(page),
-+		page, atomic_read(&page->_count), page_mapcount(page),
- 		page->mapping, page->index);
- 	dump_page_flags(page->flags);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1067,7 +1067,8 @@ static inline int __pmd_alloc(struct mm_
+ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
+ #endif
+ 
+-int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
++int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
++		pmd_t *pmd, unsigned long address);
+ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
+ 
+ /*
+@@ -1136,12 +1137,14 @@ static inline void pgtable_page_dtor(str
+ 	pte_unmap(pte);					\
+ } while (0)
+ 
+-#define pte_alloc_map(mm, pmd, address)			\
+-	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
+-		NULL: pte_offset_map(pmd, address))
++#define pte_alloc_map(mm, vma, pmd, address)				\
++	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, vma,	\
++							pmd, address))?	\
++	 NULL: pte_offset_map(pmd, address))
+ 
+ #define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
+-	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
++	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, NULL,	\
++							pmd, address))?	\
+ 		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
+ 
+ #define pte_alloc_kernel(pmd, address)			\
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -396,9 +396,11 @@ void free_pgtables(struct mmu_gather *tl
+ 	}
  }
+ 
+-int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
++int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
++		pmd_t *pmd, unsigned long address)
+ {
+ 	pgtable_t new = pte_alloc_one(mm, address);
++	int wait_split_huge_page;
+ 	if (!new)
+ 		return -ENOMEM;
+ 
+@@ -418,14 +420,18 @@ int __pte_alloc(struct mm_struct *mm, pm
+ 	smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
+ 
+ 	spin_lock(&mm->page_table_lock);
+-	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
++	wait_split_huge_page = 0;
++	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
+ 		mm->nr_ptes++;
+ 		pmd_populate(mm, pmd, new);
+ 		new = NULL;
+-	}
++	} else if (unlikely(pmd_trans_splitting(*pmd)))
++		wait_split_huge_page = 1;
+ 	spin_unlock(&mm->page_table_lock);
+ 	if (new)
+ 		pte_free(mm, new);
++	if (wait_split_huge_page)
++		wait_split_huge_page(vma->anon_vma, pmd);
+ 	return 0;
+ }
+ 
+@@ -438,10 +444,11 @@ int __pte_alloc_kernel(pmd_t *pmd, unsig
+ 	smp_wmb(); /* See comment in __pte_alloc */
+ 
+ 	spin_lock(&init_mm.page_table_lock);
+-	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
++	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
+ 		pmd_populate_kernel(&init_mm, pmd, new);
+ 		new = NULL;
+-	}
++	} else
++		VM_BUG_ON(pmd_trans_splitting(*pmd));
+ 	spin_unlock(&init_mm.page_table_lock);
+ 	if (new)
+ 		pte_free_kernel(&init_mm, new);
+@@ -3119,7 +3126,7 @@ int handle_mm_fault(struct mm_struct *mm
+ 	pmd = pmd_alloc(mm, pud, address);
+ 	if (!pmd)
+ 		return VM_FAULT_OOM;
+-	pte = pte_alloc_map(mm, pmd, address);
++	pte = pte_alloc_map(mm, vma, pmd, address);
+ 	if (!pte)
+ 		return VM_FAULT_OOM;
+ 
+diff --git a/mm/mremap.c b/mm/mremap.c
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -48,7 +48,8 @@ static pmd_t *get_old_pmd(struct mm_stru
+ 	return pmd;
+ }
+ 
+-static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
++static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
++			    unsigned long addr)
+ {
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+@@ -63,7 +64,7 @@ static pmd_t *alloc_new_pmd(struct mm_st
+ 	if (!pmd)
+ 		return NULL;
+ 
+-	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
++	if (!pmd_present(*pmd) && __pte_alloc(mm, vma, pmd, addr))
+ 		return NULL;
+ 
+ 	return pmd;
+@@ -148,7 +149,7 @@ unsigned long move_page_tables(struct vm
+ 		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
+ 		if (!old_pmd)
+ 			continue;
+-		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
++		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
+ 		if (!new_pmd)
+ 			break;
+ 		next = (new_addr + PMD_SIZE) & PMD_MASK;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
