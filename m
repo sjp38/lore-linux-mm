@@ -1,124 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 700AD6B020D
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 22:06:32 -0400 (EDT)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp06.in.ibm.com (8.14.3/8.13.1) with ESMTP id o2U26RUC032217
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 07:36:27 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2U26RFI3530850
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 07:36:27 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2U26RZ8004583
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 13:06:27 +1100
-Date: Tue, 30 Mar 2010 07:36:23 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH] memcg documentaion update
-Message-ID: <20100330020623.GZ3308@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100329154245.455227d9.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100329154245.455227d9.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A41EB6B0209
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 22:26:48 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2U2Qhd1000425
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 30 Mar 2010 11:26:44 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7094145DE61
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 11:26:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CE5545DE55
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 11:26:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B7B4E38008
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 11:26:43 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 98AEDE38001
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 11:26:42 +0900 (JST)
+Date: Tue, 30 Mar 2010 11:23:01 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH(v2) -mmotm 2/2] memcg move charge of shmem at task
+ migration
+Message-Id: <20100330112301.f5bb49d7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100330103301.b0d20f7e.nishimura@mxp.nes.nec.co.jp>
+References: <20100329120243.af6bfeac.nishimura@mxp.nes.nec.co.jp>
+	<20100329120359.1c6a277d.nishimura@mxp.nes.nec.co.jp>
+	<20100329133645.e3bde19f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100330103301.b0d20f7e.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-29 15:42:45]:
+On Tue, 30 Mar 2010 10:33:01 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> At reading Documentation/cgroup/memory.txt, I felt
+> On Mon, 29 Mar 2010 13:36:45 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > Hmm...then, a shmem page is moved even if the task doesn't do page-fault.
+> > Could you clarify
+> > 	"All pages in the range mapped by a task will be moved to the new group
+> > 	 even if the task doesn't do page fault, i.e. not tasks' RSS."
+> > ?
+> I see.
 > 
->  - old
->  - hard to find it's supported what I want to do
+> This is the updated version.
 > 
-> Hmm..maybe some rewrite will be necessary.
+
+Ah, sorry. one more quesiton.
+
+> ===
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
-> ==
-> Documentation update. We have too much files now....
+> This patch adds support for moving charge of shmem and swap of it. It's enabled
+> by setting bit 2 of <target cgroup>/memory.move_charge_at_immigrate.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > ---
->  Documentation/cgroups/memory.txt |   48 ++++++++++++++++++++++++++++++---------
->  1 file changed, 38 insertions(+), 10 deletions(-)
+> v1->v2
+>   - update a documentation.
 > 
-> Index: mmotm-2.6.34-Mar24/Documentation/cgroups/memory.txt
-> ===================================================================
-> --- mmotm-2.6.34-Mar24.orig/Documentation/cgroups/memory.txt
-> +++ mmotm-2.6.34-Mar24/Documentation/cgroups/memory.txt
-> @@ -4,16 +4,6 @@ NOTE: The Memory Resource Controller has
->  to as the memory controller in this document. Do not confuse memory controller
->  used here with the memory controller that is used in hardware.
+>  Documentation/cgroups/memory.txt |    9 +++++-
+>  include/linux/swap.h             |    5 +++
+>  mm/memcontrol.c                  |   52 +++++++++++++++++++++++++------------
+>  mm/shmem.c                       |   37 +++++++++++++++++++++++++++
+>  4 files changed, 84 insertions(+), 19 deletions(-)
 > 
-> -Salient features
-> -
-> -a. Enable control of Anonymous, Page Cache (mapped and unmapped) and
-> -   Swap Cache memory pages.
-> -b. The infrastructure allows easy addition of other types of memory to control
-> -c. Provides *zero overhead* for non memory controller users
-> -d. Provides a double LRU: global memory pressure causes reclaim from the
-> -   global LRU; a cgroup on hitting a limit, reclaims from the per
-> -   cgroup LRU
-> -
->  Benefits and Purpose of the memory controller
-> 
->  The memory controller isolates the memory behaviour of a group of tasks
-> @@ -33,6 +23,44 @@ d. A CD/DVD burner could control the amo
->  e. There are several other use cases, find one or use the controller just
->     for fun (to learn and hack on the VM subsystem).
-> 
-> +Current Status: linux-2.6.34-mmotom(2010/March)
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index c624cd2..4755d5e 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -465,13 +465,18 @@ charges should be moved.
+>     1  | A charge of page cache mapped by the target task. Pages mapped by
+>        | multiple processes will not be moved. This "page cache" doesn't include
+>        | tmpfs.
+> + -----+------------------------------------------------------------------------
+> +   2  | A charge of a tmpfs page(or swap of it) mapped by the target task. A
+> +      | typical use case of it is ipc shared memory. Unlike above 2 cases, all
+> +      | pages(and swaps) in the range mapped by the task will be moved even if
+> +      | the task hasn't done page fault, i.e. they might not be the task's
+> +      | "RSS", but other task's "RSS" that maps the shared memory. You must
+> +      | enable Swap Extension(see 2.4) to enable move of swap charges.
+>  
+>  Note: Those pages and swaps must be charged to the old cgroup.
+> -Note: More type of pages(e.g. shmem) will be supported by other bits in future.
+>  
+>  8.3 TODO
+>  
+> -- Add support for other types of pages(e.g. file cache, shmem, etc.).
+>  - Implement madvise(2) to let users decide the vma to be moved or not to be
+>    moved.
+>  - All of moving charge operations are done under cgroup_mutex. It's not good
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 1f59d93..94ec325 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -285,6 +285,11 @@ extern void kswapd_stop(int nid);
+>  extern int shmem_unuse(swp_entry_t entry, struct page *page);
+>  #endif /* CONFIG_MMU */
+>  
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> +extern void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
+> +					struct page **pagep, swp_entry_t *ent);
+> +#endif
 > +
-> +Features:
-> + - accounting anonymous pages, file caches, swap caches usage and limit them.
-> + - private LRU and reclaim routine. (system's global LRU and private LRU
-> +   work independently from each other)
-> + - optionaly, memory+swap usage
-> + - hierarchical accounting
-> + - softlimit
-> + - moving(recharging) account at moving a task
-> + - usage threshold notifier
-> + - oom-killer disable and oom-notifier
-> + - Root cgroup has no limit controls.
+>  extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
+>  
+>  #ifdef CONFIG_SWAP
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 66d2704..99a496c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -251,6 +251,7 @@ struct mem_cgroup {
+>  enum move_type {
+>  	MOVE_CHARGE_TYPE_ANON,	/* private anonymous page and swap of it */
+>  	MOVE_CHARGE_TYPE_FILE,	/* private file caches */
+> +	MOVE_CHARGE_TYPE_SHMEM,	/* shared memory and swap of it */
+>  	NR_MOVE_TYPE,
+>  };
+>  
+> @@ -4195,12 +4196,30 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+>  					&mc.to->move_charge_at_immigrate);
+>  	bool move_file = test_bit(MOVE_CHARGE_TYPE_FILE,
+>  					&mc.to->move_charge_at_immigrate);
+> +	bool move_shmem = test_bit(MOVE_CHARGE_TYPE_SHMEM,
+> +					&mc.to->move_charge_at_immigrate);
+> +	bool is_shmem = false;
+>  
+>  	if (!pte_present(ptent)) {
+> -		/* TODO: handle swap of shmes/tmpfs */
+> -		if (pte_none(ptent) || pte_file(ptent))
+> -			return 0;
+> -		else if (is_swap_pte(ptent)) {
+> +		if (pte_none(ptent) || pte_file(ptent)) {
+> +			struct inode *inode;
+> +			struct address_space *mapping;
+> +			pgoff_t pgoff = 0;
 > +
+> +			if (!vma->vm_file)
+> +				return 0;
+> +			mapping = vma->vm_file->f_mapping;
+> +			if (!move_shmem || !mapping_cap_swap_backed(mapping))
+> +				return 0;
+> +
+> +			if (pte_none(ptent))
+> +				pgoff = linear_page_index(vma, addr);
+> +			if (pte_file(ptent))
+> +				pgoff = pte_to_pgoff(ptent);
+> +			inode = vma->vm_file->f_path.dentry->d_inode;
+> +			mem_cgroup_get_shmem_target(inode, pgoff, &page, &ent);
+> +			is_shmem = true;
+> +		} else if (is_swap_pte(ptent)) {
+>  			ent = pte_to_swp_entry(ptent);
+>  			if (!move_anon || non_swap_entry(ent))
+>  				return 0;
+> @@ -4210,26 +4229,22 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+>  		page = vm_normal_page(vma, addr, ptent);
+>  		if (!page || !page_mapped(page))
+>  			return 0;
+> -		/*
+> -		 * TODO: We don't move charges of shmem/tmpfs pages for now.
+> -		 */
+>  		if (PageAnon(page)) {
+>  			if (!move_anon)
+>  				return 0;
+>  		} else if (page_is_file_cache(page)) {
+>  			if (!move_file)
+>  				return 0;
+> -		} else
+> -			return 0;
+> +		} else {
+> +			if (!move_shmem)
+> +				return 0;
+> +			is_shmem = true;
+> +		}
+>  		if (!get_page_unless_zero(page))
+>  			return 0;
+>  		usage_count = page_mapcount(page);
+>  	}
+> -	if (usage_count > 1) {
+> -		/*
+> -		 * TODO: We don't move charges of shared(used by multiple
+> -		 * processes) pages for now.
+> -		 */
+> +	if (usage_count > 1 && !is_shmem) {
+>  		if (page)
+>  			put_page(page);
+>  		return 0;
+> @@ -4284,6 +4299,8 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
+>  
+>  	down_read(&mm->mmap_sem);
+>  	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> +		bool move_shmem = test_bit(MOVE_CHARGE_TYPE_SHMEM,
+> +					&mc.to->move_charge_at_immigrate);
+>  		struct mm_walk mem_cgroup_count_precharge_walk = {
+>  			.pmd_entry = mem_cgroup_count_precharge_pte_range,
+>  			.mm = mm,
+> @@ -4292,7 +4309,7 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
+>  		if (is_vm_hugetlb_page(vma))
+>  			continue;
+>  		/* TODO: We don't move charges of shmem/tmpfs pages for now. */
+> -		if (vma->vm_flags & VM_SHARED)
+> +		if ((vma->vm_flags & VM_SHARED) && !move_shmem)
+>  			continue;
 
-Good updates, I saw that you got good review comments already on this.
-In the internals section at some point we need to document new
-page_cgroup changes, changes to accounting, etc.
+SHARED mapped file cache is not moved by patch [1/2] ???
+It sounds strange.
 
-> + Kernel memory and Hugepages are not under control yet. We just manage
-> + pages on LRU. To add more controls, we have to take care of performance.
-> +
-> +Brief summary of control files.
-> +
-> + tasks				# attach a task(thread)
-> + cgroup.procs			# attach a process(all threads under it)
-> + cgroup.event_control		# an interface for event_fd()
-> + memory.usage_in_bytes		# show current memory(RSS+Cache) usage.
-> + memory.memsw.usage_in_bytes	# show current memory+Swap usage.
-> + memory.limit_in_bytes		# set/show limit of memory usage
-> + memory.memsw.limit_in_bytes	# set/show limit of memory+Swap usage.
-> + memory.failcnt			# show the number of memory usage hit limits.
-> + memory.memsw.failcnt		# show the number of memory+Swap hit limits.
-> + memory.max_usage_in_bytes	# show max memory usage recorded.
-> + memory.memsw.usage_in_bytes	# show max memory+Swap usage recorded.
-> + memory.stat			# show various statistics.
-> + memory.use_hierarchy		# set/show hierarchical account enabled.
-> + memory.force_empty		# trigger forced move charge to parent.
-> + memory.swappiness		# set/show swappiness parameter of vmscan
-> + 				  (See sysctl's vm.swappiness)
-> + memory.move_charge_at_immigrate# set/show controls of moving charges
-> + memory.oom_control		# set/show oom controls.
-> +
->  1. History
-> 
->  The memory controller has a long history. A request for comments for the memory
-> 
-
--- 
-	Three Cheers,
-	Balbir
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
