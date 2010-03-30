@@ -1,220 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5B0316B020D
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 21:07:49 -0400 (EDT)
-Date: Tue, 30 Mar 2010 03:06:27 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 36 of 41] remove PG_buddy
-Message-ID: <20100330010627.GD5825@random.random>
-References: <patchbomb.1269887833@v2.random>
- <27d13ddf7c8f7ca03652.1269887869@v2.random>
- <1269888584.12097.371.camel@laptop>
- <20100329221718.GA5825@random.random>
- <1269901837.9160.43341.camel@nimitz>
- <20100330001511.GB5825@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100330001511.GB5825@random.random>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 031F06B020D
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 21:41:03 -0400 (EDT)
+Date: Tue, 30 Mar 2010 10:32:36 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH(v2) -mmotm 1/2] memcg move charge of file cache at task
+ migration
+Message-Id: <20100330103236.83b319ce.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100329131541.7cdc1744.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100329120243.af6bfeac.nishimura@mxp.nes.nec.co.jp>
+	<20100329120321.bb6e65fe.nishimura@mxp.nes.nec.co.jp>
+	<20100329131541.7cdc1744.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-What do you think about this in replacement? It boots so it must be
-perfect, no? (too bad previous version booted too ;)
+On Mon, 29 Mar 2010 13:15:41 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 29 Mar 2010 12:03:21 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > This patch adds support for moving charge of file cache. It's enabled by setting
+> > bit 1 of <target cgroup>/memory.move_charge_at_immigrate.
+> > 
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > ---
+> >  Documentation/cgroups/memory.txt |    6 ++++--
+> >  mm/memcontrol.c                  |   14 +++++++++++---
+> >  2 files changed, 15 insertions(+), 5 deletions(-)
+> > 
+> > diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> > index 1b5bd04..f53d220 100644
+> > --- a/Documentation/cgroups/memory.txt
+> > +++ b/Documentation/cgroups/memory.txt
+> > @@ -461,10 +461,12 @@ charges should be moved.
+> >     0  | A charge of an anonymous page(or swap of it) used by the target task.
+> >        | Those pages and swaps must be used only by the target task. You must
+> >        | enable Swap Extension(see 2.4) to enable move of swap charges.
+> > + -----+------------------------------------------------------------------------
+> > +   1  | A charge of file cache mmap'ed by the target task. Those pages must be
+> > +      | mmap'ed only by the target task.
+> 
+> Hmm..my English is not good but..
+> ==
+> A charge of a page cache mapped by the target task. Pages mapped by multiple processes
+> will not be moved. This "page cache" doesn't include tmpfs.
+> ==
+> 
+This is more accurate than mine.
 
-----
-Subject: remove PG_buddy
+> Hmm, "a page mapped only by target task but belongs to other cgroup" will be moved ?
+> The answer is "NO.".
+> 
+> The code itself seems to work well. So, could you update Documentation ?
+> 
+Thank you for your advice.
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+This is the updated version.
 
-PG_buddy can be converted to _mapcount == -2. So the PG_compound_lock can be
-added to page->flags without overflowing (because of the sparse section bits
-increasing) with CONFIG_X86_PAE=y and CONFIG_X86_PAT=y. This also has to move
-the memory hotplug code from _mapcount to lru.next to avoid clashes.
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+This patch adds support for moving charge of file cache. It's enabled by setting
+bit 1 of <target cgroup>/memory.move_charge_at_immigrate.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
+v1->v2
+  - update a documentation.
 
-diff --git a/fs/proc/page.c b/fs/proc/page.c
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -116,15 +116,17 @@ u64 stable_page_flags(struct page *page)
- 	if (PageHuge(page))
- 		u |= 1 << KPF_HUGE;
+ Documentation/cgroups/memory.txt |    7 +++++--
+ mm/memcontrol.c                  |   14 +++++++++++---
+ 2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 1b5bd04..c624cd2 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -461,10 +461,13 @@ charges should be moved.
+    0  | A charge of an anonymous page(or swap of it) used by the target task.
+       | Those pages and swaps must be used only by the target task. You must
+       | enable Swap Extension(see 2.4) to enable move of swap charges.
++ -----+------------------------------------------------------------------------
++   1  | A charge of page cache mapped by the target task. Pages mapped by
++      | multiple processes will not be moved. This "page cache" doesn't include
++      | tmpfs.
  
-+	/*
-+	 * Caveats on high order pages: page->_count will only be set
-+	 * -1 on the head page; SLUB/SLQB do the same for PG_slab;
-+	 * SLOB won't set PG_slab at all on compound pages.
-+	 */
-+	if (PageBuddy(page))
-+		u |= 1 << KPF_BUDDY;
-+
- 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
+ Note: Those pages and swaps must be charged to the old cgroup.
+-Note: More type of pages(e.g. file cache, shmem,) will be supported by other
+-      bits in future.
++Note: More type of pages(e.g. shmem) will be supported by other bits in future.
  
--	/*
--	 * Caveats on high order pages:
--	 * PG_buddy will only be set on the head page; SLUB/SLQB do the same
--	 * for PG_slab; SLOB won't set PG_slab at all on compound pages.
--	 */
- 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
--	u |= kpf_copy_bit(k, KPF_BUDDY,		PG_buddy);
+ 8.3 TODO
  
- 	u |= kpf_copy_bit(k, KPF_ERROR,		PG_error);
- 	u |= kpf_copy_bit(k, KPF_DIRTY,		PG_dirty);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -358,6 +358,27 @@ static inline void init_page_count(struc
- 	atomic_set(&page->_count, 1);
- }
- 
-+/*
-+ * PageBuddy() indicate that the page is free and in the buddy system
-+ * (see mm/page_alloc.c).
-+ */
-+static inline int PageBuddy(struct page *page)
-+{
-+	return atomic_read(&page->_mapcount) == -2;
-+}
-+
-+static inline void __SetPageBuddy(struct page *page)
-+{
-+	VM_BUG_ON(atomic_read(&page->_mapcount) != -1);
-+	atomic_set(&page->_mapcount, -2);
-+}
-+
-+static inline void __ClearPageBuddy(struct page *page)
-+{
-+	VM_BUG_ON(!PageBuddy(page));
-+	atomic_set(&page->_mapcount, -1);
-+}
-+
- void put_page(struct page *page);
- void put_pages_list(struct list_head *pages);
- 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -48,9 +48,6 @@
-  * struct page (these bits with information) are always mapped into kernel
-  * address space...
-  *
-- * PG_buddy is set to indicate that the page is free and in the buddy system
-- * (see mm/page_alloc.c).
-- *
-  * PG_hwpoison indicates that a page got corrupted in hardware and contains
-  * data with incorrect ECC bits that triggered a machine check. Accessing is
-  * not safe since it may cause another machine check. Don't touch!
-@@ -96,7 +93,6 @@ enum pageflags {
- 	PG_swapcache,		/* Swap page: swp_entry_t in private */
- 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
- 	PG_reclaim,		/* To be reclaimed asap */
--	PG_buddy,		/* Page is free, on buddy lists */
- 	PG_swapbacked,		/* Page is backed by RAM/swap */
- 	PG_unevictable,		/* Page is "unevictable"  */
- #ifdef CONFIG_MMU
-@@ -235,7 +231,6 @@ PAGEFLAG(OwnerPriv1, owner_priv_1) TESTC
-  * risky: they bypass page accounting.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f6c9d42..66d2704 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -250,6 +250,7 @@ struct mem_cgroup {
   */
- TESTPAGEFLAG(Writeback, writeback) TESTSCFLAG(Writeback, writeback)
--__PAGEFLAG(Buddy, buddy)
- PAGEFLAG(MappedToDisk, mappedtodisk)
+ enum move_type {
+ 	MOVE_CHARGE_TYPE_ANON,	/* private anonymous page and swap of it */
++	MOVE_CHARGE_TYPE_FILE,	/* private file caches */
+ 	NR_MOVE_TYPE,
+ };
  
- /* PG_readahead is only used for file reads; PG_reclaim is only for writes */
-@@ -430,7 +425,7 @@ static inline void ClearPageCompound(str
- #define PAGE_FLAGS_CHECK_AT_FREE \
- 	(1 << PG_lru	 | 1 << PG_locked    | \
- 	 1 << PG_private | 1 << PG_private_2 | \
--	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
-+	 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
- 	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
- 	 __PG_COMPOUND_LOCK)
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -65,9 +65,9 @@ static void release_memory_resource(stru
+@@ -4192,6 +4193,8 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+ 	int usage_count = 0;
+ 	bool move_anon = test_bit(MOVE_CHARGE_TYPE_ANON,
+ 					&mc.to->move_charge_at_immigrate);
++	bool move_file = test_bit(MOVE_CHARGE_TYPE_FILE,
++					&mc.to->move_charge_at_immigrate);
  
- #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
- #ifndef CONFIG_SPARSEMEM_VMEMMAP
--static void get_page_bootmem(unsigned long info,  struct page *page, int type)
-+static void get_page_bootmem(unsigned long info,  struct page *page, long type)
- {
--	atomic_set(&page->_mapcount, type);
-+	page->lru.next = (struct list_head *) type;
- 	SetPagePrivate(page);
- 	set_page_private(page, info);
- 	atomic_inc(&page->_count);
-@@ -77,15 +77,15 @@ static void get_page_bootmem(unsigned lo
-  * so use __ref to tell modpost not to generate a warning */
- void __ref put_page_bootmem(struct page *page)
- {
--	int type;
-+	long type;
- 
--	type = atomic_read(&page->_mapcount);
--	BUG_ON(type >= -1);
-+	type = (long) page->lru.next;
-+	BUG_ON(type < NODE_INFO || type > SECTION_INFO);
- 
- 	if (atomic_dec_return(&page->_count) == 1) {
- 		ClearPagePrivate(page);
- 		set_page_private(page, 0);
--		reset_page_mapcount(page);
-+		INIT_LIST_HEAD(&page->lru);
- 		__free_pages_bootmem(page, 0);
- 	}
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -426,8 +426,8 @@ __find_combined_index(unsigned long page
-  * (c) a page and its buddy have the same order &&
-  * (d) a page and its buddy are in the same zone.
-  *
-- * For recording whether a page is in the buddy system, we use PG_buddy.
-- * Setting, clearing, and testing PG_buddy is serialized by zone->lock.
-+ * For recording whether a page is in the buddy system, we set ->_mapcount -2.
-+ * Setting, clearing, and testing _mapcount -2 is serialized by zone->lock.
-  *
-  * For recording page's order, we use page_private(page).
-  */
-@@ -460,7 +460,7 @@ static inline int page_is_buddy(struct p
-  * as necessary, plus some accounting needed to play nicely with other
-  * parts of the VM system.
-  * At each level, we keep a list of pages, which are heads of continuous
-- * free pages of length of (1 << order) and marked with PG_buddy. Page's
-+ * free pages of length of (1 << order) and marked with _mapcount -2. Page's
-  * order is recorded in page_private(page) field.
-  * So when we are allocating or freeing one, we can derive the state of the
-  * other.  That is, if we allocate a small block, and both were   
-@@ -5251,7 +5251,6 @@ static struct trace_print_flags pageflag
- 	{1UL << PG_swapcache,		"swapcache"	},
- 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},
- 	{1UL << PG_reclaim,		"reclaim"	},
--	{1UL << PG_buddy,		"buddy"		},
- 	{1UL << PG_swapbacked,		"swapbacked"	},
- 	{1UL << PG_unevictable,		"unevictable"	},
- #ifdef CONFIG_MMU
-diff --git a/mm/sparse.c b/mm/sparse.c
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -670,10 +670,10 @@ static void __kfree_section_memmap(struc
- static void free_map_bootmem(struct page *page, unsigned long nr_pages)
- {
- 	unsigned long maps_section_nr, removing_section_nr, i;
--	int magic;
-+	long magic;
- 
- 	for (i = 0; i < nr_pages; i++, page++) {
--		magic = atomic_read(&page->_mapcount);
-+		magic = (long) page->lru.next;
- 
- 		BUG_ON(magic == NODE_INFO);
- 
+ 	if (!pte_present(ptent)) {
+ 		/* TODO: handle swap of shmes/tmpfs */
+@@ -4208,10 +4211,15 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+ 		if (!page || !page_mapped(page))
+ 			return 0;
+ 		/*
+-		 * TODO: We don't move charges of file(including shmem/tmpfs)
+-		 * pages for now.
++		 * TODO: We don't move charges of shmem/tmpfs pages for now.
+ 		 */
+-		if (!move_anon || !PageAnon(page))
++		if (PageAnon(page)) {
++			if (!move_anon)
++				return 0;
++		} else if (page_is_file_cache(page)) {
++			if (!move_file)
++				return 0;
++		} else
+ 			return 0;
+ 		if (!get_page_unless_zero(page))
+ 			return 0;
+-- 
+1.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
