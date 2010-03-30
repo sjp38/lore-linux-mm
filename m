@@ -1,82 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A330A6B01F2
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 06:25:33 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2UAPUSi006872
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 30 Mar 2010 19:25:31 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B444945DE4E
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 19:25:30 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9412445DD70
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 19:25:30 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 81CF1E38003
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 19:25:30 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 35CDEE08004
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 19:25:30 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-In-Reply-To: <28c262361003300317g6df68fc6m4385cfbe3e8a1b04@mail.gmail.com>
-References: <20100330055304.GA2983@sli10-desk.sh.intel.com> <28c262361003300317g6df68fc6m4385cfbe3e8a1b04@mail.gmail.com>
-Message-Id: <20100330192219.328C.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B60216B01F3
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 07:19:16 -0400 (EDT)
+Date: Tue, 30 Mar 2010 12:18:55 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: BUG: Use after free in free_huge_page()
+Message-ID: <20100330111855.GC15466@csn.ul.ie>
+References: <201003222028.o2MKSDsD006611@pogo.us.cray.com> <4BA8C9E0.2090300@us.ibm.com> <20100323175639.GA5870@csn.ul.ie> <4BAAF20D.1050705@cray.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue, 30 Mar 2010 19:25:29 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4BAAF20D.1050705@cray.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, fengguang.wu@intel.com
+To: Andrew Hastings <abh@cray.com>
+Cc: Adam Litke <agl@us.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Yes. It made subtle change.
-> But we should not depend that change.
-> Current logic seems to be good and clear than old.
-> I think you were lucky at that time by not-good and not-clear logic.
-> 
-> BTW, How about this?
+On Thu, Mar 25, 2010 at 12:18:05AM -0500, Andrew Hastings wrote:
+> Mel Gorman wrote:
+>> On Tue, Mar 23, 2010 at 09:02:08AM -0500, Adam Litke wrote:
+>>> Hi Andrew, thanks for the detailed report.  I am taking a look at 
+>>> this  but it seems a lot has happened since I last looked at this 
+>>> code.  (If  anyone else knows what might be going on here, please do 
+>>> chime in).
+>>>
+>>> Andrew Hastings wrote:
+>>>> I think what happens is:
+>>>> 1.  Driver does get_user_pages() for pages mapped by hugetlbfs.
+>>>> 2.  Process exits.
+>>>> 3.  hugetlbfs file is closed; the vma->vm_file->f_mapping value stored in
+>>>>     page_private now points to freed memory
+>>>> 4.  Driver file is closed; driver's release() function calls put_page()
+>>>>     which calls free_huge_page() which passes bogus mapping value to
+>>>>     hugetlb_put_quota().
+>>> :( Definitely seems plausible.
+>>>
+>>
+>> I haven't had a chance to look at this closely yet and it'll be a
+>> minimum of a few days before I do. Hopefully Adam will spot something in
+>> the meantime but I do have a question.
+>>
+>> What driver is calling get_user_pages() on pages mapped by hugetlbfs?
+>> It's not clear what "driver file" is involved but clearly it's not mapped
+>> or it would have called get_file() as part of the mapping.
+>>
+>> Again, without thinking about this too much, it seems more like a
+>> reference-count problem rather than a race if the file is disappaering
+>> before the pages being backed by it are freed.
+>
+> Mel:
+>
+> Yeah, this is certainly a reference-counting problem, but I think it's 
+> probably in hugetlbfs.  
+>
+> We are developing a device driver under GPL for a future product, our 
+> "Gemini" interconnect.  The "device file" I mentioned is simply the entry 
+> in sysfs that user space libraries use to communicate with the device 
+> driver.  The "Gemini" device supports RDMA, so the driver will "pin" user 
+> pages via get_user_pages() on user request, and "unpin" those pages via 
+> put_page() on user request or process exit.  The pages being "pinned" may 
+> or may not be pages mapped by hugetlbfs.  (Device drivers shouldn't have 
+> to know whether the pages they are doing DMA on are pages mapped by 
+> hugetlbfs, should they?) 
+>
 
-Unfortunatelly, memcg need your removed code. if removed, swapping out
-might happen although sc->may_swap==0 when priority==0.
+No, they shouldn't but I'm having a wee bit of trouble seeing why DMA to a page
+that is no longer reachable by any process is happening. I'm somewhat taking
+your word for it that there is a proper use case. Even if RDMA is involved,
+it does not explain what happens the sending process when it's end-point
+has disappeared. My feeling is that more likely this is an "anomolous"
+situation but the kernel shouldn't shoot itself when it occurs.
 
-Please give me little investigate time.
+> The "Gemini" device driver may be somewhat unusual in that it tends to
+> "pin" pages for longer periods and is thus more likely to hit this race,
+> but this race should exist for any driver that calls get_user_pages() on
+> hugetlbfs-backed pages for an asynchronous DMA just before process exit,
+> and does not complete that DMA until after the hugetlbfs file is released
+> at exit time,  I'd imagine that this could happen with e.g. NFS and O_DIRECT
+> if O_DIRECT is supported and the NFS server is slow.
+>
+> It seems to me that hugetlbfs ought to take an extra reference on the vma
+> or vm_file or f_mapping or _something_ if vma->vm_file->f_mapping is needed
+> by free_huge_page().
 
+Again, I haven't looked closely at this but a reference count on the VMA
+wouldn't help. After all, the VMAs have already been cleared up and the
+page tables. As far as the code is concerned, that file is no longer in
+use. I'd also not try reference counting during get_user_pages and
+someohw releasing that count later. Too much mess.
 
+The most likely avenue is to store a reference to the superblock instead
+of the mapping in page->private which is what put_quota is really
+interested in. There might still be a race there if hugetlbfs managed to
+get unmounted before the pages were freed though - not 100% sure.
 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 79c8098..f0df563 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1646,11 +1646,6 @@ static void shrink_zone(int priority, struct zone *zone,
->                 int file = is_file_lru(l);
->                 unsigned long scan;
-> 
-> -               if (percent[file] == 0) {
-> -                       nr[l] = 0;
-> -                       continue;
-> -               }
-> -
->                 scan = zone_nr_lru_pages(zone, sc, l);
->                 if (priority) {
->                         scan >>= priority;
-> 
-> 
-> 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
+> Or is there something our "Gemini" driver should be doing to ensure DMAs complete before exit time?
+>
 
+I'm not familiar enough with how RDMA should be implemented to answer
+that question offhand.
 
+> Thanks for your insights into this problem!
+>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
