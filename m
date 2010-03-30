@@ -1,83 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EDF116B022D
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 20:16:26 -0400 (EDT)
-Date: Tue, 30 Mar 2010 02:15:11 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 36 of 41] remove PG_buddy
-Message-ID: <20100330001511.GB5825@random.random>
-References: <patchbomb.1269887833@v2.random>
- <27d13ddf7c8f7ca03652.1269887869@v2.random>
- <1269888584.12097.371.camel@laptop>
- <20100329221718.GA5825@random.random>
- <1269901837.9160.43341.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1269901837.9160.43341.camel@nimitz>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EBCCF6B022D
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 20:19:15 -0400 (EDT)
+Date: Tue, 30 Mar 2010 09:13:03 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH] memcg documentaion update
+Message-Id: <20100330091303.14a06e85.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100329154245.455227d9.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100329154245.455227d9.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 29, 2010 at 03:30:37PM -0700, Dave Hansen wrote:
-> Don't forget that include/linux/memory_hotplug.h uses mapcount a bit for
-> marking bootmem.  So, just for clarity, we'd probably want to use -5 or
-> something.
->         
->         /*
->          * Types for free bootmem.
->          * The normal smallest mapcount is -1. Here is smaller value than it.
->          */
->         #define SECTION_INFO            (-1 - 1)
->         #define MIX_SECTION_INFO        (-1 - 2)
->         #define NODE_INFO               (-1 - 3)
-
-So this is the memory holding the struct page and pgdat info that is
-released when the memory is hot-removed? Why isn't
-register_page_bootmem_info_node up to get_page_bootmem all let it go
-in the __init section together with their only caller? 
-
-what is the reader of that type field? is it only put_page_bootmem?
-Just for this BUG_ON?
-
-     BUG_ON(type >= -1);
-
-and what is this about?
-
-    if (atomic_dec_return(&page->_count) == 1) {
-
-How can this every return 0?
-
-Yes I can use -5 no problem, that's no big deal but I don't get how
-this _mapcount type info is used and why. Well the BUG_ON above is
-obvious but I wonder if it's just for a BUG_ON. If it's just for a
-BUG_ON can we just move the layering violation to page->lru.next and
-leave mapcount -2 for PageBuddy?
-
-> Looks like SLUB also uses _mapcount for some fun purposes:
->         
->         struct page {
->                 unsigned long flags;            /* Atomic flags, some possibly
->                                                  * updated asynchronously */
->                 atomic_t _count;                /* Usage count, see below. */
->                 union {
->                         atomic_t _mapcount;     /* Count of ptes mapped in mms,
->                                                  * to show when page is mapped
->                                                  * & limit reverse map searches.
->                                                  */
->                         struct {                /* SLUB */
->                                 u16 inuse;
->                                 u16 objects;
->                         };
->                 };
+On Mon, 29 Mar 2010 15:42:45 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> At reading Documentation/cgroup/memory.txt, I felt
 > 
-> I guess those don't *really* become a problem in practice until we get a
-> really large page size that can hold >=64k objects.  But, at that point,
-> we're overflowing the types anyway (or really close to it).  
+>  - old
+>  - hard to find it's supported what I want to do
+> 
+> Hmm..maybe some rewrite will be necessary.
+> 
+I agree.
 
-Maybe we should add a BUG_ON in slub in case anybody runs this on
-PAGE_SIZE == 2M (to avoid silent corruption).
+> ==
+> Documentation update. We have too much files now....
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  Documentation/cgroups/memory.txt |   48 ++++++++++++++++++++++++++++++---------
+>  1 file changed, 38 insertions(+), 10 deletions(-)
+> 
+> Index: mmotm-2.6.34-Mar24/Documentation/cgroups/memory.txt
+> ===================================================================
+> --- mmotm-2.6.34-Mar24.orig/Documentation/cgroups/memory.txt
+> +++ mmotm-2.6.34-Mar24/Documentation/cgroups/memory.txt
+> @@ -4,16 +4,6 @@ NOTE: The Memory Resource Controller has
+>  to as the memory controller in this document. Do not confuse memory controller
+>  used here with the memory controller that is used in hardware.
+>  
+> -Salient features
+> -
+> -a. Enable control of Anonymous, Page Cache (mapped and unmapped) and
+> -   Swap Cache memory pages.
+> -b. The infrastructure allows easy addition of other types of memory to control
+> -c. Provides *zero overhead* for non memory controller users
+> -d. Provides a double LRU: global memory pressure causes reclaim from the
+> -   global LRU; a cgroup on hitting a limit, reclaims from the per
+> -   cgroup LRU
+> -
+>  Benefits and Purpose of the memory controller
+>  
+>  The memory controller isolates the memory behaviour of a group of tasks
+> @@ -33,6 +23,44 @@ d. A CD/DVD burner could control the amo
+>  e. There are several other use cases, find one or use the controller just
+>     for fun (to learn and hack on the VM subsystem).
+>  
+> +Current Status: linux-2.6.34-mmotom(2010/March)
+> +
+> +Features:
+> + - accounting anonymous pages, file caches, swap caches usage and limit them.
+> + - private LRU and reclaim routine. (system's global LRU and private LRU
+> +   work independently from each other)
+> + - optionaly, memory+swap usage
+> + - hierarchical accounting
+> + - softlimit
+> + - moving(recharging) account at moving a task
+> + - usage threshold notifier
+> + - oom-killer disable and oom-notifier
+> + - Root cgroup has no limit controls.
+> +
+> + Kernel memory and Hugepages are not under control yet. We just manage
+> + pages on LRU. To add more controls, we have to take care of performance.
+> +
+> +Brief summary of control files.
+> +
+> + tasks				# attach a task(thread)
+> + cgroup.procs			# attach a process(all threads under it)
+> + cgroup.event_control		# an interface for event_fd()
+> + memory.usage_in_bytes		# show current memory(RSS+Cache) usage.
+> + memory.memsw.usage_in_bytes	# show current memory+Swap usage.
+> + memory.limit_in_bytes		# set/show limit of memory usage
+> + memory.memsw.limit_in_bytes	# set/show limit of memory+Swap usage.
+> + memory.failcnt			# show the number of memory usage hit limits.
+> + memory.memsw.failcnt		# show the number of memory+Swap hit limits.
+> + memory.max_usage_in_bytes	# show max memory usage recorded.
+> + memory.memsw.usage_in_bytes	# show max memory+Swap usage recorded.
+> + memory.stat			# show various statistics.
+> + memory.use_hierarchy		# set/show hierarchical account enabled.
+> + memory.force_empty		# trigger forced move charge to parent.
+> + memory.swappiness		# set/show swappiness parameter of vmscan
+> + 				  (See sysctl's vm.swappiness)
+> + memory.move_charge_at_immigrate# set/show controls of moving charges
+> + memory.oom_control		# set/show oom controls.
+> +
+These changes would be very useful to let users know memcg's features at a glance.
+
+>  1. History
+>  
+>  The memory controller has a long history. A request for comments for the memory
+> 
+
+BTW, I think it might be better to update 5.2(stat file) too.
+"mapped_file" and "swap"(sorry, my fault) aren't listed there.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
