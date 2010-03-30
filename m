@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B35F66B01F9
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 05:14:52 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 87C3C6B01FC
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 05:14:53 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 04/14] Allow CONFIG_MIGRATION to be set without CONFIG_NUMA or memory hot-remove
-Date: Tue, 30 Mar 2010 10:14:39 +0100
-Message-Id: <1269940489-5776-5-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 07/14] Move definition for LRU isolation modes to a header
+Date: Tue, 30 Mar 2010 10:14:42 +0100
+Message-Id: <1269940489-5776-8-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1269940489-5776-1-git-send-email-mel@csn.ul.ie>
 References: <1269940489-5776-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,59 +13,49 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CONFIG_MIGRATION currently depends on CONFIG_NUMA or on the architecture
-being able to hot-remove memory. The main users of page migration such as
-sys_move_pages(), sys_migrate_pages() and cpuset process migration are
-only beneficial on NUMA so it makes sense.
-
-As memory compaction will operate within a zone and is useful on both NUMA
-and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
-user selects CONFIG_COMPACTION as an option.
+Currently, vmscan.c defines the isolation modes for
+__isolate_lru_page(). Memory compaction needs access to these modes for
+isolating pages for migration.  This patch exports them.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- mm/Kconfig |   18 +++++++++++++++---
- 1 files changed, 15 insertions(+), 3 deletions(-)
+ include/linux/swap.h |    5 +++++
+ mm/vmscan.c          |    5 -----
+ 2 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c61158..4fd75a0 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -172,6 +172,16 @@ config SPLIT_PTLOCK_CPUS
- 	default "4"
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 1f59d93..986b12d 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -238,6 +238,11 @@ static inline void lru_cache_add_active_file(struct page *page)
+ 	__lru_cache_add(page, LRU_ACTIVE_FILE);
+ }
  
- #
-+# support for memory compaction
-+config COMPACTION
-+	bool "Allow for memory compaction"
-+	def_bool y
-+	select MIGRATION
-+	depends on EXPERIMENTAL && HUGETLBFS && MMU
-+	help
-+	  Allows the compaction of memory for the allocation of huge pages.
++/* LRU Isolation modes. */
++#define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
++#define ISOLATE_ACTIVE 1	/* Isolate active pages. */
++#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
 +
-+#
- # support for page migration
- #
- config MIGRATION
-@@ -180,9 +190,11 @@ config MIGRATION
- 	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
- 	help
- 	  Allows the migration of the physical location of pages of processes
--	  while the virtual addresses are not changed. This is useful for
--	  example on NUMA systems to put pages nearer to the processors accessing
--	  the page.
-+	  while the virtual addresses are not changed. This is useful in
-+	  two situations. The first is on NUMA systems to put pages nearer
-+	  to the processors accessing. The second is when allocating huge
-+	  pages as migration can relocate pages to satisfy a huge page
-+	  allocation instead of reclaiming.
+ /* linux/mm/vmscan.c */
+ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 					gfp_t gfp_mask, nodemask_t *mask);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 79c8098..ef89600 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -839,11 +839,6 @@ keep:
+ 	return nr_reclaimed;
+ }
  
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+-/* LRU Isolation modes. */
+-#define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
+-#define ISOLATE_ACTIVE 1	/* Isolate active pages. */
+-#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
+-
+ /*
+  * Attempt to remove the specified page from its LRU.  Only take this page
+  * if it is of the appropriate PageActive status.  Pages which are being
 -- 
 1.6.5
 
