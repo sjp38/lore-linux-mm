@@ -1,50 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 045F26B022D
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 19:41:24 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2TNfMFd007982
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 30 Mar 2010 08:41:22 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EEE9C45DE51
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 08:41:21 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CAD4845DE3E
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 08:41:21 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B132C1DB8041
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 08:41:21 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FF511DB8042
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 08:41:21 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] migrate_pages:skip migration between intersect nodes
-In-Reply-To: <1269876708.13829.30.camel@useless.americas.hpqcorp.net>
-References: <1269874629-1736-1-git-send-email-lliubbo@gmail.com> <1269876708.13829.30.camel@useless.americas.hpqcorp.net>
-Message-Id: <20100330083638.8E87.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 981416B022E
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 20:03:06 -0400 (EDT)
+Received: by pwi2 with SMTP id 2so3623928pwi.14
+        for <linux-mm@kvack.org>; Mon, 29 Mar 2010 17:03:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 30 Mar 2010 08:41:20 +0900 (JST)
+In-Reply-To: <1269874629-1736-1-git-send-email-lliubbo@gmail.com>
+References: <1269874629-1736-1-git-send-email-lliubbo@gmail.com>
+Date: Tue, 30 Mar 2010 09:03:04 +0900
+Message-ID: <28c262361003291703i5382e342q773ffb16e3324cf5@mail.gmail.com>
+Subject: Re: [RFC][PATCH] migrate_pages:skip migration between intersect nodes
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, cl@linux-foundation.org
-Cc: kosaki.motohiro@jp.fujitsu.com, Bob Liu <lliubbo@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, minchar.kim@gmail.com
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, cl@linux-foundation.org, lee.schermerhorn@hp.com, andi@firstfloor.org, minchar.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-> I believe that the current code matches the intended semantics.  I can't
-> find a man pages for the migrate_pages() system call, but the
-> migratepages(8) man page says:
-> 
-> "If  multiple  nodes  are specified for from-nodes or to-nodes then an
-> attempt is made to preserve the relative location of each page in each
-> nodeset."
+Hi, Bob
 
-Offtopic>
-Christoph, Why migrate_pages(2) doesn't have man pages? Is it unrecommended
-syscall?
+On Mon, Mar 29, 2010 at 11:57 PM, Bob Liu <lliubbo@gmail.com> wrote:
+> In current do_migrate_pages(),if from_nodes and to_nodes have some
+> intersect nodes,pages in these intersect nodes will also be
+> migrated.
+> eg. Assume that, from_nodes: 1,2,3,4 to_nodes: 2,3,4,5. Then these
+> migrates will happen:
+> migrate_pages(4,5);
+> migrate_pages(3,4);
+> migrate_pages(2,3);
+> migrate_pages(1,2);
+>
+> But the user just want all pages in from_nodes move to to_nodes,
+> only migrate(1,2)(ignore the intersect nodes.) can satisfied
+> the user's request.
+>
+> I amn't sure what's migrate_page's semantic.
+> Hoping for your suggestions.
+
+I didn't see 8:migratepages Lee pointed at that time.
+The description matches current migrate_pages's behavior exactly.
+
+I agree Lee's opinion.
+Let's wait Christoph's reply what is semantic
+and why it doesn't have man page.
 
 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
