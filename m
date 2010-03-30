@@ -1,136 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 55EBA6B01F0
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 05:15:02 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 99B466B020A
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 06:03:34 -0400 (EDT)
+Date: Tue, 30 Mar 2010 11:03:17 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 13/14] Do not compact within a preferred zone after a compaction failure
-Date: Tue, 30 Mar 2010 10:14:48 +0100
-Message-Id: <1269940489-5776-14-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1269940489-5776-1-git-send-email-mel@csn.ul.ie>
-References: <1269940489-5776-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: [patch] mm: default to node zonelist ordering when nodes have
+	only lowmem
+Message-ID: <20100330100317.GB15466@csn.ul.ie>
+References: <alpine.DEB.2.00.1003251532150.7950@chino.kir.corp.google.com> <20100326140735.GB2024@csn.ul.ie> <alpine.DEB.2.00.1003261158190.24081@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1003261158190.24081@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The fragmentation index may indicate that a failure is due to external
-fragmentation but after a compaction run completes, it is still possible
-for an allocation to fail. There are two obvious reasons as to why
+On Fri, Mar 26, 2010 at 12:05:06PM -0700, David Rientjes wrote:
+> On Fri, 26 Mar 2010, Mel Gorman wrote:
+> 
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -2582,7 +2582,7 @@ static int default_zonelist_order(void)
+> > >           * ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
+> > >  	 * If they are really small and used heavily, the system can fall
+> > >  	 * into OOM very easily.
+> > > -	 * This function detect ZONE_DMA/DMA32 size and confgigures zone order.
+> > > +	 * This function detect ZONE_DMA/DMA32 size and configures zone order.
+> > >  	 */
+> > 
+> > Spurious change here but it's not very important.
+> > 
+> > >  	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
+> > >  	low_kmem_size = 0;
+> > > @@ -2594,6 +2594,15 @@ static int default_zonelist_order(void)
+> > >  				if (zone_type < ZONE_NORMAL)
+> > >  					low_kmem_size += z->present_pages;
+> > >  				total_size += z->present_pages;
+> > > +			} else if (zone_type == ZONE_NORMAL) {
+> > > +				/*
+> > 
+> > What if it was ZONE_DMA32?
+> > 
+> 
+> This is part of a zone iteration for each node, so if the node consists of 
+> only ZONE_DMA then it wouldn't have a populated ZONE_NORMAL either and 
+> will return ZONELIST_ORDER_NODE on the next iteration.
+> 
 
-  o Page migration cannot move all pages so fragmentation remains
-  o A suitable page may exist but watermarks are not met
+Yep. Made sense when I wrote out an example. 
 
-In the event of compaction followed by an allocation failure, this patch
-defers further compaction in the zone for a period of time. The zone that
-is deferred is the first zone in the zonelist - i.e. the preferred zone.
-To defer compaction in the other zones, the information would need to be
-stored in the zonelist or implemented similar to the zonelist_cache.
-This would impact the fast-paths and is not justified at this time.
+> > > +				 * If any node has only lowmem, then node order
+> > > +				 * is preferred to allow kernel allocations
+> > > +				 * locally; otherwise, they can easily infringe
+> > > +				 * on other nodes when there is an abundance of
+> > > +				 * lowmem available to allocate from.
+> > > +				 */
+> > > +				return ZONELIST_ORDER_NODE;
+> > 
+> > It might be clearer if it was done as a similar check later
+> > 
+> > 		if (low_kmem_size &&
+> > 		    total_size > average_size && /* ignore small node */
+> > 		    low_kmem_size > total_size * 70/100)
+> > 			return ZONELIST_ORDER_NODE;
+> > 
+> > This is saying if low memory is > 70% of total, then use nodes. To take
+> > yours into account, it'd look something like;
+> > 
+> > if (low_kmwm_size && total_size > average_size) {
+> > 	if (lowmem_size == total_size)
+> > 		return ZONELIST_ORDER_ZONE;
+> > 
+> > 	if (lowmem_size > total_size * 70/100)
+> > 		return ZONELIST_ORDER_NODE;
+> > }
+> 
+> There's no guarantee that we'd ever detect the node consisiting of solely 
+> lowmem here since it may be asymmetrically smaller than the average node 
+> size.
+> 
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
----
- include/linux/compaction.h |   35 +++++++++++++++++++++++++++++++++++
- include/linux/mmzone.h     |    7 +++++++
- mm/page_alloc.c            |    5 ++++-
- 3 files changed, 46 insertions(+), 1 deletions(-)
+True. I wasn't sure if it was intentional or not to take even small
+nodes into account for this ordering.
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index ae98afc..2a02719 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -18,6 +18,32 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask);
-+
-+/* defer_compaction - Do not compact within a zone until a given time */
-+static inline void defer_compaction(struct zone *zone, unsigned long resume)
-+{
-+	/*
-+	 * This function is called when compaction fails to result in a page
-+	 * allocation success. This is somewhat unsatisfactory as the failure
-+	 * to compact has nothing to do with time and everything to do with
-+	 * the requested order, the number of free pages and watermarks. How
-+	 * to wait on that is more unclear, but the answer would apply to
-+	 * other areas where the VM waits based on time.
-+	 */
-+	zone->compact_resume = resume;
-+}
-+
-+static inline int compaction_deferred(struct zone *zone)
-+{
-+	/* init once if necessary */
-+	if (unlikely(!zone->compact_resume)) {
-+		zone->compact_resume = jiffies;
-+		return 0;
-+	}
-+
-+	return time_before(jiffies, zone->compact_resume);
-+}
-+
- #else
- static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask)
-@@ -25,6 +51,15 @@ static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 	return COMPACT_INCOMPLETE;
- }
- 
-+static inline void defer_compaction(struct zone *zone, unsigned long resume)
-+{
-+}
-+
-+static inline int compaction_deferred(struct zone *zone)
-+{
-+	return 1;
-+}
-+
- #endif /* CONFIG_COMPACTION */
- 
- #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index cf9e458..bde879b 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -321,6 +321,13 @@ struct zone {
- 	unsigned long		*pageblock_flags;
- #endif /* CONFIG_SPARSEMEM */
- 
-+#ifdef CONFIG_COMPACTION
-+	/*
-+	 * If a compaction fails, do not try compaction again until
-+	 * jiffies is after the value of compact_resume
-+	 */
-+	unsigned long		compact_resume;
-+#endif
- 
- 	ZONE_PADDING(_pad1_)
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7a2e4a2..66823bd 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1770,7 +1770,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	cond_resched();
- 
- 	/* Try memory compaction for high-order allocations before reclaim */
--	if (order) {
-+	if (order && !compaction_deferred(preferred_zone)) {
- 		*did_some_progress = try_to_compact_pages(zonelist,
- 						order, gfp_mask, nodemask);
- 		if (*did_some_progress != COMPACT_SKIPPED) {
-@@ -1795,6 +1795,9 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 			 */
- 			count_vm_event(COMPACTFAIL);
- 
-+			/* On failure, avoid compaction for a short time. */
-+			defer_compaction(preferred_zone, jiffies + HZ/50);
-+
- 			cond_resched();
- 		}
- 	}
+It it's intentional, I see no problem with the patch. It's seems like a
+reasonable default decision to me.
+
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
 -- 
-1.6.5
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
