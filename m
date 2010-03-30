@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 382576B01F0
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 12:38:30 -0400 (EDT)
-Date: Tue, 30 Mar 2010 11:35:01 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 36 of 41] remove PG_buddy
-In-Reply-To: <20100330001511.GB5825@random.random>
-Message-ID: <alpine.DEB.2.00.1003301133530.24266@router.home>
-References: <patchbomb.1269887833@v2.random> <27d13ddf7c8f7ca03652.1269887869@v2.random> <1269888584.12097.371.camel@laptop> <20100329221718.GA5825@random.random> <1269901837.9160.43341.camel@nimitz> <20100330001511.GB5825@random.random>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 637BC6B01F0
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 12:41:21 -0400 (EDT)
+Date: Tue, 30 Mar 2010 18:39:09 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH] oom: fix the unsafe proc_oom_score()->badness() call
+Message-ID: <20100330163909.GA16884@redhat.com>
+References: <1269447905-5939-1-git-send-email-anfei.zhou@gmail.com> <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Mar 2010, Andrea Arcangeli wrote:
+proc_oom_score(task) have a reference to task_struct, but that is all.
+If this task was already released before we take tasklist_lock
 
-> > Looks like SLUB also uses _mapcount for some fun purposes:
-> >
-> >         struct page {
-> >                 unsigned long flags;            /* Atomic flags, some possibly
-> >                                                  * updated asynchronously */
-> >                 atomic_t _count;                /* Usage count, see below. */
-> >                 union {
-> >                         atomic_t _mapcount;     /* Count of ptes mapped in mms,
-> >                                                  * to show when page is mapped
-> >                                                  * & limit reverse map searches.
-> >                                                  */
-> >                         struct {                /* SLUB */
-> >                                 u16 inuse;
-> >                                 u16 objects;
-> >                         };
-> >                 };
-> >
-> > I guess those don't *really* become a problem in practice until we get a
-> > really large page size that can hold >=64k objects.  But, at that point,
-> > we're overflowing the types anyway (or really close to it).
->
-> Maybe we should add a BUG_ON in slub in case anybody runs this on
-> PAGE_SIZE == 2M (to avoid silent corruption).
+	- we can't use task->group_leader, it points to nowhere
 
-SLUB has been verified a long time ago to run fine with 2M pages.
+	- it is not safe to call badness() even if this task is
+	  ->group_leader, has_intersects_mems_allowed() assumes
+	  it is safe to iterate over ->thread_group list.
 
-Just specify
+Add the pid_alive() check to ensure __unhash_process() was not called.
 
-slub_min_order=9
+Note: I think we shouldn't use ->group_leader, badness() should return
+the same result for any sub-thread. However this is not true currently,
+and I think that ->mm check and list_for_each_entry(p->children) in
+badness are not right.
 
-on the kernel command line to get a system booted up with 2M slab pages.
+Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+---
+
+ fs/proc/base.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+--- 34-rc1/fs/proc/base.c~OOM_SCORE	2010-03-22 16:36:28.000000000 +0100
++++ 34-rc1/fs/proc/base.c	2010-03-30 18:23:50.000000000 +0200
+@@ -430,12 +430,13 @@ static const struct file_operations proc
+ unsigned long badness(struct task_struct *p, unsigned long uptime);
+ static int proc_oom_score(struct task_struct *task, char *buffer)
+ {
+-	unsigned long points;
++	unsigned long points = 0;
+ 	struct timespec uptime;
+ 
+ 	do_posix_clock_monotonic_gettime(&uptime);
+ 	read_lock(&tasklist_lock);
+-	points = badness(task->group_leader, uptime.tv_sec);
++	if (pid_alive(task))
++		points = badness(task->group_leader, uptime.tv_sec);
+ 	read_unlock(&tasklist_lock);
+ 	return sprintf(buffer, "%lu\n", points);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
