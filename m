@@ -1,100 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 99B466B020A
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 06:03:34 -0400 (EDT)
-Date: Tue, 30 Mar 2010 11:03:17 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch] mm: default to node zonelist ordering when nodes have
-	only lowmem
-Message-ID: <20100330100317.GB15466@csn.ul.ie>
-References: <alpine.DEB.2.00.1003251532150.7950@chino.kir.corp.google.com> <20100326140735.GB2024@csn.ul.ie> <alpine.DEB.2.00.1003261158190.24081@chino.kir.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B5DCE6B01FC
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 06:17:18 -0400 (EDT)
+Received: by pzk6 with SMTP id 6so2414805pzk.1
+        for <linux-mm@kvack.org>; Tue, 30 Mar 2010 03:17:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1003261158190.24081@chino.kir.corp.google.com>
+In-Reply-To: <20100330055304.GA2983@sli10-desk.sh.intel.com>
+References: <20100330055304.GA2983@sli10-desk.sh.intel.com>
+Date: Tue, 30 Mar 2010 19:17:17 +0900
+Message-ID: <28c262361003300317g6df68fc6m4385cfbe3e8a1b04@mail.gmail.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, fengguang.wu@intel.com, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 26, 2010 at 12:05:06PM -0700, David Rientjes wrote:
-> On Fri, 26 Mar 2010, Mel Gorman wrote:
-> 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -2582,7 +2582,7 @@ static int default_zonelist_order(void)
-> > >           * ZONE_DMA and ZONE_DMA32 can be very small area in the sytem.
-> > >  	 * If they are really small and used heavily, the system can fall
-> > >  	 * into OOM very easily.
-> > > -	 * This function detect ZONE_DMA/DMA32 size and confgigures zone order.
-> > > +	 * This function detect ZONE_DMA/DMA32 size and configures zone order.
-> > >  	 */
-> > 
-> > Spurious change here but it's not very important.
-> > 
-> > >  	/* Is there ZONE_NORMAL ? (ex. ppc has only DMA zone..) */
-> > >  	low_kmem_size = 0;
-> > > @@ -2594,6 +2594,15 @@ static int default_zonelist_order(void)
-> > >  				if (zone_type < ZONE_NORMAL)
-> > >  					low_kmem_size += z->present_pages;
-> > >  				total_size += z->present_pages;
-> > > +			} else if (zone_type == ZONE_NORMAL) {
-> > > +				/*
-> > 
-> > What if it was ZONE_DMA32?
-> > 
-> 
-> This is part of a zone iteration for each node, so if the node consists of 
-> only ZONE_DMA then it wouldn't have a populated ZONE_NORMAL either and 
-> will return ZONELIST_ORDER_NODE on the next iteration.
-> 
+On Tue, Mar 30, 2010 at 2:53 PM, Shaohua Li <shaohua.li@intel.com> wrote:
+> Commit 84b18490d1f1bc7ed5095c929f78bc002eb70f26 introduces a regression.
+> With it, our tmpfs test always oom. The test has a lot of rotated anon
+> pages and cause percent[0] zero. Actually the percent[0] is a very small
+> value, but our calculation round it to zero. The commit makes vmscan
+> completely skip anon pages and cause oops.
+> An option is if percent[x] is zero in get_scan_ratio(), forces it
+> to 1. See below patch.
+> But the offending commit still changes behavior. Without the commit, we s=
+can
+> all pages if priority is zero, below patch doesn't fix this. Don't know i=
+f
+> It's required to fix this too.
+>
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 79c8098..d5cc34e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1604,6 +1604,18 @@ static void get_scan_ratio(struct zone *zone, stru=
+ct scan_control *sc,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Normalize to percentages */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0percent[0] =3D 100 * ap / (ap + fp + 1);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0percent[1] =3D 100 - percent[0];
+> + =C2=A0 =C2=A0 =C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* if percent[x] is small and rounded to 0, t=
+his case doesn't mean we
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* should skip scan. Give it at least 1% shar=
+e.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 if (percent[0] =3D=3D 0) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 percent[0] =3D 1;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 percent[1] =3D 99;
+> + =C2=A0 =C2=A0 =C2=A0 }
+> + =C2=A0 =C2=A0 =C2=A0 if (percent[1] =3D=3D 0) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 percent[0] =3D 99;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 percent[1] =3D 1;
+> + =C2=A0 =C2=A0 =C2=A0 }
+> =C2=A0}
+>
+> =C2=A0/*
+>
 
-Yep. Made sense when I wrote out an example. 
+Yes. It made subtle change.
+But we should not depend that change.
+Current logic seems to be good and clear than old.
+I think you were lucky at that time by not-good and not-clear logic.
 
-> > > +				 * If any node has only lowmem, then node order
-> > > +				 * is preferred to allow kernel allocations
-> > > +				 * locally; otherwise, they can easily infringe
-> > > +				 * on other nodes when there is an abundance of
-> > > +				 * lowmem available to allocate from.
-> > > +				 */
-> > > +				return ZONELIST_ORDER_NODE;
-> > 
-> > It might be clearer if it was done as a similar check later
-> > 
-> > 		if (low_kmem_size &&
-> > 		    total_size > average_size && /* ignore small node */
-> > 		    low_kmem_size > total_size * 70/100)
-> > 			return ZONELIST_ORDER_NODE;
-> > 
-> > This is saying if low memory is > 70% of total, then use nodes. To take
-> > yours into account, it'd look something like;
-> > 
-> > if (low_kmwm_size && total_size > average_size) {
-> > 	if (lowmem_size == total_size)
-> > 		return ZONELIST_ORDER_ZONE;
-> > 
-> > 	if (lowmem_size > total_size * 70/100)
-> > 		return ZONELIST_ORDER_NODE;
-> > }
-> 
-> There's no guarantee that we'd ever detect the node consisiting of solely 
-> lowmem here since it may be asymmetrically smaller than the average node 
-> size.
-> 
+BTW, How about this?
 
-True. I wasn't sure if it was intentional or not to take even small
-nodes into account for this ordering.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 79c8098..f0df563 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1646,11 +1646,6 @@ static void shrink_zone(int priority, struct zone *z=
+one,
+                int file =3D is_file_lru(l);
+                unsigned long scan;
 
-It it's intentional, I see no problem with the patch. It's seems like a
-reasonable default decision to me.
+-               if (percent[file] =3D=3D 0) {
+-                       nr[l] =3D 0;
+-                       continue;
+-               }
+-
+                scan =3D zone_nr_lru_pages(zone, sc, l);
+                if (priority) {
+                        scan >>=3D priority;
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
