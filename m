@@ -1,112 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B60216B01F3
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 07:19:16 -0400 (EDT)
-Date: Tue, 30 Mar 2010 12:18:55 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: BUG: Use after free in free_huge_page()
-Message-ID: <20100330111855.GC15466@csn.ul.ie>
-References: <201003222028.o2MKSDsD006611@pogo.us.cray.com> <4BA8C9E0.2090300@us.ibm.com> <20100323175639.GA5870@csn.ul.ie> <4BAAF20D.1050705@cray.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9BF176B01FA
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 07:57:00 -0400 (EDT)
+Received: by pwi2 with SMTP id 2so4047929pwi.14
+        for <linux-mm@kvack.org>; Tue, 30 Mar 2010 04:56:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4BAAF20D.1050705@cray.com>
+In-Reply-To: <20100330055304.GA2983@sli10-desk.sh.intel.com>
+References: <20100330055304.GA2983@sli10-desk.sh.intel.com>
+Date: Tue, 30 Mar 2010 17:26:56 +0530
+Message-ID: <661de9471003300456r6527f17au6d70bd0d2ee0a941@mail.gmail.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Hastings <abh@cray.com>
-Cc: Adam Litke <agl@us.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, fengguang.wu@intel.com, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 25, 2010 at 12:18:05AM -0500, Andrew Hastings wrote:
-> Mel Gorman wrote:
->> On Tue, Mar 23, 2010 at 09:02:08AM -0500, Adam Litke wrote:
->>> Hi Andrew, thanks for the detailed report.  I am taking a look at 
->>> this  but it seems a lot has happened since I last looked at this 
->>> code.  (If  anyone else knows what might be going on here, please do 
->>> chime in).
->>>
->>> Andrew Hastings wrote:
->>>> I think what happens is:
->>>> 1.  Driver does get_user_pages() for pages mapped by hugetlbfs.
->>>> 2.  Process exits.
->>>> 3.  hugetlbfs file is closed; the vma->vm_file->f_mapping value stored in
->>>>     page_private now points to freed memory
->>>> 4.  Driver file is closed; driver's release() function calls put_page()
->>>>     which calls free_huge_page() which passes bogus mapping value to
->>>>     hugetlb_put_quota().
->>> :( Definitely seems plausible.
->>>
->>
->> I haven't had a chance to look at this closely yet and it'll be a
->> minimum of a few days before I do. Hopefully Adam will spot something in
->> the meantime but I do have a question.
->>
->> What driver is calling get_user_pages() on pages mapped by hugetlbfs?
->> It's not clear what "driver file" is involved but clearly it's not mapped
->> or it would have called get_file() as part of the mapping.
->>
->> Again, without thinking about this too much, it seems more like a
->> reference-count problem rather than a race if the file is disappaering
->> before the pages being backed by it are freed.
+On Tue, Mar 30, 2010 at 11:23 AM, Shaohua Li <shaohua.li@intel.com> wrote:
+> Commit 84b18490d1f1bc7ed5095c929f78bc002eb70f26 introduces a regression.
+> With it, our tmpfs test always oom. The test has a lot of rotated anon
+> pages and cause percent[0] zero. Actually the percent[0] is a very small
+> value, but our calculation round it to zero. The commit makes vmscan
+> completely skip anon pages and cause oops.
+> An option is if percent[x] is zero in get_scan_ratio(), forces it
+> to 1. See below patch.
+> But the offending commit still changes behavior. Without the commit, we s=
+can
+> all pages if priority is zero, below patch doesn't fix this. Don't know i=
+f
+> It's required to fix this too.
 >
-> Mel:
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 >
-> Yeah, this is certainly a reference-counting problem, but I think it's 
-> probably in hugetlbfs.  
->
-> We are developing a device driver under GPL for a future product, our 
-> "Gemini" interconnect.  The "device file" I mentioned is simply the entry 
-> in sysfs that user space libraries use to communicate with the device 
-> driver.  The "Gemini" device supports RDMA, so the driver will "pin" user 
-> pages via get_user_pages() on user request, and "unpin" those pages via 
-> put_page() on user request or process exit.  The pages being "pinned" may 
-> or may not be pages mapped by hugetlbfs.  (Device drivers shouldn't have 
-> to know whether the pages they are doing DMA on are pages mapped by 
-> hugetlbfs, should they?) 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 79c8098..d5cc34e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1604,6 +1604,18 @@ static void get_scan_ratio(struct zone *zone, stru=
+ct scan_control *sc,
+> =A0 =A0 =A0 =A0/* Normalize to percentages */
+> =A0 =A0 =A0 =A0percent[0] =3D 100 * ap / (ap + fp + 1);
+> =A0 =A0 =A0 =A0percent[1] =3D 100 - percent[0];
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* if percent[x] is small and rounded to 0, this case doe=
+sn't mean we
+> + =A0 =A0 =A0 =A0* should skip scan. Give it at least 1% share.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 if (percent[0] =3D=3D 0) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 percent[0] =3D 1;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 percent[1] =3D 99;
+> + =A0 =A0 =A0 }
+> + =A0 =A0 =A0 if (percent[1] =3D=3D 0) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 percent[0] =3D 99;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 percent[1] =3D 1;
+> + =A0 =A0 =A0 }
+> =A0}
 >
 
-No, they shouldn't but I'm having a wee bit of trouble seeing why DMA to a page
-that is no longer reachable by any process is happening. I'm somewhat taking
-your word for it that there is a proper use case. Even if RDMA is involved,
-it does not explain what happens the sending process when it's end-point
-has disappeared. My feeling is that more likely this is an "anomolous"
-situation but the kernel shouldn't shoot itself when it occurs.
+Can you please post the meminfo before and after the changes (diff
+maybe?). Can you also please share the ap and fp data from which the
+percent figures are being calculated Is your swappiness set to 60? Can
+you please share the OOM/panic message as well.
 
-> The "Gemini" device driver may be somewhat unusual in that it tends to
-> "pin" pages for longer periods and is thus more likely to hit this race,
-> but this race should exist for any driver that calls get_user_pages() on
-> hugetlbfs-backed pages for an asynchronous DMA just before process exit,
-> and does not complete that DMA until after the hugetlbfs file is released
-> at exit time,  I'd imagine that this could happen with e.g. NFS and O_DIRECT
-> if O_DIRECT is supported and the NFS server is slow.
->
-> It seems to me that hugetlbfs ought to take an extra reference on the vma
-> or vm_file or f_mapping or _something_ if vma->vm_file->f_mapping is needed
-> by free_huge_page().
-
-Again, I haven't looked closely at this but a reference count on the VMA
-wouldn't help. After all, the VMAs have already been cleared up and the
-page tables. As far as the code is concerned, that file is no longer in
-use. I'd also not try reference counting during get_user_pages and
-someohw releasing that count later. Too much mess.
-
-The most likely avenue is to store a reference to the superblock instead
-of the mapping in page->private which is what put_quota is really
-interested in. There might still be a race there if hugetlbfs managed to
-get unmounted before the pages were freed though - not 100% sure.
-
-> Or is there something our "Gemini" driver should be doing to ensure DMAs complete before exit time?
->
-
-I'm not familiar enough with how RDMA should be implemented to answer
-that question offhand.
-
-> Thanks for your insights into this problem!
->
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
