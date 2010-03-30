@@ -1,100 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E5E3B6B01F5
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 02:32:26 -0400 (EDT)
-Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20100330150453.8E9F.A69D9226@jp.fujitsu.com>
-References: <20100330055304.GA2983@sli10-desk.sh.intel.com>
-	 <20100330150453.8E9F.A69D9226@jp.fujitsu.com>
-Content-Type: multipart/mixed; boundary="=-M2SdH58dzaiUotI/Nad1"
-Date: Tue, 30 Mar 2010 14:32:36 +0800
-Message-ID: <1269930756.17240.4.camel@sli10-desk.sh.intel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D2DCF6B01F9
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 02:33:42 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2U6Xsmm024492
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 30 Mar 2010 15:33:54 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 093CD45DE55
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 15:33:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CF72145DE4F
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 15:33:53 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AA5D2E3800B
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 15:33:53 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 49791E38004
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 15:33:53 +0900 (JST)
+Date: Tue, 30 Mar 2010 15:29:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH(v2) -mmotm 2/2] memcg move charge of shmem at task
+ migration
+Message-Id: <20100330152958.0c31b8d5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100330144458.403b429c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100329120243.af6bfeac.nishimura@mxp.nes.nec.co.jp>
+	<20100329120359.1c6a277d.nishimura@mxp.nes.nec.co.jp>
+	<20100329133645.e3bde19f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100330103301.b0d20f7e.nishimura@mxp.nes.nec.co.jp>
+	<20100330112301.f5bb49d7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100330114903.476af77e.nishimura@mxp.nes.nec.co.jp>
+	<20100330121119.fcc7d45b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100330130648.ad559645.nishimura@mxp.nes.nec.co.jp>
+	<20100330135159.025b9366.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100330050050.GA3308@balbir.in.ibm.com>
+	<20100330143038.422459da.nishimura@mxp.nes.nec.co.jp>
+	<20100330144458.403b429c.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 30 Mar 2010 14:44:58 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
---=-M2SdH58dzaiUotI/Nad1
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-
-On Tue, 2010-03-30 at 14:08 +0800, KOSAKI Motohiro wrote:
-> Hi
+> On Tue, 30 Mar 2010 14:30:38 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> > Commit 84b18490d1f1bc7ed5095c929f78bc002eb70f26 introduces a regression.
-> > With it, our tmpfs test always oom. The test has a lot of rotated anon
-> > pages and cause percent[0] zero. Actually the percent[0] is a very small
-> > value, but our calculation round it to zero. The commit makes vmscan
-> > completely skip anon pages and cause oops.
-> > An option is if percent[x] is zero in get_scan_ratio(), forces it
-> > to 1. See below patch.
-> > But the offending commit still changes behavior. Without the commit, we scan
-> > all pages if priority is zero, below patch doesn't fix this. Don't know if
-> > It's required to fix this too.
+> > On Tue, 30 Mar 2010 10:30:50 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-30 13:51:59]:
+> > > Yep, I tend to agree, but I need to take a closer look again at the
+> > > patches. 
+> > > 
+> > I agree it would be more simple. I selected the current policy because
+> > I was not sure whether we should move file caches(!tmpfs) with mapcount > 1,
+> > and, IMHO, shared memory and file caches are different for users.
+> > But it's O.K. for me to change current policy.
+> > 
 > 
-> Can you please post your /proc/meminfo 
-attached.
-> and reproduce program? I'll digg it.
-our test is quite sample. mount tmpfs with double memory size and store several
-copies (memory size * 2/G) of kernel in tmpfs, and then do kernel build.
-for example, there is 3G memory and then tmpfs size is 6G and there is 6
-kernel copy.
-> Very unfortunately, this patch isn't acceptable. In past time, vmscan 
-> had similar logic, but 1% swap-out made lots bug reports. 
-can you elaborate this?
-Completely restore previous behavior (do full scan with priority 0) is
-ok too.
+> To explain what I think of, I wrote a patch onto yours. (Maybe overkill for explaination ;)
+> 
+> Summary.
+> 
+>  + adding move_anon, move_file, move_shmem information to move_charge_struct.
+>  + adding hanlders for each pte types.
+>  + checking # of referer should be divided to each type.
+>    It's complicated to catch all cases in one "if" sentense.
+>  + FILE pages will be moved if it's charged against "from". no mapcount check.
+>    i.e. FILE pages should be moved even if it's not page-faulted.
+>  + ANON pages will be moved if it's really private.
+> 
+> For widely shared FILE, "if it's charged against "from"" is enough good limitation.
+> 
+> 
 
---=-M2SdH58dzaiUotI/Nad1
-Content-Disposition: attachment; filename="meminfo"
-Content-Type: text/plain; name="meminfo"; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Hmm....how about changing meanings of new flags ?
 
-MemTotal:        3078372 kB
-MemFree:           34612 kB
-Buffers:             960 kB
-Cached:          2577644 kB
-SwapCached:        24580 kB
-Active:          2125712 kB
-Inactive:         541972 kB
-Active(anon):    2120276 kB
-Inactive(anon):   534696 kB
-Active(file):       5436 kB
-Inactive(file):     7276 kB
-Unevictable:           0 kB
-Mlocked:               0 kB
-SwapTotal:       6297472 kB
-SwapFree:        6184988 kB
-Dirty:              1720 kB
-Writeback:         24024 kB
-AnonPages:         64888 kB
-Mapped:             3996 kB
-Shmem:           2566004 kB
-Slab:             290416 kB
-SReclaimable:     113840 kB
-SUnreclaim:       176576 kB
-KernelStack:        3072 kB
-PageTables:         6832 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:     7836656 kB
-Committed_AS:    2811564 kB
-VmallocTotal:   34359738367 kB
-VmallocUsed:      289724 kB
-VmallocChunk:   34359444080 kB
-HugePages_Total:       0
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-DirectMap4k:       10240 kB
-DirectMap2M:     3127296 kB
+1 : a charge of page caches are moved. Page cache means cache of regular files
+    and shared memory. But only privately mapped pages (mapcount==1) are moved.
 
---=-M2SdH58dzaiUotI/Nad1--
+2 : a charge of page caches are moved. Page cache means cache of regular files
+    and shared memory. They are moved even if it's shared among processes.
+
+When both of 1 and 2 are specified, "2" is used. Anonymous pages will not be
+moved if it's shared.
+
+Then, total view of user interface will be simple and I think this will allow
+what you want.
+
+Thanks,
+-Kame
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
