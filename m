@@ -1,53 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 981416B022E
-	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 20:03:06 -0400 (EDT)
-Received: by pwi2 with SMTP id 2so3623928pwi.14
-        for <linux-mm@kvack.org>; Mon, 29 Mar 2010 17:03:04 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EDF116B022D
+	for <linux-mm@kvack.org>; Mon, 29 Mar 2010 20:16:26 -0400 (EDT)
+Date: Tue, 30 Mar 2010 02:15:11 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 36 of 41] remove PG_buddy
+Message-ID: <20100330001511.GB5825@random.random>
+References: <patchbomb.1269887833@v2.random>
+ <27d13ddf7c8f7ca03652.1269887869@v2.random>
+ <1269888584.12097.371.camel@laptop>
+ <20100329221718.GA5825@random.random>
+ <1269901837.9160.43341.camel@nimitz>
 MIME-Version: 1.0
-In-Reply-To: <1269874629-1736-1-git-send-email-lliubbo@gmail.com>
-References: <1269874629-1736-1-git-send-email-lliubbo@gmail.com>
-Date: Tue, 30 Mar 2010 09:03:04 +0900
-Message-ID: <28c262361003291703i5382e342q773ffb16e3324cf5@mail.gmail.com>
-Subject: Re: [RFC][PATCH] migrate_pages:skip migration between intersect nodes
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1269901837.9160.43341.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, cl@linux-foundation.org, lee.schermerhorn@hp.com, andi@firstfloor.org, minchar.kim@gmail.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Bob
+On Mon, Mar 29, 2010 at 03:30:37PM -0700, Dave Hansen wrote:
+> Don't forget that include/linux/memory_hotplug.h uses mapcount a bit for
+> marking bootmem.  So, just for clarity, we'd probably want to use -5 or
+> something.
+>         
+>         /*
+>          * Types for free bootmem.
+>          * The normal smallest mapcount is -1. Here is smaller value than it.
+>          */
+>         #define SECTION_INFO            (-1 - 1)
+>         #define MIX_SECTION_INFO        (-1 - 2)
+>         #define NODE_INFO               (-1 - 3)
 
-On Mon, Mar 29, 2010 at 11:57 PM, Bob Liu <lliubbo@gmail.com> wrote:
-> In current do_migrate_pages(),if from_nodes and to_nodes have some
-> intersect nodes,pages in these intersect nodes will also be
-> migrated.
-> eg. Assume that, from_nodes: 1,2,3,4 to_nodes: 2,3,4,5. Then these
-> migrates will happen:
-> migrate_pages(4,5);
-> migrate_pages(3,4);
-> migrate_pages(2,3);
-> migrate_pages(1,2);
->
-> But the user just want all pages in from_nodes move to to_nodes,
-> only migrate(1,2)(ignore the intersect nodes.) can satisfied
-> the user's request.
->
-> I amn't sure what's migrate_page's semantic.
-> Hoping for your suggestions.
+So this is the memory holding the struct page and pgdat info that is
+released when the memory is hot-removed? Why isn't
+register_page_bootmem_info_node up to get_page_bootmem all let it go
+in the __init section together with their only caller? 
 
-I didn't see 8:migratepages Lee pointed at that time.
-The description matches current migrate_pages's behavior exactly.
+what is the reader of that type field? is it only put_page_bootmem?
+Just for this BUG_ON?
 
-I agree Lee's opinion.
-Let's wait Christoph's reply what is semantic
-and why it doesn't have man page.
+     BUG_ON(type >= -1);
 
+and what is this about?
 
--- 
-Kind regards,
-Minchan Kim
+    if (atomic_dec_return(&page->_count) == 1) {
+
+How can this every return 0?
+
+Yes I can use -5 no problem, that's no big deal but I don't get how
+this _mapcount type info is used and why. Well the BUG_ON above is
+obvious but I wonder if it's just for a BUG_ON. If it's just for a
+BUG_ON can we just move the layering violation to page->lru.next and
+leave mapcount -2 for PageBuddy?
+
+> Looks like SLUB also uses _mapcount for some fun purposes:
+>         
+>         struct page {
+>                 unsigned long flags;            /* Atomic flags, some possibly
+>                                                  * updated asynchronously */
+>                 atomic_t _count;                /* Usage count, see below. */
+>                 union {
+>                         atomic_t _mapcount;     /* Count of ptes mapped in mms,
+>                                                  * to show when page is mapped
+>                                                  * & limit reverse map searches.
+>                                                  */
+>                         struct {                /* SLUB */
+>                                 u16 inuse;
+>                                 u16 objects;
+>                         };
+>                 };
+> 
+> I guess those don't *really* become a problem in practice until we get a
+> really large page size that can hold >=64k objects.  But, at that point,
+> we're overflowing the types anyway (or really close to it).  
+
+Maybe we should add a BUG_ON in slub in case anybody runs this on
+PAGE_SIZE == 2M (to avoid silent corruption).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
