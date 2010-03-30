@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F2BA66B01EF
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 16:30:26 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id o2UKUM1U008781
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 22:30:22 +0200
-Received: from pzk1 (pzk1.prod.google.com [10.243.19.129])
-	by kpbe19.cbf.corp.google.com with ESMTP id o2UKT1h7018973
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 13:30:21 -0700
-Received: by pzk1 with SMTP id 1so217681pzk.23
-        for <linux-mm@kvack.org>; Tue, 30 Mar 2010 13:30:20 -0700 (PDT)
-Date: Tue, 30 Mar 2010 13:30:19 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 49E5D6B01EE
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 16:32:29 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [10.3.21.14])
+	by smtp-out.google.com with ESMTP id o2UKWQZt008135
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 13:32:27 -0700
+Received: from pwi10 (pwi10.prod.google.com [10.241.219.10])
+	by hpaq14.eem.corp.google.com with ESMTP id o2UKWOOr011114
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 22:32:25 +0200
+Received: by pwi10 with SMTP id 10so7936598pwi.17
+        for <linux-mm@kvack.org>; Tue, 30 Mar 2010 13:32:24 -0700 (PDT)
+Date: Tue, 30 Mar 2010 13:32:21 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm] proc: don't take ->siglock for /proc/pid/oom_adj
-In-Reply-To: <20100330174337.GA21663@redhat.com>
-Message-ID: <alpine.DEB.2.00.1003301329420.5234@chino.kir.corp.google.com>
+Subject: Re: [PATCH] oom: fix the unsafe proc_oom_score()->badness() call
+In-Reply-To: <20100330163909.GA16884@redhat.com>
+Message-ID: <alpine.DEB.2.00.1003301331110.5234@chino.kir.corp.google.com>
 References: <1269447905-5939-1-git-send-email-anfei.zhou@gmail.com> <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com>
- <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330163909.GA16884@redhat.com> <20100330174337.GA21663@redhat.com>
+ <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330163909.GA16884@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,17 +26,24 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 30 Mar 2010, Oleg Nesterov wrote:
 
-> ->siglock is no longer needed to access task->signal, change
-> oom_adjust_read() and oom_adjust_write() to read/write oom_adj
-> lockless.
+> proc_oom_score(task) have a reference to task_struct, but that is all.
+> If this task was already released before we take tasklist_lock
 > 
-> Yes, this means that "echo 2 >oom_adj" and "echo 1 >oom_adj"
-> can race and the second write can win, but I hope this is OK.
+> 	- we can't use task->group_leader, it points to nowhere
+> 
+> 	- it is not safe to call badness() even if this task is
+> 	  ->group_leader, has_intersects_mems_allowed() assumes
+> 	  it is safe to iterate over ->thread_group list.
+> 
+> Add the pid_alive() check to ensure __unhash_process() was not called.
+> 
+> Note: I think we shouldn't use ->group_leader, badness() should return
+> the same result for any sub-thread. However this is not true currently,
+> and I think that ->mm check and list_for_each_entry(p->children) in
+> badness are not right.
 > 
 
-Ok, but could you base this on -mm at 
-http://userweb.kernel.org/~akpm/mmotm/ since an additional tunable has 
-been added (oom_score_adj), which does the same thing?
+I think it would be better to just use task and not task->group_leader.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
