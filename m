@@ -1,136 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 91BEF6B01EE
-	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 16:57:21 -0400 (EDT)
-Date: Tue, 30 Mar 2010 13:56:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8D14D6B01EE
+	for <linux-mm@kvack.org>; Tue, 30 Mar 2010 20:32:07 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2V0W4AT016768
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 31 Mar 2010 09:32:04 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F288445DE55
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 09:32:03 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C083745DE53
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 09:32:03 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 82E96E18001
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 09:32:03 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id EAC97E18004
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 09:32:02 +0900 (JST)
+Date: Wed, 31 Mar 2010 09:28:15 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] exit: fix oops in sync_mm_rss
-Message-Id: <20100330135634.09e6b045.akpm@linux-foundation.org>
-In-Reply-To: <20100316170808.GA29400@redhat.com>
+Message-Id: <20100331092815.c8b9d89c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100330135634.09e6b045.akpm@linux-foundation.org>
 References: <20100316170808.GA29400@redhat.com>
+	<20100330135634.09e6b045.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: cl@linux-foundation.org, lee.schermerhorn@hp.com, rientjes@google.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Troels Liebe Bentsen <tlb@rapanden.dk>, linux-bluetooth@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, cl@linux-foundation.org, lee.schermerhorn@hp.com, rientjes@google.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Troels Liebe Bentsen <tlb@rapanden.dk>, linux-bluetooth@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Mar 2010 19:08:08 +0200
-"Michael S. Tsirkin" <mst@redhat.com> wrote:
+On Tue, 30 Mar 2010 13:56:34 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> In 2.6.34-rc1, removing vhost_net module causes an oops in sync_mm_rss
-> (called from do_exit) when workqueue is destroyed. This does not happen on
-> net-next, or with vhost on top of to 2.6.33.
+> That new BUG_ON() is triggering in Troels's machine when a bluetooth
+> keyboard is enabled or disabled.  See
+> (https://bugzilla.kernel.org/show_bug.cgi?id=15648.
 > 
-> The issue seems to be introduced by
-> 34e55232e59f7b19050267a05ff1226e5cd122a5: that commit added function
-> sync_mm_rss that is passed task->mm, and dereferences it without
-> checking. If task is a kernel thread, mm might be NULL.
-> I think this might also happen e.g. with aio.
+> I guess the question is: how did a kernel thread get a non-zero
+> task->rss_stat.count[i]?  If that's expected and OK then we will need
+> to take some kernel-thread-avoidance action there.
 > 
-> This patch fixes the oops by calling sync_mm_rss when task->mm
-> is set to NULL. I also added BUG_ON to detect any other cases
-> where counters get incremented while mm is NULL.
-> 
-> The oops I observed looks like this:
-> 
-> BUG: unable to handle kernel NULL pointer dereference at 00000000000002a8
-> IP: [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
-> PGD 0
-> Oops: 0002 [#1] SMP
-> last sysfs file: /sys/devices/system/cpu/cpu7/cache/index2/shared_cpu_map
-> CPU 2
-> Modules linked in: vhost_net(-) tun bridge stp sunrpc ipv6 cpufreq_ondemand acpi_cpufreq freq_table kvm_intel kvm i5000_edac edac_core rtc_cmos bnx2 button i2c_i801 i2c_core rtc_core e1000e sg joydev ide_cd_mod serio_raw pcspkr rtc_lib cdrom virtio_net virtio_blk virtio_pci virtio_ring virtio af_packet e1000 shpchp aacraid uhci_hcd ohci_hcd ehci_hcd [last unloaded: microcode]
-> 
-> Pid: 2046, comm: vhost Not tainted 2.6.34-rc1-vhost #25 System Planar/IBM System x3550 -[7978B3G]-
-> RIP: 0010:[<ffffffff810b436d>]  [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
-> RSP: 0018:ffff8802379b7e60  EFLAGS: 00010202
-> RAX: 0000000000000008 RBX: ffff88023f2390c0 RCX: 0000000000000000
-> RDX: ffff88023f2396b0 RSI: 0000000000000000 RDI: ffff88023f2390c0
-> RBP: ffff8802379b7e60 R08: 0000000000000000 R09: 0000000000000000
-> R10: ffff88023aecfbc0 R11: 0000000000013240 R12: 0000000000000000
-> R13: ffffffff81051a6c R14: ffffe8ffffc0f540 R15: 0000000000000000
-> FS:  0000000000000000(0000) GS:ffff880001e80000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> CR2: 00000000000002a8 CR3: 000000023af23000 CR4: 00000000000406e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Process vhost (pid: 2046, threadinfo ffff8802379b6000, task ffff88023f2390c0)
-> Stack:
->  ffff8802379b7ee0 ffffffff81040687 ffffe8ffffc0f558 ffffffffa00a3e2d
-> <0> 0000000000000000 ffff88023f2390c0 ffffffff81055817 ffff8802379b7e98
-> <0> ffff8802379b7e98 0000000100000286 ffff8802379b7ee0 ffff88023ad47d78
-> Call Trace:
->  [<ffffffff81040687>] do_exit+0x147/0x6c4
->  [<ffffffffa00a3e2d>] ? handle_rx_net+0x0/0x17 [vhost_net]
->  [<ffffffff81055817>] ? autoremove_wake_function+0x0/0x39
->  [<ffffffff81051a6c>] ? worker_thread+0x0/0x229
->  [<ffffffff810553c9>] kthreadd+0x0/0xf2
->  [<ffffffff810038d4>] kernel_thread_helper+0x4/0x10
->  [<ffffffff81055342>] ? kthread+0x0/0x87
->  [<ffffffff810038d0>] ? kernel_thread_helper+0x0/0x10
-> Code: 00 8b 87 6c 02 00 00 85 c0 74 14 48 98 f0 48 01 86 a0 02 00 00 c7 87 6c 02 00 00 00 00 00 00 8b 87 70 02 00 00 85 c0 74 14 48 98 <f0> 48 01 86 a8 02 00 00 c7 87 70 02 00 00 00 00 00 00 8b 87 74
-> RIP  [<ffffffff810b436d>] sync_mm_rss+0x33/0x6f
->  RSP <ffff8802379b7e60>
-> CR2: 00000000000002a8
-> ---[ end trace 41603ba922beddd2 ]---
-> Fixing recursive fault but reboot is needed!
-> 
-> (note: handle_rx_net is a work item using workqueue in question).
-> sync_mm_rss+0x33/0x6f gave me a hint. I also tried reverting
-> 34e55232e59f7b19050267a05ff1226e5cd122a5 and the oops goes away.
-> 
-> The module in question calls use_mm and later unuse_mm from a kernel
-> thread.  It is when this kernel thread is destroyed that the crash
-> happens.
-> 
-> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
-> ---
->  mm/memory.c      |    1 +
->  mm/mmu_context.c |    1 +
->  2 files changed, 2 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index d1153e3..27022b3 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -130,6 +130,7 @@ void __sync_task_rss_stat(struct task_struct *task, struct mm_struct *mm)
->  
->  	for (i = 0; i < NR_MM_COUNTERS; i++) {
->  		if (task->rss_stat.count[i]) {
-> +			BUG_ON(!mm);
->  			add_mm_counter(mm, i, task->rss_stat.count[i]);
->  			task->rss_stat.count[i] = 0;
->  		}
-> diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-> index 0777654..9e82e93 100644
-> --- a/mm/mmu_context.c
-> +++ b/mm/mmu_context.c
-> @@ -53,6 +53,7 @@ void unuse_mm(struct mm_struct *mm)
->  	struct task_struct *tsk = current;
->  
->  	task_lock(tsk);
-> +	sync_mm_rss(tsk, mm);
->  	tsk->mm = NULL;
->  	/* active_mm is still 'mm' */
->  	enter_lazy_tlb(mm, tsk);
+It seems my fault that it's not initialized to be 0 at do_fork(), copy_process.
 
-That new BUG_ON() is triggering in Troels's machine when a bluetooth
-keyboard is enabled or disabled.  See
-(https://bugzilla.kernel.org/show_bug.cgi?id=15648.
+About do_exit, do_exit() does this check. So, tsk->mm can be NULL.
 
-I guess the question is: how did a kernel thread get a non-zero
-task->rss_stat.count[i]?  If that's expected and OK then we will need
-to take some kernel-thread-avoidance action there.
+ 949         if (group_dead) {
+ 950                 hrtimer_cancel(&tsk->signal->real_timer);
+ 951                 exit_itimers(tsk->signal);
+ 952                 if (tsk->mm)
+ 953                         setmax_mm_hiwater_rss(&tsk->signal->maxrss, tsk->mm);
+ 954         }
 
-Could whoever fixes this please also make __sync_task_rss_stat()
-static.
+> Could whoever fixes this please also make __sync_task_rss_stat()
+> static.
+> 
+Ah, yes. I should do so.
 
-I'll toss this over to Rafael/Maciej for tracking as a post-2.6.33
-regression.
+> I'll toss this over to Rafael/Maciej for tracking as a post-2.6.33
+> regression.
+> 
+> Thanks.
+> 
 
-Thanks.
+
+==
+
+task->rss_stat wasn't initialized to 0 at copy_process().
+at exit, tsk->mm may be NULL.
+And __sync_task_rss_stat() should be static.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ kernel/exit.c |    3 ++-
+ kernel/fork.c |    3 +++
+ mm/memory.c   |    2 +-
+ 3 files changed, 6 insertions(+), 2 deletions(-)
+
+Index: mmotm-2.6.34-Mar24/kernel/exit.c
+===================================================================
+--- mmotm-2.6.34-Mar24.orig/kernel/exit.c
++++ mmotm-2.6.34-Mar24/kernel/exit.c
+@@ -950,7 +950,8 @@ NORET_TYPE void do_exit(long code)
+ 
+ 	acct_update_integrals(tsk);
+ 	/* sync mm's RSS info before statistics gathering */
+-	sync_mm_rss(tsk, tsk->mm);
++	if (tsk->mm)
++		sync_mm_rss(tsk, tsk->mm);
+ 	group_dead = atomic_dec_and_test(&tsk->signal->live);
+ 	if (group_dead) {
+ 		hrtimer_cancel(&tsk->signal->real_timer);
+Index: mmotm-2.6.34-Mar24/mm/memory.c
+===================================================================
+--- mmotm-2.6.34-Mar24.orig/mm/memory.c
++++ mmotm-2.6.34-Mar24/mm/memory.c
+@@ -124,7 +124,7 @@ core_initcall(init_zero_pfn);
+ 
+ #if defined(SPLIT_RSS_COUNTING)
+ 
+-void __sync_task_rss_stat(struct task_struct *task, struct mm_struct *mm)
++static void __sync_task_rss_stat(struct task_struct *task, struct mm_struct *mm)
+ {
+ 	int i;
+ 
+Index: mmotm-2.6.34-Mar24/kernel/fork.c
+===================================================================
+--- mmotm-2.6.34-Mar24.orig/kernel/fork.c
++++ mmotm-2.6.34-Mar24/kernel/fork.c
+@@ -1060,6 +1060,9 @@ static struct task_struct *copy_process(
+ 	p->prev_utime = cputime_zero;
+ 	p->prev_stime = cputime_zero;
+ #endif
++#if defined(SPLIT_RSS_COUNTING)
++	memset(&p->rss_stat, 0, sizeof(p->rss_stat));
++#endif
+ 
+ 	p->default_timer_slack_ns = current->timer_slack_ns;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
