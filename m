@@ -1,108 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 76B196B01EE
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 15:42:42 -0400 (EDT)
-Date: Wed, 31 Mar 2010 12:42:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] [PATCH -mmotm] cpuset,mm: use seqlock to protect
- task->mempolicy and mems_allowed (v2) (was: Re: [PATCH V2 4/4] cpuset,mm:
- update task's mems_allowed lazily)
-Message-Id: <20100331124201.8cb20a11.akpm@linux-foundation.org>
-In-Reply-To: <4BAB6646.7040302@cn.fujitsu.com>
-References: <4B94CD2D.8070401@cn.fujitsu.com>
-	<alpine.DEB.2.00.1003081330370.18502@chino.kir.corp.google.com>
-	<4B95F802.9020308@cn.fujitsu.com>
-	<20100311081548.GJ5812@laptop>
-	<4B98C6DE.3060602@cn.fujitsu.com>
-	<20100311110317.GL5812@laptop>
-	<4BAB6646.7040302@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 305EB6B01EE
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 16:19:52 -0400 (EDT)
+Date: Wed, 31 Mar 2010 22:17:46 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] oom: fix the unsafe proc_oom_score()->badness() call
+Message-ID: <20100331201746.GC11635@redhat.com>
+References: <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330163909.GA16884@redhat.com> <alpine.DEB.2.00.1003301331110.5234@chino.kir.corp.google.com> <20100331091628.GA11438@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100331091628.GA11438@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: miaox@cn.fujitsu.com
-Cc: Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Mar 2010 21:33:58 +0800
-Miao Xie <miaox@cn.fujitsu.com> wrote:
+On 03/31, Oleg Nesterov wrote:
+>
+> On 03/30, David Rientjes wrote:
+> >
+> > On Tue, 30 Mar 2010, Oleg Nesterov wrote:
+> >
+> > > proc_oom_score(task) have a reference to task_struct, but that is all.
+> > > If this task was already released before we take tasklist_lock
+> > >
+> > > 	- we can't use task->group_leader, it points to nowhere
+> > >
+> > > 	- it is not safe to call badness() even if this task is
+> > > 	  ->group_leader, has_intersects_mems_allowed() assumes
+> > > 	  it is safe to iterate over ->thread_group list.
+> > >
+> > > Add the pid_alive() check to ensure __unhash_process() was not called.
+> > >
+> > > Note: I think we shouldn't use ->group_leader, badness() should return
+> > > the same result for any sub-thread. However this is not true currently,
+> > > and I think that ->mm check and list_for_each_entry(p->children) in
+> > > badness are not right.
+> > >
+> >
+> > I think it would be better to just use task and not task->group_leader.
+>
+> Sure, agreed. I preserved ->group_leader just because I didn't understand
+> why the current code doesn't use task. But note that pid_alive() is still
+> needed.
 
-> on 2010-3-11 19:03, Nick Piggin wrote:
-> >> Ok, I try to make a new patch by using seqlock.
-> > 
-> > Well... I do think seqlocks would be a bit simpler because they don't
-> > require this checking and synchronizing of this patch.
-> Hi, Nick Piggin
-> 
-> I have made a new patch which uses seqlock to protect mems_allowed and mempolicy.
-> please review it.
+Oh. No, with the current code in -mm pid_alive() is not needed if
+we use task instead of task->group_leader. But once we fix
+oom_forkbomb_penalty() it will be needed again.
 
-That's an awfully big patch for a pretty small bug?
 
-> Subject: [PATCH] [PATCH -mmotm] cpuset,mm: use seqlock to protect task->mempolicy and mems_allowed (v2)
-> 
-> Before applying this patch, cpuset updates task->mems_allowed by setting all
-> new bits in the nodemask first, and clearing all old unallowed bits later.
-> But in the way, the allocator can see an empty nodemask, though it is infrequent.
-> 
-> The problem is following:
-> The size of nodemask_t is greater than the size of long integer, so loading
-> and storing of nodemask_t are not atomic operations. If task->mems_allowed
-> don't intersect with new_mask, such as the first word of the mask is empty
-> and only the first word of new_mask is not empty. When the allocator
-> loads a word of the mask before
-> 
-> 	current->mems_allowed |= new_mask;
-> 
-> and then loads another word of the mask after
-> 
-> 	current->mems_allowed = new_mask;
-> 
-> the allocator gets an empty nodemask.
+But. Oh well. David, oom-badness-heuristic-rewrite.patch changed badness()
+to consult p->signal->oom_score_adj. Until recently this was wrong when it
+is called from proc_oom_score().
 
-Probably we could fix this via careful ordering of the updates,
-barriers and perhaps some avoicance action at the reader side.
+This means oom-badness-heuristic-rewrite.patch depends on
+signals-make-task_struct-signal-immutable-refcountable.patch, or we
+need the pid_alive() check again.
 
-> Besides that, if the size of nodemask_t is less than the size of long integer,
-> there is another problem. when the kernel allocater invokes the following function,
-> 
-> 	struct zoneref *next_zones_zonelist(struct zoneref *z,
-> 						enum zone_type highest_zoneidx,
-> 						nodemask_t *nodes,
-> 						struct zone **zone)
-> 	{
-> 		/*
-> 		 * Find the next suitable zone to use for the allocation.
-> 		 * Only filter based on nodemask if it's set
-> 		 */
-> 		if (likely(nodes == NULL))
-> 			......
->  	       else
-> 			while (zonelist_zone_idx(z) > highest_zoneidx ||
-> 					(z->zone && !zref_in_nodemask(z, nodes)))
-> 				z++;
-> 
-> 		*zone = zonelist_zone(z);
-> 		return z;
-> 	}
-> 
-> if we change nodemask between two calls of zref_in_nodemask(), such as
-> 	Task1						Task2
-> 	zref_in_nodemask(z = node0's z, nodes = 1-2)
-> 	zref_in_nodemask return 0
-> 							nodes = 0
-> 	zref_in_nodemask(z = node1's z, nodes = 0)
-> 	zref_in_nodemask return 0
-> z will overflow.
 
-And maybe we can fix this by taking a copy into a local.
 
-> when the kernel allocater accesses task->mempolicy, there is the same problem.
+oom_badness() gets the new argument, long totalpages, and the callers
+were updated. However, long uptime is not used any longer, probably
+it make sense to kill this arg and simplify the callers? Unless you
+are going to take run-time into account later.
 
-And maybe we can fix those in a similar way.
+So, I think -mm needs the patch below, but I have no idea how to
+write the changelog ;)
 
-But it's all too much, and we'll just break it again in the future.  So
-yup, I guess locking is needed.
+Oleg.
+
+--- x/fs/proc/base.c
++++ x/fs/proc/base.c
+@@ -430,12 +430,13 @@ static const struct file_operations proc
+ /* The badness from the OOM killer */
+ static int proc_oom_score(struct task_struct *task, char *buffer)
+ {
+-	unsigned long points;
++	unsigned long points = 0;
+ 	struct timespec uptime;
+ 
+ 	do_posix_clock_monotonic_gettime(&uptime);
+ 	read_lock(&tasklist_lock);
+-	points = oom_badness(task->group_leader,
++	if (pid_alive(task))
++		points = oom_badness(task,
+ 				global_page_state(NR_INACTIVE_ANON) +
+ 				global_page_state(NR_ACTIVE_ANON) +
+ 				global_page_state(NR_INACTIVE_FILE) +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
