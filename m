@@ -1,37 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A87B16B01EE
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 01:38:22 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2V5cJlU028475
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 31 Mar 2010 14:38:19 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 16BBF45DE6E
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:38:19 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E5ACE45DE60
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:38:18 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C8F3E1800A
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:38:18 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D71C3E18008
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:38:13 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A2D286B01EE
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 01:41:12 -0400 (EDT)
+Date: Wed, 31 Mar 2010 13:41:09 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-In-Reply-To: <20100331045348.GA3396@sli10-desk.sh.intel.com>
-References: <20100330150453.8E9F.A69D9226@jp.fujitsu.com> <20100331045348.GA3396@sli10-desk.sh.intel.com>
-Message-Id: <20100331142708.039E.A69D9226@jp.fujitsu.com>
+Message-ID: <20100331054109.GA21371@localhost>
+References: <20100330055304.GA2983@sli10-desk.sh.intel.com> <20100330150453.8E9F.A69D9226@jp.fujitsu.com> <20100331045348.GA3396@sli10-desk.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 31 Mar 2010 14:38:12 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100331045348.GA3396@sli10-desk.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: "Li, Shaohua" <shaohua.li@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Mar 31, 2010 at 12:53:48PM +0800, Li, Shaohua wrote:
 > On Tue, Mar 30, 2010 at 02:08:53PM +0800, KOSAKI Motohiro wrote:
 > > Hi
 > > 
@@ -51,16 +36,7 @@ List-ID: <linux-mm.kvack.org>
 > > Very unfortunately, this patch isn't acceptable. In past time, vmscan 
 > > had similar logic, but 1% swap-out made lots bug reports. 
 > if 1% is still big, how about below patch?
-
-This patch makes a lot of sense than previous. however I think <1% anon ratio
-shouldn't happen anyway because file lru doesn't have reclaimable pages.
-<1% seems no good reclaim rate.
-
-perhaps I'll take your patch for stable tree. but we need to attack the root
-cause. iow, I guess we need to fix scan ratio equation itself.
-
-
-
+> 
 > Commit 84b18490d1f1bc7ed5095c929f78bc002eb70f26 introduces a regression.
 > With it, our tmpfs test always oom. The test has a lot of rotated anon
 > pages and cause percent[0] zero. Actually the percent[0] is a very small
@@ -68,7 +44,16 @@ cause. iow, I guess we need to fix scan ratio equation itself.
 > completely skip anon pages and cause oops.
 > To avoid underflow, we don't use percentage, instead we directly calculate
 > how many pages should be scaned.
-> 
+
+The changelog can be improved. For example, to describe these items
+in separate paragraphs:
+
+- the behavior change introduced by 84b18490d1f (which claims to be cleanup)
+- the tmpfs test case
+- the root cause
+- the solution
+- test result
+
 > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 > 
 > diff --git a/mm/vmscan.c b/mm/vmscan.c
@@ -107,6 +92,9 @@ cause. iow, I guess we need to fix scan ratio equation itself.
 > - * percent[0] specifies how much pressure to put on ram/swap backed
 > - * memory, while percent[1] determines pressure on the file LRUs.
 > + * nr[x] specifies how many pages should be scaned
+
+typo: scanned
+
 >   */
 > -static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 > -					unsigned long *percent)
@@ -118,6 +106,13 @@ cause. iow, I guess we need to fix scan ratio equation itself.
 >  	unsigned long ap, fp;
 >  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
 > +	unsigned long fraction[2], denominator[2];
+
+The denominator is shared, so one scaler would be sufficient.
+Also ap, fp can be removed and to use fraction[] directly.
+
+And it's better to retain this comment:
+                                        /* anon @ 0; file @ 1 */
+
 > +	enum lru_list l;
 >  
 >  	/* If we have no swap space, do not bother scanning anon pages. */
@@ -191,6 +186,12 @@ cause. iow, I guess we need to fix scan ratio equation itself.
 > +		if (priority) {
 > +			scan >>= priority;
 > +			scan = (scan * fraction[file] / denominator[file]);
+
+			scan = (scan * fraction[file]) / denominator[file];
+
+Thanks,
+Fengguang
+
 > +		}
 > +		nr[l] = nr_scan_try_batch(scan,
 > +					  &reclaim_stat->nr_saved_scan[l]);
@@ -231,8 +232,6 @@ cause. iow, I guess we need to fix scan ratio equation itself.
 >  
 >  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
 >  					nr[LRU_INACTIVE_FILE]) {
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
