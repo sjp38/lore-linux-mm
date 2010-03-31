@@ -1,125 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 306DE6B01EE
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 01:30:26 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A87B16B01EE
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 01:38:22 -0400 (EDT)
 Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2V5UNHH012310
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 31 Mar 2010 14:30:23 +0900
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2V5cJlU028475
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 31 Mar 2010 14:38:19 +0900
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F68845DE81
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:30:22 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 16BBF45DE6E
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:38:19 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5100A45DE85
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:30:18 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E5ACE45DE60
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:38:18 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5440CE18012
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:30:17 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C8F3E1800A
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:38:18 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 825401DB804D
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:30:13 +0900 (JST)
-Date: Wed, 31 Mar 2010 14:26:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 14/14] mm,migration: Allow the migration of
- PageSwapCache pages
-Message-Id: <20100331142623.62ac9175.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1269940489-5776-15-git-send-email-mel@csn.ul.ie>
-References: <1269940489-5776-1-git-send-email-mel@csn.ul.ie>
-	<1269940489-5776-15-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D71C3E18008
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 14:38:13 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+In-Reply-To: <20100331045348.GA3396@sli10-desk.sh.intel.com>
+References: <20100330150453.8E9F.A69D9226@jp.fujitsu.com> <20100331045348.GA3396@sli10-desk.sh.intel.com>
+Message-Id: <20100331142708.039E.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 31 Mar 2010 14:38:12 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Mar 2010 10:14:49 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+> On Tue, Mar 30, 2010 at 02:08:53PM +0800, KOSAKI Motohiro wrote:
+> > Hi
+> > 
+> > > Commit 84b18490d1f1bc7ed5095c929f78bc002eb70f26 introduces a regression.
+> > > With it, our tmpfs test always oom. The test has a lot of rotated anon
+> > > pages and cause percent[0] zero. Actually the percent[0] is a very small
+> > > value, but our calculation round it to zero. The commit makes vmscan
+> > > completely skip anon pages and cause oops.
+> > > An option is if percent[x] is zero in get_scan_ratio(), forces it
+> > > to 1. See below patch.
+> > > But the offending commit still changes behavior. Without the commit, we scan
+> > > all pages if priority is zero, below patch doesn't fix this. Don't know if
+> > > It's required to fix this too.
+> > 
+> > Can you please post your /proc/meminfo and reproduce program? I'll digg it.
+> > 
+> > Very unfortunately, this patch isn't acceptable. In past time, vmscan 
+> > had similar logic, but 1% swap-out made lots bug reports. 
+> if 1% is still big, how about below patch?
 
-> PageAnon pages that are unmapped may or may not have an anon_vma so
-> are not currently migrated. However, a swap cache page can be migrated
-> and fits this description. This patch identifies page swap caches and
-> allows them to be migrated.
+This patch makes a lot of sense than previous. however I think <1% anon ratio
+shouldn't happen anyway because file lru doesn't have reclaimable pages.
+<1% seems no good reclaim rate.
+
+perhaps I'll take your patch for stable tree. but we need to attack the root
+cause. iow, I guess we need to fix scan ratio equation itself.
+
+
+
+> Commit 84b18490d1f1bc7ed5095c929f78bc002eb70f26 introduces a regression.
+> With it, our tmpfs test always oom. The test has a lot of rotated anon
+> pages and cause percent[0] zero. Actually the percent[0] is a very small
+> value, but our calculation round it to zero. The commit makes vmscan
+> completely skip anon pages and cause oops.
+> To avoid underflow, we don't use percentage, instead we directly calculate
+> how many pages should be scaned.
 > 
-
-Some comments.
-
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/migrate.c |   15 ++++++++++-----
->  mm/rmap.c    |    6 ++++--
->  2 files changed, 14 insertions(+), 7 deletions(-)
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 > 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 35aad2a..f9bf37e 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -203,6 +203,9 @@ static int migrate_page_move_mapping(struct address_space *mapping,
->  	void **pslot;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 79c8098..80a7ed5 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1519,27 +1519,50 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+>  }
 >  
->  	if (!mapping) {
-> +		if (PageSwapCache(page))
-> +			SetPageSwapCache(newpage);
+>  /*
+> + * Smallish @nr_to_scan's are deposited in @nr_saved_scan,
+> + * until we collected @swap_cluster_max pages to scan.
+> + */
+> +static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
+> +				       unsigned long *nr_saved_scan)
+> +{
+> +	unsigned long nr;
 > +
-
-Migration of SwapCache requires radix-tree replacement, IOW, 
- mapping == NULL && PageSwapCache is BUG.
-
-So, this never happens.
-
-
->  		/* Anonymous page without mapping */
->  		if (page_count(page) != 1)
->  			return -EAGAIN;
-> @@ -607,11 +610,13 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  		 * the page was isolated and when we reached here while
->  		 * the RCU lock was not held
->  		 */
-> -		if (!page_mapped(page))
-> -			goto rcu_unlock;
-> -
-> -		anon_vma = page_anon_vma(page);
-> -		atomic_inc(&anon_vma->external_refcount);
-> +		if (!page_mapped(page)) {
-> +			if (!PageSwapCache(page))
-> +				goto rcu_unlock;
-> +		} else {
-> +			anon_vma = page_anon_vma(page);
-> +			atomic_inc(&anon_vma->external_refcount);
-> +		}
+> +	*nr_saved_scan += nr_to_scan;
+> +	nr = *nr_saved_scan;
+> +
+> +	if (nr >= SWAP_CLUSTER_MAX)
+> +		*nr_saved_scan = 0;
+> +	else
+> +		nr = 0;
+> +
+> +	return nr;
+> +}
+> +
+> +/*
+>   * Determine how aggressively the anon and file LRU lists should be
+>   * scanned.  The relative value of each set of LRU lists is determined
+>   * by looking at the fraction of the pages scanned we did rotate back
+>   * onto the active list instead of evict.
+>   *
+> - * percent[0] specifies how much pressure to put on ram/swap backed
+> - * memory, while percent[1] determines pressure on the file LRUs.
+> + * nr[x] specifies how many pages should be scaned
+>   */
+> -static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+> -					unsigned long *percent)
+> +static void get_scan_count(struct zone *zone, struct scan_control *sc,
+> +				unsigned long *nr, int priority)
+>  {
+>  	unsigned long anon, file, free;
+>  	unsigned long anon_prio, file_prio;
+>  	unsigned long ap, fp;
+>  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+> +	unsigned long fraction[2], denominator[2];
+> +	enum lru_list l;
+>  
+>  	/* If we have no swap space, do not bother scanning anon pages. */
+>  	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+> -		percent[0] = 0;
+> -		percent[1] = 100;
+> -		return;
+> +		fraction[0] = 0;
+> +		denominator[0] = 1;
+> +		fraction[1] = 1;
+> +		denominator[1] = 1;
+> +		goto out;
 >  	}
 >  
->  	/*
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index af35b75..d5ea1f2 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1394,9 +1394,11 @@ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+>  	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
+> @@ -1552,9 +1575,11 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+>  		/* If we have very few page cache pages,
+>  		   force-scan anon pages. */
+>  		if (unlikely(file + free <= high_wmark_pages(zone))) {
+> -			percent[0] = 100;
+> -			percent[1] = 0;
+> -			return;
+> +			fraction[0] = 1;
+> +			denominator[0] = 1;
+> +			fraction[1] = 0;
+> +			denominator[1] = 1;
+> +			goto out;
+>  		}
+>  	}
 >  
->  	if (unlikely(PageKsm(page)))
->  		return rmap_walk_ksm(page, rmap_one, arg);
-> -	else if (PageAnon(page))
-> +	else if (PageAnon(page)) {
-> +		if (PageSwapCache(page))
-> +			return SWAP_AGAIN;
->  		return rmap_walk_anon(page, rmap_one, arg);
+> @@ -1601,29 +1626,29 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+>  	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
+>  	fp /= reclaim_stat->recent_rotated[1] + 1;
+>  
+> -	/* Normalize to percentages */
+> -	percent[0] = 100 * ap / (ap + fp + 1);
+> -	percent[1] = 100 - percent[0];
+> -}
+> -
+> -/*
+> - * Smallish @nr_to_scan's are deposited in @nr_saved_scan,
+> - * until we collected @swap_cluster_max pages to scan.
+> - */
+> -static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
+> -				       unsigned long *nr_saved_scan)
+> -{
+> -	unsigned long nr;
+> +	fraction[0] = ap;
+> +	denominator[0] = ap + fp + 1;
+> +	fraction[1] = fp;
+> +	denominator[1] = ap + fp + 1;
+>  
+> -	*nr_saved_scan += nr_to_scan;
+> -	nr = *nr_saved_scan;
+> +out:
+> +	for_each_evictable_lru(l) {
+> +		int file = is_file_lru(l);
+> +		unsigned long scan;
+>  
+> -	if (nr >= SWAP_CLUSTER_MAX)
+> -		*nr_saved_scan = 0;
+> -	else
+> -		nr = 0;
+> +		if (fraction[file] == 0) {
+> +			nr[l] = 0;
+> +			continue;
+> +		}
+>  
+> -	return nr;
+> +		scan = zone_nr_lru_pages(zone, sc, l);
+> +		if (priority) {
+> +			scan >>= priority;
+> +			scan = (scan * fraction[file] / denominator[file]);
+> +		}
+> +		nr[l] = nr_scan_try_batch(scan,
+> +					  &reclaim_stat->nr_saved_scan[l]);
+> +	}
+>  }
+>  
+>  /*
+> @@ -1634,31 +1659,11 @@ static void shrink_zone(int priority, struct zone *zone,
+>  {
+>  	unsigned long nr[NR_LRU_LISTS];
+>  	unsigned long nr_to_scan;
+> -	unsigned long percent[2];	/* anon @ 0; file @ 1 */
+>  	enum lru_list l;
+>  	unsigned long nr_reclaimed = sc->nr_reclaimed;
+>  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+> -	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+> -
+> -	get_scan_ratio(zone, sc, percent);
+>  
+> -	for_each_evictable_lru(l) {
+> -		int file = is_file_lru(l);
+> -		unsigned long scan;
+> -
+> -		if (percent[file] == 0) {
+> -			nr[l] = 0;
+> -			continue;
+> -		}
+> -
+> -		scan = zone_nr_lru_pages(zone, sc, l);
+> -		if (priority) {
+> -			scan >>= priority;
+> -			scan = (scan * percent[file]) / 100;
+> -		}
+> -		nr[l] = nr_scan_try_batch(scan,
+> -					  &reclaim_stat->nr_saved_scan[l]);
+> -	}
+> +	get_scan_count(zone, sc, nr, priority);
+>  
+>  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+>  					nr[LRU_INACTIVE_FILE]) {
 
-SwapCache has a condition as (PageSwapCache(page) && page_mapped(page) == true.
 
-Please see do_swap_page(), PageSwapCache bit is cleared only when
-
-do_swap_page()...
-       swap_free(entry);
-        if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
-                try_to_free_swap(page);
-
-Then, PageSwapCache is cleared only when swap is freeable even if mapped.
-
-rmap_walk_anon() should be called and the check is not necessary.
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
