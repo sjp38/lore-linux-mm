@@ -1,54 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4167F6B01EE
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 10:10:46 -0400 (EDT)
-Received: by iwn40 with SMTP id 40so98036iwn.1
-        for <linux-mm@kvack.org>; Wed, 31 Mar 2010 07:10:42 -0700 (PDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] __isolate_lru_page: skip unneeded mode check
-Date: Wed, 31 Mar 2010 22:10:31 +0800
-Message-Id: <1270044631-8576-1-git-send-email-user@bob-laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A3AAA6B01EE
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 10:17:45 -0400 (EDT)
+Date: Wed, 31 Mar 2010 09:17:30 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC][PATCH] migrate_pages:skip migration between intersect
+ nodes
+In-Reply-To: <cf18f8341003301836i248d716as8d90c130790194ff@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1003310914290.17298@router.home>
+References: <1269874629-1736-1-git-send-email-lliubbo@gmail.com>  <28c262361003291703i5382e342q773ffb16e3324cf5@mail.gmail.com>  <alpine.DEB.2.00.1003301128320.24266@router.home> <cf18f8341003301836i248d716as8d90c130790194ff@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, Bob Liu <lliubbo@gmail.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, lee.schermerhorn@hp.com, andi@firstfloor.org, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-From: Bob Liu <lliubbo@gmail.com>
+On Wed, 31 Mar 2010, Bob Liu wrote:
 
-Whether mode is ISOLATE_BOTH or not, we should compare
-page_is_file_cache with argument file.
+> > The intended semantic is the preservation of the relative position of the
+> > page to the beginning of the node set. If you do not want to preserve the
+> > relative position then just move portions of the nodes around.
+> >
+>
+> Hmm.,
+> Sorry I still haven't understand your mention :-)
+>
+> My concern was why move the pages in the intersect nodes.I think skipping
+> this migration we can also satisfy the user's request.
+> In the above semantic, I  haven't got the result.
 
-And there is no more need not when checking the active state.
+No skipping does *not* satisfy the users request since the relative
+position of the page from the beginning of the nodesset is not
+preserved.
 
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
- mm/vmscan.c |    9 ++-------
- 1 files changed, 2 insertions(+), 7 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e0e5f15..34d7e3d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -862,15 +862,10 @@ int __isolate_lru_page(struct page *page, int mode, int file)
- 	if (!PageLRU(page))
- 		return ret;
- 
--	/*
--	 * When checking the active state, we need to be sure we are
--	 * dealing with comparible boolean values.  Take the logical not
--	 * of each.
--	 */
--	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
-+	if (mode != ISOLATE_BOTH && (PageActive(page) != mode))
- 		return ret;
- 
--	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
-+	if (page_is_file_cache(page) != file)
- 		return ret;
- 
- 	/*
--- 
-1.5.6.3
+You end up with a mess without this requirement. F.e. if you use page
+migration (or cpuset automigration) to shift an application running on 10
+nodes up by two nodes to make a hole that would allow you to run another
+application on the lower nodes. Applications place pages intentionally on
+certain nodes to be able to manage memory distances.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
