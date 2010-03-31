@@ -1,55 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 50E646B01EE
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 15:00:42 -0400 (EDT)
-Date: Wed, 31 Mar 2010 13:59:44 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #16
-In-Reply-To: <20100331164147.GN5825@random.random>
-Message-ID: <alpine.DEB.2.00.1003311354590.21554@router.home>
-References: <patchbomb.1269887833@v2.random> <20100331141035.523c9285.kamezawa.hiroyu@jp.fujitsu.com> <20100331153339.GK5825@random.random> <alpine.DEB.2.00.1003311102580.17603@router.home> <20100331164147.GN5825@random.random>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EBB116B01EF
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 15:01:53 -0400 (EDT)
+Date: Wed, 31 Mar 2010 20:59:50 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH -mm] proc: don't take ->siglock for /proc/pid/oom_adj
+Message-ID: <20100331185950.GB11635@redhat.com>
+References: <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330163909.GA16884@redhat.com> <20100330174337.GA21663@redhat.com> <alpine.DEB.2.00.1003301329420.5234@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1003301329420.5234@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Mar 2010, Andrea Arcangeli wrote:
-
-> > Large pages would be more independent from the page table structure with
-> > the approach that I outlined earlier since you would not have to do these
-> > sync tricks.
+On 03/30, David Rientjes wrote:
 >
-> I was talking about memory compaction. collapse_huge_page will still
-> be needed forever regardless of split_huge_page existing or not.
-
-Right but neither function would not be so page table format
-dependent as here.
-
-> > There are applications that have benefited for years already from 1G page
-> > sizes (available on IA64 f.e.). So why wait?
+> On Tue, 30 Mar 2010, Oleg Nesterov wrote:
 >
-> Because the difficulty on finding hugepages free increases
-> exponentially with the order of allocation. Plus increasing MAX_ORDER
-> so much would slowdown everything for no gain because we will fail to
-> obtain 1G pages freed. The cost of compacting 1G pages also is 512
-> times bigger than with regular pages. It's not feasible right now with
-> current memory sizes, I just said it's probably better to move to
-> PAGE_SIZE 2M instead of extending to 1g pages in a kernel whose
-> PAGE_SIZE is 4k.
+> > ->siglock is no longer needed to access task->signal, change
+> > oom_adjust_read() and oom_adjust_write() to read/write oom_adj
+> > lockless.
+> >
+> > Yes, this means that "echo 2 >oom_adj" and "echo 1 >oom_adj"
+> > can race and the second write can win, but I hope this is OK.
+>
+> Ok, but could you base this on -mm at
+> http://userweb.kernel.org/~akpm/mmotm/ since an additional tunable has
+> been added (oom_score_adj), which does the same thing?
 
-You would still want 4k pages for small files.
+David, I just can't understand why
+	oom-badness-heuristic-rewrite.patch
+duplicates the related code in fs/proc/base.c and why it preserves
+the deprecated signal->oom_adj.
 
-> Last but not the least it can be done but considering I'm abruptly
-> failing to merge 35 patches (and surely your comments aren't helping
-> in that direction...), it'd be counter-productive to make the core
+OK. Please forget about lock_task_sighand/signal issues. Can't we kill
+signal->oom_adj and create a single helper for both
+/proc/pid/{oom_adj,oom_score_adj} ?
 
-Well by know you may have realized that I am not too enthusiastic about
-the approach. But certainly 2M can be done before 1G support. I was not
-suggesting that 1G support is a requirement. However, 1G and 2M
-support at the same time would force a cleaner design and maybe get rid
-of the page table hackery here.
+	static ssize_t oom_any_adj_write(struct file *file, const char __user *buf,
+						size_t count, bool deprecated_mode)
+	{
+		struct task_struct *task;
+		char buffer[PROC_NUMBUF];
+		unsigned long flags;
+		long oom_score_adj;
+		int err;
+
+		memset(buffer, 0, sizeof(buffer));
+		if (count > sizeof(buffer) - 1)
+			count = sizeof(buffer) - 1;
+		if (copy_from_user(buffer, buf, count))
+			return -EFAULT;
+
+		err = strict_strtol(strstrip(buffer), 0, &oom_score_adj);
+		if (err)
+			return -EINVAL;
+
+		if (depraceted_mode) {
+			 if (oom_score_adj == OOM_ADJUST_MAX)
+				oom_score_adj = OOM_SCORE_ADJ_MAX;
+			 else
+				oom_score_adj = (oom_score_adj * OOM_SCORE_ADJ_MAX) /
+						-OOM_DISABLE;
+		}
+
+		if (oom_score_adj < OOM_SCORE_ADJ_MIN ||
+				oom_score_adj > OOM_SCORE_ADJ_MAX)
+			return -EINVAL;
+
+		task = get_proc_task(file->f_path.dentry->d_inode);
+		if (!task)
+			return -ESRCH;
+		if (!lock_task_sighand(task, &flags)) {
+			put_task_struct(task);
+			return -ESRCH;
+		}
+		if (oom_score_adj < task->signal->oom_score_adj &&
+				!capable(CAP_SYS_RESOURCE)) {
+			unlock_task_sighand(task, &flags);
+			put_task_struct(task);
+			return -EACCES;
+		}
+
+		task->signal->oom_score_adj = oom_score_adj;
+
+		unlock_task_sighand(task, &flags);
+		put_task_struct(task);
+		return count;
+	}
+
+This is just the current oom_score_adj_read() + "if (depraceted_mode)"
+which does oom_adj -> oom_score_adj conversion.
+
+Now,
+
+	static ssize_t oom_adjust_write(...)
+	{
+		printk_once(KERN_WARNING "... deprecated ...\n");
+
+		return oom_any_adj_write(..., true);
+	}
+
+	static ssize_t oom_score_adj_write(...)
+	{
+		return oom_any_adj_write(..., false);
+	}
+
+The same for oom_xxx_read().
+
+What is the point to keep signal->oom_adj ?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
