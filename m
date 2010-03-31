@@ -1,119 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EBB116B01EF
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 15:01:53 -0400 (EDT)
-Date: Wed, 31 Mar 2010 20:59:50 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH -mm] proc: don't take ->siglock for /proc/pid/oom_adj
-Message-ID: <20100331185950.GB11635@redhat.com>
-References: <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330163909.GA16884@redhat.com> <20100330174337.GA21663@redhat.com> <alpine.DEB.2.00.1003301329420.5234@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1003301329420.5234@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 76B196B01EE
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 15:42:42 -0400 (EDT)
+Date: Wed, 31 Mar 2010 12:42:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] [PATCH -mmotm] cpuset,mm: use seqlock to protect
+ task->mempolicy and mems_allowed (v2) (was: Re: [PATCH V2 4/4] cpuset,mm:
+ update task's mems_allowed lazily)
+Message-Id: <20100331124201.8cb20a11.akpm@linux-foundation.org>
+In-Reply-To: <4BAB6646.7040302@cn.fujitsu.com>
+References: <4B94CD2D.8070401@cn.fujitsu.com>
+	<alpine.DEB.2.00.1003081330370.18502@chino.kir.corp.google.com>
+	<4B95F802.9020308@cn.fujitsu.com>
+	<20100311081548.GJ5812@laptop>
+	<4B98C6DE.3060602@cn.fujitsu.com>
+	<20100311110317.GL5812@laptop>
+	<4BAB6646.7040302@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: miaox@cn.fujitsu.com
+Cc: Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 03/30, David Rientjes wrote:
->
-> On Tue, 30 Mar 2010, Oleg Nesterov wrote:
->
-> > ->siglock is no longer needed to access task->signal, change
-> > oom_adjust_read() and oom_adjust_write() to read/write oom_adj
-> > lockless.
-> >
-> > Yes, this means that "echo 2 >oom_adj" and "echo 1 >oom_adj"
-> > can race and the second write can win, but I hope this is OK.
->
-> Ok, but could you base this on -mm at
-> http://userweb.kernel.org/~akpm/mmotm/ since an additional tunable has
-> been added (oom_score_adj), which does the same thing?
+On Thu, 25 Mar 2010 21:33:58 +0800
+Miao Xie <miaox@cn.fujitsu.com> wrote:
 
-David, I just can't understand why
-	oom-badness-heuristic-rewrite.patch
-duplicates the related code in fs/proc/base.c and why it preserves
-the deprecated signal->oom_adj.
+> on 2010-3-11 19:03, Nick Piggin wrote:
+> >> Ok, I try to make a new patch by using seqlock.
+> > 
+> > Well... I do think seqlocks would be a bit simpler because they don't
+> > require this checking and synchronizing of this patch.
+> Hi, Nick Piggin
+> 
+> I have made a new patch which uses seqlock to protect mems_allowed and mempolicy.
+> please review it.
 
-OK. Please forget about lock_task_sighand/signal issues. Can't we kill
-signal->oom_adj and create a single helper for both
-/proc/pid/{oom_adj,oom_score_adj} ?
+That's an awfully big patch for a pretty small bug?
 
-	static ssize_t oom_any_adj_write(struct file *file, const char __user *buf,
-						size_t count, bool deprecated_mode)
-	{
-		struct task_struct *task;
-		char buffer[PROC_NUMBUF];
-		unsigned long flags;
-		long oom_score_adj;
-		int err;
+> Subject: [PATCH] [PATCH -mmotm] cpuset,mm: use seqlock to protect task->mempolicy and mems_allowed (v2)
+> 
+> Before applying this patch, cpuset updates task->mems_allowed by setting all
+> new bits in the nodemask first, and clearing all old unallowed bits later.
+> But in the way, the allocator can see an empty nodemask, though it is infrequent.
+> 
+> The problem is following:
+> The size of nodemask_t is greater than the size of long integer, so loading
+> and storing of nodemask_t are not atomic operations. If task->mems_allowed
+> don't intersect with new_mask, such as the first word of the mask is empty
+> and only the first word of new_mask is not empty. When the allocator
+> loads a word of the mask before
+> 
+> 	current->mems_allowed |= new_mask;
+> 
+> and then loads another word of the mask after
+> 
+> 	current->mems_allowed = new_mask;
+> 
+> the allocator gets an empty nodemask.
 
-		memset(buffer, 0, sizeof(buffer));
-		if (count > sizeof(buffer) - 1)
-			count = sizeof(buffer) - 1;
-		if (copy_from_user(buffer, buf, count))
-			return -EFAULT;
+Probably we could fix this via careful ordering of the updates,
+barriers and perhaps some avoicance action at the reader side.
 
-		err = strict_strtol(strstrip(buffer), 0, &oom_score_adj);
-		if (err)
-			return -EINVAL;
+> Besides that, if the size of nodemask_t is less than the size of long integer,
+> there is another problem. when the kernel allocater invokes the following function,
+> 
+> 	struct zoneref *next_zones_zonelist(struct zoneref *z,
+> 						enum zone_type highest_zoneidx,
+> 						nodemask_t *nodes,
+> 						struct zone **zone)
+> 	{
+> 		/*
+> 		 * Find the next suitable zone to use for the allocation.
+> 		 * Only filter based on nodemask if it's set
+> 		 */
+> 		if (likely(nodes == NULL))
+> 			......
+>  	       else
+> 			while (zonelist_zone_idx(z) > highest_zoneidx ||
+> 					(z->zone && !zref_in_nodemask(z, nodes)))
+> 				z++;
+> 
+> 		*zone = zonelist_zone(z);
+> 		return z;
+> 	}
+> 
+> if we change nodemask between two calls of zref_in_nodemask(), such as
+> 	Task1						Task2
+> 	zref_in_nodemask(z = node0's z, nodes = 1-2)
+> 	zref_in_nodemask return 0
+> 							nodes = 0
+> 	zref_in_nodemask(z = node1's z, nodes = 0)
+> 	zref_in_nodemask return 0
+> z will overflow.
 
-		if (depraceted_mode) {
-			 if (oom_score_adj == OOM_ADJUST_MAX)
-				oom_score_adj = OOM_SCORE_ADJ_MAX;
-			 else
-				oom_score_adj = (oom_score_adj * OOM_SCORE_ADJ_MAX) /
-						-OOM_DISABLE;
-		}
+And maybe we can fix this by taking a copy into a local.
 
-		if (oom_score_adj < OOM_SCORE_ADJ_MIN ||
-				oom_score_adj > OOM_SCORE_ADJ_MAX)
-			return -EINVAL;
+> when the kernel allocater accesses task->mempolicy, there is the same problem.
 
-		task = get_proc_task(file->f_path.dentry->d_inode);
-		if (!task)
-			return -ESRCH;
-		if (!lock_task_sighand(task, &flags)) {
-			put_task_struct(task);
-			return -ESRCH;
-		}
-		if (oom_score_adj < task->signal->oom_score_adj &&
-				!capable(CAP_SYS_RESOURCE)) {
-			unlock_task_sighand(task, &flags);
-			put_task_struct(task);
-			return -EACCES;
-		}
+And maybe we can fix those in a similar way.
 
-		task->signal->oom_score_adj = oom_score_adj;
-
-		unlock_task_sighand(task, &flags);
-		put_task_struct(task);
-		return count;
-	}
-
-This is just the current oom_score_adj_read() + "if (depraceted_mode)"
-which does oom_adj -> oom_score_adj conversion.
-
-Now,
-
-	static ssize_t oom_adjust_write(...)
-	{
-		printk_once(KERN_WARNING "... deprecated ...\n");
-
-		return oom_any_adj_write(..., true);
-	}
-
-	static ssize_t oom_score_adj_write(...)
-	{
-		return oom_any_adj_write(..., false);
-	}
-
-The same for oom_xxx_read().
-
-What is the point to keep signal->oom_adj ?
-
-Oleg.
+But it's all too much, and we'll just break it again in the future.  So
+yup, I guess locking is needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
