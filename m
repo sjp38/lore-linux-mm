@@ -1,52 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id ECD026B01F8
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 03:12:08 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o2V7C5nB027506
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 31 Mar 2010 16:12:06 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B0CDA45DE55
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 16:12:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D9AB45DE4F
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 16:12:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7171FE38004
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 16:12:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28CAA8F8006
-	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 16:12:02 +0900 (JST)
-Date: Wed, 31 Mar 2010 16:08:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable
- task can be found
-Message-Id: <20100331160816.8582a9a0.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EC3BE6B01EE
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 04:04:26 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp08.au.ibm.com (8.14.3/8.13.1) with ESMTP id o2V84JUF028667
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 19:04:19 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o2V84JKM831542
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 19:04:19 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o2V84I4X023011
+	for <linux-mm@kvack.org>; Wed, 31 Mar 2010 19:04:19 +1100
+Date: Wed, 31 Mar 2010 13:34:14 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable task
+ can be found
+Message-ID: <20100331080414.GO3308@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100329140633.GA26464@desktop>
+ <alpine.DEB.2.00.1003291259400.14859@chino.kir.corp.google.com>
+ <20100330142923.GA10099@desktop>
+ <alpine.DEB.2.00.1003301326490.5234@chino.kir.corp.google.com>
+ <20100331095714.9137caab.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1003302302420.22316@chino.kir.corp.google.com>
+ <20100331151356.673c16c0.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100331063007.GN3308@balbir.in.ibm.com>
+ <alpine.DEB.2.00.1003302331001.839@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1003310007450.9287@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 In-Reply-To: <alpine.DEB.2.00.1003310007450.9287@chino.kir.corp.google.com>
-References: <20100328145528.GA14622@desktop>
-	<20100328162821.GA16765@redhat.com>
-	<alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com>
-	<20100329140633.GA26464@desktop>
-	<alpine.DEB.2.00.1003291259400.14859@chino.kir.corp.google.com>
-	<20100330142923.GA10099@desktop>
-	<alpine.DEB.2.00.1003301326490.5234@chino.kir.corp.google.com>
-	<20100331095714.9137caab.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1003302302420.22316@chino.kir.corp.google.com>
-	<20100331151356.673c16c0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100331063007.GN3308@balbir.in.ibm.com>
-	<alpine.DEB.2.00.1003302331001.839@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1003310007450.9287@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Mar 2010 00:08:38 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+* David Rientjes <rientjes@google.com> [2010-03-31 00:08:38]:
 
 > It's pointless to try to kill current if select_bad_process() did not
 > find an eligible task to kill in mem_cgroup_out_of_memory() since it's
@@ -54,11 +44,6 @@ David Rientjes <rientjes@google.com> wrote:
 > by definition, unkillable.
 > 
 > Signed-off-by: David Rientjes <rientjes@google.com>
-
-Ah, okay. If current is killable, current should be found by select_bad_process.
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
 > ---
 >  mm/oom_kill.c |    5 +----
 >  1 files changed, 1 insertions(+), 4 deletions(-)
@@ -73,14 +58,12 @@ Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > -	if (PTR_ERR(p) == -1UL)
 > +	if (!p || PTR_ERR(p) == -1UL)
 >  		goto out;
->  
-> -	if (!p)
-> -		p = current;
-> -
->  	if (oom_kill_process(p, gfp_mask, 0, points, limit, mem,
->  				"Memory cgroup out of memory"))
->  		goto retry;
-> 
+
+Should we have a bit fat WAR_ON_ONCE() here?
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
