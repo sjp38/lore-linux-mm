@@ -1,55 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 247736B01EE
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 03:41:26 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o317fMJv011726
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 1 Apr 2010 16:41:22 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6877C45DE50
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 16:41:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4842A45DE4E
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 16:41:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 293E5E38001
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 16:41:22 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C89B6EF8027
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 16:41:21 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [LSF/MM TOPIC][ATTEND] How to fix direct-io vs fork issue
-Message-Id: <20100401154419.BE4C.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E90C6B01EE
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 03:41:57 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [10.3.21.14])
+	by smtp-out.google.com with ESMTP id o317fq9n018066
+	for <linux-mm@kvack.org>; Thu, 1 Apr 2010 09:41:52 +0200
+Received: from pwi8 (pwi8.prod.google.com [10.241.219.8])
+	by hpaq14.eem.corp.google.com with ESMTP id o317fnM5025669
+	for <linux-mm@kvack.org>; Thu, 1 Apr 2010 09:41:51 +0200
+Received: by pwi8 with SMTP id 8so40431pwi.15
+        for <linux-mm@kvack.org>; Thu, 01 Apr 2010 00:41:49 -0700 (PDT)
+Date: Thu, 1 Apr 2010 00:41:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: fix the unsafe proc_oom_score()->badness() call
+In-Reply-To: <20100331201746.GC11635@redhat.com>
+Message-ID: <alpine.DEB.2.00.1004010029260.6285@chino.kir.corp.google.com>
+References: <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com>
+ <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330163909.GA16884@redhat.com> <alpine.DEB.2.00.1003301331110.5234@chino.kir.corp.google.com> <20100331091628.GA11438@redhat.com> <20100331201746.GC11635@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu,  1 Apr 2010 16:41:21 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, lsf10-pc@lists.linuxfoundation.org
-Cc: kosaki.motohiro@jp.fujitsu.com, Nick Piggin <npiggin@suse.de>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Wed, 31 Mar 2010, Oleg Nesterov wrote:
 
-I would like to ask about one difficult problem about people.
-currently, direct-io implementation has big sick about VM interaction.
-it assume get_user_pages() can pin the target pages in page's mm. but 
-it doesn't. fork and cow might replace the relationship between task's mm
-and pages. therefore cuncurrent directio and fork can corrupt the process's
-data.
+> But. Oh well. David, oom-badness-heuristic-rewrite.patch changed badness()
+> to consult p->signal->oom_score_adj. Until recently this was wrong when it
+> is called from proc_oom_score().
+> 
+> This means oom-badness-heuristic-rewrite.patch depends on
+> signals-make-task_struct-signal-immutable-refcountable.patch, or we
+> need the pid_alive() check again.
+> 
 
-There was two proposal in past day. 1) introduce new page flags 2)
-introduce new lock. unfortunately both proposal got strong complaint
-from other developers. then, we still have this issue.
+oom-badness-heuristic-rewrite.patch didn't change anything, Linus' tree 
+currently dereferences p->signal->oom_adj which is no different from 
+dereferencing p->signal->oom_score_adj without a refcount on the 
+signal_struct in -mm.  oom_adj was moved to struct signal_struct in 
+2.6.32, see 28b83c5.
 
-I don't have clever idea. I hope discuss how to fix or give it up.
+> oom_badness() gets the new argument, long totalpages, and the callers
+> were updated. However, long uptime is not used any longer, probably
+> it make sense to kill this arg and simplify the callers? Unless you
+> are going to take run-time into account later.
+> 
+> So, I think -mm needs the patch below, but I have no idea how to
+> write the changelog ;)
+> 
+> Oleg.
+> 
+> --- x/fs/proc/base.c
+> +++ x/fs/proc/base.c
+> @@ -430,12 +430,13 @@ static const struct file_operations proc
+>  /* The badness from the OOM killer */
+>  static int proc_oom_score(struct task_struct *task, char *buffer)
+>  {
+> -	unsigned long points;
+> +	unsigned long points = 0;
+>  	struct timespec uptime;
+>  
+>  	do_posix_clock_monotonic_gettime(&uptime);
+>  	read_lock(&tasklist_lock);
+> -	points = oom_badness(task->group_leader,
+> +	if (pid_alive(task))
+> +		points = oom_badness(task,
+>  				global_page_state(NR_INACTIVE_ANON) +
+>  				global_page_state(NR_ACTIVE_ANON) +
+>  				global_page_state(NR_INACTIVE_FILE) +
 
-
-thanks to linus. his recent read_pagemap discussion restre my memory that
-I need post this mail.
-
-
+This should be protected by the get_proc_task() on the inode before 
+this function is called from proc_info_read().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
