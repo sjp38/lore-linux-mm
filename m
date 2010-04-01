@@ -1,77 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C846C6B01EE
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 11:39:41 -0400 (EDT)
-Date: Thu, 1 Apr 2010 17:37:56 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH -mm] proc: don't take ->siglock for /proc/pid/oom_adj
-Message-ID: <20100401153756.GD14603@redhat.com>
-References: <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330163909.GA16884@redhat.com> <20100330174337.GA21663@redhat.com> <alpine.DEB.2.00.1003301329420.5234@chino.kir.corp.google.com> <20100331185950.GB11635@redhat.com> <alpine.DEB.2.00.1003311408520.31252@chino.kir.corp.google.com> <20100331230032.GB4025@redhat.com> <alpine.DEB.2.00.1004010128050.6285@chino.kir.corp.google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C07136B01EE
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 12:48:57 -0400 (EDT)
+Date: Thu, 1 Apr 2010 18:47:58 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 35 of 41] don't leave orhpaned swap cache after ksm
+ merging
+Message-ID: <20100401164758.GZ5825@random.random>
+References: <patchbomb.1269622804@v2.random>
+ <6a19c093c020d009e736.1269622839@v2.random>
+ <4BACEBF8.90909@redhat.com>
+ <20100326172321.GA5825@random.random>
+ <alpine.LSU.2.00.1003262113310.8896@sister.anvils>
+ <20100327010818.GI5825@random.random>
+ <20100329140125.GT5825@random.random>
+ <alpine.LSU.2.00.1003292302080.11420@sister.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1004010128050.6285@chino.kir.corp.google.com>
+In-Reply-To: <alpine.LSU.2.00.1003292302080.11420@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On 04/01, David Rientjes wrote:
->
-> On Thu, 1 Apr 2010, Oleg Nesterov wrote:
->
-> > > That doesn't work for depraceted_mode (sic), you'd need to test for
-> > > OOM_ADJUST_MIN and OOM_ADJUST_MAX in that case.
-> >
-> > Yes, probably "if (depraceted_mode)" should do more checks, I didn't try
-> > to verify that MIN/MAX are correctly converted. I showed this code to explain
-> > what I mean.
-> >
->
-> Ok, please cc me on the patch, it will be good to get rid of the duplicate 
-> code and remove oom_adj from struct signal_struct.
+On Mon, Mar 29, 2010 at 11:56:38PM -0700, Hugh Dickins wrote:
+> I deeply resent you forcing me to think like this ;)
 
-OK, great, will do tomorrow.
+sorry ;)
 
-> Do we need ->siglock?  Why can't we just do
->
-> 	struct sighand_struct *sighand;
-> 	struct signal_struct *sig;
->
-> 	rcu_read_lock();
-> 	sighand = rcu_dereference(task->sighand);
-> 	if (!sighand) {
-> 		rcu_read_unlock();
-> 		return;
-> 	}
-> 	sig = task->signal;
->
-> 	... load/store to sig ...
->
-> 	rcu_read_unlock();
+> There is a simple bug with your patch below, isn't there?
+> The BUG_ON(!PageLocked(page)) in munlock_vma_page().
+> I expect that could be worked around with more messiness.
 
-No.
+Didn't notice this, no more messiness just like in do_wp_page:
 
-Before signals-make-task_struct-signal-immutable-refcountable.patch (actually,
-series of patches), this can't work. ->signal is not protected by rcu, and
-->sighand != NULL doesn't mean ->signal != NULL.
+     	lock_page(old_page);	/* for LRU manipulation */
+        clear_page_mlock(old_page);
+	unlock_page(old_page);
 
-(yes, thread_group_cputime() is wrong too, but currently it is never called
- lockless).
-
-After signals-make-task_struct-signal-immutable-refcountable.patch, we do not
-need any checks at all, it is always safe to use ->signal.
+diff --git a/mm/ksm.c b/mm/ksm.c
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -889,7 +889,9 @@ static int try_to_merge_one_page(struct 
+ 		err = -EFAULT;
+ 
+ 	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
++		lock_page(page);	/* for LRU manipulation */
+ 		munlock_vma_page(page);
++		unlock_page(page);
+ 		if (!PageMlocked(kpage)) {
+ 			lock_page(kpage);
+ 			mlock_vma_page(kpage);
 
 
-But. Unless we kill signal->oom_adj, we have another reason for ->siglock,
-we can't update both oom_adj and oom_score_adj atomically, and if we race
-with another thread they can be inconsistent wrt each other. Yes, oom_adj
-is not actually used, except we report it back to user-space, but still.
+So no big deal, the chances we block in that lock are close to zero
+considering we just released it. The VM could still take it because
+the page is still in the lru, but it will bail out when it sees the
+page_mapcount() == 0. So no risk to wait for I/O.
 
-So, I am going to send 2 patches. The first one factors out the code
-in base.c and kills signal->oom_adj, the next one removes ->siglock.
+> But really you're interested in whether I see an absolute reason why
+> we have to hold page lock across the replace_page().  And no, I can't
+> at this moment name an absolute reason, but still feel as I did when
+> I made that change: it makes thinking about the transition easier.
 
-Oleg.
+What about do_wp_page? It also reads the orig_pte. It takes the page
+lock just to run reuse_swap_cache. If that fails it drops the PT lock
+allocates the page, take the PT lock again, runs pte_same the same way
+reuse_swap_cache does it, and finally it copies and replaces the page.
+
+How is that any different? I mean are we introducing a new case or
+it's the same as do_wp_page.
+
+I think it boils down to the answer of the above question. I think
+they're equal, but if you think they're different I'll keep the lock
+hold during replace_page no problem. I don't want to introduce new
+locking cases, but to me it doesn't look like one!
+
+> So why don't you leave try_to_merge_one_page() just as it is,
+> and leave replace_page()'s put_page() as it is, but add in
+> 	if (!page_mapped(page))
+> 		try_to_free_swap(page);
+> either before or after the put_page?  The page_mapped test
+> is not vital; but if the page is still mapped elsewhere,
+> we usually take that as justification for keeping its swap.
+
+No doubt we can leave the page lock around replace_page too, but I
+personally hate to leave unknown-needed locking, especially if there
+are other places that release the page lock and they only relies on
+the pte_same check under PT lock when they replace the page
+(do_wp_page).
+
+Originally, before I found the trouble with the gup pins in
+page_wrprotect (current write_protect_page) we didn't take the PG_lock
+at all. We had to introduce it to do the page_count accounting right
+on the swapcache and that's about it...
+
+> (I should note in passing that really the thing to do here is
+> not necessarily to free the swap, but to consider transferring
+> the swap to the KSM page.  If all goes well, the KSM page remains
+> stable and we should be able to reread it from swap later on,
+> without having to write it out there again.  But the way swapping
+
+Agreed that would be ideal. It'd save one I/O if both pte and
+swapcache are clean, and it might improve swap locality even when one
+of the two is dirty.
+
+> of KSM pages works, the chance that the KSM page will be the one
+> that's already PageSwapcache is fairly low; and so we do repeatedly
+> write them out to swap.  I was working to avoid that when doing the
+> KSM swapping, but it grew such a long conditional expression -
+> almost as long as the Cc list on this mail - and became so awkward
+> between replace_page and try_to_merge_one_page, that I decided to put
+> it all off to a later optimization.  That I've never yet got around to.)
+
+No problem. It's not high priority for sure. The only high priority
+thing as far as KSM is concerned is to make it work on hugepages. For
+now shutting down a VM and not being life with gigabytes of swap used
+is enough...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
