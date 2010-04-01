@@ -1,32 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1B8CB6B01EE
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 06:42:43 -0400 (EDT)
-Received: by pwi2 with SMTP id 2so875810pwi.14
-        for <linux-mm@kvack.org>; Thu, 01 Apr 2010 03:42:42 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E22D66B01F0
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 06:51:33 -0400 (EDT)
+Received: by pzk16 with SMTP id 16so920986pzk.22
+        for <linux-mm@kvack.org>; Thu, 01 Apr 2010 03:51:31 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100401093022.GA621@csn.ul.ie>
+In-Reply-To: <20100401144234.e3848876.kamezawa.hiroyu@jp.fujitsu.com>
 References: <1269940489-5776-1-git-send-email-mel@csn.ul.ie>
 	 <1269940489-5776-15-git-send-email-mel@csn.ul.ie>
 	 <20100331142623.62ac9175.kamezawa.hiroyu@jp.fujitsu.com>
 	 <j2s28c262361003311943ke6d39007of3861743cef3733a@mail.gmail.com>
 	 <20100401120123.f9f9e872.kamezawa.hiroyu@jp.fujitsu.com>
 	 <n2k28c262361003312144k3a1a725aj1eb22efe6d360118@mail.gmail.com>
-	 <20100401093022.GA621@csn.ul.ie>
-Date: Thu, 1 Apr 2010 19:42:41 +0900
-Message-ID: <w2v28c262361004010342ib071abc7h4c967a25dee135a2@mail.gmail.com>
+	 <20100401144234.e3848876.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 1 Apr 2010 19:51:31 +0900
+Message-ID: <w2i28c262361004010351r605c897dzd2bdccac149dcc6b@mail.gmail.com>
 Subject: Re: [PATCH 14/14] mm,migration: Allow the migration of PageSwapCache
 	pages
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 1, 2010 at 6:30 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Thu, Apr 01, 2010 at 01:44:29PM +0900, Minchan Kim wrote:
+On Thu, Apr 1, 2010 at 2:42 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 1 Apr 2010 13:44:29 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
 >> On Thu, Apr 1, 2010 at 12:01 PM, KAMEZAWA Hiroyuki
 >> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 >> > On Thu, 1 Apr 2010 11:43:18 +0900
@@ -115,29 +118,105 @@ do nothing
 >> Then, my question is why Mel added the check in rmap_walk.
 >> He mentioned some BUG trigger and fixed things after this patch.
 >> What's it?
+>> Is it really related to this logic?
+>> I don't think so or we are missing something.
+>>
+> Hmm. Consiering again.
 >
-> If I remove the check for (PageSwapCache(page) && !page_mapped(page))
-> in rmap_walk(), then the bug below occurs. The first one is lockdep going
-> bad because it's accessing a bad lock implying that anon_vma->lock is
-> already invalid. The bug that triggers after it is the list walk.
+> Now.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageAnon(page)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0rcu_locked =3D 1;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0rcu_read_lock();
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page_mapped(p=
+age)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0if (!PageSwapCache(page))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto rcu_unlock;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0} else {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0anon_vma =3D page_anon_vma(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0atomic_inc(&anon_vma->external_refcount);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>
+>
+> Maybe this is a fix.
+>
+> =3D=3D
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0skip_remap =3D 0;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageAnon(page)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0rcu_read_lock();
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page_mapped(p=
+age)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0if (!PageSwapCache(page))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto rcu_unlock;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0/*
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 * We can't convice this anon_vma is valid or not because
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 * !page_mapped(page). Then, we do migration(radix-tree replaceme=
+nt)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 * but don't remap it which touches anon_vma in page->mapping.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0skip_remap =3D 1;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0goto skip_unmap;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0} else {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0anon_vma =3D page_anon_vma(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0atomic_inc(&anon_vma->external_refcount);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0.....copy page, radix-tree replacement,....
+>
 
-Thanks. I think it's possible. It's subtle problem.
-Assume !page_mapped  && PageAnon(page)  && PageSwapCache
+It's not enough.
+we uses remove_migration_ptes in  move_to_new_page, too.
+We have to prevent it.
+We can check PageSwapCache(page) in move_to_new_page and then
+skip remove_migration_ptes.
 
-0. PageAnon check
-1. race window <---- anon_vma free!!!!
-2. rcu_read_lock()
-3. skip_unmap
-4. move_to_new_page
-5. newpage->mapping =3D page->mapping <--- !!!! It's invalid
-6.     mapping->a_ops->migratepage
-7.         radix tree change, copy page (still new page anon is NULL)
-8.     remove_migrate_ptes
-9.     rmap_walk
-10.         PageAnon is true --> we are deceived.
-11.         rmap_walk_anon -> go bomb!
+ex)
+static int move_to_new_page(....)
+{
+     int swapcache =3D PageSwapCache(page);
+     ...
+     if (!swapcache)
+         if(!rc)
+             remove_migration_ptes
+         else
+             newpage->mapping =3D NULL;
+}
 
-Does it make sense?
+And we have to close race between PageAnon(page) and rcu_read_lock.
+If we don't do it, anon_vma could be free in the middle of operation.
+I means
+
+         * of migration. File cache pages are no problem because of page_lo=
+ck()
+         * File Caches may use write_page() or lock_page() in migration, th=
+en,
+         * just care Anon page here.
+         */
+        if (PageAnon(page)) {
+                !!! RACE !!!!
+                rcu_read_lock();
+                rcu_locked =3D 1;
+
++
++               /*
++                * If the page has no mappings any more, just bail. An
++                * unmapped anon page is likely to be freed soon but worse,
+
+
 --=20
 Kind regards,
 Minchan Kim
