@@ -1,108 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 277486B01EE
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 04:35:10 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o318Z5mw019845
-	for <linux-mm@kvack.org>; Thu, 1 Apr 2010 01:35:05 -0700
-Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
-	by wpaz21.hot.corp.google.com with ESMTP id o318Z4l3025762
-	for <linux-mm@kvack.org>; Thu, 1 Apr 2010 01:35:04 -0700
-Received: by pvc30 with SMTP id 30so252317pvc.34
-        for <linux-mm@kvack.org>; Thu, 01 Apr 2010 01:35:04 -0700 (PDT)
-Date: Thu, 1 Apr 2010 01:35:02 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 08FCB6B01EE
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 04:57:46 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [10.3.21.14])
+	by smtp-out.google.com with ESMTP id o318vg6A012252
+	for <linux-mm@kvack.org>; Thu, 1 Apr 2010 01:57:43 -0700
+Received: from pwi1 (pwi1.prod.google.com [10.241.219.1])
+	by hpaq14.eem.corp.google.com with ESMTP id o318vdjE003551
+	for <linux-mm@kvack.org>; Thu, 1 Apr 2010 10:57:41 +0200
+Received: by pwi1 with SMTP id 1so820627pwi.39
+        for <linux-mm@kvack.org>; Thu, 01 Apr 2010 01:57:39 -0700 (PDT)
+Date: Thu, 1 Apr 2010 01:57:35 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] oom: give current access to memory reserves if it has
- been killed
-In-Reply-To: <20100331204718.GD11635@redhat.com>
-Message-ID: <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com>
+Subject: [patch -mm] oom: hold tasklist_lock when dumping tasks
+In-Reply-To: <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1004010157020.29497@chino.kir.corp.google.com>
 References: <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com>
  <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330154659.GA12416@redhat.com> <alpine.DEB.2.00.1003301320020.5234@chino.kir.corp.google.com> <20100331175836.GA11635@redhat.com> <20100331204718.GD11635@redhat.com>
+ <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Mar 2010, Oleg Nesterov wrote:
+dump_header() always requires tasklist_lock to be held because it calls 
+dump_tasks() which iterates through the tasklist.  There are a few places
+where this isn't maintained, so make sure tasklist_lock is always held
+whenever calling dump_header().
 
-> Probably something like the patch below makes sense. Note that
-> "skip kernel threads" logic is wrong too, we should check PF_KTHREAD.
-> Probably it is better to check it in select_bad_process() instead,
-> near is_global_init().
-> 
+Reported-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c |   23 ++++++++++-------------
+ 1 files changed, 10 insertions(+), 13 deletions(-)
 
-is_global_init() will be true for p->flags & PF_KTHREAD.
-
-> The new helper, find_lock_task_mm(), should be used by
-> oom_forkbomb_penalty() too.
-> 
-> dump_tasks() doesn't need it, it does do_each_thread(). Cough,
-> __out_of_memory() and out_of_memory() call it without tasklist.
-> We are going to panic() anyway, but still.
-> 
-
-Indeed, good observation.
-
-> Oleg.
-> 
-> --- x/mm/oom_kill.c
-> +++ x/mm/oom_kill.c
-> @@ -129,6 +129,19 @@ static unsigned long oom_forkbomb_penalt
->  				(child_rss / sysctl_oom_forkbomb_thres) : 0;
->  }
->  
-> +static find_lock_task_mm(struct task_struct *p)
-> +{
-> +	struct task_struct *t = p;
-> +	do {
-> +		task_lock(t);
-> +		if (likely(t->mm && !(t->flags & PF_KTHREAD)))
-> +			return t;
-> +		task_unlock(t);
-> +	} while_each_thred(p, t);
-> +
-> +	return NULL;
-> +}
-> +
->  /**
->   * oom_badness - heuristic function to determine which candidate task to kill
->   * @p: task struct of which task we should calculate
-> @@ -159,13 +172,9 @@ unsigned int oom_badness(struct task_str
->  	if (p->flags & PF_OOM_ORIGIN)
->  		return 1000;
->  
-> -	task_lock(p);
-> -	mm = p->mm;
-> -	if (!mm) {
-> -		task_unlock(p);
-> +	p = find_lock_task_mm(p);
-> +	if (!p)
->  		return 0;
-> -	}
-> -
->  	/*
->  	 * The baseline for the badness score is the proportion of RAM that each
->  	 * task's rss and swap space use.
-> @@ -330,12 +339,6 @@ static struct task_struct *select_bad_pr
->  			*ppoints = 1000;
->  		}
->  
-> -		/*
-> -		 * skip kernel threads and tasks which have already released
-> -		 * their mm.
-> -		 */
-> -		if (!p->mm)
-> -			continue;
->  		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
->  			continue;
-
-You can't do this for the reason I cited in another email, oom_badness() 
-returning 0 does not exclude a task from being chosen by 
-selcet_bad_process(), it will use that task if nothing else has been found 
-yet.  We must explicitly filter it from consideration by checking for 
-!p->mm.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -395,6 +395,9 @@ static void dump_tasks(const struct mem_cgroup *mem)
+ 	} while_each_thread(g, p);
+ }
+ 
++/*
++ * Call with tasklist_lock read-locked.
++ */
+ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+ 							struct mem_cgroup *mem)
+ {
+@@ -641,8 +644,8 @@ retry:
+ 
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+ 	if (!p) {
+-		read_unlock(&tasklist_lock);
+ 		dump_header(NULL, gfp_mask, order, NULL);
++		read_unlock(&tasklist_lock);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+ 
+@@ -675,11 +678,6 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		/* Got some memory back in the last second. */
+ 		return;
+ 
+-	if (sysctl_panic_on_oom == 2) {
+-		dump_header(NULL, gfp_mask, order, NULL);
+-		panic("out of memory. Compulsory panic_on_oom is selected.\n");
+-	}
+-
+ 	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
+@@ -688,15 +686,12 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 						&totalpages);
+ 	read_lock(&tasklist_lock);
+ 	if (unlikely(sysctl_panic_on_oom)) {
+-		/*
+-		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
+-		 * should not panic for cpuset or mempolicy induced memory
+-		 * failures.
+-		 */
+-		if (constraint == CONSTRAINT_NONE) {
++		if (sysctl_panic_on_oom == 2 || constraint == CONSTRAINT_NONE) {
+ 			dump_header(NULL, gfp_mask, order, NULL);
+ 			read_unlock(&tasklist_lock);
+-			panic("Out of memory: panic_on_oom is enabled\n");
++			panic("Out of memory: %s panic_on_oom is enabled\n",
++				sysctl_panic_on_oom == 2 ? "compulsory" :
++							   "system-wide");
+ 		}
+ 	}
+ 	__out_of_memory(gfp_mask, order, totalpages, constraint, nodemask);
+@@ -724,8 +719,10 @@ void pagefault_out_of_memory(void)
+ 
+ 	if (try_set_system_oom()) {
+ 		constrained_alloc(NULL, 0, NULL, &totalpages);
++		read_lock(&tasklist_lock);
+ 		err = oom_kill_process(current, 0, 0, 0, totalpages, NULL,
+ 					"Out of memory (pagefault)");
++		read_unlock(&tasklist_lock);
+ 		if (err)
+ 			out_of_memory(NULL, 0, 0, NULL);
+ 		clear_system_oom();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
