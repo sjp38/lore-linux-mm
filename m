@@ -1,85 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 57C356B01EE
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 09:42:48 -0400 (EDT)
-Received: by pvg2 with SMTP id 2so373106pvg.14
-        for <linux-mm@kvack.org>; Thu, 01 Apr 2010 06:42:46 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C970B6B01EE
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 10:01:31 -0400 (EDT)
+Date: Thu, 1 Apr 2010 15:59:27 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch] oom: give current access to memory reserves if it has
+	been killed
+Message-ID: <20100401135927.GA12460@redhat.com>
+References: <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330154659.GA12416@redhat.com> <alpine.DEB.2.00.1003301320020.5234@chino.kir.corp.google.com> <20100331175836.GA11635@redhat.com> <20100331204718.GD11635@redhat.com> <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20100401103210.12C0.A69D9226@jp.fujitsu.com>
-References: <2f11576a1003310717y1fe1aa66p8f92135d5eec29e6@mail.gmail.com>
-	 <w2gcf18f8341003311830pb0d697efi721641050c88a254@mail.gmail.com>
-	 <20100401103210.12C0.A69D9226@jp.fujitsu.com>
-Date: Thu, 1 Apr 2010 21:42:46 +0800
-Message-ID: <o2wcf18f8341004010642m2f25ec2fg9f1275a659ed7a10@mail.gmail.com>
-Subject: Re: [PATCH] __isolate_lru_page: skip unneeded mode check
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 1, 2010 at 9:39 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> @@ -862,15 +862,10 @@ int __isolate_lru_page(struct page *page, int m=
-ode,
->> >> int file)
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!PageLRU(page))
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
->> >>
->> >> - =C2=A0 =C2=A0 =C2=A0 /*
->> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* When checking the active state, we nee=
-d to be sure we are
->> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* dealing with comparible boolean values=
-. =C2=A0Take the logical not
->> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* of each.
->> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> >> - =C2=A0 =C2=A0 =C2=A0 if (mode !=3D ISOLATE_BOTH && (!PageActive(pag=
-e) !=3D !mode))
->> >> + =C2=A0 =C2=A0 =C2=A0 if (mode !=3D ISOLATE_BOTH && (PageActive(page=
-) !=3D mode))
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
->> >
->> > no. please read the comment.
->> >
->>
->> Hm,. I have read it, but still miss it :-).
->> PageActive(page) will return an int 0 or 1, mode is also int 0 or 1(
->> already !=3D ISOLATE_BOTH).
->> There are comparible and why must to be sure to boolean values?
+On 04/01, David Rientjes wrote:
 >
-> hm, ok. you are right.
-> please resend this part as individual patch.
+> On Wed, 31 Mar 2010, Oleg Nesterov wrote:
 >
+> > Probably something like the patch below makes sense. Note that
+> > "skip kernel threads" logic is wrong too, we should check PF_KTHREAD.
+> > Probably it is better to check it in select_bad_process() instead,
+> > near is_global_init().
+>
+> is_global_init() will be true for p->flags & PF_KTHREAD.
 
-I have resent this part :-).
+No, is_global_init() && PF_KTHREAD have nothing to do with each other.
 
+> > @@ -159,13 +172,9 @@ unsigned int oom_badness(struct task_str
+> >  	if (p->flags & PF_OOM_ORIGIN)
+> >  		return 1000;
+> >
+> > -	task_lock(p);
+> > -	mm = p->mm;
+> > -	if (!mm) {
+> > -		task_unlock(p);
+> > +	p = find_lock_task_mm(p);
+> > +	if (!p)
+> >  		return 0;
+> > -	}
+> > -
+> >  	/*
+> >  	 * The baseline for the badness score is the proportion of RAM that each
+> >  	 * task's rss and swap space use.
+> > @@ -330,12 +339,6 @@ static struct task_struct *select_bad_pr
+> >  			*ppoints = 1000;
+> >  		}
+> >
+> > -		/*
+> > -		 * skip kernel threads and tasks which have already released
+> > -		 * their mm.
+> > -		 */
+> > -		if (!p->mm)
+> > -			continue;
+> >  		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> >  			continue;
 >
->> >> - =C2=A0 =C2=A0 =C2=A0 if (mode !=3D ISOLATE_BOTH && page_is_file_cac=
-he(page) !=3D file)
->> >> + =C2=A0 =C2=A0 =C2=A0 if (page_is_file_cache(page) !=3D file)
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
->> >
->> > no. please consider lumpy reclaim.
->>
->> During lumpy reclaim mode is ISOLATE_BOTH, that case we don't check
->> page_is_file_cache() ? =C2=A0Would you please explain it a little more ,=
-i
->> am still unclear about it.
->> Thanks a lot.
->
-> ISOLATE_BOTH is for to help allocate high order memory. then,
-> it ignore both PageActive() and page_is_file_cache(). otherwise,
-> we fail to allocate high order memory.
->
+> You can't do this for the reason I cited in another email, oom_badness()
+> returning 0 does not exclude a task from being chosen by
+> selcet_bad_process(), it will use that task if nothing else has been found
+> yet.  We must explicitly filter it from consideration by checking for
+> !p->mm.
 
-I got it, thanks.
-And I have resent a patch collected ISOLATE_BOTH check.
+Yes, you are right. OK, oom_badness() can never return points < 0,
+we can make it int and oom_badness() can return -1 if !mm. IOW,
 
---=20
-Regards,
---Bob
+	- unsigned int points;
+	+ int points;
+	...
+
+	points = oom_badness(...);
+	if (points >= 0 && (points > *ppoints || !chosen))
+		chosen = p;
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
