@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C75016B020A
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:22 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C032F6B020D
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:24 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 26 of 41] don't alloc harder for gfp nomemalloc even if nowait
-Message-Id: <d44bcbb62a8c566e8305.1270168913@v2.random>
+Subject: [PATCH 11 of 41] comment reminder in destroy_compound_page
+Message-Id: <ce83fa8072edff481106.1270168898@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:53 +0200
+Date: Fri, 02 Apr 2010 02:41:38 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,30 +18,25 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Not worth throwing away the precious reserved free memory pool for allocations
-that can fail gracefully (either through mempool or because they're transhuge
-allocations later falling back to 4k allocations).
+Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
+on its internal behavior.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1811,7 +1811,11 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	 */
- 	alloc_flags |= (gfp_mask & __GFP_HIGH);
+@@ -334,6 +334,7 @@ void prep_compound_page(struct page *pag
+ 	}
+ }
  
--	if (!wait) {
-+	/*
-+	 * Not worth trying to allocate harder for __GFP_NOMEMALLOC
-+	 * even if it can't schedule.
-+	 */
-+	if (!wait && !(gfp_mask & __GFP_NOMEMALLOC)) {
- 		alloc_flags |= ALLOC_HARDER;
- 		/*
- 		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
++/* update __split_huge_page_refcount if you change this function */
+ static int destroy_compound_page(struct page *page, unsigned long order)
+ {
+ 	int i;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
