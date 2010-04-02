@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 307E16B01F3
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 10BC26B01F2
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:20 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 35 of 41] skip transhuge pages in ksm for now
-Message-Id: <14f320d06189a8bba363.1270168922@v2.random>
+Subject: [PATCH 09 of 41] no paravirt version of pmd ops
+Message-Id: <bb01bc2e475a569dc7e5.1270168896@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:42:02 +0200
+Date: Fri, 02 Apr 2010 02:41:36 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,55 +18,33 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Skip transhuge pages in ksm for now.
+No paravirt version of set_pmd_at/pmd_update/pmd_update_defer.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/ksm.c b/mm/ksm.c
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -449,7 +449,7 @@ static struct page *get_mergeable_page(s
- 	page = follow_page(vma, addr, FOLL_GET);
- 	if (!page)
- 		goto out;
--	if (PageAnon(page)) {
-+	if (PageAnon(page) && !PageTransCompound(page)) {
- 		flush_anon_page(vma, page, addr);
- 		flush_dcache_page(page);
- 	} else {
-@@ -1294,7 +1294,19 @@ next_mm:
- 			if (ksm_test_exit(mm))
- 				break;
- 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
--			if (*page && PageAnon(*page)) {
-+			if (!*page) {
-+				ksm_scan.address += PAGE_SIZE;
-+				cond_resched();
-+				continue;
-+			}
-+			if (PageTransCompound(*page)) {
-+				put_page(*page);
-+				ksm_scan.address &= HPAGE_PMD_MASK;
-+				ksm_scan.address += HPAGE_PMD_SIZE;
-+				cond_resched();
-+				continue;
-+			}
-+			if (PageAnon(*page)) {
- 				flush_anon_page(vma, *page, ksm_scan.address);
- 				flush_dcache_page(*page);
- 				rmap_item = get_next_rmap_item(slot,
-@@ -1308,8 +1320,7 @@ next_mm:
- 				up_read(&mm->mmap_sem);
- 				return rmap_item;
- 			}
--			if (*page)
--				put_page(*page);
-+			put_page(*page);
- 			ksm_scan.address += PAGE_SIZE;
- 			cond_resched();
- 		}
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -33,6 +33,7 @@ extern struct list_head pgd_list;
+ #else  /* !CONFIG_PARAVIRT */
+ #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
+ #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
++#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
+ 
+ #define set_pte_atomic(ptep, pte)					\
+ 	native_set_pte_atomic(ptep, pte)
+@@ -57,6 +58,8 @@ extern struct list_head pgd_list;
+ 
+ #define pte_update(mm, addr, ptep)              do { } while (0)
+ #define pte_update_defer(mm, addr, ptep)        do { } while (0)
++#define pmd_update(mm, addr, ptep)              do { } while (0)
++#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
+ 
+ #define pgd_val(x)	native_pgd_val(x)
+ #define __pgd(x)	native_make_pgd(x)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
