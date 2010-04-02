@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 525656B01F5
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 12:02:48 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 954246B01F5
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 12:02:49 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 01/14] mm,migration: Take a reference to the anon_vma before migrating
-Date: Fri,  2 Apr 2010 17:02:35 +0100
-Message-Id: <1270224168-14775-2-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 02/14] mm,migration: Do not try to migrate unmapped anonymous pages
+Date: Fri,  2 Apr 2010 17:02:36 +0100
+Message-Id: <1270224168-14775-3-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1270224168-14775-1-git-send-email-mel@csn.ul.ie>
 References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,135 +13,54 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-rmap_walk_anon() does not use page_lock_anon_vma() for looking up and
-locking an anon_vma and it does not appear to have sufficient locking to
-ensure the anon_vma does not disappear from under it.
+rmap_walk_anon() was triggering errors in memory compaction that look like
+use-after-free errors. The problem is that between the page being isolated
+from the LRU and rcu_read_lock() being taken, the mapcount of the page
+dropped to 0 and the anon_vma gets freed. This can happen during memory
+compaction if pages being migrated belong to a process that exits before
+migration completes. Hence, the use-after-free race looks like
 
-This patch copies an approach used by KSM to take a reference on the
-anon_vma while pages are being migrated. This should prevent rmap_walk()
-running into nasty surprises later because anon_vma has been freed.
+ 1. Page isolated for migration
+ 2. Process exits
+ 3. page_mapcount(page) drops to zero so anon_vma was no longer reliable
+ 4. unmap_and_move() takes the rcu_lock but the anon_vma is already garbage
+ 4. call try_to_unmap, looks up tha anon_vma and "locks" it but the lock
+    is garbage.
+
+This patch checks the mapcount after the rcu lock is taken. If the
+mapcount is zero, the anon_vma is assumed to be freed and no further
+action is taken.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/rmap.h |   23 +++++++++++++++++++++++
- mm/migrate.c         |   12 ++++++++++++
- mm/rmap.c            |   10 +++++-----
- 3 files changed, 40 insertions(+), 5 deletions(-)
+ mm/migrate.c |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index d25bd22..567d43f 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -29,6 +29,9 @@ struct anon_vma {
- #ifdef CONFIG_KSM
- 	atomic_t ksm_refcount;
- #endif
-+#ifdef CONFIG_MIGRATION
-+	atomic_t migrate_refcount;
-+#endif
- 	/*
- 	 * NOTE: the LSB of the head.next is set by
- 	 * mm_take_all_locks() _after_ taking the above lock. So the
-@@ -81,6 +84,26 @@ static inline int ksm_refcount(struct anon_vma *anon_vma)
- 	return 0;
- }
- #endif /* CONFIG_KSM */
-+#ifdef CONFIG_MIGRATION
-+static inline void migrate_refcount_init(struct anon_vma *anon_vma)
-+{
-+	atomic_set(&anon_vma->migrate_refcount, 0);
-+}
-+
-+static inline int migrate_refcount(struct anon_vma *anon_vma)
-+{
-+	return atomic_read(&anon_vma->migrate_refcount);
-+}
-+#else
-+static inline void migrate_refcount_init(struct anon_vma *anon_vma)
-+{
-+}
-+
-+static inline int migrate_refcount(struct anon_vma *anon_vma)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_MIGRATE */
- 
- static inline struct anon_vma *page_anon_vma(struct page *page)
- {
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 6903abf..06e6316 100644
+index 06e6316..5c5c1bd 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -542,6 +542,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 	int rcu_locked = 0;
- 	int charge = 0;
- 	struct mem_cgroup *mem = NULL;
-+	struct anon_vma *anon_vma = NULL;
- 
- 	if (!newpage)
- 		return -ENOMEM;
-@@ -598,6 +599,8 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+@@ -599,6 +599,17 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
  	if (PageAnon(page)) {
  		rcu_read_lock();
  		rcu_locked = 1;
-+		anon_vma = page_anon_vma(page);
-+		atomic_inc(&anon_vma->migrate_refcount);
++
++		/*
++		 * If the page has no mappings any more, just bail. An
++		 * unmapped anon page is likely to be freed soon but worse,
++		 * it's possible its anon_vma disappeared between when
++		 * the page was isolated and when we reached here while
++		 * the RCU lock was not held
++		 */
++		if (!page_mapped(page))
++			goto rcu_unlock;
++
+ 		anon_vma = page_anon_vma(page);
+ 		atomic_inc(&anon_vma->migrate_refcount);
  	}
- 
- 	/*
-@@ -637,6 +640,15 @@ skip_unmap:
- 	if (rc)
- 		remove_migration_ptes(page, page);
- rcu_unlock:
-+
-+	/* Drop an anon_vma reference if we took one */
-+	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
-+		int empty = list_empty(&anon_vma->head);
-+		spin_unlock(&anon_vma->lock);
-+		if (empty)
-+			anon_vma_free(anon_vma);
-+	}
-+
- 	if (rcu_locked)
- 		rcu_read_unlock();
- uncharge:
-diff --git a/mm/rmap.c b/mm/rmap.c
-index fcd593c..578d0fe 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -248,7 +248,8 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
- 	list_del(&anon_vma_chain->same_anon_vma);
- 
- 	/* We must garbage collect the anon_vma if it's empty */
--	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma);
-+	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma) &&
-+					!migrate_refcount(anon_vma);
- 	spin_unlock(&anon_vma->lock);
- 
- 	if (empty)
-@@ -273,6 +274,7 @@ static void anon_vma_ctor(void *data)
- 
- 	spin_lock_init(&anon_vma->lock);
- 	ksm_refcount_init(anon_vma);
-+	migrate_refcount_init(anon_vma);
- 	INIT_LIST_HEAD(&anon_vma->head);
- }
- 
-@@ -1338,10 +1340,8 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
- 	/*
- 	 * Note: remove_migration_ptes() cannot use page_lock_anon_vma()
- 	 * because that depends on page_mapped(); but not all its usages
--	 * are holding mmap_sem, which also gave the necessary guarantee
--	 * (that this anon_vma's slab has not already been destroyed).
--	 * This needs to be reviewed later: avoiding page_lock_anon_vma()
--	 * is risky, and currently limits the usefulness of rmap_walk().
-+	 * are holding mmap_sem. Users without mmap_sem are required to
-+	 * take a reference count to prevent the anon_vma disappearing
- 	 */
- 	anon_vma = page_anon_vma(page);
- 	if (!anon_vma)
 -- 
 1.6.5
 
