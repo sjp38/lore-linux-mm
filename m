@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C032F6B020D
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:24 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3BA9B6B020C
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:25 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 11 of 41] comment reminder in destroy_compound_page
-Message-Id: <ce83fa8072edff481106.1270168898@v2.random>
+Subject: [PATCH 30 of 41] pmd_trans_huge migrate bugcheck
+Message-Id: <18e07f3194de2f6b371f.1270168917@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:38 +0200
+Date: Fri, 02 Apr 2010 02:41:57 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,25 +18,57 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Warn destroy_compound_page that __split_huge_page_refcount is heavily dependent
-on its internal behavior.
+No pmd_trans_huge should ever materialize in migration ptes areas, because
+we split the hugepage before migration ptes are instantiated.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -334,6 +334,7 @@ void prep_compound_page(struct page *pag
- 	}
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -105,6 +105,10 @@ static inline int PageTransHuge(struct p
+ 	VM_BUG_ON(PageTail(page));
+ 	return PageHead(page);
  }
- 
-+/* update __split_huge_page_refcount if you change this function */
- static int destroy_compound_page(struct page *page, unsigned long order)
++static inline int PageTransCompound(struct page *page)
++{
++	return PageCompound(page);
++}
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUG(); 0; })
+ #define HPAGE_PMD_MASK ({ BUG(); 0; })
+@@ -122,6 +126,7 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++#define PageTransCompound(page) 0
+ static inline int hugepage_madvise(unsigned long *vm_flags)
  {
- 	int i;
+ 	BUG_ON(0);
+diff --git a/mm/migrate.c b/mm/migrate.c
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -94,6 +94,7 @@ static int remove_migration_pte(struct p
+ 		goto out;
+ 
+ 	pmd = pmd_offset(pud, addr);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (!pmd_present(*pmd))
+ 		goto out;
+ 
+@@ -810,6 +811,10 @@ static int do_move_page_to_node_array(st
+ 		if (PageReserved(page) || PageKsm(page))
+ 			goto put_and_set;
+ 
++		if (unlikely(PageTransCompound(page)))
++			if (unlikely(split_huge_page(page)))
++				goto put_and_set;
++
+ 		pp->page = page;
+ 		err = page_to_nid(page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
