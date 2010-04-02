@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7B78D6B01FC
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9B8A96B0200
 	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 10 of 41] export maybe_mkwrite
-Message-Id: <aece963311fa9a3f9734.1270168897@v2.random>
+Subject: [PATCH 12 of 41] config_transparent_hugepage
+Message-Id: <f1d967a3305a93ae2011.1270168899@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:37 +0200
+Date: Fri, 02 Apr 2010 02:41:39 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,60 +18,34 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-huge_memory.c needs it too when it fallbacks in copying hugepages into regular
-fragmented pages if hugepage allocation fails during COW.
+Add config option.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -390,6 +390,19 @@ static inline void set_compound_order(st
- }
+diff --git a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -287,3 +287,17 @@ config NOMMU_INITIAL_TRIM_EXCESS
+ 	  of 1 says that all excess pages should be trimmed.
  
- /*
-+ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-+ * servicing faults for write access.  In the normal case, do always want
-+ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-+ * that do not have writing enabled, when used by access_process_vm.
-+ */
-+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-+{
-+	if (likely(vma->vm_flags & VM_WRITE))
-+		pte = pte_mkwrite(pte);
-+	return pte;
-+}
+ 	  See Documentation/nommu-mmap.txt for more information.
 +
-+/*
-  * Multiple processes may "see" the same page. E.g. for untouched
-  * mappings of /dev/null, all processes see the same page full of
-  * zeroes, and text pages of executables and shared libraries have
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2031,19 +2031,6 @@ static inline int pte_unmap_same(struct 
- 	return same;
- }
- 
--/*
-- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-- * servicing faults for write access.  In the normal case, do always want
-- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-- * that do not have writing enabled, when used by access_process_vm.
-- */
--static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
--{
--	if (likely(vma->vm_flags & VM_WRITE))
--		pte = pte_mkwrite(pte);
--	return pte;
--}
--
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
- {
- 	/*
++config TRANSPARENT_HUGEPAGE
++	bool "Transparent Hugepage support" if EMBEDDED
++	depends on X86_64
++	default y
++	help
++	  Transparent Hugepages allows the kernel to use huge pages and
++	  huge tlb transparently to the applications whenever possible.
++	  This feature can improve computing performance to certain
++	  applications by speeding up page faults during memory
++	  allocation, by reducing the number of tlb misses and by speeding
++	  up the pagetable walking.
++
++	  If memory constrained on embedded, you may want to say N.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
