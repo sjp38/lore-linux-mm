@@ -1,122 +1,299 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 76C356B020B
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 03:22:59 -0400 (EDT)
-Received: by pzk6 with SMTP id 6so1143572pzk.1
-        for <linux-mm@kvack.org>; Fri, 02 Apr 2010 00:22:57 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 40B076B01FB
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 04:51:29 -0400 (EDT)
+Date: Fri, 2 Apr 2010 09:51:06 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 14/14] mm,migration: Allow the migration of
+	PageSwapCache pages
+Message-ID: <20100402085106.GC621@csn.ul.ie>
+References: <1269940489-5776-1-git-send-email-mel@csn.ul.ie> <1269940489-5776-15-git-send-email-mel@csn.ul.ie> <20100331142623.62ac9175.kamezawa.hiroyu@jp.fujitsu.com> <j2s28c262361003311943ke6d39007of3861743cef3733a@mail.gmail.com> <20100401120123.f9f9e872.kamezawa.hiroyu@jp.fujitsu.com> <n2k28c262361003312144k3a1a725aj1eb22efe6d360118@mail.gmail.com> <20100401144234.e3848876.kamezawa.hiroyu@jp.fujitsu.com> <w2i28c262361004010351r605c897dzd2bdccac149dcc6b@mail.gmail.com> <20100401173640.GB621@csn.ul.ie> <l2s28c262361004011720pd7abc6d6id54d85c756997b95@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <z2w5f4a33681004020000td60331aam2c6947954d78e46@mail.gmail.com>
-References: <i2i5f4a33681003312105m4cd42e9ayfe35cc0988c401b6@mail.gmail.com>
-	 <g2g5f4a33681004012051wedea9538w9da89e210b731422@mail.gmail.com>
-	 <20100402140406.d3d7f18e.kamezawa.hiroyu@jp.fujitsu.com>
-	 <z2x28c262361004012215h2b2ea3dbu5260724f97f55b95@mail.gmail.com>
-	 <z2w5f4a33681004020000td60331aam2c6947954d78e46@mail.gmail.com>
-Date: Fri, 2 Apr 2010 16:22:56 +0900
-Message-ID: <q2t28c262361004020022v8eda0491t61e510a1caa0ef@mail.gmail.com>
-Subject: Re: [Question] race condition in mm/page_alloc.c regarding page->lru?
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <l2s28c262361004011720pd7abc6d6id54d85c756997b95@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: TAO HU <tghk48@motorola.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, TAO HU <taohu@motorola.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Ye Yuan.Bo-A22116" <yuan-bo.ye@motorola.com>, Chang Qing-A21550 <Qing.Chang@motorola.com>, linux-arm-kernel@lists.infradead.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 2, 2010 at 4:00 PM, TAO HU <tghk48@motorola.com> wrote:
-> Hi, kamezawa hiroyu
->
-> Thanks for the hint!
->
-> Hi, Minchan Kim
->
-> Sorry. Not exactly sure your idea about <grep "page handling">.
-> Below is a result of $ grep -n -r "list_del(&page->lru)" * in our src tre=
-e
+On Fri, Apr 02, 2010 at 09:20:27AM +0900, Minchan Kim wrote:
+> On Fri, Apr 2, 2010 at 2:36 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > On Thu, Apr 01, 2010 at 07:51:31PM +0900, Minchan Kim wrote:
+> >> On Thu, Apr 1, 2010 at 2:42 PM, KAMEZAWA Hiroyuki
+> >> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >> > On Thu, 1 Apr 2010 13:44:29 +0900
+> >> > Minchan Kim <minchan.kim@gmail.com> wrote:
+> >> >
+> >> >> On Thu, Apr 1, 2010 at 12:01 PM, KAMEZAWA Hiroyuki
+> >> >> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >> >> > On Thu, 1 Apr 2010 11:43:18 +0900
+> >> >> > Minchan Kim <minchan.kim@gmail.com> wrote:
+> >> >> >
+> >> >> >> On Wed, Mar 31, 2010 at 2:26 PM, KAMEZAWA Hiroyuki       /*
+> >> >> >> >> diff --git a/mm/rmap.c b/mm/rmap.c
+> >> >> >> >> index af35b75..d5ea1f2 100644
+> >> >> >> >> --- a/mm/rmap.c
+> >> >> >> >> +++ b/mm/rmap.c
+> >> >> >> >> @@ -1394,9 +1394,11 @@ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+> >> >> >> >>
+> >> >> >> >>       if (unlikely(PageKsm(page)))
+> >> >> >> >>               return rmap_walk_ksm(page, rmap_one, arg);
+> >> >> >> >> -     else if (PageAnon(page))
+> >> >> >> >> +     else if (PageAnon(page)) {
+> >> >> >> >> +             if (PageSwapCache(page))
+> >> >> >> >> +                     return SWAP_AGAIN;
+> >> >> >> >>               return rmap_walk_anon(page, rmap_one, arg);
+> >> >> >> >
+> >> >> >> > SwapCache has a condition as (PageSwapCache(page) && page_mapped(page) == true.
+> >> >> >> >
+> >> >> >>
+> >> >> >> In case of tmpfs, page has swapcache but not mapped.
+> >> >> >>
+> >> >> >> > Please see do_swap_page(), PageSwapCache bit is cleared only when
+> >> >> >> >
+> >> >> >> > do_swap_page()...
+> >> >> >> >       swap_free(entry);
+> >> >> >> >        if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+> >> >> >> >                try_to_free_swap(page);
+> >> >> >> >
+> >> >> >> > Then, PageSwapCache is cleared only when swap is freeable even if mapped.
+> >> >> >> >
+> >> >> >> > rmap_walk_anon() should be called and the check is not necessary.
+> >> >> >>
+> >> >> >> Frankly speaking, I don't understand what is Mel's problem, why he added
+> >> >> >> Swapcache check in rmap_walk, and why do you said we don't need it.
+> >> >> >>
+> >> >> >> Could you explain more detail if you don't mind?
+> >> >> >>
+> >> >> > I may miss something.
+> >> >> >
+> >> >> > unmap_and_move()
+> >> >> >  1. try_to_unmap(TTU_MIGRATION)
+> >> >> >  2. move_to_newpage
+> >> >> >  3. remove_migration_ptes
+> >> >> >        -> rmap_walk()
+> >> >> >
+> >> >> > Then, to map a page back we unmapped we call rmap_walk().
+> >> >> >
+> >> >> > Assume a SwapCache which is mapped, then, PageAnon(page) == true.
+> >> >> >
+> >> >> >  At 1. try_to_unmap() will rewrite pte with swp_entry of SwapCache.
+> >> >> >       mapcount goes to 0.
+> >> >> >  At 2. SwapCache is copied to a new page.
+> >> >> >  At 3. The new page is mapped back to the place. Now, newpage's mapcount is 0.
+> >> >> >       Before patch, the new page is mapped back to all ptes.
+> >> >> >       After patch, the new page is not mapped back because its mapcount is 0.
+> >> >> >
+> >> >> > I don't think shared SwapCache of anon is not an usual behavior, so, the logic
+> >> >> > before patch is more attractive.
+> >> >> >
+> >> >> > If SwapCache is not mapped before "1", we skip "1" and rmap_walk will do nothing
+> >> >> > because page->mapping is NULL.
+> >> >> >
+> >> >>
+> >> >> Thanks. I agree. We don't need the check.
+> >> >> Then, my question is why Mel added the check in rmap_walk.
+> >> >> He mentioned some BUG trigger and fixed things after this patch.
+> >> >> What's it?
+> >> >> Is it really related to this logic?
+> >> >> I don't think so or we are missing something.
+> >> >>
+> >> > Hmm. Consiering again.
+> >> >
+> >> > Now.
+> >> >        if (PageAnon(page)) {
+> >> >                rcu_locked = 1;
+> >> >                rcu_read_lock();
+> >> >                if (!page_mapped(page)) {
+> >> >                        if (!PageSwapCache(page))
+> >> >                                goto rcu_unlock;
+> >> >                } else {
+> >> >                        anon_vma = page_anon_vma(page);
+> >> >                        atomic_inc(&anon_vma->external_refcount);
+> >> >                }
+> >> >
+> >> >
+> >> > Maybe this is a fix.
+> >> >
+> >> > ==
+> >> >        skip_remap = 0;
+> >> >        if (PageAnon(page)) {
+> >> >                rcu_read_lock();
+> >> >                if (!page_mapped(page)) {
+> >> >                        if (!PageSwapCache(page))
+> >> >                                goto rcu_unlock;
+> >> >                        /*
+> >> >                         * We can't convice this anon_vma is valid or not because
+> >> >                         * !page_mapped(page). Then, we do migration(radix-tree replacement)
+> >> >                         * but don't remap it which touches anon_vma in page->mapping.
+> >> >                         */
+> >> >                        skip_remap = 1;
+> >> >                        goto skip_unmap;
+> >> >                } else {
+> >> >                        anon_vma = page_anon_vma(page);
+> >> >                        atomic_inc(&anon_vma->external_refcount);
+> >> >                }
+> >> >        }
+> >> >        .....copy page, radix-tree replacement,....
+> >> >
+> >>
+> >> It's not enough.
+> >> we uses remove_migration_ptes in  move_to_new_page, too.
+> >> We have to prevent it.
+> >> We can check PageSwapCache(page) in move_to_new_page and then
+> >> skip remove_migration_ptes.
+> >>
+> >> ex)
+> >> static int move_to_new_page(....)
+> >> {
+> >>      int swapcache = PageSwapCache(page);
+> >>      ...
+> >>      if (!swapcache)
+> >>          if(!rc)
+> >>              remove_migration_ptes
+> >>          else
+> >>              newpage->mapping = NULL;
+> >> }
+> >>
+> >
+> > This I agree with.
+> >
+> >> And we have to close race between PageAnon(page) and rcu_read_lock.
+> >
+> > Not so sure on this. The page is locked at this point and that should
+> > prevent it from becoming !PageAnon
+> 
+> page lock can't prevent anon_vma free.
 
-It's not enough.
-Maybe you have to review your's patches based on mainline.
+True, it can't in itself but it is a bug to free a locked page. As PageAnon
+is cleared by the page allocator (see comments in page_remove_rmap) and we
+have taken a reference to this page when isolating for migration, I still
+don't see how it is possible for PageAnon to get cleared from underneath us.
 
->
-> arch/s390/mm/pgtable.c:83: =C2=A0 =C2=A0 =C2=A0list_del(&page->lru);
-> arch/s390/mm/pgtable.c:226: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lis=
-t_del(&page->lru);
-> arch/x86/mm/pgtable.c:60: =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> drivers/xen/balloon.c:154: =C2=A0 =C2=A0 =C2=A0list_del(&page->lru);
-> drivers/virtio/virtio_balloon.c:143: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0list_del(&page->lru);
-> fs/cifs/file.c:1780: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_del(&p=
-age->lru);
-> fs/btrfs/extent_io.c:2584: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0list_del(&page->lru);
-> fs/mpage.c:388: =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> include/linux/mm_inline.h:37: =C2=A0 list_del(&page->lru);
-> include/linux/mm_inline.h:47: =C2=A0 list_del(&page->lru);
-> kernel/kexec.c:391: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_del(&p=
-age->lru);
-> kernel/kexec.c:711: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> mm/migrate.c:69: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0l=
-ist_del(&page->lru);
-> mm/migrate.c:695: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_d=
-el(&page->lru);
-> mm/hugetlb.c:467: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> mm/hugetlb.c:509: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> mm/hugetlb.c:836: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_d=
-el(&page->lru);
-> mm/hugetlb.c:844: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> mm/hugetlb.c:900: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> mm/hugetlb.c:1130: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0list_del(&page->lru);
-> mm/hugetlb.c:1809: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_d=
-el(&page->lru);
-> mm/vmscan.c:597: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0l=
-ist_del(&page->lru);
-> mm/vmscan.c:1148: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> mm/vmscan.c:1246: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_d=
-el(&page->lru);
-> mm/slub.c:827: =C2=A0list_del(&page->lru);
-> mm/slub.c:1249: list_del(&page->lru);
-> mm/slub.c:1263: =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> mm/slub.c:2419: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 l=
-ist_del(&page->lru);
-> mm/slub.c:2809: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 list_del(&page->lru);
-> mm/readahead.c:65: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_d=
-el(&page->lru);
-> mm/readahead.c:100: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_del(&p=
-age->lru);
-> mm/page_alloc.c:532: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_del(&p=
-age->lru);
-> mm/page_alloc.c:679: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_del(&p=
-age->lru);
-> mm/page_alloc.c:741: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_del(&p=
-age->lru);
-> mm/page_alloc.c:820: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0list_del(&page->lru);
-> mm/page_alloc.c:1107: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_del(&page->=
-lru);
-> mm/page_alloc.c:4784: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_del(&page->=
-lru);
->
-There are normal caller.
-I expected some bogus driver of out-of-mainline uses page directly
-without enough review.
+> It's valid just only file-backed page, I think.
+> 
+> >> If we don't do it, anon_vma could be free in the middle of operation.
+> >> I means
+> >>
+> >>          * of migration. File cache pages are no problem because of page_lock()
+> >>          * File Caches may use write_page() or lock_page() in migration, then,
+> >>          * just care Anon page here.
+> >>          */
+> >>         if (PageAnon(page)) {
+> >>                 !!! RACE !!!!
+> >>                 rcu_read_lock();
+> >>                 rcu_locked = 1;
+> >>
+> >> +
+> >> +               /*
+> >> +                * If the page has no mappings any more, just bail. An
+> >> +                * unmapped anon page is likely to be freed soon but worse,
+> >>
+> >
+> > I am not sure this race exists because the page is locked but a key
+> > observation has been made - A page that is unmapped can be migrated if
+> > it's PageSwapCache but it may not have a valid anon_vma. Hence, in the
+> > !page_mapped case, the key is to not use anon_vma. How about the
+> > following patch?
+> 
+> I like this. Kame. How about your opinion?
+> please, look at a comment.
+> 
+> >
+> > ==== CUT HERE ====
+> >
+> > mm,migration: Allow the migration of PageSwapCache pages
+> >
+> > PageAnon pages that are unmapped may or may not have an anon_vma so are
+> > not currently migrated. However, a swap cache page can be migrated and
+> > fits this description. This patch identifies page swap caches and allows
+> > them to be migrated but ensures that no attempt to made to remap the pages
+> > would would potentially try to access an already freed anon_vma.
+> >
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> >
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 35aad2a..5d0218b 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -484,7 +484,8 @@ static int fallback_migrate_page(struct address_space *mapping,
+> >  *   < 0 - error code
+> >  *  == 0 - success
+> >  */
+> > -static int move_to_new_page(struct page *newpage, struct page *page)
+> > +static int move_to_new_page(struct page *newpage, struct page *page,
+> > +                                               int safe_to_remap)
+> >  {
+> >        struct address_space *mapping;
+> >        int rc;
+> > @@ -519,10 +520,12 @@ static int move_to_new_page(struct page *newpage, struct page *page)
+> >        else
+> >                rc = fallback_migrate_page(mapping, newpage, page);
+> >
+> > -       if (!rc)
+> > -               remove_migration_ptes(page, newpage);
+> > -       else
+> > -               newpage->mapping = NULL;
+> > +       if (safe_to_remap) {
+> > +               if (!rc)
+> > +                       remove_migration_ptes(page, newpage);
+> > +               else
+> > +                       newpage->mapping = NULL;
+> > +       }
+> >
+> >        unlock_page(newpage);
+> >
+> > @@ -539,6 +542,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+> >        int rc = 0;
+> >        int *result = NULL;
+> >        struct page *newpage = get_new_page(page, private, &result);
+> > +       int safe_to_remap = 1;
+> >        int rcu_locked = 0;
+> >        int charge = 0;
+> >        struct mem_cgroup *mem = NULL;
+> > @@ -600,18 +604,26 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+> >                rcu_read_lock();
+> >                rcu_locked = 1;
+> >
+> > -               /*
+> > -                * If the page has no mappings any more, just bail. An
+> > -                * unmapped anon page is likely to be freed soon but worse,
+> > -                * it's possible its anon_vma disappeared between when
+> > -                * the page was isolated and when we reached here while
+> > -                * the RCU lock was not held
+> > -                */
+> > -               if (!page_mapped(page))
+> > -                       goto rcu_unlock;
+> > +               /* Determine how to safely use anon_vma */
+> > +               if (!page_mapped(page)) {
+> > +                       if (!PageSwapCache(page))
+> > +                               goto rcu_unlock;
+> >
+> > -               anon_vma = page_anon_vma(page);
+> > -               atomic_inc(&anon_vma->external_refcount);
+> > +                       /*
+> > +                        * We cannot be sure that the anon_vma of an unmapped
+> > +                        * page is safe to use. In this case, the page still
+> 
+> How about changing comment?
+> "In this case, swapcache page still "
+> Also, I want to change "safe_to_remap" to "remap_swapcache".
 
-Is your kernel working well except this bug?
-Do you see same oops call trace(about page-allocator) whenever kernel
-panic happens?
+Done.
 
-I mean if something not page-allocadtor breaks memory, you can see
-other symptoms. so we can doubt others(H/W, other subsystem).
+> I think it's just problem related to swapcache page.
+> So I want to represent it explicitly although we can know it's swapcache
+> by code.
+> 
 
---=20
-Kind regards,
-Minchan Kim
+Sure. Thanks
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
