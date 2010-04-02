@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D85586B0208
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D800F6B01F0
 	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 19 of 41] clear page compound
-Message-Id: <aab72c257ab7b38a579a.1270168906@v2.random>
+Subject: [PATCH 02 of 41] compound_lock
+Message-Id: <3b4cec7fa55a646af239.1270168889@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:46 +0200
+Date: Fri, 02 Apr 2010 02:41:29 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,55 +18,81 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-split_huge_page must transform a compound page to a regular page and needs
-ClearPageCompound.
+Add a new compound_lock() needed to serialize put_page against
+__split_huge_page_refcount().
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -13,6 +13,7 @@
+ #include <linux/debug_locks.h>
+ #include <linux/mm_types.h>
+ #include <linux/range.h>
++#include <linux/bit_spinlock.h>
+ 
+ struct mempolicy;
+ struct anon_vma;
+@@ -297,6 +298,20 @@ static inline int is_vmalloc_or_module_a
+ }
+ #endif
+ 
++static inline void compound_lock(struct page *page)
++{
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	bit_spin_lock(PG_compound_lock, &page->flags);
++#endif
++}
++
++static inline void compound_unlock(struct page *page)
++{
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	bit_spin_unlock(PG_compound_lock, &page->flags);
++#endif
++}
++
+ static inline struct page *compound_head(struct page *page)
+ {
+ 	if (unlikely(PageTail(page)))
 diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
 --- a/include/linux/page-flags.h
 +++ b/include/linux/page-flags.h
-@@ -349,7 +349,7 @@ static inline void set_page_writeback(st
-  * tests can be used in performance sensitive paths. PageCompound is
-  * generally not used in hot code paths.
-  */
--__PAGEFLAG(Head, head)
-+__PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
- __PAGEFLAG(Tail, tail)
- 
- static inline int PageCompound(struct page *page)
-@@ -357,6 +357,13 @@ static inline int PageCompound(struct pa
- 	return page->flags & ((1L << PG_head) | (1L << PG_tail));
- 
- }
+@@ -108,6 +108,9 @@ enum pageflags {
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
+ #endif
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON(!PageHead(page));
-+	ClearPageHead(page);
-+}
++	PG_compound_lock,
 +#endif
- #else
- /*
-  * Reduce page flag use as much as possible by overlapping
-@@ -394,6 +401,14 @@ static inline void __ClearPageTail(struc
- 	page->flags &= ~PG_head_tail_mask;
- }
+ 	__NR_PAGEFLAGS,
+ 
+ 	/* Filesystems */
+@@ -399,6 +402,12 @@ static inline void __ClearPageTail(struc
+ #define __PG_MLOCKED		0
+ #endif
  
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON((page->flags & PG_head_tail_mask) != (1 << PG_compound));
-+	clear_bit(PG_compound, &page->flags);
-+}
++#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
++#else
++#define __PG_COMPOUND_LOCK		0
 +#endif
 +
- #endif /* !PAGEFLAGS_EXTENDED */
+ /*
+  * Flags checked when a page is freed.  Pages being freed should not have
+  * these flags set.  It they are, there is a problem.
+@@ -408,7 +417,8 @@ static inline void __ClearPageTail(struc
+ 	 1 << PG_private | 1 << PG_private_2 | \
+ 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+-	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
++	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
++	 __PG_COMPOUND_LOCK)
  
- #ifdef CONFIG_MMU
+ /*
+  * Flags checked when a page is prepped for return by the page allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
