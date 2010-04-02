@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0E031620084
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:46:24 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 48DCC620089
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:46:25 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 23 of 41] clear_copy_huge_page
-Message-Id: <92d5d5cb33f4d092bcf7.1270168910@v2.random>
+Subject: [PATCH 36 of 41] remove PG_buddy
+Message-Id: <95193bd9a60fcc1600b6.1270168923@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:50 +0200
+Date: Fri, 02 Apr 2010 02:42:03 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,202 +18,221 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Move the copy/clear_huge_page functions to common code to share between
-hugetlb.c and huge_memory.c.
+PG_buddy can be converted to _mapcount == -2. So the PG_compound_lock can be
+added to page->flags without overflowing (because of the sparse section bits
+increasing) with CONFIG_X86_PAE=y and CONFIG_X86_PAT=y. This also has to move
+the memory hotplug code from _mapcount to lru.next to avoid any risk of
+clashes. We can't use lru.next for PG_buddy removal, but memory hotplug can use
+lru.next even more easily than the mapcount instead.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -116,15 +116,17 @@ u64 stable_page_flags(struct page *page)
+ 	if (PageHuge(page))
+ 		u |= 1 << KPF_HUGE;
+ 
++	/*
++	 * Caveats on high order pages: page->_count will only be set
++	 * -1 on the head page; SLUB/SLQB do the same for PG_slab;
++	 * SLOB won't set PG_slab at all on compound pages.
++	 */
++	if (PageBuddy(page))
++		u |= 1 << KPF_BUDDY;
++
+ 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
+ 
+-	/*
+-	 * Caveats on high order pages:
+-	 * PG_buddy will only be set on the head page; SLUB/SLQB do the same
+-	 * for PG_slab; SLOB won't set PG_slab at all on compound pages.
+-	 */
+ 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
+-	u |= kpf_copy_bit(k, KPF_BUDDY,		PG_buddy);
+ 
+ 	u |= kpf_copy_bit(k, KPF_ERROR,		PG_error);
+ 	u |= kpf_copy_bit(k, KPF_DIRTY,		PG_dirty);
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -13,12 +13,16 @@ struct mem_section;
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 
+ /*
+- * Types for free bootmem.
+- * The normal smallest mapcount is -1. Here is smaller value than it.
++ * Types for free bootmem stored in page->lru.next. These have to be in
++ * some random range in unsigned long space for debugging purposes.
+  */
+-#define SECTION_INFO		(-1 - 1)
+-#define MIX_SECTION_INFO	(-1 - 2)
+-#define NODE_INFO		(-1 - 3)
++enum {
++	MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE = 12,
++	SECTION_INFO = MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE,
++	MIX_SECTION_INFO,
++	NODE_INFO,
++	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
++};
+ 
+ /*
+  * pgdat resizing functions
 diff --git a/include/linux/mm.h b/include/linux/mm.h
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1507,5 +1507,14 @@ extern int soft_offline_page(struct page
- 
- extern void dump_page(struct page *page);
- 
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+extern void clear_huge_page(struct page *page,
-+			    unsigned long addr,
-+			    unsigned int pages_per_huge_page);
-+extern void copy_huge_page(struct page *dst, struct page *src,
-+			   unsigned long addr, struct vm_area_struct *vma,
-+			   unsigned int pages_per_huge_page);
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -385,70 +385,6 @@ static int vma_has_reserves(struct vm_ar
- 	return 0;
+@@ -358,6 +358,27 @@ static inline void init_page_count(struc
+ 	atomic_set(&page->_count, 1);
  }
  
--static void clear_gigantic_page(struct page *page,
--			unsigned long addr, unsigned long sz)
--{
--	int i;
--	struct page *p = page;
--
--	might_sleep();
--	for (i = 0; i < sz/PAGE_SIZE; i++, p = mem_map_next(p, page, i)) {
--		cond_resched();
--		clear_user_highpage(p, addr + i * PAGE_SIZE);
--	}
--}
--static void clear_huge_page(struct page *page,
--			unsigned long addr, unsigned long sz)
--{
--	int i;
--
--	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
--		clear_gigantic_page(page, addr, sz);
--		return;
--	}
--
--	might_sleep();
--	for (i = 0; i < sz/PAGE_SIZE; i++) {
--		cond_resched();
--		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
--	}
--}
--
--static void copy_gigantic_page(struct page *dst, struct page *src,
--			   unsigned long addr, struct vm_area_struct *vma)
--{
--	int i;
--	struct hstate *h = hstate_vma(vma);
--	struct page *dst_base = dst;
--	struct page *src_base = src;
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page(h); ) {
--		cond_resched();
--		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
--
--		i++;
--		dst = mem_map_next(dst, dst_base, i);
--		src = mem_map_next(src, src_base, i);
--	}
--}
--static void copy_huge_page(struct page *dst, struct page *src,
--			   unsigned long addr, struct vm_area_struct *vma)
--{
--	int i;
--	struct hstate *h = hstate_vma(vma);
--
--	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
--		copy_gigantic_page(dst, src, addr, vma);
--		return;
--	}
--
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page(h); i++) {
--		cond_resched();
--		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
--	}
--}
--
- static void enqueue_huge_page(struct hstate *h, struct page *page)
++/*
++ * PageBuddy() indicate that the page is free and in the buddy system
++ * (see mm/page_alloc.c).
++ */
++static inline int PageBuddy(struct page *page)
++{
++	return atomic_read(&page->_mapcount) == -2;
++}
++
++static inline void __SetPageBuddy(struct page *page)
++{
++	VM_BUG_ON(atomic_read(&page->_mapcount) != -1);
++	atomic_set(&page->_mapcount, -2);
++}
++
++static inline void __ClearPageBuddy(struct page *page)
++{
++	VM_BUG_ON(!PageBuddy(page));
++	atomic_set(&page->_mapcount, -1);
++}
++
+ void put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
+ 
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -48,9 +48,6 @@
+  * struct page (these bits with information) are always mapped into kernel
+  * address space...
+  *
+- * PG_buddy is set to indicate that the page is free and in the buddy system
+- * (see mm/page_alloc.c).
+- *
+  * PG_hwpoison indicates that a page got corrupted in hardware and contains
+  * data with incorrect ECC bits that triggered a machine check. Accessing is
+  * not safe since it may cause another machine check. Don't touch!
+@@ -96,7 +93,6 @@ enum pageflags {
+ 	PG_swapcache,		/* Swap page: swp_entry_t in private */
+ 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
+ 	PG_reclaim,		/* To be reclaimed asap */
+-	PG_buddy,		/* Page is free, on buddy lists */
+ 	PG_swapbacked,		/* Page is backed by RAM/swap */
+ 	PG_unevictable,		/* Page is "unevictable"  */
+ #ifdef CONFIG_MMU
+@@ -235,7 +231,6 @@ PAGEFLAG(OwnerPriv1, owner_priv_1) TESTC
+  * risky: they bypass page accounting.
+  */
+ TESTPAGEFLAG(Writeback, writeback) TESTSCFLAG(Writeback, writeback)
+-__PAGEFLAG(Buddy, buddy)
+ PAGEFLAG(MappedToDisk, mappedtodisk)
+ 
+ /* PG_readahead is only used for file reads; PG_reclaim is only for writes */
+@@ -430,7 +425,7 @@ static inline void ClearPageCompound(str
+ #define PAGE_FLAGS_CHECK_AT_FREE \
+ 	(1 << PG_lru	 | 1 << PG_locked    | \
+ 	 1 << PG_private | 1 << PG_private_2 | \
+-	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
++	 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+ 	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
+ 	 __PG_COMPOUND_LOCK)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -65,9 +65,10 @@ static void release_memory_resource(stru
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+ #ifndef CONFIG_SPARSEMEM_VMEMMAP
+-static void get_page_bootmem(unsigned long info,  struct page *page, int type)
++static void get_page_bootmem(unsigned long info,  struct page *page,
++			     unsigned long type)
  {
- 	int nid = page_to_nid(page);
-@@ -2333,7 +2269,8 @@ retry_avoidcopy:
- 		return -PTR_ERR(new_page);
+-	atomic_set(&page->_mapcount, type);
++	page->lru.next = (struct list_head *) type;
+ 	SetPagePrivate(page);
+ 	set_page_private(page, info);
+ 	atomic_inc(&page->_count);
+@@ -77,15 +78,16 @@ static void get_page_bootmem(unsigned lo
+  * so use __ref to tell modpost not to generate a warning */
+ void __ref put_page_bootmem(struct page *page)
+ {
+-	int type;
++	unsigned long type;
+ 
+-	type = atomic_read(&page->_mapcount);
+-	BUG_ON(type >= -1);
++	type = (unsigned long) page->lru.next;
++	BUG_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
++	       type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE);
+ 
+ 	if (atomic_dec_return(&page->_count) == 1) {
+ 		ClearPagePrivate(page);
+ 		set_page_private(page, 0);
+-		reset_page_mapcount(page);
++		INIT_LIST_HEAD(&page->lru);
+ 		__free_pages_bootmem(page, 0);
  	}
  
--	copy_huge_page(new_page, old_page, address, vma);
-+	copy_huge_page(new_page, old_page, address, vma,
-+		       pages_per_huge_page(h));
- 	__SetPageUptodate(new_page);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -426,8 +426,8 @@ __find_combined_index(unsigned long page
+  * (c) a page and its buddy have the same order &&
+  * (d) a page and its buddy are in the same zone.
+  *
+- * For recording whether a page is in the buddy system, we use PG_buddy.
+- * Setting, clearing, and testing PG_buddy is serialized by zone->lock.
++ * For recording whether a page is in the buddy system, we set ->_mapcount -2.
++ * Setting, clearing, and testing _mapcount -2 is serialized by zone->lock.
+  *
+  * For recording page's order, we use page_private(page).
+  */
+@@ -460,7 +460,7 @@ static inline int page_is_buddy(struct p
+  * as necessary, plus some accounting needed to play nicely with other
+  * parts of the VM system.
+  * At each level, we keep a list of pages, which are heads of continuous
+- * free pages of length of (1 << order) and marked with PG_buddy. Page's
++ * free pages of length of (1 << order) and marked with _mapcount -2. Page's
+  * order is recorded in page_private(page) field.
+  * So when we are allocating or freeing one, we can derive the state of the
+  * other.  That is, if we allocate a small block, and both were   
+@@ -5251,7 +5251,6 @@ static struct trace_print_flags pageflag
+ 	{1UL << PG_swapcache,		"swapcache"	},
+ 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},
+ 	{1UL << PG_reclaim,		"reclaim"	},
+-	{1UL << PG_buddy,		"buddy"		},
+ 	{1UL << PG_swapbacked,		"swapbacked"	},
+ 	{1UL << PG_unevictable,		"unevictable"	},
+ #ifdef CONFIG_MMU
+diff --git a/mm/sparse.c b/mm/sparse.c
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -670,10 +670,10 @@ static void __kfree_section_memmap(struc
+ static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+ {
+ 	unsigned long maps_section_nr, removing_section_nr, i;
+-	int magic;
++	unsigned long magic;
  
- 	/*
-@@ -2429,7 +2366,7 @@ retry:
- 			ret = -PTR_ERR(page);
- 			goto out;
- 		}
--		clear_huge_page(page, address, huge_page_size(h));
-+		clear_huge_page(page, address, pages_per_huge_page(h));
- 		__SetPageUptodate(page);
+ 	for (i = 0; i < nr_pages; i++, page++) {
+-		magic = atomic_read(&page->_mapcount);
++		magic = (unsigned long) page->lru.next;
  
- 		if (vma->vm_flags & VM_MAYSHARE) {
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3495,3 +3495,73 @@ void might_fault(void)
- }
- EXPORT_SYMBOL(might_fault);
- #endif
-+
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-+static void clear_gigantic_page(struct page *page,
-+				unsigned long addr,
-+				unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	struct page *p = page;
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page;
-+	     i++, p = mem_map_next(p, page, i)) {
-+		cond_resched();
-+		clear_user_highpage(p, addr + i * PAGE_SIZE);
-+	}
-+}
-+void clear_huge_page(struct page *page,
-+		     unsigned long addr, unsigned int pages_per_huge_page)
-+{
-+	int i;
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		clear_gigantic_page(page, addr, pages_per_huge_page);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; i++) {
-+		cond_resched();
-+		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-+	}
-+}
-+
-+static void copy_gigantic_page(struct page *dst, struct page *src,
-+			       unsigned long addr,
-+			       struct vm_area_struct *vma,
-+			       unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	struct page *dst_base = dst;
-+	struct page *src_base = src;
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; ) {
-+		cond_resched();
-+		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
-+
-+		i++;
-+		dst = mem_map_next(dst, dst_base, i);
-+		src = mem_map_next(src, src_base, i);
-+	}
-+}
-+void copy_huge_page(struct page *dst, struct page *src,
-+		    unsigned long addr, struct vm_area_struct *vma,
-+		    unsigned int pages_per_huge_page)
-+{
-+	int i;
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		copy_gigantic_page(dst, src, addr, vma, pages_per_huge_page);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page; i++) {
-+		cond_resched();
-+		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE,
-+				   vma);
-+	}
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+ 		BUG_ON(magic == NODE_INFO);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
