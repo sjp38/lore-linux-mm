@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 10BC26B01F2
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:20 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 309AA6B01F4
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 09 of 41] no paravirt version of pmd ops
-Message-Id: <bb01bc2e475a569dc7e5.1270168896@v2.random>
+Subject: [PATCH 16 of 41] bail out gup_fast on splitting pmd
+Message-Id: <5da7deb4906c1d554029.1270168903@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:36 +0200
+Date: Fri, 02 Apr 2010 02:41:43 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,33 +18,37 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No paravirt version of set_pmd_at/pmd_update/pmd_update_defer.
+Force gup_fast to take the slow path and block if the pmd is splitting, not
+only if it's none.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -33,6 +33,7 @@ extern struct list_head pgd_list;
- #else  /* !CONFIG_PARAVIRT */
- #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
- #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
-+#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -160,7 +160,18 @@ static int gup_pmd_range(pud_t pud, unsi
+ 		pmd_t pmd = *pmdp;
  
- #define set_pte_atomic(ptep, pte)					\
- 	native_set_pte_atomic(ptep, pte)
-@@ -57,6 +58,8 @@ extern struct list_head pgd_list;
- 
- #define pte_update(mm, addr, ptep)              do { } while (0)
- #define pte_update_defer(mm, addr, ptep)        do { } while (0)
-+#define pmd_update(mm, addr, ptep)              do { } while (0)
-+#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
- 
- #define pgd_val(x)	native_pgd_val(x)
- #define __pgd(x)	native_make_pgd(x)
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none(pmd))
++		/*
++		 * The pmd_trans_splitting() check below explains why
++		 * pmdp_splitting_flush has to flush the tlb, to stop
++		 * this gup-fast code from running while we set the
++		 * splitting bit in the pmd. Returning zero will take
++		 * the slow path that will call wait_split_huge_page()
++		 * if the pmd is still in splitting state. gup-fast
++		 * can't because it has irq disabled and
++		 * wait_split_huge_page() would never return as the
++		 * tlb flush IPI wouldn't run.
++		 */
++		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_large(pmd))) {
+ 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
