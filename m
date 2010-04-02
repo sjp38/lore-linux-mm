@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E5CED6B01F0
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:20 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 307E16B01F3
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 20 of 41] add pmd_huge_pte to mm_struct
-Message-Id: <e483c220e149681e9057.1270168907@v2.random>
+Subject: [PATCH 35 of 41] skip transhuge pages in ksm for now
+Message-Id: <14f320d06189a8bba363.1270168922@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:47 +0200
+Date: Fri, 02 Apr 2010 02:42:02 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,59 +18,55 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-This increase the size of the mm struct a bit but it is needed to preallocate
-one pte for each hugepage so that split_huge_page will not require a fail path.
-Guarantee of success is a fundamental property of split_huge_page to avoid
-decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
-would otherwise force the hugepage-unaware VM code to learn rolling back in the
-middle of its pte mangling operations (if something we need it to learn
-handling pmd_trans_huge natively rather being capable of rollback). When
-split_huge_page runs a pte is needed to succeed the split, to map the newly
-splitted regular pages with a regular pte.  This way all existing VM code
-remains backwards compatible by just adding a split_huge_page* one liner. The
-memory waste of those preallocated ptes is negligible and so it is worth it.
+Skip transhuge pages in ksm for now.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -310,6 +310,9 @@ struct mm_struct {
- #ifdef CONFIG_MMU_NOTIFIER
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
-+#endif
- };
- 
- /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-diff --git a/kernel/fork.c b/kernel/fork.c
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -522,6 +522,9 @@ void __mmdrop(struct mm_struct *mm)
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
- 	mmu_notifier_mm_destroy(mm);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	VM_BUG_ON(mm->pmd_huge_pte);
-+#endif
- 	free_mm(mm);
- }
- EXPORT_SYMBOL_GPL(__mmdrop);
-@@ -662,6 +665,10 @@ struct mm_struct *dup_mm(struct task_str
- 	mm->token_priority = 0;
- 	mm->last_interval = 0;
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	mm->pmd_huge_pte = NULL;
-+#endif
-+
- 	if (!mm_init(mm, tsk))
- 		goto fail_nomem;
- 
+diff --git a/mm/ksm.c b/mm/ksm.c
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -449,7 +449,7 @@ static struct page *get_mergeable_page(s
+ 	page = follow_page(vma, addr, FOLL_GET);
+ 	if (!page)
+ 		goto out;
+-	if (PageAnon(page)) {
++	if (PageAnon(page) && !PageTransCompound(page)) {
+ 		flush_anon_page(vma, page, addr);
+ 		flush_dcache_page(page);
+ 	} else {
+@@ -1294,7 +1294,19 @@ next_mm:
+ 			if (ksm_test_exit(mm))
+ 				break;
+ 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
+-			if (*page && PageAnon(*page)) {
++			if (!*page) {
++				ksm_scan.address += PAGE_SIZE;
++				cond_resched();
++				continue;
++			}
++			if (PageTransCompound(*page)) {
++				put_page(*page);
++				ksm_scan.address &= HPAGE_PMD_MASK;
++				ksm_scan.address += HPAGE_PMD_SIZE;
++				cond_resched();
++				continue;
++			}
++			if (PageAnon(*page)) {
+ 				flush_anon_page(vma, *page, ksm_scan.address);
+ 				flush_dcache_page(*page);
+ 				rmap_item = get_next_rmap_item(slot,
+@@ -1308,8 +1320,7 @@ next_mm:
+ 				up_read(&mm->mmap_sem);
+ 				return rmap_item;
+ 			}
+-			if (*page)
+-				put_page(*page);
++			put_page(*page);
+ 			ksm_scan.address += PAGE_SIZE;
+ 			cond_resched();
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
