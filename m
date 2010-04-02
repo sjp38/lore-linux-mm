@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 426C66B01FD
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 05:14:44 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o329EeZ7007760
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 2 Apr 2010 18:14:41 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C11D45DE4E
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 18:14:40 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 029FE45DE4F
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 18:14:40 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B2F2DE38002
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 18:14:39 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 62507E08007
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 18:14:39 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-In-Reply-To: <20100402065052.GA28027@sli10-desk.sh.intel.com>
-References: <20100331145030.03A1.A69D9226@jp.fujitsu.com> <20100402065052.GA28027@sli10-desk.sh.intel.com>
-Message-Id: <20100402181307.6470.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id B298E6B01FF
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 05:18:25 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id o329ILb9015616
+	for <linux-mm@kvack.org>; Fri, 2 Apr 2010 11:18:22 +0200
+Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
+	by wpaz24.hot.corp.google.com with ESMTP id o329IKC0006759
+	for <linux-mm@kvack.org>; Fri, 2 Apr 2010 02:18:20 -0700
+Received: by pwi7 with SMTP id 7so1576464pwi.21
+        for <linux-mm@kvack.org>; Fri, 02 Apr 2010 02:18:19 -0700 (PDT)
+Date: Fri, 2 Apr 2010 02:18:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 5/5] oom: cleanup oom_badness
+In-Reply-To: <20100402094452.07aaffd1.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1004020217400.7493@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1004011240370.13247@chino.kir.corp.google.com> <alpine.DEB.2.00.1004011244040.13247@chino.kir.corp.google.com> <20100402094452.07aaffd1.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri,  2 Apr 2010 18:14:38 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > > This patch makes a lot of sense than previous. however I think <1% anon ratio
-> > > shouldn't happen anyway because file lru doesn't have reclaimable pages.
-> > > <1% seems no good reclaim rate.
+On Fri, 2 Apr 2010, KAMEZAWA Hiroyuki wrote:
+
+> > oom_badness() no longer uses its uptime formal, so it can be removed.
 > > 
-> > Oops, the above mention is wrong. sorry. only 1 page is still too big.
-> > because under streaming io workload, the number of scanning anon pages should
-> > be zero. this is very strong requirement. if not, backup operation will makes
-> > a lot of swapping out.
-> Sounds there is no big impact for the workload which you mentioned with the patch.
-> please see below descriptions.
-> I updated the description of the patch as fengguang suggested.
+> > Reported-by: Oleg Nesterov <oleg@redhat.com>
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> 
+> okay. BTW, only this patch has to depend on mmotm ?
+> 
 
-Umm.. sorry, no.
+Right, I hope my usage of "-mm" in the subject makes it clear, sorry if it 
+was confusing.
 
-"one fix but introduce another one bug" is not good deal. instead, 
-I'll revert the guilty commit at first as akpm mentioned.
+> Reviewd-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-thanks.
-
+Thanks for your reviews of this patchset!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
