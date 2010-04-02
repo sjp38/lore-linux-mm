@@ -1,51 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CBDA26B0207
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 03:06:39 -0400 (EDT)
-Date: Fri, 2 Apr 2010 09:06:29 +0200
-From: Daniel Mack <daniel@caiaq.de>
-Subject: Re: [Question] race condition in mm/page_alloc.c regarding
- page->lru?
-Message-ID: <20100402070629.GT30801@buzzloop.caiaq.de>
-References: <i2i5f4a33681003312105m4cd42e9ayfe35cc0988c401b6@mail.gmail.com>
- <g2g5f4a33681004012051wedea9538w9da89e210b731422@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E6C916B0208
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 03:21:39 -0400 (EDT)
+Received: from il06vts03.mot.com (il06vts03.mot.com [129.188.137.143])
+	by mdgate1.mot.com (8.14.3/8.14.3) with SMTP id o327LsGP026641
+	for <linux-mm@kvack.org>; Fri, 2 Apr 2010 01:21:54 -0600 (MDT)
+Received: from mail-yw0-f193.google.com (mail-yw0-f193.google.com [209.85.211.193])
+	by mdgate1.mot.com (8.14.3/8.14.3) with ESMTP id o327LnLj026618
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 2 Apr 2010 01:21:53 -0600 (MDT)
+Received: by mail-yw0-f193.google.com with SMTP id 31so1209452ywh.25
+        for <linux-mm@kvack.org>; Fri, 02 Apr 2010 00:21:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <g2g5f4a33681004012051wedea9538w9da89e210b731422@mail.gmail.com>
+From: ShiYong LI <a22381@motorola.com>
+Date: Fri, 2 Apr 2010 15:21:16 +0800
+Message-ID: <k2s4810ea571004020021hade8123mb571b803b8472aef@mail.gmail.com>
+Subject: [PATCH] Fix missing of last user while dumping slab corruption log
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: TAO HU <tghk48@motorola.com>
-Cc: linux-mm@kvack.org, Chang Qing-A21550 <Qing.Chang@motorola.com>, "Ye Yuan.Bo-A22116" <yuan-bo.ye@motorola.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: linux-kernel@vger.kernel.org
+Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 02, 2010 at 11:51:33AM +0800, TAO HU wrote:
-> On Thu, Apr 1, 2010 at 12:05 PM, TAO HU <tghk48@motorola.com> wrote:
-> > We got a panic on our ARM (OMAP) based HW.
-> > Our code is based on 2.6.29 kernel (last commit for mm/page_alloc.c is
-> > cc2559bccc72767cb446f79b071d96c30c26439b)
-> >
-> > It appears to crash while going through pcp->list in
-> > buffered_rmqueue() of mm/page_alloc.c after checking vmlinux.
-> > "00100100" implies LIST_POISON1 that suggests a race condition between
-> > list_add() and list_del() in my personal view.
-> > However we not yet figure out locking problem regarding page.lru.
+Hi,
 
-I'm sure this is just a memory corruption which is unrelated to code in
-the the memory management area. The code there just happens to trigger
-it as it is called frequently and is very sensitive to bogus data
+Even with SLAB_RED_ZONE and SLAB_STORE_USER enabled, kernel would NOT
+store redzone and last user data around allocated memory space if arch
+cache line > sizeof(unsigned long long). As a result, last user information
+is unexpectedly MISSED while dumping slab corruption log.
 
-Did you see the other thread I started off yesterday?
+This patch makes sure that redzone and last user tags get stored whatever
+arch cache line.
 
-  http://lkml.indiana.edu/hypermail/linux/kernel/1004.0/00157.html
+Compared to original codes, the change surely affects head redzone (redzone1).
+Actually, with SLAB_RED_ZONE and SLAB_STORE_USER enabled,
+allocated memory layout is as below:
 
-We could well see the same problem here. Not sure though as any kind of
-memory corruption ends up in Ooopses like the ones you see, but it could
-be a hint.
+[ redzone1 ]   <--------- Affected area.
+[ real object space ]
+[ redzone2 ]
+[ last user ]
+[ ... ]
 
-Daniel
+Let's do some analysis: (whatever SLAB_STORE_USER is).
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+1) With SLAB_RED_ZONE on, "align" >= sizeof(unsigned long long) according to
+    the following codes:
+	/* 2) arch mandated alignment */
+	if (ralign < ARCH_SLAB_MINALIGN) {
+		ralign = ARCH_SLAB_MINALIGN;
+	}
+	/* 3) caller mandated alignment */
+	if (ralign < align) {
+		ralign = align;
+	}
+	...
+	/*
+	 * 4) Store it.
+	 */
+	align = ralign;
+
+    That's to say, could guarantee that redzone1 does NOT get broken
+at all. Meanwhile,
+    Real object space could meet the need of cache line size by using
+"align"  argument.
+
+2) With SLAB_RED_ZONE off, the change has no impact.
