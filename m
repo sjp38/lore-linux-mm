@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 797076B01F1
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7B78D6B01FC
 	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 08 of 41] add pmd paravirt ops
-Message-Id: <bcd98e4ba18c611b0f86.1270168895@v2.random>
+Subject: [PATCH 10 of 41] export maybe_mkwrite
+Message-Id: <aece963311fa9a3f9734.1270168897@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:35 +0200
+Date: Fri, 02 Apr 2010 02:41:37 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,98 +18,60 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Paravirt ops pmd_update/pmd_update_defer/pmd_set_at. Not all might be necessary
-(vmware needs pmd_update, Xen needs set_pmd_at, nobody needs pmd_update_defer),
-but this is to keep full simmetry with pte paravirt ops, which looks cleaner
-and simpler from a common code POV.
+huge_memory.c needs it too when it fallbacks in copying hugepages into regular
+fragmented pages if hugepage allocation fails during COW.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -440,6 +440,11 @@ static inline void pte_update(struct mm_
- {
- 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
- }
-+static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
-+			      pmd_t *pmdp)
-+{
-+	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
-+}
- 
- static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
- 				    pte_t *ptep)
-@@ -447,6 +452,12 @@ static inline void pte_update_defer(stru
- 	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -390,6 +390,19 @@ static inline void set_compound_order(st
  }
  
-+static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
-+				    pmd_t *pmdp)
+ /*
++ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
++ * servicing faults for write access.  In the normal case, do always want
++ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
++ * that do not have writing enabled, when used by access_process_vm.
++ */
++static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
 +{
-+	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
++	if (likely(vma->vm_flags & VM_WRITE))
++		pte = pte_mkwrite(pte);
++	return pte;
 +}
 +
- static inline pte_t __pte(pteval_t val)
- {
- 	pteval_t ret;
-@@ -548,6 +559,18 @@ static inline void set_pte_at(struct mm_
- 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
++/*
+  * Multiple processes may "see" the same page. E.g. for untouched
+  * mappings of /dev/null, all processes see the same page full of
+  * zeroes, and text pages of executables and shared libraries have
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2031,19 +2031,6 @@ static inline int pte_unmap_same(struct 
+ 	return same;
  }
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+			      pmd_t *pmdp, pmd_t pmd)
-+{
-+	if (sizeof(pmdval_t) > sizeof(long))
-+		/* 5 arg words */
-+		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
-+	else
-+		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp, pmd.pmd);
-+}
-+#endif
-+
- static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+-/*
+- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
+- * servicing faults for write access.  In the normal case, do always want
+- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
+- * that do not have writing enabled, when used by access_process_vm.
+- */
+-static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+-{
+-	if (likely(vma->vm_flags & VM_WRITE))
+-		pte = pte_mkwrite(pte);
+-	return pte;
+-}
+-
+ static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
  {
- 	pmdval_t val = native_pmd_val(pmd);
-diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
---- a/arch/x86/include/asm/paravirt_types.h
-+++ b/arch/x86/include/asm/paravirt_types.h
-@@ -266,10 +266,16 @@ struct pv_mmu_ops {
- 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
- 			   pte_t *ptep, pte_t pteval);
- 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
-+	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
-+			   pmd_t *pmdp, pmd_t pmdval);
- 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
- 			   pte_t *ptep);
- 	void (*pte_update_defer)(struct mm_struct *mm,
- 				 unsigned long addr, pte_t *ptep);
-+	void (*pmd_update)(struct mm_struct *mm, unsigned long addr,
-+			   pmd_t *pmdp);
-+	void (*pmd_update_defer)(struct mm_struct *mm,
-+				 unsigned long addr, pmd_t *pmdp);
- 
- 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
- 					pte_t *ptep);
-diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
---- a/arch/x86/kernel/paravirt.c
-+++ b/arch/x86/kernel/paravirt.c
-@@ -422,8 +422,11 @@ struct pv_mmu_ops pv_mmu_ops = {
- 	.set_pte = native_set_pte,
- 	.set_pte_at = native_set_pte_at,
- 	.set_pmd = native_set_pmd,
-+	.set_pmd_at = native_set_pmd_at,
- 	.pte_update = paravirt_nop,
- 	.pte_update_defer = paravirt_nop,
-+	.pmd_update = paravirt_nop,
-+	.pmd_update_defer = paravirt_nop,
- 
- 	.ptep_modify_prot_start = __ptep_modify_prot_start,
- 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
