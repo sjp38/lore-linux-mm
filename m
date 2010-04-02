@@ -1,83 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C97E56B01F4
-	for <linux-mm@kvack.org>; Sun,  4 Apr 2010 11:08:42 -0400 (EDT)
-Date: Fri, 2 Apr 2010 16:01:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RESEND][PATCH] __isolate_lru_page:skip unneeded "not"
-Message-Id: <20100402160125.87ebb3ba.akpm@linux-foundation.org>
-In-Reply-To: <y2tcf18f8341004021525wa44a76ev8f4372a7191e0240@mail.gmail.com>
-References: <1270129055-3656-1-git-send-email-lliubbo@gmail.com>
-	<20100402150511.6f71fbfd.akpm@linux-foundation.org>
-	<y2tcf18f8341004021525wa44a76ev8f4372a7191e0240@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A5A226B01F5
+	for <linux-mm@kvack.org>; Sun,  4 Apr 2010 11:16:08 -0400 (EDT)
+Date: Sat, 3 Apr 2010 10:09:05 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look
+ please!...)
+Message-ID: <20100402230905.GW3335@dastard>
+References: <03ca01cacb92$195adf50$0400a8c0@dcccs>
+ <2375c9f91003242029p1efbbea1v8e313e460b118f14@mail.gmail.com>
+ <20100325153110.6be9a3df.kamezawa.hiroyu@jp.fujitsu.com>
+ <02c101cacbf8$d21d1650$0400a8c0@dcccs>
+ <179901cad182$5f87f620$0400a8c0@dcccs>
+ <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com>
+ <1fe901cad2b0$d39d0300$0400a8c0@dcccs>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1fe901cad2b0$d39d0300$0400a8c0@dcccs>
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com
+To: Janos Haar <janos.haar@netcenter.hu>
+Cc: =?iso-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 3 Apr 2010 06:25:08 +0800
-Bob Liu <lliubbo@gmail.com> wrote:
-
-> >> -	/*
-> >> -	 * When checking the active state, we need to be sure we are
-> >> -	 * dealing with comparible boolean values.  Take the logical not
-> >> -	 * of each.
-> >> -	 */
-> >
-> > You deleted a spelling mistake too!
-> >
-> >> -	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
-> >> -		return ret;
-> >> -
-> >> -	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
-> >> -		return ret;
-> >> +	if (mode != ISOLATE_BOTH) {
-> >> +		if ((PageActive(page) != mode) ||
-> >> +			(page_is_file_cache(page) != file))
-> >> +				return ret;
-> >> +	}
-> >
-> > The compiler should be able to avoid testing for ISOLATE_BOTH twice,
+On Sat, Apr 03, 2010 at 12:07:00AM +0200, Janos Haar wrote:
+> Hello,
 > 
-> Thanks for your kindly reply.
-> then is the two "not" able to avoid by the compiler ?
-> if yes, this patch is meanless and should be ignore.
+> ----- Original Message ----- From: "Americo Wang"
+> <xiyou.wangcong@gmail.com>
+> To: "Janos Haar" <janos.haar@netcenter.hu>
+> Cc: <linux-kernel@vger.kernel.org>; "KAMEZAWA Hiroyuki"
+> <kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>;
+> <xfs@oss.sgi.com>; "Jens Axboe" <axboe@kernel.dk>
+> Sent: Thursday, April 01, 2010 12:37 PM
+> Subject: Re: Somebody take a look please! (some kind of kernel bug?)
+> 
+> 
+> >On Thu, Apr 1, 2010 at 6:01 PM, Janos Haar
+> ><janos.haar@netcenter.hu> wrote:
+> >>Hello,
+> >>
+> >
+> >Hi,
+> >This is a totally different bug from the previous one reported by you. :)
+> 
+> Today i have got this again, exactly the same. (if somebody wants
+> the log, just ask)
+> There is a cut:
 
-I very much doubt if the compiler knows that these two variables can
-only ever have values 0 or 1, so I expect that removing the !'s will
-reduce text size.
+Small hint - please put the subsytemthe bug occurred in in the
+subject line. I missed this in the firehose of lkml traffic because
+there wasnothing to indicate to me it was in XFS. Soemthing like:
 
-That being said, it wouldn't be a good and maintainable change - 
-one point in using enumerations such as ISOLATE_* is to hide their real
-values.  Adding code which implicitly "knows" that a particular
-enumerated identifier has a particular underlying value is rather
-grubby and fragile.
+"Kernel crash in xfs_iflush_cluster"
 
-But the code's already doing that.
+Won't get missed quite so easily....
 
-It's also a bit fragile to assume that a true/false-returning C
-function (PageActive) will always return 0 or 1.  It's a common C idiom
-for such functions to return 0 or non-zero (not necessarily 1).
+This may be a fixed problem - what kernel are you running?
 
+Cheers,
 
-So a clean and maintainable implementation of
-
-	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
-		return ret;
-
-would be
-
-	if (mode != ISOLATE_BOTH &&
-			((PageActive(page) && mode == ISOLATE_ACTIVE) ||
-			 (!PageActive(page) && mode == ISOLATE_INACTIVE)))
-		return ret;
-
-which is just dying for an optimisation trick such as the one which is
-already there ;)
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
