@@ -1,93 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8CE1E6B01FD
+	by kanga.kvack.org (Postfix) with SMTP id C9E786B0206
 	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 22 of 41] split_huge_page paging
-Message-Id: <98a07dc480b00b236e17.1270168909@v2.random>
+Subject: [PATCH 24 of 41] kvm mmu transparent hugepage support
+Message-Id: <bfd6030189edfbd0f783.1270168911@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:49 +0200
+Date: Fri, 02 Apr 2010 02:41:51 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+From: Marcelo Tosatti <mtosatti@redhat.com>
 
-Paging logic that splits the page before it is unmapped and added to swap to
-ensure backwards compatibility with the legacy swap code. Eventually swap
-should natively pageout the hugepages to increase performance and decrease
-seeking and fragmentation of swap space. swapoff can just skip over huge pmd as
-they cannot be part of swap yet. In add_to_swap be careful to split the page
-only if we got a valid swap entry so we don't split hugepages with a full swap.
-
-In theory we could split pages before isolating them during the lru scan, but
-for khugepaged to be safe, I'm relying on either mmap_sem write mode, or
-PG_lock taken, so split_huge_page has to run either with mmap_sem read/write
-mode or PG_lock taken. Calling it from isolate_lru_page would make locking more
-complicated, in addition to that split_huge_page would deadlock if called by
-__isolate_lru_page because it has to take the lru lock to add the tail pages.
+This should work for both hugetlbfs and transparent hugepages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -378,6 +378,8 @@ static void collect_procs_anon(struct pa
- 	struct task_struct *tsk;
- 	struct anon_vma *av;
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -470,6 +470,15 @@ static int host_mapping_level(struct kvm
  
-+	if (unlikely(split_huge_page(page)))
-+		return;
- 	read_lock(&tasklist_lock);
- 	av = page_lock_anon_vma(page);
- 	if (av == NULL)	/* Not actually mapped anymore */
-diff --git a/mm/rmap.c b/mm/rmap.c
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1284,6 +1284,7 @@ int try_to_unmap(struct page *page, enum
- 	int ret;
+ 	page_size = kvm_host_page_size(kvm, gfn);
  
- 	BUG_ON(!PageLocked(page));
-+	BUG_ON(PageTransHuge(page));
- 
- 	if (unlikely(PageKsm(page)))
- 		ret = try_to_unmap_ksm(page, flags);
-diff --git a/mm/swap_state.c b/mm/swap_state.c
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -156,6 +156,12 @@ int add_to_swap(struct page *page)
- 	if (!entry.val)
- 		return 0;
- 
-+	if (unlikely(PageTransHuge(page)))
-+		if (unlikely(split_huge_page(page))) {
-+			swapcache_free(entry, NULL);
-+			return 0;
-+		}
++	/* check for transparent hugepages */
++	if (page_size == PAGE_SIZE) {
++		struct page *page = gfn_to_page(kvm, gfn);
 +
- 	/*
- 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
- 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
-diff --git a/mm/swapfile.c b/mm/swapfile.c
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -937,6 +937,8 @@ static inline int unuse_pmd_range(struct
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		if (unlikely(pmd_trans_huge(*pmd)))
-+			continue;
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
++		if (!is_error_page(page) && PageTransCompound(page))
++			page_size = KVM_HPAGE_SIZE(2);
++		kvm_release_page_clean(page);
++	}
++
+ 	for (i = PT_PAGE_TABLE_LEVEL;
+ 	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
+ 		if (page_size >= KVM_HPAGE_SIZE(i))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
