@@ -1,30 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AD29C6B01E3
-	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:42:28 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o320gPo8012852
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5EE8B6B01E3
+	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:44:04 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o320i1Gr013708
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 2 Apr 2010 09:42:25 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D9CDC45DE4D
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 09:42:24 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B617445DE4F
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 09:42:24 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D7E71DB804C
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 09:42:24 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 531AA1DB804B
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 09:42:24 +0900 (JST)
-Date: Fri, 2 Apr 2010 09:38:29 +0900
+	Fri, 2 Apr 2010 09:44:02 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9696A45DE51
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 09:44:01 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D94D45DE4E
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 09:44:01 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C044E08002
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 09:44:01 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F109BE38001
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 09:44:00 +0900 (JST)
+Date: Fri, 2 Apr 2010 09:40:17 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm 1/5 v2] oom: hold tasklist_lock when dumping tasks
-Message-Id: <20100402093829.5fa895dc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1004011242420.13247@chino.kir.corp.google.com>
+Subject: Re: [patch -mm 2/5 v2] oom: give current access to memory reserves
+ if it has been killed
+Message-Id: <20100402094017.ee659ba0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1004011243020.13247@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1004011240370.13247@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1004011242420.13247@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1004011243020.13247@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,22 +34,32 @@ To: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Apr 2010 12:44:28 -0700 (PDT)
+On Thu, 1 Apr 2010 12:44:31 -0700 (PDT)
 David Rientjes <rientjes@google.com> wrote:
 
-> dump_header() always requires tasklist_lock to be held because it calls 
-> dump_tasks() which iterates through the tasklist.  There are a few places
-> where this isn't maintained, so make sure tasklist_lock is always held
-> whenever calling dump_header().
+> It's possible to livelock the page allocator if a thread has mm->mmap_sem and 
+> fails to make forward progress because the oom killer selects another thread 
+> sharing the same ->mm to kill that cannot exit until the semaphore is dropped.
 > 
-> This also fixes the pagefault case where oom_kill_process() is called on
-> current without tasklist_lock.  It is necessary to hold a readlock for
-> both calling dump_header() and iterating its children.
+> The oom killer will not kill multiple tasks at the same time; each oom killed 
+> task must exit before another task may be killed.  Thus, if one thread is 
+> holding mm->mmap_sem and cannot allocate memory, all threads sharing the same 
+> ->mm are blocked from exiting as well.  In the oom kill case, that means the
+> thread holding mm->mmap_sem will never free additional memory since it cannot
+> get access to memory reserves and the thread that depends on it with access to
+> memory reserves cannot exit because it cannot acquire the semaphore.  Thus,
+> the page allocators livelocks.
 > 
-> Reported-by: Oleg Nesterov <oleg@redhat.com>
+> When the oom killer is called and current happens to have a pending SIGKILL,
+> this patch automatically gives it access to memory reserves and returns.  Upon
+> returning to the page allocator, its allocation will hopefully succeed so it
+> can quickly exit and free its memory.  If not, the page allocator will fail
+> the allocation if it is not __GFP_NOFAIL.
+> 
 > Signed-off-by: David Rientjes <rientjes@google.com>
 
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
