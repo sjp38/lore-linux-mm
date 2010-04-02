@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9497D6B01FF
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8D2276B01FE
 	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 32 of 41] memcg huge memory
-Message-Id: <771e2453e0c5c76b180f.1270168919@v2.random>
+Subject: [PATCH 07 of 41] add native_set_pmd_at
+Message-Id: <f25b1b8fa5755e9163f2.1270168894@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:59 +0200
+Date: Fri, 02 Apr 2010 02:41:34 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,94 +18,29 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add memcg charge/uncharge to hugepage faults in huge_memory.c.
+Used by paravirt and not paravirt set_pmd_at.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -225,6 +225,7 @@ static int __do_huge_pmd_anonymous_page(
- 	VM_BUG_ON(!PageCompound(page));
- 	pgtable = pte_alloc_one(mm, haddr);
- 	if (unlikely(!pgtable)) {
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		return VM_FAULT_OOM;
- 	}
-@@ -235,6 +236,7 @@ static int __do_huge_pmd_anonymous_page(
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_none(*pmd))) {
- 		spin_unlock(&mm->page_table_lock);
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		pte_free(mm, pgtable);
- 	} else {
-@@ -278,6 +280,10 @@ int do_huge_pmd_anonymous_page(struct mm
- 		page = alloc_hugepage(transparent_hugepage_defrag(vma));
- 		if (unlikely(!page))
- 			goto out;
-+		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+			put_page(page);
-+			goto out;
-+		}
- 
- 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
- 	}
-@@ -377,9 +383,15 @@ static int do_huge_pmd_wp_page_fallback(
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
- 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
- 					  vma, address);
--		if (unlikely(!pages[i])) {
--			while (--i >= 0)
-+		if (unlikely(!pages[i] ||
-+			     mem_cgroup_newpage_charge(pages[i], mm,
-+						       GFP_KERNEL))) {
-+			if (pages[i])
- 				put_page(pages[i]);
-+			while (--i >= 0) {
-+				mem_cgroup_uncharge_page(pages[i]);
-+				put_page(pages[i]);
-+			}
- 			kfree(pages);
- 			ret |= VM_FAULT_OOM;
- 			goto out;
-@@ -438,8 +450,10 @@ out:
- 
- out_free_pages:
- 	spin_unlock(&mm->page_table_lock);
--	for (i = 0; i < HPAGE_PMD_NR; i++)
-+	for (i = 0; i < HPAGE_PMD_NR; i++) {
-+		mem_cgroup_uncharge_page(pages[i]);
- 		put_page(pages[i]);
-+	}
- 	kfree(pages);
- 	goto out;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -528,6 +528,12 @@ static inline void native_set_pte_at(str
+ 	native_set_pte(ptep, pte);
  }
-@@ -482,13 +496,19 @@ int do_huge_pmd_wp_page(struct mm_struct
- 		goto out;
- 	}
  
-+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-+		put_page(new_page);
-+		ret |= VM_FAULT_OOM;
-+		goto out;
-+	}
- 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
- 
- 	spin_lock(&mm->page_table_lock);
--	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-+	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-+		mem_cgroup_uncharge_page(new_page);
- 		put_page(new_page);
--	else {
-+	} else {
- 		pmd_t entry;
- 		entry = mk_pmd(new_page, vma->vm_page_prot);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++static inline void native_set_pmd_at(struct mm_struct *mm, unsigned long addr,
++				     pmd_t *pmdp , pmd_t pmd)
++{
++	native_set_pmd(pmdp, pmd);
++}
++
+ #ifndef CONFIG_PARAVIRT
+ /*
+  * Rules for using pte_update - it must be called after any PTE update which
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
