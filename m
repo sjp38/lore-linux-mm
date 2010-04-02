@@ -1,193 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D783B6B01FD
-	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 06:17:34 -0400 (EDT)
-Date: Fri, 2 Apr 2010 11:17:11 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] oom killer: break from infinite loop
-Message-ID: <20100402101711.GC12886@csn.ul.ie>
-References: <1269447905-5939-1-git-send-email-anfei.zhou@gmail.com> <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E6A376B01FA
+	for <linux-mm@kvack.org>; Fri,  2 Apr 2010 07:16:14 -0400 (EDT)
+Date: Fri, 2 Apr 2010 13:14:06 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch] oom: give current access to memory reserves if it has
+	been killed
+Message-ID: <20100402111406.GA4432@redhat.com>
+References: <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100329112111.GA16971@redhat.com> <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330154659.GA12416@redhat.com> <alpine.DEB.2.00.1003301320020.5234@chino.kir.corp.google.com> <20100331175836.GA11635@redhat.com> <20100331204718.GD11635@redhat.com> <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com> <20100401135927.GA12460@redhat.com> <alpine.DEB.2.00.1004011210380.30661@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1004011210380.30661@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, anfei <anfei.zhou@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 28, 2010 at 02:21:01PM -0700, David Rientjes wrote:
-> On Sun, 28 Mar 2010, Oleg Nesterov wrote:
-> 
-> > I see. But still I can't understand. To me, the problem is not that
-> > B can't exit, the problem is that A doesn't know it should exit. All
-> > threads should exit and free ->mm. Even if B could exit, this is not
-> > enough. And, to some extent, it doesn't matter if it holds mmap_sem
-> > or not.
-> > 
-> > Don't get me wrong. Even if I don't understand oom_kill.c the patch
-> > looks obviously good to me, even from "common sense" pov. I am just
-> > curious.
-> > 
-> > So, my understanding is: we are going to kill the whole thread group
-> > but TIF_MEMDIE is per-thread. Mark the whole thread group as TIF_MEMDIE
-> > so that any thread can notice this flag and (say, __alloc_pages_slowpath)
-> > fail asap.
-> > 
-> > Is my understanding correct?
-> > 
-> 
-> [Adding Mel Gorman <mel@csn.ul.ie> to the cc]
-> 
+On 04/01, David Rientjes wrote:
+>
+> On Thu, 1 Apr 2010, Oleg Nesterov wrote:
+>
+> > > You can't do this for the reason I cited in another email, oom_badness()
+> > > returning 0 does not exclude a task from being chosen by
+> > > selcet_bad_process(), it will use that task if nothing else has been found
+> > > yet.  We must explicitly filter it from consideration by checking for
+> > > !p->mm.
+> >
+> > Yes, you are right. OK, oom_badness() can never return points < 0,
+> > we can make it int and oom_badness() can return -1 if !mm. IOW,
+> >
+> > 	- unsigned int points;
+> > 	+ int points;
+> > 	...
+> >
+> > 	points = oom_badness(...);
+> > 	if (points >= 0 && (points > *ppoints || !chosen))
+> > 		chosen = p;
+> >
+>
+> oom_badness() and its predecessor badness() in mainline never return
+> negative scores, so I don't see the value in doing this; just filter the
+> task in select_bad_process() with !p->mm as it has always been done.
 
-Sorry for the delay.
+David, you continue to ignore my arguments ;) select_bad_process()
+must not filter out the tasks with ->mm == NULL.
 
-> The problem with this approach is that we could easily deplete all memory 
-> reserves if the oom killed task has an extremely large number of threads, 
-> there has always been only a single thread with TIF_MEMDIE set per cpuset 
-> or memcg; for systems that don't run with cpusets or memory controller,
-> this has been limited to one thread with TIF_MEMDIE for the entire system.
-> 
-> There's risk involved with suddenly allowing 1000 threads to have 
-> TIF_MEMDIE set and the chances of fully depleting all allowed zones is 
-> much higher if they allocate memory prior to exit, for example.
-> 
-> An alternative is to fail allocations if they are failable and the 
-> allocating task has a pending SIGKILL.  It's better to preempt the oom 
-> killer since current is going to be exiting anyway and this avoids a 
-> needless kill.
-> 
-> That's possible if it's guaranteed that __GFP_NOFAIL allocations with a 
-> pending SIGKILL are granted ALLOC_NO_WATERMARKS to prevent them from 
-> endlessly looping while making no progress.
-> 
-> Comments?
-> ---
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1610,13 +1610,21 @@ try_next_zone:
->  }
->  
->  static inline int
-> -should_alloc_retry(gfp_t gfp_mask, unsigned int order,
-> +should_alloc_retry(struct task_struct *p, gfp_t gfp_mask, unsigned int order,
->  				unsigned long pages_reclaimed)
->  {
->  	/* Do not loop if specifically requested */
->  	if (gfp_mask & __GFP_NORETRY)
->  		return 0;
->  
-> +	/* Loop if specifically requested */
-> +	if (gfp_mask & __GFP_NOFAIL)
-> +		return 1;
-> +
+Once again:
 
-Meh, you could have preserved the comment but no biggie.
+	void *memory_hog_thread(void *arg)
+	{
+		for (;;)
+			malloc(A_LOT);
+	}
 
-> +	/* Task is killed, fail the allocation if possible */
-> +	if (fatal_signal_pending(p))
-> +		return 0;
-> +
+	int main(void)
+	{
+		pthread_create(memory_hog_thread, ...);
+		syscall(__NR_exit, 0);
+	}
 
-Seems reasonable. This will be checked on every major loop in the
-allocator slow patch.
+Now, even if we fix PF_EXITING check, select_bad_process() will always
+ignore this process. The group leader has ->mm == NULL.
 
->  	/*
->  	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
->  	 * means __GFP_NOFAIL, but that may not be true in other
-> @@ -1635,13 +1643,6 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
->  	if (gfp_mask & __GFP_REPEAT && pages_reclaimed < (1 << order))
->  		return 1;
->  
-> -	/*
-> -	 * Don't let big-order allocations loop unless the caller
-> -	 * explicitly requests that.
-> -	 */
-> -	if (gfp_mask & __GFP_NOFAIL)
-> -		return 1;
-> -
->  	return 0;
->  }
->  
-> @@ -1798,6 +1799,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
->  	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
->  		if (!in_interrupt() &&
->  		    ((p->flags & PF_MEMALLOC) ||
-> +		     (fatal_signal_pending(p) && (gfp_mask & __GFP_NOFAIL)) ||
+See?
 
-This is a lot less clear. GFP_NOFAIL is rare so this is basically saying
-that all threads with a fatal signal pending can ignore watermarks. This
-is dangerous because if 1000 threads get killed, there is a possibility
-of deadlocking the system.
+That is why I think we need something like find_lock_task_mm() in the
+pseudo-patch I sent.
 
-Why not obey the watermarks and just not retry the loop later and fail
-the allocation?
+Or I missed something?
 
->  		     unlikely(test_thread_flag(TIF_MEMDIE))))
->  			alloc_flags |= ALLOC_NO_WATERMARKS;
->  	}
-> @@ -1812,6 +1814,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	int migratetype)
->  {
->  	const gfp_t wait = gfp_mask & __GFP_WAIT;
-> +	const gfp_t nofail = gfp_mask & __GFP_NOFAIL;
->  	struct page *page = NULL;
->  	int alloc_flags;
->  	unsigned long pages_reclaimed = 0;
-> @@ -1876,7 +1879,7 @@ rebalance:
->  		goto nopage;
->  
->  	/* Avoid allocations with no watermarks from looping endlessly */
-> -	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-> +	if (test_thread_flag(TIF_MEMDIE) && !nofail)
->  		goto nopage;
->  
->  	/* Try direct reclaim and then allocating */
-> @@ -1888,6 +1891,10 @@ rebalance:
->  	if (page)
->  		goto got_pg;
->  
-> +	/* Task is killed, fail the allocation if possible */
-> +	if (fatal_signal_pending(p) && !nofail)
-> +		goto nopage;
-> +
-
-Again, I would expect this to be caught by should_alloc_retry().
-
->  	/*
->  	 * If we failed to make any progress reclaiming, then we are
->  	 * running out of options and have to consider going OOM
-> @@ -1909,8 +1916,7 @@ rebalance:
->  			 * made, there are no other options and retrying is
->  			 * unlikely to help.
->  			 */
-> -			if (order > PAGE_ALLOC_COSTLY_ORDER &&
-> -						!(gfp_mask & __GFP_NOFAIL))
-> +			if (order > PAGE_ALLOC_COSTLY_ORDER && !nofail)
->  				goto nopage;
->  
->  			goto restart;
-> @@ -1919,7 +1925,7 @@ rebalance:
->  
->  	/* Check if we should retry the allocation */
->  	pages_reclaimed += did_some_progress;
-> -	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
-> +	if (should_alloc_retry(p, gfp_mask, order, pages_reclaimed)) {
->  		/* Wait for some write requests to complete then retry */
->  		congestion_wait(BLK_RW_ASYNC, HZ/50);
->  		goto rebalance;
-> 
-
-I'm ok with the should_alloc_retry() change but am a lot less ok with ignoring
-watermarks just because a fatal signal is pending and I think the nofail
-changes  to __alloc_pages_slowpath() are unnecessary as should_alloc_retry()
-should end up failing the allocations.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
