@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4FF466B01F5
+	by kanga.kvack.org (Postfix) with SMTP id 504C56B01F6
 	for <linux-mm@kvack.org>; Thu,  1 Apr 2010 20:45:21 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 28 of 41] verify pmd_trans_huge isn't leaking
-Message-Id: <03a6148230050bd901c3.1270168915@v2.random>
+Subject: [PATCH 13 of 41] special pmd_trans_* functions
+Message-Id: <244f89f5c6dd248777a6.1270168900@v2.random>
 In-Reply-To: <patchbomb.1270168887@v2.random>
 References: <patchbomb.1270168887@v2.random>
-Date: Fri, 02 Apr 2010 02:41:55 +0200
+Date: Fri, 02 Apr 2010 02:41:40 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,52 +18,75 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-pte_trans_huge must not leak in certain vmas like the mmio special pfn or
-filebacked mappings.
+These returns 0 at compile time when the config option is disabled, to allow
+gcc to eliminate the transparent hugepage function calls at compile time
+without additional #ifdefs (only the export of those functions have to be
+visible to gcc but they won't be required at link time and huge_memory.o can be
+not built at all).
+
+_PAGE_BIT_UNUSED1 is never used for pmd, only on pte.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1421,6 +1421,7 @@ int __get_user_pages(struct task_struct 
- 			pmd = pmd_offset(pud, pg);
- 			if (pmd_none(*pmd))
- 				return i ? : -EFAULT;
-+			VM_BUG_ON(pmd_trans_huge(*pmd));
- 			pte = pte_offset_map(pmd, pg);
- 			if (pte_none(*pte)) {
- 				pte_unmap(pte);
-@@ -1622,8 +1623,10 @@ pte_t *get_locked_pte(struct mm_struct *
- 	pud_t * pud = pud_alloc(mm, pgd, addr);
- 	if (pud) {
- 		pmd_t * pmd = pmd_alloc(mm, pud, addr);
--		if (pmd)
-+		if (pmd) {
-+			VM_BUG_ON(pmd_trans_huge(*pmd));
- 			return pte_alloc_map_lock(mm, pmd, addr, ptl);
-+		}
- 	}
- 	return NULL;
- }
-@@ -1842,6 +1845,7 @@ static inline int remap_pmd_range(struct
- 	pmd = pmd_alloc(mm, pud, addr);
- 	if (!pmd)
- 		return -ENOMEM;
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	do {
- 		next = pmd_addr_end(addr, end);
- 		if (remap_pte_range(mm, pmd, addr, next,
-@@ -3317,6 +3321,7 @@ static int follow_pte(struct mm_struct *
- 		goto out;
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -168,6 +168,19 @@ extern void cleanup_highmap(void);
+ #define	kc_offset_to_vaddr(o) ((o) | ~__VIRTUAL_MASK)
  
- 	pmd = pmd_offset(pud, address);
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
- 		goto out;
+ #define __HAVE_ARCH_PTE_SAME
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline int pmd_trans_splitting(pmd_t pmd)
++{
++	return pmd_val(pmd) & _PAGE_SPLITTING;
++}
++
++static inline int pmd_trans_huge(pmd_t pmd)
++{
++	return pmd_val(pmd) & _PAGE_PSE;
++}
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++
+ #endif /* !__ASSEMBLY__ */
  
+ #endif /* _ASM_X86_PGTABLE_64_H */
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -22,6 +22,7 @@
+ #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
+ #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
+ #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
++#define _PAGE_BIT_SPLITTING	_PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
+ #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
+ 
+ /* If _PAGE_BIT_PRESENT is clear, we use these: */
+@@ -45,6 +46,7 @@
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+ #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
++#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
+ #define __HAVE_ARCH_PTE_SPECIAL
+ 
+ #ifdef CONFIG_KMEMCHECK
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -344,6 +344,11 @@ extern void untrack_pfn_vma(struct vm_ar
+ 				unsigned long size);
+ #endif
+ 
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
++#define pmd_trans_huge(pmd) 0
++#define pmd_trans_splitting(pmd) 0
++#endif
++
+ #endif /* !__ASSEMBLY__ */
+ 
+ #endif /* _ASM_GENERIC_PGTABLE_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
