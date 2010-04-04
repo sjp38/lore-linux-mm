@@ -1,109 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 611846B020C
-	for <linux-mm@kvack.org>; Sun,  4 Apr 2010 18:45:51 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o34MjnJV004184
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 5 Apr 2010 07:45:49 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2645545DE4E
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 07:45:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 01FFE45DE4C
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 07:45:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D6178E08001
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 07:45:48 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 81ACAE08002
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 07:45:48 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [Question] race condition in mm/page_alloc.c regarding page->lru?
-In-Reply-To: <h2rd6200be21004021759x4ae83403i4daa206d47b7d523@mail.gmail.com>
-References: <20100402094805.GA12886@csn.ul.ie> <h2rd6200be21004021759x4ae83403i4daa206d47b7d523@mail.gmail.com>
-Message-Id: <20100405010442.7E08.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D1D8C6B020E
+	for <linux-mm@kvack.org>; Sun,  4 Apr 2010 19:26:46 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o34NQgm2010264
+	for <linux-mm@kvack.org>; Sun, 4 Apr 2010 16:26:42 -0700
+Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
+	by wpaz29.hot.corp.google.com with ESMTP id o34NQfpU032734
+	for <linux-mm@kvack.org>; Sun, 4 Apr 2010 16:26:41 -0700
+Received: by pzk5 with SMTP id 5so2309885pzk.0
+        for <linux-mm@kvack.org>; Sun, 04 Apr 2010 16:26:41 -0700 (PDT)
+Date: Sun, 4 Apr 2010 16:26:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom killer: break from infinite loop
+In-Reply-To: <20100402101711.GC12886@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1004041616280.7198@chino.kir.corp.google.com>
+References: <1269447905-5939-1-git-send-email-anfei.zhou@gmail.com> <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com>
+ <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100402101711.GC12886@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Date: Mon,  5 Apr 2010 07:45:47 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Arve =?ISO-8859-1?Q?Hj=F8nnev=E5g?= <arve@android.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, TAO HU <tghk48@motorola.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Ye Yuan.Bo-A22116" <yuan-bo.ye@motorola.com>, Chang Qing-A21550 <Qing.Chang@motorola.com>, linux-arm-kernel@lists.infradead.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Oleg Nesterov <oleg@redhat.com>, anfei <anfei.zhou@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Fri, 2 Apr 2010, Mel Gorman wrote:
 
-> >> "mm: Add min_free_order_shift tunable." seems makes zero sense. I don'=
-t think this patch
-> >> need to be merge.
-> >
-> > It makes a marginal amount of sense. Basically what it does is allowing
-> > high-order allocations to go much further below their watermarks than i=
-s
-> > currently allowed. If the platform in question is doing a lot of high-o=
-rder
-> > allocations, this patch could be seen to "fix" the problem but you woul=
-dn't
-> > touch mainline with it with a barge pole. It would be more stable to fi=
-x
-> > the drivers to not use high order allocations or use a mempool.
->=20
-> The high order allocation that caused problems was the first level
-> page table for each process. Each time a new process started the
-> kernel would empty the entire page cache to create contiguous free
-> memory. With the reserved pageblock mostly full (fixed by the second
-> patch) this contiguous memory would then almost immediately get used
-> for low order allocations, so the same problem starts again when the
-> next process starts. I agree this patch does not fix the problem, but
-> it does improve things when the problem hits. I have not seen a device
-> in this situation with the second patch applied, but I did not remove
-> the first patch in case the reserved pageblock fills up.
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1610,13 +1610,21 @@ try_next_zone:
+> >  }
+> >  
+> >  static inline int
+> > -should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+> > +should_alloc_retry(struct task_struct *p, gfp_t gfp_mask, unsigned int order,
+> >  				unsigned long pages_reclaimed)
+> >  {
+> >  	/* Do not loop if specifically requested */
+> >  	if (gfp_mask & __GFP_NORETRY)
+> >  		return 0;
+> >  
+> > +	/* Loop if specifically requested */
+> > +	if (gfp_mask & __GFP_NOFAIL)
+> > +		return 1;
+> > +
+> 
+> Meh, you could have preserved the comment but no biggie.
+> 
 
-I would like to merge the second patch at first. If the same problem still =
-occur, please
-post bug report. (and please cc arm folks if it is arm pagetable related)
+I'll remember to preserve it when it's proposed.
 
+> > +	/* Task is killed, fail the allocation if possible */
+> > +	if (fatal_signal_pending(p))
+> > +		return 0;
+> > +
+> 
+> Seems reasonable. This will be checked on every major loop in the
+> allocator slow patch.
+> 
+> >  	/*
+> >  	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
+> >  	 * means __GFP_NOFAIL, but that may not be true in other
+> > @@ -1635,13 +1643,6 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+> >  	if (gfp_mask & __GFP_REPEAT && pages_reclaimed < (1 << order))
+> >  		return 1;
+> >  
+> > -	/*
+> > -	 * Don't let big-order allocations loop unless the caller
+> > -	 * explicitly requests that.
+> > -	 */
+> > -	if (gfp_mask & __GFP_NOFAIL)
+> > -		return 1;
+> > -
+> >  	return 0;
+> >  }
+> >  
+> > @@ -1798,6 +1799,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+> >  	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+> >  		if (!in_interrupt() &&
+> >  		    ((p->flags & PF_MEMALLOC) ||
+> > +		     (fatal_signal_pending(p) && (gfp_mask & __GFP_NOFAIL)) ||
+> 
+> This is a lot less clear. GFP_NOFAIL is rare so this is basically saying
+> that all threads with a fatal signal pending can ignore watermarks. This
+> is dangerous because if 1000 threads get killed, there is a possibility
+> of deadlocking the system.
+> 
 
-> > It is inconceivable this patch is related to the problem though.
-> >
-> >> but "mm: Check if any page in a pageblock is reserved before marking i=
-t MIGRATE_RESERVE"
-> >> treat strange hardware correctly, I think. If Mel ack this, I hope mer=
-ge it.
-> >> Mel, Can we hear your opinion?
-> >>
-> >
-> > This patch is interesting and I am surprised it is required. Is it real=
-ly the
-> > case that page blocks near the start of a zone are dominated with PageR=
-eserved
-> > pages but the first one happen to be free? I guess it's conceivable on =
-ARM
-> > where memmap can be freed at boot time.
->=20
-> I think this happens by default on arm. The kernel starts at offset
-> 0x8000 to leave room for boot parameters, and in recent kernel
-> versions (>~2.6.26-29) this memory is freed.
->=20
-> >
-> > There is a theoritical problem with the patch but it is easily resolved.
-> > A PFN walker like this must call pfn_valid_within() before calling
-> > pfn_to_page(). If they do not, it's possible to get complete garbage
-> > for the page and result in a bad dereference. In this particular case,
-> > it would be a kernel oops rather than memory corruption though.
-> >
-> > If that was fixed, I'd see no problem with Acking the patch.
-> >
->=20
-> I can fix this if you want the patch in mainline. I was not sure it
-> was acceptable since will slow down boot on all systems, even where it
-> is not needed.
+I don't quite understand the comment, this is only for __GFP_NOFAIL 
+allocations, which you say are rare, so a large number of threads won't be 
+doing this simultaneously.
 
-bootup code is not fast path. then, small slowdown is ok, I think.
-So, I'm looking for your new version patch.
+> Why not obey the watermarks and just not retry the loop later and fail
+> the allocation?
+> 
 
+The above check for (fatal_signal_pending(p) && (gfp_mask & __GFP_NOFAIL)) 
+essentially oom kills p without invoking the oom killer before direct 
+reclaim is invoked.  We know it has a pending SIGKILL and wants to exit, 
+so we allow it to allocate beyond the min watermark to avoid costly 
+reclaim or needlessly killing another task.
 
+> >  		     unlikely(test_thread_flag(TIF_MEMDIE))))
+> >  			alloc_flags |= ALLOC_NO_WATERMARKS;
+> >  	}
+> > @@ -1812,6 +1814,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >  	int migratetype)
+> >  {
+> >  	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> > +	const gfp_t nofail = gfp_mask & __GFP_NOFAIL;
+> >  	struct page *page = NULL;
+> >  	int alloc_flags;
+> >  	unsigned long pages_reclaimed = 0;
+> > @@ -1876,7 +1879,7 @@ rebalance:
+> >  		goto nopage;
+> >  
+> >  	/* Avoid allocations with no watermarks from looping endlessly */
+> > -	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+> > +	if (test_thread_flag(TIF_MEMDIE) && !nofail)
+> >  		goto nopage;
+> >  
+> >  	/* Try direct reclaim and then allocating */
+> > @@ -1888,6 +1891,10 @@ rebalance:
+> >  	if (page)
+> >  		goto got_pg;
+> >  
+> > +	/* Task is killed, fail the allocation if possible */
+> > +	if (fatal_signal_pending(p) && !nofail)
+> > +		goto nopage;
+> > +
+> 
+> Again, I would expect this to be caught by should_alloc_retry().
+> 
+
+It is, but only after the oom killer is called.  We don't want to 
+needlessly kill another task here when p has already been killed but may 
+not be PF_EXITING yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
