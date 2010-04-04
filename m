@@ -1,48 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8B1786B01E3
-	for <linux-mm@kvack.org>; Sun,  4 Apr 2010 10:19:12 -0400 (EDT)
-Date: Sun, 4 Apr 2010 23:19:06 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-In-Reply-To: <20100402092441.GA21100@sli10-desk.sh.intel.com>
-References: <20100402181307.6470.A69D9226@jp.fujitsu.com> <20100402092441.GA21100@sli10-desk.sh.intel.com>
-Message-Id: <20100404231558.7E00.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CB21D6B01EF
+	for <linux-mm@kvack.org>; Sun,  4 Apr 2010 10:37:25 -0400 (EDT)
+Date: Sun, 4 Apr 2010 20:37:01 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look
+ please!...)
+Message-ID: <20100404103701.GX3335@dastard>
+References: <03ca01cacb92$195adf50$0400a8c0@dcccs>
+ <2375c9f91003242029p1efbbea1v8e313e460b118f14@mail.gmail.com>
+ <20100325153110.6be9a3df.kamezawa.hiroyu@jp.fujitsu.com>
+ <02c101cacbf8$d21d1650$0400a8c0@dcccs>
+ <179901cad182$5f87f620$0400a8c0@dcccs>
+ <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com>
+ <1fe901cad2b0$d39d0300$0400a8c0@dcccs>
+ <20100402230905.GW3335@dastard>
+ <22c901cad333$7a67db60$0400a8c0@dcccs>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <22c901cad333$7a67db60$0400a8c0@dcccs>
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: Janos Haar <janos.haar@netcenter.hu>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, Apr 02, 2010 at 05:14:38PM +0800, KOSAKI Motohiro wrote:
-> > > > > This patch makes a lot of sense than previous. however I think <1% anon ratio
-> > > > > shouldn't happen anyway because file lru doesn't have reclaimable pages.
-> > > > > <1% seems no good reclaim rate.
-> > > > 
-> > > > Oops, the above mention is wrong. sorry. only 1 page is still too big.
-> > > > because under streaming io workload, the number of scanning anon pages should
-> > > > be zero. this is very strong requirement. if not, backup operation will makes
-> > > > a lot of swapping out.
-> > > Sounds there is no big impact for the workload which you mentioned with the patch.
-> > > please see below descriptions.
-> > > I updated the description of the patch as fengguang suggested.
-> > 
-> > Umm.. sorry, no.
-> > 
-> > "one fix but introduce another one bug" is not good deal. instead, 
-> > I'll revert the guilty commit at first as akpm mentioned.
-> Even we revert the commit, the patch still has its benefit, as it increases
-> calculation precision, right?
+On Sat, Apr 03, 2010 at 03:42:10PM +0200, Janos Haar wrote:
+> Hello,
+> 
+> The actual version of kernel is 2.6.32.10.
+> There is any significant fixes for me in the last (.11) or in the
+> next (33.x)?
 
-no, you shouldn't ignore the regression case.
+The fixes for this bug are queued up already for the next
+2.6.32.x release.
 
-If we can remove the streaming io corner case by another patch, this patch
-can be considered to merge.
+Cheers,
 
-thanks.
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
