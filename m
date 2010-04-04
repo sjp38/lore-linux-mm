@@ -1,58 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 78FEC6B01EE
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 20:30:52 -0400 (EDT)
-Date: Mon, 5 Apr 2010 17:26:15 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-In-Reply-To: <20100405232115.GM5825@random.random>
-Message-ID: <alpine.LFD.2.00.1004051636060.21411@i5.linux-foundation.org>
-References: <patchbomb.1270168887@v2.random> <20100405120906.0abe8e58.akpm@linux-foundation.org> <20100405193616.GA5125@elte.hu> <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com> <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org>
- <t2q84144f021004051346o65f03e71r5b7bb19b433ce454@mail.gmail.com> <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org> <20100405232115.GM5825@random.random>
+	by kanga.kvack.org (Postfix) with SMTP id D85EE6B01EE
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 20:50:38 -0400 (EDT)
+Date: Sun, 4 Apr 2010 08:48:38 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+Message-ID: <20100404004838.GA6390@localhost>
+References: <20100331045348.GA3396@sli10-desk.sh.intel.com> <20100331142708.039E.A69D9226@jp.fujitsu.com> <20100331145030.03A1.A69D9226@jp.fujitsu.com> <20100402065052.GA28027@sli10-desk.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100402065052.GA28027@sli10-desk.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: "Li, Shaohua" <shaohua.li@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Apr 02, 2010 at 02:50:52PM +0800, Li, Shaohua wrote:
+> On Wed, Mar 31, 2010 at 01:53:27PM +0800, KOSAKI Motohiro wrote:
+> > > > On Tue, Mar 30, 2010 at 02:08:53PM +0800, KOSAKI Motohiro wrote:
+> > > > > Hi
+> > > > > 
+> > > > > > Commit 84b18490d1f1bc7ed5095c929f78bc002eb70f26 introduces a regression.
+> > > > > > With it, our tmpfs test always oom. The test has a lot of rotated anon
+> > > > > > pages and cause percent[0] zero. Actually the percent[0] is a very small
+> > > > > > value, but our calculation round it to zero. The commit makes vmscan
+> > > > > > completely skip anon pages and cause oops.
+> > > > > > An option is if percent[x] is zero in get_scan_ratio(), forces it
+> > > > > > to 1. See below patch.
+> > > > > > But the offending commit still changes behavior. Without the commit, we scan
+> > > > > > all pages if priority is zero, below patch doesn't fix this. Don't know if
+> > > > > > It's required to fix this too.
+> > > > > 
+> > > > > Can you please post your /proc/meminfo and reproduce program? I'll digg it.
+> > > > > 
+> > > > > Very unfortunately, this patch isn't acceptable. In past time, vmscan 
+> > > > > had similar logic, but 1% swap-out made lots bug reports. 
+> > > > if 1% is still big, how about below patch?
+> > > 
+> > > This patch makes a lot of sense than previous. however I think <1% anon ratio
+> > > shouldn't happen anyway because file lru doesn't have reclaimable pages.
+> > > <1% seems no good reclaim rate.
+> > 
+> > Oops, the above mention is wrong. sorry. only 1 page is still too big.
+> > because under streaming io workload, the number of scanning anon pages should
+> > be zero. this is very strong requirement. if not, backup operation will makes
+> > a lot of swapping out.
+> Sounds there is no big impact for the workload which you mentioned with the patch.
+> please see below descriptions.
+> I updated the description of the patch as fengguang suggested.
+> 
+> 
+> 
+> Commit 84b18490d introduces a regression. With it, our tmpfs test always oom.
+> The test uses a 6G tmpfs in a system with 3G memory. In the tmpfs, there are
+> 6 copies of kernel source and the test does kbuild for each copy. My
+> investigation shows the test has a lot of rotated anon pages and quite few
+> file pages, so get_scan_ratio calculates percent[0] to be zero. Actually
+> the percent[0] shoule be a very small value, but our calculation round it
+> to zero. The commit makes vmscan completely skip anon pages and cause oops.
+> 
+> To avoid underflow, we don't use percentage, instead we directly calculate
+> how many pages should be scaned. In this way, we should get several scan pages
+> for < 1% percent. With this fix, my test doesn't oom any more.
+> 
+> Note, this patch doesn't really change logics, but just increase precise. For
+> system with a lot of memory, this might slightly changes behavior. For example,
+> in a sequential file read workload, without the patch, we don't swap any anon
+> pages. With it, if anon memory size is bigger than 16G, we will say one anon page
 
+                                                                  see?
 
-On Tue, 6 Apr 2010, Andrea Arcangeli wrote:
->
-> Some performance result:
+> swapped. The 16G is calculated as PAGE_SIZE * priority(4096) * (fp/ap). fp/ap
+> is assumed to be 1024 which is common in this workload. So the impact sounds not
+> a big deal.
+> 
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 79c8098..80a7ed5 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1519,27 +1519,50 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+>  }
+>  
+>  /*
+> + * Smallish @nr_to_scan's are deposited in @nr_saved_scan,
+> + * until we collected @swap_cluster_max pages to scan.
+> + */
+> +static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
+> +				       unsigned long *nr_saved_scan)
+> +{
+> +	unsigned long nr;
+> +
+> +	*nr_saved_scan += nr_to_scan;
+> +	nr = *nr_saved_scan;
+> +
+> +	if (nr >= SWAP_CLUSTER_MAX)
+> +		*nr_saved_scan = 0;
+> +	else
+> +		nr = 0;
+> +
+> +	return nr;
+> +}
+> +
+> +/*
+>   * Determine how aggressively the anon and file LRU lists should be
+>   * scanned.  The relative value of each set of LRU lists is determined
+>   * by looking at the fraction of the pages scanned we did rotate back
+>   * onto the active list instead of evict.
+>   *
+> - * percent[0] specifies how much pressure to put on ram/swap backed
+> - * memory, while percent[1] determines pressure on the file LRUs.
+> + * nr[x] specifies how many pages should be scaned
 
-Quite frankly, these "performance results" seem to be basically dishonest.
+The new comment loses information..
 
-Judging by your numbers, the big win is apparently pre-populating the page 
-tables, the "tlb miss" you quote seem to be almost in the noise. IOW, we 
-have 
+>   */
+> -static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+> -					unsigned long *percent)
+> +static void get_scan_count(struct zone *zone, struct scan_control *sc,
+> +				unsigned long *nr, int priority)
+>  {
+>  	unsigned long anon, file, free;
+>  	unsigned long anon_prio, file_prio;
+>  	unsigned long ap, fp;
+>  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+> +	unsigned long fraction[2], denominator[2];
 
-	memset page fault 1566023
+denominator[2] can be reduced to denominator.
+because denominator[0] == denominator[1] always holds.
 
-vs
+> +	enum lru_list l;
+>  
+>  	/* If we have no swap space, do not bother scanning anon pages. */
+>  	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+> -		percent[0] = 0;
+> -		percent[1] = 100;
+> -		return;
+> +		fraction[0] = 0;
+> +		denominator[0] = 1;
+> +		fraction[1] = 1;
+> +		denominator[1] = 1;
+> +		goto out;
+>  	}
+>  
+>  	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
+> @@ -1552,9 +1575,11 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+>  		/* If we have very few page cache pages,
+>  		   force-scan anon pages. */
+>  		if (unlikely(file + free <= high_wmark_pages(zone))) {
+> -			percent[0] = 100;
+> -			percent[1] = 0;
+> -			return;
+> +			fraction[0] = 1;
+> +			denominator[0] = 1;
+> +			fraction[1] = 0;
+> +			denominator[1] = 1;
+> +			goto out;
+>  		}
+>  	}
+>  
+> @@ -1601,29 +1626,29 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+>  	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
+>  	fp /= reclaim_stat->recent_rotated[1] + 1;
+>  
+> -	/* Normalize to percentages */
+> -	percent[0] = 100 * ap / (ap + fp + 1);
+> -	percent[1] = 100 - percent[0];
+> -}
+> -
+> -/*
+> - * Smallish @nr_to_scan's are deposited in @nr_saved_scan,
+> - * until we collected @swap_cluster_max pages to scan.
+> - */
+> -static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
+> -				       unsigned long *nr_saved_scan)
+> -{
+> -	unsigned long nr;
+> +	fraction[0] = ap;
+> +	denominator[0] = ap + fp + 1;
+> +	fraction[1] = fp;
+> +	denominator[1] = ap + fp + 1;
+>  
+> -	*nr_saved_scan += nr_to_scan;
+> -	nr = *nr_saved_scan;
+> +out:
+> +	for_each_evictable_lru(l) {
+> +		int file = is_file_lru(l);
+> +		unsigned long scan;
+>  
+> -	if (nr >= SWAP_CLUSTER_MAX)
+> -		*nr_saved_scan = 0;
+> -	else
+> -		nr = 0;
+> +		if (fraction[file] == 0) {
+> +			nr[l] = 0;
+> +			continue;
+> +		}
+>  
+> -	return nr;
+> +		scan = zone_nr_lru_pages(zone, sc, l);
+> +		if (priority) {
+> +			scan >>= priority;
+> +			scan = (scan * fraction[file] / denominator[file]);
 
-	memset page fault 2182476
+The "()" is not necessary here, or better end it here^
 
-looking like a major performance advantage, but then the actual usage is 
-much less noticeable.
+Thanks,
+Fengguang
 
-IOW, how much of the performance advantage would we get from a _much_ 
-simpler patch to just much more aggressively pre-populate the page tables 
-(especially for just anonymous pages, I assume) or even just fault pages 
-in several at a time when you have lots of memory?
-
-In particular, when you quote 6% improvement for a kernel compile, your 
-own numbers make seriously wonder how many percentage points you'd get 
-from just faulting in 8 pages at a time when you have lots of memory free, 
-and use a single 3-order allocation to get those eight pages?
-
-Would that already shrink the difference between those "memset page 
-faults" by a factor of eight?
-
-See what I'm saying?  
-
-		Linus
+> +		}
+> +		nr[l] = nr_scan_try_batch(scan,
+> +					  &reclaim_stat->nr_saved_scan[l]);
+> +	}
+>  }
+>  
+>  /*
+> @@ -1634,31 +1659,11 @@ static void shrink_zone(int priority, struct zone *zone,
+>  {
+>  	unsigned long nr[NR_LRU_LISTS];
+>  	unsigned long nr_to_scan;
+> -	unsigned long percent[2];	/* anon @ 0; file @ 1 */
+>  	enum lru_list l;
+>  	unsigned long nr_reclaimed = sc->nr_reclaimed;
+>  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+> -	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+> -
+> -	get_scan_ratio(zone, sc, percent);
+>  
+> -	for_each_evictable_lru(l) {
+> -		int file = is_file_lru(l);
+> -		unsigned long scan;
+> -
+> -		if (percent[file] == 0) {
+> -			nr[l] = 0;
+> -			continue;
+> -		}
+> -
+> -		scan = zone_nr_lru_pages(zone, sc, l);
+> -		if (priority) {
+> -			scan >>= priority;
+> -			scan = (scan * percent[file]) / 100;
+> -		}
+> -		nr[l] = nr_scan_try_batch(scan,
+> -					  &reclaim_stat->nr_saved_scan[l]);
+> -	}
+> +	get_scan_count(zone, sc, nr, priority);
+>  
+>  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+>  					nr[LRU_INACTIVE_FILE]) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
