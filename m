@@ -1,55 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E1BD76B0216
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 01:30:39 -0400 (EDT)
-Date: Mon, 5 Apr 2010 07:30:26 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: why are some low-level MM routines being exported?
-Message-ID: <20100405053026.GA23515@logfs.org>
-References: <alpine.LFD.2.00.1004041125350.5617@localhost> <1270396784.1814.92.camel@barrios-desktop> <20100404160328.GA30540@ioremap.net> <1270398112.1814.114.camel@barrios-desktop> <20100404195533.GA8836@logfs.org> <p2g28c262361004041759n52f5063dhb182663321d918bb@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8ADCB6B0217
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 02:20:37 -0400 (EDT)
+Received: by pzk30 with SMTP id 30so2709241pzk.12
+        for <linux-mm@kvack.org>; Sun, 04 Apr 2010 23:20:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <p2g28c262361004041759n52f5063dhb182663321d918bb@mail.gmail.com>
+In-Reply-To: <20100405053026.GA23515@logfs.org>
+References: <alpine.LFD.2.00.1004041125350.5617@localhost>
+	 <1270396784.1814.92.camel@barrios-desktop>
+	 <20100404160328.GA30540@ioremap.net>
+	 <1270398112.1814.114.camel@barrios-desktop>
+	 <20100404195533.GA8836@logfs.org>
+	 <p2g28c262361004041759n52f5063dhb182663321d918bb@mail.gmail.com>
+	 <20100405053026.GA23515@logfs.org>
+Date: Mon, 5 Apr 2010 15:20:36 +0900
+Message-ID: <x2w28c262361004042320x52dda2d1l30789cac28fbef6@mail.gmail.com>
+Subject: Re: why are some low-level MM routines being exported?
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
+To: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@logfs.org>
 Cc: Evgeniy Polyakov <zbr@ioremap.net>, "Robert P. J. Day" <rpjday@crashcourse.ca>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 April 2010 09:59:18 +0900, Minchan Kim wrote:
-> On Mon, Apr 5, 2010 at 4:55 AM, JA?rn Engel <joern@logfs.org> wrote:
-> > On Mon, 5 April 2010 01:21:52 +0900, Minchan Kim wrote:
-> >> >
-> >> Until now, other file system don't need it.
-> >> Why do you need?
-> >
-> > To avoid deadlocks. A You tell logfs to write out some locked page, logfs
-> > determines that it needs to run garbage collection first. A Garbage
-> > collection can read any page. A If it called find_or_create_page() for
-> > the locked page, you have a deadlock.
-> 
-> Could you do it with add_to_page_cache and pagevec_lru_add_file?
+On Mon, Apr 5, 2010 at 2:30 PM, J=C3=B6rn Engel <joern@logfs.org> wrote:
+> On Mon, 5 April 2010 09:59:18 +0900, Minchan Kim wrote:
+>> On Mon, Apr 5, 2010 at 4:55 AM, J=C3=B6rn Engel <joern@logfs.org> wrote:
+>> > On Mon, 5 April 2010 01:21:52 +0900, Minchan Kim wrote:
+>> >> >
+>> >> Until now, other file system don't need it.
+>> >> Why do you need?
+>> >
+>> > To avoid deadlocks. =C2=A0You tell logfs to write out some locked page=
+, logfs
+>> > determines that it needs to run garbage collection first. =C2=A0Garbag=
+e
+>> > collection can read any page. =C2=A0If it called find_or_create_page()=
+ for
+>> > the locked page, you have a deadlock.
+>>
+>> Could you do it with add_to_page_cache and pagevec_lru_add_file?
+>
+> Maybe. =C2=A0But how would that be an improvement?
+>
+> As I see it, logfs needs a variant of find_or_create_page() that does
+> not block on any pages waiting for logfs GC. =C2=A0Currently that variant
+> lives under fs/logfs/ and uses add_to_page_cache_lru(). =C2=A0If there ar=
+e
+> valid reasons against exporting add_to_page_cache_lru(), the right
+> solution is to move the logfs variant to mm/, not to rewrite it.
+>
+> If you want to change the implementation from using
+> add_to_page_cache_lru() to using add_to_page_cache() and
+> pagevec_lru_add_file(), then you should have a better reason than not
+> exporting add_to_page_cache_lru(). =C2=A0If the new implementation was an=
+y
+> better, I would gladly take it.
 
-Maybe.  But how would that be an improvement?
+Previously I said, what I have a concern is that if file systems or
+some modules abuses
+add_to_page_cache_lru, it might system LRU list wrong so then system
+go to hell.
+Of course, if we use it carefully, it can be good but how do you make sure =
+it?
 
-As I see it, logfs needs a variant of find_or_create_page() that does
-not block on any pages waiting for logfs GC.  Currently that variant
-lives under fs/logfs/ and uses add_to_page_cache_lru().  If there are
-valid reasons against exporting add_to_page_cache_lru(), the right
-solution is to move the logfs variant to mm/, not to rewrite it.
+I am not a file system expert but as I read comment of read_cache_pages
+"Hides the details of the LRU cache etc from the filesystem", I
+thought it is not good that
+file system handle LRU list directly. At least, we have been trying for yea=
+rs.
 
-If you want to change the implementation from using
-add_to_page_cache_lru() to using add_to_page_cache() and
-pagevec_lru_add_file(), then you should have a better reason than not
-exporting add_to_page_cache_lru().  If the new implementation was any
-better, I would gladly take it.
+If we can do it with current functions without big cost, I think it's
+rather good than exporting
+new function. Until 18bc0bbd162e3, we didn't export that but all file
+systems works well.
+In addition, when the patch is merged, any mm guys seem to be not
+reviewed it, too.
 
-JA?rn
+I hope just ring at the bell to remain record to justify why we need
+exporting new function
+although we can do it with existing functions.
 
--- 
-Money can buy bandwidth, but latency is forever.
--- John R. Mashey
+If any other mm guys don't oppose it, I would be not against that, either.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
