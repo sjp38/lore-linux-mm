@@ -1,61 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F5386B01E3
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 14:24:42 -0400 (EDT)
-Message-ID: <2bd101cad4ec$5a425f30$0400a8c0@dcccs>
-From: "Janos Haar" <janos.haar@netcenter.hu>
-References: <03ca01cacb92$195adf50$0400a8c0@dcccs> <2375c9f91003242029p1efbbea1v8e313e460b118f14@mail.gmail.com> <20100325153110.6be9a3df.kamezawa.hiroyu@jp.fujitsu.com> <02c101cacbf8$d21d1650$0400a8c0@dcccs> <179901cad182$5f87f620$0400a8c0@dcccs> <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com> <1fe901cad2b0$d39d0300$0400a8c0@dcccs> <20100402230905.GW3335@dastard> <22c901cad333$7a67db60$0400a8c0@dcccs> <20100404103701.GX3335@dastard>
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
-Date: Mon, 5 Apr 2010 20:17:27 +0200
-MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-1";
-	reply-type=original
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EE6A86B01E3
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 15:10:27 -0400 (EDT)
+Date: Mon, 5 Apr 2010 12:09:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
+Message-Id: <20100405120906.0abe8e58.akpm@linux-foundation.org>
+In-Reply-To: <patchbomb.1270168887@v2.random>
+References: <patchbomb.1270168887@v2.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Dave,
 
-Thank you for your answer.
-Like i sad before, this is a productive server with important service.
-Can you please send the fix for me as soon as it is done even for testing 
-it....
-Or point me to the right direction to get it?
+Problem.  It appears that these patches have only been sent to
+linux-mm.  Linus doesn't read linux-mm and has never seen them.  I do
+think we should get things squared away with him regarding the overall
+intent and implementation approach before trying to go further.
 
-Thanks a lot,
-Janos Haar
+I forwarded "[PATCH 27 of 41] transparent hugepage core" and his
+summary was "So I don't hate the patch, but it sure as hell doesn't
+make me happy either.  And if the only advantage is about TLB miss
+costs, I really don't see the point personally.".  So if there's more
+benefit to the patches than this, that will need some expounding upon.
 
------ Original Message ----- 
-From: "Dave Chinner" <david@fromorbit.com>
-To: "Janos Haar" <janos.haar@netcenter.hu>
-Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
-<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
-<axboe@kernel.dk>
-Sent: Sunday, April 04, 2010 12:37 PM
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
-please!...)
+So I'd suggest that you a) address some minor Linus comments which I'll
+forward separately, b) rework [patch 0/n] to provide a complete
+description of the benefits and the downsides (if that isn't there
+already) and c) resend everything, cc'ing Linus and linux-kernel and
+we'll get it thrashed out.
 
 
-> On Sat, Apr 03, 2010 at 03:42:10PM +0200, Janos Haar wrote:
->> Hello,
->>
->> The actual version of kernel is 2.6.32.10.
->> There is any significant fixes for me in the last (.11) or in the
->> next (33.x)?
->
-> The fixes for this bug are queued up already for the next
-> 2.6.32.x release.
->
-> Cheers,
->
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com 
+Sorry.  Normally I use my own judgement on MM patches, but in this case
+if I was asked "why did you send all this stuff", I don't believe I
+personally have strong enough arguments to justify the changes - you're
+in a better position than I to make that case.  Plus this is a *large*
+patchset, and it plays in an area where Linus is known to have, err,
+opinions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
