@@ -1,270 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D68286B0216
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 06:14:48 -0400 (EDT)
-Date: Mon, 5 Apr 2010 11:14:25 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 68E276B0222
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 06:48:14 -0400 (EDT)
+Date: Mon, 5 Apr 2010 11:47:52 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Question] race condition in mm/page_alloc.c regarding
-	page->lru?
-Message-ID: <20100405101424.GA21207@csn.ul.ie>
-References: <i2i5f4a33681003312105m4cd42e9ayfe35cc0988c401b6@mail.gmail.com> <g2g5f4a33681004012051wedea9538w9da89e210b731422@mail.gmail.com> <20100402135955.645F.A69D9226@jp.fujitsu.com> <20100402094805.GA12886@csn.ul.ie> <h2rd6200be21004021759x4ae83403i4daa206d47b7d523@mail.gmail.com>
+Subject: Re: [PATCH] oom killer: break from infinite loop
+Message-ID: <20100405104752.GB21207@csn.ul.ie>
+References: <1269447905-5939-1-git-send-email-anfei.zhou@gmail.com> <20100326150805.f5853d1c.akpm@linux-foundation.org> <20100326223356.GA20833@redhat.com> <20100328145528.GA14622@desktop> <20100328162821.GA16765@redhat.com> <alpine.DEB.2.00.1003281341590.30570@chino.kir.corp.google.com> <20100402101711.GC12886@csn.ul.ie> <alpine.DEB.2.00.1004041616280.7198@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <h2rd6200be21004021759x4ae83403i4daa206d47b7d523@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1004041616280.7198@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Arve Hj?nnev?g <arve@android.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, TAO HU <tghk48@motorola.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Ye Yuan.Bo-A22116" <yuan-bo.ye@motorola.com>, Chang Qing-A21550 <Qing.Chang@motorola.com>, linux-arm-kernel@lists.infradead.org
+To: David Rientjes <rientjes@google.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, anfei <anfei.zhou@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 02, 2010 at 05:59:00PM -0700, Arve Hj?nnev?g wrote:
-> On Fri, Apr 2, 2010 at 2:48 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > On Fri, Apr 02, 2010 at 02:03:23PM +0900, KOSAKI Motohiro wrote:
-> >> Cc to Mel,
-> >>
-> >> > 2 patches related to page_alloc.c were applied.
-> >> > Does anyone see a connection between the 2 patches and the panic?
-> >> > NOTE: the full patches are attached.
-> >>
-> >> I think your attached two patches are perfectly unrelated your problem.
-> >>
-> >
-> > Agreed. It's unlikely that there is a race as such in the page
-> > allocator. In buffered_rmqueue that you initially talk about, the lists
-> > being manipulated are per-cpu lists. About the only way to corrupt them
-> > is if you had a NMI hander that called the page allocator. I really hope
-> > your platform is not doing anything like that.
-> >
-> > A double free of page->lru is a possibility. You could try reproducing
-> > the problem with CONFIG_DEBUG_LIST enabled to see if anything falls out.
-> >
-> >> "mm: Add min_free_order_shift tunable." seems makes zero sense. I don't think this patch
-> >> need to be merge.
-> >>
-> >
-> > It makes a marginal amount of sense. Basically what it does is allowing
-> > high-order allocations to go much further below their watermarks than is
-> > currently allowed. If the platform in question is doing a lot of high-order
-> > allocations, this patch could be seen to "fix" the problem but you wouldn't
-> > touch mainline with it with a barge pole. It would be more stable to fix
-> > the drivers to not use high order allocations or use a mempool.
-> >
+On Sun, Apr 04, 2010 at 04:26:38PM -0700, David Rientjes wrote:
+> On Fri, 2 Apr 2010, Mel Gorman wrote:
 > 
-> The high order allocation that caused problems was the first level
-> page table for each process.
-
-Out of curiousity, how big is that allocation? Is it specific to
-android? If it is, I guess it can be let slide but if it's common, it
-would be worth thinking of an arch-hook that tells the VM that a
-particular high-order is very common. For example, one possibility would
-be to ask kswapd to always reclaim at a given order even if the
-watermarks required are for a lower order.
-
-> Each time a new process started the
-> kernel would empty the entire page cache to create contiguous free
-> memory.
-
-I ask because I'm surprised the entire page cache got chucked out
-
-> With the reserved pageblock mostly full (fixed by the second
-> patch) this contiguous memory would then almost immediately get used
-> for low order allocations, so the same problem starts again when the
-> next process starts.
-
-This is a little outside what I expected the reserved pageblock was
-intended for. I expected it to be used for high-order short-lived
-allocations such as required by some wireless drivers. Pagetables are a
-bit more common.
-
-> I agree this patch does not fix the problem, but
-> it does improve things when the problem hits. I have not seen a device
-> in this situation with the second patch applied, but I did not remove
-> the first patch in case the reserved pageblock fills up.
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -1610,13 +1610,21 @@ try_next_zone:
+> > >  }
+> > >  
+> > >  static inline int
+> > > -should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+> > > +should_alloc_retry(struct task_struct *p, gfp_t gfp_mask, unsigned int order,
+> > >  				unsigned long pages_reclaimed)
+> > >  {
+> > >  	/* Do not loop if specifically requested */
+> > >  	if (gfp_mask & __GFP_NORETRY)
+> > >  		return 0;
+> > >  
+> > > +	/* Loop if specifically requested */
+> > > +	if (gfp_mask & __GFP_NOFAIL)
+> > > +		return 1;
+> > > +
+> > 
+> > Meh, you could have preserved the comment but no biggie.
+> > 
 > 
-> > It is inconceivable this patch is related to the problem though.
-> >
-> >> but "mm: Check if any page in a pageblock is reserved before marking it MIGRATE_RESERVE"
-> >> treat strange hardware correctly, I think. If Mel ack this, I hope merge it.
-> >> Mel, Can we hear your opinion?
-> >>
-> >
-> > This patch is interesting and I am surprised it is required. Is it really the
-> > case that page blocks near the start of a zone are dominated with PageReserved
-> > pages but the first one happen to be free? I guess it's conceivable on ARM
-> > where memmap can be freed at boot time.
+> I'll remember to preserve it when it's proposed.
 > 
-> I think this happens by default on arm. The kernel starts at offset
-> 0x8000 to leave room for boot parameters, and in recent kernel
-> versions (>~2.6.26-29) this memory is freed.
+> > > +	/* Task is killed, fail the allocation if possible */
+> > > +	if (fatal_signal_pending(p))
+> > > +		return 0;
+> > > +
+> > 
+> > Seems reasonable. This will be checked on every major loop in the
+> > allocator slow patch.
+> > 
+> > >  	/*
+> > >  	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
+> > >  	 * means __GFP_NOFAIL, but that may not be true in other
+> > > @@ -1635,13 +1643,6 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+> > >  	if (gfp_mask & __GFP_REPEAT && pages_reclaimed < (1 << order))
+> > >  		return 1;
+> > >  
+> > > -	/*
+> > > -	 * Don't let big-order allocations loop unless the caller
+> > > -	 * explicitly requests that.
+> > > -	 */
+> > > -	if (gfp_mask & __GFP_NOFAIL)
+> > > -		return 1;
+> > > -
+> > >  	return 0;
+> > >  }
+> > >  
+> > > @@ -1798,6 +1799,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+> > >  	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+> > >  		if (!in_interrupt() &&
+> > >  		    ((p->flags & PF_MEMALLOC) ||
+> > > +		     (fatal_signal_pending(p) && (gfp_mask & __GFP_NOFAIL)) ||
+> > 
+> > This is a lot less clear. GFP_NOFAIL is rare so this is basically saying
+> > that all threads with a fatal signal pending can ignore watermarks. This
+> > is dangerous because if 1000 threads get killed, there is a possibility
+> > of deadlocking the system.
+> > 
 > 
-
-Ok, that's fine.
-
-> >
-> > There is a theoritical problem with the patch but it is easily resolved.
-> > A PFN walker like this must call pfn_valid_within() before calling
-> > pfn_to_page(). If they do not, it's possible to get complete garbage
-> > for the page and result in a bad dereference. In this particular case,
-> > it would be a kernel oops rather than memory corruption though.
-> >
-> > If that was fixed, I'd see no problem with Acking the patch.
-> >
+> I don't quite understand the comment, this is only for __GFP_NOFAIL 
+> allocations, which you say are rare, so a large number of threads won't be 
+> doing this simultaneously.
 > 
-> I can fix this if you want the patch in mainline. I was not sure it
-> was acceptable since will slow down boot on all systems, even where it
-> is not needed.
+> > Why not obey the watermarks and just not retry the loop later and fail
+> > the allocation?
+> > 
+> 
+> The above check for (fatal_signal_pending(p) && (gfp_mask & __GFP_NOFAIL)) 
+> essentially oom kills p without invoking the oom killer before direct 
+> reclaim is invoked.  We know it has a pending SIGKILL and wants to exit, 
+> so we allow it to allocate beyond the min watermark to avoid costly 
+> reclaim or needlessly killing another task.
 > 
 
-It will not be noticeable. Only a few pageblocks are scanned per zone
-and the full zone gets walked for a variety of reasons during boot
-anyway. If it ever became absolutly necessary, the lowest suitable
-pageblock could be identified when the bootmem allocator is being torn
-down as the necessary information becomes available then.
+Sorry, I typod.
 
-> > It is also inconceivable this patch is related to the problem.
-> >
-> >> >
-> >> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> > index a596bfd..34a29e2 100644
-> >> > --- a/mm/page_alloc.c
-> >> > +++ b/mm/page_alloc.c
-> >> > @@ -2551,6 +2551,20 @@ static inline unsigned long
-> >> > wait_table_bits(unsigned long size)
-> >> >  #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
-> >> >
-> >> >  /*
-> >> > + * Check if a pageblock contains reserved pages
-> >> > + */
-> >> > +static int pageblock_is_reserved(unsigned long start_pfn)
-> >> > +{
-> >> > +   unsigned long end_pfn = start_pfn + pageblock_nr_pages;
-> >> > +   unsigned long pfn;
-> >> > +
-> >> > +   for (pfn = start_pfn; pfn < end_pfn; pfn++)
-> >> > +           if (PageReserved(pfn_to_page(pfn)))
-> >> > +                   return 1;
-> >> > +   return 0;
-> >> > +}
-> >> > +
-> >> > +/*
-> >> >   * Mark a number of pageblocks as MIGRATE_RESERVE. The number
-> >> >   * of blocks reserved is based on zone->pages_min. The memory within the
-> >> >   * reserve will tend to store contiguous free pages. Setting min_free_kbytes
-> >> > @@ -2579,7 +2593,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
-> >> >                     continue;
-> >> >
-> >> >             /* Blocks with reserved pages will never free, skip them. */
-> >> > -           if (PageReserved(page))
-> >> > +           if (pageblock_is_reserved(pfn))
-> >> >                     continue;
-> >> >
-> >> >             block_migratetype = get_pageblock_migratetype(page);
-> >> > --
-> >> > 1.5.4.3
-> >> >
-> >> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> > index 5c44ed4..a596bfd 100644
-> >> > --- a/mm/page_alloc.c
-> >> > +++ b/mm/page_alloc.c
-> >> > @@ -119,6 +119,7 @@ static char * const zone_names[MAX_NR_ZONES] = {
-> >> >  };
-> >> >
-> >> >  int min_free_kbytes = 1024;
-> >> > +int min_free_order_shift = 1;
-> >> >
-> >> >  unsigned long __meminitdata nr_kernel_pages;
-> >> >  unsigned long __meminitdata nr_all_pages;
-> >> > @@ -1256,7 +1257,7 @@ int zone_watermark_ok(struct zone *z, int order,
-> >> > unsigned long mark,
-> >> >             free_pages -= z->free_area[o].nr_free << o;
-> >> >
-> >> >             /* Require fewer higher order pages to be free */
-> >> > -           min >>= 1;
-> >> > +           min >>= min_free_order_shift;
-> >> >
-> >> >             if (free_pages <= min)
-> >> >                     return 0;
-> >> > --
-> >> >
-> >> >
-> >> > On Thu, Apr 1, 2010 at 12:05 PM, TAO HU <tghk48@motorola.com> wrote:
-> >> > > Hi, all
-> >> > >
-> >> > > We got a panic on our ARM (OMAP) based HW.
-> >> > > Our code is based on 2.6.29 kernel (last commit for mm/page_alloc.c is
-> >> > > cc2559bccc72767cb446f79b071d96c30c26439b)
-> >> > >
-> >> > > It appears to crash while going through pcp->list in
-> >> > > buffered_rmqueue() of mm/page_alloc.c after checking vmlinux.
-> >> > > "00100100" implies LIST_POISON1 that suggests a race condition between
-> >> > > list_add() and list_del() in my personal view.
-> >> > > However we not yet figure out locking problem regarding page.lru.
-> >> > >
-> >> > > Any known issues about race condition in mm/page_alloc.c?
-> >> > > And other hints are highly appreciated.
-> >> > >
-> >> > >  /* Find a page of the appropriate migrate type */
-> >> > >                if (cold) {
-> >> > >                   ... ...
-> >> > >                } else {
-> >> > >                        list_for_each_entry(page, &pcp->list, lru)
-> >> > >                                if (page_private(page) == migratetype)
-> >> > >                                        break;
-> >> > >                }
-> >> > >
-> >> > > <1>[120898.805267] Unable to handle kernel paging request at virtual
-> >> > > address 00100100
-> >> > > <1>[120898.805633] pgd = c1560000
-> >> > > <1>[120898.805786] [00100100] *pgd=897b3031, *pte=00000000, *ppte=00000000
-> >> > > <4>[120898.806457] Internal error: Oops: 17 [#1] PREEMPT
-> >> > > ... ...
-> >> > > <4>[120898.807861] CPU: 0    Not tainted  (2.6.29-omap1 #1)
-> >> > > <4>[120898.808044] PC is at get_page_from_freelist+0x1d0/0x4b0
-> >> > > <4>[120898.808227] LR is at get_page_from_freelist+0xc8/0x4b0
-> >> > > <4>[120898.808563] pc : [<c00a600c>]    lr : [<c00a5f04>]    psr: 800000d3
-> >> > > <4>[120898.808563] sp : c49fbd18  ip : 00000000  fp : c49fbd74
-> >> > > <4>[120898.809020] r10: 00000000  r9 : 001000e8  r8 : 00000002
-> >> > > <4>[120898.809204] r7 : 001200d2  r6 : 60000053  r5 : c0507c4c  r4 : c49fa000
-> >> > > <4>[120898.809509] r3 : 001000e8  r2 : 00100100  r1 : c0507c6c  r0 : 00000001
-> >> > > <4>[120898.809844] Flags: Nzcv  IRQs off  FIQs off  Mode SVC_32  ISA
-> >> > > ARM  Segment kernel
-> >> > > <4>[120898.810028] Control: 10c5387d  Table: 82160019  DAC: 00000017
-> >> > > <4>[120898.948425] Backtrace:
-> >> > > <4>[120898.948760] [<c00a5e3c>] (get_page_from_freelist+0x0/0x4b0)
-> >> > > from [<c00a6398>] (__alloc_pages_internal+0xac/0x3e8)
-> >> > > <4>[120898.949554] [<c00a62ec>] (__alloc_pages_internal+0x0/0x3e8)
-> >> > > from [<c00b461c>] (handle_mm_fault+0x16c/0xbac)
-> >> > > <4>[120898.950347] [<c00b44b0>] (handle_mm_fault+0x0/0xbac) from
-> >> > > [<c00b51d0>] (__get_user_pages+0x174/0x2b4)
-> >> > > <4>[120898.951019] [<c00b505c>] (__get_user_pages+0x0/0x2b4) from
-> >> > > [<c00b534c>] (get_user_pages+0x3c/0x44)
-> >> > > <4>[120898.951812] [<c00b5310>] (get_user_pages+0x0/0x44) from
-> >> > > [<c00caf9c>] (get_arg_page+0x50/0xa4)
-> >> > > <4>[120898.952636] [<c00caf4c>] (get_arg_page+0x0/0xa4) from
-> >> > > [<c00cb1ec>] (copy_strings+0x108/0x210)
-> >> > > <4>[120898.953430]  r7:beffffe4 r6:00000ffc r5:00000000 r4:00000018
-> >> > > <4>[120898.954223] [<c00cb0e4>] (copy_strings+0x0/0x210) from
-> >> > > [<c00cb330>] (copy_strings_kernel+0x3c/0x74)
-> >> > > <4>[120898.955047] [<c00cb2f4>] (copy_strings_kernel+0x0/0x74) from
-> >> > > [<c00cc778>] (do_execve+0x18c/0x2b0)
-> >> > > <4>[120898.955841]  r5:0001e240 r4:0001e224
-> >> > > <4>[120898.956329] [<c00cc5ec>] (do_execve+0x0/0x2b0) from
-> >> > > [<c00400e4>] (sys_execve+0x3c/0x5c)
-> >> > > <4>[120898.957153] [<c00400a8>] (sys_execve+0x0/0x5c) from
-> >> > > [<c003ce80>] (ret_fast_syscall+0x0/0x2c)
-> >> > > <4>[120898.957946]  r7:0000000b r6:0001e270 r5:00000000 r4:0001d580
-> >> > > <4>[120898.958740] Code: e1530008 0a000006 e2429018 e1a03009 (e5b32018)
-> >> > >
-> >> > >
-> >> > >
-> >> > > --
-> >> > > Best Regards
-> >> > > Hu Tao
-> >> > >
-> >>
-> >>
-> >>
+GFP_NOFAIL is rare but this is basically saying that all threads with a
+fatal signal and using NOFAIL can ignore watermarks.
+
+I don't think there is any caller in an exit path will be using GFP_NOFAIL
+as it's most common user is file-system related but it still feels unnecssary
+to check this case on every call to the slow path.
+
+> > >  		     unlikely(test_thread_flag(TIF_MEMDIE))))
+> > >  			alloc_flags |= ALLOC_NO_WATERMARKS;
+> > >  	}
+> > > @@ -1812,6 +1814,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> > >  	int migratetype)
+> > >  {
+> > >  	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> > > +	const gfp_t nofail = gfp_mask & __GFP_NOFAIL;
+> > >  	struct page *page = NULL;
+> > >  	int alloc_flags;
+> > >  	unsigned long pages_reclaimed = 0;
+> > > @@ -1876,7 +1879,7 @@ rebalance:
+> > >  		goto nopage;
+> > >  
+> > >  	/* Avoid allocations with no watermarks from looping endlessly */
+> > > -	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+> > > +	if (test_thread_flag(TIF_MEMDIE) && !nofail)
+> > >  		goto nopage;
+> > >  
+> > >  	/* Try direct reclaim and then allocating */
+> > > @@ -1888,6 +1891,10 @@ rebalance:
+> > >  	if (page)
+> > >  		goto got_pg;
+> > >  
+> > > +	/* Task is killed, fail the allocation if possible */
+> > > +	if (fatal_signal_pending(p) && !nofail)
+> > > +		goto nopage;
+> > > +
+> > 
+> > Again, I would expect this to be caught by should_alloc_retry().
+> > 
+> 
+> It is, but only after the oom killer is called.  We don't want to 
+> needlessly kill another task here when p has already been killed but may 
+> not be PF_EXITING yet.
+> 
+
+Fair point. How about just checking before __alloc_pages_may_oom() is
+called then? This check will be then in a slower path.
+I recognise this means that it is also only checked when direct reclaim
+is failing but there is at least one good reason for it.
+
+With this change, processes that have been sigkilled may now fail allocations
+that they might not have failed before. It would be difficult to trigger
+but here is one possible problem with this change;
+
+1. System was borderline with some trashing
+2. User starts program that gobbles up lots of memory on page faults,
+   trashing the system further and annoying the user
+3. User sends SIGKILL
+4. Process was faulting and returns NULL because fatal signal was pending
+5. Fault path returns VM_FAULT_OOM
+6. Arch-specific path (on x86 anyway) calls out_of_memory again because
+   VM_FAULT_OOM was returned.
+
+Ho hum, I haven't thought about this before but it's also possible that
+a process that is fauling that gets oom-killed will trigger a cascading
+OOM kill. If the system was heavily trashing, it might mean a large
+number of processes get killed.
 
 -- 
 Mel Gorman
