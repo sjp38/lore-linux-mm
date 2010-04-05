@@ -1,70 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id CFAEF6B01F0
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 10:58:55 -0400 (EDT)
-Received: from guests.acceleratorcentre.net ([209.222.173.41] helo=crashcourse.ca)
-	by astoria.ccjclearline.com with esmtpsa (TLSv1:AES256-SHA:256)
-	(Exim 4.69)
-	(envelope-from <rpjday@crashcourse.ca>)
-	id 1NynlG-0003SZ-VT
-	for linux-mm@kvack.org; Mon, 05 Apr 2010 10:58:47 -0400
-Date: Mon, 5 Apr 2010 10:56:30 -0400 (EDT)
-From: "Robert P. J. Day" <rpjday@crashcourse.ca>
-Subject: [PATCH] MM: Make "struct vm_region {...}" depend on !CONFIG_MMU.
-Message-ID: <alpine.LFD.2.00.1004051052410.8295@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F5386B01E3
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 14:24:42 -0400 (EDT)
+Message-ID: <2bd101cad4ec$5a425f30$0400a8c0@dcccs>
+From: "Janos Haar" <janos.haar@netcenter.hu>
+References: <03ca01cacb92$195adf50$0400a8c0@dcccs> <2375c9f91003242029p1efbbea1v8e313e460b118f14@mail.gmail.com> <20100325153110.6be9a3df.kamezawa.hiroyu@jp.fujitsu.com> <02c101cacbf8$d21d1650$0400a8c0@dcccs> <179901cad182$5f87f620$0400a8c0@dcccs> <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com> <1fe901cad2b0$d39d0300$0400a8c0@dcccs> <20100402230905.GW3335@dastard> <22c901cad333$7a67db60$0400a8c0@dcccs> <20100404103701.GX3335@dastard>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
+Date: Mon, 5 Apr 2010 20:17:27 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
+Dave,
 
-Since the "vm_region" structure appears to be relevant only under
-NOMMU, conditionally include it in mm_types.h.
+Thank you for your answer.
+Like i sad before, this is a productive server with important service.
+Can you please send the fix for me as soon as it is done even for testing 
+it....
+Or point me to the right direction to get it?
 
-Signed-off-by: Robert P. J. Day <rpjday@crashcourse.ca>
+Thanks a lot,
+Janos Haar
 
----
-
-  if i read mm_types.h, i can see the obvious conditional inclusion:
-
-#ifndef CONFIG_MMU
-        struct vm_region *vm_region;    /* NOMMU mapping region */
-#endif
-
-since that's the case, it seems only consistent to make the structure
-declaration itself similarly conditional, no?
-
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index b8bb9a6..76f1174 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -102,6 +102,7 @@ struct page {
- #endif
- };
-
-+#ifndef CONFIG_MMU
- /*
-  * A region containing a mapping of a non-memory backed file under NOMMU
-  * conditions.  These are held in a global tree and are pinned by the VMAs that
-@@ -120,6 +121,7 @@ struct vm_region {
- 	bool		vm_icache_flushed : 1; /* true if the icache has been flushed for
- 						* this region */
- };
-+#endif
-
- /*
-  * This struct defines a memory VMM memory area. There is one of these
+----- Original Message ----- 
+From: "Dave Chinner" <david@fromorbit.com>
+To: "Janos Haar" <janos.haar@netcenter.hu>
+Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
+<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
+<axboe@kernel.dk>
+Sent: Sunday, April 04, 2010 12:37 PM
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
+please!...)
 
 
-========================================================================
-Robert P. J. Day                               Waterloo, Ontario, CANADA
-
-            Linux Consulting, Training and Kernel Pedantry.
-
-Web page:                                          http://crashcourse.ca
-Twitter:                                       http://twitter.com/rpjday
-========================================================================
+> On Sat, Apr 03, 2010 at 03:42:10PM +0200, Janos Haar wrote:
+>> Hello,
+>>
+>> The actual version of kernel is 2.6.32.10.
+>> There is any significant fixes for me in the last (.11) or in the
+>> next (33.x)?
+>
+> The fixes for this bug are queued up already for the next
+> 2.6.32.x release.
+>
+> Cheers,
+>
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
