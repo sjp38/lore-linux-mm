@@ -1,80 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AD24B600337
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 07:41:40 -0400 (EDT)
-Received: from guests.acceleratorcentre.net ([209.222.173.41] helo=crashcourse.ca)
-	by astoria.ccjclearline.com with esmtpsa (TLSv1:AES256-SHA:256)
-	(Exim 4.69)
-	(envelope-from <rpjday@crashcourse.ca>)
-	id 1NykgS-0007aC-Jc
-	for linux-mm@kvack.org; Mon, 05 Apr 2010 07:41:36 -0400
-Date: Mon, 5 Apr 2010 07:39:27 -0400 (EDT)
-From: "Robert P. J. Day" <rpjday@crashcourse.ca>
-Subject: a couple more oddities(?) in mm code
-Message-ID: <alpine.LFD.2.00.1004050732180.5342@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A1CAE6B021B
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 08:47:43 -0400 (EDT)
+Date: Mon, 5 Apr 2010 16:47:36 +0400
+From: Evgeniy Polyakov <zbr@ioremap.net>
+Subject: Re: why are some low-level MM routines being exported?
+Message-ID: <20100405124736.GA11214@ioremap.net>
+References: <alpine.LFD.2.00.1004041125350.5617@localhost> <1270396784.1814.92.camel@barrios-desktop> <20100404160328.GA30540@ioremap.net> <1270398112.1814.114.camel@barrios-desktop> <20100404181550.GA2350@ioremap.net> <t2z28c262361004041736w61b066efr29557741424e158e@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <t2z28c262361004041736w61b066efr29557741424e158e@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: "Robert P. J. Day" <rpjday@crashcourse.ca>, linux-mm@kvack.org, Joern Engel <joern@logfs.org>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Apr 05, 2010 at 09:36:00AM +0900, Minchan Kim (minchan.kim@gmail.com) wrote:
+> > All filesystems already call it through find_or_create_page() or
+> > grab_page() invoked via read path. In some cases fs has more than
+> > one page grabbed via its internal path where data to be read is
+> > already placed, so it may want just to add those pages into mm lru.
+> 
+> I understood why it does need that in pohmelfs.
+> AFAIU, other file system using general functions(ex, mpage_readpages or
+> read_cache_pages) don't need direct LRU handling since it's hided.
+> But pohmelfs doesn't use general functions.
+> 
+> Isn't pagevec_lru_add_file enough like other file system(ex, nfs, cifs)?
 
-  (aside:  i am not trying to be an annoying pedant, i am merely
-succeeding.  seriously, i'm currently working my way thru the MM code,
-in a (possibly vain) attempt to finally understand it, and i
-occasionally run across things that just look a bit, well, odd.  but
-maybe it's just me.  let me know if any of this is inappropriate.)
+This will force to reinvent add_to_page_cache_lru() by doing private
+function which will call add_to_page_cache() and pagevec_lru_add_file(),
+which is effectively what is being done for file backed pages in
+add_to_page_cache_lru().
 
-  from filemap.c:
-
-        if (!isblk) {
-                /* FIXME: this is for backwards compatibility with 2.4 */
-
-is there any compelling reason why any MM code still wants to be 2.4
-backwards compatible?  aren't we past that point by now?
-
-  also, from mmu_notifier.c, i find this *really* weird:
-
-=============
-
-int mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
-{
-        return do_mmu_notifier_register(mn, mm, 1);
-}
-EXPORT_SYMBOL_GPL(mmu_notifier_register);
-
-/*
- * Same as mmu_notifier_register but here the caller must hold the
- * mmap_sem in write mode.
- */
-int __mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
-{
-        return do_mmu_notifier_register(mn, mm, 0);
-}
-EXPORT_SYMBOL_GPL(__mmu_notifier_register);
-
-=============
-
-  as a general rule, i normally expect the difference between two
-kernel routines, say, func() and __func(), to be that func() would be
-the generally callable one, while __func() would be a lower-level one,
-perhaps using func() as a more convenient wrapper.  but the above
-shows that those two routines represent *different* invocations of
-do_mmu_notifier_register().  that's just not a pattern i'm used to
-seeing.  doesn't it kind of fly in the face of kernel coding
-standards?
-
-rday
---
-
-========================================================================
-Robert P. J. Day                               Waterloo, Ontario, CANADA
-
-            Linux Consulting, Training and Kernel Pedantry.
-
-Web page:                                          http://crashcourse.ca
-Twitter:                                       http://twitter.com/rpjday
-========================================================================
+-- 
+	Evgeniy Polyakov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
