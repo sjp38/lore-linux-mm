@@ -1,38 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 646DB6B01E3
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 17:39:01 -0400 (EDT)
-Date: Mon, 5 Apr 2010 14:33:29 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 57AC76B01E3
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 17:54:28 -0400 (EDT)
+Date: Mon, 5 Apr 2010 23:54:06 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-In-Reply-To: <4BBA53A0.8050608@redhat.com>
-Message-ID: <alpine.LFD.2.00.1004051431030.21411@i5.linux-foundation.org>
-References: <patchbomb.1270168887@v2.random> <20100405120906.0abe8e58.akpm@linux-foundation.org> <20100405193616.GA5125@elte.hu> <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com> <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org>
- <20100405210133.GE21620@think> <4BBA53A0.8050608@redhat.com>
+Message-ID: <20100405215406.GA32527@elte.hu>
+References: <patchbomb.1270168887@v2.random>
+ <20100405120906.0abe8e58.akpm@linux-foundation.org>
+ <20100405193616.GA5125@elte.hu>
+ <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com>
+ <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org>
+ <t2q84144f021004051346o65f03e71r5b7bb19b433ce454@mail.gmail.com>
+ <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Chris Mason <chris.mason@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
 
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-On Tue, 6 Apr 2010, Avi Kivity wrote:
-> 
-> Please run them in conjunction with Mel Gorman's memory compaction, otherwise
-> fragmentation may prevent huge pages from being instantiated.
+> there is just a _small handful_ of 2MB pages. Seriously. On a machine with 8 
+> GB of RAM, and three quarters of it free, and there is just a couple of 
+> contiguous 2MB regions. Note, that's _MB_, not GB.
+>
+> And don't tell me that these things are easy to fix. Don't tell me that the 
+> current VM is quite clean and can be harmlessly extended to deal with this 
+> all. Just don't. Not when we currently have a totally unexplained regression 
+> in the VM from the last scalability thing we did.
 
-.. and then please run them in conjunction with somebody doing "make -j16" 
-on the kernel at the same time, or just generally doing real work for a 
-few days before hand.
+I think those are very real worries.
 
-The point is, there are benchmarks, and then there is real life. If we 
-_know_ some feature only works for benchmarks, it should be discounted as 
-such. It's like a compiler that is tuned for specint - at some point the 
-numbers lose a lot of their meaning.
+The only point i wanted to make is that the numbers are real as well and go 
+beyond what i saw characterised in the first email.
 
-			Linus
+(It might still not be enough to tip the scale in the direction of 'we really 
+want to do this' though.)
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
