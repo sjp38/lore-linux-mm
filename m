@@ -1,48 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 29329600337
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 07:19:43 -0400 (EDT)
-Date: Mon, 5 Apr 2010 13:19:31 +0200
-From: =?utf-8?B?SsO2cm4=?= Engel <joern@logfs.org>
-Subject: Re: why are some low-level MM routines being exported?
-Message-ID: <20100405111930.GE23515@logfs.org>
-References: <alpine.LFD.2.00.1004041125350.5617@localhost> <1270396784.1814.92.camel@barrios-desktop> <20100404160328.GA30540@ioremap.net> <1270398112.1814.114.camel@barrios-desktop> <20100404195533.GA8836@logfs.org> <p2g28c262361004041759n52f5063dhb182663321d918bb@mail.gmail.com> <20100405053026.GA23515@logfs.org> <x2w28c262361004042320x52dda2d1l30789cac28fbef6@mail.gmail.com> <20100405071344.GC23515@logfs.org> <m2w28c262361004050126mbcbed77cha6f1085394802cb2@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AD24B600337
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 07:41:40 -0400 (EDT)
+Received: from guests.acceleratorcentre.net ([209.222.173.41] helo=crashcourse.ca)
+	by astoria.ccjclearline.com with esmtpsa (TLSv1:AES256-SHA:256)
+	(Exim 4.69)
+	(envelope-from <rpjday@crashcourse.ca>)
+	id 1NykgS-0007aC-Jc
+	for linux-mm@kvack.org; Mon, 05 Apr 2010 07:41:36 -0400
+Date: Mon, 5 Apr 2010 07:39:27 -0400 (EDT)
+From: "Robert P. J. Day" <rpjday@crashcourse.ca>
+Subject: a couple more oddities(?) in mm code
+Message-ID: <alpine.LFD.2.00.1004050732180.5342@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <m2w28c262361004050126mbcbed77cha6f1085394802cb2@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Evgeniy Polyakov <zbr@ioremap.net>, "Robert P. J. Day" <rpjday@crashcourse.ca>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 April 2010 17:26:58 +0900, Minchan Kim wrote:
-> 
-> Seem to be not bad idea. :)
-> But we have to justify new interface before. For doing it, we have to say
-> why we can't do it by current functions(find_get_page,
-> add_to_page_cache and pagevec_lru_add_xxx)
 
-I guess we could do that.  Whether setting up a vector when only dealing
-with single pages makes the code more readable or helps performance is a
-different matter, though.
+  (aside:  i am not trying to be an annoying pedant, i am merely
+succeeding.  seriously, i'm currently working my way thru the MM code,
+in a (possibly vain) attempt to finally understand it, and i
+occasionally run across things that just look a bit, well, odd.  but
+maybe it's just me.  let me know if any of this is inappropriate.)
 
-> Pagevec_lru_add_xxx does batch so that it can reduce calling path and
-> some overhead(ex, page_is_file_cache comparison,
-> get/put_cpu_var(lru_add_pvecs)).
-> 
-> At least, it would be rather good than old for performance.
+  from filemap.c:
 
-...if we can convert callers to also handle vectors.  And if backing
-device is fast enough that cpu overhead becomes noticeable.  And if
-there were no bigger fish left to catch.
+        if (!isblk) {
+                /* FIXME: this is for backwards compatibility with 2.4 */
 
-JA?rn
+is there any compelling reason why any MM code still wants to be 2.4
+backwards compatible?  aren't we past that point by now?
 
--- 
-Joern's library part 15:
-http://www.knosof.co.uk/cbook/accu06a.pdf
+  also, from mmu_notifier.c, i find this *really* weird:
+
+=============
+
+int mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
+{
+        return do_mmu_notifier_register(mn, mm, 1);
+}
+EXPORT_SYMBOL_GPL(mmu_notifier_register);
+
+/*
+ * Same as mmu_notifier_register but here the caller must hold the
+ * mmap_sem in write mode.
+ */
+int __mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
+{
+        return do_mmu_notifier_register(mn, mm, 0);
+}
+EXPORT_SYMBOL_GPL(__mmu_notifier_register);
+
+=============
+
+  as a general rule, i normally expect the difference between two
+kernel routines, say, func() and __func(), to be that func() would be
+the generally callable one, while __func() would be a lower-level one,
+perhaps using func() as a more convenient wrapper.  but the above
+shows that those two routines represent *different* invocations of
+do_mmu_notifier_register().  that's just not a pattern i'm used to
+seeing.  doesn't it kind of fly in the face of kernel coding
+standards?
+
+rday
+--
+
+========================================================================
+Robert P. J. Day                               Waterloo, Ontario, CANADA
+
+            Linux Consulting, Training and Kernel Pedantry.
+
+Web page:                                          http://crashcourse.ca
+Twitter:                                       http://twitter.com/rpjday
+========================================================================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
