@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8265E6B0212
-	for <linux-mm@kvack.org>; Sun,  4 Apr 2010 20:36:01 -0400 (EDT)
-Received: by pwi2 with SMTP id 2so2497929pwi.14
-        for <linux-mm@kvack.org>; Sun, 04 Apr 2010 17:36:00 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5E0206B0214
+	for <linux-mm@kvack.org>; Sun,  4 Apr 2010 20:59:20 -0400 (EDT)
+Received: by pzk30 with SMTP id 30so2612665pzk.12
+        for <linux-mm@kvack.org>; Sun, 04 Apr 2010 17:59:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100404181550.GA2350@ioremap.net>
+In-Reply-To: <20100404195533.GA8836@logfs.org>
 References: <alpine.LFD.2.00.1004041125350.5617@localhost>
 	 <1270396784.1814.92.camel@barrios-desktop>
 	 <20100404160328.GA30540@ioremap.net>
 	 <1270398112.1814.114.camel@barrios-desktop>
-	 <20100404181550.GA2350@ioremap.net>
-Date: Mon, 5 Apr 2010 09:36:00 +0900
-Message-ID: <t2z28c262361004041736w61b066efr29557741424e158e@mail.gmail.com>
+	 <20100404195533.GA8836@logfs.org>
+Date: Mon, 5 Apr 2010 09:59:18 +0900
+Message-ID: <p2g28c262361004041759n52f5063dhb182663321d918bb@mail.gmail.com>
 Subject: Re: why are some low-level MM routines being exported?
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Evgeniy Polyakov <zbr@ioremap.net>
-Cc: "Robert P. J. Day" <rpjday@crashcourse.ca>, linux-mm@kvack.org, Joern Engel <joern@logfs.org>
+To: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@logfs.org>
+Cc: Evgeniy Polyakov <zbr@ioremap.net>, "Robert P. J. Day" <rpjday@crashcourse.ca>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 5, 2010 at 3:15 AM, Evgeniy Polyakov <zbr@ioremap.net> wrote:
-> On Mon, Apr 05, 2010 at 01:21:52AM +0900, Minchan Kim (minchan.kim@gmail.com) wrote:
->> > > It is added by 18bc0bbd162e3 for pohmelfs and now used by logfs, too.
->> > > I didn't noticed that at that time.
->> > > With git log, any mm guys didn't add Signed-off-by or Reviewed-by.
->> > >
->> > > I think it's not good for file system or module to use it directly.
->> > > It would make LRU management harder.
+On Mon, Apr 5, 2010 at 4:55 AM, J=C3=B6rn Engel <joern@logfs.org> wrote:
+> On Mon, 5 April 2010 01:21:52 +0900, Minchan Kim wrote:
 >> >
->> > How come?
->>
->> What I have a concern is that if file systems or some modules start to
->> overuse it to manage pages LRU directly, some mistake of them would make
->> system global LRU stupid and make system wrong.
+>> Until now, other file system don't need it.
+>> Why do you need?
 >
-> All filesystems already call it through find_or_create_page() or
-> grab_page() invoked via read path. In some cases fs has more than
-> one page grabbed via its internal path where data to be read is
-> already placed, so it may want just to add those pages into mm lru.
->
+> To avoid deadlocks. =C2=A0You tell logfs to write out some locked page, l=
+ogfs
+> determines that it needs to run garbage collection first. =C2=A0Garbage
+> collection can read any page. =C2=A0If it called find_or_create_page() fo=
+r
+> the locked page, you have a deadlock.
 
-I understood why it does need that in pohmelfs.
-AFAIU, other file system using general functions(ex, mpage_readpages or
-read_cache_pages) don't need direct LRU handling since it's hided.
-But pohmelfs doesn't use general functions.
+Could you do it with add_to_page_cache and pagevec_lru_add_file?
 
-Isn't pagevec_lru_add_file enough like other file system(ex, nfs, cifs)?
-
--- 
+--=20
 Kind regards,
 Minchan Kim
 
