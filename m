@@ -1,230 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 85AC06B020D
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 04:27:00 -0400 (EDT)
-Received: by pwi2 with SMTP id 2so2617828pwi.14
-        for <linux-mm@kvack.org>; Mon, 05 Apr 2010 01:26:58 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D68286B0216
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 06:14:48 -0400 (EDT)
+Date: Mon, 5 Apr 2010 11:14:25 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Question] race condition in mm/page_alloc.c regarding
+	page->lru?
+Message-ID: <20100405101424.GA21207@csn.ul.ie>
+References: <i2i5f4a33681003312105m4cd42e9ayfe35cc0988c401b6@mail.gmail.com> <g2g5f4a33681004012051wedea9538w9da89e210b731422@mail.gmail.com> <20100402135955.645F.A69D9226@jp.fujitsu.com> <20100402094805.GA12886@csn.ul.ie> <h2rd6200be21004021759x4ae83403i4daa206d47b7d523@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20100405071344.GC23515@logfs.org>
-References: <alpine.LFD.2.00.1004041125350.5617@localhost>
-	 <1270396784.1814.92.camel@barrios-desktop>
-	 <20100404160328.GA30540@ioremap.net>
-	 <1270398112.1814.114.camel@barrios-desktop>
-	 <20100404195533.GA8836@logfs.org>
-	 <p2g28c262361004041759n52f5063dhb182663321d918bb@mail.gmail.com>
-	 <20100405053026.GA23515@logfs.org>
-	 <x2w28c262361004042320x52dda2d1l30789cac28fbef6@mail.gmail.com>
-	 <20100405071344.GC23515@logfs.org>
-Date: Mon, 5 Apr 2010 17:26:58 +0900
-Message-ID: <m2w28c262361004050126mbcbed77cha6f1085394802cb2@mail.gmail.com>
-Subject: Re: why are some low-level MM routines being exported?
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <h2rd6200be21004021759x4ae83403i4daa206d47b7d523@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@logfs.org>
-Cc: Evgeniy Polyakov <zbr@ioremap.net>, "Robert P. J. Day" <rpjday@crashcourse.ca>, linux-mm@kvack.org
+To: Arve Hj?nnev?g <arve@android.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, TAO HU <tghk48@motorola.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Ye Yuan.Bo-A22116" <yuan-bo.ye@motorola.com>, Chang Qing-A21550 <Qing.Chang@motorola.com>, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 5, 2010 at 4:13 PM, J=C3=B6rn Engel <joern@logfs.org> wrote:
-> On Mon, 5 April 2010 15:20:36 +0900, Minchan Kim wrote:
->>
->> Previously I said, what I have a concern is that if file systems or
->> some modules abuses
->> add_to_page_cache_lru, it might system LRU list wrong so then system
->> go to hell.
->> Of course, if we use it carefully, it can be good but how do you make su=
-re it?
->
-> Having access to the source code means you only have to read all
-> callers. =C2=A0This is not java, we don't have to add layers of anti-abus=
-e
-> wrappers. =C2=A0We can simply flame the first offender to a crisp. :)
->
->> I am not a file system expert but as I read comment of read_cache_pages
->> "Hides the details of the LRU cache etc from the filesystem", I
->> thought it is not good that
->> file system handle LRU list directly. At least, we have been trying for =
-years.
->
-> Only speaking for logfs, I need some variant of find_or_create_page
-> where I can replace lock_page() with a custom function. =C2=A0Whether tha=
-t
-> function lives in fs/logfs/ or mm/filemap.c doesn't matter much.
->
-> What we could do something roughly like the patch below, at least
-> semantically. =C2=A0I know the patch is crap in its current form, but it
-> illustrates the general idea.
->
-> J=C3=B6rn
->
-> --
-> The key to performance is elegance, not battalions of special cases.
-> -- Jon Bentley and Doug McIlroy
->
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 045b31c..6d452eb 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -646,27 +646,19 @@ repeat:
-> =C2=A0}
-> =C2=A0EXPORT_SYMBOL(find_get_page);
->
-> -/**
-> - * find_lock_page - locate, pin and lock a pagecache page
-> - * @mapping: the address_space to search
-> - * @offset: the page index
-> - *
-> - * Locates the desired pagecache page, locks it, increments its referenc=
-e
-> - * count and returns its address.
-> - *
-> - * Returns zero if the page was not present. find_lock_page() may sleep.
-> - */
-> -struct page *find_lock_page(struct address_space *mapping, pgoff_t offse=
-t)
-> +static struct page *__find_lock_page(struct address_space *mapping,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pgoff_t offset, void(*=
-lock)(struct page *),
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 void(*unlock)(struct p=
-age *))
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page;
->
-> =C2=A0repeat:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D find_get_page(mapping, offset);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page) {
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lock_page(page);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lock(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Has the page be=
-en truncated? */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (unlikely(page-=
->mapping !=3D mapping)) {
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 unlock_page(page);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 unlock(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0page_cache_release(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0goto repeat;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> @@ -674,32 +666,31 @@ repeat:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return page;
-> =C2=A0}
-> -EXPORT_SYMBOL(find_lock_page);
->
-> =C2=A0/**
-> - * find_or_create_page - locate or add a pagecache page
-> - * @mapping: the page's address_space
-> - * @index: the page's index into the mapping
-> - * @gfp_mask: page allocation mode
-> - *
-> - * Locates a page in the pagecache. =C2=A0If the page is not present, a =
-new page
-> - * is allocated using @gfp_mask and is added to the pagecache and to the=
- VM's
-> - * LRU list. =C2=A0The returned page is locked and has its reference cou=
-nt
-> - * incremented.
-> + * find_lock_page - locate, pin and lock a pagecache page
-> + * @mapping: the address_space to search
-> + * @offset: the page index
-> =C2=A0*
-> - * find_or_create_page() may sleep, even if @gfp_flags specifies an atom=
-ic
-> - * allocation!
-> + * Locates the desired pagecache page, locks it, increments its referenc=
-e
-> + * count and returns its address.
-> =C2=A0*
-> - * find_or_create_page() returns the desired page's address, or zero on
-> - * memory exhaustion.
-> + * Returns zero if the page was not present. find_lock_page() may sleep.
-> =C2=A0*/
-> -struct page *find_or_create_page(struct address_space *mapping,
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pgoff_t index, gfp_t g=
-fp_mask)
-> +struct page *find_lock_page(struct address_space *mapping, pgoff_t offse=
-t)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 return __find_lock_page(mapping, offset, lock_page=
-, unlock_page);
-> +}
-> +EXPORT_SYMBOL(find_lock_page);
-> +
-> +static struct page *__find_or_create_page(struct address_space *mapping,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pgoff_t index, gfp_t g=
-fp_mask, void(*lock)(struct page *),
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 void(*unlock)(struct p=
-age *))
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0int err;
-> =C2=A0repeat:
-> - =C2=A0 =C2=A0 =C2=A0 page =3D find_lock_page(mapping, index);
-> + =C2=A0 =C2=A0 =C2=A0 page =3D __find_lock_page(mapping, index, lock, un=
-lock);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D __page_ca=
-che_alloc(gfp_mask);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page)
-> @@ -721,6 +712,31 @@ repeat:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return page;
-> =C2=A0}
-> +EXPORT_SYMBOL(__find_or_create_page);
-> +
-> +/**
-> + * find_or_create_page - locate or add a pagecache page
-> + * @mapping: the page's address_space
-> + * @index: the page's index into the mapping
-> + * @gfp_mask: page allocation mode
-> + *
-> + * Locates a page in the pagecache. =C2=A0If the page is not present, a =
-new page
-> + * is allocated using @gfp_mask and is added to the pagecache and to the=
- VM's
-> + * LRU list. =C2=A0The returned page is locked and has its reference cou=
-nt
-> + * incremented.
-> + *
-> + * find_or_create_page() may sleep, even if @gfp_flags specifies an atom=
-ic
-> + * allocation!
-> + *
-> + * find_or_create_page() returns the desired page's address, or zero on
-> + * memory exhaustion.
-> + */
-> +struct page *find_or_create_page(struct address_space *mapping,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pgoff_t index, gfp_t g=
-fp_mask)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 return __find_or_create_page(mapping, index, gfp_m=
-ask, lock_page,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 unlock_page);
-> +}
-> =C2=A0EXPORT_SYMBOL(find_or_create_page);
->
-> =C2=A0/**
->
+On Fri, Apr 02, 2010 at 05:59:00PM -0700, Arve Hj?nnev?g wrote:
+> On Fri, Apr 2, 2010 at 2:48 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > On Fri, Apr 02, 2010 at 02:03:23PM +0900, KOSAKI Motohiro wrote:
+> >> Cc to Mel,
+> >>
+> >> > 2 patches related to page_alloc.c were applied.
+> >> > Does anyone see a connection between the 2 patches and the panic?
+> >> > NOTE: the full patches are attached.
+> >>
+> >> I think your attached two patches are perfectly unrelated your problem.
+> >>
+> >
+> > Agreed. It's unlikely that there is a race as such in the page
+> > allocator. In buffered_rmqueue that you initially talk about, the lists
+> > being manipulated are per-cpu lists. About the only way to corrupt them
+> > is if you had a NMI hander that called the page allocator. I really hope
+> > your platform is not doing anything like that.
+> >
+> > A double free of page->lru is a possibility. You could try reproducing
+> > the problem with CONFIG_DEBUG_LIST enabled to see if anything falls out.
+> >
+> >> "mm: Add min_free_order_shift tunable." seems makes zero sense. I don't think this patch
+> >> need to be merge.
+> >>
+> >
+> > It makes a marginal amount of sense. Basically what it does is allowing
+> > high-order allocations to go much further below their watermarks than is
+> > currently allowed. If the platform in question is doing a lot of high-order
+> > allocations, this patch could be seen to "fix" the problem but you wouldn't
+> > touch mainline with it with a barge pole. It would be more stable to fix
+> > the drivers to not use high order allocations or use a mempool.
+> >
+> 
+> The high order allocation that caused problems was the first level
+> page table for each process.
 
-Seem to be not bad idea. :)
-But we have to justify new interface before. For doing it, we have to say
-why we can't do it by current functions(find_get_page,
-add_to_page_cache and pagevec_lru_add_xxx)
+Out of curiousity, how big is that allocation? Is it specific to
+android? If it is, I guess it can be let slide but if it's common, it
+would be worth thinking of an arch-hook that tells the VM that a
+particular high-order is very common. For example, one possibility would
+be to ask kswapd to always reclaim at a given order even if the
+watermarks required are for a lower order.
 
-Pagevec_lru_add_xxx does batch so that it can reduce calling path and
-some overhead(ex, page_is_file_cache comparison,
-get/put_cpu_var(lru_add_pvecs)).
+> Each time a new process started the
+> kernel would empty the entire page cache to create contiguous free
+> memory.
 
-At least, it would be rather good than old for performance.
+I ask because I'm surprised the entire page cache got chucked out
 
---=20
-Kind regards,
-Minchan Kim
+> With the reserved pageblock mostly full (fixed by the second
+> patch) this contiguous memory would then almost immediately get used
+> for low order allocations, so the same problem starts again when the
+> next process starts.
+
+This is a little outside what I expected the reserved pageblock was
+intended for. I expected it to be used for high-order short-lived
+allocations such as required by some wireless drivers. Pagetables are a
+bit more common.
+
+> I agree this patch does not fix the problem, but
+> it does improve things when the problem hits. I have not seen a device
+> in this situation with the second patch applied, but I did not remove
+> the first patch in case the reserved pageblock fills up.
+> 
+> > It is inconceivable this patch is related to the problem though.
+> >
+> >> but "mm: Check if any page in a pageblock is reserved before marking it MIGRATE_RESERVE"
+> >> treat strange hardware correctly, I think. If Mel ack this, I hope merge it.
+> >> Mel, Can we hear your opinion?
+> >>
+> >
+> > This patch is interesting and I am surprised it is required. Is it really the
+> > case that page blocks near the start of a zone are dominated with PageReserved
+> > pages but the first one happen to be free? I guess it's conceivable on ARM
+> > where memmap can be freed at boot time.
+> 
+> I think this happens by default on arm. The kernel starts at offset
+> 0x8000 to leave room for boot parameters, and in recent kernel
+> versions (>~2.6.26-29) this memory is freed.
+> 
+
+Ok, that's fine.
+
+> >
+> > There is a theoritical problem with the patch but it is easily resolved.
+> > A PFN walker like this must call pfn_valid_within() before calling
+> > pfn_to_page(). If they do not, it's possible to get complete garbage
+> > for the page and result in a bad dereference. In this particular case,
+> > it would be a kernel oops rather than memory corruption though.
+> >
+> > If that was fixed, I'd see no problem with Acking the patch.
+> >
+> 
+> I can fix this if you want the patch in mainline. I was not sure it
+> was acceptable since will slow down boot on all systems, even where it
+> is not needed.
+> 
+
+It will not be noticeable. Only a few pageblocks are scanned per zone
+and the full zone gets walked for a variety of reasons during boot
+anyway. If it ever became absolutly necessary, the lowest suitable
+pageblock could be identified when the bootmem allocator is being torn
+down as the necessary information becomes available then.
+
+> > It is also inconceivable this patch is related to the problem.
+> >
+> >> >
+> >> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >> > index a596bfd..34a29e2 100644
+> >> > --- a/mm/page_alloc.c
+> >> > +++ b/mm/page_alloc.c
+> >> > @@ -2551,6 +2551,20 @@ static inline unsigned long
+> >> > wait_table_bits(unsigned long size)
+> >> >  #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
+> >> >
+> >> >  /*
+> >> > + * Check if a pageblock contains reserved pages
+> >> > + */
+> >> > +static int pageblock_is_reserved(unsigned long start_pfn)
+> >> > +{
+> >> > +   unsigned long end_pfn = start_pfn + pageblock_nr_pages;
+> >> > +   unsigned long pfn;
+> >> > +
+> >> > +   for (pfn = start_pfn; pfn < end_pfn; pfn++)
+> >> > +           if (PageReserved(pfn_to_page(pfn)))
+> >> > +                   return 1;
+> >> > +   return 0;
+> >> > +}
+> >> > +
+> >> > +/*
+> >> >   * Mark a number of pageblocks as MIGRATE_RESERVE. The number
+> >> >   * of blocks reserved is based on zone->pages_min. The memory within the
+> >> >   * reserve will tend to store contiguous free pages. Setting min_free_kbytes
+> >> > @@ -2579,7 +2593,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+> >> >                     continue;
+> >> >
+> >> >             /* Blocks with reserved pages will never free, skip them. */
+> >> > -           if (PageReserved(page))
+> >> > +           if (pageblock_is_reserved(pfn))
+> >> >                     continue;
+> >> >
+> >> >             block_migratetype = get_pageblock_migratetype(page);
+> >> > --
+> >> > 1.5.4.3
+> >> >
+> >> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >> > index 5c44ed4..a596bfd 100644
+> >> > --- a/mm/page_alloc.c
+> >> > +++ b/mm/page_alloc.c
+> >> > @@ -119,6 +119,7 @@ static char * const zone_names[MAX_NR_ZONES] = {
+> >> >  };
+> >> >
+> >> >  int min_free_kbytes = 1024;
+> >> > +int min_free_order_shift = 1;
+> >> >
+> >> >  unsigned long __meminitdata nr_kernel_pages;
+> >> >  unsigned long __meminitdata nr_all_pages;
+> >> > @@ -1256,7 +1257,7 @@ int zone_watermark_ok(struct zone *z, int order,
+> >> > unsigned long mark,
+> >> >             free_pages -= z->free_area[o].nr_free << o;
+> >> >
+> >> >             /* Require fewer higher order pages to be free */
+> >> > -           min >>= 1;
+> >> > +           min >>= min_free_order_shift;
+> >> >
+> >> >             if (free_pages <= min)
+> >> >                     return 0;
+> >> > --
+> >> >
+> >> >
+> >> > On Thu, Apr 1, 2010 at 12:05 PM, TAO HU <tghk48@motorola.com> wrote:
+> >> > > Hi, all
+> >> > >
+> >> > > We got a panic on our ARM (OMAP) based HW.
+> >> > > Our code is based on 2.6.29 kernel (last commit for mm/page_alloc.c is
+> >> > > cc2559bccc72767cb446f79b071d96c30c26439b)
+> >> > >
+> >> > > It appears to crash while going through pcp->list in
+> >> > > buffered_rmqueue() of mm/page_alloc.c after checking vmlinux.
+> >> > > "00100100" implies LIST_POISON1 that suggests a race condition between
+> >> > > list_add() and list_del() in my personal view.
+> >> > > However we not yet figure out locking problem regarding page.lru.
+> >> > >
+> >> > > Any known issues about race condition in mm/page_alloc.c?
+> >> > > And other hints are highly appreciated.
+> >> > >
+> >> > >  /* Find a page of the appropriate migrate type */
+> >> > >                if (cold) {
+> >> > >                   ... ...
+> >> > >                } else {
+> >> > >                        list_for_each_entry(page, &pcp->list, lru)
+> >> > >                                if (page_private(page) == migratetype)
+> >> > >                                        break;
+> >> > >                }
+> >> > >
+> >> > > <1>[120898.805267] Unable to handle kernel paging request at virtual
+> >> > > address 00100100
+> >> > > <1>[120898.805633] pgd = c1560000
+> >> > > <1>[120898.805786] [00100100] *pgd=897b3031, *pte=00000000, *ppte=00000000
+> >> > > <4>[120898.806457] Internal error: Oops: 17 [#1] PREEMPT
+> >> > > ... ...
+> >> > > <4>[120898.807861] CPU: 0    Not tainted  (2.6.29-omap1 #1)
+> >> > > <4>[120898.808044] PC is at get_page_from_freelist+0x1d0/0x4b0
+> >> > > <4>[120898.808227] LR is at get_page_from_freelist+0xc8/0x4b0
+> >> > > <4>[120898.808563] pc : [<c00a600c>]    lr : [<c00a5f04>]    psr: 800000d3
+> >> > > <4>[120898.808563] sp : c49fbd18  ip : 00000000  fp : c49fbd74
+> >> > > <4>[120898.809020] r10: 00000000  r9 : 001000e8  r8 : 00000002
+> >> > > <4>[120898.809204] r7 : 001200d2  r6 : 60000053  r5 : c0507c4c  r4 : c49fa000
+> >> > > <4>[120898.809509] r3 : 001000e8  r2 : 00100100  r1 : c0507c6c  r0 : 00000001
+> >> > > <4>[120898.809844] Flags: Nzcv  IRQs off  FIQs off  Mode SVC_32  ISA
+> >> > > ARM  Segment kernel
+> >> > > <4>[120898.810028] Control: 10c5387d  Table: 82160019  DAC: 00000017
+> >> > > <4>[120898.948425] Backtrace:
+> >> > > <4>[120898.948760] [<c00a5e3c>] (get_page_from_freelist+0x0/0x4b0)
+> >> > > from [<c00a6398>] (__alloc_pages_internal+0xac/0x3e8)
+> >> > > <4>[120898.949554] [<c00a62ec>] (__alloc_pages_internal+0x0/0x3e8)
+> >> > > from [<c00b461c>] (handle_mm_fault+0x16c/0xbac)
+> >> > > <4>[120898.950347] [<c00b44b0>] (handle_mm_fault+0x0/0xbac) from
+> >> > > [<c00b51d0>] (__get_user_pages+0x174/0x2b4)
+> >> > > <4>[120898.951019] [<c00b505c>] (__get_user_pages+0x0/0x2b4) from
+> >> > > [<c00b534c>] (get_user_pages+0x3c/0x44)
+> >> > > <4>[120898.951812] [<c00b5310>] (get_user_pages+0x0/0x44) from
+> >> > > [<c00caf9c>] (get_arg_page+0x50/0xa4)
+> >> > > <4>[120898.952636] [<c00caf4c>] (get_arg_page+0x0/0xa4) from
+> >> > > [<c00cb1ec>] (copy_strings+0x108/0x210)
+> >> > > <4>[120898.953430]  r7:beffffe4 r6:00000ffc r5:00000000 r4:00000018
+> >> > > <4>[120898.954223] [<c00cb0e4>] (copy_strings+0x0/0x210) from
+> >> > > [<c00cb330>] (copy_strings_kernel+0x3c/0x74)
+> >> > > <4>[120898.955047] [<c00cb2f4>] (copy_strings_kernel+0x0/0x74) from
+> >> > > [<c00cc778>] (do_execve+0x18c/0x2b0)
+> >> > > <4>[120898.955841]  r5:0001e240 r4:0001e224
+> >> > > <4>[120898.956329] [<c00cc5ec>] (do_execve+0x0/0x2b0) from
+> >> > > [<c00400e4>] (sys_execve+0x3c/0x5c)
+> >> > > <4>[120898.957153] [<c00400a8>] (sys_execve+0x0/0x5c) from
+> >> > > [<c003ce80>] (ret_fast_syscall+0x0/0x2c)
+> >> > > <4>[120898.957946]  r7:0000000b r6:0001e270 r5:00000000 r4:0001d580
+> >> > > <4>[120898.958740] Code: e1530008 0a000006 e2429018 e1a03009 (e5b32018)
+> >> > >
+> >> > >
+> >> > >
+> >> > > --
+> >> > > Best Regards
+> >> > > Hu Tao
+> >> > >
+> >>
+> >>
+> >>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
