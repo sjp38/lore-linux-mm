@@ -1,105 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4F7506B022A
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 10:25:45 -0400 (EDT)
-Date: Mon, 5 Apr 2010 16:23:34 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH -mm] oom: select_bad_process: never choose tasks with
-	badness == 0
-Message-ID: <20100405142334.GA31074@redhat.com>
-References: <alpine.DEB.2.00.1003291302170.14859@chino.kir.corp.google.com> <20100330154659.GA12416@redhat.com> <alpine.DEB.2.00.1003301320020.5234@chino.kir.corp.google.com> <20100331175836.GA11635@redhat.com> <20100331204718.GD11635@redhat.com> <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com> <20100401135927.GA12460@redhat.com> <alpine.DEB.2.00.1004011210380.30661@chino.kir.corp.google.com> <20100402111406.GA4432@redhat.com> <20100402183057.GA31723@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id ADDD66B022B
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 10:31:23 -0400 (EDT)
+Received: by pvg11 with SMTP id 11so1077190pvg.14
+        for <linux-mm@kvack.org>; Mon, 05 Apr 2010 07:31:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100402183057.GA31723@redhat.com>
+In-Reply-To: <20100405124736.GA11214@ioremap.net>
+References: <alpine.LFD.2.00.1004041125350.5617@localhost>
+	 <1270396784.1814.92.camel@barrios-desktop>
+	 <20100404160328.GA30540@ioremap.net>
+	 <1270398112.1814.114.camel@barrios-desktop>
+	 <20100404181550.GA2350@ioremap.net>
+	 <t2z28c262361004041736w61b066efr29557741424e158e@mail.gmail.com>
+	 <20100405124736.GA11214@ioremap.net>
+Date: Mon, 5 Apr 2010 23:31:22 +0900
+Message-ID: <r2w28c262361004050731v16f738b0paf24e0bb4c440791@mail.gmail.com>
+Subject: Re: why are some low-level MM routines being exported?
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: anfei <anfei.zhou@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Evgeniy Polyakov <zbr@ioremap.net>
+Cc: "Robert P. J. Day" <rpjday@crashcourse.ca>, linux-mm@kvack.org, Joern Engel <joern@logfs.org>
 List-ID: <linux-mm.kvack.org>
 
-This is the David's patch rediffed agains the recent changes in -mm.
+On Mon, Apr 5, 2010 at 9:47 PM, Evgeniy Polyakov <zbr@ioremap.net> wrote:
+> On Mon, Apr 05, 2010 at 09:36:00AM +0900, Minchan Kim (minchan.kim@gmail.=
+com) wrote:
+>> > All filesystems already call it through find_or_create_page() or
+>> > grab_page() invoked via read path. In some cases fs has more than
+>> > one page grabbed via its internal path where data to be read is
+>> > already placed, so it may want just to add those pages into mm lru.
+>>
+>> I understood why it does need that in pohmelfs.
+>> AFAIU, other file system using general functions(ex, mpage_readpages or
+>> read_cache_pages) don't need direct LRU handling since it's hided.
+>> But pohmelfs doesn't use general functions.
+>>
+>> Isn't pagevec_lru_add_file enough like other file system(ex, nfs, cifs)?
+>
+> This will force to reinvent add_to_page_cache_lru() by doing private
+> function which will call add_to_page_cache() and pagevec_lru_add_file(),
+> which is effectively what is being done for file backed pages in
+> add_to_page_cache_lru().
+>
+> --
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0Evgeniy Polyakov
 
-As David pointed out, we should fix select_bad_process() which currently
-always selects the first process which was not filtered out before
-oom_badness(), no matter what oom_badness() returns.
+Hmm. I found that.
+http://www.mail-archive.com/linux-btrfs@vger.kernel.org/msg04472.html
+Recently, Nick replaced it with add_to_page_cache_lru in btrfs, too.
+It means other mm guy already knew that and allowed it.
 
-Change the code to ignore the process if oom_badness() returns 0, this
-matters Documentation/filesystems/proc.txt and this merely looks better.
+Maybe I seem to get paranoid.
+Sorry for bothering you, Evgeniy and joern.
 
-This also allows us to do more cleanups:
-
-	- no need to check OOM_SCORE_ADJ_MIN in select_bad_process(),
-	  oom_badness() returns 0 in this case.
-
-	- oom_badness() can simply return 0 instead of -1 if the task
-	  has no ->mm.
-
-	  Now we can make it "unsigned" again, the signness and the
-	  special "points >= 0" in select_bad_process() was added to
-	  preserve the current behaviour.
-
-Suggested-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
----
-
- include/linux/oom.h |    3 ++-
- mm/oom_kill.c       |   11 ++++-------
- 2 files changed, 6 insertions(+), 8 deletions(-)
-
---- MM/include/linux/oom.h~5_BADNESS_DONT_RET_NEGATIVE	2010-04-05 15:39:21.000000000 +0200
-+++ MM/include/linux/oom.h	2010-04-05 15:44:49.000000000 +0200
-@@ -40,7 +40,8 @@ enum oom_constraint {
- 	CONSTRAINT_MEMORY_POLICY,
- };
- 
--extern int oom_badness(struct task_struct *p, unsigned long totalpages);
-+extern unsigned int oom_badness(struct task_struct *p,
-+					unsigned long totalpages);
- extern int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_flags);
- extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
- 
---- MM/mm/oom_kill.c~5_BADNESS_DONT_RET_NEGATIVE	2010-04-05 15:39:21.000000000 +0200
-+++ MM/mm/oom_kill.c	2010-04-05 16:09:58.000000000 +0200
-@@ -153,7 +153,7 @@ static unsigned long oom_forkbomb_penalt
-  * predictable as possible.  The goal is to return the highest value for the
-  * task consuming the most memory to avoid subsequent oom conditions.
-  */
--int oom_badness(struct task_struct *p, unsigned long totalpages)
-+unsigned int oom_badness(struct task_struct *p, unsigned long totalpages)
- {
- 	int points;
- 
-@@ -173,7 +173,7 @@ int oom_badness(struct task_struct *p, u
- 
- 	p = find_lock_task_mm(p);
- 	if (!p)
--		return -1;
-+		return 0;
- 	/*
- 	 * The baseline for the badness score is the proportion of RAM that each
- 	 * task's rss and swap space use.
-@@ -294,7 +294,7 @@ static struct task_struct *select_bad_pr
- 	*ppoints = 0;
- 
- 	for_each_process(p) {
--		int points;
-+		unsigned int points;
- 
- 		/* skip the init task and kthreads */
- 		if (is_global_init(p) || (p->flags & PF_KTHREAD))
-@@ -336,11 +336,8 @@ static struct task_struct *select_bad_pr
- 			*ppoints = 1000;
- 		}
- 
--		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
--			continue;
--
- 		points = oom_badness(p, totalpages);
--		if (points >= 0 && (points > *ppoints || !chosen)) {
-+		if (points > *ppoints) {
- 			chosen = p;
- 			*ppoints = points;
- 		}
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
