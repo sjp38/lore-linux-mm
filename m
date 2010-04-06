@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E3F1F6B01EE
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 05:51:43 -0400 (EDT)
-Date: Tue, 6 Apr 2010 11:51:35 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Downsides to madvise/fadvise(willneed) for application startup
-Message-ID: <20100406095135.GB5183@cmpxchg.org>
-References: <4BBA6776.5060804@mozilla.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4BBA6776.5060804@mozilla.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 866D96B01EE
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 05:56:49 -0400 (EDT)
+Message-ID: <4BBB052D.8040307@redhat.com>
+Date: Tue, 06 Apr 2010 12:55:57 +0300
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
+References: <patchbomb.1270168887@v2.random> <20100405120906.0abe8e58.akpm@linux-foundation.org> <20100405193616.GA5125@elte.hu> <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com> <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org> <t2q84144f021004051346o65f03e71r5b7bb19b433ce454@mail.gmail.com> <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org> <20100405232115.GM5825@random.random> <alpine.LFD.2.00.1004051636060.21411@i5.linux-foundation.org> <20100406011345.GT5825@random.random> <alpine.LFD.2.00.1004051836000.5870@i5.linux-foundation.org> <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org>
+In-Reply-To: <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Taras Glek <tglek@mozilla.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 05, 2010 at 03:43:02PM -0700, Taras Glek wrote:
-> Hello,
-> I am working on improving Mozilla startup times. It turns out that page 
-> faults(caused by lack of cooperation between user/kernelspace) are the 
-> main cause of slow startup. I need some insights from someone who 
-> understands linux vm behavior.
-> 
-> Current Situation:
-> The dynamic linker mmap()s  executable and data sections of our 
-> executable but it doesn't call madvise().
-> By default page faults trigger 131072byte reads. To make matters worse, 
-> the compile-time linker + gcc lay out code in a manner that does not 
-> correspond to how the resulting executable will be executed(ie the 
-> layout is basically random). This means that during startup 15-40mb 
-> binaries are read in basically random fashion. Even if one orders the 
-> binary optimally, throughput is still suboptimal due to the puny readahead.
-> 
-> IO Hints:
-> Fortunately when one specifies madvise(WILLNEED) pagefaults trigger 2mb 
-> reads and a binary that tends to take 110 page faults(ie program stops 
-> execution and waits for disk) can be reduced down to 6. This has the 
-> potential to double application startup of large apps without any clear 
-> downsides. Suse ships their glibc with a dynamic linker patch to 
-> fadvise() dynamic libraries(not sure why they switched from doing 
-> madvise before).
-> 
-> I filed a glibc bug about this at 
-> http://sourceware.org/bugzilla/show_bug.cgi?id=11431 . Uli commented 
-> with his concern about wasting memory resources. What is the impact of 
-> madvise(WILLNEED) or the fadvise equivalent on systems under memory 
-> pressure? Does the kernel simply start ignoring these hints?
+On 04/06/2010 05:23 AM, Linus Torvalds wrote:
+>
+> On Mon, 5 Apr 2010, Linus Torvalds wrote:
+>    
+>> So I thought it was a more interesting load than it was. The
+>> virtualization "TLB miss is expensive" load I can't find it in myself to
+>> care about. "Get a better CPU" is my answer to that one,
+>>      
+> [ Btw, I do realize that "better CPU" in this case may be "future CPU". I
+>    just think that this is where better TLB's and using ASID's etc is
+>    likely to be a much bigger deal than adding VM complexity. Kind of the
+>    
 
-It will throttle based on memory pressure.  In idle situations it will
-eat your file cache, however, to satisfy the request.
+For virtualization the tlb miss cost comes from two parts, first there 
+are the 24 memory accesses needed for a tlb fill (instead of the usual 
+4); these can indeed be improved by various intermediate tlbs (and 
+current processors already do have those caches).  However something 
+that cannot be solved by the tlb are the accesses to the last level of 
+the page table hierarchy - as soon as the page tables exceed the cache 
+size, you take two cache misses for each tlb miss.
 
-Now, the file cache should be much bigger than the amount of unneeded
-pages you prefault with the hint over the whole library, so I guess the
-benefit of prefaulting the right pages outweighs the downside of evicting
-some cache for unused library pages.
+Note virtualization only increases the hit, it also shows with 
+non-virtualized loads, but there your cache utilization is halved and 
+you only need one memory access for your last level page table.
 
-Still, it's a workaround for deficits in the demand-paging/readahead
-heuristics and thus a bit ugly, I feel.  Maybe Wu can help.
+Here is a microbenchmark demonstrating the hit (non-virtualized); it 
+simulates a pointer-chasing application with a varying working set.  It 
+is easy to see when the working set overflows the various caches, and 
+later when the page tables overflow the caches.  For virtualization the 
+hit will be a factor of 3 instead of 2, and will come earlier since the 
+page tables are bigger.
 
-> Also, once an application is started is it reasonable to keep it 
-> madvise(WILLNEED)ed or should the madvise flags be reset?
+  size   4k (ns)    2M (ns)
+    4k       4.9        4.9
+   16k       4.9        4.9
+   64k       7.6        7.6
+  256k      15.1        8.1
+    1M      28.5       23.9
+    4M      31.8       25.3
+   16M      94.8       79.0
+   64M     260.9      224.2
+  256M     269.8      248.8
+    1G     278.1      246.3
+    4G     330.9      252.6
+   16G     436.3      243.8
+   64G     486.0      253.3
 
-It's a one-time operation that starts immediate readahead, no permanent
-changes are done.
-
-> Perhaps the kernel could monitor the page-in patterns to increase the 
-> readahead sizes? This may already happen, I've noticed that a handful of 
-> pagefaults trigger > 131072bytes of IO, perhaps this just needs tweaking.
-
-CCd the man :-)
-
-> Thanks,
-> Taras Glek
-> 
-> PS. For more details on this issue see my blog at 
-> https://blog.mozilla.com/tglek/
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
