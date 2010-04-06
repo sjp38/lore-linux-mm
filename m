@@ -1,90 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E5B4A6B01F8
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 09:05:27 -0400 (EDT)
-Date: Tue, 6 Apr 2010 21:05:19 +0800
-From: anfei <anfei.zhou@gmail.com>
-Subject: Re: [PATCH -mm 2/4] oom: select_bad_process: PF_EXITING check
- should take ->mm into account
-Message-ID: <20100406130518.GB3965@desktop>
-References: <20100331175836.GA11635@redhat.com>
- <20100331204718.GD11635@redhat.com>
- <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com>
- <20100401135927.GA12460@redhat.com>
- <alpine.DEB.2.00.1004011210380.30661@chino.kir.corp.google.com>
- <20100402111406.GA4432@redhat.com>
- <20100402183057.GA31723@redhat.com>
- <20100402183216.GC31723@redhat.com>
- <20100406114235.GA3965@desktop>
- <20100406121811.GA6802@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 30C836B01FA
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 09:10:44 -0400 (EDT)
+Date: Tue, 6 Apr 2010 23:10:24 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
+Message-ID: <20100406131024.GA5288@laptop>
+References: <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org>
+ <t2q84144f021004051346o65f03e71r5b7bb19b433ce454@mail.gmail.com>
+ <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org>
+ <20100405232115.GM5825@random.random>
+ <alpine.LFD.2.00.1004051636060.21411@i5.linux-foundation.org>
+ <20100406011345.GT5825@random.random>
+ <alpine.LFD.2.00.1004051836000.5870@i5.linux-foundation.org>
+ <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org>
+ <4BBB052D.8040307@redhat.com>
+ <4BBB2134.9090301@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100406121811.GA6802@redhat.com>
+In-Reply-To: <4BBB2134.9090301@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 06, 2010 at 02:18:11PM +0200, Oleg Nesterov wrote:
-> On 04/06, anfei wrote:
+On Tue, Apr 06, 2010 at 02:55:32PM +0300, Avi Kivity wrote:
+> On 04/06/2010 12:55 PM, Avi Kivity wrote:
 > >
-> > On Fri, Apr 02, 2010 at 08:32:16PM +0200, Oleg Nesterov wrote:
-> > > select_bad_process() checks PF_EXITING to detect the task which
-> > > is going to release its memory, but the logic is very wrong.
-> > >
-> > > 	- a single process P with the dead group leader disables
-> > > 	  select_bad_process() completely, it will always return
-> > > 	  ERR_PTR() while P can live forever
-> > >
-> > > 	- if the PF_EXITING task has already released its ->mm
-> > > 	  it doesn't make sense to expect it is goiing to free
-> > > 	  more memory (except task_struct/etc)
-> > >
-> > > Change the code to ignore the PF_EXITING tasks without ->mm.
-> > >
-> > > Signed-off-by: Oleg Nesterov <oleg@redhat.com>
-> > > ---
-> > >
-> > >  mm/oom_kill.c |    2 +-
-> > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > >
-> > > --- MM/mm/oom_kill.c~2_FIX_PF_EXITING	2010-04-02 18:51:05.000000000 +0200
-> > > +++ MM/mm/oom_kill.c	2010-04-02 18:58:37.000000000 +0200
-> > > @@ -322,7 +322,7 @@ static struct task_struct *select_bad_pr
-> > >  		 * the process of exiting and releasing its resources.
-> > >  		 * Otherwise we could get an easy OOM deadlock.
-> > >  		 */
-> > > -		if (p->flags & PF_EXITING) {
-> > > +		if ((p->flags & PF_EXITING) && p->mm) {
+> >Here is a microbenchmark demonstrating the hit (non-virtualized);
+> >it simulates a pointer-chasing application with a varying working
+> >set.  It is easy to see when the working set overflows the various
+> >caches, and later when the page tables overflow the caches.  For
+> >virtualization the hit will be a factor of 3 instead of 2, and
+> >will come earlier since the page tables are bigger.
 > >
-> > Even this check is satisfied, it still can't say p is a good victim or
-> > it will release memory automatically if multi threaded, as the exiting
-> > of p doesn't mean the other threads are going to exit, so the ->mm won't
-> > be released.
 > 
-> Yes, completely agreed.
+> And here is the same thing with guest latencies as well:
 > 
-> Unfortunately I forgot to copy this into the changelog, but when I
-> discussed this change I mentioned "still not perfect, but much better".
+> Random memory read latency, in nanoseconds, according to working
+> set and page size.
 > 
-> I do not really know what is the "right" solution. Even if we fix this
-> check for mt case, we also have CLONE_VM tasks.
 > 
-What about checking mm->mm_users too? If there are any other users,
-just let badness judge.  CLONE_VM tasks but not mt seem rare, and
-badness doesn't consider it too.
+>        ------- host ------  ------------- guest -----------
+>                             --- hpage=4k ---  -- hpage=2M -
+> 
+>  size        4k         2M     4k/4k   2M/4k   4k/2M  2M/2M
+>    4k       4.9        4.9       5.0     4.9     4.9    4.9
+>   16k       4.9        4.9       5.0     4.9     5.0    4.9
+>   64k       7.6        7.6       7.9     7.8     7.8    7.8
+>  256k      15.1        8.1      15.9    10.3    15.4    9.0
+>    1M      28.5       23.9      29.3    37.9    29.3   24.6
+>    4M      31.8       25.3      37.5    42.6    35.5   26.0
+>   16M      94.8       79.0     110.7   107.3    92.0   77.3
+>   64M     260.9      224.2     294.2   247.8   251.5  207.2
+>  256M     269.8      248.8     313.9   253.1   260.1  230.3
+>    1G     278.1      246.3     331.8   273.0   269.9  236.7
+>    4G     330.9      252.6     545.6   346.0   341.6  256.5
+>   16G     436.3      243.8     705.2   458.3   463.9  268.8
+>   64G     486.0      253.3     767.3   532.5   516.9  274.7
+> 
+> 
+> It's easy to see how cache effects dominate the tlb walk.  The only
+> way hardware can reduce this is by increasing cache sizes
+> dramatically.
 
-> So, this patch just tries to improve things, to avoid the easy-to-trigger
-> false positives.
-> 
-Agreed.
+Well this is the best attainable speedup in a corner case where the
+whole memory hierarchy is being actively defeated. The numbers are
+not surprising. Actual workloads are infinitely more useful. And in
+most cases, quite possibly hardware improvements like asids will
+be more useful.
 
-Thanks,
-Anfei.
-
-> Oleg.
-> 
+I don't really agree with how virtualization problem is characterised.
+Xen's way of doing memory virtualization maps directly to normal
+hardware page tables so there doesn't seem like a fundamental
+requirement for more memory accesses.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
