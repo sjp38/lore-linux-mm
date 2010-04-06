@@ -1,82 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DF076B01EE
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 04:30:51 -0400 (EDT)
-Date: Tue, 6 Apr 2010 09:30:28 +0100
-From: Mel Gorman <mel@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 461D26B01EE
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 05:08:45 -0400 (EDT)
+Date: Tue, 6 Apr 2010 11:08:13 +0200
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-Message-ID: <20100406083028.GA17882@csn.ul.ie>
-References: <patchbomb.1270168887@v2.random> <20100405120906.0abe8e58.akpm@linux-foundation.org> <20100405193616.GA5125@elte.hu> <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com> <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org> <20100405210133.GE21620@think> <4BBA53A0.8050608@redhat.com>
+Message-ID: <20100406090813.GA14098@elte.hu>
+References: <20100405193616.GA5125@elte.hu>
+ <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com>
+ <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org>
+ <t2q84144f021004051346o65f03e71r5b7bb19b433ce454@mail.gmail.com>
+ <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org>
+ <20100405232115.GM5825@random.random>
+ <alpine.LFD.2.00.1004051636060.21411@i5.linux-foundation.org>
+ <20100406011345.GT5825@random.random>
+ <alpine.LFD.2.00.1004051836000.5870@i5.linux-foundation.org>
+ <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4BBA53A0.8050608@redhat.com>
+In-Reply-To: <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Chris Mason <chris.mason@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 06, 2010 at 12:18:24AM +0300, Avi Kivity wrote:
-> On 04/06/2010 12:01 AM, Chris Mason wrote:
->> On Mon, Apr 05, 2010 at 01:32:21PM -0700, Linus Torvalds wrote:
->>    
->>>
->>> On Mon, 5 Apr 2010, Pekka Enberg wrote:
->>>      
->>>> AFAIK, most modern GCs split memory in young and old generation
->>>> "zones" and _copy_ surviving objects from the former to the latter if
->>>> their lifetime exceeds some threshold. The JVM keeps scanning the
->>>> smaller young generation very aggressively which causes TLB pressure
->>>> and scans the larger old generation less often.
->>>>        
->>> .. my only input to this is: numbers talk, bullsh*t walks.
->>>
->>> I'm not interested in micro-benchmarks, either. I can show infinite TLB
->>> walk improvement in a microbenchmark.
->>>      
->> Ok, I'll bite.  I should be able to get some database workloads with
->> hugepages, transparent hugepages, and without any hugepages at all.
->>    
->
-> Please run them in conjunction with Mel Gorman's memory compaction,  
-> otherwise fragmentation may prevent huge pages from being instantiated.
->
 
-Strictly speaking, compaction is not necessary to allocate huge pages.
-What compaction gets you is
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-  o Lower latency and cost of huge page allocation
-  o Works on swapless systems
+> On Mon, 5 Apr 2010, Linus Torvalds wrote:
+> > 
+> > So I thought it was a more interesting load than it was. The 
+> > virtualization "TLB miss is expensive" load I can't find it in myself to 
+> > care about. "Get a better CPU" is my answer to that one,
+> 
+> [ Btw, I do realize that "better CPU" in this case may be "future CPU". I 
+>   just think that this is where better TLB's and using ASID's etc is 
+>   likely to be a much bigger deal than adding VM complexity. Kind of the 
+>   same way I think HIGHMEM was ultimately a failure, and the 4G:4G split 
+>   was an atrocity that should have been killed ]
 
-What is important is that you run
-hugeadm --set-recommended-min_free_kbytes
-from the libhugetlbfs 2.8 package early in boot so that
-anti-fragmentation is doing as good as job as possible. If one is very
-curious, use the mm_page_alloc_extfrag to trace how often severe
-fragmentation-related events occur under default settings and with
-min_free_kbytes set properly.
+Both highmem and 4g:4g were failures (albeit highly practical failures you 
+have to admit) in the sense that their relevance faded over time. (because 
+they extended the practical limits of the constantly fading, 32-bit world.)
 
-Without the compaction patches, allocating huge pages will be occasionally
-*very* expensive as a large number of pages will need to be reclaimed.
-Most likely sympton is trashing while the database starts up. Allocation
-success rates will also be lower when under heavy load.
+Both highmem and 4g:4g became less and less of an issue as hardware improved.
 
-Running make -j16 at the same time is unlikely to make much of a
-difference from a hugepage allocation point of view. The performance
-figures will vary significantly of course as make competes with the
-database for CPU time and other resources.
+OTOH are you saying the same thing about huge pages? On what basis? Do you 
+think it would be possible for hardware to 'discover' physically-continuous 2M 
+mappings and turn them into a huge TLB internally? [i'm not sure it's feasible 
+even in future CPUs - and even if it is, the OS would still have to do the 
+defrag and keep-them-2MB logic internally so there's not much difference.]
 
-Finally, benchmarking with databases is not new as such -
-http://lwn.net/Articles/378641/ . This was on fairly simple hardware
-though as I didn't have access to hardware more suitable for database
-workloads. If you are running with transparent huge pages though, be
-sure to double check that huge pages are actually being used
-transparently.
+The numbers seem rather clear:
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+  http://lwn.net/Articles/378641/
+
+Yes, some of it is benchmarketing (most benchmarks are), but a significant 
+portion of it isnt: HPC processing, DB workloads and Java workloads.
+
+Hugepages provide a 'final' performance boost in cases where there's no other 
+software way left to speed up a given workload.
+
+The goal of Andrea's and Mel's patch-set, to make this 'final performance 
+boost' more practical seems like a valid technical goal.
+
+We can still validly reject it all based on VM complexity (albeit the VM 
+people wrote both the defrag part and the transparent usage part so all the 
+patches are all real), but how can we legitimately reject the performance 
+advantage?
+
+I think the hugetlb situation is more similar to the block IO transition to 
+larger sector sizes in block IO or to the networking IO transition from 
+host-side-everything to checksum-offload and then to TSO - than it is similar 
+to highmem or 4g:4g.
+
+In fact the whole maintenance thought process seems somewhat similar to the 
+TSO situation: the networking folks first rejected TSO based on complexity 
+arguments, but then was embraced after some time.
+
+ 	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
