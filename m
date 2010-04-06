@@ -1,69 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 089A76B01EF
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 23:09:59 -0400 (EDT)
-Received: by qyk33 with SMTP id 33so4950024qyk.28
-        for <linux-mm@kvack.org>; Mon, 05 Apr 2010 20:09:57 -0700 (PDT)
-From: =?UTF-8?q?Arve=20Hj=C3=B8nnev=C3=A5g?= <arve@android.com>
-Subject: [PATCH] mm: Check if any page in a pageblock is reserved before marking it MIGRATE_RESERVE
-Date: Mon,  5 Apr 2010 20:09:16 -0700
-Message-Id: <1270523356-1728-1-git-send-email-arve@android.com>
-In-Reply-To: <20100405101424.GA21207@csn.ul.ie>
-References: <20100405101424.GA21207@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1ACFC6B01EF
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 23:31:21 -0400 (EDT)
+Date: Tue, 6 Apr 2010 11:31:14 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+Message-ID: <20100406033114.GB13169@localhost>
+References: <20100406105324.7E30.A69D9226@jp.fujitsu.com> <20100406023043.GA12420@localhost> <20100406115543.7E39.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100406115543.7E39.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, TAO HU <tghk48@motorola.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Ye Yuan.Bo-A22116" <yuan-bo.ye@motorola.com>, Chang Qing-A21550 <Qing.Chang@motorola.com>, linux-arm-kernel@lists.infradead.org, =?UTF-8?q?Arve=20Hj=C3=B8nnev=C3=A5g?= <arve@android.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: "Li, Shaohua" <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-This fixes a problem where the first pageblock got marked MIGRATE_RESERVE even
-though it only had a few free pages. This in turn caused no contiguous memory
-to be reserved and frequent kswapd wakeups that emptied the caches to get more
-contiguous memory.
+On Tue, Apr 06, 2010 at 10:58:43AM +0800, KOSAKI Motohiro wrote:
+> > On Tue, Apr 06, 2010 at 10:06:19AM +0800, KOSAKI Motohiro wrote:
+> > > > On Tue, Apr 06, 2010 at 09:25:36AM +0800, Li, Shaohua wrote:
+> > > > > On Sun, Apr 04, 2010 at 10:19:06PM +0800, KOSAKI Motohiro wrote:
+> > > > > > > On Fri, Apr 02, 2010 at 05:14:38PM +0800, KOSAKI Motohiro wrote:
+> > > > > > > > > > > This patch makes a lot of sense than previous. however I think <1% anon ratio
+> > > > > > > > > > > shouldn't happen anyway because file lru doesn't have reclaimable pages.
+> > > > > > > > > > > <1% seems no good reclaim rate.
+> > > > > > > > > > 
+> > > > > > > > > > Oops, the above mention is wrong. sorry. only 1 page is still too big.
+> > > > > > > > > > because under streaming io workload, the number of scanning anon pages should
+> > > > > > > > > > be zero. this is very strong requirement. if not, backup operation will makes
+> > > > > > > > > > a lot of swapping out.
+> > > > > > > > > Sounds there is no big impact for the workload which you mentioned with the patch.
+> > > > > > > > > please see below descriptions.
+> > > > > > > > > I updated the description of the patch as fengguang suggested.
+> > > > > > > > 
+> > > > > > > > Umm.. sorry, no.
+> > > > > > > > 
+> > > > > > > > "one fix but introduce another one bug" is not good deal. instead, 
+> > > > > > > > I'll revert the guilty commit at first as akpm mentioned.
+> > > > > > > Even we revert the commit, the patch still has its benefit, as it increases
+> > > > > > > calculation precision, right?
+> > > > > > 
+> > > > > > no, you shouldn't ignore the regression case.
+> > > > 
+> > > > > I don't think this is serious. In my calculation, there is only 1 page swapped out
+> > > > > for 6G anonmous memory. 1 page should haven't any performance impact.
+> > > > 
+> > > > 1 anon page scanned for every N file pages scanned?
+> > > > 
+> > > > Is N a _huge_ enough ratio so that the anon list will be very light scanned?
+> > > > 
+> > > > Rik: here is a little background.
+> > > 
+> > > The problem is, the VM are couteniously discarding no longer used file
+> > > cache. if we are scan extra anon 1 page, we will observe tons swap usage
+> > > after few days.
+> > > 
+> > > please don't only think benchmark.
+> > 
+> > OK the days-of-streaming-io typically happen in file servers.  Suppose
+> > a file server with 16GB memory, 1GB of which is consumed by anonymous
+> > pages, others are for page cache.
+> > 
+> > Assume that the exact file:anon ratio computed by the get_scan_ratio()
+> > algorithm is 1000:1. In that case percent[0]=0.1 and is rounded down
+> > to 0, which keeps the anon pages in memory for the few days.
+> > 
+> > Now with Shaohua's patch, nr[0] = (262144/4096)/1000 = 0.06 will also
+> > be rounded down to 0. It only becomes >=1 when
+> > - reclaim runs into trouble and priority goes low
+> > - anon list goes huge
+> > 
+> > So I guess Shaohua's patch still has reasonable "underflow" threshold :)
+> 
+> Again, I didn't said his patch is no worth. I only said we don't have to
+> ignore the downside. 
 
-Signed-off-by: Arve HjA,nnevAJPYg <arve@android.com>
----
- mm/page_alloc.c |   16 +++++++++++++++-
- 1 files changed, 15 insertions(+), 1 deletions(-)
+Right, we should document both the upside and downside.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fb7df1d..46ade16 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2860,6 +2860,20 @@ static inline unsigned long wait_table_bits(unsigned long size)
- #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
- 
- /*
-+ * Check if a pageblock contains reserved pages
-+ */
-+static int pageblock_is_reserved(unsigned long start_pfn)
-+{
-+	unsigned long end_pfn = start_pfn + pageblock_nr_pages;
-+	unsigned long pfn;
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn++)
-+		if (!pfn_valid_within(pfn) || PageReserved(pfn_to_page(pfn)))
-+			return 1;
-+	return 0;
-+}
-+
-+/*
-  * Mark a number of pageblocks as MIGRATE_RESERVE. The number
-  * of blocks reserved is based on min_wmark_pages(zone). The memory within
-  * the reserve will tend to store contiguous free pages. Setting min_free_kbytes
-@@ -2898,7 +2912,7 @@ static void setup_zone_migrate_reserve(struct zone *zone)
- 			continue;
- 
- 		/* Blocks with reserved pages will never free, skip them. */
--		if (PageReserved(page))
-+		if (pageblock_is_reserved(pfn))
- 			continue;
- 
- 		block_migratetype = get_pageblock_migratetype(page);
--- 
-1.6.5.1
+The main difference happens when file:anon scan ratio > 100:1.
+
+For the current percent[] based computing, percent[0]=0 hence nr[0]=0
+which disables anon list scan unconditionally, for good or for bad.
+
+For the direct nr[] computing,
+- nr[0] will be 0 for typical file servers, because with priority=12
+  and anon lru size < 1.6GB, nr[0] = (anon_size/4096)/100 < 0
+- nr[0] will be non-zero when priority=1 and anon_size > 100 pages,
+  this stops OOM for Shaohua's test case, however may not be enough to
+  guarantee safety (your previous reverting patch can provide this
+  guarantee).
+
+I liked Shaohua's patch a lot -- it adapts well to both the
+file-server case and the mostly-anon-pages case :)
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
