@@ -1,35 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 34E8A6B01EE
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 01:37:00 -0400 (EDT)
-Date: Tue, 6 Apr 2010 13:36:44 +0800
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-Message-ID: <20100406053644.GA14183@sli10-desk.sh.intel.com>
-References: <20100331045348.GA3396@sli10-desk.sh.intel.com>
- <20100331142708.039E.A69D9226@jp.fujitsu.com>
- <20100331145030.03A1.A69D9226@jp.fujitsu.com>
- <20100402065052.GA28027@sli10-desk.sh.intel.com>
- <20100406050325.GA17797@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100406050325.GA17797@localhost>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1362B6B01EE
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 01:43:45 -0400 (EDT)
+Subject: Re: mprotect pgprot handling weirdness
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <1270530566.13812.28.camel@pasglop>
+References: <1270530566.13812.28.camel@pasglop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 06 Apr 2010 15:43:42 +1000
+Message-ID: <1270532622.13812.30.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Wu, Fengguang" <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 06, 2010 at 01:03:25PM +0800, Wu, Fengguang wrote:
-> Shaohua,
-> 
-> > +		scan = zone_nr_lru_pages(zone, sc, l);
-> > +		if (priority) {
-> > +			scan >>= priority;
-> > +			scan = (scan * fraction[file] / denominator[file]);
-> 
-> Ah, the (scan * fraction[file]) may overflow in 32bit kernel!
-good catch. will change it to u64.
+On Tue, 2010-04-06 at 15:09 +1000, Benjamin Herrenschmidt wrote:
+> (*) Right now it's near impossible to add arch specific PROT_* bits to
+> mmap/mprotect for fancy things like cachability attributes, or other
+> nifty things like reverse-endian mappings that we have on some embedded
+> platforms, I'm investigating ways to better separate vm_page_prot from
+> vm_flags so some PROT_* bits can go straight to the former without
+> having to be mirrored in some way in the later.
+
+The other (easier) option is to make the vm flags always 64-bit and
+reserve a range of bits here for the arch to use but I suppose there's
+going to be unhappiness about that one :-)
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
