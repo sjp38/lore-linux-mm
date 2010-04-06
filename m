@@ -1,53 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 852A66B01EE
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 03:30:54 -0400 (EDT)
-Subject: Re: Arch specific mmap attributes (Was: mprotect pgprot handling
- weirdness)
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20100406151751.7E4E.A69D9226@jp.fujitsu.com>
-References: <20100406143928.7E4B.A69D9226@jp.fujitsu.com>
-	 <1270534061.13812.56.camel@pasglop>
-	 <20100406151751.7E4E.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 06 Apr 2010 17:30:44 +1000
-Message-ID: <1270539044.13812.65.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DF076B01EE
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 04:30:51 -0400 (EDT)
+Date: Tue, 6 Apr 2010 09:30:28 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
+Message-ID: <20100406083028.GA17882@csn.ul.ie>
+References: <patchbomb.1270168887@v2.random> <20100405120906.0abe8e58.akpm@linux-foundation.org> <20100405193616.GA5125@elte.hu> <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com> <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org> <20100405210133.GE21620@think> <4BBA53A0.8050608@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4BBA53A0.8050608@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Chris Mason <chris.mason@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-04-06 at 15:24 +0900, KOSAKI Motohiro wrote:
+On Tue, Apr 06, 2010 at 12:18:24AM +0300, Avi Kivity wrote:
+> On 04/06/2010 12:01 AM, Chris Mason wrote:
+>> On Mon, Apr 05, 2010 at 01:32:21PM -0700, Linus Torvalds wrote:
+>>    
+>>>
+>>> On Mon, 5 Apr 2010, Pekka Enberg wrote:
+>>>      
+>>>> AFAIK, most modern GCs split memory in young and old generation
+>>>> "zones" and _copy_ surviving objects from the former to the latter if
+>>>> their lifetime exceeds some threshold. The JVM keeps scanning the
+>>>> smaller young generation very aggressively which causes TLB pressure
+>>>> and scans the larger old generation less often.
+>>>>        
+>>> .. my only input to this is: numbers talk, bullsh*t walks.
+>>>
+>>> I'm not interested in micro-benchmarks, either. I can show infinite TLB
+>>> walk improvement in a microbenchmark.
+>>>      
+>> Ok, I'll bite.  I should be able to get some database workloads with
+>> hugepages, transparent hugepages, and without any hugepages at all.
+>>    
+>
+> Please run them in conjunction with Mel Gorman's memory compaction,  
+> otherwise fragmentation may prevent huge pages from being instantiated.
+>
 
-> I guess you haven't catch my intention. I didn't say we have to remove 
-> PROT_SAO and VM_SAO.
-> I mean mmap(PROT_SAO) is ok, it's only append new flag, not change exiting
-> flags meanings. I'm only against mprotect(PROT_NONE) turn off PROT_SAO
-> implicitely.
-> 
-> IOW I recommend we use three syscall
-> 	mmap()		create new mappings
-> 	mprotect()	change a protection of mapping (as a name)
-> 	mattribute(): (or similar name)
-> 			change an attribute of mapping (e.g. PROT_SAO or
-> 			another arch specific flags)
-> 
-> I'm not against changing mm/protect.c for PROT_SAO.
+Strictly speaking, compaction is not necessary to allocate huge pages.
+What compaction gets you is
 
-Ok, I see. No biggie. The main deal remains how we want to do that
-inside the kernel :-) I think the less horrible options here are
-to either extend vm_flags to always be 64-bit, or add a separate
-vm_map_attributes flag, and add the necessary bits and pieces to
-prevent merge accross different attribute vma's.
+  o Lower latency and cost of huge page allocation
+  o Works on swapless systems
 
-The more I try to hack it into vm_page_prot, the more I hate that
-option.
+What is important is that you run
+hugeadm --set-recommended-min_free_kbytes
+from the libhugetlbfs 2.8 package early in boot so that
+anti-fragmentation is doing as good as job as possible. If one is very
+curious, use the mm_page_alloc_extfrag to trace how often severe
+fragmentation-related events occur under default settings and with
+min_free_kbytes set properly.
 
-Cheers
-Ben.
+Without the compaction patches, allocating huge pages will be occasionally
+*very* expensive as a large number of pages will need to be reclaimed.
+Most likely sympton is trashing while the database starts up. Allocation
+success rates will also be lower when under heavy load.
 
+Running make -j16 at the same time is unlikely to make much of a
+difference from a hugepage allocation point of view. The performance
+figures will vary significantly of course as make competes with the
+database for CPU time and other resources.
+
+Finally, benchmarking with databases is not new as such -
+http://lwn.net/Articles/378641/ . This was on fairly simple hardware
+though as I didn't have access to hardware more suitable for database
+workloads. If you are running with transparent huge pages though, be
+sure to double check that huge pages are actually being used
+transparently.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
