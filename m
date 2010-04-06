@@ -1,118 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EDA266B01EE
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 07:16:43 -0400 (EDT)
-Date: Tue, 6 Apr 2010 12:16:19 +0100
-From: Mel Gorman <mel@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 353CD6B01EE
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 07:38:35 -0400 (EDT)
+Date: Tue, 6 Apr 2010 07:35:42 -0400
+From: Chris Mason <chris.mason@oracle.com>
 Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-Message-ID: <20100406111619.GD17882@csn.ul.ie>
-References: <patchbomb.1270168887@v2.random> <20100405120906.0abe8e58.akpm@linux-foundation.org> <20100405193616.GA5125@elte.hu> <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com> <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org> <t2q84144f021004051346o65f03e71r5b7bb19b433ce454@mail.gmail.com> <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org> <20100405232115.GM5825@random.random> <20100406093021.GC17882@csn.ul.ie> <BAA2AB49-DE66-4F22-B0E2-296522C2AF3E@mit.edu>
+Message-ID: <20100406113542.GC5218@think>
+References: <patchbomb.1270168887@v2.random>
+ <20100405120906.0abe8e58.akpm@linux-foundation.org>
+ <20100405193616.GA5125@elte.hu>
+ <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com>
+ <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org>
+ <20100405210133.GE21620@think>
+ <4BBA53A0.8050608@redhat.com>
+ <20100406083028.GA17882@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BAA2AB49-DE66-4F22-B0E2-296522C2AF3E@mit.edu>
+In-Reply-To: <20100406083028.GA17882@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Theodore Tso <tytso@MIT.EDU>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Avi Kivity <avi@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 06, 2010 at 06:32:28AM -0400, Theodore Tso wrote:
+On Tue, Apr 06, 2010 at 09:30:28AM +0100, Mel Gorman wrote:
+> On Tue, Apr 06, 2010 at 12:18:24AM +0300, Avi Kivity wrote:
+> > On 04/06/2010 12:01 AM, Chris Mason wrote:
+> >> On Mon, Apr 05, 2010 at 01:32:21PM -0700, Linus Torvalds wrote:
+> >>    
+> >>>
+> >>> On Mon, 5 Apr 2010, Pekka Enberg wrote:
+> >>>      
+> >>>> AFAIK, most modern GCs split memory in young and old generation
+> >>>> "zones" and _copy_ surviving objects from the former to the latter if
+> >>>> their lifetime exceeds some threshold. The JVM keeps scanning the
+> >>>> smaller young generation very aggressively which causes TLB pressure
+> >>>> and scans the larger old generation less often.
+> >>>>        
+> >>> .. my only input to this is: numbers talk, bullsh*t walks.
+> >>>
+> >>> I'm not interested in micro-benchmarks, either. I can show infinite TLB
+> >>> walk improvement in a microbenchmark.
+> >>>      
+> >> Ok, I'll bite.  I should be able to get some database workloads with
+> >> hugepages, transparent hugepages, and without any hugepages at all.
+> >>    
+> >
+> > Please run them in conjunction with Mel Gorman's memory compaction,  
+> > otherwise fragmentation may prevent huge pages from being instantiated.
+> >
 > 
-> On Apr 6, 2010, at 5:30 AM, Mel Gorman wrote:
-> > 
-> > There is a good chance you could allocate a decent percentage of
-> > memory as huge pages but as you are unlikely to have run hugeadm
-> > --set-recommended-min_free_kbytes early in boot, it is also likely to trash
-> > heavily and the success rates will not be very impressive.
+> Strictly speaking, compaction is not necessary to allocate huge pages.
+> What compaction gets you is
 > 
+>   o Lower latency and cost of huge page allocation
+>   o Works on swapless systems
+> 
+> What is important is that you run
+> hugeadm --set-recommended-min_free_kbytes
+> from the libhugetlbfs 2.8 package early in boot so that
+> anti-fragmentation is doing as good as job as possible.
 
-> Can you explain how hugeadm --set-recommended-min_free_kbytes works and
-> how it achieves this magic?  Or can you send me a pointer to how this works?
-> I've tried doing some Google searches, and I found the LWN article "Huge
-> pages part 3: administration", but it doesn't go into a lot of detail how
-> increasing vm.min_free_kbytes helps the anti fragmentation code.
+Great, I'll make sure to do this.
 
-Sure, the details of how and why it works are spread all over the place.
-It's fairly simple really and related to how anti-fragmentation does its work.
+> If one is very
+> curious, use the mm_page_alloc_extfrag to trace how often severe
+> fragmentation-related events occur under default settings and with
+> min_free_kbytes set properly.
+> 
+> Without the compaction patches, allocating huge pages will be occasionally
+> *very* expensive as a large number of pages will need to be reclaimed.
+> Most likely sympton is trashing while the database starts up. Allocation
+> success rates will also be lower when under heavy load.
+> 
+> Running make -j16 at the same time is unlikely to make much of a
+> difference from a hugepage allocation point of view. The performance
+> figures will vary significantly of course as make competes with the
+> database for CPU time and other resources.
 
-Anti-frag divides up a zone into "arenas" where an arena is usually the
-default huge page size - 2M on x86-64, 16M on ppc64 etc. Its objective is to
-keep UNMOVABLE, RECLAIMABLE and MOVABLE pages within the same arenas using
-multiple free lists. If a page within the desired arena is not available, it
-falls back to using one of the other arenas. A fallback is a "fragmentation
-event" as traced by the mm_page_alloc_extfrag event. A severe event is if a
-small page is used and a benign event is if a large page (e.g. 2M) is moved
-to the desired list. It's benign because pages of the same "migrate type"
-continue to be allocated within the same arena.
+Heh, Linus did actually say to run them concurrently with make -j16, but
+I read it as make -j16 before the database run.  My goal will be to
+fragment the ram, then get a db in ram and see how fast it all goes.
 
-How often these "fragmentation events" occur depends on pages of the
-desired type being always available. This in turn depends on free pages
-being available which is easiest to control by min_free_kbytes and is where
---set-recommended-min_free_kbytes comes in. By keeping a number of pages free,
-the probability of a page of the desired type being available increases.
+Fragmenting memory during the run is only interesting to test compaction, I'd
+throw out the resulting db benchmark numbers and only count the
+number of transparent hugepages we were able to allocate.
 
-As there are three migrate-types we currently care about from an anti-frag
-perspective, the recommended min_free_kbytes value depends on the number of
-zones in the system and having 3 arenas worth of pages are kept free per
-zone. Once set, there will, in most cases, be a page free of the required
-type at allocation time. It can be observed in practice by tracing
-mm_page_alloc_extfrag.
+> 
+> Finally, benchmarking with databases is not new as such -
+> http://lwn.net/Articles/378641/ . This was on fairly simple hardware
+> though as I didn't have access to hardware more suitable for database
+> workloads. If you are running with transparent huge pages though, be
+> sure to double check that huge pages are actually being used
+> transparently.
 
-The next part of min_free_kbytes is related to the "reserve" blocks which
-are only important to high-order atomic allocations. There is a maximum of
-two reserve blocks per zone. For example, on a flat-memory system with one
-grouping of memory, there would be a maximum of two reserve arenas. On a
-NUMA system with two nodes, there would be a maximum of four. With multiple
-groupings of memory such as 32-bit X86 with DMA, Normal and Highmem groups of
-free-lists, there might be five reserve pageblocks, two each for the Normal
-and HighMem groupings and just one for DMA as it is only 16MB worth of pages.
+Will do.  It'll take me a few days to get the machines setup and a
+baseline measurement.
 
-The final part of the recommended min_free_kbytes value is a sum of the
-reserve arenas and the migrate-type arenas to ensure that pages of the
-required type are free.
-
-The function that works this out in libhugetlbfs is
-
-long recommended_minfreekbytes(void)
-{
-        FILE *f;
-        char buf[ZONEINFO_LINEBUF];
-        int nr_zones = 0;
-        long recommended_min;
-        long pageblock_kbytes = kernel_default_hugepage_size() / 1024;
-
-        /* Detect the number of zones in the system */
-        f = fopen(PROCZONEINFO, "r");
-        if (f == NULL) {
-                WARNING("Unable to open " PROCZONEINFO);
-                return 0;
-        }
-        while (fgets(buf, ZONEINFO_LINEBUF, f) != NULL) {
-                if (strncmp(buf, "Node ", 5) == 0)
-                        nr_zones++;
-        }
-        fclose(f);
-
-        /* Make sure at least 2 pageblocks are free for MIGRATE_RESERVE */
-        recommended_min = pageblock_kbytes * nr_zones * 2;
-
-        /*
-         * Make sure that on average at least two pageblocks are almost free
-         * of another type, one for a migratetype to fall back to and a
-         * second to avoid subsequent fallbacks of other types There are 3
-         * MIGRATE_TYPES we care about.
-         */
-        recommended_min += pageblock_kbytes * nr_zones * 3 * 3;
-        return recommended_min;
-}
-
-Does this clarify why min_free_kbytes helps and why the "recommended"
-value is what it is?
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
