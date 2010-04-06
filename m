@@ -1,65 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 978E96B01EF
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 00:33:36 -0400 (EDT)
-Received: by pvg11 with SMTP id 11so1519745pvg.14
-        for <linux-mm@kvack.org>; Mon, 05 Apr 2010 21:33:35 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8770C6B01EE
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 00:49:14 -0400 (EDT)
+Date: Tue, 6 Apr 2010 12:49:10 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+Message-ID: <20100406044910.GA16303@localhost>
+References: <20100406105324.7E30.A69D9226@jp.fujitsu.com> <20100406023043.GA12420@localhost> <20100406115543.7E39.A69D9226@jp.fujitsu.com> <20100406033114.GB13169@localhost> <4BBAAD3F.3090900@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
-References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
-Date: Tue, 6 Apr 2010 13:33:34 +0900
-Message-ID: <k2m28c262361004052133jfc62525bw3cd570765d160876@mail.gmail.com>
-Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4BBAAD3F.3090900@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, Mel Gorman <mel@csn.ul.ie>
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Li, Shaohua" <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 6, 2010 at 11:59 AM, Bob Liu <lliubbo@gmail.com> wrote:
-> In funtion migrate_pages(), if the dest node have no
-> enough free pages,it will fallback to other nodes.
-> Add GFP_THISNODE to avoid this, the same as what
-> funtion new_page_node() do in migrate.c.
->
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+On Tue, Apr 06, 2010 at 11:40:47AM +0800, Rik van Riel wrote:
+> On 04/05/2010 11:31 PM, Wu Fengguang wrote:
+> > On Tue, Apr 06, 2010 at 10:58:43AM +0800, KOSAKI Motohiro wrote:
+> >> Again, I didn't said his patch is no worth. I only said we don't have to
+> >> ignore the downside.
+> >
+> > Right, we should document both the upside and downside.
+> 
+> The downside is obvious: streaming IO (used once data
+> that does not fit in the cache) can push out data that
+> is used more often - requiring that it be swapped in
+> at a later point in time.
+> 
+> I understand what Shaohua's patch does, but I do not
+> understand the upside.  What good does it do to increase
+> the size of the cache for streaming IO data, which is
+> generally touched only once?
 
-Yes. It can be fixed. but I have a different concern.
+Not that bad :)  With Shaohua's patch the anon list will typically
+_never_ get scanned, just like before.
 
-I looked at 6484eb3e2a81807722c5f28ef.
-"   page allocator: do not check NUMA node ID when the caller knows
-the node is valid
+If it's mostly use-once IO, file:anon will be 1000 or even 10000, and
+priority=12.  Then only anon lists larger than 16GB or 160GB will get
+nr[0] >= 1.
 
-   Callers of alloc_pages_node() can optionally specify -1 as a node to mean
-   "allocate from the current node".  However, a number of the callers in
-   fast paths know for a fact their node is valid.  To avoid a comparison and
-   branch, this patch adds alloc_pages_exact_node() that only checks the nid
-   with VM_BUG_ON().  Callers that know their node is valid are then
-   converted."
+> What kind of performance benefits can we get by doing
+> that?
 
-alloc_pages_exact_node's naming would be not good.
-It is not for allocate page from exact node but just for
-removing check of node's valid.
-Some people like me who is poor english could misunderstood it.
+So vmscan behavior and performance remain the same as before.
 
-How about changing name with following?
-/* This function can allocate page to fallback list of node*/
-alloc_pages_by_nodeid(...)
+For really large anon list, such workload is beyond our imagination.
+So we cannot assert "don't scan anon list" will be a benefit.
 
-And instead of it, let's change alloc_pages_exact_node with following.
-static inline struct page *alloc_pages_exact_node(...)
-{
- VM_BUG_ON ..
- return __alloc_pages(gfp_mask|__GFP_THISNODE...);
-}
+On the other hand, in the test case of "do stream IO when most memory
+occupied by tmpfs pages", it is very bad behavior refuse to scan anon
+list in normal and suddenly start scanning _the whole_ anon list when
+priority hits 0. Shaohua's patch helps it by gradually increasing the
+scan nr of anon list as memory pressure increases.
 
-I think it's more clear than old.
-What do you think about it?
+Thanks,
+Fengguang
 
--- 
-Kind regards,
-Minchan Kim
+> > The main difference happens when file:anon scan ratio>  100:1.
+> >
+> > For the current percent[] based computing, percent[0]=0 hence nr[0]=0
+> > which disables anon list scan unconditionally, for good or for bad.
+> >
+> > For the direct nr[] computing,
+> > - nr[0] will be 0 for typical file servers, because with priority=12
+> >    and anon lru size<  1.6GB, nr[0] = (anon_size/4096)/100<  0
+> > - nr[0] will be non-zero when priority=1 and anon_size>  100 pages,
+> >    this stops OOM for Shaohua's test case, however may not be enough to
+> >    guarantee safety (your previous reverting patch can provide this
+> >    guarantee).
+> >
+> > I liked Shaohua's patch a lot -- it adapts well to both the
+> > file-server case and the mostly-anon-pages case :)
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
