@@ -1,84 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 895516B01F4
-	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 21:27:44 -0400 (EDT)
-Date: Tue, 6 Apr 2010 09:27:41 +0800
-From: Shaohua Li <shaohua.li@intel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6F0A96B01EF
+	for <linux-mm@kvack.org>; Mon,  5 Apr 2010 21:36:39 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o361aa2J016813
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 6 Apr 2010 10:36:36 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D2AA45DE4E
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 10:36:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F8171EF081
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 10:36:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4633AE38001
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 10:36:36 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E8DEAE38009
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 10:36:32 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-Message-ID: <20100406012741.GA22749@sli10-desk.sh.intel.com>
-References: <20100331045348.GA3396@sli10-desk.sh.intel.com>
- <20100331142708.039E.A69D9226@jp.fujitsu.com>
- <20100331145030.03A1.A69D9226@jp.fujitsu.com>
- <20100402065052.GA28027@sli10-desk.sh.intel.com>
- <20100404004838.GA6390@localhost>
+In-Reply-To: <20100406012536.GB18672@sli10-desk.sh.intel.com>
+References: <20100404231558.7E00.A69D9226@jp.fujitsu.com> <20100406012536.GB18672@sli10-desk.sh.intel.com>
+Message-Id: <20100406103500.7E2D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100404004838.GA6390@localhost>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  6 Apr 2010 10:36:32 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Wu, Fengguang" <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 04, 2010 at 08:48:38AM +0800, Wu, Fengguang wrote:
-> On Fri, Apr 02, 2010 at 02:50:52PM +0800, Li, Shaohua wrote:
-> > On Wed, Mar 31, 2010 at 01:53:27PM +0800, KOSAKI Motohiro wrote:
-> > > > > On Tue, Mar 30, 2010 at 02:08:53PM +0800, KOSAKI Motohiro wrote:
-> > > > > > Hi
+> On Sun, Apr 04, 2010 at 10:19:06PM +0800, KOSAKI Motohiro wrote:
+> > > On Fri, Apr 02, 2010 at 05:14:38PM +0800, KOSAKI Motohiro wrote:
+> > > > > > > This patch makes a lot of sense than previous. however I think <1% anon ratio
+> > > > > > > shouldn't happen anyway because file lru doesn't have reclaimable pages.
+> > > > > > > <1% seems no good reclaim rate.
 > > > > > > 
-> > > > > > > Commit 84b18490d1f1bc7ed5095c929f78bc002eb70f26 introduces a regression.
-> > > > > > > With it, our tmpfs test always oom. The test has a lot of rotated anon
-> > > > > > > pages and cause percent[0] zero. Actually the percent[0] is a very small
-> > > > > > > value, but our calculation round it to zero. The commit makes vmscan
-> > > > > > > completely skip anon pages and cause oops.
-> > > > > > > An option is if percent[x] is zero in get_scan_ratio(), forces it
-> > > > > > > to 1. See below patch.
-> > > > > > > But the offending commit still changes behavior. Without the commit, we scan
-> > > > > > > all pages if priority is zero, below patch doesn't fix this. Don't know if
-> > > > > > > It's required to fix this too.
-> > > > > > 
-> > > > > > Can you please post your /proc/meminfo and reproduce program? I'll digg it.
-> > > > > > 
-> > > > > > Very unfortunately, this patch isn't acceptable. In past time, vmscan 
-> > > > > > had similar logic, but 1% swap-out made lots bug reports. 
-> > > > > if 1% is still big, how about below patch?
+> > > > > > Oops, the above mention is wrong. sorry. only 1 page is still too big.
+> > > > > > because under streaming io workload, the number of scanning anon pages should
+> > > > > > be zero. this is very strong requirement. if not, backup operation will makes
+> > > > > > a lot of swapping out.
+> > > > > Sounds there is no big impact for the workload which you mentioned with the patch.
+> > > > > please see below descriptions.
+> > > > > I updated the description of the patch as fengguang suggested.
 > > > > 
-> > > > This patch makes a lot of sense than previous. however I think <1% anon ratio
-> > > > shouldn't happen anyway because file lru doesn't have reclaimable pages.
-> > > > <1% seems no good reclaim rate.
-> > > 
-> > > Oops, the above mention is wrong. sorry. only 1 page is still too big.
-> > > because under streaming io workload, the number of scanning anon pages should
-> > > be zero. this is very strong requirement. if not, backup operation will makes
-> > > a lot of swapping out.
-> > Sounds there is no big impact for the workload which you mentioned with the patch.
-> > please see below descriptions.
-> > I updated the description of the patch as fengguang suggested.
+> > > > Umm.. sorry, no.
+> > > > 
+> > > > "one fix but introduce another one bug" is not good deal. instead, 
+> > > > I'll revert the guilty commit at first as akpm mentioned.
+> > > Even we revert the commit, the patch still has its benefit, as it increases
+> > > calculation precision, right?
 > > 
-> > 
-> > 
-> > Commit 84b18490d introduces a regression. With it, our tmpfs test always oom.
-> > The test uses a 6G tmpfs in a system with 3G memory. In the tmpfs, there are
-> > 6 copies of kernel source and the test does kbuild for each copy. My
-> > investigation shows the test has a lot of rotated anon pages and quite few
-> > file pages, so get_scan_ratio calculates percent[0] to be zero. Actually
-> > the percent[0] shoule be a very small value, but our calculation round it
-> > to zero. The commit makes vmscan completely skip anon pages and cause oops.
-> > 
-> > To avoid underflow, we don't use percentage, instead we directly calculate
-> > how many pages should be scaned. In this way, we should get several scan pages
-> > for < 1% percent. With this fix, my test doesn't oom any more.
-> > 
-> > Note, this patch doesn't really change logics, but just increase precise. For
-> > system with a lot of memory, this might slightly changes behavior. For example,
-> > in a sequential file read workload, without the patch, we don't swap any anon
-> > pages. With it, if anon memory size is bigger than 16G, we will say one anon page
-> 
->                                                                   see?
-Thanks, will send a updated against -mm since we reverted the offending patch.
+> > no, you shouldn't ignore the regression case.
+> I don't think this is serious. In my calculation, there is only 1 page swapped out
+> for 6G anonmous memory. 1 page should haven't any performance impact.
 
-Thanks,
-Shaohua
+there is. I had received exactly opposite claim. because shrink_zone()
+is not called only once. it is called very much time.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
