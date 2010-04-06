@@ -1,102 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2A3DA6B01FE
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 09:23:26 -0400 (EDT)
-Message-ID: <4BBB359D.1020603@redhat.com>
-Date: Tue, 06 Apr 2010 16:22:37 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 58A8A6B01F5
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 09:40:55 -0400 (EDT)
+Date: Tue, 6 Apr 2010 15:38:47 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH -mm 2/4] oom: select_bad_process: PF_EXITING check
+	should take ->mm into account
+Message-ID: <20100406133847.GA10039@redhat.com>
+References: <20100331204718.GD11635@redhat.com> <alpine.DEB.2.00.1004010133190.6285@chino.kir.corp.google.com> <20100401135927.GA12460@redhat.com> <alpine.DEB.2.00.1004011210380.30661@chino.kir.corp.google.com> <20100402111406.GA4432@redhat.com> <20100402183057.GA31723@redhat.com> <20100402183216.GC31723@redhat.com> <20100406114235.GA3965@desktop> <20100406121811.GA6802@redhat.com> <20100406130518.GB3965@desktop>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-References: <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org> <t2q84144f021004051346o65f03e71r5b7bb19b433ce454@mail.gmail.com> <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org> <20100405232115.GM5825@random.random> <alpine.LFD.2.00.1004051636060.21411@i5.linux-foundation.org> <20100406011345.GT5825@random.random> <alpine.LFD.2.00.1004051836000.5870@i5.linux-foundation.org> <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org> <4BBB052D.8040307@redhat.com> <4BBB2134.9090301@redhat.com> <20100406131024.GA5288@laptop>
-In-Reply-To: <20100406131024.GA5288@laptop>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100406130518.GB3965@desktop>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: anfei <anfei.zhou@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/06/2010 04:10 PM, Nick Piggin wrote:
-> On Tue, Apr 06, 2010 at 02:55:32PM +0300, Avi Kivity wrote:
->    
->> On 04/06/2010 12:55 PM, Avi Kivity wrote:
->>      
->>> Here is a microbenchmark demonstrating the hit (non-virtualized);
->>> it simulates a pointer-chasing application with a varying working
->>> set.  It is easy to see when the working set overflows the various
->>> caches, and later when the page tables overflow the caches.  For
->>> virtualization the hit will be a factor of 3 instead of 2, and
->>> will come earlier since the page tables are bigger.
->>>
->>>        
->> And here is the same thing with guest latencies as well:
->>
->> Random memory read latency, in nanoseconds, according to working
->> set and page size.
->>
->>
->>         ------- host ------  ------------- guest -----------
->>                              --- hpage=4k ---  -- hpage=2M -
->>
->>   size        4k         2M     4k/4k   2M/4k   4k/2M  2M/2M
->>     4k       4.9        4.9       5.0     4.9     4.9    4.9
->>    16k       4.9        4.9       5.0     4.9     5.0    4.9
->>    64k       7.6        7.6       7.9     7.8     7.8    7.8
->>   256k      15.1        8.1      15.9    10.3    15.4    9.0
->>     1M      28.5       23.9      29.3    37.9    29.3   24.6
->>     4M      31.8       25.3      37.5    42.6    35.5   26.0
->>    16M      94.8       79.0     110.7   107.3    92.0   77.3
->>    64M     260.9      224.2     294.2   247.8   251.5  207.2
->>   256M     269.8      248.8     313.9   253.1   260.1  230.3
->>     1G     278.1      246.3     331.8   273.0   269.9  236.7
->>     4G     330.9      252.6     545.6   346.0   341.6  256.5
->>    16G     436.3      243.8     705.2   458.3   463.9  268.8
->>    64G     486.0      253.3     767.3   532.5   516.9  274.7
->>
->>
->> It's easy to see how cache effects dominate the tlb walk.  The only
->> way hardware can reduce this is by increasing cache sizes
->> dramatically.
->>      
-> Well this is the best attainable speedup in a corner case where the
-> whole memory hierarchy is being actively defeated. The numbers are
-> not surprising.
+On 04/06, anfei wrote:
+>
+> On Tue, Apr 06, 2010 at 02:18:11PM +0200, Oleg Nesterov wrote:
+> >
+> > I do not really know what is the "right" solution. Even if we fix this
+> > check for mt case, we also have CLONE_VM tasks.
+> >
+> What about checking mm->mm_users too? If there are any other users,
+> just let badness judge.  CLONE_VM tasks but not mt seem rare, and
+> badness doesn't consider it too.
 
-Of course this shows the absolute worst case and will never show up 
-directly in any real workload.  The point wasn't that we expect a 3x 
-speedup from large pages (far from it), but to show the problem is due 
-to page tables overflowing the cache, not to any miss handler 
-inefficiency.  It also shows that virtualization only increases the 
-impact, but isn't the direct cause.  The real problem is large active 
-working sets.
+Even if we forget about get_task_mm() which increments mm_users, it is not
+clear to me how to do this check correctly.
 
-> Actual workloads are infinitely more useful. And in
-> most cases, quite possibly hardware improvements like asids will
-> be more useful.
->    
+Say, mm_users > 1 but SIGNAL_GROUP_EXIT is set. This means this process is
+exiting and (ignoring CLONE_VM task) it is going to release its ->mm. But
+otoh mm can be NULL.
 
-This already has ASIDs for the guest; and for the host they wouldn't 
-help much since there's only one process running.  I don't see how 
-hardware improvements can drastically change the numbers above, it's 
-clear that for the 4k case the host takes a cache miss for the pte, and 
-twice for the 4k/4k guest case.
+Perhaps we can do
 
-> I don't really agree with how virtualization problem is characterised.
-> Xen's way of doing memory virtualization maps directly to normal
-> hardware page tables so there doesn't seem like a fundamental
-> requirement for more memory accesses.
->    
+	if ((PF_EXITING && thread_group_empty(p) ||
+	    (p->signal->flags & SIGNAL_GROUP_EXIT) {
+		// OK, it is exiting
 
-The Xen pv case only works for modified guests (so no Windows), and 
-doesn't support host memory management like swapping or ksm.  Xen hvm 
-(which runs unmodified guests) has the same problems as kvm.
+		bool has_mm = false;
+		do {
+			if (t->mm) {
+				has_mm = true;
+				break;
+			}
+		} while_each_thread(p, t);
+			
+		if (!has_mm)
+			continue;
 
-Note kvm can use a single layer of translation (and does on older 
-hardware), so it would behave like the host, but that increases the cost 
-of pte updates dramatically.
+		if (p != current)
+			return ERR_PTR(-1);
+		...
+	}
 
--- 
-error compiling committee.c: too many arguments to function
+I dunno.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
