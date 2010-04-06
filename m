@@ -1,61 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 937F56B01F0
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 07:57:42 -0400 (EDT)
-Message-ID: <4BBB2134.9090301@redhat.com>
-Date: Tue, 06 Apr 2010 14:55:32 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B41666B01F4
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 08:08:11 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o36C87eS013458
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 6 Apr 2010 21:08:07 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DDEB45DE4D
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 21:08:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AC3345DE4E
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 21:08:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D2C0D1DB803E
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 21:08:06 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 68647E08001
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 21:08:06 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable task can be found
+In-Reply-To: <alpine.DEB.2.00.1004051552400.27040@chino.kir.corp.google.com>
+References: <20100405154923.23228529.akpm@linux-foundation.org> <alpine.DEB.2.00.1004051552400.27040@chino.kir.corp.google.com>
+Message-Id: <20100406201645.7E69.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-References: <patchbomb.1270168887@v2.random> <20100405120906.0abe8e58.akpm@linux-foundation.org> <20100405193616.GA5125@elte.hu> <n2j84144f021004051326mab7cd8fbm949115748a3d78b6@mail.gmail.com> <alpine.LFD.2.00.1004051326380.21411@i5.linux-foundation.org> <t2q84144f021004051346o65f03e71r5b7bb19b433ce454@mail.gmail.com> <alpine.LFD.2.00.1004051347480.21411@i5.linux-foundation.org> <20100405232115.GM5825@random.random> <alpine.LFD.2.00.1004051636060.21411@i5.linux-foundation.org> <20100406011345.GT5825@random.random> <alpine.LFD.2.00.1004051836000.5870@i5.linux-foundation.org> <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org> <4BBB052D.8040307@redhat.com>
-In-Reply-To: <4BBB052D.8040307@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue,  6 Apr 2010 21:08:05 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/06/2010 12:55 PM, Avi Kivity wrote:
+> This is not the first time we have changed or obsoleted tunables in 
+> /proc/sys/vm.  If a startup tool really is really bailing out depending on 
+> whether echo 1 > /proc/sys/vm/oom_kill_allocating_task succeeds, it should 
+> be fixed regardless because you're not protecting anything by doing that 
 >
-> Here is a microbenchmark demonstrating the hit (non-virtualized); it 
-> simulates a pointer-chasing application with a varying working set.  
-> It is easy to see when the working set overflows the various caches, 
-> and later when the page tables overflow the caches.  For 
-> virtualization the hit will be a factor of 3 instead of 2, and will 
-> come earlier since the page tables are bigger.
+> since you can't predict what task is allocating memory at the time of oom.  
+> Those same startup tools will need to disable /proc/sys/vm/oom_dump_tasks 
+> if we are to remove the consolidation into oom_kill_quick and maintain two 
+> seperate VM sysctls that are always used together by the same users.
 >
+> Nobody can even cite a single example of oom_kill_allocating_task being 
+> used in practice, yet we want to unnecessarily maintain these two seperate 
+> sysctls forever because it's possible that a buggy startup tool cares 
+> about the return value of enabling it?
+> 
+> > Others had other objections, iirc.
+> > 
+> 
+> I'm all ears.
 
-And here is the same thing with guest latencies as well:
+Complain.
 
-Random memory read latency, in nanoseconds, according to working
-set and page size.
+Many people reviewed these patches, but following four patches got no ack.
 
+oom-badness-heuristic-rewrite.patch
+oom-default-to-killing-current-for-pagefault-ooms.patch
+oom-deprecate-oom_adj-tunable.patch
+oom-replace-sysctls-with-quick-mode.patch
 
-        ------- host ------  ------------- guest -----------
-                             --- hpage=4k ---  -- hpage=2M -
+IIRC, alan and nick and I NAKed such patch. everybody explained the reason.
+We don't hope join loudly voice contest nor help to making flame. but it
+doesn't mean explicit ack.
 
-  size        4k         2M     4k/4k   2M/4k   4k/2M  2M/2M
-    4k       4.9        4.9       5.0     4.9     4.9    4.9
-   16k       4.9        4.9       5.0     4.9     5.0    4.9
-   64k       7.6        7.6       7.9     7.8     7.8    7.8
-  256k      15.1        8.1      15.9    10.3    15.4    9.0
-    1M      28.5       23.9      29.3    37.9    29.3   24.6
-    4M      31.8       25.3      37.5    42.6    35.5   26.0
-   16M      94.8       79.0     110.7   107.3    92.0   77.3
-   64M     260.9      224.2     294.2   247.8   251.5  207.2
-  256M     269.8      248.8     313.9   253.1   260.1  230.3
-    1G     278.1      246.3     331.8   273.0   269.9  236.7
-    4G     330.9      252.6     545.6   346.0   341.6  256.5
-   16G     436.3      243.8     705.2   458.3   463.9  268.8
-   64G     486.0      253.3     767.3   532.5   516.9  274.7
+Andrew, If you really really really hope to merge these, I'm not againt
+it anymore. but please put following remark explicitely into the patches.
+
+	Nacked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujistu.com>
 
 
-It's easy to see how cache effects dominate the tlb walk.  The only way 
-hardware can reduce this is by increasing cache sizes dramatically.
 
--- 
-error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
