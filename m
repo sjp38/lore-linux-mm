@@ -1,65 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B1C7A6B01EE
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 01:09:32 -0400 (EDT)
-Subject: mprotect pgprot handling weirdness
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 06 Apr 2010 15:09:26 +1000
-Message-ID: <1270530566.13812.28.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C01356B01EF
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 01:09:48 -0400 (EDT)
+Date: Tue, 6 Apr 2010 13:09:45 +0800
+From: Shaohua Li <shaohua.li@intel.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+Message-ID: <20100406050945.GA3819@sli10-desk.sh.intel.com>
+References: <20100406105324.7E30.A69D9226@jp.fujitsu.com>
+ <20100406023043.GA12420@localhost>
+ <20100406115543.7E39.A69D9226@jp.fujitsu.com>
+ <20100406033114.GB13169@localhost>
+ <4BBAAD3F.3090900@redhat.com>
+ <20100406044910.GA16303@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100406044910.GA16303@localhost>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "Wu, Fengguang" <fengguang.wu@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi folks !
+On Tue, Apr 06, 2010 at 12:49:10PM +0800, Wu, Fengguang wrote:
+> On Tue, Apr 06, 2010 at 11:40:47AM +0800, Rik van Riel wrote:
+> > On 04/05/2010 11:31 PM, Wu Fengguang wrote:
+> > > On Tue, Apr 06, 2010 at 10:58:43AM +0800, KOSAKI Motohiro wrote:
+> > >> Again, I didn't said his patch is no worth. I only said we don't have to
+> > >> ignore the downside.
+> > >
+> > > Right, we should document both the upside and downside.
+> > 
+> > The downside is obvious: streaming IO (used once data
+> > that does not fit in the cache) can push out data that
+> > is used more often - requiring that it be swapped in
+> > at a later point in time.
+> > 
+> > I understand what Shaohua's patch does, but I do not
+> > understand the upside.  What good does it do to increase
+> > the size of the cache for streaming IO data, which is
+> > generally touched only once?
+> 
+> Not that bad :)  With Shaohua's patch the anon list will typically
+> _never_ get scanned, just like before.
+> 
+> If it's mostly use-once IO, file:anon will be 1000 or even 10000, and
+> priority=12.  Then only anon lists larger than 16GB or 160GB will get
+> nr[0] >= 1.
+> 
+> > What kind of performance benefits can we get by doing
+> > that?
+> 
+> So vmscan behavior and performance remain the same as before.
+> 
+> For really large anon list, such workload is beyond our imagination.
+> So we cannot assert "don't scan anon list" will be a benefit.
+> 
+> On the other hand, in the test case of "do stream IO when most memory
+> occupied by tmpfs pages", it is very bad behavior refuse to scan anon
+> list in normal and suddenly start scanning _the whole_ anon list when
+> priority hits 0. Shaohua's patch helps it by gradually increasing the
+> scan nr of anon list as memory pressure increases.
+Yep, the gradually increasing scan nr is the main advantage in my mind.
 
-While looking at untangling a bit some of the mess with vm_flags and
-pgprot (*), I notices a few things I can't quite explain... they may ..
-or may not be bugs, but I though it was worth mentioning:
-
-- In mprotect_fixup() :
-
-	/*
-	 * vm_flags and vm_page_prot are protected by the mmap_sem
-	 * held in write mode.
-	 */
-	vma->vm_flags = newflags;
-	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
-					  vm_get_page_prot(newflags));
-
-	if (vma_wants_writenotify(vma)) {
-		vma->vm_page_prot = vm_get_page_prot(newflags & ~VM_SHARED);
-		dirty_accountable = 1;
-	}
-
-So as you can see above, we take great care (using pgprot_modify) to avoid
-blasting away some PAT related flags on x86 (no other arch implements
-pgprot_modify() today).... but if we hit vma_wants_writenotify(), then
-we unconditionally override the entire vma->vm_page_prot field with some
-new prot bits born of the new vm_flags. That sounds odd...
-
-- in sys_mprotect: 
-
-	newflags = vm_flags | (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
-
-Do I read correctly that this means we cannot -remove- any flag than
-VM_READ, VM_WRITE or VM_EXEC ? That means that we cannot remove PROT_SAO
-which gets turned into VM_SAO on powerpc ... Yet another reason to take
-those arch specific mapping attributes out of the vm_flags.
-
-(*) Right now it's near impossible to add arch specific PROT_* bits to
-mmap/mprotect for fancy things like cachability attributes, or other
-nifty things like reverse-endian mappings that we have on some embedded
-platforms, I'm investigating ways to better separate vm_page_prot from
-vm_flags so some PROT_* bits can go straight to the former without
-having to be mirrored in some way in the later.
-
-Cheers,
-Ben.
-
+Thanks,
+Shaohua
+> > > The main difference happens when file:anon scan ratio>  100:1.
+> > >
+> > > For the current percent[] based computing, percent[0]=0 hence nr[0]=0
+> > > which disables anon list scan unconditionally, for good or for bad.
+> > >
+> > > For the direct nr[] computing,
+> > > - nr[0] will be 0 for typical file servers, because with priority=12
+> > >    and anon lru size<  1.6GB, nr[0] = (anon_size/4096)/100<  0
+> > > - nr[0] will be non-zero when priority=1 and anon_size>  100 pages,
+> > >    this stops OOM for Shaohua's test case, however may not be enough to
+> > >    guarantee safety (your previous reverting patch can provide this
+> > >    guarantee).
+> > >
+> > > I liked Shaohua's patch a lot -- it adapts well to both the
+> > > file-server case and the mostly-anon-pages case :)
+> > 
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
