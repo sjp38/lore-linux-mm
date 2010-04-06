@@ -1,85 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EAE9A6B01EE
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 01:06:46 -0400 (EDT)
-Received: by pwi2 with SMTP id 2so3403098pwi.14
-        for <linux-mm@kvack.org>; Mon, 05 Apr 2010 22:06:45 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <l2rcf18f8341004052156n23c77078va3370beb72f33c51@mail.gmail.com>
-References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
-	 <k2m28c262361004052133jfc62525bw3cd570765d160876@mail.gmail.com>
-	 <l2rcf18f8341004052156n23c77078va3370beb72f33c51@mail.gmail.com>
-Date: Tue, 6 Apr 2010 14:06:45 +0900
-Message-ID: <p2t28c262361004052206me05462c2saf2e3afc82524123@mail.gmail.com>
-Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B1C7A6B01EE
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 01:09:32 -0400 (EDT)
+Subject: mprotect pgprot handling weirdness
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 06 Apr 2010 15:09:26 +1000
+Message-ID: <1270530566.13812.28.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, Mel Gorman <mel@csn.ul.ie>
+To: linux-mm@kvack.org
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 6, 2010 at 1:56 PM, Bob Liu <lliubbo@gmail.com> wrote:
-> On 4/6/10, Minchan Kim <minchan.kim@gmail.com> wrote:
->> On Tue, Apr 6, 2010 at 11:59 AM, Bob Liu <lliubbo@gmail.com> wrote:
->>> In funtion migrate_pages(), if the dest node have no
->>> enough free pages,it will fallback to other nodes.
->>> Add GFP_THISNODE to avoid this, the same as what
->>> funtion new_page_node() do in migrate.c.
->>>
->>> Signed-off-by: Bob Liu <lliubbo@gmail.com>
->>
->> Yes. It can be fixed. but I have a different concern.
->>
->> I looked at 6484eb3e2a81807722c5f28ef.
->> " =C2=A0 page allocator: do not check NUMA node ID when the caller knows
->> the node is valid
->>
->> =C2=A0 =C2=A0Callers of alloc_pages_node() can optionally specify -1 as =
-a node to mean
->> =C2=A0 =C2=A0"allocate from the current node". =C2=A0However, a number o=
-f the callers in
->> =C2=A0 =C2=A0fast paths know for a fact their node is valid. =C2=A0To av=
-oid a comparison
->> and
->> =C2=A0 =C2=A0branch, this patch adds alloc_pages_exact_node() that only =
-checks the nid
->> =C2=A0 =C2=A0with VM_BUG_ON(). =C2=A0Callers that know their node is val=
-id are then
->> =C2=A0 =C2=A0converted."
->>
->> alloc_pages_exact_node's naming would be not good.
->> It is not for allocate page from exact node but just for
->> removing check of node's valid.
->> Some people like me who is poor english could misunderstood it.
->>
->> How about changing name with following?
->> /* This function can allocate page to fallback list of node*/
->> alloc_pages_by_nodeid(...)
->>
->> And instead of it, let's change alloc_pages_exact_node with following.
->> static inline struct page *alloc_pages_exact_node(...)
->> {
->> =C2=A0VM_BUG_ON ..
->> =C2=A0return __alloc_pages(gfp_mask|__GFP_THISNODE...);
->> }
->>
->> I think it's more clear than old.
->> What do you think about it?
->>
-> Hm.. I agree with you, I was also misunderstanding by the name.
-> But let's still waiting for some other reply.
->
-> By the way, what about your opinion using GFP_THISNODE or
-> __GFP_THISNODE in __alloc_pages().
-> I think GFP_THISNODE is ok.
->
+Hi folks !
 
-Yes. It would be good except alloc_fresh_huge_page_node.
---=20
-Kind regards,
-Minchan Kim
+While looking at untangling a bit some of the mess with vm_flags and
+pgprot (*), I notices a few things I can't quite explain... they may ..
+or may not be bugs, but I though it was worth mentioning:
+
+- In mprotect_fixup() :
+
+	/*
+	 * vm_flags and vm_page_prot are protected by the mmap_sem
+	 * held in write mode.
+	 */
+	vma->vm_flags = newflags;
+	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
+					  vm_get_page_prot(newflags));
+
+	if (vma_wants_writenotify(vma)) {
+		vma->vm_page_prot = vm_get_page_prot(newflags & ~VM_SHARED);
+		dirty_accountable = 1;
+	}
+
+So as you can see above, we take great care (using pgprot_modify) to avoid
+blasting away some PAT related flags on x86 (no other arch implements
+pgprot_modify() today).... but if we hit vma_wants_writenotify(), then
+we unconditionally override the entire vma->vm_page_prot field with some
+new prot bits born of the new vm_flags. That sounds odd...
+
+- in sys_mprotect: 
+
+	newflags = vm_flags | (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
+
+Do I read correctly that this means we cannot -remove- any flag than
+VM_READ, VM_WRITE or VM_EXEC ? That means that we cannot remove PROT_SAO
+which gets turned into VM_SAO on powerpc ... Yet another reason to take
+those arch specific mapping attributes out of the vm_flags.
+
+(*) Right now it's near impossible to add arch specific PROT_* bits to
+mmap/mprotect for fancy things like cachability attributes, or other
+nifty things like reverse-endian mappings that we have on some embedded
+platforms, I'm investigating ways to better separate vm_page_prot from
+vm_flags so some PROT_* bits can go straight to the former without
+having to be mirrored in some way in the later.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
