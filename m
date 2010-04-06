@@ -1,94 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BC3D6B0208
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 17:48:10 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o36Lm4Bw030293
-	for <linux-mm@kvack.org>; Tue, 6 Apr 2010 23:48:05 +0200
-Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
-	by wpaz9.hot.corp.google.com with ESMTP id o36Llqr3000715
-	for <linux-mm@kvack.org>; Tue, 6 Apr 2010 14:48:03 -0700
-Received: by pzk9 with SMTP id 9so385660pzk.19
-        for <linux-mm@kvack.org>; Tue, 06 Apr 2010 14:48:03 -0700 (PDT)
-Date: Tue, 6 Apr 2010 14:47:58 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable task
- can be found
-In-Reply-To: <20100406201645.7E69.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com>
-References: <20100405154923.23228529.akpm@linux-foundation.org> <alpine.DEB.2.00.1004051552400.27040@chino.kir.corp.google.com> <20100406201645.7E69.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 059776B0209
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 17:57:42 -0400 (EDT)
+Message-ID: <4BBBAE4A.7070000@mozilla.com>
+Date: Tue, 06 Apr 2010 14:57:30 -0700
+From: Taras Glek <tglek@mozilla.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Downsides to madvise/fadvise(willneed) for application startup
+References: <4BBA6776.5060804@mozilla.com> <20100406095135.GB5183@cmpxchg.org>
+In-Reply-To: <20100406095135.GB5183@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Apr 2010, KOSAKI Motohiro wrote:
+On 04/06/2010 02:51 AM, Johannes Weiner wrote:
+> On Mon, Apr 05, 2010 at 03:43:02PM -0700, Taras Glek wrote:
+>    
+>> Hello,
+>> I am working on improving Mozilla startup times. It turns out that page
+>> faults(caused by lack of cooperation between user/kernelspace) are the
+>> main cause of slow startup. I need some insights from someone who
+>> understands linux vm behavior.
+>>
+>> Current Situation:
+>> The dynamic linker mmap()s  executable and data sections of our
+>> executable but it doesn't call madvise().
+>> By default page faults trigger 131072byte reads. To make matters worse,
+>> the compile-time linker + gcc lay out code in a manner that does not
+>> correspond to how the resulting executable will be executed(ie the
+>> layout is basically random). This means that during startup 15-40mb
+>> binaries are read in basically random fashion. Even if one orders the
+>> binary optimally, throughput is still suboptimal due to the puny readahead.
+>>
+>> IO Hints:
+>> Fortunately when one specifies madvise(WILLNEED) pagefaults trigger 2mb
+>> reads and a binary that tends to take 110 page faults(ie program stops
+>> execution and waits for disk) can be reduced down to 6. This has the
+>> potential to double application startup of large apps without any clear
+>> downsides. Suse ships their glibc with a dynamic linker patch to
+>> fadvise() dynamic libraries(not sure why they switched from doing
+>> madvise before).
+>>
+>> I filed a glibc bug about this at
+>> http://sourceware.org/bugzilla/show_bug.cgi?id=11431 . Uli commented
+>> with his concern about wasting memory resources. What is the impact of
+>> madvise(WILLNEED) or the fadvise equivalent on systems under memory
+>> pressure? Does the kernel simply start ignoring these hints?
+>>      
+> It will throttle based on memory pressure.  In idle situations it will
+> eat your file cache, however, to satisfy the request.
+>    
+Define idle situations. Do you mean that madv(willneed) will aggresively 
+readahead, but only while cpu(or disk?) is idle?
+I am trying to optimize application startup which means that the cpu is 
+busy while not blocked on io.
+> Now, the file cache should be much bigger than the amount of unneeded
+> pages you prefault with the hint over the whole library, so I guess the
+> benefit of prefaulting the right pages outweighs the downside of evicting
+> some cache for unused library pages.
+>    
+> Still, it's a workaround for deficits in the demand-paging/readahead
+> heuristics and thus a bit ugly, I feel.  Maybe Wu can help.
+>
+>    
+Can't wait to hear the juicy details.
+>> Also, once an application is started is it reasonable to keep it
+>> madvise(WILLNEED)ed or should the madvise flags be reset?
+>>      
+> It's a one-time operation that starts immediate readahead, no permanent
+> changes are done.
+>    
+I may be measuring this wrong, but in my experience the only change 
+madvise(willneed) does in increase the length parameter to 
+__do_page_cache_readahead(). My script is at 
+http://hg.mozilla.org/users/tglek_mozilla.com/startup/file/6453ad2a7906/kernelio.stp 
+.
 
-> Many people reviewed these patches, but following four patches got no ack.
-> 
-> oom-badness-heuristic-rewrite.patch
 
-Do you have any specific feedback that you could offer on why you decided 
-to nack this?
-
-> oom-default-to-killing-current-for-pagefault-ooms.patch
-
-Same, what is the specific concern that you have with this patch?
-
-If you don't believe we should kill current first, could you please submit 
-patches for all other architectures like powerpc that already do this as 
-their only course of action for VM_FAULT_OOM and then make pagefault oom 
-killing consistent amongst architectures?
-
-> oom-deprecate-oom_adj-tunable.patch
-
-Alan had a concern about removing /proc/pid/oom_adj, or redefining it with 
-different semantics as I originally did, and then I updated the patchset 
-to deprecate the old tunable as Andrew suggested.
-
-My somewhat arbitrary time of removal was approximately 18 months from 
-the date of deprecation which would give us 5-6 major kernel releases in 
-between.  If you think that's too early of a deadline, then I'd happily 
-extend it by 6 months or a year.
-
-Keeping /proc/pid/oom_adj around indefinitely isn't very helpful if 
-there's a finer grained alternative available already unless you want 
-/proc/pid/oom_adj to actually mean something in which case you'll never be 
-able to seperate oom badness scores from bitshifts.  I believe everyone 
-agrees that a more understood and finer grained tunable is necessary as 
-compared to the current implementation that has very limited functionality 
-other than polarizing tasks.
-
-> oom-replace-sysctls-with-quick-mode.patch
-> 
-> IIRC, alan and nick and I NAKed such patch. everybody explained the reason.
-
-Which patch of the four you listed are you referring to here?
-
-> We don't hope join loudly voice contest nor help to making flame. but it
-> doesn't mean explicit ack.
-> 
-
-If someone has a concern with a patch and then I reply to it and the reply 
-goes unanswered, what exactly does that imply?  Do we want to stop 
-development because discussion occurred on a patch yet no rebuttal was 
-made that addressed specific points that I raised?
-
-Arguing to keep /proc/pid/oom_kill_allocating_task means that we should 
-also not enable /proc/pid/oom_dump_tasks by default since the same systems 
-that use the former will need to now disable the latter to avoid costly 
-tasklist scans.  So are you suggesting that we should not enable 
-oom_dump_tasks like the rewrite does even though it provides very useful 
-information to 99.9% (or perhaps 100%) of users to understand the memory 
-usage of their tasks because you believe systems out there would flake out 
-with the tasklist scan it requires, even though you can't cite a single 
-example?
-
-Now instead of not replying to these questions and insisting that your 
-nack stand based solely on the fact that you nacked it, please get 
-involved in the development process.
+Taras
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
