@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A3A5A6B01F1
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 20:06:07 -0400 (EDT)
-Date: Tue, 6 Apr 2010 17:05:55 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5427E6B01F4
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 20:06:10 -0400 (EDT)
+Date: Tue, 6 Apr 2010 17:05:42 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 09/14] Add /proc trigger for memory compaction
-Message-Id: <20100406170555.1efe35b0.akpm@linux-foundation.org>
-In-Reply-To: <1270224168-14775-10-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 06/14] Export fragmentation index via
+ /proc/extfrag_index
+Message-Id: <20100406170542.fe9b9f33.akpm@linux-foundation.org>
+In-Reply-To: <1270224168-14775-7-git-send-email-mel@csn.ul.ie>
 References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie>
-	<1270224168-14775-10-git-send-email-mel@csn.ul.ie>
+	<1270224168-14775-7-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,86 +18,29 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  2 Apr 2010 17:02:43 +0100
+On Fri,  2 Apr 2010 17:02:40 +0100
 Mel Gorman <mel@csn.ul.ie> wrote:
 
-> This patch adds a proc file /proc/sys/vm/compact_memory. When an arbitrary
-> value is written to the file,
+> Fragmentation index is a value that makes sense when an allocation of a
+> given size would fail. The index indicates whether an allocation failure is
+> due to a lack of memory (values towards 0) or due to external fragmentation
+> (value towards 1).  For the most part, the huge page size will be the size
+> of interest but not necessarily so it is exported on a per-order and per-zone
+> basis via /proc/extfrag_index
 
-Might be better if "when the number 1 is written...".  That permits you
-to add 2, 3 and 4 later on.
+(/proc/sys/vm?)
 
-> all zones are compacted. The expected user
-> of such a trigger is a job scheduler that prepares the system before the
-> target application runs.
-> 
+Like unusable_index, this seems awfully specialised.  Perhaps we could
+hide it under CONFIG_MEL, or even put it in debugfs with the intention
+of removing it in 6 or 12 months time.  Either way, it's hard to
+justify permanently adding this stuff to every kernel in the world?
 
-Ick.  The days of multi-user computers seems to have passed.
 
-> ...
->
-> +/* Compact all zones within a node */
-> +static int compact_node(int nid)
-> +{
-> +	int zoneid;
-> +	pg_data_t *pgdat;
-> +	struct zone *zone;
-> +
-> +	if (nid < 0 || nid >= nr_node_ids || !node_online(nid))
-> +		return -EINVAL;
-> +	pgdat = NODE_DATA(nid);
-> +
-> +	/* Flush pending updates to the LRU lists */
-> +	lru_add_drain_all();
-> +
-> +	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
-> +		struct compact_control cc;
-> +
-> +		zone = &pgdat->node_zones[zoneid];
-> +		if (!populated_zone(zone))
-> +			continue;
-> +
-> +		cc.nr_freepages = 0;
-> +		cc.nr_migratepages = 0;
-> +		cc.zone = zone;
+I have a suspicion that all the info in unusable_index and
+extfrag_index could be computed from userspace using /proc/kpageflags
+(and perhaps a bit of dmesg-diddling to find the zones).  If that can't
+be done today, I bet it'd be pretty easy to arrange for it.
 
-It would be better to do
-
-	struct compact_control cc = {
-		.nr_freepages = 0,
-		etc
-
-because if you later add more fields to compact_control, everything
-else works by magick.  That's served us pretty well with
-writeback_control, scan_control, etc.
-	
-> +		INIT_LIST_HEAD(&cc.freepages);
-> +		INIT_LIST_HEAD(&cc.migratepages);
-> +
-> +		compact_zone(zone, &cc);
-> +
-> +		VM_BUG_ON(!list_empty(&cc.freepages));
-> +		VM_BUG_ON(!list_empty(&cc.migratepages));
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +/* Compact all nodes in the system */
-> +static int compact_nodes(void)
-> +{
-> +	int nid;
-> +
-> +	for_each_online_node(nid)
-> +		compact_node(nid);
-
-What if a node goes offline?
-
-> +	return COMPACT_COMPLETE;
-> +}
-> +
->
-> ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
