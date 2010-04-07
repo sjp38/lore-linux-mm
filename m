@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BBC236B01F0
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 20:06:03 -0400 (EDT)
-Date: Tue, 6 Apr 2010 17:05:28 -0700
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D4036B01F0
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 20:06:07 -0400 (EDT)
+Date: Tue, 6 Apr 2010 17:05:32 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 03/14] mm: Share the anon_vma ref counts between KSM and
- page migration
-Message-Id: <20100406170528.ecb30941.akpm@linux-foundation.org>
-In-Reply-To: <1270224168-14775-4-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 04/14] Allow CONFIG_MIGRATION to be set without
+ CONFIG_NUMA or memory hot-remove
+Message-Id: <20100406170532.56c71031.akpm@linux-foundation.org>
+In-Reply-To: <1270224168-14775-5-git-send-email-mel@csn.ul.ie>
 References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie>
-	<1270224168-14775-4-git-send-email-mel@csn.ul.ie>
+	<1270224168-14775-5-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,74 +18,41 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  2 Apr 2010 17:02:37 +0100
+On Fri,  2 Apr 2010 17:02:38 +0100
 Mel Gorman <mel@csn.ul.ie> wrote:
 
-> For clarity of review, KSM and page migration have separate refcounts on
-> the anon_vma. While clear, this is a waste of memory. This patch gets
-> KSM and page migration to share their toys in a spirit of harmony.
+> CONFIG_MIGRATION currently depends on CONFIG_NUMA or on the architecture
+> being able to hot-remove memory. The main users of page migration such as
+> sys_move_pages(), sys_migrate_pages() and cpuset process migration are
+> only beneficial on NUMA so it makes sense.
+> 
+> As memory compaction will operate within a zone and is useful on both NUMA
+> and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
+> user selects CONFIG_COMPACTION as an option.
 > 
 > ...
 >
-> @@ -26,11 +26,17 @@
->   */
->  struct anon_vma {
->  	spinlock_t lock;	/* Serialize access to vma list */
-> -#ifdef CONFIG_KSM
-> -	atomic_t ksm_refcount;
-> -#endif
-> -#ifdef CONFIG_MIGRATION
-> -	atomic_t migrate_refcount;
-> +#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
-> +
-> +	/*
-> +	 * The external_refcount is taken by either KSM or page migration
-> +	 * to take a reference to an anon_vma when there is no
-> +	 * guarantee that the vma of page tables will exist for
-> +	 * the duration of the operation. A caller that takes
-> +	 * the reference is responsible for clearing up the
-> +	 * anon_vma if they are the last user on release
-> +	 */
-> +	atomic_t external_refcount;
->  #endif
-
-hah.
-
-> @@ -653,7 +653,7 @@ skip_unmap:
->  rcu_unlock:
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -172,6 +172,16 @@ config SPLIT_PTLOCK_CPUS
+>  	default "4"
 >  
->  	/* Drop an anon_vma reference if we took one */
-> -	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
-> +	if (anon_vma && atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->lock)) {
->  		int empty = list_empty(&anon_vma->head);
->  		spin_unlock(&anon_vma->lock);
->  		if (empty)
+>  #
+> +# support for memory compaction
+> +config COMPACTION
+> +	bool "Allow for memory compaction"
+> +	def_bool y
+> +	select MIGRATION
+> +	depends on EXPERIMENTAL && HUGETLBFS && MMU
+> +	help
+> +	  Allows the compaction of memory for the allocation of huge pages.
 
-So we now _do_ test ksm_refcount.  Perhaps that fixed a bug added in [1/14]
+Seems strange to depend on hugetlbfs.  Perhaps depending on
+HUGETLB_PAGE would be more logical.
 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 578d0fe..af35b75 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -248,8 +248,7 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
->  	list_del(&anon_vma_chain->same_anon_vma);
->  
->  	/* We must garbage collect the anon_vma if it's empty */
-> -	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma) &&
-> -					!migrate_refcount(anon_vma);
-> +	empty = list_empty(&anon_vma->head) && !anonvma_external_refcount(anon_vma);
->  	spin_unlock(&anon_vma->lock);
->  
->  	if (empty)
-> @@ -273,8 +272,7 @@ static void anon_vma_ctor(void *data)
->  	struct anon_vma *anon_vma = data;
->  
->  	spin_lock_init(&anon_vma->lock);
-> -	ksm_refcount_init(anon_vma);
-> -	migrate_refcount_init(anon_vma);
-> +	anonvma_external_refcount_init(anon_vma);
+But hang on.  I wanna use compaction to make my order-4 wireless skb
+allocations work better!  Why do you hate me?
 
-What a mouthful.  Can we do s/external_//g?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
