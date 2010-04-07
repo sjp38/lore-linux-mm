@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E73AE62007E
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 20:06:24 -0400 (EDT)
-Date: Tue, 6 Apr 2010 17:06:13 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4452562007E
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 20:06:30 -0400 (EDT)
+Date: Tue, 6 Apr 2010 17:05:59 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 12/14] Add a tunable that decides when memory should be
- compacted and when it should be reclaimed
-Message-Id: <20100406170613.9b80c7ea.akpm@linux-foundation.org>
-In-Reply-To: <1270224168-14775-13-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 10/14] Add /sys trigger for per-node memory compaction
+Message-Id: <20100406170559.52093bd5.akpm@linux-foundation.org>
+In-Reply-To: <1270224168-14775-11-git-send-email-mel@csn.ul.ie>
 References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie>
-	<1270224168-14775-13-git-send-email-mel@csn.ul.ie>
+	<1270224168-14775-11-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,26 +17,17 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  2 Apr 2010 17:02:46 +0100
+On Fri,  2 Apr 2010 17:02:44 +0100
 Mel Gorman <mel@csn.ul.ie> wrote:
 
-> The kernel applies some heuristics when deciding if memory should be
-> compacted or reclaimed to satisfy a high-order allocation. One of these
-> is based on the fragmentation. If the index is below 500, memory will
-> not be compacted. This choice is arbitrary and not based on data. To
-> help optimise the system and set a sensible default for this value, this
-> patch adds a sysctl extfrag_threshold. The kernel will only compact
-> memory if the fragmentation index is above the extfrag_threshold.
+> This patch adds a per-node sysfs file called compact. When the file is
+> written to, each zone in that node is compacted. The intention that this
+> would be used by something like a job scheduler in a batch system before
+> a job starts so that the job can allocate the maximum number of
+> hugepages without significant start-up cost.
 
-Was this the most robust, reliable, no-2am-phone-calls thing we could
-have done?
-
-What about, say, just doing a bit of both until something worked?  For
-extra smarts we could remember what worked best last time, and make
-ourselves more likely to try that next time.
-
-Or whatever, but extfrag_threshold must die!  And replacing it with a
-hardwired constant doesn't count ;)
+Would it make more sense if this was a per-memcg thing rather than a
+per-node thing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
