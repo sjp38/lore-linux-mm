@@ -1,50 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2597C6B01E3
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 12:30:03 -0400 (EDT)
-Message-ID: <4BBCB304.2050500@cs.helsinki.fi>
-Date: Wed, 07 Apr 2010 19:29:56 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3917C6B01E3
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 12:32:39 -0400 (EDT)
+Date: Wed, 7 Apr 2010 17:32:18 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 13/14] Do not compact within a preferred zone after a
+	compaction failure
+Message-ID: <20100407163217.GV17882@csn.ul.ie>
+References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie> <1270224168-14775-14-git-send-email-mel@csn.ul.ie> <20100406170616.7d0f24b1.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [patch v2] slab: add memory hotplug support
-References: <alpine.DEB.2.00.1002242357450.26099@chino.kir.corp.google.com> <alpine.DEB.2.00.1002251228140.18861@router.home> <20100226114136.GA16335@basil.fritz.box> <alpine.DEB.2.00.1002260904311.6641@router.home> <20100226155755.GE16335@basil.fritz.box> <alpine.DEB.2.00.1002261123520.7719@router.home> <alpine.DEB.2.00.1002261555030.32111@chino.kir.corp.google.com> <alpine.DEB.2.00.1003010224170.26824@chino.kir.corp.google.com> <20100305062002.GV8653@laptop> <alpine.DEB.2.00.1003081502400.30456@chino.kir.corp.google.com> <20100309134633.GM8653@laptop> <alpine.DEB.2.00.1003271849260.7249@chino.kir.corp.google.com> <alpine.DEB.2.00.1003271940190.8399@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1003271940190.8399@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100406170616.7d0f24b1.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haicheng.li@intel.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes wrote:
-> Slab lacks any memory hotplug support for nodes that are hotplugged
-> without cpus being hotplugged.  This is possible at least on x86
-> CONFIG_MEMORY_HOTPLUG_SPARSE kernels where SRAT entries are marked
-> ACPI_SRAT_MEM_HOT_PLUGGABLE and the regions of RAM represent a seperate
-> node.  It can also be done manually by writing the start address to
-> /sys/devices/system/memory/probe for kernels that have
-> CONFIG_ARCH_MEMORY_PROBE set, which is how this patch was tested, and
-> then onlining the new memory region.
+On Tue, Apr 06, 2010 at 05:06:16PM -0700, Andrew Morton wrote:
+> On Fri,  2 Apr 2010 17:02:47 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> When a node is hotadded, a nodelist for that node is allocated and 
-> initialized for each slab cache.  If this isn't completed due to a lack
-> of memory, the hotadd is aborted: we have a reasonable expectation that
-> kmalloc_node(nid) will work for all caches if nid is online and memory is
-> available.  
+> > The fragmentation index may indicate that a failure is due to external
+> > fragmentation but after a compaction run completes, it is still possible
+> > for an allocation to fail. There are two obvious reasons as to why
+> > 
+> >   o Page migration cannot move all pages so fragmentation remains
+> >   o A suitable page may exist but watermarks are not met
+> > 
+> > In the event of compaction followed by an allocation failure, this patch
+> > defers further compaction in the zone for a period of time. The zone that
+> > is deferred is the first zone in the zonelist - i.e. the preferred zone.
+> > To defer compaction in the other zones, the information would need to be
+> > stored in the zonelist or implemented similar to the zonelist_cache.
+> > This would impact the fast-paths and is not justified at this time.
+> > 
 > 
-> Since nodelists must be allocated and initialized prior to the new node's
-> memory actually being online, the struct kmem_list3 is allocated off-node
-> due to kmalloc_node()'s fallback.
+> Your patch, it sucks!
 > 
-> When an entire node would be offlined, its nodelists are subsequently
-> drained.  If slab objects still exist and cannot be freed, the offline is
-> aborted.  It is possible that objects will be allocated between this
-> drain and page isolation, so it's still possible that the offline will
-> still fail, however.
+> > ---
+> >  include/linux/compaction.h |   35 +++++++++++++++++++++++++++++++++++
+> >  include/linux/mmzone.h     |    7 +++++++
+> >  mm/page_alloc.c            |    5 ++++-
+> >  3 files changed, 46 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> > index ae98afc..2a02719 100644
+> > --- a/include/linux/compaction.h
+> > +++ b/include/linux/compaction.h
+> > @@ -18,6 +18,32 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+> >  extern int fragmentation_index(struct zone *zone, unsigned int order);
+> >  extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+> >  			int order, gfp_t gfp_mask, nodemask_t *mask);
+> > +
+> > +/* defer_compaction - Do not compact within a zone until a given time */
+> > +static inline void defer_compaction(struct zone *zone, unsigned long resume)
+> > +{
+> > +	/*
+> > +	 * This function is called when compaction fails to result in a page
+> > +	 * allocation success. This is somewhat unsatisfactory as the failure
+> > +	 * to compact has nothing to do with time and everything to do with
+> > +	 * the requested order, the number of free pages and watermarks. How
+> > +	 * to wait on that is more unclear, but the answer would apply to
+> > +	 * other areas where the VM waits based on time.
+> > +	 */
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> c'mon, let's not make this rod for our backs.
+> 
+> The "A suitable page may exist but watermarks are not met" case can be
+> addressed by testing the watermarks up-front, surely?
+> 
 
-I queued this up for 2.6.35. Thanks!
+Nope, because the number of pages free at each order changes before and
+after compaction and you don't know by how much in advance. It wouldn't
+be appropriate to assume perfect compaction because unmovable and
+reclaimable pages are free.
+
+> I bet the "Page migration cannot move all pages so fragmentation
+> remains" case can be addressed by setting some metric in the zone, and
+> suitably modifying that as a result on ongoing activity. 
+> To tell the
+> zone "hey, compaction migth be worth trying now".  that sucks too, but not
+> so much.
+> 
+> Or something.  Putting a wallclock-based throttle on it like this
+> really does reduce the usefulness of the whole feature.
+> 
+
+When it gets down to it, this patch was about paranoia. If the
+heuristics on compaction-avoidance didn't work out, I didn't want
+compaction to keep pounding.
+
+That said, this patch would also hide the bug report telling us this happened
+and was a mistake. A bug report detailing high oprofile usage in compaction
+will be much easier to come across than a report on defer_compaction()
+being called too often.
+
+Please drop this patch.
+
+> Internet: "My application works OK on a hard disk but fails when I use an SSD!". 
+> 
+> akpm: "Tell Mel!"
+> 
+
+Mel is in and he is listening.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
