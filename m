@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 306CD62007E
-	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 20:06:37 -0400 (EDT)
-Date: Tue, 6 Apr 2010 17:06:23 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9848B62007E
+	for <linux-mm@kvack.org>; Tue,  6 Apr 2010 20:06:46 -0400 (EDT)
+Date: Tue, 6 Apr 2010 17:06:16 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 14/14] mm,migration: Allow the migration of
- PageSwapCache pages
-Message-Id: <20100406170623.50631eb8.akpm@linux-foundation.org>
-In-Reply-To: <1270224168-14775-15-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 13/14] Do not compact within a preferred zone after a
+ compaction failure
+Message-Id: <20100406170616.7d0f24b1.akpm@linux-foundation.org>
+In-Reply-To: <1270224168-14775-14-git-send-email-mel@csn.ul.ie>
 References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie>
-	<1270224168-14775-15-git-send-email-mel@csn.ul.ie>
+	<1270224168-14775-14-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,108 +18,70 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  2 Apr 2010 17:02:48 +0100
+On Fri,  2 Apr 2010 17:02:47 +0100
 Mel Gorman <mel@csn.ul.ie> wrote:
 
-> PageAnon pages that are unmapped may or may not have an anon_vma so are
-> not currently migrated. However, a swap cache page can be migrated and
-> fits this description. This patch identifies page swap caches and allows
-> them to be migrated but ensures that no attempt to made to remap the pages
-> would would potentially try to access an already freed anon_vma.
+> The fragmentation index may indicate that a failure is due to external
+> fragmentation but after a compaction run completes, it is still possible
+> for an allocation to fail. There are two obvious reasons as to why
 > 
-> ...
->
-> @@ -484,7 +484,8 @@ static int fallback_migrate_page(struct address_space *mapping,
->   *   < 0 - error code
->   *  == 0 - success
->   */
-> -static int move_to_new_page(struct page *newpage, struct page *page)
-> +static int move_to_new_page(struct page *newpage, struct page *page,
-> +						int remap_swapcache)
+>   o Page migration cannot move all pages so fragmentation remains
+>   o A suitable page may exist but watermarks are not met
+> 
+> In the event of compaction followed by an allocation failure, this patch
+> defers further compaction in the zone for a period of time. The zone that
+> is deferred is the first zone in the zonelist - i.e. the preferred zone.
+> To defer compaction in the other zones, the information would need to be
+> stored in the zonelist or implemented similar to the zonelist_cache.
+> This would impact the fast-paths and is not justified at this time.
+> 
 
-You're not a fan of `bool'.
+Your patch, it sucks!
 
->  {
->  	struct address_space *mapping;
->  	int rc;
-> @@ -519,10 +520,12 @@ static int move_to_new_page(struct page *newpage, struct page *page)
->  	else
->  		rc = fallback_migrate_page(mapping, newpage, page);
->  
-> -	if (!rc)
-> -		remove_migration_ptes(page, newpage);
-> -	else
-> +	if (rc) {
->  		newpage->mapping = NULL;
-> +	} else {
-> +		if (remap_swapcache) 
-> +			remove_migration_ptes(page, newpage);
-> +	}
->  
->  	unlock_page(newpage);
->  
-> @@ -539,6 +542,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	int rc = 0;
->  	int *result = NULL;
->  	struct page *newpage = get_new_page(page, private, &result);
-> +	int remap_swapcache = 1;
->  	int rcu_locked = 0;
->  	int charge = 0;
->  	struct mem_cgroup *mem = NULL;
-> @@ -600,18 +604,27 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  		rcu_read_lock();
->  		rcu_locked = 1;
->  
-> -		/*
-> -		 * If the page has no mappings any more, just bail. An
-> -		 * unmapped anon page is likely to be freed soon but worse,
-> -		 * it's possible its anon_vma disappeared between when
-> -		 * the page was isolated and when we reached here while
-> -		 * the RCU lock was not held
-> -		 */
-> -		if (!page_mapped(page))
-> -			goto rcu_unlock;
-> +		/* Determine how to safely use anon_vma */
-> +		if (!page_mapped(page)) {
-> +			if (!PageSwapCache(page))
-> +				goto rcu_unlock;
->  
-> -		anon_vma = page_anon_vma(page);
-> -		atomic_inc(&anon_vma->external_refcount);
-> +			/*
-> +			 * We cannot be sure that the anon_vma of an unmapped
-> +			 * swapcache page is safe to use.
+> ---
+>  include/linux/compaction.h |   35 +++++++++++++++++++++++++++++++++++
+>  include/linux/mmzone.h     |    7 +++++++
+>  mm/page_alloc.c            |    5 ++++-
+>  3 files changed, 46 insertions(+), 1 deletions(-)
+> 
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index ae98afc..2a02719 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -18,6 +18,32 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+>  extern int fragmentation_index(struct zone *zone, unsigned int order);
+>  extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>  			int order, gfp_t gfp_mask, nodemask_t *mask);
+> +
+> +/* defer_compaction - Do not compact within a zone until a given time */
+> +static inline void defer_compaction(struct zone *zone, unsigned long resume)
+> +{
+> +	/*
+> +	 * This function is called when compaction fails to result in a page
+> +	 * allocation success. This is somewhat unsatisfactory as the failure
+> +	 * to compact has nothing to do with time and everything to do with
+> +	 * the requested order, the number of free pages and watermarks. How
+> +	 * to wait on that is more unclear, but the answer would apply to
+> +	 * other areas where the VM waits based on time.
+> +	 */
 
-Why not?  A full explanation here would be nice.
+c'mon, let's not make this rod for our backs.
 
-> 			   In this case, the
-> +			 * swapcache page gets migrated but the pages are not
-> +			 * remapped
-> +			 */
-> +			remap_swapcache = 0;
-> +		} else { 
-> +			/*
-> +			 * Take a reference count on the anon_vma if the
-> +			 * page is mapped so that it is guaranteed to
-> +			 * exist when the page is remapped later
-> +			 */
-> +			anon_vma = page_anon_vma(page);
-> +			atomic_inc(&anon_vma->external_refcount);
-> +		}
->  	}
->  
->  	/*
-> @@ -646,9 +659,9 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  
->  skip_unmap:
->  	if (!page_mapped(page))
-> -		rc = move_to_new_page(newpage, page);
-> +		rc = move_to_new_page(newpage, page, remap_swapcache);
->  
-> -	if (rc)
-> +	if (rc && remap_swapcache)
->  		remove_migration_ptes(page, page);
->  rcu_unlock:
+The "A suitable page may exist but watermarks are not met" case can be
+addressed by testing the watermarks up-front, surely?
+
+I bet the "Page migration cannot move all pages so fragmentation
+remains" case can be addressed by setting some metric in the zone, and
+suitably modifying that as a result on ongoing activity.  To tell the
+zone "hey, compaction migth be worth trying now".  that sucks too, but not
+so much.
+
+Or something.  Putting a wallclock-based throttle on it like this
+really does reduce the usefulness of the whole feature.
+
+Internet: "My application works OK on a hard disk but fails when I use an SSD!". 
+
+akpm: "Tell Mel!"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
