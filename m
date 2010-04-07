@@ -1,113 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 14E0A6B01E3
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 06:23:02 -0400 (EDT)
-Date: Wed, 7 Apr 2010 11:22:40 +0100
-Subject: Re: [PATCH 04/14] Allow CONFIG_MIGRATION to be set without
-	CONFIG_NUMA or memory hot-remove
-Message-ID: <20100407102240.GN17882@csn.ul.ie>
-References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie> <1270224168-14775-5-git-send-email-mel@csn.ul.ie> <20100406170532.56c71031.akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 27BAC6B01EE
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 06:35:29 -0400 (EDT)
+Date: Wed, 7 Apr 2010 11:35:07 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 05/14] Export unusable free space index via
+	/proc/unusable_index
+Message-ID: <20100407103506.GO17882@csn.ul.ie>
+References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie> <1270224168-14775-6-git-send-email-mel@csn.ul.ie> <20100406170537.c84f54b7.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100406170532.56c71031.akpm@linux-foundation.org>
-From: mel@csn.ul.ie (Mel Gorman)
+In-Reply-To: <20100406170537.c84f54b7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 06, 2010 at 05:05:32PM -0700, Andrew Morton wrote:
-> On Fri,  2 Apr 2010 17:02:38 +0100
+On Tue, Apr 06, 2010 at 05:05:37PM -0700, Andrew Morton wrote:
+> On Fri,  2 Apr 2010 17:02:39 +0100
 > Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> > CONFIG_MIGRATION currently depends on CONFIG_NUMA or on the architecture
-> > being able to hot-remove memory. The main users of page migration such as
-> > sys_move_pages(), sys_migrate_pages() and cpuset process migration are
-> > only beneficial on NUMA so it makes sense.
-> > 
-> > As memory compaction will operate within a zone and is useful on both NUMA
-> > and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
-> > user selects CONFIG_COMPACTION as an option.
+> > Unusable free space index is a measure of external fragmentation that
+> > takes the allocation size into account. For the most part, the huge page
+> > size will be the size of interest but not necessarily so it is exported
+> > on a per-order and per-zone basis via /proc/unusable_index.
+> 
+> I'd suggest /proc/sys/vm/unusable_index.  I don't know how pagetypeinfo
+> found its way into the top-level dir.
+> 
+
+For the same reason buddyinfo did - no one complained. It keeps the
+fragmentation-related information in the same place but I can move it.
+
+> > The index is a value between 0 and 1. It can be expressed as a
+> > percentage by multiplying by 100 as documented in
+> > Documentation/filesystems/proc.txt.
 > > 
 > > ...
-> >
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -172,6 +172,16 @@ config SPLIT_PTLOCK_CPUS
-> >  	default "4"
+> > 
+> > +> cat /proc/unusable_index
+> > +Node 0, zone      DMA 0.000 0.000 0.000 0.001 0.005 0.013 0.021 0.037 0.037 0.101 0.230
+> > +Node 0, zone   Normal 0.000 0.000 0.000 0.001 0.002 0.002 0.005 0.015 0.028 0.028 0.054
+> > +
+> > +The unusable free space index measures how much of the available free
+> > +memory cannot be used to satisfy an allocation of a given size and is a
+> > +value between 0 and 1. The higher the value, the more of free memory is
+> > +unusable and by implication, the worse the external fragmentation is. This
+> > +can be expressed as a percentage by multiplying by 100.
+> 
+> That's going to hurt my brain.  Why didn't it report usable free blocks?
+> 
+
+Lets say you are graphing the index on a given order over time. If there
+are a large number of frees, there can be a large change in that value
+but it does nto necessarily tell you how much better or worse the system
+is overall.
+
+> Also, the index is scaled by the actual amount of free memory in the
+> zones, yes?  So to work out how many order-N pages are available you
+> first need to know how many free pages there are?
+> 
+
+It depends on what your question is. As I'm interest in fragmentation,
+this value gives me information on that. Your question is about how many
+pages of a given order can be allocated right now and that can be worked
+out from buddyinfo.
+
+> Seems complicated.
+> 
 > >  
-> >  #
-> > +# support for memory compaction
-> > +config COMPACTION
-> > +	bool "Allow for memory compaction"
-> > +	def_bool y
-> > +	select MIGRATION
-> > +	depends on EXPERIMENTAL && HUGETLBFS && MMU
-> > +	help
-> > +	  Allows the compaction of memory for the allocation of huge pages.
+> > +
+> > +struct contig_page_info {
+> > +	unsigned long free_pages;
+> > +	unsigned long free_blocks_total;
+> > +	unsigned long free_blocks_suitable;
+> > +};
+> > +
+> > +/*
+> > + * Calculate the number of free pages in a zone, how many contiguous
+> > + * pages are free and how many are large enough to satisfy an allocation of
+> > + * the target size. Note that this function makes no attempt to estimate
+> > + * how many suitable free blocks there *might* be if MOVABLE pages were
+> > + * migrated. Calculating that is possible, but expensive and can be
+> > + * figured out from userspace
+> > + */
+> > +static void fill_contig_page_info(struct zone *zone,
+> > +				unsigned int suitable_order,
+> > +				struct contig_page_info *info)
+> > +{
+> > +	unsigned int order;
+> > +
+> > +	info->free_pages = 0;
+> > +	info->free_blocks_total = 0;
+> > +	info->free_blocks_suitable = 0;
+> > +
+> > +	for (order = 0; order < MAX_ORDER; order++) {
+> > +		unsigned long blocks;
+> > +
+> > +		/* Count number of free blocks */
+> > +		blocks = zone->free_area[order].nr_free;
+> > +		info->free_blocks_total += blocks;
+> > +
+> > +		/* Count free base pages */
+> > +		info->free_pages += blocks << order;
+> > +
+> > +		/* Count the suitable free blocks */
+> > +		if (order >= suitable_order)
+> > +			info->free_blocks_suitable += blocks <<
+> > +						(order - suitable_order);
+> > +	}
+> > +}
+> > +
+> > +/*
+> > + * Return an index indicating how much of the available free memory is
+> > + * unusable for an allocation of the requested size.
+> > + */
+> > +static int unusable_free_index(unsigned int order,
+> > +				struct contig_page_info *info)
+> > +{
+> > +	/* No free memory is interpreted as all free memory is unusable */
+> > +	if (info->free_pages == 0)
+> > +		return 1000;
+> > +
+> > +	/*
+> > +	 * Index should be a value between 0 and 1. Return a value to 3
+> > +	 * decimal places.
+> > +	 *
+> > +	 * 0 => no fragmentation
+> > +	 * 1 => high fragmentation
+> > +	 */
+> > +	return div_u64((info->free_pages - (info->free_blocks_suitable << order)) * 1000ULL, info->free_pages);
+> > +
+> > +}
+> > +
+> > +static void unusable_show_print(struct seq_file *m,
+> > +					pg_data_t *pgdat, struct zone *zone)
+> > +{
+> > +	unsigned int order;
+> > +	int index;
+> > +	struct contig_page_info info;
+> > +
+> > +	seq_printf(m, "Node %d, zone %8s ",
+> > +				pgdat->node_id,
+> > +				zone->name);
+> > +	for (order = 0; order < MAX_ORDER; ++order) {
+> > +		fill_contig_page_info(zone, order, &info);
+> > +		index = unusable_free_index(order, &info);
+> > +		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
+> > +	}
+> > +
+> > +	seq_putc(m, '\n');
+> > +}
+> > +
+> > +/*
+> > + * Display unusable free space index
+> > + * XXX: Could be a lot more efficient, but it's not a critical path
+> > + */
+> > +static int unusable_show(struct seq_file *m, void *arg)
+> > +{
+> > +	pg_data_t *pgdat = (pg_data_t *)arg;
+> > +
+> > +	/* check memoryless node */
+> > +	if (!node_state(pgdat->node_id, N_HIGH_MEMORY))
+> > +		return 0;
+> > +
+> > +	walk_zones_in_node(m, pgdat, unusable_show_print);
+> > +
+> > +	return 0;
+> > +}
+> > +
+> >  static void pagetypeinfo_showfree_print(struct seq_file *m,
+> >  					pg_data_t *pgdat, struct zone *zone)
+> >  {
+> > @@ -603,6 +703,25 @@ static const struct file_operations pagetypeinfo_file_ops = {
+> >  	.release	= seq_release,
+> >  };
+> >  
+> > +static const struct seq_operations unusable_op = {
+> > +	.start	= frag_start,
+> > +	.next	= frag_next,
+> > +	.stop	= frag_stop,
+> > +	.show	= unusable_show,
+> > +};
+> > +
+> > +static int unusable_open(struct inode *inode, struct file *file)
+> > +{
+> > +	return seq_open(file, &unusable_op);
+> > +}
+> > +
+> > +static const struct file_operations unusable_file_ops = {
+> > +	.open		= unusable_open,
+> > +	.read		= seq_read,
+> > +	.llseek		= seq_lseek,
+> > +	.release	= seq_release,
+> > +};
+> > +
+> >  #ifdef CONFIG_ZONE_DMA
+> >  #define TEXT_FOR_DMA(xx) xx "_dma",
+> >  #else
+> > @@ -947,6 +1066,7 @@ static int __init setup_vmstat(void)
+> >  #ifdef CONFIG_PROC_FS
+> >  	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+> >  	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
+> > +	proc_create("unusable_index", S_IRUGO, NULL, &unusable_file_ops);
+> >  	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+> >  	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+> >  #endif
 > 
-> Seems strange to depend on hugetlbfs.  Perhaps depending on
-> HUGETLB_PAGE would be more logical.
+> All this code will be bloat for most people, I suspect.  Can we find a
+> suitable #ifdef wrapper to keep my cellphone happy?
 > 
 
-Fair point, there is a fix below.
+It could. However, this information can also be created from buddyinfo and
+I have a perl script that can be adapted to duplicate the output of this
+proc file. As there isn't an in-kernel user of this information, it can
+also be dropped.
 
-> But hang on.  I wanna use compaction to make my order-4 wireless skb
-> allocations work better!  Why do you hate me?
-> 
+Will I roll a patch that moves the proc entry and makes it a CONFIG option
+or will I just remove the file altogether? If I remove it, I can adapt
+the perl script and add to the other hugepage-related utilities in
+libhugetlbfs.
 
-Because I'm a bad person and I hate your hardware. However, because I'm
-told being a bad person for the sake of it just isn't the right thing to
-do, I'll expand the reasoning :).
-
-For your specific example, the allocation is also depending on GFP_ATOMIC
-which migration cannot handle today. Significant plumbing would be needed
-there to make it work and I believe at the moment at atomic-safe compaction
-would be a subset of full compaction. This is a "future" thing but I'd also
-expect you and others to resist it on the grounds that depending on such
-high-order atomics for the correct working of the hardware is just a bad plan.
-
-That does not cover other high-order allocs though such as those required for
-stacks or the ARM allocation of PGDs. These are below PAGE_ALLOC_COSTLY_ORDER
-so compaction will not currently trigger.  Reviews commented that it would
-be preferable to limit the orders compaction handles to start with. The
-direction I'd like to continue with this in the future is to have something
-like __zone_reclaim to handle clean page cache first and moving more towards
-integrating lumpy reclaim and compaction. When this is done, the HUGETLB_PAGE
-dependency would be removed and the smaller orders will also be compacted.
-
-In the meantime, we continue to discourage high-order allocations and
-compaction gets its initial trial run against huge pages.
-
-==== CUT HERE ====
-mm,compaction: Have CONFIG_COMPACTION depend on HUGETLB_PAGE instead of HUGETLBFS
-
-There is a strong coupling between HUGETLB_PAGE and HUGETLBFS but in theory
-there can be alternative interfaces to huge pages than HUGETLB_PAGE. This
-patch makes CONFIG_COMPACTION depend on the right thing.
-
-This is a fix to the patch "Allow CONFIG_MIGRATION to be set without
-CONFIG_NUMA or memory hot-remove" and should be merged together.
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/Kconfig |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 4fd75a0..a275a7d 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -177,7 +177,7 @@ config COMPACTION
- 	bool "Allow for memory compaction"
- 	def_bool y
- 	select MIGRATION
--	depends on EXPERIMENTAL && HUGETLBFS && MMU
-+	depends on EXPERIMENTAL && HUGETLB_PAGE && MMU
- 	help
- 	  Allows the compaction of memory for the allocation of huge pages.
- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
