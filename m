@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 537B66B01F4
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 551CB6B01F6
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:16 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 16 of 67] bail out gup_fast on splitting pmd
-Message-Id: <3dc8a30c0d546d028048.1270691459@v2.random>
+Subject: [PATCH 01 of 67] define MADV_HUGEPAGE
+Message-Id: <af2d928f3df07400786c.1270691444@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:50:59 +0200
+Date: Thu, 08 Apr 2010 03:50:44 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,37 +18,73 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Force gup_fast to take the slow path and block if the pmd is splitting, not
-only if it's none.
+Define MADV_HUGEPAGE.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -160,7 +160,18 @@ static int gup_pmd_range(pud_t pud, unsi
- 		pmd_t pmd = *pmdp;
+diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
+--- a/arch/alpha/include/asm/mman.h
++++ b/arch/alpha/include/asm/mman.h
+@@ -53,6 +53,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
  
- 		next = pmd_addr_end(addr, end);
--		if (pmd_none(pmd))
-+		/*
-+		 * The pmd_trans_splitting() check below explains why
-+		 * pmdp_splitting_flush has to flush the tlb, to stop
-+		 * this gup-fast code from running while we set the
-+		 * splitting bit in the pmd. Returning zero will take
-+		 * the slow path that will call wait_split_huge_page()
-+		 * if the pmd is still in splitting state. gup-fast
-+		 * can't because it has irq disabled and
-+		 * wait_split_huge_page() would never return as the
-+		 * tlb flush IPI wouldn't run.
-+		 */
-+		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
- 			return 0;
- 		if (unlikely(pmd_large(pmd))) {
- 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
+--- a/arch/mips/include/asm/mman.h
++++ b/arch/mips/include/asm/mman.h
+@@ -77,6 +77,8 @@
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+ #define MADV_HWPOISON    100		/* poison a page for testing */
+ 
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
+--- a/arch/parisc/include/asm/mman.h
++++ b/arch/parisc/include/asm/mman.h
+@@ -59,6 +59,8 @@
+ #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
+ 
++#define MADV_HUGEPAGE	67		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ #define MAP_VARIABLE	0
+diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
+--- a/arch/xtensa/include/asm/mman.h
++++ b/arch/xtensa/include/asm/mman.h
+@@ -83,6 +83,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+ 
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+--- a/include/asm-generic/mman-common.h
++++ b/include/asm-generic/mman-common.h
+@@ -45,6 +45,8 @@
+ #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
+ #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+ 
++#define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
