@@ -1,74 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5EBF4620089
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id DFADD62008C
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:10 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 52 of 67] Allow CONFIG_MIGRATION to be set without CONFIG_NUMA
-	or memory hot-remove
-Message-Id: <7963905262c4142ae535.1270691495@v2.random>
+Subject: [PATCH 26 of 67] split_huge_page paging
+Message-Id: <a4d31c2cb2b6e0ad41e9.1270691469@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:35 +0200
+Date: Thu, 08 Apr 2010 03:51:09 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Mel Gorman <mel@csn.ul.ie>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-CONFIG_MIGRATION currently depends on CONFIG_NUMA or on the architecture
-being able to hot-remove memory. The main users of page migration such as
-sys_move_pages(), sys_migrate_pages() and cpuset process migration are
-only beneficial on NUMA so it makes sense.
+Paging logic that splits the page before it is unmapped and added to swap to
+ensure backwards compatibility with the legacy swap code. Eventually swap
+should natively pageout the hugepages to increase performance and decrease
+seeking and fragmentation of swap space. swapoff can just skip over huge pmd as
+they cannot be part of swap yet. In add_to_swap be careful to split the page
+only if we got a valid swap entry so we don't split hugepages with a full swap.
 
-As memory compaction will operate within a zone and is useful on both NUMA
-and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
-user selects CONFIG_COMPACTION as an option.
+In theory we could split pages before isolating them during the lru scan, but
+for khugepaged to be safe, I'm relying on either mmap_sem write mode, or
+PG_lock taken, so split_huge_page has to run either with mmap_sem read/write
+mode or PG_lock taken. Calling it from isolate_lru_page would make locking more
+complicated, in addition to that split_huge_page would deadlock if called by
+__isolate_lru_page because it has to take the lru lock to add the tail pages.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/Kconfig b/mm/Kconfig
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -172,6 +172,16 @@ config SPLIT_PTLOCK_CPUS
- 	default "4"
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -379,6 +379,8 @@ static void collect_procs_anon(struct pa
+ 	struct task_struct *tsk;
+ 	struct anon_vma *av;
  
- #
-+# support for memory compaction
-+config COMPACTION
-+	bool "Allow for memory compaction"
-+	def_bool y
-+	select MIGRATION
-+	depends on EXPERIMENTAL && HUGETLB_PAGE && MMU
-+	help
-+	  Allows the compaction of memory for the allocation of huge pages.
++	if (unlikely(split_huge_page(page)))
++		return;
+ 	read_lock(&tasklist_lock);
+ 	av = page_lock_anon_vma(page);
+ 	if (av == NULL)	/* Not actually mapped anymore */
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1285,6 +1285,7 @@ int try_to_unmap(struct page *page, enum
+ 	int ret;
+ 
+ 	BUG_ON(!PageLocked(page));
++	BUG_ON(PageTransHuge(page));
+ 
+ 	if (unlikely(PageKsm(page)))
+ 		ret = try_to_unmap_ksm(page, flags);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -157,6 +157,12 @@ int add_to_swap(struct page *page)
+ 	if (!entry.val)
+ 		return 0;
+ 
++	if (unlikely(PageTransHuge(page)))
++		if (unlikely(split_huge_page(page))) {
++			swapcache_free(entry, NULL);
++			return 0;
++		}
 +
-+#
- # support for page migration
- #
- config MIGRATION
-@@ -180,9 +190,11 @@ config MIGRATION
- 	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
- 	help
- 	  Allows the migration of the physical location of pages of processes
--	  while the virtual addresses are not changed. This is useful for
--	  example on NUMA systems to put pages nearer to the processors accessing
--	  the page.
-+	  while the virtual addresses are not changed. This is useful in
-+	  two situations. The first is on NUMA systems to put pages nearer
-+	  to the processors accessing. The second is when allocating huge
-+	  pages as migration can relocate pages to satisfy a huge page
-+	  allocation instead of reclaiming.
- 
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+ 	/*
+ 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
+ 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -937,6 +937,8 @@ static inline int unuse_pmd_range(struct
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
++		if (unlikely(pmd_trans_huge(*pmd)))
++			continue;
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
