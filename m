@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 50C466B01FE
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 611246B0201
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:20 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 06 of 67] clear compound mapping
-Message-Id: <29716f3784363b71714a.1270691449@v2.random>
+Subject: [PATCH 08 of 67] add pmd paravirt ops
+Message-Id: <088327345b7c1229e0b1.1270691451@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:50:49 +0200
+Date: Thu, 08 Apr 2010 03:50:51 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,26 +18,98 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Clear compound mapping for anonymous compound pages like it already happens for
-regular anonymous pages.
+Paravirt ops pmd_update/pmd_update_defer/pmd_set_at. Not all might be necessary
+(vmware needs pmd_update, Xen needs set_pmd_at, nobody needs pmd_update_defer),
+but this is to keep full simmetry with pte paravirt ops, which looks cleaner
+and simpler from a common code POV.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -609,6 +609,8 @@ static void __free_pages_ok(struct page 
- 	trace_mm_page_free_direct(page, order);
- 	kmemcheck_free_shadow(page, order);
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -440,6 +440,11 @@ static inline void pte_update(struct mm_
+ {
+ 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
+ }
++static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
++			      pmd_t *pmdp)
++{
++	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
++}
  
-+	if (PageAnon(page))
-+		page->mapping = NULL;
- 	for (i = 0 ; i < (1 << order) ; ++i)
- 		bad += free_pages_check(page + i);
- 	if (bad)
+ static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
+ 				    pte_t *ptep)
+@@ -447,6 +452,12 @@ static inline void pte_update_defer(stru
+ 	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
+ }
+ 
++static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
++				    pmd_t *pmdp)
++{
++	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
++}
++
+ static inline pte_t __pte(pteval_t val)
+ {
+ 	pteval_t ret;
+@@ -548,6 +559,18 @@ static inline void set_pte_at(struct mm_
+ 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
++			      pmd_t *pmdp, pmd_t pmd)
++{
++	if (sizeof(pmdval_t) > sizeof(long))
++		/* 5 arg words */
++		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
++	else
++		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp, pmd.pmd);
++}
++#endif
++
+ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
+ 	pmdval_t val = native_pmd_val(pmd);
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -266,10 +266,16 @@ struct pv_mmu_ops {
+ 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep, pte_t pteval);
+ 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
++	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
++			   pmd_t *pmdp, pmd_t pmdval);
+ 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep);
+ 	void (*pte_update_defer)(struct mm_struct *mm,
+ 				 unsigned long addr, pte_t *ptep);
++	void (*pmd_update)(struct mm_struct *mm, unsigned long addr,
++			   pmd_t *pmdp);
++	void (*pmd_update_defer)(struct mm_struct *mm,
++				 unsigned long addr, pmd_t *pmdp);
+ 
+ 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
+ 					pte_t *ptep);
+diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -422,8 +422,11 @@ struct pv_mmu_ops pv_mmu_ops = {
+ 	.set_pte = native_set_pte,
+ 	.set_pte_at = native_set_pte_at,
+ 	.set_pmd = native_set_pmd,
++	.set_pmd_at = native_set_pmd_at,
+ 	.pte_update = paravirt_nop,
+ 	.pte_update_defer = paravirt_nop,
++	.pmd_update = paravirt_nop,
++	.pmd_update_defer = paravirt_nop,
+ 
+ 	.ptep_modify_prot_start = __ptep_modify_prot_start,
+ 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
