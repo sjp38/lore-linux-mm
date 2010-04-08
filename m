@@ -1,190 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5A5D66B01F7
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 816436B01FA
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:16 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 21 of 67] This fixes some minor issues that bugged me while
-	going over the code:
-Message-Id: <bc95eb6f3d8080780550.1270691464@v2.random>
+Subject: [PATCH 04 of 67] update futex compound knowledge
+Message-Id: <4562797827d68789dec4.1270691447@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:04 +0200
+Date: Thu, 08 Apr 2010 03:50:47 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-o adjust argument order of do_mincore() to match the syscall
-o simplify range length calculation
-o drop superfluous shift in huge tlb calculation, address is page aligned
-o drop dead nr_huge calculation
-o check pte_none() before pte_present()
-o comment and whitespace fixes
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-No semantic changes intended.
+Futex code is smarter than most other gup_fast O_DIRECT code and knows about
+the compound internals. However now doing a put_page(head_page) will not
+release the pin on the tail page taken by gup-fast, leading to all sort of
+refcounting bugchecks. Getting a stable head_page is a little tricky.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+page_head = page is there because if this is not a tail page it's also the
+page_head. Only in case this is a tail page, compound_head is called, otherwise
+it's guaranteed unnecessary. And if it's a tail page compound_head has to run
+atomically inside irq disabled section __get_user_pages_fast before returning.
+Otherwise ->first_page won't be a stable pointer.
+
+Disableing irq before __get_user_page_fast and releasing irq after running
+compound_head is needed because if __get_user_page_fast returns == 1, it means
+the huge pmd is established and cannot go away from under us.
+pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
+for local_irq_enable before the IPI delivery can return. This means
+__split_huge_page_refcount can't be running from under us, and in turn when we
+run compound_head(page) we're not reading a dangling pointer from
+tailpage->first_page. Then after we get to stable head page, we are always safe
+to call compound_lock and after taking the compound lock on head page we can
+finally re-check if the page returned by gup-fast is still a tail page. in
+which case we're set and we didn't need to split the hugepage in order to take
+a futex on it.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/mincore.c b/mm/mincore.c
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -54,7 +54,7 @@ static unsigned char mincore_page(struct
-  * all the arguments, we hold the mmap semaphore: we should
-  * just return the amount of info we're asked for.
-  */
--static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pages)
-+static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
+diff --git a/kernel/futex.c b/kernel/futex.c
+--- a/kernel/futex.c
++++ b/kernel/futex.c
+@@ -218,7 +218,7 @@ get_futex_key(u32 __user *uaddr, int fsh
  {
- 	pgd_t *pgd;
- 	pud_t *pud;
-@@ -64,35 +64,29 @@ static long do_mincore(unsigned long add
- 	unsigned long nr;
- 	int i;
- 	pgoff_t pgoff;
--	struct vm_area_struct *vma = find_vma(current->mm, addr);
-+	struct vm_area_struct *vma;
+ 	unsigned long address = (unsigned long)uaddr;
+ 	struct mm_struct *mm = current->mm;
+-	struct page *page;
++	struct page *page, *page_head;
+ 	int err;
  
--	/*
--	 * find_vma() didn't find anything above us, or we're
--	 * in an unmapped hole in the address space: ENOMEM.
--	 */
-+	vma = find_vma(current->mm, addr);
- 	if (!vma || addr < vma->vm_start)
- 		return -ENOMEM;
+ 	/*
+@@ -250,10 +250,53 @@ again:
+ 	if (err < 0)
+ 		return err;
  
-+	nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
-+
- #ifdef CONFIG_HUGETLB_PAGE
- 	if (is_vm_hugetlb_page(vma)) {
- 		struct hstate *h;
--		unsigned long nr_huge;
--		unsigned char present;
- 
- 		i = 0;
--		nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
- 		h = hstate_vma(vma);
--		nr_huge = ((addr + pages * PAGE_SIZE - 1) >> huge_page_shift(h))
--			  - (addr >> huge_page_shift(h)) + 1;
--		nr_huge = min(nr_huge,
--			      (vma->vm_end - addr) >> huge_page_shift(h));
- 		while (1) {
--			/* hugepage always in RAM for now,
--			 * but generally it needs to be check */
-+			unsigned char present;
+-	page = compound_head(page);
+-	lock_page(page);
+-	if (!page->mapping) {
+-		unlock_page(page);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	page_head = page;
++	if (unlikely(PageTail(page))) {
++		put_page(page);
++		/* serialize against __split_huge_page_splitting() */
++		local_irq_disable();
++		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
++			page_head = compound_head(page);
 +			/*
-+			 * Huge pages are always in RAM for now, but
-+			 * theoretically it needs to be checked.
++			 * page_head is valid pointer but we must pin
++			 * it before taking the PG_lock and/or
++			 * PG_compound_lock. The moment we re-enable
++			 * irqs __split_huge_page_splitting() can
++			 * return and the head page can be freed from
++			 * under us. We can't take the PG_lock and/or
++			 * PG_compound_lock on a page that could be
++			 * freed from under us.
 +			 */
- 			ptep = huge_pte_offset(current->mm,
- 					       addr & huge_page_mask(h));
--			present = !!(ptep &&
--				     !huge_pte_none(huge_ptep_get(ptep)));
-+			present = ptep && !huge_pte_none(huge_ptep_get(ptep));
- 			while (1) {
- 				vec[i++] = present;
- 				addr += PAGE_SIZE;
-@@ -100,8 +94,7 @@ static long do_mincore(unsigned long add
- 				if (i == nr)
- 					return nr;
- 				/* check hugepage border */
--				if (!((addr & ~huge_page_mask(h))
--				      >> PAGE_SHIFT))
-+				if (!(addr & ~huge_page_mask(h)))
- 					break;
- 			}
- 		}
-@@ -113,17 +106,7 @@ static long do_mincore(unsigned long add
- 	 * Calculate how many pages there are left in the last level of the
- 	 * PTE array for our address.
- 	 */
--	nr = PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1));
--
--	/*
--	 * Don't overrun this vma
--	 */
--	nr = min(nr, (vma->vm_end - addr) >> PAGE_SHIFT);
--
--	/*
--	 * Don't return more than the caller asked for
--	 */
--	nr = min(nr, pages);
-+	nr = min(nr, PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1)));
- 
- 	pgd = pgd_offset(vma->vm_mm, addr);
- 	if (pgd_none_or_clear_bad(pgd))
-@@ -137,43 +120,38 @@ static long do_mincore(unsigned long add
- 
- 	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (i = 0; i < nr; i++, ptep++, addr += PAGE_SIZE) {
--		unsigned char present;
- 		pte_t pte = *ptep;
- 
--		if (pte_present(pte)) {
--			present = 1;
--
--		} else if (pte_none(pte)) {
-+		if (pte_none(pte)) {
- 			if (vma->vm_file) {
- 				pgoff = linear_page_index(vma, addr);
--				present = mincore_page(vma->vm_file->f_mapping,
--							pgoff);
-+				vec[i] = mincore_page(vma->vm_file->f_mapping,
-+						pgoff);
- 			} else
--				present = 0;
--
--		} else if (pte_file(pte)) {
-+				vec[i] = 0;
-+		} else if (pte_present(pte))
-+			vec[i] = 1;
-+		else if (pte_file(pte)) {
- 			pgoff = pte_to_pgoff(pte);
--			present = mincore_page(vma->vm_file->f_mapping, pgoff);
--
-+			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
- 		} else { /* pte is a swap entry */
- 			swp_entry_t entry = pte_to_swp_entry(pte);
++			if (page != page_head)
++				get_page(page_head);
++			local_irq_enable();
++		} else {
++			local_irq_enable();
++			goto again;
++		}
++	}
++#else
++	page_head = compound_head(page);
++	if (page != page_head)
++		get_page(page_head);
++#endif
 +
- 			if (is_migration_entry(entry)) {
- 				/* migration entries are always uptodate */
--				present = 1;
-+				vec[i] = 1;
- 			} else {
- #ifdef CONFIG_SWAP
- 				pgoff = entry.val;
--				present = mincore_page(&swapper_space, pgoff);
-+				vec[i] = mincore_page(&swapper_space, pgoff);
- #else
- 				WARN_ON(1);
--				present = 1;
-+				vec[i] = 1;
- #endif
- 			}
- 		}
--
--		vec[i] = present;
++	lock_page(page_head);
++	if (unlikely(page_head != page)) {
++		compound_lock(page_head);
++		if (unlikely(!PageTail(page))) {
++			compound_unlock(page_head);
++			unlock_page(page_head);
++			put_page(page_head);
++			put_page(page);
++			goto again;
++		}
++	}
++	if (!page_head->mapping) {
++		unlock_page(page_head);
++		if (page_head != page)
++			put_page(page_head);
+ 		put_page(page);
+ 		goto again;
  	}
--	pte_unmap_unlock(ptep-1, ptl);
-+	pte_unmap_unlock(ptep - 1, ptl);
+@@ -265,19 +308,25 @@ again:
+ 	 * it's a read-only handle, it's expected that futexes attach to
+ 	 * the object not the particular process.
+ 	 */
+-	if (PageAnon(page)) {
++	if (PageAnon(page_head)) {
+ 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
+ 		key->private.mm = mm;
+ 		key->private.address = address;
+ 	} else {
+ 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+-		key->shared.inode = page->mapping->host;
+-		key->shared.pgoff = page->index;
++		key->shared.inode = page_head->mapping->host;
++		key->shared.pgoff = page_head->index;
+ 	}
  
- 	return nr;
+ 	get_futex_key_refs(key);
  
-@@ -247,7 +225,7 @@ SYSCALL_DEFINE3(mincore, unsigned long, 
- 		 * the temporary buffer size.
- 		 */
- 		down_read(&current->mm->mmap_sem);
--		retval = do_mincore(start, tmp, min(pages, PAGE_SIZE));
-+		retval = do_mincore(start, min(pages, PAGE_SIZE), tmp);
- 		up_read(&current->mm->mmap_sem);
- 
- 		if (retval <= 0)
+-	unlock_page(page);
++	unlock_page(page_head);
++	if (page != page_head) {
++		VM_BUG_ON(!PageTail(page));
++		/* releasing compound_lock after page_lock won't matter */
++		compound_unlock(page_head);
++		put_page(page_head);
++	}
+ 	put_page(page);
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
