@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 130D56B01F0
+	by kanga.kvack.org (Postfix) with SMTP id 3556A6B01F1
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:15 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 36 of 67] memcg huge memory
-Message-Id: <62788a5d0761d52fbf62.1270691479@v2.random>
+Subject: [PATCH 02 of 67] compound_lock
+Message-Id: <af684cb6c61ad80c786f.1270691445@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:19 +0200
+Date: Thu, 08 Apr 2010 03:50:45 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,94 +18,81 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add memcg charge/uncharge to hugepage faults in huge_memory.c.
+Add a new compound_lock() needed to serialize put_page against
+__split_huge_page_refcount().
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -225,6 +225,7 @@ static int __do_huge_pmd_anonymous_page(
- 	VM_BUG_ON(!PageCompound(page));
- 	pgtable = pte_alloc_one(mm, haddr);
- 	if (unlikely(!pgtable)) {
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		return VM_FAULT_OOM;
- 	}
-@@ -235,6 +236,7 @@ static int __do_huge_pmd_anonymous_page(
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_none(*pmd))) {
- 		spin_unlock(&mm->page_table_lock);
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		pte_free(mm, pgtable);
- 	} else {
-@@ -278,6 +280,10 @@ int do_huge_pmd_anonymous_page(struct mm
- 		page = alloc_hugepage(transparent_hugepage_defrag(vma));
- 		if (unlikely(!page))
- 			goto out;
-+		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+			put_page(page);
-+			goto out;
-+		}
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -13,6 +13,7 @@
+ #include <linux/debug_locks.h>
+ #include <linux/mm_types.h>
+ #include <linux/range.h>
++#include <linux/bit_spinlock.h>
  
- 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
- 	}
-@@ -377,9 +383,15 @@ static int do_huge_pmd_wp_page_fallback(
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
- 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
- 					  vma, address);
--		if (unlikely(!pages[i])) {
--			while (--i >= 0)
-+		if (unlikely(!pages[i] ||
-+			     mem_cgroup_newpage_charge(pages[i], mm,
-+						       GFP_KERNEL))) {
-+			if (pages[i])
- 				put_page(pages[i]);
-+			while (--i >= 0) {
-+				mem_cgroup_uncharge_page(pages[i]);
-+				put_page(pages[i]);
-+			}
- 			kfree(pages);
- 			ret |= VM_FAULT_OOM;
- 			goto out;
-@@ -438,8 +450,10 @@ out:
- 
- out_free_pages:
- 	spin_unlock(&mm->page_table_lock);
--	for (i = 0; i < HPAGE_PMD_NR; i++)
-+	for (i = 0; i < HPAGE_PMD_NR; i++) {
-+		mem_cgroup_uncharge_page(pages[i]);
- 		put_page(pages[i]);
-+	}
- 	kfree(pages);
- 	goto out;
+ struct mempolicy;
+ struct anon_vma;
+@@ -297,6 +298,20 @@ static inline int is_vmalloc_or_module_a
  }
-@@ -482,13 +496,19 @@ int do_huge_pmd_wp_page(struct mm_struct
- 		goto out;
- 	}
+ #endif
  
-+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-+		put_page(new_page);
-+		ret |= VM_FAULT_OOM;
-+		goto out;
-+	}
- 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
++static inline void compound_lock(struct page *page)
++{
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	bit_spin_lock(PG_compound_lock, &page->flags);
++#endif
++}
++
++static inline void compound_unlock(struct page *page)
++{
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	bit_spin_unlock(PG_compound_lock, &page->flags);
++#endif
++}
++
+ static inline struct page *compound_head(struct page *page)
+ {
+ 	if (unlikely(PageTail(page)))
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -108,6 +108,9 @@ enum pageflags {
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	PG_compound_lock,
++#endif
+ 	__NR_PAGEFLAGS,
  
- 	spin_lock(&mm->page_table_lock);
--	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-+	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-+		mem_cgroup_uncharge_page(new_page);
- 		put_page(new_page);
--	else {
-+	} else {
- 		pmd_t entry;
- 		entry = mk_pmd(new_page, vma->vm_page_prot);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 	/* Filesystems */
+@@ -399,6 +402,12 @@ static inline void __ClearPageTail(struc
+ #define __PG_MLOCKED		0
+ #endif
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
++#else
++#define __PG_COMPOUND_LOCK		0
++#endif
++
+ /*
+  * Flags checked when a page is freed.  Pages being freed should not have
+  * these flags set.  It they are, there is a problem.
+@@ -408,7 +417,8 @@ static inline void __ClearPageTail(struc
+ 	 1 << PG_private | 1 << PG_private_2 | \
+ 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+-	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
++	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
++	 __PG_COMPOUND_LOCK)
+ 
+ /*
+  * Flags checked when a page is prepped for return by the page allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
