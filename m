@@ -1,58 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 05233620097
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 23:09:32 -0400 (EDT)
-Content-Type: text/plain; charset="us-ascii"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8166C620097
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 23:13:48 -0400 (EDT)
+Received: from il06vts03.mot.com (il06vts03.mot.com [129.188.137.143])
+	by mdgate1.mot.com (8.14.3/8.14.3) with SMTP id o383E2qj003839
+	for <linux-mm@kvack.org>; Wed, 7 Apr 2010 21:14:02 -0600 (MDT)
+Received: from mail-yw0-f193.google.com (mail-yw0-f193.google.com [209.85.211.193])
+	by mdgate1.mot.com (8.14.3/8.14.3) with ESMTP id o3836FAu002258
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 7 Apr 2010 21:14:02 -0600 (MDT)
+Received: by mail-yw0-f193.google.com with SMTP id 31so931940ywh.25
+        for <linux-mm@kvack.org>; Wed, 07 Apr 2010 20:13:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Subject: [PATCH 67 of 67] memcg fix prepare migration
-Message-Id: <545969ff079730c4d7f7.1270691510@v2.random>
-In-Reply-To: <patchbomb.1270691443@v2.random>
-References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:50 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
+In-Reply-To: <p2k84144f021004070825jd3530d04v9d339c8d50c4593d@mail.gmail.com>
+References: <k2s4810ea571004020021hade8123mb571b803b8472aef@mail.gmail.com>
+	 <p2k84144f021004070825jd3530d04v9d339c8d50c4593d@mail.gmail.com>
+Date: Thu, 8 Apr 2010 11:13:40 +0800
+Message-ID: <x2t5f4a33681004072013j696861caj5c90f8675e784fe0@mail.gmail.com>
+Subject: Re: [PATCH] Fix missing of last user while dumping slab corruption
+	log
+From: TAO HU <tghk48@motorola.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: ShiYong LI <shi-yong.li@motorola.com>, linux-kernel@vger.kernel.org, cl@linux-foundation.org, mpm@selenic.com, linux-mm@kvack.org, TAO HU <taohu@motorola.com>, dwmw2@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+Hi, Pekka Enberg
 
-If a signal is pending (task being killed by sigkill) __mem_cgroup_try_charge
-will write NULL into &mem, and css_put will oops on null pointer dereference.
+We verified on OMAP3 (ARM V7).
+1 thing we're sure
+a) cachep->obj_offset will be aligned with "align" passed to
+kmem_cache_create ()
 
-BUG: unable to handle kernel NULL pointer dereference at 0000000000000010
-IP: [<ffffffff810fc6cc>] mem_cgroup_prepare_migration+0x7c/0xc0
-PGD a5d89067 PUD a5d8a067 PMD 0
-Oops: 0000 [#1] SMP
-last sysfs file: /sys/devices/platform/microcode/firmware/microcode/loading
-CPU 0
-Modules linked in: nfs lockd nfs_acl auth_rpcgss sunrpc acpi_cpufreq pcspkr sg [last unloaded: microcode]
+Are you concerned about alignment for red-zone obj?
+We'll double check.
 
-Pid: 5299, comm: largepages Tainted: G        W  2.6.34-rc3 #3 Penryn1600SLI-110dB/To Be Filled By O.E.M.
-RIP: 0010:[<ffffffff810fc6cc>]  [<ffffffff810fc6cc>] mem_cgroup_prepare_migration+0x7c/0xc0
+--=20
+Best Regards
+Hu Tao
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2445,12 +2445,12 @@ int mem_cgroup_prepare_migration(struct 
- 	}
- 	unlock_page_cgroup(pc);
- 
-+	*ptr = mem;
- 	if (mem) {
--		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false,
-+		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false,
- 					      PAGE_SIZE);
- 		css_put(&mem->css);
- 	}
--	*ptr = mem;
- 	return ret;
- }
- 
+On Wed, Apr 7, 2010 at 11:25 PM, Pekka Enberg <penberg@cs.helsinki.fi> wrot=
+e:
+> Hi,
+>
+> (I'm cc'ing David who did some fixes in this area previously.)
+>
+> On Fri, Apr 2, 2010 at 10:21 AM, ShiYong LI <a22381@motorola.com> wrote:
+>> Even with SLAB_RED_ZONE and SLAB_STORE_USER enabled, kernel would NOT
+>> store redzone and last user data around allocated memory space if arch
+>> cache line > sizeof(unsigned long long). As a result, last user informat=
+ion
+>> is unexpectedly MISSED while dumping slab corruption log.
+>>
+>> This patch makes sure that redzone and last user tags get stored whateve=
+r
+>> arch cache line.
+>>
+>> Compared to original codes, the change surely affects head redzone (redz=
+one1).
+>> Actually, with SLAB_RED_ZONE and SLAB_STORE_USER enabled,
+>> allocated memory layout is as below:
+>>
+>> [ redzone1 ] =A0 <--------- Affected area.
+>> [ real object space ]
+>> [ redzone2 ]
+>> [ last user ]
+>> [ ... ]
+>>
+>> Let's do some analysis: (whatever SLAB_STORE_USER is).
+>>
+>> 1) With SLAB_RED_ZONE on, "align" >=3D sizeof(unsigned long long) accord=
+ing to
+>> =A0 =A0the following codes:
+>> =A0 =A0 =A0 =A0/* 2) arch mandated alignment */
+>> =A0 =A0 =A0 =A0if (ralign < ARCH_SLAB_MINALIGN) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ralign =3D ARCH_SLAB_MINALIGN;
+>> =A0 =A0 =A0 =A0}
+>> =A0 =A0 =A0 =A0/* 3) caller mandated alignment */
+>> =A0 =A0 =A0 =A0if (ralign < align) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ralign =3D align;
+>> =A0 =A0 =A0 =A0}
+>> =A0 =A0 =A0 =A0...
+>> =A0 =A0 =A0 =A0/*
+>> =A0 =A0 =A0 =A0 * 4) Store it.
+>> =A0 =A0 =A0 =A0 */
+>> =A0 =A0 =A0 =A0align =3D ralign;
+>>
+>> =A0 =A0That's to say, could guarantee that redzone1 does NOT get broken
+>> at all. Meanwhile,
+>> =A0 =A0Real object space could meet the need of cache line size by using
+>> "align" =A0argument.
+>>
+>> 2) With SLAB_RED_ZONE off, the change has no impact.
+>>
+>>
+>> From 03b28964311090533643acd267abe0cbc3c9b0a5 Mon Sep 17 00:00:00 2001
+>> From: Shiyong Li <shi-yong.li@motorola.com>
+>> Date: Fri, 2 Apr 2010 14:50:30 +0800
+>> Subject: [PATCH] Fix missing of last user info while getting
+>> DEBUG_SLAB config enabled.
+>>
+>> Even with SLAB_RED_ZONE and SLAB_STORE_USER enabled, kernel would NOT
+>> store redzone and last user data around allocated memory space if arch
+>> cache line > sizeof(unsigned long long). As a result, last user informat=
+ion
+>> is unexpectedly MISSED while dumping slab corruption log.
+>>
+>> This fix makes sure that redzone and last user tags get stored whatever
+>> cache line.
+>>
+>> Signed-off-by: Shiyong Li <shi-yong.li@motorola.com>
+>> ---
+>> =A0mm/slab.c | =A0 =A07 ++-----
+>> =A01 files changed, 2 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/slab.c b/mm/slab.c
+>> index a8a38ca..84af997 100644
+>> --- a/mm/slab.c
+>> +++ b/mm/slab.c
+>> @@ -2267,9 +2267,6 @@ kmem_cache_create (const char *name, size_t
+>> size, size_t align,
+>> =A0 =A0 =A0 =A0if (ralign < align) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ralign =3D align;
+>> =A0 =A0 =A0 =A0}
+>> - =A0 =A0 =A0 /* disable debug if necessary */
+>> - =A0 =A0 =A0 if (ralign > __alignof__(unsigned long long))
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags &=3D ~(SLAB_RED_ZONE | SLAB_STORE_US=
+ER);
+>> =A0 =A0 =A0 =A0/*
+>> =A0 =A0 =A0 =A0 * 4) Store it.
+>> =A0 =A0 =A0 =A0 */
+>> @@ -2289,8 +2286,8 @@ kmem_cache_create (const char *name, size_t
+>> size, size_t align,
+>> =A0 =A0 =A0 =A0 */
+>> =A0 =A0 =A0 =A0if (flags & SLAB_RED_ZONE) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* add space for red zone words */
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 cachep->obj_offset +=3D sizeof(unsigned lo=
+ng long);
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 size +=3D 2 * sizeof(unsigned long long);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 cachep->obj_offset +=3D align;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 size +=3D align + sizeof(unsigned long lon=
+g);
+>> =A0 =A0 =A0 =A0}
+>> =A0 =A0 =A0 =A0if (flags & SLAB_STORE_USER) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* user store requires one word storage b=
+ehind the end of
+>
+> The problem I have with this patch is that I am unable to convince
+> myself that it's correct.
+>
+> The code in question is pretty hard to follow and it can break on
+> architectures with strict alignment requirements. I'm not sure I fully
+> understand why we've been disabling debugging in the first place.
+>
+> On which architectures have you verified this fix?
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Pekka
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
