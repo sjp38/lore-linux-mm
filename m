@@ -1,93 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8B5B46B0220
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C474C6B0221
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:59 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 45 of 67] mprotect: pass vma down to page table walkers
-Message-Id: <27387a39e081b8a511cb.1270691488@v2.random>
+Subject: [PATCH 32 of 67] verify pmd_trans_huge isn't leaking
+Message-Id: <4015d9c97f6c7aac03a7.1270691475@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:28 +0200
+Date: Thu, 08 Apr 2010 03:51:15 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Johannes Weiner <hannes@cmpxchg.org>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Waiting for huge pmds to finish splitting requires the vma's anon_vma,
-so pass along the vma instead of the mm, we can always get the latter
-when we need it.
+pte_trans_huge must not leak in certain vmas like the mmio special pfn or
+filebacked mappings.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -35,10 +35,11 @@ static inline pgprot_t pgprot_modify(pgp
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1421,6 +1421,7 @@ int __get_user_pages(struct task_struct 
+ 			pmd = pmd_offset(pud, pg);
+ 			if (pmd_none(*pmd))
+ 				return i ? : -EFAULT;
++			VM_BUG_ON(pmd_trans_huge(*pmd));
+ 			pte = pte_offset_map(pmd, pg);
+ 			if (pte_none(*pte)) {
+ 				pte_unmap(pte);
+@@ -1622,8 +1623,10 @@ pte_t *get_locked_pte(struct mm_struct *
+ 	pud_t * pud = pud_alloc(mm, pgd, addr);
+ 	if (pud) {
+ 		pmd_t * pmd = pmd_alloc(mm, pud, addr);
+-		if (pmd)
++		if (pmd) {
++			VM_BUG_ON(pmd_trans_huge(*pmd));
+ 			return pte_alloc_map_lock(mm, pmd, addr, ptl);
++		}
+ 	}
+ 	return NULL;
  }
- #endif
- 
--static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
-+static void change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
- {
-+	struct mm_struct *mm = vma->vm_mm;
- 	pte_t *pte, oldpte;
- 	spinlock_t *ptl;
- 
-@@ -78,7 +79,7 @@ static void change_pte_range(struct mm_s
- 	pte_unmap_unlock(pte - 1, ptl);
- }
- 
--static inline void change_pmd_range(struct mm_struct *mm, pud_t *pud,
-+static inline void change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
- {
-@@ -88,14 +89,14 @@ static inline void change_pmd_range(stru
- 	pmd = pmd_offset(pud, addr);
+@@ -1842,6 +1845,7 @@ static inline int remap_pmd_range(struct
+ 	pmd = pmd_alloc(mm, pud, addr);
+ 	if (!pmd)
+ 		return -ENOMEM;
++	VM_BUG_ON(pmd_trans_huge(*pmd));
  	do {
  		next = pmd_addr_end(addr, end);
--		split_huge_page_pmd(mm, pmd);
-+		split_huge_page_pmd(vma->vm_mm, pmd);
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
--		change_pte_range(mm, pmd, addr, next, newprot, dirty_accountable);
-+		change_pte_range(vma, pmd, addr, next, newprot, dirty_accountable);
- 	} while (pmd++, addr = next, addr != end);
- }
+ 		if (remap_pte_range(mm, pmd, addr, next,
+@@ -3317,6 +3321,7 @@ static int follow_pte(struct mm_struct *
+ 		goto out;
  
--static inline void change_pud_range(struct mm_struct *mm, pgd_t *pgd,
-+static inline void change_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
- {
-@@ -107,7 +108,7 @@ static inline void change_pud_range(stru
- 		next = pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
--		change_pmd_range(mm, pud, addr, next, newprot, dirty_accountable);
-+		change_pmd_range(vma, pud, addr, next, newprot, dirty_accountable);
- 	} while (pud++, addr = next, addr != end);
- }
+ 	pmd = pmd_offset(pud, address);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+ 		goto out;
  
-@@ -127,7 +128,7 @@ static void change_protection(struct vm_
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		change_pud_range(mm, pgd, addr, next, newprot, dirty_accountable);
-+		change_pud_range(vma, pgd, addr, next, newprot, dirty_accountable);
- 	} while (pgd++, addr = next, addr != end);
- 	flush_tlb_range(vma, start, end);
- }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
