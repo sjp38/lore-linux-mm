@@ -1,255 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F1F76600490
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D3C4760044B
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:03 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 22 of 67] Split out functions to handle hugetlb ranges,
-	pte ranges and unmapped
-Message-Id: <2e302ed815d707d3dda8.1270691465@v2.random>
+Subject: [PATCH 41 of 67] remove PG_buddy
+Message-Id: <3816571b9b04d1e36cf5.1270691484@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:05 +0200
+Date: Thu, 08 Apr 2010 03:51:24 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-ranges, to improve readability but also to prepare the file structure for
-nested page table walks.
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-No semantic changes intended.
+PG_buddy can be converted to _mapcount == -2. So the PG_compound_lock can be
+added to page->flags without overflowing (because of the sparse section bits
+increasing) with CONFIG_X86_PAE=y and CONFIG_X86_PAT=y. This also has to move
+the memory hotplug code from _mapcount to lru.next to avoid any risk of
+clashes. We can't use lru.next for PG_buddy removal, but memory hotplug can use
+lru.next even more easily than the mapcount instead.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/mincore.c b/mm/mincore.c
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -19,6 +19,42 @@
- #include <asm/uaccess.h>
- #include <asm/pgtable.h>
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -116,15 +116,17 @@ u64 stable_page_flags(struct page *page)
+ 	if (PageHuge(page))
+ 		u |= 1 << KPF_HUGE;
  
-+static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
-+				unsigned long addr, unsigned long nr,
-+				unsigned char *vec)
-+{
-+#ifdef CONFIG_HUGETLB_PAGE
-+	struct hstate *h;
-+	int i;
++	/*
++	 * Caveats on high order pages: page->_count will only be set
++	 * -1 on the head page; SLUB/SLQB do the same for PG_slab;
++	 * SLOB won't set PG_slab at all on compound pages.
++	 */
++	if (PageBuddy(page))
++		u |= 1 << KPF_BUDDY;
 +
-+	i = 0;
-+	h = hstate_vma(vma);
-+	while (1) {
-+		unsigned char present;
-+		pte_t *ptep;
-+		/*
-+		 * Huge pages are always in RAM for now, but
-+		 * theoretically it needs to be checked.
-+		 */
-+		ptep = huge_pte_offset(current->mm,
-+				       addr & huge_page_mask(h));
-+		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
-+		while (1) {
-+			vec[i++] = present;
-+			addr += PAGE_SIZE;
-+			/* reach buffer limit */
-+			if (i == nr)
-+				return;
-+			/* check hugepage border */
-+			if (!(addr & ~huge_page_mask(h)))
-+				break;
-+		}
-+	}
-+#else
-+	BUG();
-+#endif
-+}
-+
- /*
-  * Later we can get more picky about what "in core" means precisely.
-  * For now, simply check to see if the page is in the page cache,
-@@ -49,87 +85,40 @@ static unsigned char mincore_page(struct
- 	return present;
- }
+ 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
  
--/*
-- * Do a chunk of "sys_mincore()". We've already checked
-- * all the arguments, we hold the mmap semaphore: we should
-- * just return the amount of info we're asked for.
-- */
--static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
-+static void mincore_unmapped_range(struct vm_area_struct *vma,
-+				unsigned long addr, unsigned long nr,
-+				unsigned char *vec)
- {
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
-+	int i;
-+
-+	if (vma->vm_file) {
-+		pgoff_t pgoff;
-+
-+		pgoff = linear_page_index(vma, addr);
-+		for (i = 0; i < nr; i++, pgoff++)
-+			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
-+	} else {
-+		for (i = 0; i < nr; i++)
-+			vec[i] = 0;
-+	}
-+}
-+
-+static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-+			unsigned long addr, unsigned long nr,
-+			unsigned char *vec)
-+{
-+	spinlock_t *ptl;
- 	pte_t *ptep;
--	spinlock_t *ptl;
--	unsigned long nr;
- 	int i;
--	pgoff_t pgoff;
--	struct vm_area_struct *vma;
--
--	vma = find_vma(current->mm, addr);
--	if (!vma || addr < vma->vm_start)
--		return -ENOMEM;
--
--	nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
--
--#ifdef CONFIG_HUGETLB_PAGE
--	if (is_vm_hugetlb_page(vma)) {
--		struct hstate *h;
--
--		i = 0;
--		h = hstate_vma(vma);
--		while (1) {
--			unsigned char present;
--			/*
--			 * Huge pages are always in RAM for now, but
--			 * theoretically it needs to be checked.
--			 */
--			ptep = huge_pte_offset(current->mm,
--					       addr & huge_page_mask(h));
--			present = ptep && !huge_pte_none(huge_ptep_get(ptep));
--			while (1) {
--				vec[i++] = present;
--				addr += PAGE_SIZE;
--				/* reach buffer limit */
--				if (i == nr)
--					return nr;
--				/* check hugepage border */
--				if (!(addr & ~huge_page_mask(h)))
--					break;
--			}
--		}
--		return nr;
--	}
--#endif
--
 -	/*
--	 * Calculate how many pages there are left in the last level of the
--	 * PTE array for our address.
+-	 * Caveats on high order pages:
+-	 * PG_buddy will only be set on the head page; SLUB/SLQB do the same
+-	 * for PG_slab; SLOB won't set PG_slab at all on compound pages.
 -	 */
--	nr = min(nr, PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1)));
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	if (pgd_none_or_clear_bad(pgd))
--		goto none_mapped;
--	pud = pud_offset(pgd, addr);
--	if (pud_none_or_clear_bad(pud))
--		goto none_mapped;
--	pmd = pmd_offset(pud, addr);
--	if (pmd_none_or_clear_bad(pmd))
--		goto none_mapped;
+ 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
+-	u |= kpf_copy_bit(k, KPF_BUDDY,		PG_buddy);
  
- 	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (i = 0; i < nr; i++, ptep++, addr += PAGE_SIZE) {
- 		pte_t pte = *ptep;
-+		pgoff_t pgoff;
+ 	u |= kpf_copy_bit(k, KPF_ERROR,		PG_error);
+ 	u |= kpf_copy_bit(k, KPF_DIRTY,		PG_dirty);
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -13,12 +13,16 @@ struct mem_section;
+ #ifdef CONFIG_MEMORY_HOTPLUG
  
--		if (pte_none(pte)) {
--			if (vma->vm_file) {
--				pgoff = linear_page_index(vma, addr);
--				vec[i] = mincore_page(vma->vm_file->f_mapping,
--						pgoff);
--			} else
--				vec[i] = 0;
--		} else if (pte_present(pte))
-+		if (pte_none(pte))
-+			mincore_unmapped_range(vma, addr, 1, vec);
-+		else if (pte_present(pte))
- 			vec[i] = 1;
- 		else if (pte_file(pte)) {
- 			pgoff = pte_to_pgoff(pte);
-@@ -152,19 +141,53 @@ static long do_mincore(unsigned long add
- 		}
- 	}
- 	pte_unmap_unlock(ptep - 1, ptl);
-+}
+ /*
+- * Types for free bootmem.
+- * The normal smallest mapcount is -1. Here is smaller value than it.
++ * Types for free bootmem stored in page->lru.next. These have to be in
++ * some random range in unsigned long space for debugging purposes.
+  */
+-#define SECTION_INFO		(-1 - 1)
+-#define MIX_SECTION_INFO	(-1 - 2)
+-#define NODE_INFO		(-1 - 3)
++enum {
++	MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE = 12,
++	SECTION_INFO = MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE,
++	MIX_SECTION_INFO,
++	NODE_INFO,
++	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
++};
+ 
+ /*
+  * pgdat resizing functions
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -358,6 +358,27 @@ static inline void init_page_count(struc
+ 	atomic_set(&page->_count, 1);
+ }
  
 +/*
-+ * Do a chunk of "sys_mincore()". We've already checked
-+ * all the arguments, we hold the mmap semaphore: we should
-+ * just return the amount of info we're asked for.
++ * PageBuddy() indicate that the page is free and in the buddy system
++ * (see mm/page_alloc.c).
 + */
-+static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
++static inline int PageBuddy(struct page *page)
 +{
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	unsigned long nr;
-+	struct vm_area_struct *vma;
++	return atomic_read(&page->_mapcount) == -2;
++}
 +
-+	vma = find_vma(current->mm, addr);
-+	if (!vma || addr < vma->vm_start)
-+		return -ENOMEM;
++static inline void __SetPageBuddy(struct page *page)
++{
++	VM_BUG_ON(atomic_read(&page->_mapcount) != -1);
++	atomic_set(&page->_mapcount, -2);
++}
 +
-+	nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
++static inline void __ClearPageBuddy(struct page *page)
++{
++	VM_BUG_ON(!PageBuddy(page));
++	atomic_set(&page->_mapcount, -1);
++}
 +
-+	if (is_vm_hugetlb_page(vma)) {
-+		mincore_hugetlb_page_range(vma, addr, nr, vec);
-+		return nr;
-+	}
-+
-+	/*
-+	 * Calculate how many pages there are left in the last level of the
-+	 * PTE array for our address.
-+	 */
-+	nr = min(nr, PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1)));
-+
-+	pgd = pgd_offset(vma->vm_mm, addr);
-+	if (pgd_none_or_clear_bad(pgd))
-+		goto none_mapped;
-+	pud = pud_offset(pgd, addr);
-+	if (pud_none_or_clear_bad(pud))
-+		goto none_mapped;
-+	pmd = pmd_offset(pud, addr);
-+	if (pmd_none_or_clear_bad(pmd))
-+		goto none_mapped;
-+
-+	mincore_pte_range(vma, pmd, addr, nr, vec);
- 	return nr;
+ void put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
  
- none_mapped:
--	if (vma->vm_file) {
--		pgoff = linear_page_index(vma, addr);
--		for (i = 0; i < nr; i++, pgoff++)
--			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
--	} else {
--		for (i = 0; i < nr; i++)
--			vec[i] = 0;
--	}
--
-+	mincore_unmapped_range(vma, addr, nr, vec);
- 	return nr;
- }
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -48,9 +48,6 @@
+  * struct page (these bits with information) are always mapped into kernel
+  * address space...
+  *
+- * PG_buddy is set to indicate that the page is free and in the buddy system
+- * (see mm/page_alloc.c).
+- *
+  * PG_hwpoison indicates that a page got corrupted in hardware and contains
+  * data with incorrect ECC bits that triggered a machine check. Accessing is
+  * not safe since it may cause another machine check. Don't touch!
+@@ -96,7 +93,6 @@ enum pageflags {
+ 	PG_swapcache,		/* Swap page: swp_entry_t in private */
+ 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
+ 	PG_reclaim,		/* To be reclaimed asap */
+-	PG_buddy,		/* Page is free, on buddy lists */
+ 	PG_swapbacked,		/* Page is backed by RAM/swap */
+ 	PG_unevictable,		/* Page is "unevictable"  */
+ #ifdef CONFIG_MMU
+@@ -235,7 +231,6 @@ PAGEFLAG(OwnerPriv1, owner_priv_1) TESTC
+  * risky: they bypass page accounting.
+  */
+ TESTPAGEFLAG(Writeback, writeback) TESTSCFLAG(Writeback, writeback)
+-__PAGEFLAG(Buddy, buddy)
+ PAGEFLAG(MappedToDisk, mappedtodisk)
+ 
+ /* PG_readahead is only used for file reads; PG_reclaim is only for writes */
+@@ -430,7 +425,7 @@ static inline void ClearPageCompound(str
+ #define PAGE_FLAGS_CHECK_AT_FREE \
+ 	(1 << PG_lru	 | 1 << PG_locked    | \
+ 	 1 << PG_private | 1 << PG_private_2 | \
+-	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
++	 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+ 	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
+ 	 __PG_COMPOUND_LOCK)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -65,9 +65,10 @@ static void release_memory_resource(stru
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+ #ifndef CONFIG_SPARSEMEM_VMEMMAP
+-static void get_page_bootmem(unsigned long info,  struct page *page, int type)
++static void get_page_bootmem(unsigned long info,  struct page *page,
++			     unsigned long type)
+ {
+-	atomic_set(&page->_mapcount, type);
++	page->lru.next = (struct list_head *) type;
+ 	SetPagePrivate(page);
+ 	set_page_private(page, info);
+ 	atomic_inc(&page->_count);
+@@ -77,15 +78,16 @@ static void get_page_bootmem(unsigned lo
+  * so use __ref to tell modpost not to generate a warning */
+ void __ref put_page_bootmem(struct page *page)
+ {
+-	int type;
++	unsigned long type;
+ 
+-	type = atomic_read(&page->_mapcount);
+-	BUG_ON(type >= -1);
++	type = (unsigned long) page->lru.next;
++	BUG_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
++	       type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE);
+ 
+ 	if (atomic_dec_return(&page->_count) == 1) {
+ 		ClearPagePrivate(page);
+ 		set_page_private(page, 0);
+-		reset_page_mapcount(page);
++		INIT_LIST_HEAD(&page->lru);
+ 		__free_pages_bootmem(page, 0);
+ 	}
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -426,8 +426,8 @@ __find_combined_index(unsigned long page
+  * (c) a page and its buddy have the same order &&
+  * (d) a page and its buddy are in the same zone.
+  *
+- * For recording whether a page is in the buddy system, we use PG_buddy.
+- * Setting, clearing, and testing PG_buddy is serialized by zone->lock.
++ * For recording whether a page is in the buddy system, we set ->_mapcount -2.
++ * Setting, clearing, and testing _mapcount -2 is serialized by zone->lock.
+  *
+  * For recording page's order, we use page_private(page).
+  */
+@@ -460,7 +460,7 @@ static inline int page_is_buddy(struct p
+  * as necessary, plus some accounting needed to play nicely with other
+  * parts of the VM system.
+  * At each level, we keep a list of pages, which are heads of continuous
+- * free pages of length of (1 << order) and marked with PG_buddy. Page's
++ * free pages of length of (1 << order) and marked with _mapcount -2. Page's
+  * order is recorded in page_private(page) field.
+  * So when we are allocating or freeing one, we can derive the state of the
+  * other.  That is, if we allocate a small block, and both were   
+@@ -5214,7 +5214,6 @@ static struct trace_print_flags pageflag
+ 	{1UL << PG_swapcache,		"swapcache"	},
+ 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},
+ 	{1UL << PG_reclaim,		"reclaim"	},
+-	{1UL << PG_buddy,		"buddy"		},
+ 	{1UL << PG_swapbacked,		"swapbacked"	},
+ 	{1UL << PG_unevictable,		"unevictable"	},
+ #ifdef CONFIG_MMU
+diff --git a/mm/sparse.c b/mm/sparse.c
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -668,10 +668,10 @@ static void __kfree_section_memmap(struc
+ static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+ {
+ 	unsigned long maps_section_nr, removing_section_nr, i;
+-	int magic;
++	unsigned long magic;
+ 
+ 	for (i = 0; i < nr_pages; i++, page++) {
+-		magic = atomic_read(&page->_mapcount);
++		magic = (unsigned long) page->lru.next;
+ 
+ 		BUG_ON(magic == NODE_INFO);
  
 
 --
