@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E9E9E62008E
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 019DB62008F
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:15 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 66 of 67] enable direct defrag
-Message-Id: <c6dd184932f810dcd01e.1270691509@v2.random>
+Subject: [PATCH 64 of 67] page buddy can go away before reading page_order
+Message-Id: <f4a1af9ab39984156f9b.1270691507@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:49 +0200
+Date: Thu, 08 Apr 2010 03:51:47 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,26 +18,26 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-With memory compaction in, and lumpy-reclaim removed, it seems safe enough to
-defrag memory during the (synchronous) transparent hugepage page faults
-(TRANSPARENT_HUGEPAGE_DEFRAG_FLAG) and not only during khugepaged (async)
-hugepage allocations that was already enabled even before memory compaction was
-in (TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG).
+zone->lock isn't hold. Let's just skip this optimization.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -28,6 +28,7 @@
-  */
- unsigned long transparent_hugepage_flags __read_mostly =
- 	(1<<TRANSPARENT_HUGEPAGE_FLAG)|
-+	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)|
- 	(1<<TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG)|
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG);
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -262,10 +262,8 @@ static unsigned long isolate_migratepage
  
+ 		/* Get the page and skip if free */
+ 		page = pfn_to_page(low_pfn);
+-		if (PageBuddy(page)) {
+-			low_pfn += (1 << page_order(page)) - 1;
++		if (PageBuddy(page))
+ 			continue;
+-		}
+ 
+ 		/* Try isolate the page */
+ 		if (__isolate_lru_page(page, ISOLATE_BOTH, 0) != 0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
