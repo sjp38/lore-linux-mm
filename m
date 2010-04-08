@@ -1,72 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EDFB6600375
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:00 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A0F2A6B0223
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:01 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 40 of 67] skip transhuge pages in ksm for now
-Message-Id: <b604b2cdbcc37c12b9cd.1270691483@v2.random>
+Subject: [PATCH 44 of 67] add pmd_modify
+Message-Id: <2da7a4cdda712a5a28f0.1270691487@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:23 +0200
+Date: Thu, 08 Apr 2010 03:51:27 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+From: Johannes Weiner <hannes@cmpxchg.org>
 
-Skip transhuge pages in ksm for now.
+Add pmd_modify() for use with mprotect() on huge pmds.
 
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/ksm.c b/mm/ksm.c
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -449,7 +449,7 @@ static struct page *get_mergeable_page(s
- 	page = follow_page(vma, addr, FOLL_GET);
- 	if (!page)
- 		goto out;
--	if (PageAnon(page)) {
-+	if (PageAnon(page) && !PageTransCompound(page)) {
- 		flush_anon_page(vma, page, addr);
- 		flush_dcache_page(page);
- 	} else {
-@@ -1305,7 +1305,19 @@ next_mm:
- 			if (ksm_test_exit(mm))
- 				break;
- 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
--			if (*page && PageAnon(*page)) {
-+			if (!*page) {
-+				ksm_scan.address += PAGE_SIZE;
-+				cond_resched();
-+				continue;
-+			}
-+			if (PageTransCompound(*page)) {
-+				put_page(*page);
-+				ksm_scan.address &= HPAGE_PMD_MASK;
-+				ksm_scan.address += HPAGE_PMD_SIZE;
-+				cond_resched();
-+				continue;
-+			}
-+			if (PageAnon(*page)) {
- 				flush_anon_page(vma, *page, ksm_scan.address);
- 				flush_dcache_page(*page);
- 				rmap_item = get_next_rmap_item(slot,
-@@ -1319,8 +1331,7 @@ next_mm:
- 				up_read(&mm->mmap_sem);
- 				return rmap_item;
- 			}
--			if (*page)
--				put_page(*page);
-+			put_page(*page);
- 			ksm_scan.address += PAGE_SIZE;
- 			cond_resched();
- 		}
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -323,6 +323,16 @@ static inline pte_t pte_modify(pte_t pte
+ 	return __pte(val);
+ }
+ 
++static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
++{
++	pmdval_t val = pmd_val(pmd);
++
++	val &= _HPAGE_CHG_MASK;
++	val |= massage_pgprot(newprot) & ~_HPAGE_CHG_MASK;
++
++	return __pmd(val);
++}
++
+ /* mprotect needs to preserve PAT bits when updating vm_page_prot */
+ #define pgprot_modify pgprot_modify
+ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -72,6 +72,7 @@
+ /* Set of bits not changed in pte_modify */
+ #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
+ 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY)
++#define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
+ 
+ #define _PAGE_CACHE_MASK	(_PAGE_PCD | _PAGE_PWT)
+ #define _PAGE_CACHE_WB		(0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
