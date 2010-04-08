@@ -1,110 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 91CE26B0211
-	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 13:36:40 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id o38HaXTC001251
-	for <linux-mm@kvack.org>; Thu, 8 Apr 2010 10:36:33 -0700
-Received: from pzk13 (pzk13.prod.google.com [10.243.19.141])
-	by kpbe11.cbf.corp.google.com with ESMTP id o38HaE33008107
-	for <linux-mm@kvack.org>; Thu, 8 Apr 2010 12:36:31 -0500
-Received: by pzk13 with SMTP id 13so1960380pzk.13
-        for <linux-mm@kvack.org>; Thu, 08 Apr 2010 10:36:31 -0700 (PDT)
-Date: Thu, 8 Apr 2010 10:36:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable task
- can be found
-In-Reply-To: <20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1004081018310.25592@chino.kir.corp.google.com>
-References: <20100405154923.23228529.akpm@linux-foundation.org> <alpine.DEB.2.00.1004051552400.27040@chino.kir.corp.google.com> <20100406201645.7E69.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com>
- <20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B1CCD6B0213
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 13:44:50 -0400 (EDT)
+Message-ID: <4BBE1609.6080308@mozilla.com>
+Date: Thu, 08 Apr 2010 10:44:41 -0700
+From: Taras Glek <tglek@mozilla.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Downsides to madvise/fadvise(willneed) for application startup
+References: <4BBA6776.5060804@mozilla.com> <20100406095135.GB5183@cmpxchg.org> <20100407022456.GA9468@localhost> <4BBBF402.70403@mozilla.com> <20100407073847.GB17892@localhost>
+In-Reply-To: <20100407073847.GB17892@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Apr 2010, KAMEZAWA Hiroyuki wrote:
+On 04/07/2010 12:38 AM, Wu Fengguang wrote:
+> On Wed, Apr 07, 2010 at 10:54:58AM +0800, Taras Glek wrote:
+>    
+>> On 04/06/2010 07:24 PM, Wu Fengguang wrote:
+>>      
+>>> Hi Taras,
+>>>
+>>> On Tue, Apr 06, 2010 at 05:51:35PM +0800, Johannes Weiner wrote:
+>>>
+>>>        
+>>>> On Mon, Apr 05, 2010 at 03:43:02PM -0700, Taras Glek wrote:
+>>>>
+>>>>          
+>>>>> Hello,
+>>>>> I am working on improving Mozilla startup times. It turns out that page
+>>>>> faults(caused by lack of cooperation between user/kernelspace) are the
+>>>>> main cause of slow startup. I need some insights from someone who
+>>>>> understands linux vm behavior.
+>>>>>
+>>>>>            
+>>> How about improve Fedora (and other distros) to preload Mozilla (and
+>>> other apps the user run at the previous boot) with fadvise() at boot
+>>> time? This sounds like the most reasonable option.
+>>>
+>>>        
+>> That's a slightly different usecase. I'd rather have all large apps
+>> startup as efficiently as possible without any hacks. Though until we
+>> get there, we'll be using all of the hacks we can.
+>>      
+> Boot time user space readahead can do better than kernel heuristic
+> readahead in several ways:
+>
+> - it can collect better knowledge on which files/pages will be used
+>    which lead to high readahead hit ratio and less cache consumption
+>
+> - it can submit readahead requests for many files in parallel,
+>    which enables queuing (elevator, NCQ etc.) optimizations
+>
+> So I won't call it dirty hack :)
+>
+>    
+Fair enough.
+>>> As for the kernel readahead, I have a patchset to increase default
+>>> mmap read-around size from 128kb to 512kb (except for small memory
+>>> systems).  This should help your case as well.
+>>>
+>>>        
+>> Yes. Is the current readahead really doing read-around(ie does it read
+>> pages before the one being faulted)? From what I've seen, having the
+>>      
+> Sure. It will do read-around from current fault offset - 64kb to +64kb.
+>    
+That's excellent.
+>    
+>> dynamic linker read binary sections backwards causes faults.
+>> http://sourceware.org/bugzilla/show_bug.cgi?id=11447
+>>      
+> There are too many data in
+> http://people.mozilla.com/~tglek/startup/systemtap_graphs/ld_bug/report.txt
+> Can you show me the relevant lines? (wondering if I can ever find such lines..)
+>    
+The first part of the file lists sections in a file and their hex 
+offset+size.
 
-> > > oom-badness-heuristic-rewrite.patch
-> > 
-> > Do you have any specific feedback that you could offer on why you decided 
-> > to nack this?
-> > 
-> 
-> I like this patch. But I think no one can't Ack this because there is no
-> "correct" answer. At least, this show good behavior on my environment.
-> 
+lines like 0 512 offset(#1) mean a read at position 0 of 512 bytes. 
+Incidentally this first read is coming from vfs_read, so the log doesn't 
+take account readahead (unlike the other reads caused by mmap page faults).
 
-Agreed.  I think the new oom_badness() function is much better than the 
-current heuristic and should prevent X from being killed as we've 
-discussed fairly often on LKML over the past six months.
+So
+15310848 131072 offset(#2)=====================
+eaa73c 1523c .bss
+eaa73c 19d1e .comment
 
-> > Keeping /proc/pid/oom_adj around indefinitely isn't very helpful if 
-> > there's a finer grained alternative available already unless you want 
-> > /proc/pid/oom_adj to actually mean something in which case you'll never be 
-> > able to seperate oom badness scores from bitshifts.  I believe everyone 
-> > agrees that a more understood and finer grained tunable is necessary as 
-> > compared to the current implementation that has very limited functionality 
-> > other than polarizing tasks.
-> > 
-> 
-> If oom-badness-heuristic-rewrite.patch will go ahead, this should go.
-> But my concern is administorator has to check all oom_score_adj and
-> tune it again if he adds more memory to the system.
-> 
-> Now, not-small amount of people use Virtual Machine or Contaienr. So, this
-> oom_score_adj's sensivity to the size of memory can put admins to hell.
-> 
+15142912 131072 offset(#3)=====================
+e810d4 200 .dynamic
+e812d4 470 .got
+e81744 3b50 .got.plt
+e852a0 2549c .data
 
-Would you necessarily want to change oom_score_adj when you add or remove 
-memory?  I see the currently available pool of memory available (whether 
-it is system-wide, constrained to a cpuset mems, mempolicy nodes, or memcg 
-limits) as a shared resource so if you want to bias a task by 25% of 
-available memory by using an oom_score_adj of 250, that doesn't change if 
-we add or remove memory.  It still means that the task should be biased by 
-that amount in comparison to other tasks.
+Shows 2 reads where the dynamic linker first seeks to the end of the 
+file(to zero out .bss, causing IO via COW) and the backtracks to
+read in .dynamic. However you are right, all of the backtracking reads 
+are over 64K.
+Thanks for explaining that. I am guessing your change to boost 
+readaround will fix this issue nicely for firefox.
 
-My perspective is that we should define oom killing priorities is terms of 
-how much memory tasks are using compared to others and that the actual 
-capacity itself is irrelevant if its a shared resource.  So when tasks are 
-moved into a memcg, for example, that becomes a "virtualized system" with 
-a more limited shared memory resource and has the same bias (or 
-preference) that it did when it was in the root cgroup.
+>>>
+>>>        
+>>>>> Current Situation:
+>>>>> The dynamic linker mmap()s  executable and data sections of our
+>>>>> executable but it doesn't call madvise().
+>>>>> By default page faults trigger 131072byte reads. To make matters worse,
+>>>>> the compile-time linker + gcc lay out code in a manner that does not
+>>>>> correspond to how the resulting executable will be executed(ie the
+>>>>> layout is basically random). This means that during startup 15-40mb
+>>>>> binaries are read in basically random fashion. Even if one orders the
+>>>>> binary optimally, throughput is still suboptimal due to the puny readahead.
+>>>>>
+>>>>> IO Hints:
+>>>>> Fortunately when one specifies madvise(WILLNEED) pagefaults trigger 2mb
+>>>>> reads and a binary that tends to take 110 page faults(ie program stops
+>>>>> execution and waits for disk) can be reduced down to 6. This has the
+>>>>> potential to double application startup of large apps without any clear
+>>>>> downsides.
+>>>>>
+>>>>> Suse ships their glibc with a dynamic linker patch to fadvise()
+>>>>> dynamic libraries(not sure why they switched from doing madvise
+>>>>> before).
+>>>>>
+>>>>>            
+>>> This is interesting. I wonder how SuSE implements the policy.
+>>> Do you have the patch or some strace output that demonstrates the
+>>> fadvise() call?
+>>>
+>>>        
+>> glibc-2.3.90-ld.so-madvise.diff in
+>> http://www.rpmseek.com/rpm/glibc-2.4-31.12.3.src.html?hl=com&cba=0:G:0:3732595:0:15:0:
+>>      
+> 550 Can't open
+> /pub/linux/distributions/suse/pub/suse/update/10.1/rpm/src/glibc-2.4-31.12.3.src.rpm:
+> No such file or directory
+>
+> OK I give up.
+>
+>    
+>> As I recall they just fadvise the filedescriptor before accessing it.
+>>      
+> Obviously this is a bit risky for small memory systems..
+>
+>    
+>>>>> I filed a glibc bug about this at
+>>>>> http://sourceware.org/bugzilla/show_bug.cgi?id=11431 . Uli commented
+>>>>> with his concern about wasting memory resources. What is the impact of
+>>>>> madvise(WILLNEED) or the fadvise equivalent on systems under memory
+>>>>> pressure? Does the kernel simply start ignoring these hints?
+>>>>>
+>>>>>            
+>>>> It will throttle based on memory pressure.  In idle situations it will
+>>>> eat your file cache, however, to satisfy the request.
+>>>>
+>>>> Now, the file cache should be much bigger than the amount of unneeded
+>>>> pages you prefault with the hint over the whole library, so I guess the
+>>>> benefit of prefaulting the right pages outweighs the downside of evicting
+>>>> some cache for unused library pages.
+>>>>
+>>>> Still, it's a workaround for deficits in the demand-paging/readahead
+>>>> heuristics and thus a bit ugly, I feel.  Maybe Wu can help.
+>>>>
+>>>>          
+>>> Program page faults are inherently random, so the straightforward
+>>> solution would be to increase the mmap read-around size (for desktops
+>>> with reasonable large memory), rather than to improve program layout
+>>> or readahead heuristics :)
+>>>
+>>>        
+>> Program page faults may exhibit random behavior once they've started.
+>>      
+> Right.
+>
+>    
+>> During startup page-in pattern of over-engineered OO applications is
+>> very predictable. Programs are laid out based on compilation units,
+>> which have no relation to how they are executed. Another problem is that
+>> any large old application will have lots of code that is either rarely
+>> executed or completely dead. Random sprinkling of live code among mostly
+>> unneeded code is a problem.
+>>      
+> Agreed.
+>
+>    
+>> I'm able to reduce startup pagefaults by 2.5x and mem usage by a few MB
+>> with proper binary layout. Even if one lays out a program wrongly, the
+>> worst-case pagein pattern will be pretty similar to what it is by default.
+>>      
+> That's great. When will we enjoy your research fruits? :)
+>    
+Released it yesterday. Hopefully other bloated binaries will benefit 
+from this too.
 
-In other words, I think it would be more inconvenient to update 
-oom_score_adj anytime a task changes memcg, is attached to a different 
-cpuset, or is bound to nodes by way of a mempolicy.  In these scenarios, I 
-see them as simply having a restricted set of allowed memory yet the bias 
-can remain the same.
+http://blog.mozilla.com/tglek/2010/04/07/icegrind-valgrind-plugin-for-optimizing-cold-startup/
 
-Users who do actually want to bias a task by a memory quantity can easily 
-do so, but I think they would be in the minority and we hope to avoid 
-adding unnecessary tunables when a conversion to the appropriate 
-oom_score_adj value is possible with a simple divide.
+Thanks a lot Wu, I feel I understand the kernel side of what's happening 
+now.
 
-> > > oom-replace-sysctls-with-quick-mode.patch
-> > > 
-> > > IIRC, alan and nick and I NAKed such patch. everybody explained the reason.
-> > 
-> > Which patch of the four you listed are you referring to here?
-> > 
-> replacing used sysctl is bad idea, in general.
-> 
-
-I agree, but since the audience for both of these sysctls will need to do 
-echo 0 > /proc/sys/vm/oom_dump_tasks as the result of this patchset since 
-it is now enabled by default, do you think we can take this as an 
-opportunity to consolidate them down into one?  Otherwise, we're obliged 
-to continue to support them indefinitely even though their only users are 
-the exact same systems.
-
-> I have no _strong_ opinion. I welcome the patch series. But aboves are my concern.
-> Thank you for your work.
-> 
-
-Thanks, Kame, I appreciate that.
+Taras
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
