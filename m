@@ -1,100 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6C2DE600373
-	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 02:36:38 -0400 (EDT)
-From: "Zhao, Leifu" <leifu.zhao@intel.com>
-Date: Thu, 8 Apr 2010 14:36:15 +0800
-Subject: [PATCH] race condition between __purge_vmap_area_lazy() and
- free_unmap_vmap_area_noflush()
-Message-ID: <EAEEEBBE07F4F24C89FEF850CF8C77420142A21107@shzsmsx502.ccr.corp.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2557A600373
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 02:48:28 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o386mPkp002199
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 8 Apr 2010 15:48:25 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 12AA145DE4F
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 15:48:25 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DF5C945DE4D
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 15:48:24 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9858AE78003
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 15:48:24 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A8D9E38003
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 15:48:24 +0900 (JST)
+Date: Thu, 8 Apr 2010 15:44:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 -mmotm 2/2] memcg: move charge of file pages
+Message-Id: <20100408154434.0f87bddf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100408141131.6bf5fd1a.nishimura@mxp.nes.nec.co.jp>
+References: <20100408140922.422b21b0.nishimura@mxp.nes.nec.co.jp>
+	<20100408141131.6bf5fd1a.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
+On Thu, 8 Apr 2010 14:11:31 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-I found a bug in 2.6.28 kernel and got the fix for it, see below bug descri=
-ption, log information and the patch. As I know this bug still exists in at=
- least 2.6.32 kernel. I am new in the kernel development process, can someo=
-ne tell me what should proceed next?
+> This patch adds support for moving charge of file pages, which include normal
+> file, tmpfs file and swaps of tmpfs file. It's enabled by setting bit 1 of
+> <target cgroup>/memory.move_charge_at_immigrate. Unlike the case of anonymous
+> pages, file pages(and swaps) in the range mmapped by the task will be moved even
+> if the task hasn't done page fault, i.e. they might not be the task's "RSS",
+> but other task's "RSS" that maps the same file. And mapcount of the page is
+> ignored(the page can be moved even if page_mapcount(page) > 1). So, conditions
+> that the page/swap should be met to be moved is that it must be in the range
+> mmapped by the target task and it must be charged to the old cgroup.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+>  Documentation/cgroups/memory.txt |   12 ++++++--
+>  include/linux/swap.h             |    5 +++
+>  mm/memcontrol.c                  |   55 +++++++++++++++++++++++++++++--------
+>  mm/shmem.c                       |   37 +++++++++++++++++++++++++
+>  4 files changed, 94 insertions(+), 15 deletions(-)
+> 
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 1b5bd04..13d40e7 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -461,14 +461,20 @@ charges should be moved.
+>     0  | A charge of an anonymous page(or swap of it) used by the target task.
+>        | Those pages and swaps must be used only by the target task. You must
+>        | enable Swap Extension(see 2.4) to enable move of swap charges.
+> + -----+------------------------------------------------------------------------
+> +   1  | A charge of file pages(normal file, tmpfs file(e.g. ipc shared memory)
+> +      | and swaps of tmpfs file) mmaped by the target task. Unlike the case of
+> +      | anonymous pages, file pages(and swaps) in the range mmapped by the task
+> +      | will be moved even if the task hasn't done page fault, i.e. they might
+> +      | not be the task's "RSS", but other task's "RSS" that maps the same file.
+> +      | And mapcount of the page is ignored(the page can be moved even if
+> +      | page_mapcount(page) > 1). You must enable Swap Extension(see 2.4) to
+> +      | enable move of swap charges.
+>  
+>  Note: Those pages and swaps must be charged to the old cgroup.
+> -Note: More type of pages(e.g. file cache, shmem,) will be supported by other
+> -      bits in future.
+>  
 
-Bug description:
+About both of documenataion for 0 and 1, I think following information is omitted.
 
-There is race condition between function __purge_vmap_area_lazy() and free_=
-unmap_vmap_area_noflush() in vmalloc.c of kernel. In function free_unmap_vm=
-ap_area_noflush(), if=A0 va->flags is updated and then is preempted to run =
-__purge_vmap_area_lazy() before updating vmap_lazy_nr, then vmap_lazy_nr us=
-ed in function __purge_vmap_area_lazy() has incorrect value, therefore caus=
-e the crash(due to run BUG_ON function). So the updating va->flags and vmap=
-_lazy_nr must execute atomicly, the solution is to use spinlock to protect =
-updating va->flags and vmap_lazy_nr.
+ "An account of a page of task is moved only when it's under task's current memory cgroup."
 
+Plz add somewhere easy-to-be-found.
 
-Captured log information:
+But ok, the patch itself much simpler. Thank you for your patient works!
 
-kernel BUG at mm/vmalloc.c:507!
-invalid opcode: 0000 [#1] PREEMPT=20
-last sysfs file: /sys/class/sound/controlC0/dev
-Modules linked in: avcap_nxp(P) avcap_synthetic(P) avcap_core(P) pvrsrvkm
-alsa_shim(P) snd_usb_audio ]
-
-Pid: 1022, comm: Audio_Timing Tainted: P=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 (2.6=
-.28 #1)=20
-EIP: 0060:[<c01537d5>] EFLAGS: 00010297 CPU: 0
-EIP is at __purge_vmap_area_lazy+0x1b1/0x1b5
-EAX: c4e1e000 EBX: c04e0cec ECX: c4e1fc9c EDX: c04e0d04
-ESI: 000001e2 EDI: c4e1fcc4 EBP: c4e1fcc0 ESP: c4e1fc98
-
-
-
-Patch:
-
---- linux-2.6.28/mm/vmalloc.c.orig      2010-04-10 14:16:47.000000000 +0800
-+++ linux-2.6.28/mm/vmalloc.c   2010-04-10 14:19:03.000000000 +0800
-@@ -467,6 +467,7 @@ static unsigned long lazy_max_pages(void
-
- static atomic_t vmap_lazy_nr =3D ATOMIC_INIT(0);
-
-+static DEFINE_SPINLOCK(purge_lock);
- /*
-  * Purges all lazily-freed vmap areas.
-  *
-@@ -480,7 +481,6 @@ static atomic_t vmap_lazy_nr =3D ATOMIC_IN
- static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *en=
-d,
-                                        int sync, int force_flush)
- {
--       static DEFINE_SPINLOCK(purge_lock);
-        LIST_HEAD(valist);
-        struct vmap_area *va;
-        int nr =3D 0;
-@@ -556,8 +556,10 @@ static void purge_vmap_area_lazy(void)
-  */
- static void free_unmap_vmap_area_noflush(struct vmap_area *va)
- {
-+       spin_lock(&purge_lock);
-        va->flags |=3D VM_LAZY_FREE;
-        atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr=
-);
-+       spin_unlock(&purge_lock);
-        if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
-                try_purge_vmap_area_lazy();
- }
-
-
-
-Signed-off-by: Leifu Zhao <Leifu.zhao@intel.com>
-
-
-
-Best regards,
-=A0
-Leifu Zhao
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
