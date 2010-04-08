@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id F312162008E
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:23 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2C029620097
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:24 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 63 of 67] disable migreate_prep()
-Message-Id: <34a31b5dcd314ad1bd89.1270691506@v2.random>
+Subject: [PATCH 65 of 67] select CONFIG_COMPACTION if TRANSPARENT_HUGEPAGE
+	enabled
+Message-Id: <45298efc487485523bc4.1270691508@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:46 +0200
+Date: Thu, 08 Apr 2010 03:51:48 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,39 +19,23 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-I get trouble from lockdep if I leave it enabled:
-
-=======================================================
-[ INFO: possible circular locking dependency detected ]
-2.6.34-rc3 #50
--------------------------------------------------------
-largepages/4965 is trying to acquire lock:
- (events){+.+.+.}, at: [<ffffffff8105b788>] flush_work+0x38/0x130
-
- but task is already holding lock:
-  (&mm->mmap_sem){++++++}, at: [<ffffffff8141b022>] do_page_fault+0xd2/0x430
-
-
-flush_work apparently wants to run free from lock and it bugs in:
-
-	lock_map_acquire(&cwq->wq->lockdep_map);
+With transparent hugepage support we need compaction for the "defrag" sysfs
+controls to be effective.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -379,7 +379,9 @@ static int compact_zone(struct zone *zon
- 	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
- 	cc->free_pfn &= ~(pageblock_nr_pages-1);
- 
-+#if 0
- 	migrate_prep();
-+#endif
- 
- 	while ((ret = compact_finished(zone, cc)) == COMPACT_INCOMPLETE) {
- 		unsigned long nr_migrate, nr_remaining;
+diff --git a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -303,6 +303,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
+ config TRANSPARENT_HUGEPAGE
+ 	bool "Transparent Hugepage support" if EMBEDDED
+ 	depends on X86 && MMU
++	select COMPACTION
+ 	default y
+ 	help
+ 	  Transparent Hugepages allows the kernel to use huge pages and
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
