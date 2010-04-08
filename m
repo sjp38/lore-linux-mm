@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 2563C6B01F2
-	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 05:40:03 -0400 (EDT)
-Message-ID: <4BBDA43F.5030309@redhat.com>
-Date: Thu, 08 Apr 2010 12:39:11 +0300
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 67] Transparent Hugepage Support #18
-References: <patchbomb.1270691443@v2.random>
-In-Reply-To: <patchbomb.1270691443@v2.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DC54E6B01F2
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 06:12:00 -0400 (EDT)
+From: Xiaotian Feng <dfeng@redhat.com>
+Subject: [PATCH] slab: fix caller tracking on !CONFIG_DEBUG_SLAB && CONFIG_TRACING
+Date: Thu,  8 Apr 2010 18:11:33 +0800
+Message-Id: <1270721493-27820-1-git-send-email-dfeng@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Xiaotian Feng <dfeng@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Vegard Nossum <vegard.nossum@gmail.com>, Dmitry Monakhov <dmonakhov@openvz.org>, Catalin Marinas <catalin.marinas@arm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On 04/08/2010 04:50 AM, Andrea Arcangeli wrote:
-> Hello,
->
-> I merged memory compaction v7 from Mel, plus his latest incremental updates
-> into my tree.
->
->    
+In slab, all __xxx_track_caller is defined on CONFIG_DEBUG_SLAB || CONFIG_TRACING,
+thus caller tracking function should be worked for CONFIG_TRACING. But if
+CONFIG_DEBUG_SLAB is not set, include/linux/slab.h will define xxx_track_caller to
+__xxx() without consideration of CONFIG_TRACING. This will break the caller tracking
+behaviour then.
 
-A quick benchmark, running 'sort -b 1200M /tmp/largerand > /dev/null'.  
-The file is 1GB in size, consisting of 15-char base64 encoded random 
-string + newline records.
+Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Dmitry Monakhov <dmonakhov@openvz.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: David Rientjes <rientjes@google.com>
+---
+ include/linux/slab.h |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-4k:
-
-   real    2m28.155s
-   user    2m21.560s
-   sys    0m6.457s
-
-2M:
-
-   real    2m19.626s
-   user    2m13.771s
-   sys    0m5.812s
-
-A 6% improvement.
-
-I'll try running this with a kernel build in parallel.
-
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 4884462..1a0625c 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -267,7 +267,7 @@ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
+  * allocator where we care about the real place the memory allocation
+  * request comes from.
+  */
+-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
++#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || defined(CONFIG_TRACING)
+ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+ #define kmalloc_track_caller(size, flags) \
+ 	__kmalloc_track_caller(size, flags, _RET_IP_)
+@@ -285,7 +285,7 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+  * standard allocator where we care about the real place the memory
+  * allocation request comes from.
+  */
+-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
++#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || defined(CONFIG_TRACING)
+ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
+ #define kmalloc_node_track_caller(size, flags, node) \
+ 	__kmalloc_node_track_caller(size, flags, node, \
 -- 
-error compiling committee.c: too many arguments to function
+1.7.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
