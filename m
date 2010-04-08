@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 809256B0216
-	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 07:53:48 -0400 (EDT)
-Message-ID: <4BBDC3A4.1020305@redhat.com>
-Date: Thu, 08 Apr 2010 14:53:08 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 534EE6B0215
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 08:14:20 -0400 (EDT)
+Message-ID: <4BBDC92D.8060503@humyo.com>
+Date: Thu, 08 Apr 2010 13:16:45 +0100
+From: John Berthels <john@humyo.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 37 of 67] transparent hugepage vmstat
-References: <patchbomb.1270691443@v2.random> <cfbeacfad8810945ff91.1270691480@v2.random>
-In-Reply-To: <cfbeacfad8810945ff91.1270691480@v2.random>
+Subject: Re: PROBLEM + POSS FIX: kernel stack overflow, xfs, many disks, heavy
+ write load, 8k stack, x86-64
+References: <4BBC6719.7080304@humyo.com> <20100407140523.GJ11036@dastard> <4BBCAB57.3000106@humyo.com> <20100407234341.GK11036@dastard> <20100408030347.GM11036@dastard>
+In-Reply-To: <20100408030347.GM11036@dastard>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, Nick Gregory <nick@humyo.com>, Rob Sanderson <rob@humyo.com>, xfs@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/08/2010 04:51 AM, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli<aarcange@redhat.com>
->
-> Add hugepage stat information to /proc/vmstat and /proc/meminfo.
->
->
-> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-> --- a/fs/proc/meminfo.c
-> +++ b/fs/proc/meminfo.c
-> @@ -101,6 +101,9 @@ static int meminfo_proc_show(struct seq_
->   #ifdef CONFIG_MEMORY_FAILURE
->   		"HardwareCorrupted: %5lu kB\n"
->   #endif
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +		"AnonHugePages:  %8lu kB\n"
-> +#endif
->    
+Dave Chinner wrote:
+> On Thu, Apr 08, 2010 at 09:43:41AM +1000, Dave Chinner wrote:
+>   
+> And there's a patch attached that stops direct reclaim from writing
+> back dirty pages - it seems to work fine from some rough testing
+> I've done. Perhaps you might want to give it a spin on a
+> test box, John?
+>   
+Thanks very much for this. The patch is in and soaking on a THREAD_ORDER 
+1 kernel (2.6.33.2 + patch + stack instrumentation), so far so good, but 
+it's early days. After about 2hrs of uptime:
 
+$ dmesg | grep stack | tail -1
+[   60.350766] apache2 used greatest stack depth: 2544 bytes left
 
-The original AnonPages should include AnonHugePages, or applications 
-that are unaware of AnonHugePages will see an unexplained drop in AnonPages.
+(which tallies well with your 5 1/2Kbytes usage figure).
 
--- 
-error compiling committee.c: too many arguments to function
+I'll reply again after it's been running long enough to draw conclusions.
+
+jb
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
