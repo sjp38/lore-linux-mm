@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 527436B01F3
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 537B66B01F4
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:16 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 28 of 67] kvm mmu transparent hugepage support
-Message-Id: <dc9505f6b55fde1a43f7.1270691471@v2.random>
+Subject: [PATCH 16 of 67] bail out gup_fast on splitting pmd
+Message-Id: <3dc8a30c0d546d028048.1270691459@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:11 +0200
+Date: Thu, 08 Apr 2010 03:50:59 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Marcelo Tosatti <mtosatti@redhat.com>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-This should work for both hugetlbfs and transparent hugepages.
+Force gup_fast to take the slow path and block if the pmd is splitting, not
+only if it's none.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -471,6 +471,15 @@ static int host_mapping_level(struct kvm
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -160,7 +160,18 @@ static int gup_pmd_range(pud_t pud, unsi
+ 		pmd_t pmd = *pmdp;
  
- 	page_size = kvm_host_page_size(kvm, gfn);
- 
-+	/* check for transparent hugepages */
-+	if (page_size == PAGE_SIZE) {
-+		struct page *page = gfn_to_page(kvm, gfn);
-+
-+		if (!is_error_page(page) && PageTransCompound(page))
-+			page_size = KVM_HPAGE_SIZE(2);
-+		kvm_release_page_clean(page);
-+	}
-+
- 	for (i = PT_PAGE_TABLE_LEVEL;
- 	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
- 		if (page_size >= KVM_HPAGE_SIZE(i))
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none(pmd))
++		/*
++		 * The pmd_trans_splitting() check below explains why
++		 * pmdp_splitting_flush has to flush the tlb, to stop
++		 * this gup-fast code from running while we set the
++		 * splitting bit in the pmd. Returning zero will take
++		 * the slow path that will call wait_split_huge_page()
++		 * if the pmd is still in splitting state. gup-fast
++		 * can't because it has irq disabled and
++		 * wait_split_huge_page() would never return as the
++		 * tlb flush IPI wouldn't run.
++		 */
++		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_large(pmd))) {
+ 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
