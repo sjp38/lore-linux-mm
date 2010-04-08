@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 499A0620097
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:29 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1B06A620097
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:32 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 61 of 67] Allow the migration of PageSwapCache pages
-Message-Id: <9b72edced210bf98d769.1270691504@v2.random>
+Subject: [PATCH 60 of 67] Add a tunable that decides when memory should be
+	compacted and when it should be reclaimed
+Message-Id: <d30726d73f79986e7fbf.1270691503@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:44 +0200
+Date: Thu, 08 Apr 2010 03:51:43 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,109 +19,140 @@ List-ID: <linux-mm.kvack.org>
 
 From: Mel Gorman <mel@csn.ul.ie>
 
-PageAnon pages that are unmapped may or may not have an anon_vma so are
-not currently migrated. However, a swap cache page can be migrated and
-fits this description. This patch identifies page swap caches and allows
-them to be migrated but ensures that no attempt to made to remap the pages
-would would potentially try to access an already freed anon_vma.
+The kernel applies some heuristics when deciding if memory should be
+compacted or reclaimed to satisfy a high-order allocation. One of these
+is based on the fragmentation. If the index is below 500, memory will
+not be compacted. This choice is arbitrary and not based on data. To
+help optimise the system and set a sensible default for this value, this
+patch adds a sysctl extfrag_threshold. The kernel will only compact
+memory if the fragmentation index is above the extfrag_threshold.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/migrate.c b/mm/migrate.c
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -491,7 +491,8 @@ static int fallback_migrate_page(struct 
-  *   < 0 - error code
-  *  == 0 - success
-  */
--static int move_to_new_page(struct page *newpage, struct page *page)
-+static int move_to_new_page(struct page *newpage, struct page *page,
-+						int remap_swapcache)
- {
- 	struct address_space *mapping;
- 	int rc;
-@@ -526,10 +527,12 @@ static int move_to_new_page(struct page 
- 	else
- 		rc = fallback_migrate_page(mapping, newpage, page);
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -27,6 +27,7 @@ Currently, these files are in /proc/sys/
+ - dirty_ratio
+ - dirty_writeback_centisecs
+ - drop_caches
++- extfrag_threshold
+ - hugepages_treat_as_movable
+ - hugetlb_shm_group
+ - laptop_mode
+@@ -130,8 +131,7 @@ 100'ths of a second.
  
--	if (!rc)
--		remove_migration_ptes(page, newpage);
--	else
-+	if (rc) {
- 		newpage->mapping = NULL;
-+	} else {
-+		if (remap_swapcache) 
-+			remove_migration_ptes(page, newpage);
-+	}
+ Setting this to zero disables periodic writeback altogether.
  
- 	unlock_page(newpage);
+-==============================================================
+-
++============================================================== 
+ drop_caches
  
-@@ -546,6 +549,7 @@ static int unmap_and_move(new_page_t get
- 	int rc = 0;
- 	int *result = NULL;
- 	struct page *newpage = get_new_page(page, private, &result);
-+	int remap_swapcache = 1;
- 	int rcu_locked = 0;
- 	int charge = 0;
- 	struct mem_cgroup *mem = NULL;
-@@ -610,18 +614,33 @@ static int unmap_and_move(new_page_t get
- 		rcu_read_lock();
- 		rcu_locked = 1;
+ Writing to this will cause the kernel to drop clean caches, dentries and
+@@ -149,6 +149,20 @@ user should run `sync' first.
  
--		/*
--		 * If the page has no mappings any more, just bail. An
--		 * unmapped anon page is likely to be freed soon but worse,
--		 * it's possible its anon_vma disappeared between when
--		 * the page was isolated and when we reached here while
--		 * the RCU lock was not held
--		 */
--		if (!page_mapped(page))
--			goto rcu_unlock;
-+		/* Determine how to safely use anon_vma */
-+		if (!page_mapped(page)) {
-+			if (!PageSwapCache(page))
-+				goto rcu_unlock;
+ ==============================================================
  
--		anon_vma = page_anon_vma(page);
--		atomic_inc(&anon_vma->external_refcount);
-+			/*
-+			 * We cannot be sure that the anon_vma of an unmapped
-+			 * swapcache page is safe to use because we don't
-+			 * know in advance if the VMA that this page belonged
-+			 * to still exists. If the VMA and others sharing the
-+			 * data have been freed, then the anon_vma could
-+			 * already be invalid.
-+			 *
-+			 * To avoid this possibility, swapcache pages get
-+			 * migrated but are not remapped when migration
-+			 * completes
-+			 */
-+			remap_swapcache = 0;
-+		} else { 
-+			/*
-+			 * Take a reference count on the anon_vma if the
-+			 * page is mapped so that it is guaranteed to
-+			 * exist when the page is remapped later
-+			 */
-+			anon_vma = page_anon_vma(page);
-+			atomic_inc(&anon_vma->external_refcount);
-+		}
- 	}
++extfrag_threshold
++
++This parameter affects whether the kernel will compact memory or direct
++reclaim to satisfy a high-order allocation. /proc/extfrag_index shows what
++the fragmentation index for each order is in each zone in the system. Values
++tending towards 0 imply allocations would fail due to lack of memory,
++values towards 1000 imply failures are due to fragmentation and -1 implies
++that the allocation will succeed as long as watermarks are met.
++
++The kernel will not compact memory in a zone if the
++fragmentation index is <= extfrag_threshold. The default value is 500.
++
++==============================================================
++
+ hugepages_treat_as_movable
  
- 	/*
-@@ -656,9 +675,9 @@ static int unmap_and_move(new_page_t get
+ This parameter is only useful when kernelcore= is specified at boot time to
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -11,6 +11,9 @@
+ extern int sysctl_compact_memory;
+ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
+ 			void __user *buffer, size_t *length, loff_t *ppos);
++extern int sysctl_extfrag_threshold;
++extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
++			void __user *buffer, size_t *length, loff_t *ppos);
  
- skip_unmap:
- 	if (!page_mapped(page))
--		rc = move_to_new_page(newpage, page);
-+		rc = move_to_new_page(newpage, page, remap_swapcache);
+ extern int fragmentation_index(struct zone *zone, unsigned int order);
+ extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -241,6 +241,11 @@ static int min_sched_shares_ratelimit = 
+ static int max_sched_shares_ratelimit = NSEC_PER_SEC; /* 1 second */
+ #endif
  
--	if (rc)
-+	if (rc && remap_swapcache)
- 		remove_migration_ptes(page, page);
- rcu_unlock:
++#ifdef CONFIG_COMPACTION
++static int min_extfrag_threshold = 0;
++static int max_extfrag_threshold = 1000;
++#endif
++
+ static struct ctl_table kern_table[] = {
+ 	{
+ 		.procname	= "sched_child_runs_first",
+@@ -1108,6 +1113,16 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0200,
+ 		.proc_handler	= sysctl_compaction_handler,
+ 	},
++	{
++		.procname	= "extfrag_threshold",
++		.data		= &sysctl_extfrag_threshold,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= sysctl_extfrag_handler,
++		.extra1		= &min_extfrag_threshold,
++		.extra2		= &max_extfrag_threshold,
++	},
++
+ #endif /* CONFIG_COMPACTION */
+ 	{
+ 		.procname	= "min_free_kbytes",
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -429,6 +429,8 @@ static unsigned long compact_zone_order(
+ 	return compact_zone(zone, &cc);
+ }
  
++int sysctl_extfrag_threshold = 500;
++
+ /**
+  * try_to_compact_pages - Direct compact to satisfy a high-order allocation
+  * @zonelist: The zonelist used for the current allocation
+@@ -487,7 +489,7 @@ unsigned long try_to_compact_pages(struc
+ 		 * Only compact if a failure would be due to fragmentation.
+ 		 */
+ 		fragindex = fragmentation_index(zone, order);
+-		if (fragindex >= 0 && fragindex <= 500)
++		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
+ 			continue;
+ 
+ 		if (fragindex == -1 && zone_watermark_ok(zone, order, watermark, 0, 0)) {
+@@ -568,6 +570,14 @@ int sysctl_compaction_handler(struct ctl
+ 	return 0;
+ }
+ 
++int sysctl_extfrag_handler(struct ctl_table *table, int write,
++			void __user *buffer, size_t *length, loff_t *ppos)
++{
++	proc_dointvec_minmax(table, write, buffer, length, ppos);
++
++	return 0;
++}
++
+ #if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+ ssize_t sysfs_compact_node(struct sys_device *dev,
+ 			struct sysdev_attribute *attr,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
