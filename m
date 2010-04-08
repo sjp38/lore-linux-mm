@@ -1,202 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 137026B01E3
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 14:29:38 -0400 (EDT)
-Date: Wed, 7 Apr 2010 19:29:16 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 11/14] Direct compact when a high-order allocation fails
-Message-ID: <20100407182916.GY17882@csn.ul.ie>
-References: <1270224168-14775-1-git-send-email-mel@csn.ul.ie> <1270224168-14775-12-git-send-email-mel@csn.ul.ie> <20100406170603.8a999dc2.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A37C06B01E3
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:45:05 -0400 (EDT)
+Message-ID: <3a5f01cad6c5$8a722c00$0400a8c0@dcccs>
+From: "Janos Haar" <janos.haar@netcenter.hu>
+References: <2375c9f91003242029p1efbbea1v8e313e460b118f14@mail.gmail.com> <20100325153110.6be9a3df.kamezawa.hiroyu@jp.fujitsu.com> <02c101cacbf8$d21d1650$0400a8c0@dcccs> <179901cad182$5f87f620$0400a8c0@dcccs> <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com> <1fe901cad2b0$d39d0300$0400a8c0@dcccs> <20100402230905.GW3335@dastard> <22c901cad333$7a67db60$0400a8c0@dcccs> <20100404103701.GX3335@dastard> <2bd101cad4ec$5a425f30$0400a8c0@dcccs> <20100405224522.GZ3335@dastard>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
+Date: Thu, 8 Apr 2010 04:45:13 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100406170603.8a999dc2.akpm@linux-foundation.org>
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 06, 2010 at 05:06:03PM -0700, Andrew Morton wrote:
-> > @@ -896,6 +904,9 @@ static const char * const vmstat_text[] = {
-> >  	"compact_blocks_moved",
-> >  	"compact_pages_moved",
-> >  	"compact_pagemigrate_failed",
-> > +	"compact_stall",
-> > +	"compact_fail",
-> > +	"compact_success",
-> 
-> CONFIG_COMPACTION=n?
-> 
+Hello,
 
-This patch goes on top of the series. It looks big but it's mainly
-moving code.
+Sorry, but still have the problem with 2.6.33.2.
 
-==== CUT HERE ====
-mm,compaction: Do not display compaction-related stats when !CONFIG_COMPACTION
+Apr  8 03:04:51 alfa kernel: BUG: unable to handle kernel paging request at 
+000000610000008c
+Apr  8 03:04:51 alfa kernel: IP: [<ffffffff811f17c4>] 
+xfs_iflush_cluster+0x148/0x35a
+Apr  8 03:04:51 alfa kernel: PGD 22258a067 PUD 0
+Apr  8 03:04:51 alfa kernel: Oops: 0000 [#1] SMP
+Apr  8 03:04:51 alfa kernel: last sysfs file: /sys/class/misc/rfkill/dev
+Apr  8 03:04:51 alfa kernel: CPU 2
+Apr  8 03:04:51 alfa kernel: Pid: 3049, comm: xfssyncd Not tainted 2.6.33.2 
+#1 DP35DP/
+Apr  8 03:04:51 alfa kernel: RIP: 0010:[<ffffffff811f17c4>] 
+[<ffffffff811f17c4>] xfs_iflush_cluster+0x148/0x35a
+Apr  8 03:04:51 alfa kernel: RSP: 0018:ffff880228e3bca0  EFLAGS: 00010206
+Apr  8 03:04:51 alfa kernel: RAX: 0000006100000000 RBX: ffff880153795750 
+RCX: 000000000000001a
+Apr  8 03:04:51 alfa kernel: RDX: 0000000000000020 RSI: 00000000003dfdf4 
+RDI: 0000000000000005
+Apr  8 03:04:51 alfa kernel: RBP: ffff880228e3bd10 R08: ffff880228e3bc60 
+R09: ffff8801c5d6e1b8
+Apr  8 03:04:51 alfa kernel: R10: 00000000003dfdf4 R11: 0000000000000005 
+R12: 000000000000001a
+Apr  8 03:04:51 alfa kernel: R13: ffff8800b1d920d8 R14: ffff88022a7cabe0 
+R15: 00000000003ddf80
+Apr  8 03:04:51 alfa kernel: FS:  0000000000000000(0000) 
+GS:ffff880028300000(0000) knlGS:0000000000000000
+Apr  8 03:04:51 alfa kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 
+000000008005003b
+Apr  8 03:04:51 alfa kernel: CR2: 000000610000008c CR3: 00000002222db000 
+CR4: 00000000000006e0
+Apr  8 03:04:51 alfa kernel: DR0: 0000000000000000 DR1: 0000000000000000 
+DR2: 0000000000000000
+Apr  8 03:04:51 alfa kernel: DR3: 0000000000000000 DR6: 00000000ffff0ff0 
+DR7: 0000000000000400
+Apr  8 03:04:51 alfa kernel: Process xfssyncd (pid: 3049, threadinfo 
+ffff880228e3a000, task ffff880228e66040)
+Apr  8 03:04:51 alfa kernel: Stack:
+Apr  8 03:04:51 alfa kernel:  ffff8800b1d920d8 ffff8800466bc100 
+ffff880228c32580 ffffffffffffffe0
+Apr  8 03:04:51 alfa kernel: <0> 0000000000000020 ffff880228e24930 
+0000002028e3bd10 0000000300000000
+Apr  8 03:04:51 alfa kernel: <0> ffff880228e24948 ffff8800b1d920d8 
+0000000000000002 ffff8800466bc100
+Apr  8 03:04:51 alfa kernel: Call Trace:
+Apr  8 03:04:51 alfa kernel:  [<ffffffff811f1bcd>] xfs_iflush+0x1f7/0x2aa
+Apr  8 03:04:51 alfa kernel:  [<ffffffff811ecc12>] ? xfs_ilock+0x66/0xb7
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81214653>] 
+xfs_reclaim_inode+0xba/0xee
+Apr  8 03:04:51 alfa kernel:  [<ffffffff8121498d>] 
+xfs_inode_ag_walk+0x91/0xd7
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81214599>] ? 
+xfs_reclaim_inode+0x0/0xee
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81214a30>] 
+xfs_inode_ag_iterator+0x5d/0x8f
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81214599>] ? 
+xfs_reclaim_inode+0x0/0xee
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81214a81>] 
+xfs_reclaim_inodes+0x1f/0x21
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81214ab6>] xfs_sync_worker+0x33/0x6f
+Apr  8 03:04:51 alfa kernel:  [<ffffffff812144cf>] xfssyncd+0x149/0x198
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81214386>] ? xfssyncd+0x0/0x198
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81057061>] kthread+0x82/0x8a
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81002fd4>] 
+kernel_thread_helper+0x4/0x10
+Apr  8 03:04:51 alfa kernel:  [<ffffffff8179217c>] ? restore_args+0x0/0x30
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81056fdf>] ? kthread+0x0/0x8a
+Apr  8 03:04:51 alfa kernel:  [<ffffffff81002fd0>] ? 
+kernel_thread_helper+0x0/0x10
+Apr  8 03:04:51 alfa kernel: Code: 8e eb 01 00 00 b8 01 00 00 00 48 d3 e0 ff 
+c8 23 43 18 48 23 45 a8 4c 39 f8 0f 85 ae 00 00 00 48 8b 83 80 00 00 00 48 
+85 c0
+74 0b <66> f7 80 8c 00 00 00 ff 01 75 13 80 bb 0a 02 00 00 00 75 0a 8b
+Apr  8 03:04:51 alfa kernel: RIP  [<ffffffff811f17c4>] 
+xfs_iflush_cluster+0x148/0x35a
+Apr  8 03:04:51 alfa kernel:  RSP <ffff880228e3bca0>
+Apr  8 03:04:51 alfa kernel: CR2: 000000610000008c
+Apr  8 03:04:51 alfa kernel: ---[ end trace d1fc6fbf3568ba3f ]---
+Apr  8 04:41:11 alfa syslogd 1.4.1: restart.
 
-Although compaction can be disabled from .config, the vmstat entries
-still exist. This patch removes the vmstat entries. As page_alloc.c
-refers directly to the counters, the patch introduces
-__alloc_pages_direct_compact() to isolate use of the counters.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/vmstat.h |    2 +
- mm/page_alloc.c        |   92 ++++++++++++++++++++++++++++++++---------------
- mm/vmstat.c            |    2 +
- 3 files changed, 66 insertions(+), 30 deletions(-)
+----- Original Message ----- 
+From: "Dave Chinner" <david@fromorbit.com>
+To: "Janos Haar" <janos.haar@netcenter.hu>
+Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
+<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
+<axboe@kernel.dk>
+Sent: Tuesday, April 06, 2010 12:45 AM
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
+please!...)
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index b4b4d34..7f43ccd 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -43,8 +43,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		KSWAPD_SKIP_CONGESTION_WAIT,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+#ifdef CONFIG_COMPACTION
- 		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
- 		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
-+#endif
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
- #endif
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 46f6be4..514cc96 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1756,6 +1756,59 @@ out:
- 	return page;
- }
- 
-+#ifdef CONFIG_COMPACTION
-+/* Try memory compaction for high-order allocations before reclaim */
-+static struct page *
-+__alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
-+	struct zonelist *zonelist, enum zone_type high_zoneidx,
-+	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
-+	int migratetype, unsigned long *did_some_progress)
-+{
-+	struct page *page;
-+
-+	if (!order)
-+		return NULL;
-+
-+	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
-+								nodemask);
-+	if (*did_some_progress != COMPACT_SKIPPED) {
-+
-+		/* Page migration frees to the PCP lists but we want merging */
-+		drain_pages(get_cpu());
-+		put_cpu();
-+
-+		page = get_page_from_freelist(gfp_mask, nodemask,
-+				order, zonelist, high_zoneidx,
-+				alloc_flags, preferred_zone,
-+				migratetype);
-+		if (page) {
-+			__count_vm_event(COMPACTSUCCESS);
-+			return page;
-+		}
-+
-+		/*
-+		 * It's bad if compaction run occurs and fails.
-+		 * The most likely reason is that pages exist,
-+		 * but not enough to satisfy watermarks.
-+		 */
-+		count_vm_event(COMPACTFAIL);
-+
-+		cond_resched();
-+	}
-+
-+	return NULL;
-+}
-+#else
-+static inline struct page *
-+__alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
-+	struct zonelist *zonelist, enum zone_type high_zoneidx,
-+	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
-+	int migratetype, unsigned long *did_some_progress)
-+{
-+	return NULL;
-+}
-+#endif /* CONFIG_COMPACTION */
-+
- /* The really slow allocator path where we enter direct reclaim */
- static inline struct page *
- __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
-@@ -1769,36 +1822,6 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 
- 	cond_resched();
- 
--	/* Try memory compaction for high-order allocations before reclaim */
--	if (order) {
--		*did_some_progress = try_to_compact_pages(zonelist,
--						order, gfp_mask, nodemask);
--		if (*did_some_progress != COMPACT_SKIPPED) {
--
--			/* Page migration frees to the PCP lists but we want merging */
--			drain_pages(get_cpu());
--			put_cpu();
--
--			page = get_page_from_freelist(gfp_mask, nodemask,
--					order, zonelist, high_zoneidx,
--					alloc_flags, preferred_zone,
--					migratetype);
--			if (page) {
--				__count_vm_event(COMPACTSUCCESS);
--				return page;
--			}
--
--			/*
--			 * It's bad if compaction run occurs and fails.
--			 * The most likely reason is that pages exist,
--			 * but not enough to satisfy watermarks.
--			 */
--			count_vm_event(COMPACTFAIL);
--
--			cond_resched();
--		}
--	}
--
- 	/* We now go into synchronous reclaim */
- 	cpuset_memory_pressure_bump();
- 	p->flags |= PF_MEMALLOC;
-@@ -1972,6 +1995,15 @@ rebalance:
- 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
- 		goto nopage;
- 
-+	/* Try direct compaction */
-+	page = __alloc_pages_direct_compact(gfp_mask, order,
-+					zonelist, high_zoneidx,
-+					nodemask,
-+					alloc_flags, preferred_zone,
-+					migratetype, &did_some_progress);
-+	if (page)
-+		goto got_pg;
-+
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
- 					zonelist, high_zoneidx,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 2780a36..0a58cbe 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -901,12 +901,14 @@ static const char * const vmstat_text[] = {
- 
- 	"pgrotated",
- 
-+#ifdef CONFIG_COMPACTION
- 	"compact_blocks_moved",
- 	"compact_pages_moved",
- 	"compact_pagemigrate_failed",
- 	"compact_stall",
- 	"compact_fail",
- 	"compact_success",
-+#endif
- 
- #ifdef CONFIG_HUGETLB_PAGE
- 	"htlb_buddy_alloc_success",
+
+> On Mon, Apr 05, 2010 at 08:17:27PM +0200, Janos Haar wrote:
+>> Dave,
+>>
+>> Thank you for your answer.
+>> Like i sad before, this is a productive server with important service.
+>> Can you please send the fix for me as soon as it is done even for
+>> testing it....
+>> Or point me to the right direction to get it?
+>
+> It's in 2.6.33 if you want to upgrade the kernel, or you if don't
+> want to wait for the next 2.6.32.x kernel, you can apply this series
+> of 19 patches yourself:
+>
+> http://oss.sgi.com/archives/xfs/2010-03/msg00125.html
+>
+> Cheers,
+>
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
