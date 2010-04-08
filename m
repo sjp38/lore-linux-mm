@@ -1,106 +1,325 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2F3FF6B020C
-	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 19:38:42 -0400 (EDT)
-Date: Fri, 9 Apr 2010 09:38:37 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: PROBLEM + POSS FIX: kernel stack overflow, xfs, many disks,
- heavy write load, 8k stack, x86-64
-Message-ID: <20100408233837.GP11036@dastard>
-References: <4BBC6719.7080304@humyo.com>
- <20100407140523.GJ11036@dastard>
- <4BBCAB57.3000106@humyo.com>
- <20100407234341.GK11036@dastard>
- <20100408030347.GM11036@dastard>
- <4BBDC92D.8060503@humyo.com>
- <4BBDEC9A.9070903@humyo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4BBDEC9A.9070903@humyo.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B3E046B020E
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 19:54:25 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o38NsODc025495
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 9 Apr 2010 08:54:24 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DF4E23266C3
+	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 08:54:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3112745DE55
+	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 08:54:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 12A891DB8040
+	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 08:54:22 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B029D1DB803B
+	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 08:54:21 +0900 (JST)
+Date: Fri, 9 Apr 2010 08:50:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: update documentation v3
+Message-Id: <20100409085032.ce929fe9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100408103209.bf6d8329.randy.dunlap@oracle.com>
+References: <20100408145800.ca90ad81.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100408103209.bf6d8329.randy.dunlap@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: John Berthels <john@humyo.com>
-Cc: linux-kernel@vger.kernel.org, Nick Gregory <nick@humyo.com>, Rob Sanderson <rob@humyo.com>, xfs@oss.sgi.com, linux-mm@kvack.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 08, 2010 at 03:47:54PM +0100, John Berthels wrote:
-> John Berthels wrote:
-> >I'll reply again after it's been running long enough to draw conclusions.
-> We're getting pretty close on the 8k stack on this box now. It's
-> running 2.6.33.2 + your patch, with THREAD_ORDER 1, stack tracing
-> and CONFIG_LOCKDEP=y. (Sorry that LOCKDEP is on, please advise if
-> that's going to throw the figures and we'll restart the test systems
-> with new kernels).
+On Thu, 8 Apr 2010 10:32:09 -0700
+Randy Dunlap <randy.dunlap@oracle.com> wrote:
+
+> On Thu, 8 Apr 2010 14:58:00 +0900 KAMEZAWA Hiroyuki wrote:
 > 
-> This is significantly more than 5.6K, so it shows a potential
-> problem? Or is 720 bytes enough headroom?
+> > 
+> > ==
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Documentation update for memory cgroup
+> > 
+> > Some informations are old, and  I think current document doesn't work
+> > as "a guide for users".
+> > We need summary of all of our controls, at least.
+> > 
+> > This patch updates information for current implementations and add a
+> > summary of interfaces. etc...
 > 
-> jb
+> I found some more... (below)
 > 
-> [ 4005.541869] apache2 used greatest stack depth: 2480 bytes left
-> [ 4005.541973] apache2 used greatest stack depth: 2240 bytes left
-> [ 4005.542070] apache2 used greatest stack depth: 1936 bytes left
-> [ 4005.542614] apache2 used greatest stack depth: 1616 bytes left
-> [ 5531.406529] apache2 used greatest stack depth: 720 bytes left
+
+Thank you. 
+
 > 
-> $ cat /sys/kernel/debug/tracing/stack_trace
->        Depth    Size   Location    (55 entries)
->        -----    ----   --------
->  0)     7440      48   add_partial+0x26/0x90
->  1)     7392      64   __slab_free+0x1a9/0x380
->  2)     7328      64   kmem_cache_free+0xb9/0x160
->  3)     7264      16   free_buffer_head+0x25/0x50
->  4)     7248      64   try_to_free_buffers+0x79/0xc0
->  5)     7184     160   xfs_vm_releasepage+0xda/0x130 [xfs]
->  6)     7024      16   try_to_release_page+0x33/0x60
->  7)     7008     384   shrink_page_list+0x585/0x860
->  8)     6624     528   shrink_zone+0x636/0xdc0
->  9)     6096     112   do_try_to_free_pages+0xc2/0x3c0
-> 10)     5984     112   try_to_free_pages+0x64/0x70
-> 11)     5872     256   __alloc_pages_nodemask+0x3d2/0x710
-> 12)     5616      48   alloc_pages_current+0x8c/0xe0
-> 13)     5568      32   __page_cache_alloc+0x67/0x70
-> 14)     5536      80   find_or_create_page+0x50/0xb0
-> 15)     5456     160   _xfs_buf_lookup_pages+0x145/0x350 [xfs]
-> 16)     5296      64   xfs_buf_get+0x74/0x1d0 [xfs]
-> 17)     5232      48   xfs_buf_read+0x2f/0x110 [xfs]
-> 18)     5184      80   xfs_trans_read_buf+0x2bf/0x430 [xfs]
+> > Changelog:
+> >  - fixed tons of typos.
+> >  - replaced "memcg" with "memory cgroup" AMAP.
+> >  - replaced "mem+swap" with "memory+swap"
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  Documentation/cgroups/memory.txt |  210 ++++++++++++++++++++++++++++-----------
+> >  1 file changed, 152 insertions(+), 58 deletions(-)
+> > 
+> > Index: mmotm-temp/Documentation/cgroups/memory.txt
+> > ===================================================================
+> > --- mmotm-temp.orig/Documentation/cgroups/memory.txt
+> > +++ mmotm-temp/Documentation/cgroups/memory.txt
+> 
+> > @@ -121,12 +150,18 @@ inserted into inode (radix-tree). While 
+> >  processes, duplicate accounting is carefully avoided.
+> >  
+> >  A RSS page is unaccounted when it's fully unmapped. A PageCache page is
+> > -unaccounted when it's removed from radix-tree.
+> > +unaccounted when it's removed from radix-tree. Even if RSS pages are fully
+> > +unmapped (by kswapd), they may exist as SwapCache in the system until they
+> > +are really freed. Such SwapCaches also also accounted.
+> > +A swapped-in page is not accounted until it's mapped. It's bacause we can't
+> 
+>                                                          This is because
+> 
+ok.
 
-We're entering memory reclaim with almost 6k of stack already in
-use. If we get down into the IO layer and then have to do a memory
-reclaim, then we'll have even less stack to work with. It looks like
-memory allocation needs at least 2KB of stack to work with now,
-so if we enter anywhere near the top of the stack we can blow it...
+> > +know a page will be finaly mapped at swapin-readahead happens.
+> 
+>                        finally mapped until
+> 
+> > +
+> > +A Cache pages is unaccounted when it's removed from inode (radix-tree).
+> 
+>            page
+> 
+Ouch, again..
 
-Basically this trace is telling us the stack we have to work with
-is:
 
-	2KB memory allocation
-	4KB page writeback
-	2KB write foreground throttling path
+> >  
+> >  At page migration, accounting information is kept.
+> >  
+> >  Note: we just account pages-on-lru because our purpose is to control amount
+> > -of used pages. not-on-lru pages are tend to be out-of-control from vm view.
+> > +of used pages. not-on-lru pages are tend to be out-of-control from VM view.
+> 
+> drop:                              are
+> 
+Sure.
 
-So effectively the storage subsystem (NFS, filesystem, DM, MD,
-device drivers) have about 4K of stack to work in now. That seems to
-be a lot less than last time I looked at this, and we've been really
-careful not to increase XFS's stack usage for quite some time now.
 
-Hence I'm not sure exactly what to do about this, John. I can't
-really do much about the stack footprint of XFS as all the
-low-hanging fruit has already been trimmed. Even if I convert the
-foreground throttling to not issue IO, the background flush threads
-still have roughly the same stack usage, so a memory allocation and
-reclaim in the wrong place could still blow the stack....
+> >  
+> >  2.3 Shared Page Accounting
+> >  
+> 
+> > @@ -248,15 +296,24 @@ caches, RSS and Active pages/Inactive pa
+> >  
+> >  4. Testing
+> >  
+> > -Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
+> > -Apart from that v6 has been tested with several applications and regular
+> > -daily use. The controller has also been tested on the PPC64, x86_64 and
+> > -UML platforms.
+> > +For testing features and implementation, see memcg_test.txt.
+> > +
+> > +Performance test is also important. To see pure memory cgroup's overhead,
+> > +testing on tmpfs will give you good numbers of small overheads.
+> > +Example) do kernel make on tmpfs.
+> 
+>    Example:
+> 
+ok.
 
-I'll have to have a bit of a think on this one - if you could
-provide further stack traces as they get deeper (esp. if they go
-past 8k) that would be really handy.
 
-Cheers,
+> > +
+> > +Page-fault scalability is also important. At measuring parallel
+> > +page fault test, multi-process test may be better than multi-thread
+> > +test because it has noise of shared objects/status.
+> > +
+> > +But above 2 is testing extreme situation. Trying usual test under memory cgroup
+> 
+>                are testing extreme situations.
+> 
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I always do this kind of mistake, Hm...
+
+> > +is always helpful.
+> > +
+> >  
+> >  4.1 Troubleshooting
+> >  
+> >  Sometimes a user might find that the application under a cgroup is
+> > -terminated. There are several causes for this:
+> > +terminated by OOM killer. There are several causes for this:
+> >  
+> >  1. The cgroup limit is too low (just too low to do anything useful)
+> >  2. The user is using anonymous memory and swap is turned off or too low
+> 
+> > @@ -296,10 +359,10 @@ will be charged as a new owner of it.
+> >  
+> >    # echo 0 > memory.force_empty
+> >  
+> > -  Almost all pages tracked by this memcg will be unmapped and freed. Some of
+> > -  pages cannot be freed because it's locked or in-use. Such pages are moved
+> > -  to parent and this cgroup will be empty. But this may return -EBUSY in
+> > -  some too busy case.
+> > +  Almost all pages tracked by this memory cgroup will be unmapped and freed.
+> > +  Some of pages cannot be freed because it's locked or in-use. Such pages are
+> 
+>      Some pages                            they are locked
+> 
+Sure.
+
+
+> > +  moved to parent and this cgroup will be empty. This may return -EBUSY if
+> > +  VM is too busy to free/move all pages immediately.
+> >  
+> >    Typical use case of this interface is that calling this before rmdir().
+> >    Because rmdir() moves all pages to parent, some out-of-use page caches can be
+> > @@ -309,19 +372,41 @@ will be charged as a new owner of it.
+> >  
+> >  memory.stat file includes following statistics
+> >  
+> > +# per-memory cgroup local status
+> >  cache		- # of bytes of page cache memory.
+> >  rss		- # of bytes of anonymous and swap cache memory.
+> > +mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
+> >  pgpgin		- # of pages paged in (equivalent to # of charging events).
+> >  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
+> > -active_anon	- # of bytes of anonymous and  swap cache memory on active
+> > -		  lru list.
+> > +swap		- # of bytes of swap usage
+> >  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+> > +		  lru list.
+> > +active_anon	- # of bytes of anonymous and  swap cache memory on active
+> 
+> drop one space between:                   and  swap
+> 
+ok. 
+
+> >  		  inactive lru list.
+> 
+> It would be better to use LRU throughout the file instead of using LRU in some
+> places and lru in others (except when referring to variable names, of course).
+> 
+
+Ah, I'll use LRU.
+
+
+> > -active_file	- # of bytes of file-backed memory on active lru list.
+> >  inactive_file	- # of bytes of file-backed memory on inactive lru list.
+> > +active_file	- # of bytes of file-backed memory on active lru list.
+> >  unevictable	- # of bytes of memory that cannot be reclaimed (mlocked etc).
+> >  
+> > -The following additional stats are dependent on CONFIG_DEBUG_VM.
+> > +# status considering hierarchy (see memory.use_hierarchy settings)
+> > +
+> > +hierarchical_memory_limit - # of bytes of memory limit with regard to hierarchy
+> > +			under which the memory cgroup is
+> > +hierarchical_memsw_limit - # of bytes of memory+swap limit with regard to
+> > +			hierarchy under which memory cgroup is.
+> > +
+> > +total_cache		- sum of all children's "cache"
+> > +total_rss		- sum of all children's "rss"
+> > +total_mapped_file	- sum of all children's "cache"
+> > +total_pgpgin		- sum of all children's "pgpgin"
+> > +total_pgpgout		- sum of all children's "pgpgout"
+> > +total_swap		- sum of all children's "swap"
+> > +total_inactive_anon	- sum of all children's "inactive_anon"
+> > +total_active_anon	- sum of all children's "active_anon"
+> > +total_inactive_file	- sum of all children's "inactive_file"
+> > +total_active_file	- sum of all children's "active_file"
+> > +total_unevictable	- sum of all children's "unevictable"
+> > +
+> > +# The following additional stats are dependent on CONFIG_DEBUG_VM.
+> >  
+> >  inactive_ratio		- VM internal parameter. (see mm/page_alloc.c)
+> >  recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
+> > @@ -337,17 +422,26 @@ Memo:
+> >  Note:
+> >  	Only anonymous and swap cache memory is listed as part of 'rss' stat.
+> >  	This should not be confused with the true 'resident set size' or the
+> > -	amount of physical memory used by the cgroup. Per-cgroup rss
+> > -	accounting is not done yet.
+> > +	amount of physical memory used by the cgroup.
+> > +	'rss + file_mapped" will give you resident set size of cgroup.
+> > +	(Note: file and shmem may be shared amoung other cgroups. In that case,
+> > +	 file_mapped is accounted only when the memory cgroup is owner of page
+> > +	 cache.)
+> >  
+> >  5.3 swappiness
+> >    Similar to /proc/sys/vm/swappiness, but affecting a hierarchy of groups only.
+> >  
+> >    Following cgroups' swappiness can't be changed.
+> >    - root cgroup (uses /proc/sys/vm/swappiness).
+> > -  - a cgroup which uses hierarchy and it has child cgroup.
+> > +  - a cgroup which uses hierarchy and it has other cgroup(s) below it.
+> >    - a cgroup which uses hierarchy and not the root of hierarchy.
+> >  
+> > +5.4 failcnt
+> > +
+> > +The memory controller provides memory.failcnt and memory.memsw.failcnt files.
+> > +This failcnt(== failure count) shows the number of times that a usage counter
+> > +hit its limit. When a memory controller hit a limit, failcnt increases and
+> 
+>                                            hits
+> 
+ok.
+
+
+> > +memory under it will be reclaimed.
+> >  
+> >  6. Hierarchy support
+> >  
+> 
+> > @@ -513,9 +607,9 @@ As.
+> >  
+> >  This operation is only allowed to the top cgroup of subhierarchy.
+> >  If oom-killer is disabled, tasks under cgroup will hang/sleep
+> > -in memcg's oom-waitq when they request accountable memory.
+> > +in memory cgroup's oom-waitq when they request accountable memory.
+> >  
+> > -For running them, you have to relax the memcg's oom sitaution by
+> > +For running them, you have to relax the memory cgroup's oom sitaution by
+> 
+> It would be better to use OOM instead of oom throughout the file...
+> 
+yes, I'll rewrite.
+
+
+
+> >  	* enlarge limit or reduce usage.
+> >  To reduce usage,
+> >  	* kill some tasks.
+> > @@ -526,7 +620,7 @@ Then, stopped tasks will work again.
+> >  
+> >  At reading, current status of OOM is shown.
+> >  	oom_kill_disable 0 or 1 (if 1, oom-killer is disabled)
+> > -	under_oom	 0 or 1 (if 1, the memcg is under OOM,tasks may
+> > +	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM,tasks may
+> 
+> space after:                                                      OOM, tasks may
+> 
+
+Ragards.
+-Kame
+
+> >  				 be stopped.)
+> >  
+> >  11. TODO
+> > 
+> > --
+> 
+> 
+> ---
+> ~Randy
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
