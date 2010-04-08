@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C474C6B0221
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:59 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id EDFB6600375
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:00 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 32 of 67] verify pmd_trans_huge isn't leaking
-Message-Id: <4015d9c97f6c7aac03a7.1270691475@v2.random>
+Subject: [PATCH 40 of 67] skip transhuge pages in ksm for now
+Message-Id: <b604b2cdbcc37c12b9cd.1270691483@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:15 +0200
+Date: Thu, 08 Apr 2010 03:51:23 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,52 +18,55 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-pte_trans_huge must not leak in certain vmas like the mmio special pfn or
-filebacked mappings.
+Skip transhuge pages in ksm for now.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1421,6 +1421,7 @@ int __get_user_pages(struct task_struct 
- 			pmd = pmd_offset(pud, pg);
- 			if (pmd_none(*pmd))
- 				return i ? : -EFAULT;
-+			VM_BUG_ON(pmd_trans_huge(*pmd));
- 			pte = pte_offset_map(pmd, pg);
- 			if (pte_none(*pte)) {
- 				pte_unmap(pte);
-@@ -1622,8 +1623,10 @@ pte_t *get_locked_pte(struct mm_struct *
- 	pud_t * pud = pud_alloc(mm, pgd, addr);
- 	if (pud) {
- 		pmd_t * pmd = pmd_alloc(mm, pud, addr);
--		if (pmd)
-+		if (pmd) {
-+			VM_BUG_ON(pmd_trans_huge(*pmd));
- 			return pte_alloc_map_lock(mm, pmd, addr, ptl);
-+		}
- 	}
- 	return NULL;
- }
-@@ -1842,6 +1845,7 @@ static inline int remap_pmd_range(struct
- 	pmd = pmd_alloc(mm, pud, addr);
- 	if (!pmd)
- 		return -ENOMEM;
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	do {
- 		next = pmd_addr_end(addr, end);
- 		if (remap_pte_range(mm, pmd, addr, next,
-@@ -3317,6 +3321,7 @@ static int follow_pte(struct mm_struct *
+diff --git a/mm/ksm.c b/mm/ksm.c
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -449,7 +449,7 @@ static struct page *get_mergeable_page(s
+ 	page = follow_page(vma, addr, FOLL_GET);
+ 	if (!page)
  		goto out;
- 
- 	pmd = pmd_offset(pud, address);
-+	VM_BUG_ON(pmd_trans_huge(*pmd));
- 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
- 		goto out;
- 
+-	if (PageAnon(page)) {
++	if (PageAnon(page) && !PageTransCompound(page)) {
+ 		flush_anon_page(vma, page, addr);
+ 		flush_dcache_page(page);
+ 	} else {
+@@ -1305,7 +1305,19 @@ next_mm:
+ 			if (ksm_test_exit(mm))
+ 				break;
+ 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
+-			if (*page && PageAnon(*page)) {
++			if (!*page) {
++				ksm_scan.address += PAGE_SIZE;
++				cond_resched();
++				continue;
++			}
++			if (PageTransCompound(*page)) {
++				put_page(*page);
++				ksm_scan.address &= HPAGE_PMD_MASK;
++				ksm_scan.address += HPAGE_PMD_SIZE;
++				cond_resched();
++				continue;
++			}
++			if (PageAnon(*page)) {
+ 				flush_anon_page(vma, *page, ksm_scan.address);
+ 				flush_dcache_page(*page);
+ 				rmap_item = get_next_rmap_item(slot,
+@@ -1319,8 +1331,7 @@ next_mm:
+ 				up_read(&mm->mmap_sem);
+ 				return rmap_item;
+ 			}
+-			if (*page)
+-				put_page(*page);
++			put_page(*page);
+ 			ksm_scan.address += PAGE_SIZE;
+ 			cond_resched();
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
