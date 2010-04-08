@@ -1,49 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D06646B0211
-	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 14:48:54 -0400 (EDT)
-Date: Thu, 8 Apr 2010 20:48:42 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 56 of 67] Memory compaction core
-Message-ID: <20100408184842.GE28964@cmpxchg.org>
-References: <patchbomb.1270691443@v2.random> <a86f1d01d86dffb4ab53.1270691499@v2.random> <20100408161814.GC28964@cmpxchg.org> <20100408164630.GL5749@random.random> <20100408170948.GQ5749@random.random> <20100408171458.GS5749@random.random> <20100408175604.GD28964@cmpxchg.org> <20100408175847.GV5749@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100408175847.GV5749@random.random>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 80E9F600337
+	for <linux-mm@kvack.org>; Thu,  8 Apr 2010 15:03:19 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o38J3GtY007537
+	for <linux-mm@kvack.org>; Thu, 8 Apr 2010 12:03:16 -0700
+Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
+	by wpaz5.hot.corp.google.com with ESMTP id o38J2GOX031825
+	for <linux-mm@kvack.org>; Thu, 8 Apr 2010 12:03:15 -0700
+Received: by pzk9 with SMTP id 9so2113103pzk.19
+        for <linux-mm@kvack.org>; Thu, 08 Apr 2010 12:03:13 -0700 (PDT)
+Date: Thu, 8 Apr 2010 12:03:10 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slub: __kmalloc_node_track_caller should trace
+ kmalloc_large_node case
+In-Reply-To: <1270718804-27268-1-git-send-email-dfeng@redhat.com>
+Message-ID: <alpine.DEB.2.00.1004081202570.21040@chino.kir.corp.google.com>
+References: <1270718804-27268-1-git-send-email-dfeng@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
+To: Xiaotian Feng <dfeng@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Ingo Molnar <mingo@elte.hu>, Vegard Nossum <vegard.nossum@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 08, 2010 at 07:58:47PM +0200, Andrea Arcangeli wrote:
-> On Thu, Apr 08, 2010 at 07:56:04PM +0200, Johannes Weiner wrote:
-> > Humm, maybe the start pfn could be huge page aligned?  That would make
-> > it possible to check for PageTransHuge() and skip over compound_order()
-> > pages.  This way, we should never actually run into PG_tail pages.
+On Thu, 8 Apr 2010, Xiaotian Feng wrote:
+
+> commit 94b528d (kmemtrace: SLUB hooks for caller-tracking functions)
+> missed tracing kmalloc_large_node in __kmalloc_node_track_caller. We
+> should trace it same as __kmalloc_node.
 > 
-> The problem here are random compound pages that aren't owned by the
-> transparent hugepage subsystem. If we can't identify those, it's
-> unsafe to call compound_order (like it's unsafe to call page_order for
-> pagebuddy pages).
+> Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
+> Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Cc: David Rientjes <rientjes@google.com>
 
-But transparent huge pages are the only compound pages on the LRU, so
-we should be able to identify them.
+Acked-by: David Rientjes <rientjes@google.com>
 
-The lru_lock excludes isolation, splitting and collapsing, so I think
-this is safe:
-
-	if (PageLRU() && PageTransCompound()) {
-		low_pfn += (1 << compound_order()) - 1
-		continue
-	}
-
-	if (__isolate_lru_page())
-		continue
-
-	...
-
-Do I still miss something?  If so, I will shut up now :-)
+> Cc: Ingo Molnar <mingo@elte.hu>
+> Cc: Vegard Nossum <vegard.nossum@gmail.com>
+> ---
+>  mm/slub.c |   11 +++++++++--
+>  1 files changed, 9 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index b364844..a3a5a18 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3335,8 +3335,15 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
+>  	struct kmem_cache *s;
+>  	void *ret;
+>  
+> -	if (unlikely(size > SLUB_MAX_SIZE))
+> -		return kmalloc_large_node(size, gfpflags, node);
+> +	if (unlikely(size > SLUB_MAX_SIZE)) {
+> +		ret = kmalloc_large_node(size, gfpflags, node);
+> +
+> +		trace_kmalloc_node(caller, ret,
+> +				   size, PAGE_SIZE << get_order(size),
+> +				   gfpflags, node);
+> +
+> +		return ret;
+> +	}
+>  
+>  	s = get_slab(size, gfpflags);
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
