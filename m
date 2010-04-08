@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9302862008A
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:14 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 909F9620093
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:15 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 54 of 67] Export fragmentation index via /proc/extfrag_index
-Message-Id: <8e4a8a4deb5121c65e0c.1270691497@v2.random>
+Subject: [PATCH 62 of 67] do not display compaction-related stats when
+	!CONFIG_COMPACTION
+Message-Id: <13a20baba2f4a4fcd166.1270691505@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:37 +0200
+Date: Thu, 08 Apr 2010 03:51:45 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,170 +19,132 @@ List-ID: <linux-mm.kvack.org>
 
 From: Mel Gorman <mel@csn.ul.ie>
 
-Fragmentation index is a value that makes sense when an allocation of a
-given size would fail. The index indicates whether an allocation failure is
-due to a lack of memory (values towards 0) or due to external fragmentation
-(value towards 1).  For the most part, the huge page size will be the size
-of interest but not necessarily so it is exported on a per-order and per-zone
-basis via /proc/extfrag_index
+Although compaction can be disabled from .config, the vmstat entries still
+exist.  This patch removes the vmstat entries.  As page_alloc.c refers
+directly to the counters, the patch introduces
+__alloc_pages_direct_compact() to isolate use of the counters.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -420,6 +420,7 @@ Table 1-5: Kernel info in /proc
-  filesystems Supported filesystems                             
-  driver	     Various drivers grouped here, currently rtc (2.4)
-  execdomains Execdomains, related to security			(2.4)
-+ extfrag_index Additional page allocator information (see text) (2.5)
-  fb	     Frame Buffer devices				(2.4)
-  fs	     File system parameters, currently nfs/exports	(2.4)
-  ide         Directory containing info about the IDE subsystem 
-@@ -605,7 +606,7 @@ ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in Z
- available in ZONE_NORMAL, etc... 
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -43,8 +43,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+ 		KSWAPD_SKIP_CONGESTION_WAIT,
+ 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
++#ifdef CONFIG_COMPACTION
+ 		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
+ 		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
++#endif
+ #ifdef CONFIG_HUGETLB_PAGE
+ 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
+ #endif
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1736,6 +1736,59 @@ out:
+ 	return page;
+ }
  
- More information relevant to external fragmentation can be found in
--pagetypeinfo and unusable_index
-+pagetypeinfo, unusable_index and extfrag_index.
- 
- > cat /proc/pagetypeinfo
- Page block order: 9
-@@ -656,6 +657,17 @@ value between 0 and 1. The higher the va
- unusable and by implication, the worse the external fragmentation is. This
- can be expressed as a percentage by multiplying by 100.
- 
-+> cat /proc/extfrag_index
-+Node 0, zone      DMA -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.00
-+Node 0, zone   Normal -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.954
++#ifdef CONFIG_COMPACTION
++/* Try memory compaction for high-order allocations before reclaim */
++static struct page *
++__alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
++	struct zonelist *zonelist, enum zone_type high_zoneidx,
++	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
++	int migratetype, unsigned long *did_some_progress)
++{
++	struct page *page;
 +
-+The external fragmentation index, is only meaningful if an allocation
-+would fail and indicates what the failure is due to. A value of -1 such as
-+in many of the examples above states that the allocation would succeed.
-+If it would fail, the value is between 0 and 1. A value tending towards
-+0 implies the allocation failed due to a lack of memory. A value tending
-+towards 1 implies it failed due to external fragmentation.
++	if (!order)
++		return NULL;
 +
- ..............................................................................
++	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
++								nodemask);
++	if (*did_some_progress != COMPACT_SKIPPED) {
++
++		/* Page migration frees to the PCP lists but we want merging */
++		drain_pages(get_cpu());
++		put_cpu();
++
++		page = get_page_from_freelist(gfp_mask, nodemask,
++				order, zonelist, high_zoneidx,
++				alloc_flags, preferred_zone,
++				migratetype);
++		if (page) {
++			__count_vm_event(COMPACTSUCCESS);
++			return page;
++		}
++
++		/*
++		 * It's bad if compaction run occurs and fails.
++		 * The most likely reason is that pages exist,
++		 * but not enough to satisfy watermarks.
++		 */
++		count_vm_event(COMPACTFAIL);
++
++		cond_resched();
++	}
++
++	return NULL;
++}
++#else
++static inline struct page *
++__alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
++	struct zonelist *zonelist, enum zone_type high_zoneidx,
++	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
++	int migratetype, unsigned long *did_some_progress)
++{
++	return NULL;
++}
++#endif /* CONFIG_COMPACTION */
++
+ /* The really slow allocator path where we enter direct reclaim */
+ static inline struct page *
+ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+@@ -1957,6 +2010,15 @@ rebalance:
+ 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+ 		goto nopage;
  
- meminfo:
++	/* Try direct compaction */
++	page = __alloc_pages_direct_compact(gfp_mask, order,
++					zonelist, high_zoneidx,
++					nodemask,
++					alloc_flags, preferred_zone,
++					migratetype, &did_some_progress);
++	if (page)
++		goto got_pg;
++
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+ 					zonelist, high_zoneidx,
 diff --git a/mm/vmstat.c b/mm/vmstat.c
 --- a/mm/vmstat.c
 +++ b/mm/vmstat.c
-@@ -16,6 +16,7 @@
- #include <linux/cpu.h>
- #include <linux/vmstat.h>
- #include <linux/sched.h>
-+#include <linux/math64.h>
+@@ -905,12 +905,14 @@ static const char * const vmstat_text[] 
  
- #ifdef CONFIG_VM_EVENT_COUNTERS
- DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
-@@ -554,6 +555,67 @@ static int unusable_show(struct seq_file
- 	return 0;
- }
+ 	"pgrotated",
  
-+/*
-+ * A fragmentation index only makes sense if an allocation of a requested
-+ * size would fail. If that is true, the fragmentation index indicates
-+ * whether external fragmentation or a lack of memory was the problem.
-+ * The value can be used to determine if page reclaim or compaction
-+ * should be used
-+ */
-+int fragmentation_index(unsigned int order, struct contig_page_info *info)
-+{
-+	unsigned long requested = 1UL << order;
-+
-+	if (!info->free_blocks_total)
-+		return 0;
-+
-+	/* Fragmentation index only makes sense when a request would fail */
-+	if (info->free_blocks_suitable)
-+		return -1000;
-+
-+	/*
-+	 * Index is between 0 and 1 so return within 3 decimal places
-+	 *
-+	 * 0 => allocation would fail due to lack of memory
-+	 * 1 => allocation would fail due to fragmentation
-+	 */
-+	return 1000 - div_u64( (1000+(div_u64(info->free_pages * 1000ULL, requested))), info->free_blocks_total);
-+}
-+
-+
-+static void extfrag_show_print(struct seq_file *m,
-+					pg_data_t *pgdat, struct zone *zone)
-+{
-+	unsigned int order;
-+	int index;
-+
-+	/* Alloc on stack as interrupts are disabled for zone walk */
-+	struct contig_page_info info;
-+
-+	seq_printf(m, "Node %d, zone %8s ",
-+				pgdat->node_id,
-+				zone->name);
-+	for (order = 0; order < MAX_ORDER; ++order) {
-+		fill_contig_page_info(zone, order, &info);
-+		index = fragmentation_index(order, &info);
-+		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
-+	}
-+
-+	seq_putc(m, '\n');
-+}
-+
-+/*
-+ * Display fragmentation index for orders that allocations would fail for
-+ */
-+static int extfrag_show(struct seq_file *m, void *arg)
-+{
-+	pg_data_t *pgdat = (pg_data_t *)arg;
-+
-+	walk_zones_in_node(m, pgdat, extfrag_show_print);
-+
-+	return 0;
-+}
-+
- static void pagetypeinfo_showfree_print(struct seq_file *m,
- 					pg_data_t *pgdat, struct zone *zone)
- {
-@@ -723,6 +785,25 @@ static const struct file_operations unus
- 	.release	= seq_release,
- };
++#ifdef CONFIG_COMPACTION
+ 	"compact_blocks_moved",
+ 	"compact_pages_moved",
+ 	"compact_pagemigrate_failed",
+ 	"compact_stall",
+ 	"compact_fail",
+ 	"compact_success",
++#endif
  
-+static const struct seq_operations extfrag_op = {
-+	.start	= frag_start,
-+	.next	= frag_next,
-+	.stop	= frag_stop,
-+	.show	= extfrag_show,
-+};
-+
-+static int extfrag_open(struct inode *inode, struct file *file)
-+{
-+	return seq_open(file, &extfrag_op);
-+}
-+
-+static const struct file_operations extfrag_file_ops = {
-+	.open		= extfrag_open,
-+	.read		= seq_read,
-+	.llseek		= seq_lseek,
-+	.release	= seq_release,
-+};
-+
- #ifdef CONFIG_ZONE_DMA
- #define TEXT_FOR_DMA(xx) xx "_dma",
- #else
-@@ -1071,6 +1152,7 @@ static int __init setup_vmstat(void)
- 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
- 	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
- 	proc_create("unusable_index", S_IRUGO, NULL, &unusable_file_ops);
-+	proc_create("extfrag_index", S_IRUGO, NULL, &extfrag_file_ops);
- 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
- 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
- #endif
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	"htlb_buddy_alloc_success",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
