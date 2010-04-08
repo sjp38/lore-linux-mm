@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 019DB62008F
-	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:15 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id ED4DD62008E
+	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:57:19 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 64 of 67] page buddy can go away before reading page_order
-Message-Id: <f4a1af9ab39984156f9b.1270691507@v2.random>
+Subject: [PATCH 34 of 67] pmd_trans_huge migrate bugcheck
+Message-Id: <d32026adfc32013aa8db.1270691477@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:51:47 +0200
+Date: Thu, 08 Apr 2010 03:51:17 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,26 +18,67 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-zone->lock isn't hold. Let's just skip this optimization.
+No pmd_trans_huge should ever materialize in migration ptes areas, because
+we split the hugepage before migration ptes are instantiated.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -262,10 +262,8 @@ static unsigned long isolate_migratepage
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -105,6 +105,10 @@ static inline int PageTransHuge(struct p
+ 	VM_BUG_ON(PageTail(page));
+ 	return PageHead(page);
+ }
++static inline int PageTransCompound(struct page *page)
++{
++	return PageCompound(page);
++}
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUG(); 0; })
+ #define HPAGE_PMD_MASK ({ BUG(); 0; })
+@@ -122,6 +126,7 @@ static inline int split_huge_page(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
++#define PageTransCompound(page) 0
+ static inline int hugepage_madvise(unsigned long *vm_flags)
+ {
+ 	BUG_ON(0);
+diff --git a/mm/migrate.c b/mm/migrate.c
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -100,6 +100,7 @@ static int remove_migration_pte(struct p
+ 		goto out;
  
- 		/* Get the page and skip if free */
- 		page = pfn_to_page(low_pfn);
--		if (PageBuddy(page)) {
--			low_pfn += (1 << page_order(page)) - 1;
-+		if (PageBuddy(page))
- 			continue;
--		}
+ 	pmd = pmd_offset(pud, addr);
++	VM_BUG_ON(pmd_trans_huge(*pmd));
+ 	if (!pmd_present(*pmd))
+ 		goto out;
  
- 		/* Try isolate the page */
- 		if (__isolate_lru_page(page, ISOLATE_BOTH, 0) != 0)
+@@ -556,6 +557,9 @@ static int unmap_and_move(new_page_t get
+ 		/* page was freed from under us. So we are done. */
+ 		goto move_newpage;
+ 	}
++	if (unlikely(PageTransHuge(page)))
++		if (unlikely(split_huge_page(page)))
++			goto move_newpage;
+ 
+ 	/* prepare cgroup just returns 0 or -ENOMEM */
+ 	rc = -EAGAIN;
+@@ -816,6 +820,10 @@ static int do_move_page_to_node_array(st
+ 		if (PageReserved(page) || PageKsm(page))
+ 			goto put_and_set;
+ 
++		if (unlikely(PageTransCompound(page)))
++			if (unlikely(split_huge_page(page)))
++				goto put_and_set;
++
+ 		pp->page = page;
+ 		err = page_to_nid(page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
