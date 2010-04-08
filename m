@@ -1,115 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 611246B0201
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5A6CF6B01F5
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:20 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 08 of 67] add pmd paravirt ops
-Message-Id: <088327345b7c1229e0b1.1270691451@v2.random>
+Subject: [PATCH 23 of 67] Instead of passing a start address and a number of
+	pages into the helper
+Message-Id: <e64f6884b5301d6128a8.1270691466@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:50:51 +0200
+Date: Thu, 08 Apr 2010 03:51:06 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+functions, convert them to use a start and an end address.
 
-Paravirt ops pmd_update/pmd_update_defer/pmd_set_at. Not all might be necessary
-(vmware needs pmd_update, Xen needs set_pmd_at, nobody needs pmd_update_defer),
-but this is to keep full simmetry with pte paravirt ops, which looks cleaner
-and simpler from a common code POV.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -440,6 +440,11 @@ static inline void pte_update(struct mm_
+diff --git a/mm/mincore.c b/mm/mincore.c
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -20,14 +20,12 @@
+ #include <asm/pgtable.h>
+ 
+ static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
+-				unsigned long addr, unsigned long nr,
++				unsigned long addr, unsigned long end,
+ 				unsigned char *vec)
  {
- 	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
- }
-+static inline void pmd_update(struct mm_struct *mm, unsigned long addr,
-+			      pmd_t *pmdp)
-+{
-+	PVOP_VCALL3(pv_mmu_ops.pmd_update, mm, addr, pmdp);
-+}
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	struct hstate *h;
+-	int i;
  
- static inline void pte_update_defer(struct mm_struct *mm, unsigned long addr,
- 				    pte_t *ptep)
-@@ -447,6 +452,12 @@ static inline void pte_update_defer(stru
- 	PVOP_VCALL3(pv_mmu_ops.pte_update_defer, mm, addr, ptep);
+-	i = 0;
+ 	h = hstate_vma(vma);
+ 	while (1) {
+ 		unsigned char present;
+@@ -40,10 +38,10 @@ static void mincore_hugetlb_page_range(s
+ 				       addr & huge_page_mask(h));
+ 		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
+ 		while (1) {
+-			vec[i++] = present;
++			*vec = present;
++			vec++;
+ 			addr += PAGE_SIZE;
+-			/* reach buffer limit */
+-			if (i == nr)
++			if (addr == end)
+ 				return;
+ 			/* check hugepage border */
+ 			if (!(addr & ~huge_page_mask(h)))
+@@ -86,9 +84,10 @@ static unsigned char mincore_page(struct
  }
  
-+static inline void pmd_update_defer(struct mm_struct *mm, unsigned long addr,
-+				    pmd_t *pmdp)
-+{
-+	PVOP_VCALL3(pv_mmu_ops.pmd_update_defer, mm, addr, pmdp);
-+}
-+
- static inline pte_t __pte(pteval_t val)
+ static void mincore_unmapped_range(struct vm_area_struct *vma,
+-				unsigned long addr, unsigned long nr,
++				unsigned long addr, unsigned long end,
+ 				unsigned char *vec)
  {
- 	pteval_t ret;
-@@ -548,6 +559,18 @@ static inline void set_pte_at(struct mm_
- 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
++	unsigned long nr = (end - addr) >> PAGE_SHIFT;
+ 	int i;
+ 
+ 	if (vma->vm_file) {
+@@ -104,42 +103,44 @@ static void mincore_unmapped_range(struc
  }
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-+			      pmd_t *pmdp, pmd_t pmd)
-+{
-+	if (sizeof(pmdval_t) > sizeof(long))
-+		/* 5 arg words */
-+		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
-+	else
-+		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp, pmd.pmd);
-+}
-+#endif
-+
- static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-			unsigned long addr, unsigned long nr,
++			unsigned long addr, unsigned long end,
+ 			unsigned char *vec)
  {
- 	pmdval_t val = native_pmd_val(pmd);
-diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
---- a/arch/x86/include/asm/paravirt_types.h
-+++ b/arch/x86/include/asm/paravirt_types.h
-@@ -266,10 +266,16 @@ struct pv_mmu_ops {
- 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
- 			   pte_t *ptep, pte_t pteval);
- 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
-+	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
-+			   pmd_t *pmdp, pmd_t pmdval);
- 	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
- 			   pte_t *ptep);
- 	void (*pte_update_defer)(struct mm_struct *mm,
- 				 unsigned long addr, pte_t *ptep);
-+	void (*pmd_update)(struct mm_struct *mm, unsigned long addr,
-+			   pmd_t *pmdp);
-+	void (*pmd_update_defer)(struct mm_struct *mm,
-+				 unsigned long addr, pmd_t *pmdp);
++	unsigned long next;
+ 	spinlock_t *ptl;
+ 	pte_t *ptep;
+-	int i;
  
- 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
- 					pte_t *ptep);
-diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
---- a/arch/x86/kernel/paravirt.c
-+++ b/arch/x86/kernel/paravirt.c
-@@ -422,8 +422,11 @@ struct pv_mmu_ops pv_mmu_ops = {
- 	.set_pte = native_set_pte,
- 	.set_pte_at = native_set_pte_at,
- 	.set_pmd = native_set_pmd,
-+	.set_pmd_at = native_set_pmd_at,
- 	.pte_update = paravirt_nop,
- 	.pte_update_defer = paravirt_nop,
-+	.pmd_update = paravirt_nop,
-+	.pmd_update_defer = paravirt_nop,
+ 	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	for (i = 0; i < nr; i++, ptep++, addr += PAGE_SIZE) {
++	do {
+ 		pte_t pte = *ptep;
+ 		pgoff_t pgoff;
  
- 	.ptep_modify_prot_start = __ptep_modify_prot_start,
- 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
++		next = addr + PAGE_SIZE;
+ 		if (pte_none(pte))
+-			mincore_unmapped_range(vma, addr, 1, vec);
++			mincore_unmapped_range(vma, addr, next, vec);
+ 		else if (pte_present(pte))
+-			vec[i] = 1;
++			*vec = 1;
+ 		else if (pte_file(pte)) {
+ 			pgoff = pte_to_pgoff(pte);
+-			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
++			*vec = mincore_page(vma->vm_file->f_mapping, pgoff);
+ 		} else { /* pte is a swap entry */
+ 			swp_entry_t entry = pte_to_swp_entry(pte);
+ 
+ 			if (is_migration_entry(entry)) {
+ 				/* migration entries are always uptodate */
+-				vec[i] = 1;
++				*vec = 1;
+ 			} else {
+ #ifdef CONFIG_SWAP
+ 				pgoff = entry.val;
+-				vec[i] = mincore_page(&swapper_space, pgoff);
++				*vec = mincore_page(&swapper_space, pgoff);
+ #else
+ 				WARN_ON(1);
+-				vec[i] = 1;
++				*vec = 1;
+ #endif
+ 			}
+ 		}
+-	}
++		vec++;
++	} while (ptep++, addr = next, addr != end);
+ 	pte_unmap_unlock(ptep - 1, ptl);
+ }
+ 
+@@ -153,25 +154,21 @@ static long do_mincore(unsigned long add
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+-	unsigned long nr;
+ 	struct vm_area_struct *vma;
++	unsigned long end;
+ 
+ 	vma = find_vma(current->mm, addr);
+ 	if (!vma || addr < vma->vm_start)
+ 		return -ENOMEM;
+ 
+-	nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
++	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
+ 
+ 	if (is_vm_hugetlb_page(vma)) {
+-		mincore_hugetlb_page_range(vma, addr, nr, vec);
+-		return nr;
++		mincore_hugetlb_page_range(vma, addr, end, vec);
++		return (end - addr) >> PAGE_SHIFT;
+ 	}
+ 
+-	/*
+-	 * Calculate how many pages there are left in the last level of the
+-	 * PTE array for our address.
+-	 */
+-	nr = min(nr, PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1)));
++	end = pmd_addr_end(addr, end);
+ 
+ 	pgd = pgd_offset(vma->vm_mm, addr);
+ 	if (pgd_none_or_clear_bad(pgd))
+@@ -183,12 +180,12 @@ static long do_mincore(unsigned long add
+ 	if (pmd_none_or_clear_bad(pmd))
+ 		goto none_mapped;
+ 
+-	mincore_pte_range(vma, pmd, addr, nr, vec);
+-	return nr;
++	mincore_pte_range(vma, pmd, addr, end, vec);
++	return (end - addr) >> PAGE_SHIFT;
+ 
+ none_mapped:
+-	mincore_unmapped_range(vma, addr, nr, vec);
+-	return nr;
++	mincore_unmapped_range(vma, addr, end, vec);
++	return (end - addr) >> PAGE_SHIFT;
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
