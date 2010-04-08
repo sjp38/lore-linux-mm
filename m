@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EEC386B01EF
+	by kanga.kvack.org (Postfix) with SMTP id 130D56B01F0
 	for <linux-mm@kvack.org>; Wed,  7 Apr 2010 22:56:15 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 09 of 67] no paravirt version of pmd ops
-Message-Id: <4716628af181b97bcb96.1270691452@v2.random>
+Subject: [PATCH 36 of 67] memcg huge memory
+Message-Id: <62788a5d0761d52fbf62.1270691479@v2.random>
 In-Reply-To: <patchbomb.1270691443@v2.random>
 References: <patchbomb.1270691443@v2.random>
-Date: Thu, 08 Apr 2010 03:50:52 +0200
+Date: Thu, 08 Apr 2010 03:51:19 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
@@ -18,33 +18,94 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-No paravirt version of set_pmd_at/pmd_update/pmd_update_defer.
+Add memcg charge/uncharge to hugepage faults in huge_memory.c.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -33,6 +33,7 @@ extern struct list_head pgd_list;
- #else  /* !CONFIG_PARAVIRT */
- #define set_pte(ptep, pte)		native_set_pte(ptep, pte)
- #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
-+#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -225,6 +225,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	VM_BUG_ON(!PageCompound(page));
+ 	pgtable = pte_alloc_one(mm, haddr);
+ 	if (unlikely(!pgtable)) {
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		return VM_FAULT_OOM;
+ 	}
+@@ -235,6 +236,7 @@ static int __do_huge_pmd_anonymous_page(
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_none(*pmd))) {
+ 		spin_unlock(&mm->page_table_lock);
++		mem_cgroup_uncharge_page(page);
+ 		put_page(page);
+ 		pte_free(mm, pgtable);
+ 	} else {
+@@ -278,6 +280,10 @@ int do_huge_pmd_anonymous_page(struct mm
+ 		page = alloc_hugepage(transparent_hugepage_defrag(vma));
+ 		if (unlikely(!page))
+ 			goto out;
++		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
++			put_page(page);
++			goto out;
++		}
  
- #define set_pte_atomic(ptep, pte)					\
- 	native_set_pte_atomic(ptep, pte)
-@@ -57,6 +58,8 @@ extern struct list_head pgd_list;
+ 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
+ 	}
+@@ -377,9 +383,15 @@ static int do_huge_pmd_wp_page_fallback(
+ 	for (i = 0; i < HPAGE_PMD_NR; i++) {
+ 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+ 					  vma, address);
+-		if (unlikely(!pages[i])) {
+-			while (--i >= 0)
++		if (unlikely(!pages[i] ||
++			     mem_cgroup_newpage_charge(pages[i], mm,
++						       GFP_KERNEL))) {
++			if (pages[i])
+ 				put_page(pages[i]);
++			while (--i >= 0) {
++				mem_cgroup_uncharge_page(pages[i]);
++				put_page(pages[i]);
++			}
+ 			kfree(pages);
+ 			ret |= VM_FAULT_OOM;
+ 			goto out;
+@@ -438,8 +450,10 @@ out:
  
- #define pte_update(mm, addr, ptep)              do { } while (0)
- #define pte_update_defer(mm, addr, ptep)        do { } while (0)
-+#define pmd_update(mm, addr, ptep)              do { } while (0)
-+#define pmd_update_defer(mm, addr, ptep)        do { } while (0)
+ out_free_pages:
+ 	spin_unlock(&mm->page_table_lock);
+-	for (i = 0; i < HPAGE_PMD_NR; i++)
++	for (i = 0; i < HPAGE_PMD_NR; i++) {
++		mem_cgroup_uncharge_page(pages[i]);
+ 		put_page(pages[i]);
++	}
+ 	kfree(pages);
+ 	goto out;
+ }
+@@ -482,13 +496,19 @@ int do_huge_pmd_wp_page(struct mm_struct
+ 		goto out;
+ 	}
  
- #define pgd_val(x)	native_pgd_val(x)
- #define __pgd(x)	native_make_pgd(x)
++	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
++		put_page(new_page);
++		ret |= VM_FAULT_OOM;
++		goto out;
++	}
+ 	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
+ 
+ 	spin_lock(&mm->page_table_lock);
+-	if (unlikely(!pmd_same(*pmd, orig_pmd)))
++	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
++		mem_cgroup_uncharge_page(new_page);
+ 		put_page(new_page);
+-	else {
++	} else {
+ 		pmd_t entry;
+ 		entry = mk_pmd(new_page, vma->vm_page_prot);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
