@@ -1,38 +1,21 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 293326004BC
-	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 19:06:04 -0400 (EDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 0/5] vmscan: cut down on struct scan_control
-Date: Sat,  1 May 2010 01:05:28 +0200
-Message-Id: <20100430222009.379195565@cmpxchg.org>
-Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+From: "Stanton C Ashley" <poehfheju@gmail.com>
+Subject: business marketing database
+Date: 9 Apr 2010 04:17:24 +0200
+Message-ID: <CAO-XCH2K3rGW6Ex3Ak00000f1c@cao-xch2k3.DOMAIN.DOM>
+Reply-To: pwetrjfvje@gmail.com
+Return-path: <linux-mmc-owner@vger.kernel.org>
+Sender: linux-mmc-owner@vger.kernel.org
+To: limorr@scepia.com, linux-mm@kvack.org, linux-mmc@vger.kernel.org, lion_marketing@yahoo.de, lisa-mascardo@uiowa.edu, lisa-milder@uiowa.edu, lisa-mosley@ouhsc.edu, lisa-newley@yahoo.co.
+List-Id: linux-mm.kvack.org
 
-Hi,
+I have many good quality American Contact Lists at much lower prices than most sites. Contact me here:  Johnny.Chaney@optinlists.co.cc for a complete catalogue of what we have.
 
-here are 5 patches that remove 4 members from struct scan_control.
+Best Regards
 
-sc->may_unmap is no longer used after patch #1, sc->may_swap is folded
-into sc->swappiness, sc->all_unreclaimable is made a return value, and
-sc->isolate_pages is replaced with a branch on sc->mem_cgroup (reusing
-a nearby branch, so no additional one) and direct function calling.
 
-So nothing too spectecular.  It saves a bit of code and 2 to 4 stack
-words depending on the wordsize and call path.
+Rodolfo Church
+ 
+  
 
-	Hannes
 
- include/linux/memcontrol.h |   13 +++--
- include/linux/swap.h       |    4 -
- mm/memcontrol.c            |   13 +++--
- mm/vmscan.c                |  105 ++++++++++++++++++---------------------------
- 4 files changed, 61 insertions(+), 74 deletions(-)
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+By emailing rembox@optinlists.co.cc you will have your email taken off
