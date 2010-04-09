@@ -1,43 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E537160037E
-	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 13:45:41 -0400 (EDT)
-Message-ID: <4BBF678B.1050803@redhat.com>
-Date: Fri, 09 Apr 2010 20:44:43 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 14DEA6B0203
+	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 14:05:10 -0400 (EDT)
+Message-ID: <4BBF6C51.5030203@sandeen.net>
+Date: Fri, 09 Apr 2010 13:05:05 -0500
+From: Eric Sandeen <sandeen@sandeen.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 67] Transparent Hugepage Support #18
-References: <patchbomb.1270691443@v2.random> <4BBDA43F.5030309@redhat.com> <4BBDC181.5040205@redhat.com> <4BBEE920.9020502@redhat.com> <20100409155040.GC5708@random.random>
-In-Reply-To: <20100409155040.GC5708@random.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: PROBLEM + POSS FIX: kernel stack overflow, xfs, many disks,	heavy
+ write load, 8k stack, x86-64
+References: <4BBC6719.7080304@humyo.com> <20100407140523.GJ11036@dastard>	<4BBCAB57.3000106@humyo.com> <20100407234341.GK11036@dastard>	<20100408030347.GM11036@dastard> <4BBDC92D.8060503@humyo.com>	<4BBDEC9A.9070903@humyo.com> <20100408233837.GP11036@dastard> <20100409113850.GE13327@think>
+In-Reply-To: <20100409113850.GE13327@think>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, John Berthels <john@humyo.com>, linux-kernel@vger.kernel.org, Nick Gregory <nick@humyo.com>, Rob Sanderson <rob@humyo.com>, xfs@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/09/2010 06:50 PM, Andrea Arcangeli wrote:
->
->> ok, #19 is a different story.  A 1.2GB sort vs 'make -j12' and a cat of
->> the source tree and some light swapping, all in 2GB RAM, didn't quite
->> reach 1.2GB but came fairly close.  The sort was started while memory
->> was quite low so it had to fight its way up, but even then khugepaged
->> took less that 1.5 seconds total time after a _very_ long compile.
->>      
-> Good. Also please check you're on
-> 8707120d97e7052ffb45f9879efce8e7bd361711, with that one all bugs are
-> ironed out, it's stable on all my systems under constant mixed heavy
-> load (the same load would crash it in 1 hour with the memory
-> compaction bug, or half a day with the anon-vma bugs and no memory
-> compaction). 8707120d97e7052ffb45f9879efce8e7bd361711 is rock solid as
-> far as I can tell.
->    
+Chris Mason wrote:
 
-Yes, that's what I used.
+> shrink_zone on my box isn't 500 bytes, but lets try the easy stuff
+> first.  This is against .34, if you have any trouble applying to .32,
+> just add the word noinline after the word static on the function
+> definitions.
+> 
+> This makes shrink_zone disappear from my check_stack.pl output.
+> Basically I think the compiler is inlining the shrink_active_zone and
+> shrink_inactive_zone code into shrink_zone.
+> 
+> -chris
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 79c8098..c70593e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -620,7 +620,7 @@ static enum page_references page_check_references(struct page *page,
+>  /*
+>   * shrink_page_list() returns the number of reclaimed pages
+>   */
+> -static unsigned long shrink_page_list(struct list_head *page_list,
+> +static noinline unsigned long shrink_page_list(struct list_head *page_list,
 
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+FWIW akpm suggested that I add:
+
+/*
+ * Rather then using noinline to prevent stack consumption, use
+ * noinline_for_stack instead.  For documentaiton reasons.
+ */
+#define noinline_for_stack noinline
+
+so maybe for a formal submission that'd be good to use.
+
+
+>  					struct scan_control *sc,
+>  					enum pageout_io sync_writeback)
+>  {
+> @@ -1121,7 +1121,7 @@ static int too_many_isolated(struct zone *zone, int file,
+>   * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+>   * of reclaimed pages
+>   */
+> -static unsigned long shrink_inactive_list(unsigned long max_scan,
+> +static noinline unsigned long shrink_inactive_list(unsigned long max_scan,
+>  			struct zone *zone, struct scan_control *sc,
+>  			int priority, int file)
+>  {
+> @@ -1341,7 +1341,7 @@ static void move_active_pages_to_lru(struct zone *zone,
+>  		__count_vm_events(PGDEACTIVATE, pgmoved);
+>  }
+>  
+> -static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+> +static noinline void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+>  			struct scan_control *sc, int priority, int file)
+>  {
+>  	unsigned long nr_taken;
+> @@ -1504,7 +1504,7 @@ static int inactive_list_is_low(struct zone *zone, struct scan_control *sc,
+>  		return inactive_anon_is_low(zone, sc);
+>  }
+>  
+> -static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+> +static noinline unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+>  	struct zone *zone, struct scan_control *sc, int priority)
+>  {
+>  	int file = is_file_lru(lru);
+> 
+> _______________________________________________
+> xfs mailing list
+> xfs@oss.sgi.com
+> http://oss.sgi.com/mailman/listinfo/xfs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
