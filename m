@@ -1,170 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E2EA6B0221
-	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 13:04:44 -0400 (EDT)
-Date: Fri, 9 Apr 2010 10:04:30 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH] memcg: update documentation v4
-Message-Id: <20100409100430.7409c7c4.randy.dunlap@oracle.com>
-In-Reply-To: <20100409134553.58096f80.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100408145800.ca90ad81.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100409134553.58096f80.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id E537160037E
+	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 13:45:41 -0400 (EDT)
+Message-ID: <4BBF678B.1050803@redhat.com>
+Date: Fri, 09 Apr 2010 20:44:43 +0300
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 00 of 67] Transparent Hugepage Support #18
+References: <patchbomb.1270691443@v2.random> <4BBDA43F.5030309@redhat.com> <4BBDC181.5040205@redhat.com> <4BBEE920.9020502@redhat.com> <20100409155040.GC5708@random.random>
+In-Reply-To: <20100409155040.GC5708@random.random>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, randy.dunlap@oracle.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Apr 2010 13:45:53 +0900 KAMEZAWA Hiroyuki wrote:
+On 04/09/2010 06:50 PM, Andrea Arcangeli wrote:
+>
+>> ok, #19 is a different story.  A 1.2GB sort vs 'make -j12' and a cat of
+>> the source tree and some light swapping, all in 2GB RAM, didn't quite
+>> reach 1.2GB but came fairly close.  The sort was started while memory
+>> was quite low so it had to fight its way up, but even then khugepaged
+>> took less that 1.5 seconds total time after a _very_ long compile.
+>>      
+> Good. Also please check you're on
+> 8707120d97e7052ffb45f9879efce8e7bd361711, with that one all bugs are
+> ironed out, it's stable on all my systems under constant mixed heavy
+> load (the same load would crash it in 1 hour with the memory
+> compaction bug, or half a day with the anon-vma bugs and no memory
+> compaction). 8707120d97e7052ffb45f9879efce8e7bd361711 is rock solid as
+> far as I can tell.
+>    
 
-> Documentation update.
-> 
-> Some information are old, and  I think current documentation doesn't work
-> as "a guide for users".
-> We need summary of all of our controls, at least.
-> 
-> Changelog: 2010/04/09
-> * replace 'lru' with 'LRU' and 'oom' with 'OOM'
-> * fixed double-space breakage
-> * applied all comments and fixed wrong parts pointed out.
-> * fixed cgroup.procs
-> 
-> Changelog: 2009/04/07
-> * fixed tons of typos.
-> * replaced "memcg" with "memory cgroup" AMAP.
-> * replaced "mem+swap" with "memory+swap"
-> 
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  Documentation/cgroups/memory.txt |  277 ++++++++++++++++++++++++++-------------
->  1 file changed, 188 insertions(+), 89 deletions(-)
-> 
-> Index: mmotm-temp/Documentation/cgroups/memory.txt
-> ===================================================================
-> --- mmotm-temp.orig/Documentation/cgroups/memory.txt
-> +++ mmotm-temp/Documentation/cgroups/memory.txt
+Yes, that's what I used.
 
-> @@ -106,14 +135,14 @@ the necessary data structures and check 
->  is over its limit. If it is then reclaim is invoked on the cgroup.
->  More details can be found in the reclaim section of this document.
->  If everything goes well, a page meta-data-structure called page_cgroup is
-> -allocated and associated with the page.  This routine also adds the page to
-> -the per cgroup LRU.
-> +updated. page_cgroup has its own LRU on cgroup.
-> +(*) page_cgroup structure is allocated at boot/memory-hotplug time.
->  
->  2.2.1 Accounting details
->  
->  All mapped anon pages (RSS) and cache pages (Page Cache) are accounted.
-> -(some pages which never be reclaimable and will not be on global LRU
-> - are not accounted. we just accounts pages under usual vm management.)
-> +Some pages which are never reclaimable and will not be on the global LRU
-> +are not accounted. We just accounts pages under usual VM management.
-
-                      We just account
-
->  
->  RSS pages are accounted at page_fault unless they've already been accounted
->  for earlier. A file page will be accounted for as Page Cache when it's
-
-> @@ -248,15 +297,24 @@ caches, RSS and Active pages/Inactive pa
->  
->  4. Testing
->  
-> -Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
-> -Apart from that v6 has been tested with several applications and regular
-> -daily use. The controller has also been tested on the PPC64, x86_64 and
-> -UML platforms.
-> +For testing features and implementation, see memcg_test.txt.
-> +
-> +Performance test is also important. To see pure memory cgroup's overhead,
-> +testing on tmpfs will give you good numbers of small overheads.
-> +Example: do kernel make on tmpfs.
-> +
-> +Page-fault scalability is also important. At measuring parallel
-> +page fault test, multi-process test may be better than multi-thread
-> +test because it has noise of shared objects/status.
-> +
-> +But above 2 is testing extreme situation. Trying usual test under memory cgroup
-
-I would have said:
-   But the above two are testing extreme situations.
-
-> +is always helpful.
-> +
->  
->  4.1 Troubleshooting
->  
->  Sometimes a user might find that the application under a cgroup is
-> -terminated. There are several causes for this:
-> +terminated by OOM killer. There are several causes for this:
->  
->  1. The cgroup limit is too low (just too low to do anything useful)
->  2. The user is using anonymous memory and swap is turned off or too low
-
-> @@ -418,7 +517,7 @@ If we want to change this to 1G, we can 
->  # echo 1G > memory.soft_limit_in_bytes
->  
->  NOTE1: Soft limits take effect over a long period of time, since they involve
-> -       reclaiming memory for balancing between memory cgroups
-> +reclaiming memory for balancing between memory cgroups
-
-Why remove those leading spaces (indent/text alignment)?
-Compare below.
-
->  NOTE2: It is recommended to set the soft limit always below the hard limit,
->         otherwise the hard limit will take precedence.
->  
-> @@ -495,27 +594,27 @@ It's applicable for root and non-root cg
->  
->  memory.oom_control file is for OOM notification and other controls.
->  
-> -Memory controler implements oom notifier using cgroup notification
-> -API (See cgroups.txt). It allows to register multiple oom notification
-> -delivery and gets notification when oom happens.
-> +Memory cgroup implements OOM notifier using cgroup notification
-> +API (See cgroups.txt). It allows to register multiple OOM notification
-> +delivery and gets notification when OOM happens.
->  
->  To register a notifier, application need:
->   - create an eventfd using eventfd(2)
->   - open memory.oom_control file
->   - write string like "<event_fd> <memory.oom_control>" to cgroup.event_control
->  
-> -Application will be notifier through eventfd when oom happens.
-> +Application will be notifier through eventfd when OOM happens.
-
-                       notified
-
->  OOM notification doesn't work for root cgroup.
->  
-> -You can disable oom-killer by writing "1" to memory.oom_control file.
-> +You can disable OOM-killer by writing "1" to memory.oom_control file.
->  As.
->  	#echo 1 > memory.oom_control
->  
-> -This operation is only allowed to the top cgroup of subhierarchy.
-> -If oom-killer is disabled, tasks under cgroup will hang/sleep
-> -in memcg's oom-waitq when they request accountable memory.
-> +This operation is only allowed to the top cgroup of sub-hierarchy.
-> +If OOM-killer is disabled, tasks under cgroup will hang/sleep
-> +in memory cgroup's OOM-waitqueue when they request accountable memory.
->  
-> -For running them, you have to relax the memcg's oom sitaution by
-> +For running them, you have to relax the memory cgroup's OOM status by
->  	* enlarge limit or reduce usage.
->  To reduce usage,
->  	* kill some tasks.
-
-
-Almost there.  :)
-
-thanks,
----
-~Randy
+-- 
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
