@@ -1,31 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id AF57B6B022E
-	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 17:25:16 -0400 (EDT)
-Message-ID: <4BBF9B34.5040909@redhat.com>
-Date: Fri, 09 Apr 2010 17:25:08 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id ACC3F6B0230
+	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 17:37:37 -0400 (EDT)
+Date: Fri, 9 Apr 2010 14:37:15 -0700 (PDT)
+From: Christian Kujau <lists@nerdbynature.de>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look
+ please!...)
+In-Reply-To: <00bb01cad70d$a814c2c0$0400a8c0@dcccs>
+Message-ID: <alpine.DEB.2.01.1004091435170.29272@bogon.housecafe.de>
+References: <02c101cacbf8$d21d1650$0400a8c0@dcccs> <179901cad182$5f87f620$0400a8c0@dcccs> <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com> <1fe901cad2b0$d39d0300$0400a8c0@dcccs> <20100402230905.GW3335@dastard> <22c901cad333$7a67db60$0400a8c0@dcccs>
+ <20100404103701.GX3335@dastard> <2bd101cad4ec$5a425f30$0400a8c0@dcccs> <20100405224522.GZ3335@dastard> <3a5f01cad6c5$8a722c00$0400a8c0@dcccs> <20100408025822.GL11036@dastard> <00bb01cad70d$a814c2c0$0400a8c0@dcccs>
 MIME-Version: 1.0
-Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-References: <20100331045348.GA3396@sli10-desk.sh.intel.com>	<20100331142708.039E.A69D9226@jp.fujitsu.com>	<20100331145030.03A1.A69D9226@jp.fujitsu.com>	<20100402065052.GA28027@sli10-desk.sh.intel.com>	<20100406050325.GA17797@localhost>	<20100409065104.GA21480@sli10-desk.sh.intel.com> <20100409142057.be0ce5af.akpm@linux-foundation.org>
-In-Reply-To: <20100409142057.be0ce5af.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Janos Haar <janos.haar@netcenter.hu>
+Cc: Dave Chinner <david@fromorbit.com>, axboe@kernel.dk, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, linux-mm@kvack.org, xiyou.wangcong@gmail.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On 04/09/2010 05:20 PM, Andrew Morton wrote:
+On Thu, 8 Apr 2010 at 13:21, Janos Haar wrote:
+> > Yeah, these still a fix that needs to be back ported to .33
+> > to solve this problem. It's in the series for 2.6.32.x, so maybe
+> > pulling the 2.6.32-stable-queue tree in the meantime is your best
+> > bet.
+> 
+> Ok, thank you.
+> But where can i find this tree?
 
-> Come to that, it's not obvious that we need this in 2.6.34 either.  What
-> is the user-visible impact here?
 
-I suspect very little impact, especially during workloads
-where we can just reclaim clean page cache at DEF_PRIORITY.
-FWIW, the patch looks good to me, so:
+Perhaps Dave meant the stable-queue?
 
-Acked-by: Rik van Riel <riel@redhat.com>
+http://git.kernel.org/?p=linux/kernel/git/stable/stable-queue.git
+
+Then again, 2.6.34-rc3 needs testing too! :-)
+
+Christian.
+-- 
+BOFH excuse #98:
+
+The vendor put the bug there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
