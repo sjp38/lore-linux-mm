@@ -1,70 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B1CFC6B0212
-	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 14:12:06 -0400 (EDT)
-Date: Fri, 9 Apr 2010 14:11:08 -0400
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: PROBLEM + POSS FIX: kernel stack overflow, xfs, many disks,
- heavy write load, 8k stack, x86-64
-Message-ID: <20100409181108.GG13327@think>
-References: <4BBC6719.7080304@humyo.com>
- <20100407140523.GJ11036@dastard>
- <4BBCAB57.3000106@humyo.com>
- <20100407234341.GK11036@dastard>
- <20100408030347.GM11036@dastard>
- <4BBDC92D.8060503@humyo.com>
- <4BBDEC9A.9070903@humyo.com>
- <20100408233837.GP11036@dastard>
- <20100409113850.GE13327@think>
- <4BBF6C51.5030203@sandeen.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4BBF6C51.5030203@sandeen.net>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 391DB6B022C
+	for <linux-mm@kvack.org>; Fri,  9 Apr 2010 17:21:34 -0400 (EDT)
+Date: Fri, 9 Apr 2010 14:20:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+Message-Id: <20100409142057.be0ce5af.akpm@linux-foundation.org>
+In-Reply-To: <20100409065104.GA21480@sli10-desk.sh.intel.com>
+References: <20100331045348.GA3396@sli10-desk.sh.intel.com>
+	<20100331142708.039E.A69D9226@jp.fujitsu.com>
+	<20100331145030.03A1.A69D9226@jp.fujitsu.com>
+	<20100402065052.GA28027@sli10-desk.sh.intel.com>
+	<20100406050325.GA17797@localhost>
+	<20100409065104.GA21480@sli10-desk.sh.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Eric Sandeen <sandeen@sandeen.net>
-Cc: Dave Chinner <david@fromorbit.com>, John Berthels <john@humyo.com>, linux-kernel@vger.kernel.org, Nick Gregory <nick@humyo.com>, Rob Sanderson <rob@humyo.com>, xfs@oss.sgi.com, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 09, 2010 at 01:05:05PM -0500, Eric Sandeen wrote:
-> Chris Mason wrote:
-> 
-> > shrink_zone on my box isn't 500 bytes, but lets try the easy stuff
-> > first.  This is against .34, if you have any trouble applying to .32,
-> > just add the word noinline after the word static on the function
-> > definitions.
-> > 
-> > This makes shrink_zone disappear from my check_stack.pl output.
-> > Basically I think the compiler is inlining the shrink_active_zone and
-> > shrink_inactive_zone code into shrink_zone.
-> > 
-> > -chris
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 79c8098..c70593e 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -620,7 +620,7 @@ static enum page_references page_check_references(struct page *page,
-> >  /*
-> >   * shrink_page_list() returns the number of reclaimed pages
-> >   */
-> > -static unsigned long shrink_page_list(struct list_head *page_list,
-> > +static noinline unsigned long shrink_page_list(struct list_head *page_list,
-> 
-> FWIW akpm suggested that I add:
-> 
-> /*
->  * Rather then using noinline to prevent stack consumption, use
->  * noinline_for_stack instead.  For documentaiton reasons.
->  */
-> #define noinline_for_stack noinline
-> 
-> so maybe for a formal submission that'd be good to use.
+On Fri, 9 Apr 2010 14:51:04 +0800
+Shaohua Li <shaohua.li@intel.com> wrote:
 
-Oh yeah, I forgot about that one.  If the patch actually helps we can
-switch it.
+> get_scan_ratio() calculates percentage and if the percentage is < 1%, it will
+> round percentage down to 0% and cause we completely ignore scanning anon/file
+> pages to reclaim memory even the total anon/file pages are very big.
+> 
+> To avoid underflow, we don't use percentage, instead we directly calculate
+> how many pages should be scaned. In this way, we should get several scanned pages
+> for < 1% percent.
+> 
+> This has some benefits:
+> 1. increase our calculation precision
+> 2. making our scan more smoothly. Without this, if percent[x] is underflow,
+> shrink_zone() doesn't scan any pages and suddenly it scans all pages when priority
+> is zero. With this, even priority isn't zero, shrink_zone() gets chance to scan
+> some pages.
+> 
+> Note, this patch doesn't really change logics, but just increase precision. For
+> system with a lot of memory, this might slightly changes behavior. For example,
+> in a sequential file read workload, without the patch, we don't swap any anon
+> pages. With it, if anon memory size is bigger than 16G, we will see one anon page
+> swapped. The 16G is calculated as PAGE_SIZE * priority(4096) * (fp/ap). fp/ap
+> is assumed to be 1024 which is common in this workload. So the impact sounds not
+> a big deal.
 
--chris
+I grabbed this.
+
+Did we decide that this needed to be backported into 2.6.33.x?  If so,
+some words explaining the reasoning would be needed.
+
+Come to that, it's not obvious that we need this in 2.6.34 either.  What
+is the user-visible impact here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
