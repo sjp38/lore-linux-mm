@@ -1,52 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8429D6B01EE
-	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 05:40:51 -0400 (EDT)
-Date: Mon, 12 Apr 2010 11:39:52 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-Message-ID: <20100412093952.GR5656@random.random>
-References: <20100411104608.GA12828@elte.hu>
- <4BC1B2CA.8050208@redhat.com>
- <20100411120800.GC10952@elte.hu>
- <20100412060931.GP5683@laptop>
- <4BC2BF67.80903@redhat.com>
- <20100412071525.GR5683@laptop>
- <4BC2CF8C.5090108@redhat.com>
- <20100412082844.GU5683@laptop>
- <4BC2E1D6.9040702@redhat.com>
- <20100412092615.GY5683@laptop>
+	by kanga.kvack.org (Postfix) with ESMTP id E35896B01EE
+	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 05:52:53 -0400 (EDT)
+Date: Thu, 8 Apr 2010 23:48:50 -0400
+From: Ben Blum <bblum@andrew.cmu.edu>
+Subject: Re: [PATCH] fix cgroup procs documentation
+Message-ID: <20100409034850.GA596@unix11.andrew.cmu.edu>
+References: <20100409121143.9610dc8f.kamezawa.hiroyu@jp.fujitsu.com>
+ <4BBE9D58.2010602@cn.fujitsu.com>
+ <20100409122001.60967001.kamezawa.hiroyu@jp.fujitsu.com>
+ <4BBE9FAA.7000907@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100412092615.GY5683@laptop>
+In-Reply-To: <4BBE9FAA.7000907@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Avi Kivity <avi@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, stable@kernel.org, Ben Blum <bblum@andrew.cmu.edu>, Oleg Nesterov <oleg@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 12, 2010 at 07:26:15PM +1000, Nick Piggin wrote:
-> But if it is possible for KVM to use libhugetlb with just a bit of
-> support from the kernel, then it goes some way to reducing the
-> need for transparent hugepages.
+On Fri, Apr 09, 2010 at 11:31:54AM +0800, Li Zefan wrote:
+> Cc: Ben Blum
+> 
+> KAMEZAWA Hiroyuki wrote:
+> > On Fri, 09 Apr 2010 11:22:00 +0800
+> > Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > 
+> >> KAMEZAWA Hiroyuki wrote:
+> >>> 2.6.33's Documentation has the same wrong information. So, I CC'ed to stable.
+> >>> If people believe this information, they'll usr cgroup.procs file and will
+> >>> see cgroup doesn'w work as expected.
+> >>> The patch itself is against -mm.
+> >>>
+> >>> ==
+> >>> Writing to cgroup.procs is not supported now.
+> >>>
+> >>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >>> ---
+> >>>  Documentation/cgroups/cgroups.txt |    3 +--
+> >>>  1 file changed, 1 insertion(+), 2 deletions(-)
+> >>>
+> >>> Index: mmotm-temp/Documentation/cgroups/cgroups.txt
+> >>> ===================================================================
+> >>> --- mmotm-temp.orig/Documentation/cgroups/cgroups.txt
+> >>> +++ mmotm-temp/Documentation/cgroups/cgroups.txt
+> >>> @@ -235,8 +235,7 @@ containing the following files describin
+> >>>   - cgroup.procs: list of tgids in the cgroup.  This list is not
+> >>>     guaranteed to be sorted or free of duplicate tgids, and userspace
+> >>>     should sort/uniquify the list if this property is required.
+> >>> -   Writing a tgid into this file moves all threads with that tgid into
+> >>> -   this cgroup.
+> >>> +   This is a read-only file, now.
+> >> I think the better wording is "for now". :)
+> >>
+> > ok. BTW, does anyone work on this ?
+> 
+> It was Ben Blum, don't know if he's still working on it.
 
-KVM has full hugetlbfs support for a long time. There's some people
-using it, and it remains a must-have for 1G pages, but it's not
-manageable that way in the cloud. It's ok for a special instance
-only. Right now all my VM by default are running on hugepages now
-without changing a single bit (with a few liner patch to qemu to add a
-alignment because the gfn bits in the number range
-HPAGE_PMD_SHIFT..PAGE_SHIFT have to be a match to the host pfn bits
-for NPT shadows to go pmd_huge). For qemu to run on hugepages not even
-the alignment is needed (but it's better to align there too, to be
-sure the guest kernel that lives hugepages as it's usually mapped in
-the first mbyte).
+Aye. Oleg suggested a redesign of the last patch (putting the lock in
+signal_struct instead of sighand_struct), but I haven't got time to work
+on them now. Expect a revision in maybe two months...
 
-This is the single change I had to apply to KVM for it to take
-advantage of transparent hugepages because it was already working fine
-with hugetlbfs:
-
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=d249c189870896b3f275987b70702d2b8c7705d4
+> 
+> > ==
+> > 
+> > Writing to cgroup.procs is not supported now.
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Acked-by: Li Zefan <lizf@cn.fujitsu.com>
+> 
+> > ---
+> >  Documentation/cgroups/cgroups.txt |    3 +--
+> >  1 file changed, 1 insertion(+), 2 deletions(-)
+> > 
+> > Index: mmotm-temp/Documentation/cgroups/cgroups.txt
+> > ===================================================================
+> > --- mmotm-temp.orig/Documentation/cgroups/cgroups.txt
+> > +++ mmotm-temp/Documentation/cgroups/cgroups.txt
+> > @@ -235,8 +235,7 @@ containing the following files describin
+> >   - cgroup.procs: list of tgids in the cgroup.  This list is not
+> >     guaranteed to be sorted or free of duplicate tgids, and userspace
+> >     should sort/uniquify the list if this property is required.
+> > -   Writing a tgid into this file moves all threads with that tgid into
+> > -   this cgroup.
+> > +   This is a read-only file, for now.
+> >   - notify_on_release flag: run the release agent on exit?
+> >   - release_agent: the path to use for release notifications (this file
+> >     exists in the top cgroup only)
+> > 
+> > 
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
