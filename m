@@ -1,68 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id F41B26B01E3
-	for <linux-mm@kvack.org>; Sat, 10 Apr 2010 17:01:45 -0400 (EDT)
-Message-ID: <4BC0E6ED.7040100@redhat.com>
-Date: Sun, 11 Apr 2010 00:00:29 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id ADC776B01E3
+	for <linux-mm@kvack.org>; Sat, 10 Apr 2010 17:15:34 -0400 (EDT)
+Message-ID: <0d5b01cad8f2$fdbd5750$0400a8c0@dcccs>
+From: "Janos Haar" <janos.haar@netcenter.hu>
+References: <02c101cacbf8$d21d1650$0400a8c0@dcccs> <179901cad182$5f87f620$0400a8c0@dcccs> <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com> <1fe901cad2b0$d39d0300$0400a8c0@dcccs> <20100402230905.GW3335@dastard> <22c901cad333$7a67db60$0400a8c0@dcccs> <20100404103701.GX3335@dastard> <2bd101cad4ec$5a425f30$0400a8c0@dcccs> <20100405224522.GZ3335@dastard> <3a5f01cad6c5$8a722c00$0400a8c0@dcccs> <20100408025822.GL11036@dastard>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
+Date: Sat, 10 Apr 2010 23:15:45 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-References: <20100406011345.GT5825@random.random> <alpine.LFD.2.00.1004051836000.5870@i5.linux-foundation.org> <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org> <20100406090813.GA14098@elte.hu> <20100410184750.GJ5708@random.random> <20100410190233.GA30882@elte.hu> <4BC0CFF4.5000207@redhat.com> <20100410194751.GA23751@elte.hu> <4BC0DE84.3090305@redhat.com> <4BC0E2C4.8090101@redhat.com> <20100410204756.GR5708@random.random>
-In-Reply-To: <20100410204756.GR5708@random.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Dave Chinner <david@fromorbit.com>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On 04/10/2010 11:47 PM, Andrea Arcangeli wrote:
-> On Sat, Apr 10, 2010 at 11:42:44PM +0300, Avi Kivity wrote:
->    
->> 3-5% improvement.  I had to tune khugepaged to scan more aggressively
->> since the run is so short.  The working set is only ~100MB here though.
->>      
-> We need to either solve it with a kernel workaround or have an
-> environment var for glibc to do the right thing...
+Dave,
+
+Not the server looks stable, but only runs in 23 hour at this point.
+
+Now i can see these and similar messages:
+Apr 10 09:59:09 alfa kernel: Filesystem "sdb2": corrupt dinode 673160714, 
+extent total = -1392508927, nblocks = 5.  Unmount and run xfs_repair.
+Apr 10 09:59:09 alfa kernel: ffff880153797a00: 49 4e 81 a4 01 02 00 01 00 00 
+00 30 00 00 00 30  IN.........0...0
+Apr 10 09:59:09 alfa kernel: Filesystem "sdb2": XFS internal error 
+xfs_iformat(1) at line 332 of file fs/xfs/xfs_inode.c.  Caller 
+0xffffffff811d70d6
+Apr 10 09:59:09 alfa kernel:
+Apr 10 09:59:09 alfa kernel: Pid: 2324, comm: updatedb Not tainted 2.6.32.10 
+#3
+Apr 10 09:59:09 alfa kernel: Call Trace:
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811cf87d>] 
+xfs_error_report+0x41/0x43
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811d70d6>] ? xfs_iread+0xb1/0x184
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811cf8d1>] 
+xfs_corruption_error+0x52/0x5e
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811d6c68>] xfs_iformat+0x10d/0x4ca
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811d70d6>] ? xfs_iread+0xb1/0x184
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811d70d6>] xfs_iread+0xb1/0x184
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811d3ee2>] xfs_iget+0x2c3/0x455
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811eab8b>] xfs_lookup+0x82/0xb3
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811f5a8f>] xfs_vn_lookup+0x45/0x86
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810e3f73>] do_lookup+0xde/0x1ca
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810e65b6>] 
+__link_path_walk+0x84e/0xcb3
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810e4462>] ? path_init+0xaf/0x156
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810e6a6e>] path_walk+0x53/0x9c
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810e6b9e>] do_path_lookup+0x2f/0xac
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810e7603>] user_path_at+0x57/0x91
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810ec2e5>] ? dput+0x54/0x132
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810df492>] ? cp_new_stat+0xfb/0x114
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810df670>] vfs_fstatat+0x3a/0x67
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810df6f4>] vfs_lstat+0x1e/0x20
+Apr 10 09:59:09 alfa kernel:  [<ffffffff810df715>] sys_newlstat+0x1f/0x39
+Apr 10 09:59:09 alfa kernel:  [<ffffffff8175d2d3>] ? 
+trace_hardirqs_on_thunk+0x3a/0x3f
+Apr 10 09:59:09 alfa kernel:  [<ffffffff811d3f36>] ? xfs_iget+0x317/0x455
+Apr 10 09:59:09 alfa kernel:  [<ffffffff8100b09b>] 
+system_call_fastpath+0x16/0x1b
+Apr 10 09:59:09 alfa kernel: Filesystem "sdb2": corrupt inode 673160713 
+((a)extents = 16777217).  Unmount and run xfs_repair.
+Apr 10 09:59:09 alfa kernel: ffff880153797900: 49 4e 81 a4 01 02 00 01 00 00 
+00 30 00 00 00 30  IN.........0...0
+Apr 10 09:59:09 alfa kernel: Filesystem "sdb2": XFS internal error 
+xfs_iformat_extents(1) at line 558 of file fs/xfs/xfs_inode.c.  Caller 
+0xffffffff811d6e70
+Apr 10 09:59:09 alfa kernel:
+
+All reports sdb2 for corruption.
+I will test this partition as soon as i can plan some minute planned 
+pause....
+
+Thanks for all your help again.
+
+Best Regards:
+Janos Haar
+
+
+
+----- Original Message ----- 
+From: "Dave Chinner" <david@fromorbit.com>
+To: "Janos Haar" <janos.haar@netcenter.hu>
+Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
+<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
+<axboe@kernel.dk>
+Sent: Thursday, April 08, 2010 4:58 AM
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
+please!...)
+
+
+> On Thu, Apr 08, 2010 at 04:45:13AM +0200, Janos Haar wrote:
+>> Hello,
+>>
+>> Sorry, but still have the problem with 2.6.33.2.
 >
->    
-
-IMO, both.  The kernel should align vmas on 2MB boundaries (good for 
-small pages as well).  glibc should use 2MB increments.  Even on <2MB 
-sized vmas, the kernel should reserve the large page frame for a while 
-in the hope that the application will use it in a short while.
-
-> The best I got so far with gcc is with, about half goes in hugepages
-> with this but it's not enough as likely lib invoked mallocs goes into
-> heap and extended 1M at time.
->    
-
-There are also guard pages around stacks IIRC, we could make them 2MB on 
-x86-64.
-
-> export MALLOC_MMAP_THRESHOLD_=$[1024*1024*1024]
-> export MALLOC_TOP_PAD_=$[1024*1024*1024]
+> Yeah, these still a fix that needs to be back ported to .33
+> to solve this problem. It's in the series for 2.6.32.x, so maybe
+> pulling the 2.6.32-stable-queue tree in the meantime is your best
+> bet.
 >
-> Whatever we do, it has to be possible to disable it of course with
-> malloc debug options, or with electric fence of course, but it's not
-> like the default 1M provides any benefit compared to growing it 2M
-> aligned ;) so it's quite an obvious thing to address in glibc in my
-> view.
-
-Well, but mapping a 2MB vma with a large page could be a considerable 
-waste if the application doesn't eventually use it.  I'd like to map the 
-pages with small pages (belonging to a large frame) and if the 
-application actually uses the pages, switch to a large pte.
-
-Something that can also improve small pages is to prefault the vma with 
-small pages, but with the accessed and dirty bit cleared.  Later, we 
-check those bits and reclaim the pages if they're unused, or coalesce 
-them if they were used.  The nice thing is that we save tons of page 
-faults in the common case where the pages are used.
-
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+> Cheers,
+>
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
