@@ -1,46 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 36BBB6B01E3
-	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 15:41:54 -0400 (EDT)
-Date: Sun, 11 Apr 2010 21:40:10 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: hugepages will matter more in the future
-Message-ID: <20100411194010.GC5656@random.random>
-References: <4BC0E2C4.8090101@redhat.com>
- <q2s28f2fcbc1004101349ye3e44c9cl4f0c3605c8b3ffd3@mail.gmail.com>
- <4BC0E556.30304@redhat.com>
- <4BC19663.8080001@redhat.com>
- <v2q28f2fcbc1004110237w875d3ec5z8f545c40bcbdf92a@mail.gmail.com>
- <4BC19916.20100@redhat.com>
- <20100411110015.GA10149@elte.hu>
- <4BC1B034.4050302@redhat.com>
- <20100411115229.GB10952@elte.hu>
- <alpine.LFD.2.00.1004110814080.3576@i5.linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id AC39B6B01E3
+	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 18:44:39 -0400 (EDT)
+Message-ID: <11b701cad9c8$93212530$0400a8c0@dcccs>
+From: "Janos Haar" <janos.haar@netcenter.hu>
+References: <02c101cacbf8$d21d1650$0400a8c0@dcccs> <179901cad182$5f87f620$0400a8c0@dcccs> <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com> <1fe901cad2b0$d39d0300$0400a8c0@dcccs> <20100402230905.GW3335@dastard> <22c901cad333$7a67db60$0400a8c0@dcccs> <20100404103701.GX3335@dastard> <2bd101cad4ec$5a425f30$0400a8c0@dcccs> <20100405224522.GZ3335@dastard> <3a5f01cad6c5$8a722c00$0400a8c0@dcccs> <20100408025822.GL11036@dastard>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
+Date: Mon, 12 Apr 2010 00:44:37 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1004110814080.3576@i5.linux-foundation.org>
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Avi Kivity <avi@redhat.com>, Jason Garrett-Glaser <darkshikari@gmail.com>, Mike Galbraith <efault@gmx.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Arjan van de Ven <arjan@infradead.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 11, 2010 at 08:22:04AM -0700, Linus Torvalds wrote:
->  - magic libc malloc flags tghat are totally and utterly unrealistic in 
->    anything but a benchmark
-> 
->  - by basically keeping one CPU totally busy doing defragmentation.
+Hi,
 
-This is a red herring. This is the last thing we want, and we'll run
-even faster if we could make current glibc binaries to cooperate. But
-this is a new feature and it'll require changing glibc slightly.
+Ok, here comes the funny part:
+I have got several messages from the kernel about one of my XFS (sdb2) have 
+corrupted inodes, but my xfs_repair (v. 2.8.11) says the FS is clean and 
+shine.
+Should i upgrade my xfs_repair, or this is another bug? :-)
 
-Future glibc will be optimal and it won't require khugepaged don't
-worry.
+Thanks,
 
-I got crashes in page_mapcount != number of huge_pmd mapping the page
-in split_huge_page because of the anon-vma bug, so I had to back it
-out, this is why it's stable now.
+Janos
+
+----- Original Message ----- 
+From: "Dave Chinner" <david@fromorbit.com>
+To: "Janos Haar" <janos.haar@netcenter.hu>
+Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
+<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
+<axboe@kernel.dk>
+Sent: Thursday, April 08, 2010 4:58 AM
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
+please!...)
+
+
+> On Thu, Apr 08, 2010 at 04:45:13AM +0200, Janos Haar wrote:
+>> Hello,
+>>
+>> Sorry, but still have the problem with 2.6.33.2.
+>
+> Yeah, these still a fix that needs to be back ported to .33
+> to solve this problem. It's in the series for 2.6.32.x, so maybe
+> pulling the 2.6.32-stable-queue tree in the meantime is your best
+> bet.
+>
+> Cheers,
+>
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
