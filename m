@@ -1,82 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 05CA16B01E3
-	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 08:25:34 -0400 (EDT)
-Message-ID: <4BC1BF93.60807@redhat.com>
-Date: Sun, 11 Apr 2010 15:24:51 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C1FF6B01E3
+	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 08:36:37 -0400 (EDT)
+Date: Sun, 11 Apr 2010 14:35:14 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: hugepages will matter more in the future
+Message-ID: <20100411123514.GA19676@elte.hu>
+References: <4BC0E2C4.8090101@redhat.com>
+ <q2s28f2fcbc1004101349ye3e44c9cl4f0c3605c8b3ffd3@mail.gmail.com>
+ <4BC0E556.30304@redhat.com>
+ <4BC19663.8080001@redhat.com>
+ <v2q28f2fcbc1004110237w875d3ec5z8f545c40bcbdf92a@mail.gmail.com>
+ <4BC19916.20100@redhat.com>
+ <20100411110015.GA10149@elte.hu>
+ <4BC1B034.4050302@redhat.com>
+ <20100411115229.GB10952@elte.hu>
+ <4BC1BA0D.1050904@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-References: <alpine.LFD.2.00.1004051836000.5870@i5.linux-foundation.org> <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org> <20100406090813.GA14098@elte.hu> <20100410184750.GJ5708@random.random> <20100410190233.GA30882@elte.hu> <4BC0CFF4.5000207@redhat.com> <20100410194751.GA23751@elte.hu> <4BC0DE84.3090305@redhat.com> <20100411104608.GA12828@elte.hu> <4BC1B2CA.8050208@redhat.com> <20100411120800.GC10952@elte.hu>
-In-Reply-To: <20100411120800.GC10952@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4BC1BA0D.1050904@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Avi Kivity <avi@redhat.com>
+Cc: Jason Garrett-Glaser <darkshikari@gmail.com>, Mike Galbraith <efault@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Arjan van de Ven <arjan@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On 04/11/2010 03:08 PM, Ingo Molnar wrote:
+
+* Avi Kivity <avi@redhat.com> wrote:
+
+> On 04/11/2010 02:52 PM, Ingo Molnar wrote:
+> >
+> > Put in a different way: this slow, gradual phsyical process causes 
+> > data-cache misses to become 'colder and colder': in essence a portion of 
+> > the worst-case TLB miss cost gets added to the average data-cache miss 
+> > cost on more and more workloads. (Even without any nested-pagetables or 
+> > other virtualization considerations.) The CPU can do nothing about this - 
+> > even if it stays in a golden balance with typical workloads.
+> 
+> This is the essence and which is why we really need transparent hugetlb.  
+> Both the tlb and the caches are way to small to handle the millions of pages 
+> that are common now.
 >
->> No one is insisting the patches aren't intrusive.  We're insisting they
->> bring a real benefit.  I think Linus' main objection was that hugetlb
->> wouldn't work due to fragmentation, and I think we've demonstrated that
->> antifrag/compaction do allow hugetlb to work even during a fragmenting
->> workload running in parallel.
->>      
-> As i understood it i think Linus had three main objections:
->
->   1- the improvements were only shown in specialistic environments
->      (virtualization, servers)
->    
+> > This is why i think we should think about hugetlb support today and this 
+> > is why i think we should consider elevating hugetlbs to the next level of 
+> > built-in Linux VM support.
+> 
+> Agreed, with s/today/yesterday/.
 
-Servers are not specialized workloads, and neither is virtualization.  
-If we have to justify everything based on the desktop experience we'd 
-have no 4096 core support, fibre channel and 10GbE drivers, a zillion 
-architectures etc.
+Well, yes - with the caveat that i think yesterday's hugetlb patches were 
+notwhere close to being mergable. (and were nowhere close to addressing the 
+problems to begin with)
 
->   2- complexity
->    
+Andrea's patches are IMHO a game changer because they are the first thing that 
+has the chance to improve a large category of workloads.
 
-No arguing with that.
+We saw it that the 10-years-old hugetlbfs and libhugetlb experiments alone 
+helped very little: a Linux-only opt-in performance feature that takes effort 
+[and admin space configuration ...] on the app side will almost never be taken 
+advantage of to make a visible difference to the end result - it simply doesnt 
+scale as a development and deployment model.
 
-> The important thing to realize is that the working set of the 'desktop' is
-> _not_ independent of RAM size: it just fills up RAM to the 'typical average
-> RAM size'. That is around 2 GB today. In 5-10 years it will be at 16 GB.
->
-> Applications will just bloat up to that natural size. They'll use finer
-> default resolutions, larger internal caches, etc. etc.
->    
+The most important thing the past 10 years of kernel development have taught 
+us are that transparent, always-available, zero-app-effort kernel features are 
+king. The rest barely exists.
 
-Well, if this happens we'll be ready.
-
->> 'git grep' is a pagecache workload, not anonymous memory, so it shouldn't
->> see any improvement. [...]
->>      
-> Indeed, git grep is read() based.
->    
-
-Right.
-
->> [...]  I imagine git will see a nice speedup if we get hugetlb for
->> pagecache, at least for read-only workloads that don't hash all the time.
->>      
-> Shouldnt that already be the case today? The pagecache is in the kernel where
-> we have things 2MB mapped. Git read()s it into the same [small] buffer again
-> and again, so the only 'wide' address space access it does is within the
-> kernel, to the 2MB mapped pagecache pages.
->    
-
-If you 'git grep pattern $commit' instead, you'll be reading out of 
-mmap()ed git packs.  Much of git memory access goes through that.  To 
-get the benefit of hugetlb there, we'd need to run khugepaged on 
-pagecache, and align file vmas on 2MB boundaries.
-
-We'll also get executables and shared objects mapped via large pages 
-this way, the ELF ABI is already set up to align sections on 2MB boundaries.
-
--- 
-error compiling committee.c: too many arguments to function
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
