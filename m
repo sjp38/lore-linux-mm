@@ -1,83 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 212716B01E3
-	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 07:30:43 -0400 (EDT)
-Received: by pzk28 with SMTP id 28so4086810pzk.11
-        for <linux-mm@kvack.org>; Sun, 11 Apr 2010 04:30:40 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C6EDD6B01EF
+	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 07:31:34 -0400 (EDT)
+Message-ID: <4BC1B2CA.8050208@redhat.com>
+Date: Sun, 11 Apr 2010 14:30:18 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <4BC1B034.4050302@redhat.com>
-References: <20100410190233.GA30882@elte.hu> <4BC0DE84.3090305@redhat.com>
-	<4BC0E2C4.8090101@redhat.com> <q2s28f2fcbc1004101349ye3e44c9cl4f0c3605c8b3ffd3@mail.gmail.com>
-	<4BC0E556.30304@redhat.com> <4BC19663.8080001@redhat.com>
-	<v2q28f2fcbc1004110237w875d3ec5z8f545c40bcbdf92a@mail.gmail.com>
-	<4BC19916.20100@redhat.com> <20100411110015.GA10149@elte.hu>
-	<4BC1B034.4050302@redhat.com>
-From: Jason Garrett-Glaser <darkshikari@gmail.com>
-Date: Sun, 11 Apr 2010 04:30:20 -0700
-Message-ID: <q2k28f2fcbc1004110430ze8803471q312049b6f9cd0edf@mail.gmail.com>
 Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+References: <alpine.LFD.2.00.1004051636060.21411@i5.linux-foundation.org> <20100406011345.GT5825@random.random> <alpine.LFD.2.00.1004051836000.5870@i5.linux-foundation.org> <alpine.LFD.2.00.1004051917310.3487@i5.linux-foundation.org> <20100406090813.GA14098@elte.hu> <20100410184750.GJ5708@random.random> <20100410190233.GA30882@elte.hu> <4BC0CFF4.5000207@redhat.com> <20100410194751.GA23751@elte.hu> <4BC0DE84.3090305@redhat.com> <20100411104608.GA12828@elte.hu>
+In-Reply-To: <20100411104608.GA12828@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Mike Galbraith <efault@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 11, 2010 at 4:19 AM, Avi Kivity <avi@redhat.com> wrote:
-> On 04/11/2010 02:00 PM, Ingo Molnar wrote:
->>>>
->>>> Did you make sure to check your stddev on those?
->>>>
->>>
->>> I'm doing another run to look at variability.
->>>
->>
->> Sigh. Could you please stop using stone-age tools like /usr/bin/time and
->> instead use:
->>
+On 04/11/2010 01:46 PM, Ingo Molnar wrote:
 >
-> I did one more run for each setting and got the same results (within a
-> second).
+>> There shouldn't be a slowdown as far as I can tell. [...]
+>>      
+> It does not hurt to double check the before/after micro-cost precisely - it
+> would be nice to see a result of:
 >
->> Yes, i know we had a big flamewar about perf kvm, but IMHO that is no
->> reason
->> for you to pretend that this tool doesnt exist ;-)
->>
+>    perf stat -e instructions --repeat 100 sort /etc/passwd>  /dev/null
 >
-> I use it almost daily, not sure why you think I pretend it doesn't exist.
->
->>> Is this something realistic or just a benchmark thing?
->>>
->>
->> I'd suggest for you to use the default settings, to make it realistic.
->> (Maybe
->> also 'advanced/high-quality' settings that an advanced user would
->> utilize.)
->>
->
-> In fact I'm guessing --ultrafast would reduce the gain. =A0The lower the
-> quality, the less time you spend looking at other frames to find
-> commonality. =A0Like bzip2 -1/-9 memory footprint.
+> with and without hugetlb.
+>    
 
-The main thing that controls how much obnoxious fetching of past
-frames you're doing is --ref.  This is 3 by default, 1 at all the
-faster settings, and goes as high as 16 on the very slow ones.  Do
-also note that at very slow settings, the lookahead eats up a
-phenomenal amount of memory and bandwidth due to its O(--bframes^2 *
---rc-lookahead) viterbi analysis.
+With:
 
-Just for reference, since you're looking at practical applications,
-here's approximate presets used by various companies I work with that
-care a lot about performance and run Linux:
+         1036752  instructions             #      0.000 IPC     ( +-   
+0.092% )
 
-The Criterion Collection (encoding web versions of films, blu-ray
-authoring): Veryslow
-Zencoder (high-quality web transcoding service): Slow
-Facebook (fast-turnaround web video): Medium
-Avail Media (live, realtime HD television broadcast): Fast
-Gaikai (interactive, ultra-low-latency, web video): Veryfast
+Without:
 
-Jason
+         1036844  instructions             #      0.000 IPC     ( +-   
+0.100% )
+
+> Linus is right in that the patches are intrusive, and the answer to that isnt
+> to insist that it isnt so (it evidently is so),
+
+No one is insisting the patches aren't intrusive.  We're insisting they 
+bring a real benefit.  I think Linus' main objection was that hugetlb 
+wouldn't work due to fragmentation, and I think we've demonstrated that 
+antifrag/compaction do allow hugetlb to work even during a fragmenting 
+workload running in parallel.
+
+> the correct reply is to
+> broaden the utility of the patches and to demonstrate that the feature is
+> useful on a much wider spectrum of workloads.
+>    
+
+That's probably not the case.  I don't expect a significant improvement 
+in desktop experience.  The benefit will be for workloads with large 
+working sets and random access to memory.
+
+>> Well, we know that databases, virtualization, and server-side java win from
+>> this.  (Oracle won't benefit from this implementation since it wants shared,
+>> not anonymous, memory, but other databases may). I'm guessing large C++
+>> compiles, and perhaps the new link-time optimization feature, will also see
+>> a nice speedup.
+>>
+>> Desktops will only benefit when they bloat to ~8GB RAM and 1-2GB firefox
+>> RSS, probably not so far in the future.
+>>      
+> 1-2GB firefox RSS is reality for me.
+>    
+
+Mine usually crashes sooner...  interestingly, its vmas are heavily 
+fragmented:
+
+00007f97f1500000   2048K rw---    [ anon ]
+00007f97f1800000   1024K rw---    [ anon ]
+00007f97f1a00000   1024K rw---    [ anon ]
+00007f97f1c00000   2048K rw---    [ anon ]
+00007f97f1f00000   1024K rw---    [ anon ]
+00007f97f2100000   1024K rw---    [ anon ]
+00007f97f2300000   1024K rw---    [ anon ]
+00007f97f2500000   1024K rw---    [ anon ]
+00007f97f2700000   1024K rw---    [ anon ]
+00007f97f2900000   1024K rw---    [ anon ]
+00007f97f2b00000   2048K rw---    [ anon ]
+00007f97f2e00000   2048K rw---    [ anon ]
+00007f97f3100000   1024K rw---    [ anon ]
+00007f97f3300000   1024K rw---    [ anon ]
+00007f97f3500000   1024K rw---    [ anon ]
+00007f97f3700000   1024K rw---    [ anon ]
+00007f97f3900000   2048K rw---    [ anon ]
+00007f97f3c00000   2048K rw---    [ anon ]
+00007f97f3f00000   1024K rw---    [ anon ]
+
+So hugetlb won't work out-of-the-box on firefox.
+
+> Btw., there's another workload that could be cache sensitive, 'git grep':
+>
+>   aldebaran:~/linux>  perf stat -e cycles -e instructions -e dtlb-loads -e dtlb-load-misses --repeat 5 git grep arca>/dev/null
+>
+>   Performance counter stats for 'git grep arca' (5 runs):
+>
+>       1882712774  cycles                     ( +-   0.074% )
+>       1153649442  instructions             #      0.613 IPC     ( +-   0.005% )
+>        518815167  dTLB-loads                 ( +-   0.035% )
+>          3028951  dTLB-load-misses           ( +-   1.223% )
+>
+>      0.597161428  seconds time elapsed   ( +-   0.065% )
+>
+> At first sight, with 7 cycles per cold TLB there's about 1.12% of a speedup
+> potential in that workload. With just 1 cycle it's 0.16%. The real speedup
+> ought to be somewhere inbetween.
+>    
+
+'git grep' is a pagecache workload, not anonymous memory, so it 
+shouldn't see any improvement.  I imagine git will see a nice speedup if 
+we get hugetlb for pagecache, at least for read-only workloads that 
+don't hash all the time.
+
+> Btw., instead of throwing random numbers like '3-4%' into this thread it would
+> be nice if you could send 'perf stat --repeat' numbers like i did above - they
+> have an error bar, they show the TLB details, they show the cycles and
+> instructions proportion and they are also far more precise than 'time' based
+> results.
+>    
+
+Sure.
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
