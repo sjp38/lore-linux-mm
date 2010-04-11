@@ -1,76 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 36FD66B01E3
-	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 08:46:40 -0400 (EDT)
-Date: Sun, 11 Apr 2010 14:46:24 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-Message-ID: <20100411124624.GC19676@elte.hu>
-References: <20100406090813.GA14098@elte.hu>
- <20100410184750.GJ5708@random.random>
- <20100410190233.GA30882@elte.hu>
- <4BC0CFF4.5000207@redhat.com>
- <20100410194751.GA23751@elte.hu>
- <4BC0DE84.3090305@redhat.com>
- <20100411104608.GA12828@elte.hu>
- <4BC1B2CA.8050208@redhat.com>
- <20100411120800.GC10952@elte.hu>
- <4BC1BF93.60807@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EABF96B01E3
+	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 11:28:24 -0400 (EDT)
+Date: Sun, 11 Apr 2010 08:22:04 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: hugepages will matter more in the future
+In-Reply-To: <20100411115229.GB10952@elte.hu>
+Message-ID: <alpine.LFD.2.00.1004110814080.3576@i5.linux-foundation.org>
+References: <20100410194751.GA23751@elte.hu> <4BC0DE84.3090305@redhat.com> <4BC0E2C4.8090101@redhat.com> <q2s28f2fcbc1004101349ye3e44c9cl4f0c3605c8b3ffd3@mail.gmail.com> <4BC0E556.30304@redhat.com> <4BC19663.8080001@redhat.com>
+ <v2q28f2fcbc1004110237w875d3ec5z8f545c40bcbdf92a@mail.gmail.com> <4BC19916.20100@redhat.com> <20100411110015.GA10149@elte.hu> <4BC1B034.4050302@redhat.com> <20100411115229.GB10952@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4BC1BF93.60807@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Avi Kivity <avi@redhat.com>, Jason Garrett-Glaser <darkshikari@gmail.com>, Mike Galbraith <efault@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Arjan van de Ven <arjan@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
 
-* Avi Kivity <avi@redhat.com> wrote:
 
-> On 04/11/2010 03:08 PM, Ingo Molnar wrote:
-> >
-> >> No one is insisting the patches aren't intrusive.  We're insisting they 
-> >> bring a real benefit.  I think Linus' main objection was that hugetlb 
-> >> wouldn't work due to fragmentation, and I think we've demonstrated that 
-> >> antifrag/compaction do allow hugetlb to work even during a fragmenting 
-> >> workload running in parallel.
-> >
-> > As i understood it i think Linus had three main objections:
-> >
-> >  1- the improvements were only shown in specialistic environments
-> >     (virtualization, servers)
+On Sun, 11 Apr 2010, Ingo Molnar wrote:
 > 
-> Servers are not specialized workloads, and neither is virtualization. [...]
+> Both Xorg, xterms and firefox have rather huge RSS's on my boxes. (Even a 
+> phone these days easily has more than 512 MB RAM.) Andrea measured 
+> multi-percent improvement in gcc performance. I think it's real.
 
-As far as kernel development goes they are. ( In fact in the past few years 
-virtualization has grown the nasty habbit of sometimes _hindering_ upstream 
-kernel development ... I hope that will change. )
+Reality check: he got multiple percent with 
 
-> > Applications will just bloat up to that natural size. They'll use finer 
-> > default resolutions, larger internal caches, etc. etc.
-> 
-> Well, if this happens we'll be ready.
+ - one huge badly written file being compiled that took 22s because it's 
+   such a horrible monster.
 
-That's what happened in the past 20 years, and i can see no signs of that 
-process stopping anytime soon.
+ - magic libc malloc flags tghat are totally and utterly unrealistic in 
+   anything but a benchmark
 
-[ Note, 'apps bloat up to natural RAM size' is a heavy simplification with a
-  somewhat derogatory undertone: in reality what happens is that apps just
-  grow along what are basically random vectors, and if a vector hits across
-  the RAM limit [and causing a visible slowdown due to bloat] there is a 
-  _pushback_ from developers/testers/users.
+ - by basically keeping one CPU totally busy doing defragmentation.
 
-  The end result is that app working sets are clipped to somewhat below the 
-  typical desktop RAM size, but rarely are they debloated to much below that 
-  practical average threshold. So in essence 'apps fill up available RAM'. ]
+Quite frankly, that kind of "performance analysis" makes me _less_ 
+interested rather than more. Because all it shows is that you're willing 
+to do anything at all to get better numbers, regardless of whether it is 
+_realistic_ or not.
 
-Just like car traffic 'fills up' available road capacity. If there's enough 
-road capacity [and fuel prices are not too high] then families (and 
-businesses) will have second and third cars and wont bother optimizing their 
-driving patterns.
+Seriously, guys.  Get a grip. If you start talking about special malloc 
+algorithms, you have ALREADY LOST. Google for memory fragmentation with 
+various malloc implementations in multi-threaded applications. Thinking 
+that you can just allocate in 2MB chunks is so _fundamnetally_ broken that 
+this whole thread should have been laughed out of the room.
 
-	Ingo
+Instead, you guys egg each other on.
+
+Stop the f*cking circle-jerk already.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
