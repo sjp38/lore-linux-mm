@@ -1,118 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D343F6B01E3
-	for <linux-mm@kvack.org>; Sun, 11 Apr 2010 23:43:40 -0400 (EDT)
-Received: by pvg11 with SMTP id 11so2904813pvg.14
-        for <linux-mm@kvack.org>; Sun, 11 Apr 2010 20:43:38 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 44EA46B01EE
+	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 00:43:17 -0400 (EDT)
+Received: by ywh26 with SMTP id 26so1394820ywh.12
+        for <linux-mm@kvack.org>; Sun, 11 Apr 2010 21:43:08 -0700 (PDT)
+From: drepper@gmail.com
+Date: Sun, 11 Apr 2010 21:43:00 -0700 (PST)
+Message-ID: <g7wssj9j6ukus9yti3UYAxe124vaj_firegpg@mail.gmail.com>
+Subject: Re: Downsides to madvise/fadvise(willneed) for application startup
+In-Reply-To: <20100412022704.GB5151@localhost>
 MIME-Version: 1.0
-In-Reply-To: <x2y28c262361004112038p8699872ay700ebf967cd11907@mail.gmail.com>
-References: <1270900173-10695-1-git-send-email-lliubbo@gmail.com>
-	 <1270900173-10695-2-git-send-email-lliubbo@gmail.com>
-	 <x2y28c262361004112038p8699872ay700ebf967cd11907@mail.gmail.com>
-Date: Mon, 12 Apr 2010 11:43:38 +0800
-Message-ID: <n2gcf18f8341004112043j37bea8echd539b894a4a0dab@mail.gmail.com>
-Subject: Re: [PATCH] add alloc_pages_exact_node()
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="-----firegpg0710eqg7wssjapncnf00no16"
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mel@csn.ul.ie, cl@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, penberg@cs.helsinki.fi, lethal@linux-sh.org, a.p.zijlstra@chello.nl, dave@linux.vnet.ibm.com, lee.schermerhorn@hp.com, rientjes@google.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Taras Glek <tglek@mozilla.com>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 12, 2010 at 11:38 AM, Minchan Kim <minchan.kim@gmail.com> wrote=
-:
-> Hi, Bob.
->
-> On Sat, Apr 10, 2010 at 8:49 PM, Bob Liu <lliubbo@gmail.com> wrote:
->> Add alloc_pages_exact_node() to allocate pages from exact
->> node.
->>
->> Signed-off-by: Bob Liu <lliubbo@gmail.com>
->> ---
->> =C2=A0arch/powerpc/platforms/cell/ras.c | =C2=A0 =C2=A04 ++--
->> =C2=A0include/linux/gfp.h =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 | =C2=A0 =C2=A07 +++++++
->> =C2=A0mm/mempolicy.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A02 +-
->> =C2=A0mm/migrate.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A03 +--
->> =C2=A04 files changed, 11 insertions(+), 5 deletions(-)
->>
->> diff --git a/arch/powerpc/platforms/cell/ras.c b/arch/powerpc/platforms/=
-cell/ras.c
->> index 6d32594..93a5afd 100644
->> --- a/arch/powerpc/platforms/cell/ras.c
->> +++ b/arch/powerpc/platforms/cell/ras.c
->> @@ -123,8 +123,8 @@ static int __init cbe_ptcal_enable_on_node(int nid, =
-int order)
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0area->nid =3D nid;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0area->order =3D order;
->> - =C2=A0 =C2=A0 =C2=A0 area->pages =3D alloc_pages_from_valid_node(area-=
->nid,
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 GFP_KERNEL | GFP_THISNODE, area->order);
->> + =C2=A0 =C2=A0 =C2=A0 area->pages =3D alloc_pages_exact_node(area->nid,=
- GFP_KERNEL,
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 area->order);
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!area->pages) {
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0printk(KERN_WARNI=
-NG "%s: no page on node %d\n",
->> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->> index c94f2ed..70cf2ae 100644
->> --- a/include/linux/gfp.h
->> +++ b/include/linux/gfp.h
->> @@ -296,6 +296,13 @@ static inline struct page *alloc_pages_from_valid_n=
-ode(int nid, gfp_t gfp_mask,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0return __alloc_pages(gfp_mask, order, node_zo=
-nelist(nid, gfp_mask));
->> =C2=A0}
->>
->> +static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_ma=
-sk,
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 unsigned int order)
->> +{
->> + =C2=A0 =C2=A0 =C2=A0 return alloc_pages_from_valid_node(nid, gfp_mask =
-| GFP_THISNODE,
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 order);
->> +}
->> +
->> =C2=A0#ifdef CONFIG_NUMA
->> =C2=A0extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned o=
-rder);
->>
->> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> index 6838cd8..08f40a2 100644
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -842,7 +842,7 @@ static void migrate_page_add(struct page *page, stru=
-ct list_head *pagelist,
->>
->> =C2=A0static struct page *new_node_page(struct page *page, unsigned long=
- node, int **x)
->> =C2=A0{
->> - =C2=A0 =C2=A0 =C2=A0 return alloc_pages_from_valid_node(node, GFP_HIGH=
-USER_MOVABLE, 0);
->> + =C2=A0 =C2=A0 =C2=A0 return alloc_pages_exact_node(node, GFP_HIGHUSER_=
-MOVABLE, 0);
->> =C2=A0}
->
-> It's behavior change. Please, write down why you want to change
-> behavior in log.
-> Although I knew it, you need to explain it for others and git log,
->
-Hm, ok.
-I will add the log later. Thank you for your suggestion.
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+-------firegpg0710eqg7wssjapncnf00no16
+Content-Type: text/plain; format=flowed; charset=UTF-8
+Content-Transfer-Encoding: base64
 
---=20
-Regards,
---Bob
+T24gU3VuLCBBcHIgMTEsIDIwMTAgYXQgMTk6MjcsIFd1IEZlbmdndWFuZyA8ZmVuZ2d1YW5nLnd1
+QGludGVsLmNvbT4gd3JvdGU6DQo+IFllcywgZXZlcnkgYmluYXJ5L2xpYnJhcnkgc3RhcnRzIHdp
+dGggdGhpcyA1MTJiIHJlYWQuIMKgSXQgaXMgcmVxdWVzdGVkDQo+IGJ5IGxkLnNvL2xkLWxpbnV4
+LnNvLCBhbmQgd2lsbCB0cmlnZ2VyIGEgNC1wYWdlIHJlYWRhaGVhZC4gVGhpcyBpcyBub3QNCj4g
+Z29vZCByZWFkYWhlYWQuIEkgd29uZGVyIGlmIGxkLnNvIGNhbiBzd2l0Y2ggdG8gbW1hcCByZWFk
+IGZvciB0aGUNCj4gZmlyc3QgcmVhZCwgaW4gb3JkZXIgdG8gdHJpZ2dlciBhIGxhcmdlciAxMjhr
+YiByZWFkYWhlYWQuDQoNCldlIGZpcnN0IG5lZWQgdG8ga25vdyB0aGUgc2l6ZXMgb2YgdGhlIHNl
+Z21lbnRzIGFuZCB0aGVpciBsb2NhdGlvbiBpbiB0aGUgYmluYXJ5LiAgVGhlIGJpbmFyaWVzIHdl
+IHVzZSBub3cgYXJlIHNvbWV3aGF0IHdlbGwgbGFpZCBvdXQuICBUaGUgcmVhZC1vbmx5IHNlZ21l
+bnQgc3RhcnRzIGF0IG9mZnNldCAwIGV0Yy4gIEJ1dCB0aGlzIGRvZXNuJ3QgaGF2ZSB0byBiZSB0
+aGUgY2FzZS4gIFRoZSBkeW5hbWljIGxpbmtlciBoYXMgdG8gYmUgZ2VuZXJpYy4gIEFsc28sIGV2
+ZW4gaWYgd2Ugc3RhcnQgbWFwcGluZyBhdCBvZmZzZXQgemVybywgbm93IG11Y2ggdG8gbWFwPyAg
+VGhlIGZpbGUgbWlnaHQgY29udGFpbiBkZWJ1ZyBpbmZvIHdoaWNoIG11c3Qgbm90IGJlIG1hcHBl
+ZC4gIFRoZXJlZm9yZSB0aGUgZmlyc3QgcmVhZCBsb2FkcyBlbm91Z2ggb2YgdGhlIGhlYWRlcnMg
+dG8gbWFrZSBhbGwgb2YgdGhlIGRlY2lzaW9ucy4gIFllcywgd2UgY291bGQgZG8gYSBtbWFwIG9m
+IG9uZSBwYWdlIGluc3RlYWQgb2YgdGhlIHJlYWQuICBCdXQgdGhhdCdzIG1vcmUgZXhwYW5zaXZl
+IGluIGdlbmVyYWwsIGlzbid0IGl0Pw0K
+-------firegpg0710eqg7wssjapncnf00no16
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+Comment: Use GnuPG with Firefox : http://getfiregpg.org (Version: 0.7.10)
+
+iEYEARECAAYFAkvCpNgACgkQ2ijCOnn/RHSKcgCgvg8RKXvt0BsxR2Y4MWCgFGJY
+kocAoM5Roenw3eeJwXzQC+yq6Est5uyw
+=yHpJ
+-----END PGP SIGNATURE-----
+
+-------firegpg0710eqg7wssjapncnf00no16--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
