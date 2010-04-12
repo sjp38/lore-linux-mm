@@ -1,31 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4C2C66B01EE
-	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 12:21:51 -0400 (EDT)
-Message-ID: <4BC34837.7020108@redhat.com>
-Date: Mon, 12 Apr 2010 12:20:07 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: hugepages will matter more in the future
-References: <20100410194751.GA23751@elte.hu> <4BC0DE84.3090305@redhat.com> <4BC0E2C4.8090101@redhat.com> <q2s28f2fcbc1004101349ye3e44c9cl4f0c3605c8b3ffd3@mail.gmail.com> <4BC0E556.30304@redhat.com> <4BC19663.8080001@redhat.com> <v2q28f2fcbc1004110237w875d3ec5z8f545c40bcbdf92a@mail.gmail.com> <4BC19916.20100@redhat.com> <20100411110015.GA10149@elte.hu> <4BC1B034.4050302@redhat.com> <20100411115229.GB10952@elte.hu> <alpine.LFD.2.00.1004110814080.3576@i5.linux-foundation.org> <4BC1EE13.7080702@redhat.com> <alpine.LFD.2.00.1004110844420.3576@i5.linux-foundation.org>
-In-Reply-To: <alpine.LFD.2.00.1004110844420.3576@i5.linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CD8D46B01EE
+	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 12:27:58 -0400 (EDT)
+Subject: vmalloc performance
+From: Steven Whitehouse <swhiteho@redhat.com>
+Content-Type: text/plain
+Date: Mon, 12 Apr 2010 17:27:52 +0100
+Message-Id: <1271089672.7196.63.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Avi Kivity <avi@redhat.com>, Ingo Molnar <mingo@elte.hu>, Jason Garrett-Glaser <darkshikari@gmail.com>, Mike Galbraith <efault@gmx.de>, Andrea Arcangeli <aarcange@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Arjan van de Ven <arjan@infradead.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/11/2010 11:52 AM, Linus Torvalds wrote:
+Hi,
 
-> So here's the deal: make the code cleaner, and it's fine. And stop trying
-> to sell it with _crap_.
+I've noticed that vmalloc seems to be rather slow. I wrote a test kernel
+module to track down what was going wrong. The kernel module does one
+million vmalloc/touch mem/vfree in a loop and prints out how long it
+takes.
 
-Since none of the hugepages proponents in this thread seem to have
-asked this question:
+The source of the test kernel module can be found as an attachment to
+this bz: https://bugzilla.redhat.com/show_bug.cgi?id=581459
 
-What would you like the code to look like, in order for hugepages
-code to be acceptable to you?
+When this module is run on my x86_64, 8 core, 12 Gb machine, then on an
+otherwise idle system I get the following results:
+
+vmalloc took 148798983 us
+vmalloc took 151664529 us
+vmalloc took 152416398 us
+vmalloc took 151837733 us
+
+After applying the two line patch (see the same bz) which disabled the
+delayed removal of the structures, which appears to be intended to
+improve performance in the smp case by reducing TLB flushes across cpus,
+I get the following results:
+
+vmalloc took 15363634 us
+vmalloc took 15358026 us
+vmalloc took 15240955 us
+vmalloc took 15402302 us
+
+So thats a speed up of around 10x, which isn't too bad. The question is
+whether it is possible to come to a compromise where it is possible to
+retain the benefits of the delayed TLB flushing code, but reduce the
+overhead for other users. My two line patch basically disables the delay
+by forcing a removal on each and every vfree.
+
+What is the correct way to fix this I wonder?
+
+Steve.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
