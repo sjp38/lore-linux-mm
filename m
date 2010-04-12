@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8911B6B01EE
-	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 03:19:51 -0400 (EDT)
-Date: Mon, 12 Apr 2010 09:18:56 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BB6C6B01EF
+	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 03:21:59 -0400 (EDT)
+Date: Mon, 12 Apr 2010 17:21:44 +1000
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-Message-ID: <20100412071856.GE5656@random.random>
+Message-ID: <20100412072144.GS5683@laptop>
 References: <20100410184750.GJ5708@random.random>
  <20100410190233.GA30882@elte.hu>
  <4BC0CFF4.5000207@redhat.com>
@@ -15,58 +15,69 @@ References: <20100410184750.GJ5708@random.random>
  <4BC1B2CA.8050208@redhat.com>
  <20100411120800.GC10952@elte.hu>
  <20100412060931.GP5683@laptop>
- <4BC2BF67.80903@redhat.com>
+ <20100412070811.GD5656@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4BC2BF67.80903@redhat.com>
+In-Reply-To: <20100412070811.GD5656@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Avi Kivity <avi@redhat.com>, Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 12, 2010 at 09:36:23AM +0300, Avi Kivity wrote:
-> On 04/12/2010 09:09 AM, Nick Piggin wrote:
-> > On Sun, Apr 11, 2010 at 02:08:00PM +0200, Ingo Molnar wrote:
-> >    
-> >> * Avi Kivity<avi@redhat.com>  wrote:
-> >>
-> >> 3) futility
-> >>
-> >> I think Andrea and Mel and you demonstrated that while defrag is futile in
-> >> theory (we can always fill up all of RAM with dentries and there's no 2MB
-> >> allocation possible), it seems rather usable in practice.
-> >>      
+On Mon, Apr 12, 2010 at 09:08:11AM +0200, Andrea Arcangeli wrote:
+> On Mon, Apr 12, 2010 at 04:09:31PM +1000, Nick Piggin wrote:
 > > One problem is that you need to keep a lot more memory free in order
-> > for it to be reasonably effective.
+> > for it to be reasonably effective. Another thing is that the problem
+> > of fragmentation breakdown is not just a one-shot event that fills
+> > memory with pinned objects. It is a slow degredation.
 > 
-> It's the usual space-time tradeoff.  You don't want to do it on a 
-> netbook, but it's worth it on a 16GB server, which is already not very 
-> high end.
+> set_recommended_min_free_kbytes seems to not be in function of ram
+> size, 60MB aren't such a big deal.
+> 
+> > Especially when you use something like SLUB as the memory allocator
+> > which requires higher order allocations for objects which are pinned
+> > in kernel memory.
+> > 
+> > Just running a few minutes of testing with a kernel compile in the
+> > background does not show the full picture. You really need a box that
+> > has been up for days running a proper workload before you are likely
+> > to see any breakdown.
+> > 
+> > I'm sure it's horrible for planning if the RDBMS or VM boxes gradually
+> > get slower after X days of uptime. It's better to have consistent
+> > performance really, for anything except pure benchmark setups.
+> 
+> All data I provided is very real, in addition to building a ton of
+> packages and running emerge on /usr/portage I've been running all my
+> real loads. Only problem I only run it for 1 day and half, but the
+> load I kept it under was significant (surely a lot bigger inode/dentry
+> load that any hypervisor usage would ever generate).
 
-Agreed. BTW, if booting with transparent_hugepage=0,
-set_recommended_min_free_kbyte in-kernel logic won't run automatically
-during the late_initcall invocation.
+OK, but as a solution for some kind of very specific and highly
+optimized application already like RDBMS, HPC, hypervisor or JVM,
+they could just be using hugepages themselves, couldn't they?
 
-> Non-linear kernel mapping moves the small page problem from userspace 
-> back to the kernel, a really unhappy solution.
+It seems more interesting as a more general speedup for applications
+that can't afford such optimizations? (eg. the common case for
+most people)
 
-Yeah, so we have hugepages in userland but we lose them in kernel ;)
-and we run kmalloc as slow as vmalloc ;). I think kernelcore= here is
-the answer when somebody asks the math guarantee. We should just focus
-on providing a math guarantee with kernelcore= and be done with it.
+ 
+> > Defrag is not futile in theory, you just have to either have a reserve
+> > of movable pages (and never allow pinned kernel pages in there), or
+> > you need to allocate pinned kernel memory in units of the chunk size
+> > goal (which just gives you different types of fragmentation problems)
+> > or you need to do non-linear kernel mappings so you can defrag pinned
+> > kernel memory (with *lots* of other problems of course). So you just
+> > have a lot of downsides.
+> 
+> That's what the kernelcore= option does no? Isn't that a good enough
+> math guarantee? Probably we should use it in hypervisor products just
+> in case, to be math-guaranted to never have to use VM migration as
+> fallback (but definitive) defrag algorithm.
 
-Limiting the unmovable caches to a certain amount of RAM is orders of
-magnitude magnitude more flexible and transparent (and absolutely
-unnoticeable) than having to limit only hugepages (so unusable as
-regular anon memory, or regular pagecache, or any other movable
-entitiy) to a certain amount at boot (plus not being able to swap
-them, having to mount filesystems, using LD_PRELOAD tricks
-etc...). Furthermore with hypervisor usage the unmovable stuff really
-isn't a big deal (1G is more than enough for that even on monster
-servers) and we'll never care or risk to hit on the limit. All we need
-is the movable memory to grow freely and dynamically and being able to
-spread all over the RAM of the system automatically as needed.
+Yes we do have the option to reserve pages and as far as I know it
+should work, although I can't remember whether it deals with mlock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
