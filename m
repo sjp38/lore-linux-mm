@@ -1,128 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 34C986B01E3
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 03:55:23 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3D7tK13023391
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 13 Apr 2010 16:55:20 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2183D45DE50
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 16:55:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E142645DE4D
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 16:55:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C9DFF1DB8044
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 16:55:19 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 568F3E08006
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 16:55:16 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-In-Reply-To: <4BC3DA2B.3070605@redhat.com>
-References: <20100413102641.4A18.A69D9226@jp.fujitsu.com> <4BC3DA2B.3070605@redhat.com>
-Message-Id: <20100413144519.D107.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A93E86B01E3
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:00:20 -0400 (EDT)
+Message-ID: <18b101cadadf$5edbb660$0400a8c0@dcccs>
+From: "Janos Haar" <janos.haar@netcenter.hu>
+References: <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com> <1fe901cad2b0$d39d0300$0400a8c0@dcccs> <20100402230905.GW3335@dastard> <22c901cad333$7a67db60$0400a8c0@dcccs> <20100404103701.GX3335@dastard> <2bd101cad4ec$5a425f30$0400a8c0@dcccs> <20100405224522.GZ3335@dastard> <3a5f01cad6c5$8a722c00$0400a8c0@dcccs> <20100408025822.GL11036@dastard> <11b701cad9c8$93212530$0400a8c0@dcccs> <20100412001158.GA2493@dastard>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
+Date: Tue, 13 Apr 2010 10:00:17 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue, 13 Apr 2010 16:55:15 +0900 (JST)
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-> On 04/12/2010 09:30 PM, KOSAKI Motohiro wrote:
-> >> On 04/09/2010 05:20 PM, Andrew Morton wrote:
-> >>
-> >>> Come to that, it's not obvious that we need this in 2.6.34 either.  What
-> >>> is the user-visible impact here?
-> >>
-> >> I suspect very little impact, especially during workloads
-> >> where we can just reclaim clean page cache at DEF_PRIORITY.
-> >> FWIW, the patch looks good to me, so:
-> >>
-> >> Acked-by: Rik van Riel<riel@redhat.com>
-> >>
-> >
-> > I'm surprised this ack a bit. Rik, do you have any improvement plan about
-> > streaming io detection logic?
-> > I think the patch have a slightly marginal benefit, it help to<1% scan
-> > ratio case. but it have big regression, it cause streaming io (e.g. backup
-> > operation) makes tons swap.
-> 
-> How?  From the description I believe it took 16GB in
-> a zone before we start scanning anon pages when
-> reclaiming at DEF_PRIORITY?
-> 
-> Would that casue a problem?
 
-Please remember, 2.6.27 has following +1 scanning modifier.
-
-  zone->nr_scan_active += (zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
-                                                                         ^^^^
-
-and, early (ano not yet merged) SplitLRU VM has similar +1. likes
-
-         scan = zone_nr_lru_pages(zone, sc, l);
-         scan >>= priority;
-         scan = (scan * percent[file]) / 100 + 1;
-                                             ^^^
-
-We didn't think only one page scanning is not big matter. but it was not
-correct. we got streaming io bug report. the above +1 makes annoying swap
-io. because some server need big backup operation rather much much than
-physical memory size.
-
-example, If vm are dropping 1TB use once pages, 0.1% anon scanning makes
-1GB scan. and almost server only have some gigabyte swap although it
-has >1TB memory.
-
-If my memory is not correct, please correct me.
-
-My point is, greater or smaller than 16GB isn't essential. all patches 
-should have big worth than the downside. The description said "the impact 
-sounds not a big deal", nobody disagree it. but it's worth is more little.
-I don't imagine this patch improve anything.
+----- Original Message ----- 
+From: "Dave Chinner" <david@fromorbit.com>
+To: "Janos Haar" <janos.haar@netcenter.hu>
+Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
+<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
+<axboe@kernel.dk>
+Sent: Monday, April 12, 2010 2:11 AM
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
+please!...)
 
 
-> 
-> > So, I thought we sould do either,
-> > 1) drop this one
-> > 2) merge to change stream io detection logic improvement at first, and
-> >     merge this one at second.
-> 
-> We may need better streaming IO detection, anyway.
+> On Mon, Apr 12, 2010 at 12:44:37AM +0200, Janos Haar wrote:
+>> Hi,
+>>
+>> Ok, here comes the funny part:
+>> I have got several messages from the kernel about one of my XFS
+>> (sdb2) have corrupted inodes, but my xfs_repair (v. 2.8.11) says the
+>> FS is clean and shine.
+>> Should i upgrade my xfs_repair, or this is another bug? :-)
+>
+> v2.8.11 is positively ancient. :/
+>
+> I'd upgrade (current is 3.1.1) and re-run repair again.
 
-agreed. that's no doubt.
+OK, i will get the new repair today.
+
+btw
+Since i tested the FS with the 2.8.11, today morning i found this in the 
+log:
+
+...
+Apr 12 00:41:10 alfa kernel: XFS mounting filesystem sdb2   # This was the 
+point of check with xfs_repair v2.8.11
+Apr 13 03:08:33 alfa kernel: xfs_da_do_buf: bno 32768
+Apr 13 03:08:33 alfa kernel: dir: inode 474253931
+Apr 13 03:08:33 alfa kernel: Filesystem "sdb2": XFS internal error 
+xfs_da_do_buf(1) at line 2020 of file fs/xfs/xfs_da_btree.c.  Caller 
+0xffffffff811c4fa6
+Apr 13 03:08:33 alfa kernel:
+Apr 13 03:08:33 alfa kernel: Pid: 27304, comm: 01vegzet_runner Not tainted 
+2.6.32.10 #3
+Apr 13 03:08:33 alfa kernel: Call Trace:
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811cf87d>] 
+xfs_error_report+0x41/0x43
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811c4fa6>] ? 
+xfs_da_read_buf+0x2a/0x2c
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811c4c30>] xfs_da_do_buf+0x2a6/0x5aa
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811c4fa6>] xfs_da_read_buf+0x2a/0x2c
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811ca0f1>] ? 
+xfs_dir2_leaf_lookup_int+0x104/0x259
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811ca0f1>] 
+xfs_dir2_leaf_lookup_int+0x104/0x259
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811ca56e>] 
+xfs_dir2_leaf_lookup+0x26/0xb5
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811c6d60>] ? 
+xfs_dir2_isleaf+0x21/0x52
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811c74ea>] 
+xfs_dir_lookup+0x104/0x157
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811eab59>] xfs_lookup+0x50/0xb3
+Apr 13 03:08:33 alfa kernel:  [<ffffffff811f5a8f>] xfs_vn_lookup+0x45/0x86
+Apr 13 03:08:33 alfa kernel:  [<ffffffff810e4164>] __lookup_hash+0x105/0x12a
+Apr 13 03:08:33 alfa kernel:  [<ffffffff810e41c4>] lookup_hash+0x3b/0x40
+Apr 13 03:08:33 alfa kernel:  [<ffffffff810e7021>] do_unlinkat+0x71/0x17d
+Apr 13 03:08:33 alfa kernel:  [<ffffffff8175d2d3>] ? 
+trace_hardirqs_on_thunk+0x3a/0x3f
+Apr 13 03:08:33 alfa kernel:  [<ffffffff810e5a1d>] ? putname+0x3c/0x3e
+Apr 13 03:08:33 alfa kernel:  [<ffffffff810e7143>] sys_unlink+0x16/0x18
+Apr 13 03:08:33 alfa kernel:  [<ffffffff8100b09b>] 
+system_call_fastpath+0x16/0x1b
+....
+
+The entire log is here:
+http://download.netcenter.hu/bughunt/20100413/messages
+
+What is the best next step?
+Check with the new repair?
+
+Thanks,
+Janos
 
 
-> I have noticed that while heavy sequential reads are fine,
-> the virtual machines on my desktop system do a lot of whole
-> block writes.  Presumably, a lot of those writes are to the
-> same blocks, over and over again.
-> 
-> This causes the blocks to be promoted to the active file
-> list, which ends up growing the active file list to the
-> point where things from the working set get evicted.
-> 
-> All for file pages that may only get WRITTEN to by the
-> guests, because the guests cache their own copy whenever
-> they need to read them!
-> 
-> I'll have to check the page cache code to see if it
-> keeps frequently written pages as accessed.  We may be
-> better off evicting frequently written pages, and
-> keeping our cache space for data that is read...
-
-One question, In such case your guest don't use DirectIO?
-Or do you talk about guest VM behabior?
-
-I guess inactive_file_is_low_global() can be improvement a lot.
-but I'm not sure.
-
-
-
+>
+> Cheers,
+>
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
