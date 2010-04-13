@@ -1,148 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 777736B01E3
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:27:35 -0400 (EDT)
-Date: Tue, 13 Apr 2010 09:27:12 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] code clean rename alloc_pages_exact_node()
-Message-ID: <20100413082712.GR25756@csn.ul.ie>
-References: <1270900173-10695-1-git-send-email-lliubbo@gmail.com> <20100412164335.GQ25756@csn.ul.ie> <i2l28c262361004122134of7f96809va209e779ccd44195@mail.gmail.com> <20100413144037.f714fdeb.kamezawa.hiroyu@jp.fujitsu.com> <v2qcf18f8341004130009o49bd230cga838b416a75f61e8@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 26FE96B01F0
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:31:32 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3D8VSYd020179
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 13 Apr 2010 17:31:28 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EA4545DE5A
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:31:28 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 319F945DE54
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:31:28 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 050FF1DB8043
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:31:28 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 76D231DB803C
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:31:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+In-Reply-To: <1271117878-19274-1-git-send-email-david@fromorbit.com>
+References: <1271117878-19274-1-git-send-email-david@fromorbit.com>
+Message-Id: <20100413142445.D0FE.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <v2qcf18f8341004130009o49bd230cga838b416a75f61e8@mail.gmail.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 13 Apr 2010 17:31:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, cl@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, penberg@cs.helsinki.fi, lethal@linux-sh.org, a.p.zijlstra@chello.nl, nickpiggin@yahoo.com.au, dave@linux.vnet.ibm.com, lee.schermerhorn@hp.com, rientjes@google.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 13, 2010 at 03:09:42PM +0800, Bob Liu wrote:
-> On 4/13/10, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 13 Apr 2010 13:34:52 +0900
-> >
-> > Minchan Kim <minchan.kim@gmail.com> wrote:
-> >
-> >
-> > > On Tue, Apr 13, 2010 at 1:43 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> >  > > On Sat, Apr 10, 2010 at 07:49:32PM +0800, Bob Liu wrote:
-> >  > >> Since alloc_pages_exact_node() is not for allocate page from
-> >  > >> exact node but just for removing check of node's valid,
-> >  > >> rename it to alloc_pages_from_valid_node(). Else will make
-> >  > >> people misunderstanding.
-> >  > >>
-> >  > >
-> >  > > I don't know about this change either but as I introduced the original
-> >  > > function name, I am biased. My reading of it is - allocate me pages and
-> >  > > I know exactly which node I need. I see how it it could be read as
-> >  > > "allocate me pages from exactly this node" but I don't feel the new
-> >  > > naming is that much clearer either.
-> >  >
-> >  > Tend to agree.
-> >  > Then, don't change function name but add some comment?
-> >  >
-> >  > /*
-> >  >  * allow pages from fallback if page allocator can't find free page in your nid.
-> >  >  * If you want to allocate page from exact node, please use
-> >  > __GFP_THISNODE flags with
-> >  >  * gfp_mask.
-> >  >  */
-> >  > static inline struct page *alloc_pages_exact_node(....
-> >  >
-> >
-> > I vote for this rather than renaming.
-> >
-> >  There are two functions
-> >         allo_pages_node()
-> >         alloc_pages_exact_node().
-> >
-> >  Sane progmrammers tend to see implementation details if there are 2
-> >  similar functions.
-> >
-> >  If I name the function,
-> >         alloc_pages_node_verify_nid() ?
-> >
-> >  I think /* This doesn't support nid=-1, automatic behavior. */ is necessary
-> >  as comment.
-> >
-> >  OFF_TOPIC
-> >
-> >  If you want renaming,  I think we should define NID=-1 as
-> >
-> >  #define ARBITRARY_NID           (-1) or
-> >  #define CURRENT_NID             (-1) or
-> >  #define AUTO_NID                (-1)
-> >
-> >  or some. Then, we'll have concensus of NID=-1 support.
-> >  (Maybe some amount of programmers don't know what NID=-1 means.)
-> >
-> >  The function will be
-> >         alloc_pages_node_no_auto_nid() /* AUTO_NID is not supported by this */
-> >  or
-> >         alloc_pages_node_veryfy_nid()
-> >
-> >  Maybe patch will be bigger and may fail after discussion. But it seems
-> >  worth to try.
-> >
+Hi
+
+> From: Dave Chinner <dchinner@redhat.com>
 > 
-> Hm..It's a bit bigger.
-> Actually, what I want to do was in my original mail several days ago,
-> the title is "mempolicy:add GFP_THISNODE when allocing new page"
+> When we enter direct reclaim we may have used an arbitrary amount of stack
+> space, and hence enterring the filesystem to do writeback can then lead to
+> stack overruns. This problem was recently encountered x86_64 systems with
+> 8k stacks running XFS with simple storage configurations.
 > 
-
-Sorry Bob, I still haven't actually read that thread. There has been a lot
-going on :(
-
-> What I concern is *just* we shouldn't fallback to other nodes if the
-> dest node haven't enough free pages during migrate_pages().
+> Writeback from direct reclaim also adversely affects background writeback. The
+> background flusher threads should already be taking care of cleaning dirty
+> pages, and direct reclaim will kick them if they aren't already doing work. If
+> direct reclaim is also calling ->writepage, it will cause the IO patterns from
+> the background flusher threads to be upset by LRU-order writeback from
+> pageout() which can be effectively random IO. Having competing sources of IO
+> trying to clean pages on the same backing device reduces throughput by
+> increasing the amount of seeks that the backing device has to do to write back
+> the pages.
 > 
-> The detail is below:
-> In funtion migrate_pages(), if the dest node have no
-> enough free pages,it will fallback to other nodes.
-> Add GFP_THISNODE to avoid this, the same as what
-> funtion new_page_node() do in migrate.c.
+> Hence for direct reclaim we should not allow ->writepages to be entered at all.
+> Set up the relevant scan_control structures to enforce this, and prevent
+> sc->may_writepage from being set in other places in the direct reclaim path in
+> response to other events.
+
+Ummm..
+This patch is harder to ack. This patch's pros/cons seems
+
+Pros:
+	1) prevent XFS stack overflow
+	2) improve io workload performance
+
+Cons:
+	3) TOTALLY kill lumpy reclaim (i.e. high order allocation)
+
+So, If we only need to consider io workload this is no downside. but
+it can't.
+
+I think (1) is XFS issue. XFS should care it itself. but (2) is really
+VM issue. Now our VM makes too agressive pageout() and decrease io 
+throughput. I've heard this issue from Chris (cc to him). I'd like to 
+fix this. but we never kill pageout() completely because we can't
+assume users don't run high order allocation workload.
+(perhaps Mel's memory compaction code is going to improve much and
+ we can kill lumpy reclaim in future. but it's another story)
+
+Thanks.
+
+
 > 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-
-This appears to be a valid bug fix.  I agree that the way things are structured
-that __GFP_THISNODE should be used in new_node_page(). But maybe a follow-on
-patch is also required. The behaviour is now;
-
-o new_node_page will not return NULL if the target node is empty (fine).
-o migrate_pages will translate this into -ENOMEM (fine)
-o do_migrate_pages breaks early if it gets -ENOMEM ?
-
-It's the last part I'd like you to double check. migrate_pages() takes a
-nodemask of allowed nodes to migrate to. Rather than sending this down
-to the allocator, it iterates over the nodes allowed in the mask. If one
-of those nodes is full, it returns -ENOMEM.
-
-If -ENOMEM is returned from migrate_pages, should it not move to the next node?
-
+> Reported-by: John Berthels <john@humyo.com>
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
 > ---
->  mm/mempolicy.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
+>  mm/vmscan.c |   13 ++++++-------
+>  1 files changed, 6 insertions(+), 7 deletions(-)
 > 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 08f40a2..fc5ddf5 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -842,7 +842,8 @@ static void migrate_page_add(struct page *page,
-> struct list_head *pagelist,
-> 
->  static struct page *new_node_page(struct page *page, unsigned long
-> node, int **x)
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index e0e5f15..5321ac4 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1826,10 +1826,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  		 * writeout.  So in laptop mode, write out the whole world.
+>  		 */
+>  		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
+> -		if (total_scanned > writeback_threshold) {
+> +		if (total_scanned > writeback_threshold)
+>  			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned);
+> -			sc->may_writepage = 1;
+> -		}
+>  
+>  		/* Take a nap, wait for some writeback to complete */
+>  		if (!sc->hibernation_mode && sc->nr_scanned &&
+> @@ -1871,7 +1869,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 >  {
-> -       return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
-> +       return alloc_pages_exact_node(node,
-> +                               GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
->  }
+>  	struct scan_control sc = {
+>  		.gfp_mask = gfp_mask,
+> -		.may_writepage = !laptop_mode,
+> +		.may_writepage = 0,
+>  		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+>  		.may_unmap = 1,
+>  		.may_swap = 1,
+> @@ -1893,7 +1891,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+>  						struct zone *zone, int nid)
+>  {
+>  	struct scan_control sc = {
+> -		.may_writepage = !laptop_mode,
+> +		.may_writepage = 0,
+>  		.may_unmap = 1,
+>  		.may_swap = !noswap,
+>  		.swappiness = swappiness,
+> @@ -1926,7 +1924,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+>  {
+>  	struct zonelist *zonelist;
+>  	struct scan_control sc = {
+> -		.may_writepage = !laptop_mode,
+> +		.may_writepage = 0,
+>  		.may_unmap = 1,
+>  		.may_swap = !noswap,
+>  		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+> @@ -2567,7 +2565,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	struct reclaim_state reclaim_state;
+>  	int priority;
+>  	struct scan_control sc = {
+> -		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+> +		.may_writepage = (current_is_kswapd() &&
+> +					(zone_reclaim_mode & RECLAIM_WRITE)),
+>  		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+>  		.may_swap = 1,
+>  		.nr_to_reclaim = max_t(unsigned long, nr_pages,
+> -- 
+> 1.6.5
 > 
-> Thanks.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
