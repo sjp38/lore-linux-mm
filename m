@@ -1,143 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 207EA6B01E3
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 07:18:12 -0400 (EDT)
-Date: Tue, 13 Apr 2010 21:19:02 +1000
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 076346B01E3
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 07:33:57 -0400 (EDT)
+Date: Tue, 13 Apr 2010 21:34:45 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100413111902.GY2493@dastard>
-References: <1271117878-19274-1-git-send-email-david@fromorbit.com>
- <20100413095815.GU25756@csn.ul.ie>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look
+ please!...)
+Message-ID: <20100413113445.GZ2493@dastard>
+References: <20100404103701.GX3335@dastard>
+ <2bd101cad4ec$5a425f30$0400a8c0@dcccs>
+ <20100405224522.GZ3335@dastard>
+ <3a5f01cad6c5$8a722c00$0400a8c0@dcccs>
+ <20100408025822.GL11036@dastard>
+ <11b701cad9c8$93212530$0400a8c0@dcccs>
+ <20100412001158.GA2493@dastard>
+ <18b101cadadf$5edbb660$0400a8c0@dcccs>
+ <20100413083931.GW2493@dastard>
+ <190201cadaeb$02ec22c0$0400a8c0@dcccs>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100413095815.GU25756@csn.ul.ie>
+In-Reply-To: <190201cadaeb$02ec22c0$0400a8c0@dcccs>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Janos Haar <janos.haar@netcenter.hu>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 13, 2010 at 10:58:15AM +0100, Mel Gorman wrote:
-> On Tue, Apr 13, 2010 at 10:17:58AM +1000, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > When we enter direct reclaim we may have used an arbitrary amount of stack
-> > space, and hence enterring the filesystem to do writeback can then lead to
-> > stack overruns. This problem was recently encountered x86_64 systems with
-> > 8k stacks running XFS with simple storage configurations.
-> > 
-> > Writeback from direct reclaim also adversely affects background writeback. The
-> > background flusher threads should already be taking care of cleaning dirty
-> > pages, and direct reclaim will kick them if they aren't already doing work. If
-> > direct reclaim is also calling ->writepage, it will cause the IO patterns from
-> > the background flusher threads to be upset by LRU-order writeback from
-> > pageout() which can be effectively random IO. Having competing sources of IO
-> > trying to clean pages on the same backing device reduces throughput by
-> > increasing the amount of seeks that the backing device has to do to write back
-> > the pages.
-> > 
+On Tue, Apr 13, 2010 at 11:23:36AM +0200, Janos Haar wrote:
+> >If you run:
+> >
+> >$ xfs_db -r -c "inode 474253940" -c p /dev/sdb2
+> >
+> >Then I can can confirm whether there is corruption on disk or not.
+> >Probably best to sample multiple of the inode numbers from the above
+> >list of bad inodes.
 > 
-> It's already known that the VM requesting specific pages be cleaned and
-> reclaimed is a bad IO pattern but unfortunately it is still required by
-> lumpy reclaim. This change would appear to break that although I haven't
-> tested it to be 100% sure.
+> Here is the log:
+> http://download.netcenter.hu/bughunt/20100413/debug.log
 
-How do you test it? I'd really like to be able to test this myself....
+There are multiple fields in the inode that are corrupted.
+I am really surprised that xfs-repair - even an old version - is not
+picking up the corruption....
 
-> Even without high-order considerations, this patch would appear to make
-> fairly large changes to how direct reclaim behaves. It would no longer
-> wait on page writeback for example so direct reclaim will return sooner
+> The xfs_db does segmentation fault. :-)
 
-AFAICT it still waits for pages under writeback in exactly the same manner
-it does now. shrink_page_list() does the following completely
-separately to the sc->may_writepage flag:
+Yup, it probably ran off into la-la land chasing corrupted
+extent pointers.
 
- 666                 may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
- 667                         (PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
- 668
- 669                 if (PageWriteback(page)) {
- 670                         /*
- 671                          * Synchronous reclaim is performed in two passes,
- 672                          * first an asynchronous pass over the list to
- 673                          * start parallel writeback, and a second synchronous
- 674                          * pass to wait for the IO to complete.  Wait here
- 675                          * for any page for which writeback has already
- 676                          * started.
- 677                          */
- 678                         if (sync_writeback == PAGEOUT_IO_SYNC && may_enter_fs)
- 679                                 wait_on_page_writeback(page);
- 680                         else
- 681                                 goto keep_locked;
- 682                 }
+> Btw memory corruption:
+> In the beginnig of march, one of my bets was memory problem too, but
+> the server was offline for 7 days, and all the time runs the
+> memtest86 on the hw, and passed all the 8GB 74 times without any bit
+> error.
+> I don't think it is memory problem, additionally the server can
+> create big size  .tar.gz files without crc problem.
 
-So if the page is under writeback, PAGEOUT_IO_SYNC is set and
-we can enter the fs, it will still wait for writeback to complete
-just like it does now.
+Ok.
 
-However, the current code only uses PAGEOUT_IO_SYNC in lumpy
-reclaim, so for most typical workloads direct reclaim does not wait
-on page writeback, either. Hence, this patch doesn't appear to
-change the actions taken on a page under writeback in direct
-reclaim....
+> If i force my mind to think to hw memory problem, i can think only
+> for the raid card's cache memory, wich i can't test with memtest86.
+> Or the cache of the HDD's pcb...
 
-> than it did potentially going OOM if there were a lot of dirty pages and
-> it made no progress during direct reclaim.
+Yes, it could be something like that, too, but the only way to test
+it is to swap out the card....
 
-I did a fair bit of low/small memory testing. This is a subjective
-observation, but I definitely seemed to get less severe OOM
-situations and better overall responisveness with this patch than
-compared to when direct reclaim was doing writeback.
+> In the other hand, i have seen more people reported memory
+> corruption about these kernel versions, can we check this and surely
+> select wich is the problem? (hw or sw)?
 
-> > Hence for direct reclaim we should not allow ->writepages to be entered at all.
-> > Set up the relevant scan_control structures to enforce this, and prevent
-> > sc->may_writepage from being set in other places in the direct reclaim path in
-> > response to other events.
-> > 
-> 
-> If an FS caller cannot re-enter the FS, it should be using GFP_NOFS
-> instead of GFP_KERNEL.
+I haven't heard of any significant memory corruption problems in
+2.6.32 or 2.6.33, but it is a possibility given the nature of the
+corruption. However, I may have only happened once and be completely
+unreproducable.
 
-This problem is not a filesystem recursion problem which is, as I
-understand it, what GFP_NOFS is used to prevent. It's _any_ kernel
-code that uses signficant stack before trying to allocate memory
-that is the problem. e.g a select() system call:
+I'd suggest fixing the existing corruption first, and then seeing if
+it re-appears. If it does reappear, then we know there's a
+reproducable problem we need to dig out....
 
-       Depth    Size   Location    (47 entries)
-       -----    ----   --------
- 0)     7568      16   mempool_alloc_slab+0x16/0x20
- 1)     7552     144   mempool_alloc+0x65/0x140
- 2)     7408      96   get_request+0x124/0x370
- 3)     7312     144   get_request_wait+0x29/0x1b0
- 4)     7168      96   __make_request+0x9b/0x490
- 5)     7072     208   generic_make_request+0x3df/0x4d0
- 6)     6864      80   submit_bio+0x7c/0x100
- 7)     6784      96   _xfs_buf_ioapply+0x128/0x2c0 [xfs]
-....
-32)     3184      64   xfs_vm_writepage+0xab/0x160 [xfs]
-33)     3120     384   shrink_page_list+0x65e/0x840
-34)     2736     528   shrink_zone+0x63f/0xe10
-35)     2208     112   do_try_to_free_pages+0xc2/0x3c0
-36)     2096     128   try_to_free_pages+0x77/0x80
-37)     1968     240   __alloc_pages_nodemask+0x3e4/0x710
-38)     1728      48   alloc_pages_current+0x8c/0xe0
-39)     1680      16   __get_free_pages+0xe/0x50
-40)     1664      48   __pollwait+0xca/0x110
-41)     1616      32   unix_poll+0x28/0xc0
-42)     1584      16   sock_poll+0x1d/0x20
-43)     1568     912   do_select+0x3d6/0x700
-44)      656     416   core_sys_select+0x18c/0x2c0
-45)      240     112   sys_select+0x4f/0x110
-46)      128     128   system_call_fastpath+0x16/0x1b
+> I mean, if i am right, the hw memory problem makes only 1-2 bit
+> corruption seriously, and the sw page handling problem makes bad
+> memory pages, no?
 
-There's 1.6k of stack used before memory allocation is called, 3.1k
-used there before ->writepage is entered, XFS used 3.5k, and
-if the mempool needed to allocate a page it would have blown the
-stack. If there was any significant storage subsystem (add dm, md
-and/or scsi of some kind), it would have blown the stack.
-
-Basically, there is not enough stack space available to allow direct
-reclaim to enter ->writepage _anywhere_ according to the stack usage
-profiles we are seeing here....
+RAM ECC guarantees correction of single bit errors and detection of
+double bit errors (which cause the kernel to panic, IIRC). I can't
+tell you what happens when larger errors occur, though...
 
 Cheers,
 
