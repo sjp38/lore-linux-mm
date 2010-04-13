@@ -1,117 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A93E86B01E3
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:00:20 -0400 (EDT)
-Message-ID: <18b101cadadf$5edbb660$0400a8c0@dcccs>
-From: "Janos Haar" <janos.haar@netcenter.hu>
-References: <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com> <1fe901cad2b0$d39d0300$0400a8c0@dcccs> <20100402230905.GW3335@dastard> <22c901cad333$7a67db60$0400a8c0@dcccs> <20100404103701.GX3335@dastard> <2bd101cad4ec$5a425f30$0400a8c0@dcccs> <20100405224522.GZ3335@dastard> <3a5f01cad6c5$8a722c00$0400a8c0@dcccs> <20100408025822.GL11036@dastard> <11b701cad9c8$93212530$0400a8c0@dcccs> <20100412001158.GA2493@dastard>
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
-Date: Tue, 13 Apr 2010 10:00:17 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 11FDB6B01EF
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:17:15 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3D8HDeT013265
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 13 Apr 2010 17:17:13 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6228645DE4F
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:17:13 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 37C4D45DE4D
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:17:13 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 19A43E08008
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:17:13 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B9EDDE08004
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:17:09 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
+In-Reply-To: <1271118255-21070-2-git-send-email-david@fromorbit.com>
+References: <1271118255-21070-1-git-send-email-david@fromorbit.com> <1271118255-21070-2-git-send-email-david@fromorbit.com>
+Message-Id: <20100413170653.D10A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-1";
-	reply-type=original
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 13 Apr 2010 17:17:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Dave Chinner <david@fromorbit.com>
-Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index e70f21b..7d48942 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -982,11 +982,11 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
+>  /*
+>   * A callback you can register to apply pressure to ageable caches.
+>   *
+> - * 'shrink' is passed a count 'nr_to_scan' and a 'gfpmask'.  It should
+> - * look through the least-recently-used 'nr_to_scan' entries and
+> - * attempt to free them up.  It should return the number of objects
+> - * which remain in the cache.  If it returns -1, it means it cannot do
+> - * any scanning at this time (eg. there is a risk of deadlock).
+> + * 'shrink' is passed a context 'ctx', a count 'nr_to_scan' and a 'gfpmask'.
+> + * It should look through the least-recently-used 'nr_to_scan' entries and
+> + * attempt to free them up.  It should return the number of objects which
+> + * remain in the cache.  If it returns -1, it means it cannot do any scanning
+> + * at this time (eg. there is a risk of deadlock).
+>   *
+>   * The 'gfpmask' refers to the allocation we are currently trying to
+>   * fulfil.
+> @@ -995,7 +995,8 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
+>   * querying the cache size, so a fastpath for that case is appropriate.
+>   */
+>  struct shrinker {
+> -	int (*shrink)(int nr_to_scan, gfp_t gfp_mask);
+> +	int (*shrink)(void *ctx, int nr_to_scan, gfp_t gfp_mask);
+> +	void *ctx;	/* user callback context */
+>  	int seeks;	/* seeks to recreate an obj */
+>  
+>  	/* These are for internal use */
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 5321ac4..40f27d2 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -215,8 +215,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+>  	list_for_each_entry(shrinker, &shrinker_list, list) {
+>  		unsigned long long delta;
+>  		unsigned long total_scan;
+> -		unsigned long max_pass = (*shrinker->shrink)(0, gfp_mask);
+> +		unsigned long max_pass;
+>  
+> +		max_pass = (*shrinker->shrink)(shrinker->ctx, 0, gfp_mask);
+>  		delta = (4 * scanned) / shrinker->seeks;
+>  		delta *= max_pass;
+>  		do_div(delta, lru_pages + 1);
+> @@ -244,8 +245,10 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+>  			int shrink_ret;
+>  			int nr_before;
+>  
+> -			nr_before = (*shrinker->shrink)(0, gfp_mask);
+> -			shrink_ret = (*shrinker->shrink)(this_scan, gfp_mask);
+> +			nr_before = (*shrinker->shrink)(shrinker->ctx,
+> +							0, gfp_mask);
+> +			shrink_ret = (*shrinker->shrink)(shrinker->ctx,
+> +							this_scan, gfp_mask);
+>  			if (shrink_ret == -1)
+>  				break;
+>  			if (shrink_ret < nr_before)
 
------ Original Message ----- 
-From: "Dave Chinner" <david@fromorbit.com>
-To: "Janos Haar" <janos.haar@netcenter.hu>
-Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
-<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
-<axboe@kernel.dk>
-Sent: Monday, April 12, 2010 2:11 AM
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
-please!...)
-
-
-> On Mon, Apr 12, 2010 at 12:44:37AM +0200, Janos Haar wrote:
->> Hi,
->>
->> Ok, here comes the funny part:
->> I have got several messages from the kernel about one of my XFS
->> (sdb2) have corrupted inodes, but my xfs_repair (v. 2.8.11) says the
->> FS is clean and shine.
->> Should i upgrade my xfs_repair, or this is another bug? :-)
->
-> v2.8.11 is positively ancient. :/
->
-> I'd upgrade (current is 3.1.1) and re-run repair again.
-
-OK, i will get the new repair today.
-
-btw
-Since i tested the FS with the 2.8.11, today morning i found this in the 
-log:
-
-...
-Apr 12 00:41:10 alfa kernel: XFS mounting filesystem sdb2   # This was the 
-point of check with xfs_repair v2.8.11
-Apr 13 03:08:33 alfa kernel: xfs_da_do_buf: bno 32768
-Apr 13 03:08:33 alfa kernel: dir: inode 474253931
-Apr 13 03:08:33 alfa kernel: Filesystem "sdb2": XFS internal error 
-xfs_da_do_buf(1) at line 2020 of file fs/xfs/xfs_da_btree.c.  Caller 
-0xffffffff811c4fa6
-Apr 13 03:08:33 alfa kernel:
-Apr 13 03:08:33 alfa kernel: Pid: 27304, comm: 01vegzet_runner Not tainted 
-2.6.32.10 #3
-Apr 13 03:08:33 alfa kernel: Call Trace:
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811cf87d>] 
-xfs_error_report+0x41/0x43
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811c4fa6>] ? 
-xfs_da_read_buf+0x2a/0x2c
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811c4c30>] xfs_da_do_buf+0x2a6/0x5aa
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811c4fa6>] xfs_da_read_buf+0x2a/0x2c
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811ca0f1>] ? 
-xfs_dir2_leaf_lookup_int+0x104/0x259
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811ca0f1>] 
-xfs_dir2_leaf_lookup_int+0x104/0x259
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811ca56e>] 
-xfs_dir2_leaf_lookup+0x26/0xb5
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811c6d60>] ? 
-xfs_dir2_isleaf+0x21/0x52
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811c74ea>] 
-xfs_dir_lookup+0x104/0x157
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811eab59>] xfs_lookup+0x50/0xb3
-Apr 13 03:08:33 alfa kernel:  [<ffffffff811f5a8f>] xfs_vn_lookup+0x45/0x86
-Apr 13 03:08:33 alfa kernel:  [<ffffffff810e4164>] __lookup_hash+0x105/0x12a
-Apr 13 03:08:33 alfa kernel:  [<ffffffff810e41c4>] lookup_hash+0x3b/0x40
-Apr 13 03:08:33 alfa kernel:  [<ffffffff810e7021>] do_unlinkat+0x71/0x17d
-Apr 13 03:08:33 alfa kernel:  [<ffffffff8175d2d3>] ? 
-trace_hardirqs_on_thunk+0x3a/0x3f
-Apr 13 03:08:33 alfa kernel:  [<ffffffff810e5a1d>] ? putname+0x3c/0x3e
-Apr 13 03:08:33 alfa kernel:  [<ffffffff810e7143>] sys_unlink+0x16/0x18
-Apr 13 03:08:33 alfa kernel:  [<ffffffff8100b09b>] 
-system_call_fastpath+0x16/0x1b
-....
-
-The entire log is here:
-http://download.netcenter.hu/bughunt/20100413/messages
-
-What is the best next step?
-Check with the new repair?
-
-Thanks,
-Janos
+Looks good about this mm part.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 
->
-> Cheers,
->
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/ 
+off-topic: shrink_slab() was introduced for page/[id]-cache scan balancing
+at first. now it still have hardcorded shrinker->nr calculation for slab
+although now lots another subsystem using it. shrinker->seeks seems no
+intuitive knob. probably we should try generalization it in future. but
+it is another story. I think this patch provide good first step.
+
+                delta = (4 * scanned) / shrinker->seeks;
+                delta *= max_pass;
+                do_div(delta, lru_pages + 1);
+                shrinker->nr += delta;
+
+
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
