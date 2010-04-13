@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A7346B0202
-	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 23:41:47 -0400 (EDT)
-Date: Mon, 12 Apr 2010 20:38:29 -0400
+	by kanga.kvack.org (Postfix) with ESMTP id C437F6B0203
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 00:31:55 -0400 (EDT)
+Date: Mon, 12 Apr 2010 21:29:13 -0400
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-Message-Id: <20100412203829.871f1dee.akpm@linux-foundation.org>
-In-Reply-To: <4BC2EFBA.5080404@redhat.com>
-References: <4BC0DE84.3090305@redhat.com>
-	<20100411104608.GA12828@elte.hu>
-	<4BC1B2CA.8050208@redhat.com>
-	<20100411120800.GC10952@elte.hu>
-	<20100412060931.GP5683@laptop>
-	<4BC2BF67.80903@redhat.com>
-	<20100412071525.GR5683@laptop>
-	<4BC2CF8C.5090108@redhat.com>
-	<20100412082844.GU5683@laptop>
-	<4BC2E1D6.9040702@redhat.com>
-	<20100412092615.GY5683@laptop>
-	<4BC2EFBA.5080404@redhat.com>
+Subject: Re: [PATCH 67 of 67] memcg fix prepare migration
+Message-Id: <20100412212913.55be5ce5.akpm@linux-foundation.org>
+In-Reply-To: <20100408125722.2a11257d.nishimura@mxp.nes.nec.co.jp>
+References: <patchbomb.1270691443@v2.random>
+	<545969ff079730c4d7f7.1270691510@v2.random>
+	<20100408125722.2a11257d.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 12 Apr 2010 13:02:34 +0300 Avi Kivity <avi@redhat.com> wrote:
+On Thu, 8 Apr 2010 12:57:22 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> The only scenario I can see where it degrades is that you have a dcache 
-> load that spills over to all of memory, then falls back leaving a pinned 
-> page in every huge frame.  It can happen, but I don't see it as a likely 
-> scenario.  But maybe I'm missing something.
+> On Thu, 08 Apr 2010 03:51:50 +0200, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > If a signal is pending (task being killed by sigkill) __mem_cgroup_try_charge
+> > will write NULL into &mem, and css_put will oops on null pointer dereference.
+> > 
+> > BUG: unable to handle kernel NULL pointer dereference at 0000000000000010
+> > IP: [<ffffffff810fc6cc>] mem_cgroup_prepare_migration+0x7c/0xc0
+> > PGD a5d89067 PUD a5d8a067 PMD 0
+> > Oops: 0000 [#1] SMP
+> > last sysfs file: /sys/devices/platform/microcode/firmware/microcode/loading
+> > CPU 0
+> > Modules linked in: nfs lockd nfs_acl auth_rpcgss sunrpc acpi_cpufreq pcspkr sg [last unloaded: microcode]
+> > 
+> > Pid: 5299, comm: largepages Tainted: G        W  2.6.34-rc3 #3 Penryn1600SLI-110dB/To Be Filled By O.E.M.
+> > RIP: 0010:[<ffffffff810fc6cc>]  [<ffffffff810fc6cc>] mem_cgroup_prepare_migration+0x7c/0xc0
+> > 
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Nice catch !
+> 
+> But I think this fix should be forwarded to 34-rc and stable. They all have
+> the same problem if the "current" which is doing the page migration is being
+> oom-killed.
 
-<prehistoric memory>
-
-This used to happen fairly easily.  You have a directory tree and some
-app which walks down and across it, stat()ing regular files therein. 
-So you end up with dentries and inodes which are laid out in memory as
-dir-file-file-file-file-...-file-dir-file-...  Then the file
-dentries/inodes get reclaimed and you're left with a sparse collection
-of directory dcache/icache entries - massively fragmented.
-
-I forget _why_ it happened.  Perhaps because S_ISREG cache items aren't
-pinned by anything, but S_ISDIR cache items are pinned by their children
-so it takes many more expiry rounds to get rid of them.
-
-There was talk about fixing this, perhaps by using different slab
-caches for dirs vs files.  Hard, because the type of the file/inode
-isn't known at allocation time.  Nothing happened about it.
+OK.  I added the cc:stable.  The patch gets a trivial reject vs 2.6.33,
+but they'll work it out ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
