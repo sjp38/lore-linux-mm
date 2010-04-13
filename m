@@ -1,51 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A7E1E6B01F2
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 12:14:56 -0400 (EDT)
-Date: Tue, 13 Apr 2010 17:14:22 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/6] change alloc function in alloc_slab_page
-Message-ID: <20100413161421.GH25756@csn.ul.ie>
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com> <8b348d9cc1ea4960488b193b7e8378876918c0d4.1271171877.git.minchan.kim@gmail.com> <20100413155253.GD25756@csn.ul.ie> <i2x28c262361004130901p9c34b49cu9c7ebd1a24de5ed9@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8C52D6B01F2
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 12:20:57 -0400 (EDT)
+Received: by gyg4 with SMTP id 4so3559738gyg.14
+        for <linux-mm@kvack.org>; Tue, 13 Apr 2010 09:20:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <i2x28c262361004130901p9c34b49cu9c7ebd1a24de5ed9@mail.gmail.com>
+In-Reply-To: <20100413161326.GG25756@csn.ul.ie>
+References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
+	 <d74305233536342dfeb1ca7ffe9e83495ce1f285.1271171877.git.minchan.kim@gmail.com>
+	 <20100413161326.GG25756@csn.ul.ie>
+Date: Wed, 14 Apr 2010 01:20:55 +0900
+Message-ID: <j2z28c262361004130920s649c3f41mb35e39aa3621083a@mail.gmail.com>
+Subject: Re: [PATCH 6/6] Add comment in alloc_pages_exact_node
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 01:01:31AM +0900, Minchan Kim wrote:
-> On Wed, Apr 14, 2010 at 12:52 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > On Wed, Apr 14, 2010 at 12:25:00AM +0900, Minchan Kim wrote:
-> >> alloc_slab_page never calls alloc_pages_node with -1.
-> >
-> > Are you certain? What about
-> >
-> > __kmalloc
-> >  -> slab_alloc (passed -1 as a node from __kmalloc)
-> >    -> __slab_alloc
-> >      -> new_slab
-> >        -> allocate_slab
-> >          -> alloc_slab_page
-> >
-> 
-> Sorry for writing confusing changelog.
-> 
-> I means if node == -1 alloc_slab_page always calls alloc_pages.
-> So we don't need redundant check.
-> 
+On Wed, Apr 14, 2010 at 1:13 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Wed, Apr 14, 2010 at 12:25:03AM +0900, Minchan Kim wrote:
+>> alloc_pages_exact_node naming makes some people misleading.
+>> They considered it following as.
+>> "This function will allocate pages from node which I wanted
+>> exactly".
+>> But it can allocate pages from fallback list if page allocator
+>> can't find free page from node user wanted.
+>>
+>> So let's comment this NOTE.
+>>
+>
+> It's a little tough to read. How about
+>
+> /*
+> =C2=A0* Use this instead of alloc_pages_node when the caller knows
+> =C2=A0* exactly which node they need (as opposed to passing in -1
+> =C2=A0* for current). Fallback to other nodes will still occur
+> =C2=A0* unless __GFP_THISNODE is specified.
+> =C2=A0*/
 
-When the changelog is fixed up, feel free to add;
+It is better than mine.
 
-Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+>
+> That at least will tie in why "exact" is in the name?
+>
+>> Actually I wanted to change naming with better.
+>> ex) alloc_pages_explict_node.
+>
+> "Explicit" can also be taken to mean "this and only this node".
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I agree.
+I will repost modified comment after Tejun comment [2/6].
+Thanks for quick review, Mel. :)
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
