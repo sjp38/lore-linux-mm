@@ -1,139 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C18A86B01E3
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 10:28:37 -0400 (EDT)
-Received: by pvg11 with SMTP id 11so3818734pvg.14
-        for <linux-mm@kvack.org>; Tue, 13 Apr 2010 07:28:35 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 84B576B01E3
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 10:37:16 -0400 (EDT)
+Date: Wed, 14 Apr 2010 00:36:59 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-ID: <20100413143659.GA2493@dastard>
+References: <20100413142445.D0FE.A69D9226@jp.fujitsu.com>
+ <20100413102938.GX2493@dastard>
+ <20100413201635.D119.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20100413083855.GS25756@csn.ul.ie>
-References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
-	 <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com>
-	 <20100413083855.GS25756@csn.ul.ie>
-Date: Tue, 13 Apr 2010 22:28:35 +0800
-Message-ID: <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>
-Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100413201635.D119.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, cl@linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 13, 2010 at 4:38 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Tue, Apr 13, 2010 at 04:20:53PM +0800, Bob Liu wrote:
->> On 4/6/10, Bob Liu <lliubbo@gmail.com> wrote:
->> > In funtion migrate_pages(), if the dest node have no
->> > enough free pages,it will fallback to other nodes.
->> > Add GFP_THISNODE to avoid this, the same as what
->> > funtion new_page_node() do in migrate.c.
->> >
->> > Signed-off-by: Bob Liu <lliubbo@gmail.com>
->> > ---
->> > =C2=A0mm/mempolicy.c | =C2=A0 =C2=A03 ++-
->> > =C2=A01 files changed, 2 insertions(+), 1 deletions(-)
->> >
->> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> > index 08f40a2..fc5ddf5 100644
->> > --- a/mm/mempolicy.c
->> > +++ b/mm/mempolicy.c
->> > @@ -842,7 +842,8 @@ static void migrate_page_add(struct page *page, st=
-ruct list_head *pagelist,
->> >
->> > =C2=A0static struct page *new_node_page(struct page *page, unsigned lo=
-ng node, int **x)
->> > =C2=A0{
->> > - =C2=A0 =C2=A0 =C2=A0 return alloc_pages_exact_node(node, GFP_HIGHUSE=
-R_MOVABLE, 0);
->> > + =C2=A0 =C2=A0 =C2=A0 return alloc_pages_exact_node(node,
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 GFP_HIGHUSER_MOVABLE | GFP_THISNODE,=
- 0);
->> > =C2=A0}
->> >
->>
->> Hi, Minchan and Kame
->> =C2=A0 =C2=A0 =C2=A0Would you please add ack or review to this thread. I=
-t's BUGFIX
->> and not change, so i don't resend one.
->>
->
-> Sorry for taking so long to get around to this thread. I talked on this
-> patch already but it's in another thread. Here is what I said there
->
-> =3D=3D=3D=3D
-> This appears to be a valid bug fix. =C2=A0I agree that the way things are=
- structured
-> that __GFP_THISNODE should be used in new_node_page(). But maybe a follow=
--on
-> patch is also required. The behaviour is now;
->
-> o new_node_page will not return NULL if the target node is empty (fine).
-> o migrate_pages will translate this into -ENOMEM (fine)
-> o do_migrate_pages breaks early if it gets -ENOMEM ?
->
-> It's the last part I'd like you to double check. migrate_pages() takes a
-> nodemask of allowed nodes to migrate to. Rather than sending this down
-> to the allocator, it iterates over the nodes allowed in the mask. If one
-> of those nodes is full, it returns -ENOMEM.
->
-> If -ENOMEM is returned from migrate_pages, should it not move to the
-> next node?
-> =3D=3D=3D=3D
+On Tue, Apr 13, 2010 at 08:39:29PM +0900, KOSAKI Motohiro wrote:
+> Hi
+> 
+> > > Pros:
+> > > 	1) prevent XFS stack overflow
+> > > 	2) improve io workload performance
+> > > 
+> > > Cons:
+> > > 	3) TOTALLY kill lumpy reclaim (i.e. high order allocation)
+> > > 
+> > > So, If we only need to consider io workload this is no downside. but
+> > > it can't.
+> > > 
+> > > I think (1) is XFS issue. XFS should care it itself.
+> > 
+> > The filesystem is irrelevant, IMO.
+> > 
+> > The traces from the reporter showed that we've got close to a 2k
+> > stack footprint for memory allocation to direct reclaim and then we
+> > can put the entire writeback path on top of that. This is roughly
+> > 3.5k for XFS, and then depending on the storage subsystem
+> > configuration and transport can be another 2k of stack needed below
+> > XFS.
+> > 
+> > IOWs, if we completely ignore the filesystem stack usage, there's
+> > still up to 4k of stack needed in the direct reclaim path. Given
+> > that one of the stack traces supplied show direct reclaim being
+> > entered with over 3k of stack already used, pretty much any
+> > filesystem is capable of blowing an 8k stack.
+> > 
+> > So, this is not an XFS issue, even though XFS is the first to
+> > uncover it. Don't shoot the messenger....
+> 
+> Thanks explanation. I haven't noticed direct reclaim consume
+> 2k stack. I'll investigate it and try diet it.
+> But XFS 3.5K stack consumption is too large too. please diet too.
 
-Hm.I think early return is ok but not sure about it :)
+It hasn't grown in the last 2 years after the last major diet where
+all the fat was trimmed from it in the last round of the i386 4k
+stack vs XFS saga. it seems that everything else around XFS has
+grown in that time, and now we are blowing stacks again....
 
-As Christoph said
-"The intended semantic is the preservation of the relative position of the
-page to the beginning of the node set."
-"F.e. if you use page
-migration (or cpuset automigration) to shift an application running on 10
-nodes up by two nodes to make a hole that would allow you to run another
-application on the lower nodes. Applications place pages intentionally on
-certain nodes to be able to manage memory distances."
+> > Hence I think that direct reclaim should be deferring to the
+> > background flusher threads for cleaning memory and not trying to be
+> > doing it itself.
+> 
+> Well, you seems continue to discuss io workload. I don't disagree
+> such point. 
+> 
+> example, If only order-0 reclaim skip pageout(), we will get the above
+> benefit too.
 
-If move to the next node instead of early return, the relative position of =
-the
-page to the beginning of the node set will be break;
+But it won't prevent start blowups...
 
-(BTW:I am still not very clear about the preservation of the relative
-position of the
-page to the beginning of the node set. I think if the user call
-migrate_pages() with
-different count of src and dest nodes, the  relative position will also bre=
-ak.
-eg. if call migrate_pags() from nodes is node(1,2,3) , dest nodes is
-just node(3).
-the current code logical will move pages in node 1, 2 to node 3. this case =
-the
-relative position is breaked).
+> > > but we never kill pageout() completely because we can't
+> > > assume users don't run high order allocation workload.
+> > 
+> > I think that lumpy reclaim will still work just fine.
+> > 
+> > Lumpy reclaim appears to be using IO as a method of slowing
+> > down the reclaim cycle - the congestion_wait() call will still
+> > function as it does now if the background flusher threads are active
+> > and causing congestion. I don't see why lumpy reclaim specifically
+> > needs to be issuing IO to make it work - if the congestion_wait() is
+> > not waiting long enough then wait longer - don't issue IO to extend
+> > the wait time.
+> 
+> lumpy reclaim is for allocation high order page. then, it not only
+> reclaim LRU head page, but also its PFN neighborhood. PFN neighborhood
+> is often newly page and still dirty. then we enfoce pageout cleaning
+> and discard it.
 
-Add Christoph  to cc.
+Ok, I see that now - I missed the second call to __isolate_lru_pages()
+in isolate_lru_pages().
 
->
-> My concern before acking this patch is that the function might be exiting
-> too early when given a set of nodes. Granted, because __GFP_THISNODE is n=
-ot
-> specified, it's perfectly possible that migration is currently moving pag=
-es
-> to the wrong node which is also very bad.
->
->> =C2=A0 =C2=A0 =C2=A0About code clean, there should be some new CLEANUP p=
-atches or
->> just don't make any changes decided after we finish before
->> discussions.
->>
->
-> Cleanup patches can be sent separately. I might be biased against a funct=
-ion
-> rename but the bugfix is more important.
->
+> When high order allocation occur, we don't only need free enough amount
+> memory, but also need free enough contenious memory block.
 
-Thanks!
+Agreed, that was why I was kind of surprised not to find it was
+doing that. But, as you have pointed out, that was my mistake.
 
---=20
-Regards,
---Bob
+> If we need to consider _only_ io throughput, waiting flusher thread
+> might faster perhaps, but actually we also need to consider reclaim
+> latency. I'm worry about such point too.
+
+True, but without know how to test and measure such things I can't
+really comment...
+
+> > Of course, the code is a maze of twisty passages, so I probably
+> > missed something important. Hopefully someone can tell me what. ;)
+> > 
+> > FWIW, the biggest problem here is that I have absolutely no clue on
+> > how to test what the impact on lumpy reclaim really is. Does anyone
+> > have a relatively simple test that can be run to determine what the
+> > impact is?
+> 
+> So, can you please run two workloads concurrently?
+>  - Normal IO workload (fio, iozone, etc..)
+>  - echo $NUM > /proc/sys/vm/nr_hugepages
+
+What do I measure/observe/record that is meaningful?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
