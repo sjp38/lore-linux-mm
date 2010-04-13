@@ -1,132 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3046D6B020F
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 02:17:56 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3D6HrcN029558
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 13 Apr 2010 15:17:53 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CD5A645DE6F
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 15:17:52 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A2A545DE6E
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 15:17:52 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 330E31DB803E
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 15:17:52 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C44921DB8041
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 15:17:51 +0900 (JST)
-Date: Tue, 13 Apr 2010 15:14:00 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][BUGFIX][PATCH] memcg: fix underflow of mapped_file stat
-Message-Id: <20100413151400.cb89beb7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
-References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FE106B0211
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 02:18:38 -0400 (EDT)
+Date: Tue, 13 Apr 2010 16:18:02 +1000
+From: Neil Brown <neilb@suse.de>
+Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
+Message-ID: <20100413161802.498336ca@notabene.brown>
+In-Reply-To: <20100412203829.871f1dee.akpm@linux-foundation.org>
+References: <4BC0DE84.3090305@redhat.com>
+	<20100411104608.GA12828@elte.hu>
+	<4BC1B2CA.8050208@redhat.com>
+	<20100411120800.GC10952@elte.hu>
+	<20100412060931.GP5683@laptop>
+	<4BC2BF67.80903@redhat.com>
+	<20100412071525.GR5683@laptop>
+	<4BC2CF8C.5090108@redhat.com>
+	<20100412082844.GU5683@laptop>
+	<4BC2E1D6.9040702@redhat.com>
+	<20100412092615.GY5683@laptop>
+	<4BC2EFBA.5080404@redhat.com>
+	<20100412203829.871f1dee.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Avi Kivity <avi@redhat.com>, Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael  S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Apr 2010 13:42:07 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Mon, 12 Apr 2010 20:38:29 -0400
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> Hi.
+> On Mon, 12 Apr 2010 13:02:34 +0300 Avi Kivity <avi@redhat.com> wrote:
 > 
-> When I was testing page migration, I found underflow problem of "mapped_file" field
-> in memory.stat. This is a fix for the problem.
+> > The only scenario I can see where it degrades is that you have a dcache 
+> > load that spills over to all of memory, then falls back leaving a pinned 
+> > page in every huge frame.  It can happen, but I don't see it as a likely 
+> > scenario.  But maybe I'm missing something.
 > 
-> This patch is based on mmotm-2010-04-05-16-09, and IIUC it conflicts with Mel's
-> compaction patches, so I send it as RFC for now. After next mmotm, which will
-> include those patches, I'll update and resend this patch.
+> <prehistoric memory>
 > 
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> This used to happen fairly easily.  You have a directory tree and some
+> app which walks down and across it, stat()ing regular files therein. 
+> So you end up with dentries and inodes which are laid out in memory as
+> dir-file-file-file-file-...-file-dir-file-...  Then the file
+> dentries/inodes get reclaimed and you're left with a sparse collection
+> of directory dcache/icache entries - massively fragmented.
 > 
-> page_add_file_rmap(), which can be called from remove_migration_ptes(), is
-> assumed to increment memcg's stat of mapped file. But on success of page
-> migration, the newpage(mapped file) has not been charged yet, so the stat will
-> not be incremented. This behavior leads to underflow of memcg's stat because
-> when the newpage is unmapped afterwards, page_remove_rmap() decrements the stat.
-> This problem doesn't happen on failure path of page migration, because the old
-> page(mapped file) hasn't been uncharge at the point of remove_migration_ptes().
-> This patch fixes this problem by calling commit_charge(mem_cgroup_end_migration)
-> before remove_migration_ptes().
+> I forget _why_ it happened.  Perhaps because S_ISREG cache items aren't
+> pinned by anything, but S_ISDIR cache items are pinned by their children
+> so it takes many more expiry rounds to get rid of them.
 > 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> There was talk about fixing this, perhaps by using different slab
+> caches for dirs vs files.  Hard, because the type of the file/inode
+> isn't known at allocation time.  Nothing happened about it.
 
-Nice catch. but...I want to make all kind of complicated things under
-prepare/end migration. (And I want to avoid changes in migrate.c...)
+Actually I don't think that would be hard at all.
+->lookup can return a different dentry than the one passed in, usually using
+d_splice_alias to find it.
+So when you create an inode for a directory, create an anonymous dentry,
+attach it via i_dentry, and it should "just work".
+That is assuming this is still a "problem" that needs to be "fixed".
 
-Considering some racy condistions, I wonder memcg_update_file_mapped() itself
-still need fixes..
-
-So, how about this ? We already added FILE_MAPPED flags, then, make use of it.
-==
-
-
-At migrating mapped file, events happens in following sequence.
-
- 1. allocate a new page.
- 2. get memcg of an old page.
- 3. charge ageinst new page, before migration. But at this point
-    no changes to page_cgroup, no commit-charge.
- 4. page migration replaces radix-tree, old-page and new-page.
- 5. page migration remaps the new page if the old page was mapped.
- 6. memcg commits the charge for newpage.
-
-Because "commit" happens after page-remap, we lose file_mapped
-accounting information at migration.
-
-This patch fixes it by accounting file_mapped information at
-commiting charge.
-
-Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
-
-Index: mmotm-temp/mm/memcontrol.c
-===================================================================
---- mmotm-temp.orig/mm/memcontrol.c
-+++ mmotm-temp/mm/memcontrol.c
-@@ -1435,11 +1435,13 @@ void mem_cgroup_update_file_mapped(struc
- 
- 	/*
- 	 * Preemption is already disabled. We can use __this_cpu_xxx
-+	 * We have no lock per page at inc/dec mapcount of pages. We have to do
-+	 * check by ourselves under lock_page_cgroup().
- 	 */
--	if (val > 0) {
-+	if (val > 0 && !PageCgroupFileMapped(pc)) {
- 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
- 		SetPageCgroupFileMapped(pc);
--	} else {
-+	} else if (PageCgroupFileMapped(pc)) {
- 		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
- 		ClearPageCgroupFileMapped(pc);
- 	}
-@@ -2563,6 +2565,15 @@ void mem_cgroup_end_migration(struct mem
- 	 */
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
- 		mem_cgroup_uncharge_page(target);
-+	else {
-+		/*
-+		 * When a migrated file cache is remapped, it's not charged.
-+		 * Verify it. Because we're under lock_page(), there are
-+		 * no race with uncharge.
-+		 */
-+		if (page_mapped(target))
-+			mem_cgroup_update_file_mapped(mem, target, 1);
-+	}
- 	/*
- 	 * At migration, we may charge account against cgroup which has no tasks
- 	 * So, rmdir()->pre_destroy() can be called while we do this charge.
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
