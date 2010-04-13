@@ -1,50 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 949CD6B01FC
-	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 21:21:24 -0400 (EDT)
-Date: Mon, 12 Apr 2010 10:11:58 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look
- please!...)
-Message-ID: <20100412001158.GA2493@dastard>
-References: <t2h2375c9f91004010337p618c4d5yc739fa25b5f842fa@mail.gmail.com>
- <1fe901cad2b0$d39d0300$0400a8c0@dcccs>
- <20100402230905.GW3335@dastard>
- <22c901cad333$7a67db60$0400a8c0@dcccs>
- <20100404103701.GX3335@dastard>
- <2bd101cad4ec$5a425f30$0400a8c0@dcccs>
- <20100405224522.GZ3335@dastard>
- <3a5f01cad6c5$8a722c00$0400a8c0@dcccs>
- <20100408025822.GL11036@dastard>
- <11b701cad9c8$93212530$0400a8c0@dcccs>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 51AA16B01FE
+	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 21:30:39 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3D1UaBv001418
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 13 Apr 2010 10:30:36 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4732A45DE5D
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 10:30:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 23AED45DE4F
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 10:30:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 05F3BE08003
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 10:30:36 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A119EE08001
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 10:30:35 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+In-Reply-To: <4BBF9B34.5040909@redhat.com>
+References: <20100409142057.be0ce5af.akpm@linux-foundation.org> <4BBF9B34.5040909@redhat.com>
+Message-Id: <20100413102641.4A18.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <11b701cad9c8$93212530$0400a8c0@dcccs>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Tue, 13 Apr 2010 10:30:34 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Janos Haar <janos.haar@netcenter.hu>
-Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 12, 2010 at 12:44:37AM +0200, Janos Haar wrote:
-> Hi,
+> On 04/09/2010 05:20 PM, Andrew Morton wrote:
 > 
-> Ok, here comes the funny part:
-> I have got several messages from the kernel about one of my XFS
-> (sdb2) have corrupted inodes, but my xfs_repair (v. 2.8.11) says the
-> FS is clean and shine.
-> Should i upgrade my xfs_repair, or this is another bug? :-)
+> > Come to that, it's not obvious that we need this in 2.6.34 either.  What
+> > is the user-visible impact here?
+> 
+> I suspect very little impact, especially during workloads
+> where we can just reclaim clean page cache at DEF_PRIORITY.
+> FWIW, the patch looks good to me, so:
+> 
+> Acked-by: Rik van Riel <riel@redhat.com>
+> 
 
-v2.8.11 is positively ancient. :/
+I'm surprised this ack a bit. Rik, do you have any improvement plan about
+streaming io detection logic?
+I think the patch have a slightly marginal benefit, it help to <1% scan
+ratio case. but it have big regression, it cause streaming io (e.g. backup
+operation) makes tons swap.
 
-I'd upgrade (current is 3.1.1) and re-run repair again.
+So, I thought we sould do either,
+1) drop this one
+2) merge to change stream io detection logic improvement at first, and
+   merge this one at second.
 
-Cheers,
+Am i missing something?
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
