@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A35DC6B01F1
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 03:37:39 -0400 (EDT)
-Received: by iwn14 with SMTP id 14so4758097iwn.22
-        for <linux-mm@kvack.org>; Tue, 13 Apr 2010 00:37:37 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AFE526B01F7
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 03:40:14 -0400 (EDT)
+Received: by yxe39 with SMTP id 39so103262yxe.12
+        for <linux-mm@kvack.org>; Tue, 13 Apr 2010 00:40:13 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <v2qcf18f8341004130009o49bd230cga838b416a75f61e8@mail.gmail.com>
 References: <1270900173-10695-1-git-send-email-lliubbo@gmail.com>
@@ -11,8 +11,8 @@ References: <1270900173-10695-1-git-send-email-lliubbo@gmail.com>
 	 <i2l28c262361004122134of7f96809va209e779ccd44195@mail.gmail.com>
 	 <20100413144037.f714fdeb.kamezawa.hiroyu@jp.fujitsu.com>
 	 <v2qcf18f8341004130009o49bd230cga838b416a75f61e8@mail.gmail.com>
-Date: Tue, 13 Apr 2010 16:37:37 +0900
-Message-ID: <j2k28c262361004130037s59bfa72ag12afc6e56bd93e6e@mail.gmail.com>
+Date: Tue, 13 Apr 2010 16:40:09 +0900
+Message-ID: <l2r28c262361004130040ydff92adfzfba4d678931b3257@mail.gmail.com>
 Subject: Re: [PATCH] code clean rename alloc_pages_exact_node()
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
@@ -104,17 +104,20 @@ eems
 > Hm..It's a bit bigger.
 > Actually, what I want to do was in my original mail several days ago,
 > the title is "mempolicy:add GFP_THISNODE when allocing new page"
+>
+> What I concern is *just* we shouldn't fallback to other nodes if the
+> dest node haven't enough free pages during migrate_pages().
+>
+> The detail is below:
+> In funtion migrate_pages(), if the dest node have no
+> enough free pages,it will fallback to other nodes.
+> Add GFP_THISNODE to avoid this, the same as what
+> funtion new_page_node() do in migrate.c.
+>
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Yes. At that time, I suggested new naming.
-I agreed this patch and Mel didn't opposed it if others think new
-naming is better.
-
-I still open my mind with new naming if you suggest better naming.
-How about 'allocate_pages_explicit_node?'
-
-
-
-
+Long time ago, I already reviewed this patch with Bob. :)
 
 --=20
 Kind regards,
