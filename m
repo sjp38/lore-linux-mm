@@ -1,127 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FC576B021D
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 03:05:04 -0400 (EDT)
-Received: from il27vts03 (il27vts03.cig.mot.com [10.17.196.87])
-	by mdgate2.corp.mot.com (8.14.3/8.14.3) with SMTP id o3D74nXY019724
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 01:04:49 -0600 (MDT)
-Received: from mail-yw0-f184.google.com (mail-yw0-f184.google.com [209.85.211.184])
-	by mdgate2.corp.mot.com (8.14.3/8.14.3) with ESMTP id o3D73T5Z019524
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 01:04:49 -0600 (MDT)
-Received: by mail-yw0-f184.google.com with SMTP id 14so1955610ywh.25
-        for <linux-mm@kvack.org>; Tue, 13 Apr 2010 00:05:01 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 885016B021D
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 03:09:47 -0400 (EDT)
+Received: by pzk30 with SMTP id 30so116516pzk.12
+        for <linux-mm@kvack.org>; Tue, 13 Apr 2010 00:09:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <w2z4810ea571004112250x855fadd5uecbc813726ae3412@mail.gmail.com>
-References: <w2z4810ea571004112250x855fadd5uecbc813726ae3412@mail.gmail.com>
-Date: Tue, 13 Apr 2010 15:05:00 +0800
-Message-ID: <h2v5f4a33681004130005xc06eadf7jc94e9257c6af4350@mail.gmail.com>
-Subject: Re: [PATCH - V2] Fix missing of last user while dumping slab
-	corruption log
-From: TAO HU <tghk48@motorola.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20100413144037.f714fdeb.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1270900173-10695-1-git-send-email-lliubbo@gmail.com>
+	 <20100412164335.GQ25756@csn.ul.ie>
+	 <i2l28c262361004122134of7f96809va209e779ccd44195@mail.gmail.com>
+	 <20100413144037.f714fdeb.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 13 Apr 2010 15:09:42 +0800
+Message-ID: <v2qcf18f8341004130009o49bd230cga838b416a75f61e8@mail.gmail.com>
+Subject: Re: [PATCH] code clean rename alloc_pages_exact_node()
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-kernel@vger.kernel.org, cl@linux-foundation.org, mpm@selenic.com, linux-mm@kvack.org, dwmw2@infradead.org, TAO HU <taohu@motorola.com>, ShiYong LI <shi-yong.li@motorola.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, cl@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, penberg@cs.helsinki.fi, lethal@linux-sh.org, a.p.zijlstra@chello.nl, nickpiggin@yahoo.com.au, dave@linux.vnet.ibm.com, lee.schermerhorn@hp.com, rientjes@google.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,  Pekka Enberg
+On 4/13/10, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 13 Apr 2010 13:34:52 +0900
+>
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>
+> > On Tue, Apr 13, 2010 at 1:43 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+>  > > On Sat, Apr 10, 2010 at 07:49:32PM +0800, Bob Liu wrote:
+>  > >> Since alloc_pages_exact_node() is not for allocate page from
+>  > >> exact node but just for removing check of node's valid,
+>  > >> rename it to alloc_pages_from_valid_node(). Else will make
+>  > >> people misunderstanding.
+>  > >>
+>  > >
+>  > > I don't know about this change either but as I introduced the original
+>  > > function name, I am biased. My reading of it is - allocate me pages and
+>  > > I know exactly which node I need. I see how it it could be read as
+>  > > "allocate me pages from exactly this node" but I don't feel the new
+>  > > naming is that much clearer either.
+>  >
+>  > Tend to agree.
+>  > Then, don't change function name but add some comment?
+>  >
+>  > /*
+>  >  * allow pages from fallback if page allocator can't find free page in your nid.
+>  >  * If you want to allocate page from exact node, please use
+>  > __GFP_THISNODE flags with
+>  >  * gfp_mask.
+>  >  */
+>  > static inline struct page *alloc_pages_exact_node(....
+>  >
+>
+> I vote for this rather than renaming.
+>
+>  There are two functions
+>         allo_pages_node()
+>         alloc_pages_exact_node().
+>
+>  Sane progmrammers tend to see implementation details if there are 2
+>  similar functions.
+>
+>  If I name the function,
+>         alloc_pages_node_verify_nid() ?
+>
+>  I think /* This doesn't support nid=-1, automatic behavior. */ is necessary
+>  as comment.
+>
+>  OFF_TOPIC
+>
+>  If you want renaming,  I think we should define NID=-1 as
+>
+>  #define ARBITRARY_NID           (-1) or
+>  #define CURRENT_NID             (-1) or
+>  #define AUTO_NID                (-1)
+>
+>  or some. Then, we'll have concensus of NID=-1 support.
+>  (Maybe some amount of programmers don't know what NID=-1 means.)
+>
+>  The function will be
+>         alloc_pages_node_no_auto_nid() /* AUTO_NID is not supported by this */
+>  or
+>         alloc_pages_node_veryfy_nid()
+>
+>  Maybe patch will be bigger and may fail after discussion. But it seems
+>  worth to try.
+>
 
-Actually we greped "kmem_cache_create" in whole kernel souce tree
-(2.6.29 and 2.6.32).
+Hm..It's a bit bigger.
+Actually, what I want to do was in my original mail several days ago,
+the title is "mempolicy:add GFP_THISNODE when allocing new page"
 
-Either "align" equal to "0" or flag SLAB_HWCACHE_ALIGN is used when
-calling kmem_cache_create().
-Seems all of arch's cache-line-size is multiple of 64-bit/8-byte
-(sizeof(long long)) except  arch-microblaze (4-byte).
-The smallest (except arch-microblaze) cache-line-size is 2^4=3D 16-byte
-as I can see.
-So even considering possible sizeof(long long) =3D=3D 128-bit/16-byte, it
-is still safe to apply Shiyong's original version.
+What I concern is *just* we shouldn't fallback to other nodes if the
+dest node haven't enough free pages during migrate_pages().
 
-Anyway, Shiyong's new patch check the weired situation that "align >
-sizeof(long long) && align is NOT multiple of sizeof (long long)"
-Let us know whether the new version address your concerns.
+The detail is below:
+In funtion migrate_pages(), if the dest node have no
+enough free pages,it will fallback to other nodes.
+Add GFP_THISNODE to avoid this, the same as what
+funtion new_page_node() do in migrate.c.
 
---=20
-Best Regards
-Hu Tao
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/mempolicy.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 08f40a2..fc5ddf5 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -842,7 +842,8 @@ static void migrate_page_add(struct page *page,
+struct list_head *pagelist,
 
+ static struct page *new_node_page(struct page *page, unsigned long
+node, int **x)
+ {
+-       return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
++       return alloc_pages_exact_node(node,
++                               GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
+ }
 
-
-
-On Mon, Apr 12, 2010 at 1:50 PM, ShiYong LI <shi-yong.li@motorola.com> wrot=
-e:
-> Hi,
->
-> Compared to previous version, add alignment checking to make sure
-> memory space storing redzone2 and last user tags is 8 byte alignment.
->
-> From 949e8c29e8681a2359e23a8fbd8b9d4833f42344 Mon Sep 17 00:00:00 2001
-> From: Shiyong Li <shi-yong.li@motorola.com>
-> Date: Mon, 12 Apr 2010 13:48:21 +0800
-> Subject: [PATCH] Fix missing of last user info while getting
-> DEBUG_SLAB config enabled.
->
-> Even with SLAB_RED_ZONE and SLAB_STORE_USER enabled, kernel would NOT
-> store redzone and last user data around allocated memory space if arch
-> cache line > sizeof(unsigned long long). As a result, last user informati=
-on
-> is unexpectedly MISSED while dumping slab corruption log.
->
-> This fix makes sure that redzone and last user tags get stored unless
-> the required alignment breaks redzone's.
->
-> Signed-off-by: Shiyong Li <shi-yong.li@motorola.com>
-> ---
-> =A0mm/slab.c | =A0 =A08 ++++----
-> =A01 files changed, 4 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/slab.c b/mm/slab.c
-> index a8a38ca..b97c57e 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2267,8 +2267,8 @@ kmem_cache_create (const char *name, size_t
-> size, size_t align,
-> =A0 =A0 =A0 =A0if (ralign < align) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ralign =3D align;
-> =A0 =A0 =A0 =A0}
-> - =A0 =A0 =A0 /* disable debug if necessary */
-> - =A0 =A0 =A0 if (ralign > __alignof__(unsigned long long))
-> + =A0 =A0 =A0 /* disable debug if not aligning with REDZONE_ALIGN */
-> + =A0 =A0 =A0 if (ralign & (__alignof__(unsigned long long) - 1))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0flags &=3D ~(SLAB_RED_ZONE | SLAB_STORE_US=
-ER);
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * 4) Store it.
-> @@ -2289,8 +2289,8 @@ kmem_cache_create (const char *name, size_t
-> size, size_t align,
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0if (flags & SLAB_RED_ZONE) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* add space for red zone words */
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 cachep->obj_offset +=3D sizeof(unsigned lon=
-g long);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 size +=3D 2 * sizeof(unsigned long long);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 cachep->obj_offset +=3D align;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 size +=3D align + sizeof(unsigned long long=
-);
-> =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0if (flags & SLAB_STORE_USER) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* user store requires one word storage be=
-hind the end of
-> --
-> 1.6.0.4
->
->
->
->
->
-> --
-> Thanks & Best Regards
-> Shiyong
->
+Thanks.
+-- 
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
