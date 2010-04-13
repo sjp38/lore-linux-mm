@@ -1,70 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B04D76B0200
-	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 22:42:58 -0400 (EDT)
-Message-ID: <4BC3DA2B.3070605@redhat.com>
-Date: Mon, 12 Apr 2010 22:42:51 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
-References: <20100409142057.be0ce5af.akpm@linux-foundation.org> <4BBF9B34.5040909@redhat.com> <20100413102641.4A18.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100413102641.4A18.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7346B0202
+	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 23:41:47 -0400 (EDT)
+Date: Mon, 12 Apr 2010 20:38:29 -0400
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
+Message-Id: <20100412203829.871f1dee.akpm@linux-foundation.org>
+In-Reply-To: <4BC2EFBA.5080404@redhat.com>
+References: <4BC0DE84.3090305@redhat.com>
+	<20100411104608.GA12828@elte.hu>
+	<4BC1B2CA.8050208@redhat.com>
+	<20100411120800.GC10952@elte.hu>
+	<20100412060931.GP5683@laptop>
+	<4BC2BF67.80903@redhat.com>
+	<20100412071525.GR5683@laptop>
+	<4BC2CF8C.5090108@redhat.com>
+	<20100412082844.GU5683@laptop>
+	<4BC2E1D6.9040702@redhat.com>
+	<20100412092615.GY5683@laptop>
+	<4BC2EFBA.5080404@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Avi Kivity <avi@redhat.com>
+Cc: Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On 04/12/2010 09:30 PM, KOSAKI Motohiro wrote:
->> On 04/09/2010 05:20 PM, Andrew Morton wrote:
->>
->>> Come to that, it's not obvious that we need this in 2.6.34 either.  What
->>> is the user-visible impact here?
->>
->> I suspect very little impact, especially during workloads
->> where we can just reclaim clean page cache at DEF_PRIORITY.
->> FWIW, the patch looks good to me, so:
->>
->> Acked-by: Rik van Riel<riel@redhat.com>
->>
->
-> I'm surprised this ack a bit. Rik, do you have any improvement plan about
-> streaming io detection logic?
-> I think the patch have a slightly marginal benefit, it help to<1% scan
-> ratio case. but it have big regression, it cause streaming io (e.g. backup
-> operation) makes tons swap.
+On Mon, 12 Apr 2010 13:02:34 +0300 Avi Kivity <avi@redhat.com> wrote:
 
-How?  From the description I believe it took 16GB in
-a zone before we start scanning anon pages when
-reclaiming at DEF_PRIORITY?
+> The only scenario I can see where it degrades is that you have a dcache 
+> load that spills over to all of memory, then falls back leaving a pinned 
+> page in every huge frame.  It can happen, but I don't see it as a likely 
+> scenario.  But maybe I'm missing something.
 
-Would that casue a problem?
+<prehistoric memory>
 
-> So, I thought we sould do either,
-> 1) drop this one
-> 2) merge to change stream io detection logic improvement at first, and
->     merge this one at second.
+This used to happen fairly easily.  You have a directory tree and some
+app which walks down and across it, stat()ing regular files therein. 
+So you end up with dentries and inodes which are laid out in memory as
+dir-file-file-file-file-...-file-dir-file-...  Then the file
+dentries/inodes get reclaimed and you're left with a sparse collection
+of directory dcache/icache entries - massively fragmented.
 
-We may need better streaming IO detection, anyway.
+I forget _why_ it happened.  Perhaps because S_ISREG cache items aren't
+pinned by anything, but S_ISDIR cache items are pinned by their children
+so it takes many more expiry rounds to get rid of them.
 
-I have noticed that while heavy sequential reads are fine,
-the virtual machines on my desktop system do a lot of whole
-block writes.  Presumably, a lot of those writes are to the
-same blocks, over and over again.
-
-This causes the blocks to be promoted to the active file
-list, which ends up growing the active file list to the
-point where things from the working set get evicted.
-
-All for file pages that may only get WRITTEN to by the
-guests, because the guests cache their own copy whenever
-they need to read them!
-
-I'll have to check the page cache code to see if it
-keeps frequently written pages as accessed.  We may be
-better off evicting frequently written pages, and
-keeping our cache space for data that is read...
+There was talk about fixing this, perhaps by using different slab
+caches for dirs vs files.  Hard, because the type of the file/inode
+isn't known at allocation time.  Nothing happened about it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
