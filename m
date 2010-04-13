@@ -1,116 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 11FDB6B01EF
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:17:15 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3D8HDeT013265
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 13 Apr 2010 17:17:13 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6228645DE4F
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:17:13 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 37C4D45DE4D
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:17:13 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 19A43E08008
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:17:13 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B9EDDE08004
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 17:17:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
-In-Reply-To: <1271118255-21070-2-git-send-email-david@fromorbit.com>
-References: <1271118255-21070-1-git-send-email-david@fromorbit.com> <1271118255-21070-2-git-send-email-david@fromorbit.com>
-Message-Id: <20100413170653.D10A.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C6DCB6B01E3
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:20:55 -0400 (EDT)
+Received: by pwi2 with SMTP id 2so5085345pwi.14
+        for <linux-mm@kvack.org>; Tue, 13 Apr 2010 01:20:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 13 Apr 2010 17:17:08 +0900 (JST)
+In-Reply-To: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
+References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
+Date: Tue, 13 Apr 2010 16:20:53 +0800
+Message-ID: <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com>
+Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com
+To: mel@csn.ul.ie, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, Bob Liu <lliubbo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index e70f21b..7d48942 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -982,11 +982,11 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
->  /*
->   * A callback you can register to apply pressure to ageable caches.
->   *
-> - * 'shrink' is passed a count 'nr_to_scan' and a 'gfpmask'.  It should
-> - * look through the least-recently-used 'nr_to_scan' entries and
-> - * attempt to free them up.  It should return the number of objects
-> - * which remain in the cache.  If it returns -1, it means it cannot do
-> - * any scanning at this time (eg. there is a risk of deadlock).
-> + * 'shrink' is passed a context 'ctx', a count 'nr_to_scan' and a 'gfpmask'.
-> + * It should look through the least-recently-used 'nr_to_scan' entries and
-> + * attempt to free them up.  It should return the number of objects which
-> + * remain in the cache.  If it returns -1, it means it cannot do any scanning
-> + * at this time (eg. there is a risk of deadlock).
->   *
->   * The 'gfpmask' refers to the allocation we are currently trying to
->   * fulfil.
-> @@ -995,7 +995,8 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
->   * querying the cache size, so a fastpath for that case is appropriate.
->   */
->  struct shrinker {
-> -	int (*shrink)(int nr_to_scan, gfp_t gfp_mask);
-> +	int (*shrink)(void *ctx, int nr_to_scan, gfp_t gfp_mask);
-> +	void *ctx;	/* user callback context */
->  	int seeks;	/* seeks to recreate an obj */
->  
->  	/* These are for internal use */
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 5321ac4..40f27d2 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -215,8 +215,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
->  	list_for_each_entry(shrinker, &shrinker_list, list) {
->  		unsigned long long delta;
->  		unsigned long total_scan;
-> -		unsigned long max_pass = (*shrinker->shrink)(0, gfp_mask);
-> +		unsigned long max_pass;
->  
-> +		max_pass = (*shrinker->shrink)(shrinker->ctx, 0, gfp_mask);
->  		delta = (4 * scanned) / shrinker->seeks;
->  		delta *= max_pass;
->  		do_div(delta, lru_pages + 1);
-> @@ -244,8 +245,10 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
->  			int shrink_ret;
->  			int nr_before;
->  
-> -			nr_before = (*shrinker->shrink)(0, gfp_mask);
-> -			shrink_ret = (*shrinker->shrink)(this_scan, gfp_mask);
-> +			nr_before = (*shrinker->shrink)(shrinker->ctx,
-> +							0, gfp_mask);
-> +			shrink_ret = (*shrinker->shrink)(shrinker->ctx,
-> +							this_scan, gfp_mask);
->  			if (shrink_ret == -1)
->  				break;
->  			if (shrink_ret < nr_before)
+On 4/6/10, Bob Liu <lliubbo@gmail.com> wrote:
+> In funtion migrate_pages(), if the dest node have no
+> enough free pages,it will fallback to other nodes.
+> Add GFP_THISNODE to avoid this, the same as what
+> funtion new_page_node() do in migrate.c.
+>
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> ---
+>  mm/mempolicy.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 08f40a2..fc5ddf5 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -842,7 +842,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+>
+>  static struct page *new_node_page(struct page *page, unsigned long node, int **x)
+>  {
+> -       return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
+> +       return alloc_pages_exact_node(node,
+> +                               GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
+>  }
+>
 
-Looks good about this mm part.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Hi, Minchan and Kame
+     Would you please add ack or review to this thread. It's BUGFIX
+and not change, so i don't resend one.
 
+     About code clean, there should be some new CLEANUP patches or
+just don't make any changes decided after we finish before
+discussions.
 
-off-topic: shrink_slab() was introduced for page/[id]-cache scan balancing
-at first. now it still have hardcorded shrinker->nr calculation for slab
-although now lots another subsystem using it. shrinker->seeks seems no
-intuitive knob. probably we should try generalization it in future. but
-it is another story. I think this patch provide good first step.
-
-                delta = (4 * scanned) / shrinker->seeks;
-                delta *= max_pass;
-                do_div(delta, lru_pages + 1);
-                shrinker->nr += delta;
-
-
-Thanks.
-
-
+Thanks!
+-- 
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
