@@ -1,90 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 52FA56B01F0
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:39:17 -0400 (EDT)
-Date: Tue, 13 Apr 2010 09:38:55 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
-Message-ID: <20100413083855.GS25756@csn.ul.ie>
-References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com> <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3F1E06B01F1
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 04:39:51 -0400 (EDT)
+Date: Tue, 13 Apr 2010 18:39:31 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look
+ please!...)
+Message-ID: <20100413083931.GW2493@dastard>
+References: <20100402230905.GW3335@dastard>
+ <22c901cad333$7a67db60$0400a8c0@dcccs>
+ <20100404103701.GX3335@dastard>
+ <2bd101cad4ec$5a425f30$0400a8c0@dcccs>
+ <20100405224522.GZ3335@dastard>
+ <3a5f01cad6c5$8a722c00$0400a8c0@dcccs>
+ <20100408025822.GL11036@dastard>
+ <11b701cad9c8$93212530$0400a8c0@dcccs>
+ <20100412001158.GA2493@dastard>
+ <18b101cadadf$5edbb660$0400a8c0@dcccs>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com>
+In-Reply-To: <18b101cadadf$5edbb660$0400a8c0@dcccs>
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com
+To: Janos Haar <janos.haar@netcenter.hu>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 13, 2010 at 04:20:53PM +0800, Bob Liu wrote:
-> On 4/6/10, Bob Liu <lliubbo@gmail.com> wrote:
-> > In funtion migrate_pages(), if the dest node have no
-> > enough free pages,it will fallback to other nodes.
-> > Add GFP_THISNODE to avoid this, the same as what
-> > funtion new_page_node() do in migrate.c.
+On Tue, Apr 13, 2010 at 10:00:17AM +0200, Janos Haar wrote:
+> >On Mon, Apr 12, 2010 at 12:44:37AM +0200, Janos Haar wrote:
+> >>Hi,
+> >>
+> >>Ok, here comes the funny part:
+> >>I have got several messages from the kernel about one of my XFS
+> >>(sdb2) have corrupted inodes, but my xfs_repair (v. 2.8.11) says the
+> >>FS is clean and shine.
+> >>Should i upgrade my xfs_repair, or this is another bug? :-)
 > >
-> > Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> > ---
-> >  mm/mempolicy.c |    3 ++-
-> >  1 files changed, 2 insertions(+), 1 deletions(-)
+> >v2.8.11 is positively ancient. :/
 > >
-> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > index 08f40a2..fc5ddf5 100644
-> > --- a/mm/mempolicy.c
-> > +++ b/mm/mempolicy.c
-> > @@ -842,7 +842,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
-> >
-> >  static struct page *new_node_page(struct page *page, unsigned long node, int **x)
-> >  {
-> > -       return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
-> > +       return alloc_pages_exact_node(node,
-> > +                               GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
-> >  }
-> >
+> >I'd upgrade (current is 3.1.1) and re-run repair again.
 > 
-> Hi, Minchan and Kame
->      Would you please add ack or review to this thread. It's BUGFIX
-> and not change, so i don't resend one.
+> OK, i will get the new repair today.
 > 
-
-Sorry for taking so long to get around to this thread. I talked on this
-patch already but it's in another thread. Here is what I said there
-
-====
-This appears to be a valid bug fix.  I agree that the way things are structured
-that __GFP_THISNODE should be used in new_node_page(). But maybe a follow-on
-patch is also required. The behaviour is now;
-
-o new_node_page will not return NULL if the target node is empty (fine).
-o migrate_pages will translate this into -ENOMEM (fine)
-o do_migrate_pages breaks early if it gets -ENOMEM ?
-
-It's the last part I'd like you to double check. migrate_pages() takes a
-nodemask of allowed nodes to migrate to. Rather than sending this down
-to the allocator, it iterates over the nodes allowed in the mask. If one
-of those nodes is full, it returns -ENOMEM.
-
-If -ENOMEM is returned from migrate_pages, should it not move to the
-next node?
-====
-
-My concern before acking this patch is that the function might be exiting
-too early when given a set of nodes. Granted, because __GFP_THISNODE is not
-specified, it's perfectly possible that migration is currently moving pages
-to the wrong node which is also very bad.
-
->      About code clean, there should be some new CLEANUP patches or
-> just don't make any changes decided after we finish before
-> discussions.
+> btw
+> Since i tested the FS with the 2.8.11, today morning i found this in
+> the log:
 > 
+> ...
+> Apr 12 00:41:10 alfa kernel: XFS mounting filesystem sdb2   # This
+> was the point of check with xfs_repair v2.8.11
+> Apr 13 03:08:33 alfa kernel: xfs_da_do_buf: bno 32768
+> Apr 13 03:08:33 alfa kernel: dir: inode 474253931
+> Apr 13 03:08:33 alfa kernel: Filesystem "sdb2": XFS internal error
+> xfs_da_do_buf(1) at line 2020 of file fs/xfs/xfs_da_btree.c.  Caller
+> 0xffffffff811c4fa6
 
-Cleanup patches can be sent separately. I might be biased against a function
-rename but the bugfix is more important.
+A corrupted directory. There have been several different types of
+directory corruption that 2.8.11 didn't detect that 3.1.1 does.
 
+> The entire log is here:
+> http://download.netcenter.hu/bughunt/20100413/messages
+
+So the bad inodes are:
+
+$ awk '/corrupt inode/ { print $10 } /dir: inode/ { print $8 }' messages | sort -n -u
+474253931
+474253936
+474253937
+474253938
+474253939
+474253940
+474253941
+474253943
+474253945
+474253946
+474253947
+474253948
+474253949
+474253950
+474253951
+673160704
+673160708
+673160712
+673160713
+
+It looks like the bad inodes are confined to two inode clusters. The
+nature of the errors - bad block mappings and bad extent counts -
+makes me think you might have bad memory in the machine:
+
+$ awk '/xfs_da_do_buf: bno/ { printf "%x\n", $8 }' messages | sort -n -u
+4d8000
+5e0000
+7f8001
+8000
+8001
+10000
+10001
+20001
+28001
+38000
+270001
+370001
+548001
+568000
+568001
+600000
+600001
+618000
+618001
+628000
+628001
+650001
+
+I think they should all be 0 or 1, and:
+
+$ awk '/corrupt inode/ { split($13, a, ")"); printf "%x\n", a[1] }' messages | sort -n -u
+fffffffffd000001
+6b000001
+1000001
+75000001
+
+I think they should all be 1, too.
+
+I've seen this sort of error pattern before on a machine that had a
+bad DIMM.  If the corruption is on disk then the buffers were
+corrupted between the time that the CPU writes to them and being
+written to disk. If there is no corruption on disk, then the CPU is
+reading bad data from memory...
+
+If you run:
+
+$ xfs_db -r -c "inode 474253940" -c p /dev/sdb2
+
+Then I can can confirm whether there is corruption on disk or not.
+Probably best to sample multiple of the inode numbers from the above
+list of bad inodes.
+
+FWIW, I'd strongly suggest backing up everything you can first
+before running an updated xfs_repair....
+
+Cheers,
+
+Dave.
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
