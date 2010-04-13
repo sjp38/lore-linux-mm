@@ -1,156 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E65AF6B01E3
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 03:53:13 -0400 (EDT)
-Received: by iwn14 with SMTP id 14so4762829iwn.22
-        for <linux-mm@kvack.org>; Tue, 13 Apr 2010 00:53:12 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 34C986B01E3
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 03:55:23 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3D7tK13023391
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 13 Apr 2010 16:55:20 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2183D45DE50
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 16:55:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E142645DE4D
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 16:55:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C9DFF1DB8044
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 16:55:19 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 568F3E08006
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 16:55:16 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH]vmscan: handle underflow for get_scan_ratio
+In-Reply-To: <4BC3DA2B.3070605@redhat.com>
+References: <20100413102641.4A18.A69D9226@jp.fujitsu.com> <4BC3DA2B.3070605@redhat.com>
+Message-Id: <20100413144519.D107.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20100413163244.c7d974e3.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1270900173-10695-1-git-send-email-lliubbo@gmail.com>
-	 <20100412164335.GQ25756@csn.ul.ie>
-	 <i2l28c262361004122134of7f96809va209e779ccd44195@mail.gmail.com>
-	 <20100413144037.f714fdeb.kamezawa.hiroyu@jp.fujitsu.com>
-	 <v2qcf18f8341004130009o49bd230cga838b416a75f61e8@mail.gmail.com>
-	 <20100413163244.c7d974e3.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 13 Apr 2010 16:53:12 +0900
-Message-ID: <z2m28c262361004130053se9664982k24fc56d780bae8ad@mail.gmail.com>
-Subject: Re: [PATCH] code clean rename alloc_pages_exact_node()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Tue, 13 Apr 2010 16:55:15 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Bob Liu <lliubbo@gmail.com>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, linux-mm@kvack.org, cl@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, penberg@cs.helsinki.fi, lethal@linux-sh.org, a.p.zijlstra@chello.nl, nickpiggin@yahoo.com.au, dave@linux.vnet.ibm.com, lee.schermerhorn@hp.com, rientjes@google.com
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 13, 2010 at 4:32 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 13 Apr 2010 15:09:42 +0800
-> Bob Liu <lliubbo@gmail.com> wrote:
->
->> On 4/13/10, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > On Tue, 13 Apr 2010 13:34:52 +0900
->> >
->> > Minchan Kim <minchan.kim@gmail.com> wrote:
->> >
->> >
->> > > On Tue, Apr 13, 2010 at 1:43 AM, Mel Gorman <mel@csn.ul.ie> wrote:
->> > =C2=A0> > On Sat, Apr 10, 2010 at 07:49:32PM +0800, Bob Liu wrote:
->> > =C2=A0> >> Since alloc_pages_exact_node() is not for allocate page fro=
-m
->> > =C2=A0> >> exact node but just for removing check of node's valid,
->> > =C2=A0> >> rename it to alloc_pages_from_valid_node(). Else will make
->> > =C2=A0> >> people misunderstanding.
->> > =C2=A0> >>
->> > =C2=A0> >
->> > =C2=A0> > I don't know about this change either but as I introduced th=
-e original
->> > =C2=A0> > function name, I am biased. My reading of it is - allocate m=
-e pages and
->> > =C2=A0> > I know exactly which node I need. I see how it it could be r=
-ead as
->> > =C2=A0> > "allocate me pages from exactly this node" but I don't feel =
-the new
->> > =C2=A0> > naming is that much clearer either.
->> > =C2=A0>
->> > =C2=A0> Tend to agree.
->> > =C2=A0> Then, don't change function name but add some comment?
->> > =C2=A0>
->> > =C2=A0> /*
->> > =C2=A0> =C2=A0* allow pages from fallback if page allocator can't find=
- free page in your nid.
->> > =C2=A0> =C2=A0* If you want to allocate page from exact node, please u=
-se
->> > =C2=A0> __GFP_THISNODE flags with
->> > =C2=A0> =C2=A0* gfp_mask.
->> > =C2=A0> =C2=A0*/
->> > =C2=A0> static inline struct page *alloc_pages_exact_node(....
->> > =C2=A0>
->> >
->> > I vote for this rather than renaming.
->> >
->> > =C2=A0There are two functions
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 allo_pages_node()
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 alloc_pages_exact_node().
->> >
->> > =C2=A0Sane progmrammers tend to see implementation details if there ar=
-e 2
->> > =C2=A0similar functions.
->> >
->> > =C2=A0If I name the function,
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 alloc_pages_node_verify_nid() ?
->> >
->> > =C2=A0I think /* This doesn't support nid=3D-1, automatic behavior. */=
- is necessary
->> > =C2=A0as comment.
->> >
->> > =C2=A0OFF_TOPIC
->> >
->> > =C2=A0If you want renaming, =C2=A0I think we should define NID=3D-1 as
->> >
->> > =C2=A0#define ARBITRARY_NID =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (-1) or
->> > =C2=A0#define CURRENT_NID =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (-=
-1) or
->> > =C2=A0#define AUTO_NID =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0(-1)
->> >
->> > =C2=A0or some. Then, we'll have concensus of NID=3D-1 support.
->> > =C2=A0(Maybe some amount of programmers don't know what NID=3D-1 means=
-.)
->> >
->> > =C2=A0The function will be
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 alloc_pages_node_no_auto_nid() /* AUTO_NID=
- is not supported by this */
->> > =C2=A0or
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 alloc_pages_node_veryfy_nid()
->> >
->> > =C2=A0Maybe patch will be bigger and may fail after discussion. But it=
- seems
->> > =C2=A0worth to try.
->> >
->>
->> Hm..It's a bit bigger.
->> Actually, what I want to do was in my original mail several days ago,
->> the title is "mempolicy:add GFP_THISNODE when allocing new page"
->>
->> What I concern is *just* we shouldn't fallback to other nodes if the
->> dest node haven't enough free pages during migrate_pages().
->>
->
-> Hmm. your patch for mempolicy seems good and it's BUGFIX.
-> So, this patch should go as it is.
->
-> If you want to add comments to alloc_pages_exact_node(), please do.
->
-> But I think it's better to divide BUGFIX and CLEANUP patches.
->
-> I'll ack your patch for mempolicy.
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> Naming issue never needs quick fix. How about repositing as it is ?
-> Minchan, how do you think ?
+> On 04/12/2010 09:30 PM, KOSAKI Motohiro wrote:
+> >> On 04/09/2010 05:20 PM, Andrew Morton wrote:
+> >>
+> >>> Come to that, it's not obvious that we need this in 2.6.34 either.  What
+> >>> is the user-visible impact here?
+> >>
+> >> I suspect very little impact, especially during workloads
+> >> where we can just reclaim clean page cache at DEF_PRIORITY.
+> >> FWIW, the patch looks good to me, so:
+> >>
+> >> Acked-by: Rik van Riel<riel@redhat.com>
+> >>
+> >
+> > I'm surprised this ack a bit. Rik, do you have any improvement plan about
+> > streaming io detection logic?
+> > I think the patch have a slightly marginal benefit, it help to<1% scan
+> > ratio case. but it have big regression, it cause streaming io (e.g. backup
+> > operation) makes tons swap.
+> 
+> How?  From the description I believe it took 16GB in
+> a zone before we start scanning anon pages when
+> reclaiming at DEF_PRIORITY?
+> 
+> Would that casue a problem?
+
+Please remember, 2.6.27 has following +1 scanning modifier.
+
+  zone->nr_scan_active += (zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
+                                                                         ^^^^
+
+and, early (ano not yet merged) SplitLRU VM has similar +1. likes
+
+         scan = zone_nr_lru_pages(zone, sc, l);
+         scan >>= priority;
+         scan = (scan * percent[file]) / 100 + 1;
+                                             ^^^
+
+We didn't think only one page scanning is not big matter. but it was not
+correct. we got streaming io bug report. the above +1 makes annoying swap
+io. because some server need big backup operation rather much much than
+physical memory size.
+
+example, If vm are dropping 1TB use once pages, 0.1% anon scanning makes
+1GB scan. and almost server only have some gigabyte swap although it
+has >1TB memory.
+
+If my memory is not correct, please correct me.
+
+My point is, greater or smaller than 16GB isn't essential. all patches 
+should have big worth than the downside. The description said "the impact 
+sounds not a big deal", nobody disagree it. but it's worth is more little.
+I don't imagine this patch improve anything.
 
 
-I feel it would be better to weed out function usage when I saw
-alloc_slab_page at least.
+> 
+> > So, I thought we sould do either,
+> > 1) drop this one
+> > 2) merge to change stream io detection logic improvement at first, and
+> >     merge this one at second.
+> 
+> We may need better streaming IO detection, anyway.
 
-/*
- * Slab allocation and freeing
- */
-static inline struct page *alloc_slab_page(gfp_t flags, int node,
-                                        struct kmem_cache_order_objects oo)
-{
-       ...
-       if (node =3D=3D -1)
-                return alloc_pages(flags, order);
-        else
-                return alloc_pages_node(node, flags, order);
-}
+agreed. that's no doubt.
 
 
---=20
-Kind regards,
-Minchan Kim
+> I have noticed that while heavy sequential reads are fine,
+> the virtual machines on my desktop system do a lot of whole
+> block writes.  Presumably, a lot of those writes are to the
+> same blocks, over and over again.
+> 
+> This causes the blocks to be promoted to the active file
+> list, which ends up growing the active file list to the
+> point where things from the working set get evicted.
+> 
+> All for file pages that may only get WRITTEN to by the
+> guests, because the guests cache their own copy whenever
+> they need to read them!
+> 
+> I'll have to check the page cache code to see if it
+> keeps frequently written pages as accessed.  We may be
+> better off evicting frequently written pages, and
+> keeping our cache space for data that is read...
+
+One question, In such case your guest don't use DirectIO?
+Or do you talk about guest VM behabior?
+
+I guess inactive_file_is_low_global() can be improvement a lot.
+but I'm not sure.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
