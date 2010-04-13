@@ -1,96 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 076346B01E3
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 07:33:57 -0400 (EDT)
-Date: Tue, 13 Apr 2010 21:34:45 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look
- please!...)
-Message-ID: <20100413113445.GZ2493@dastard>
-References: <20100404103701.GX3335@dastard>
- <2bd101cad4ec$5a425f30$0400a8c0@dcccs>
- <20100405224522.GZ3335@dastard>
- <3a5f01cad6c5$8a722c00$0400a8c0@dcccs>
- <20100408025822.GL11036@dastard>
- <11b701cad9c8$93212530$0400a8c0@dcccs>
- <20100412001158.GA2493@dastard>
- <18b101cadadf$5edbb660$0400a8c0@dcccs>
- <20100413083931.GW2493@dastard>
- <190201cadaeb$02ec22c0$0400a8c0@dcccs>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 10C7F6B01E3
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 07:39:36 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3DBdXr7022336
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 13 Apr 2010 20:39:33 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 91AAA45DE4F
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 20:39:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F79D45DE4D
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 20:39:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 44746E08002
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 20:39:33 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EDA83E08001
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 20:39:29 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+In-Reply-To: <20100413102938.GX2493@dastard>
+References: <20100413142445.D0FE.A69D9226@jp.fujitsu.com> <20100413102938.GX2493@dastard>
+Message-Id: <20100413201635.D119.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <190201cadaeb$02ec22c0$0400a8c0@dcccs>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 13 Apr 2010 20:39:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Janos Haar <janos.haar@netcenter.hu>
-Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
+To: Dave Chinner <david@fromorbit.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 13, 2010 at 11:23:36AM +0200, Janos Haar wrote:
-> >If you run:
-> >
-> >$ xfs_db -r -c "inode 474253940" -c p /dev/sdb2
-> >
-> >Then I can can confirm whether there is corruption on disk or not.
-> >Probably best to sample multiple of the inode numbers from the above
-> >list of bad inodes.
+Hi
+
+> > Pros:
+> > 	1) prevent XFS stack overflow
+> > 	2) improve io workload performance
+> > 
+> > Cons:
+> > 	3) TOTALLY kill lumpy reclaim (i.e. high order allocation)
+> > 
+> > So, If we only need to consider io workload this is no downside. but
+> > it can't.
+> > 
+> > I think (1) is XFS issue. XFS should care it itself.
 > 
-> Here is the log:
-> http://download.netcenter.hu/bughunt/20100413/debug.log
+> The filesystem is irrelevant, IMO.
+> 
+> The traces from the reporter showed that we've got close to a 2k
+> stack footprint for memory allocation to direct reclaim and then we
+> can put the entire writeback path on top of that. This is roughly
+> 3.5k for XFS, and then depending on the storage subsystem
+> configuration and transport can be another 2k of stack needed below
+> XFS.
+> 
+> IOWs, if we completely ignore the filesystem stack usage, there's
+> still up to 4k of stack needed in the direct reclaim path. Given
+> that one of the stack traces supplied show direct reclaim being
+> entered with over 3k of stack already used, pretty much any
+> filesystem is capable of blowing an 8k stack.
+> 
+> So, this is not an XFS issue, even though XFS is the first to
+> uncover it. Don't shoot the messenger....
 
-There are multiple fields in the inode that are corrupted.
-I am really surprised that xfs-repair - even an old version - is not
-picking up the corruption....
+Thanks explanation. I haven't noticed direct reclaim consume
+2k stack. I'll investigate it and try diet it.
+But XFS 3.5K stack consumption is too large too. please diet too.
 
-> The xfs_db does segmentation fault. :-)
 
-Yup, it probably ran off into la-la land chasing corrupted
-extent pointers.
+> > but (2) is really
+> > VM issue. Now our VM makes too agressive pageout() and decrease io 
+> > throughput. I've heard this issue from Chris (cc to him). I'd like to 
+> > fix this.
+> 
+> I didn't expect this to be easy. ;)
+> 
+> I had a good look at what the code was doing before I wrote the
+> patch, and IMO, there is no good reason for issuing IO from direct
+> reclaim.
+> 
+> My reasoning is as follows - consider a system with a typical
+> sata disk and the machine is low on memory and in direct reclaim.
+> 
+> direct reclaim is taking pages of the end of the LRU and writing
+> them one at a time from there. It is scanning thousands of pages
+> pages and it triggers IO on on the dirty ones it comes across.
+> This is done with no regard to the IO patterns it generates - it can
+> (and frequently does) result in completely random single page IO
+> patterns hitting the disk, and as a result cleaning pages happens
+> really, really slowly. If we are in a OOM situation, the machine
+> will grind to a halt as it struggles to clean maybe 1MB of RAM per
+> second.
+> 
+> On the other hand, if the IO is well formed then the disk might be
+> capable of 100MB/s. The background flusher threads and filesystems
+> try very hard to issue well formed IOs, so the difference in the
+> rate that memory can be cleaned may be a couple of orders of
+> magnitude.
+> 
+> (Of course, the difference will typically be somewhere in between
+> these two extremes, but I'm simply trying to illustrate how big
+> the difference in performance can be.)
+> 
+> IOWs, the background flusher threads are there to clean memory by
+> issuing IO as efficiently as possible.  Direct reclaim is very
+> efficient at reclaiming clean memory, but it really, really sucks at
+> cleaning dirty memory in a predictable and deterministic manner. It
+> is also much more likely to hit worst case IO patterns than the
+> background flusher threads.
+> 
+> Hence I think that direct reclaim should be deferring to the
+> background flusher threads for cleaning memory and not trying to be
+> doing it itself.
 
-> Btw memory corruption:
-> In the beginnig of march, one of my bets was memory problem too, but
-> the server was offline for 7 days, and all the time runs the
-> memtest86 on the hw, and passed all the 8GB 74 times without any bit
-> error.
-> I don't think it is memory problem, additionally the server can
-> create big size  .tar.gz files without crc problem.
+Well, you seems continue to discuss io workload. I don't disagree
+such point. 
 
-Ok.
+example, If only order-0 reclaim skip pageout(), we will get the above
+benefit too.
 
-> If i force my mind to think to hw memory problem, i can think only
-> for the raid card's cache memory, wich i can't test with memtest86.
-> Or the cache of the HDD's pcb...
 
-Yes, it could be something like that, too, but the only way to test
-it is to swap out the card....
 
-> In the other hand, i have seen more people reported memory
-> corruption about these kernel versions, can we check this and surely
-> select wich is the problem? (hw or sw)?
+> > but we never kill pageout() completely because we can't
+> > assume users don't run high order allocation workload.
+> 
+> I think that lumpy reclaim will still work just fine.
+> 
+> Lumpy reclaim appears to be using IO as a method of slowing
+> down the reclaim cycle - the congestion_wait() call will still
+> function as it does now if the background flusher threads are active
+> and causing congestion. I don't see why lumpy reclaim specifically
+> needs to be issuing IO to make it work - if the congestion_wait() is
+> not waiting long enough then wait longer - don't issue IO to extend
+> the wait time.
 
-I haven't heard of any significant memory corruption problems in
-2.6.32 or 2.6.33, but it is a possibility given the nature of the
-corruption. However, I may have only happened once and be completely
-unreproducable.
+lumpy reclaim is for allocation high order page. then, it not only
+reclaim LRU head page, but also its PFN neighborhood. PFN neighborhood
+is often newly page and still dirty. then we enfoce pageout cleaning
+and discard it.
 
-I'd suggest fixing the existing corruption first, and then seeing if
-it re-appears. If it does reappear, then we know there's a
-reproducable problem we need to dig out....
+When high order allocation occur, we don't only need free enough amount
+memory, but also need free enough contenious memory block.
 
-> I mean, if i am right, the hw memory problem makes only 1-2 bit
-> corruption seriously, and the sw page handling problem makes bad
-> memory pages, no?
+If we need to consider _only_ io throughput, waiting flusher thread
+might faster perhaps, but actually we also need to consider reclaim
+latency. I'm worry about such point too.
 
-RAM ECC guarantees correction of single bit errors and detection of
-double bit errors (which cause the kernel to panic, IIRC). I can't
-tell you what happens when larger errors occur, though...
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> Also, there doesn't appear to be anything special about the chunks of
+> pages it's issuing IO on and waiting for, either. They are simply
+> the last N pages on the LRU that could be grabbed so they have no
+> guarantee of contiguity, so the IO it issues does nothing specific
+> to help higher order allocations to succeed.
+
+It does. lumpy reclaim doesn't grab last N pages. instead grab contenious
+memory chunk. please see isolate_lru_pages(). 
+
+> 
+> Hence it really seems to me that the effectiveness of lumpy reclaim
+> is determined mostly by the effectiveness of the IO subsystem - the
+> faster the IO subsystem cleans pages, the less time lumpy reclaim
+> will block and the faster it will free pages. From this observation
+> and the fact that issuing IO only from the bdi flusher threads will
+> have the same effect (improves IO subsystem effectiveness), it seems
+> to me that lumpy reclaim should not be adversely affected by this
+> change.
+> 
+> Of course, the code is a maze of twisty passages, so I probably
+> missed something important. Hopefully someone can tell me what. ;)
+> 
+> FWIW, the biggest problem here is that I have absolutely no clue on
+> how to test what the impact on lumpy reclaim really is. Does anyone
+> have a relatively simple test that can be run to determine what the
+> impact is?
+
+So, can you please run two workloads concurrently?
+ - Normal IO workload (fio, iozone, etc..)
+ - echo $NUM > /proc/sys/vm/nr_hugepages
+
+Most typical high order allocation is occur by blutal wireless LAN driver.
+(or some cheap LAN card)
+But sadly, If the test depend on specific hardware, our discussion might
+make mess maze easily. then, I hope to use hugepage feature instead.
+
+
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
