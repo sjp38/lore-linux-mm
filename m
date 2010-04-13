@@ -1,51 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A736E6B01EF
-	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 13:47:22 -0400 (EDT)
-Message-ID: <4BC35C61.7010201@redhat.com>
-Date: Mon, 12 Apr 2010 13:46:09 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: hugepages will matter more in the future
-References: <v2q28f2fcbc1004110237w875d3ec5z8f545c40bcbdf92a@mail.gmail.com> <4BC19916.20100@redhat.com> <20100411110015.GA10149@elte.hu> <4BC1B034.4050302@redhat.com> <20100411115229.GB10952@elte.hu> <alpine.LFD.2.00.1004110814080.3576@i5.linux-foundation.org> <4BC1EE13.7080702@redhat.com> <alpine.LFD.2.00.1004110844420.3576@i5.linux-foundation.org> <4BC34837.7020108@redhat.com> <alpine.LFD.2.00.1004120929290.26679@i5.linux-foundation.org> <20100412173632.GB5583@random.random>
-In-Reply-To: <20100412173632.GB5583@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A9BCA6B01F2
+	for <linux-mm@kvack.org>; Mon, 12 Apr 2010 21:20:42 -0400 (EDT)
+From: Dave Chinner <david@fromorbit.com>
+Subject: [PATCH] mm: disallow direct reclaim page writeback
+Date: Tue, 13 Apr 2010 10:17:58 +1000
+Message-Id: <1271117878-19274-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Avi Kivity <avi@redhat.com>, Ingo Molnar <mingo@elte.hu>, Jason Garrett-Glaser <darkshikari@gmail.com>, Mike Galbraith <efault@gmx.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Arjan van de Ven <arjan@infradead.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/12/2010 01:36 PM, Andrea Arcangeli wrote:
+From: Dave Chinner <dchinner@redhat.com>
 
-> I should make the default selectable at kernel config time, so
-> developers can keep it =always and distro can set it =madvise (trivial
-> to switch to "always" during boot or with kernel command line). Right
-> now it's =always also to give it more testing btw.
+When we enter direct reclaim we may have used an arbitrary amount of stack
+space, and hence enterring the filesystem to do writeback can then lead to
+stack overruns. This problem was recently encountered x86_64 systems with
+8k stacks running XFS with simple storage configurations.
 
-That still means the code will not benefit most applications.
+Writeback from direct reclaim also adversely affects background writeback. The
+background flusher threads should already be taking care of cleaning dirty
+pages, and direct reclaim will kick them if they aren't already doing work. If
+direct reclaim is also calling ->writepage, it will cause the IO patterns from
+the background flusher threads to be upset by LRU-order writeback from
+pageout() which can be effectively random IO. Having competing sources of IO
+trying to clean pages on the same backing device reduces throughput by
+increasing the amount of seeks that the backing device has to do to write back
+the pages.
 
-Surely a more benign default behaviour is possible?  For
-example, instantiating hugepages on pagefault only in VMAs
-that are significantly larger than a hugepage (say, 16MB or
-larger?) and not VM_GROWSDOWN (stack starts small).
+Hence for direct reclaim we should not allow ->writepages to be entered at all.
+Set up the relevant scan_control structures to enforce this, and prevent
+sc->may_writepage from being set in other places in the direct reclaim path in
+response to other events.
 
-We can still collapse the small pages into a large page if
-the process starts actually using the memory in the VMA.
+Reported-by: John Berthels <john@humyo.com>
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ mm/vmscan.c |   13 ++++++-------
+ 1 files changed, 6 insertions(+), 7 deletions(-)
 
-Memory use is a serious concern for some people, even people
-who could really benefit from the hugepages.  For example,
-my home desktop system has 12GB RAM, but also runs 3 production
-virtual machines (kernelnewbies, PSBL, etc) and often has a
-test virtual machine as well.
-
-Not wasting memory is important, since the system is constantly
-doing disk IO.  Any memory that is taken away from the page
-cache could hurt things.  On the other hand, speeding up the
-virtual machines by 6% could be a big help too...
-
-I'd like to think we can find a way to get the best of both
-worlds.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index e0e5f15..5321ac4 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1826,10 +1826,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		 * writeout.  So in laptop mode, write out the whole world.
+ 		 */
+ 		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
+-		if (total_scanned > writeback_threshold) {
++		if (total_scanned > writeback_threshold)
+ 			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned);
+-			sc->may_writepage = 1;
+-		}
+ 
+ 		/* Take a nap, wait for some writeback to complete */
+ 		if (!sc->hibernation_mode && sc->nr_scanned &&
+@@ -1871,7 +1869,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ {
+ 	struct scan_control sc = {
+ 		.gfp_mask = gfp_mask,
+-		.may_writepage = !laptop_mode,
++		.may_writepage = 0,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+@@ -1893,7 +1891,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						struct zone *zone, int nid)
+ {
+ 	struct scan_control sc = {
+-		.may_writepage = !laptop_mode,
++		.may_writepage = 0,
+ 		.may_unmap = 1,
+ 		.may_swap = !noswap,
+ 		.swappiness = swappiness,
+@@ -1926,7 +1924,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+ {
+ 	struct zonelist *zonelist;
+ 	struct scan_control sc = {
+-		.may_writepage = !laptop_mode,
++		.may_writepage = 0,
+ 		.may_unmap = 1,
+ 		.may_swap = !noswap,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+@@ -2567,7 +2565,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	struct reclaim_state reclaim_state;
+ 	int priority;
+ 	struct scan_control sc = {
+-		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
++		.may_writepage = (current_is_kswapd() &&
++					(zone_reclaim_mode & RECLAIM_WRITE)),
+ 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+ 		.may_swap = 1,
+ 		.nr_to_reclaim = max_t(unsigned long, nr_pages,
+-- 
+1.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
