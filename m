@@ -1,190 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B46296B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 05:33:10 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3E9X5bI027526
+	by kanga.kvack.org (Postfix) with SMTP id BCA9D6B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 05:46:08 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3E9k5Qw029120
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 14 Apr 2010 18:33:05 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BA2D45DE60
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:33:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EC6F845DE4D
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:33:04 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D87251DB803F
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:33:04 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C5BA1DB8037
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:33:04 +0900 (JST)
-Date: Wed, 14 Apr 2010 18:29:04 +0900
+	Wed, 14 Apr 2010 18:46:05 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BDD3245DE50
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:46:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 888E545DE54
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:46:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 26E771DB8040
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:46:04 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 97D511DB803F
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:46:03 +0900 (JST)
+Date: Wed, 14 Apr 2010 18:42:13 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
-Message-Id: <20100414182904.2f72a63d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <xr931veiplpr.fsf@ninji.mtv.corp.google.com>
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
-	<1268609202-15581-2-git-send-email-arighi@develer.com>
-	<20100317115855.GS18054@balbir.in.ibm.com>
-	<20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100318041944.GA18054@balbir.in.ibm.com>
-	<20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100318162855.GG18054@balbir.in.ibm.com>
-	<20100319102332.f1d81c8d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100319024039.GH18054@balbir.in.ibm.com>
-	<20100319120049.3dbf8440.kamezawa.hiroyu@jp.fujitsu.com>
-	<xr931veiplpr.fsf@ninji.mtv.corp.google.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-Id: <20100414184213.f6bf11a7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <w2u28c262361004140019pd8fe696ez609ece4a35527658@mail.gmail.com>
+References: <20100414135945.2b0a1e0d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100414054144.GH2493@dastard>
+	<20100414145056.D147.A69D9226@jp.fujitsu.com>
+	<y2x28c262361004132313r1e2ca71frd042d5460d897730@mail.gmail.com>
+	<w2u28c262361004140019pd8fe696ez609ece4a35527658@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: balbir@linux.vnet.ibm.com, Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Apr 2010 23:55:12 -0700
-Greg Thelen <gthelen@google.com> wrote:
+On Wed, 14 Apr 2010 16:19:02 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> On Thu, Mar 18, 2010 at 8:00 PM, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Fri, 19 Mar 2010 08:10:39 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> On Wed, Apr 14, 2010 at 3:13 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> > On Wed, Apr 14, 2010 at 2:54 PM, KOSAKI Motohiro
+> > <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >>> On Wed, Apr 14, 2010 at 01:59:45PM +0900, KAMEZAWA Hiroyuki wrote:
+> >>> > On Wed, 14 Apr 2010 11:40:41 +1000
+> >>> > Dave Chinner <david@fromorbit.com> wrote:
+> >>> >
+> >>> > > A 50) A  A  3168 A  A  A 64 A  xfs_vm_writepage+0xab/0x160 [xfs]
+> >>> > > A 51) A  A  3104 A  A  384 A  shrink_page_list+0x65e/0x840
+> >>> > > A 52) A  A  2720 A  A  528 A  shrink_zone+0x63f/0xe10
+> >>> >
+> >>> > A bit OFF TOPIC.
+> >>> >
+> >>> > Could you share disassemble of shrink_zone() ?
+> >>> >
+> >>> > In my environ.
+> >>> > 00000000000115a0 <shrink_zone>:
+> >>> > A  A 115a0: A  A  A  55 A  A  A  A  A  A  A  A  A  A  A push A  %rbp
+> >>> > A  A 115a1: A  A  A  48 89 e5 A  A  A  A  A  A  A  A mov A  A %rsp,%rbp
+> >>> > A  A 115a4: A  A  A  41 57 A  A  A  A  A  A  A  A  A  push A  %r15
+> >>> > A  A 115a6: A  A  A  41 56 A  A  A  A  A  A  A  A  A  push A  %r14
+> >>> > A  A 115a8: A  A  A  41 55 A  A  A  A  A  A  A  A  A  push A  %r13
+> >>> > A  A 115aa: A  A  A  41 54 A  A  A  A  A  A  A  A  A  push A  %r12
+> >>> > A  A 115ac: A  A  A  53 A  A  A  A  A  A  A  A  A  A  A push A  %rbx
+> >>> > A  A 115ad: A  A  A  48 83 ec 78 A  A  A  A  A  A  sub A  A $0x78,%rsp
+> >>> > A  A 115b1: A  A  A  e8 00 00 00 00 A  A  A  A  A callq A 115b6 <shrink_zone+0x16>
+> >>> > A  A 115b6: A  A  A  48 89 75 80 A  A  A  A  A  A  mov A  A %rsi,-0x80(%rbp)
+> >>> >
+> >>> > disassemble seems to show 0x78 bytes for stack. And no changes to %rsp
+> >>> > until retrun.
+> >>>
+> >>> I see the same. I didn't compile those kernels, though. IIUC,
+> >>> they were built through the Ubuntu build infrastructure, so there is
+> >>> something different in terms of compiler, compiler options or config
+> >>> to what we are both using. Most likely it is the compiler inlining,
+> >>> though Chris's patches to prevent that didn't seem to change the
+> >>> stack usage.
+> >>>
+> >>> I'm trying to get a stack trace from the kernel that has shrink_zone
+> >>> in it, but I haven't succeeded yet....
+> >>
+> >> I also got 0x78 byte stack usage. Umm.. Do we discussed real issue now?
+> >>
 > >
-> >> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-19 10:23:32]:
-> >>
-> >> > On Thu, 18 Mar 2010 21:58:55 +0530
-> >> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> >> >
-> >> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 13:35:27]:
-> >> >
-> >> > > > Then, no probelm. It's ok to add mem_cgroup_udpate_stat() indpendent from
-> >> > > > mem_cgroup_update_file_mapped(). The look may be messy but it's not your
-> >> > > > fault. But please write "why add new function" to patch description.
-> >> > > >
-> >> > > > I'm sorry for wasting your time.
-> >> > >
-> >> > > Do we need to go down this route? We could check the stat and do the
-> >> > > correct thing. In case of FILE_MAPPED, always grab page_cgroup_lock
-> >> > > and for others potentially look at trylock. It is OK for different
-> >> > > stats to be protected via different locks.
-> >> > >
-> >> >
-> >> > I _don't_ want to see a mixture of spinlock and trylock in a function.
-> >> >
-> >>
-> >> A well documented well written function can help. The other thing is to
-> >> of-course solve this correctly by introducing different locking around
-> >> the statistics. Are you suggesting the later?
-> >>
+> > In my case, 0x110 byte in 32 bit machine.
+> > I think it's possible in 64 bit machine.
 > >
-> > No. As I wrote.
-> > A  A  A  A - don't modify codes around FILE_MAPPED in this series.
-> > A  A  A  A - add a new functions for new statistics
-> > Then,
-> > A  A  A  A - think about clean up later, after we confirm all things work as expected.
+> > 00001830 <shrink_zone>:
+> > A  A 1830: A  A  A  55 A  A  A  A  A  A  A  A  A  A  A push A  %ebp
+> > A  A 1831: A  A  A  89 e5 A  A  A  A  A  A  A  A  A  mov A  A %esp,%ebp
+> > A  A 1833: A  A  A  57 A  A  A  A  A  A  A  A  A  A  A push A  %edi
+> > A  A 1834: A  A  A  56 A  A  A  A  A  A  A  A  A  A  A push A  %esi
+> > A  A 1835: A  A  A  53 A  A  A  A  A  A  A  A  A  A  A push A  %ebx
+> > A  A 1836: A  A  A  81 ec 10 01 00 00 A  A  A  sub A  A $0x110,%esp
+> > A  A 183c: A  A  A  89 85 24 ff ff ff A  A  A  mov A  A %eax,-0xdc(%ebp)
+> > A  A 1842: A  A  A  89 95 20 ff ff ff A  A  A  mov A  A %edx,-0xe0(%ebp)
+> > A  A 1848: A  A  A  89 8d 1c ff ff ff A  A  A  mov A  A %ecx,-0xe4(%ebp)
+> > A  A 184e: A  A  A  8b 41 04 A  A  A  A  A  A  A  A mov A  A 0x4(%ecx)
+> >
+> > my gcc is following as.
+> >
+> > barrios@barriostarget:~/mmotm$ gcc -v
+> > Using built-in specs.
+> > Target: i486-linux-gnu
+> > Configured with: ../src/configure -v --with-pkgversion='Ubuntu
+> > 4.3.3-5ubuntu4'
+> > --with-bugurl=file:///usr/share/doc/gcc-4.3/README.Bugs
+> > --enable-languages=c,c++,fortran,objc,obj-c++ --prefix=/usr
+> > --enable-shared --with-system-zlib --libexecdir=/usr/lib
+> > --without-included-gettext --enable-threads=posix --enable-nls
+> > --with-gxx-include-dir=/usr/include/c++/4.3 --program-suffix=-4.3
+> > --enable-clocale=gnu --enable-libstdcxx-debug --enable-objc-gc
+> > --enable-mpfr --enable-targets=all --with-tune=generic
+> > --enable-checking=release --build=i486-linux-gnu --host=i486-linux-gnu
+> > --target=i486-linux-gnu
+> > Thread model: posix
+> > gcc version 4.3.3 (Ubuntu 4.3.3-5ubuntu4)
+> >
+> >
+> > Is it depends on config?
+> > I attach my config.
 > 
-> I have ported Andrea Righi's memcg dirty page accounting patches to latest
-> mmtom-2010-04-05-16-09.  In doing so I have to address this locking issue.  Does
-> the following look good?  I will (of course) submit the entire patch for review,
-> but I wanted make sure I was aiming in the right direction.
+> I changed shrink list by noinline_for_stack.
+> The result is following as.
 > 
-> void mem_cgroup_update_page_stat(struct page *page,
-> 			enum mem_cgroup_write_page_stat_item idx, bool charge)
-> {
-> 	static int seq;
-> 	struct page_cgroup *pc;
 > 
-> 	if (mem_cgroup_disabled())
-> 		return;
-> 	pc = lookup_page_cgroup(page);
-> 	if (!pc || mem_cgroup_is_root(pc->mem_cgroup))
-> 		return;
+> 00001fe0 <shrink_zone>:
+>     1fe0:       55                      push   %ebp
+>     1fe1:       89 e5                   mov    %esp,%ebp
+>     1fe3:       57                      push   %edi
+>     1fe4:       56                      push   %esi
+>     1fe5:       53                      push   %ebx
+>     1fe6:       83 ec 4c                sub    $0x4c,%esp
+>     1fe9:       89 45 c0                mov    %eax,-0x40(%ebp)
+>     1fec:       89 55 bc                mov    %edx,-0x44(%ebp)
+>     1fef:       89 4d b8                mov    %ecx,-0x48(%ebp)
 > 
-> 	/*
-> 	 * This routine does not disable irq when updating stats.  So it is
-> 	 * possible that a stat update from within interrupt routine, could
-> 	 * deadlock.  Use trylock_page_cgroup() to avoid such deadlock.  This
-> 	 * makes the memcg counters fuzzy.  More complicated, or lower
-> 	 * performing locking solutions avoid this fuzziness, but are not
-> 	 * currently needed.
-> 	 */
-> 	if (irqs_disabled()) {
-> 		if (! trylock_page_cgroup(pc))
-> 			return;
-> 	} else
-> 		lock_page_cgroup(pc);
+> 0x110 -> 0x4c.
+> 
+> Should we have to add noinline_for_stack for shrink_list?
 > 
 
-I prefer trylock_page_cgroup() always.
+Hmm. about shirnk_zone(), I don't think uninlining functions directly called
+by shrink_zone() can be a help.
+Total stack size of call-chain will be still big.
 
-I have another idea fixing this up _later_. (But I want to start from simple one.)
-
-My rough idea is following.  Similar to your idea which you gave me before.
-
-==
-DEFINE_PERCPU(account_move_ongoing);
-DEFINE_MUTEX(move_account_mutex):
-
-void memcg_start_account_move(void)
-{
-	mutex_lock(&move_account_mutex);
-	for_each_online_cpu(cpu)
-		per_cpu(cpu, account_move_ongoing) += 1;
-	mutex_unlock(&move_account_mutex);
-	/* Wait until there are no lockless update */
-	synchronize_rcu();
-	return;
-}
-
-void memcg_end_account_move(void)
-{
-	mutex_lock(&move_account_mutex);
-	for_each_online_cpu(cpu)
-		per_cpu(cpu, account_move_ongoing) -= 1;
-	mutex_unlock(&move_account_mutex);
-}
-
-/* return 1 when we took lock, return 0 if lockess OPs is guarantedd to be safe */
-int memcg_start_filecache_accounting(struct page_cgroup *pc)
-{
-	rcu_read_lock();
-	smp_rmb();
-	if (!this_cpu_read(move_account_ongoing))
-		return 0; /* no move account is ongoing */
-	lock_page_cgroup(pc);
-	return 1;
-}
-
-void memcg_end_filecache_accounting(struct page_cgroup *pc, int unlock)
-{
-	if (unlock)
-		unlock_page_cgroup(pc);
-
-	rcu_read_unlock();
-}
-
-and call memcg_start_account_move()/end_account_move() in the start/end of
-migrainting chunk of pages.
-
-Bye.
+Thanks,
 -Kame
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 --
