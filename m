@@ -1,193 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A5E8A6B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 06:16:36 -0400 (EDT)
-Received: by iwn14 with SMTP id 14so5606827iwn.22
-        for <linux-mm@kvack.org>; Wed, 14 Apr 2010 03:16:36 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100414100724.GK25756@csn.ul.ie>
-References: <20100414135945.2b0a1e0d.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100414054144.GH2493@dastard>
-	 <20100414145056.D147.A69D9226@jp.fujitsu.com>
-	 <y2x28c262361004132313r1e2ca71frd042d5460d897730@mail.gmail.com>
-	 <w2u28c262361004140019pd8fe696ez609ece4a35527658@mail.gmail.com>
-	 <20100414184213.f6bf11a7.kamezawa.hiroyu@jp.fujitsu.com>
-	 <q2m28c262361004140301jba94a025nda755c1df2e04155@mail.gmail.com>
-	 <20100414100724.GK25756@csn.ul.ie>
-Date: Wed, 14 Apr 2010 19:16:36 +0900
-Message-ID: <u2g28c262361004140316l547b9d6cka3bdb2d738b6ad67@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1760D6B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 07:22:01 -0400 (EDT)
+Date: Wed, 14 Apr 2010 07:20:15 -0400
+From: Chris Mason <chris.mason@oracle.com>
 Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20100414112015.GO13327@think>
+References: <1271117878-19274-1-git-send-email-david@fromorbit.com>
+ <20100413095815.GU25756@csn.ul.ie>
+ <20100413111902.GY2493@dastard>
+ <20100413193428.GI25756@csn.ul.ie>
+ <20100413202021.GZ13327@think>
+ <877hoa9wlv.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <877hoa9wlv.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 7:07 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Wed, Apr 14, 2010 at 07:01:47PM +0900, Minchan Kim wrote:
->> >> >>> > Dave Chinner <david@fromorbit.com> wrote:
->> >> >>> >
->> >> >>> > > =C2=A050) =C2=A0 =C2=A0 3168 =C2=A0 =C2=A0 =C2=A064 =C2=A0 xf=
-s_vm_writepage+0xab/0x160 [xfs]
->> >> >>> > > =C2=A051) =C2=A0 =C2=A0 3104 =C2=A0 =C2=A0 384 =C2=A0 shrink_=
-page_list+0x65e/0x840
->> >> >>> > > =C2=A052) =C2=A0 =C2=A0 2720 =C2=A0 =C2=A0 528 =C2=A0 shrink_=
-zone+0x63f/0xe10
->> >> >>> >
->> >> >>> > A bit OFF TOPIC.
->> >> >>> >
->> >> >>> > Could you share disassemble of shrink_zone() ?
->> >> >>> >
->> >> >>> > In my environ.
->> >> >>> > 00000000000115a0 <shrink_zone>:
->> >> >>> > =C2=A0 =C2=A0115a0: =C2=A0 =C2=A0 =C2=A0 55 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %rbp
->> >> >>> > =C2=A0 =C2=A0115a1: =C2=A0 =C2=A0 =C2=A0 48 89 e5 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mov =C2=A0 =C2=A0%rsp,%rbp
->> >> >>> > =C2=A0 =C2=A0115a4: =C2=A0 =C2=A0 =C2=A0 41 57 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 push =C2=A0 %r15
->> >> >>> > =C2=A0 =C2=A0115a6: =C2=A0 =C2=A0 =C2=A0 41 56 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 push =C2=A0 %r14
->> >> >>> > =C2=A0 =C2=A0115a8: =C2=A0 =C2=A0 =C2=A0 41 55 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 push =C2=A0 %r13
->> >> >>> > =C2=A0 =C2=A0115aa: =C2=A0 =C2=A0 =C2=A0 41 54 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 push =C2=A0 %r12
->> >> >>> > =C2=A0 =C2=A0115ac: =C2=A0 =C2=A0 =C2=A0 53 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %rbx
->> >> >>> > =C2=A0 =C2=A0115ad: =C2=A0 =C2=A0 =C2=A0 48 83 ec 78 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 sub =C2=A0 =C2=A0$0x78,%rsp
->> >> >>> > =C2=A0 =C2=A0115b1: =C2=A0 =C2=A0 =C2=A0 e8 00 00 00 00 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0callq =C2=A0115b6 <shrink_zone+0x16>
->> >> >>> > =C2=A0 =C2=A0115b6: =C2=A0 =C2=A0 =C2=A0 48 89 75 80 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mov =C2=A0 =C2=A0%rsi,-0x80(%rbp)
->> >> >>> >
->> >> >>> > disassemble seems to show 0x78 bytes for stack. And no changes =
-to %rsp
->> >> >>> > until retrun.
->> >> >>>
->> >> >>> I see the same. I didn't compile those kernels, though. IIUC,
->> >> >>> they were built through the Ubuntu build infrastructure, so there=
- is
->> >> >>> something different in terms of compiler, compiler options or con=
-fig
->> >> >>> to what we are both using. Most likely it is the compiler inlinin=
-g,
->> >> >>> though Chris's patches to prevent that didn't seem to change the
->> >> >>> stack usage.
->> >> >>>
->> >> >>> I'm trying to get a stack trace from the kernel that has shrink_z=
-one
->> >> >>> in it, but I haven't succeeded yet....
->> >> >>
->> >> >> I also got 0x78 byte stack usage. Umm.. Do we discussed real issue=
- now?
->> >> >>
->> >> >
->> >> > In my case, 0x110 byte in 32 bit machine.
->> >> > I think it's possible in 64 bit machine.
->> >> >
->> >> > 00001830 <shrink_zone>:
->> >> > =C2=A0 =C2=A01830: =C2=A0 =C2=A0 =C2=A0 55 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %ebp
->> >> > =C2=A0 =C2=A01831: =C2=A0 =C2=A0 =C2=A0 89 e5 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mov =C2=A0 =C2=A0%esp,%ebp
->> >> > =C2=A0 =C2=A01833: =C2=A0 =C2=A0 =C2=A0 57 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %edi
->> >> > =C2=A0 =C2=A01834: =C2=A0 =C2=A0 =C2=A0 56 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %esi
->> >> > =C2=A0 =C2=A01835: =C2=A0 =C2=A0 =C2=A0 53 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %ebx
->> >> > =C2=A0 =C2=A01836: =C2=A0 =C2=A0 =C2=A0 81 ec 10 01 00 00 =C2=A0 =
-=C2=A0 =C2=A0 sub =C2=A0 =C2=A0$0x110,%esp
->> >> > =C2=A0 =C2=A0183c: =C2=A0 =C2=A0 =C2=A0 89 85 24 ff ff ff =C2=A0 =
-=C2=A0 =C2=A0 mov =C2=A0 =C2=A0%eax,-0xdc(%ebp)
->> >> > =C2=A0 =C2=A01842: =C2=A0 =C2=A0 =C2=A0 89 95 20 ff ff ff =C2=A0 =
-=C2=A0 =C2=A0 mov =C2=A0 =C2=A0%edx,-0xe0(%ebp)
->> >> > =C2=A0 =C2=A01848: =C2=A0 =C2=A0 =C2=A0 89 8d 1c ff ff ff =C2=A0 =
-=C2=A0 =C2=A0 mov =C2=A0 =C2=A0%ecx,-0xe4(%ebp)
->> >> > =C2=A0 =C2=A0184e: =C2=A0 =C2=A0 =C2=A0 8b 41 04 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mov =C2=A0 =C2=A00x4(%ecx)
->> >> >
->> >> > my gcc is following as.
->> >> >
->> >> > barrios@barriostarget:~/mmotm$ gcc -v
->> >> > Using built-in specs.
->> >> > Target: i486-linux-gnu
->> >> > Configured with: ../src/configure -v --with-pkgversion=3D'Ubuntu
->> >> > 4.3.3-5ubuntu4'
->> >> > --with-bugurl=3Dfile:///usr/share/doc/gcc-4.3/README.Bugs
->> >> > --enable-languages=3Dc,c++,fortran,objc,obj-c++ --prefix=3D/usr
->> >> > --enable-shared --with-system-zlib --libexecdir=3D/usr/lib
->> >> > --without-included-gettext --enable-threads=3Dposix --enable-nls
->> >> > --with-gxx-include-dir=3D/usr/include/c++/4.3 --program-suffix=3D-4=
-.3
->> >> > --enable-clocale=3Dgnu --enable-libstdcxx-debug --enable-objc-gc
->> >> > --enable-mpfr --enable-targets=3Dall --with-tune=3Dgeneric
->> >> > --enable-checking=3Drelease --build=3Di486-linux-gnu --host=3Di486-=
-linux-gnu
->> >> > --target=3Di486-linux-gnu
->> >> > Thread model: posix
->> >> > gcc version 4.3.3 (Ubuntu 4.3.3-5ubuntu4)
->> >> >
->> >> >
->> >> > Is it depends on config?
->> >> > I attach my config.
->> >>
->> >> I changed shrink list by noinline_for_stack.
->> >> The result is following as.
->> >>
->> >>
->> >> 00001fe0 <shrink_zone>:
->> >> =C2=A0 =C2=A0 1fe0: =C2=A0 =C2=A0 =C2=A0 55 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %ebp
->> >> =C2=A0 =C2=A0 1fe1: =C2=A0 =C2=A0 =C2=A0 89 e5 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mov =C2=A0 =C2=A0%esp,%ebp
->> >> =C2=A0 =C2=A0 1fe3: =C2=A0 =C2=A0 =C2=A0 57 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %edi
->> >> =C2=A0 =C2=A0 1fe4: =C2=A0 =C2=A0 =C2=A0 56 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %esi
->> >> =C2=A0 =C2=A0 1fe5: =C2=A0 =C2=A0 =C2=A0 53 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %ebx
->> >> =C2=A0 =C2=A0 1fe6: =C2=A0 =C2=A0 =C2=A0 83 ec 4c =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0sub =C2=A0 =C2=A0$0x4c,%esp
->> >> =C2=A0 =C2=A0 1fe9: =C2=A0 =C2=A0 =C2=A0 89 45 c0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mov =C2=A0 =C2=A0%eax,-0x40(%ebp)
->> >> =C2=A0 =C2=A0 1fec: =C2=A0 =C2=A0 =C2=A0 89 55 bc =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mov =C2=A0 =C2=A0%edx,-0x44(%ebp)
->> >> =C2=A0 =C2=A0 1fef: =C2=A0 =C2=A0 =C2=A0 89 4d b8 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mov =C2=A0 =C2=A0%ecx,-0x48(%ebp)
->> >>
->> >> 0x110 -> 0x4c.
->> >>
->> >> Should we have to add noinline_for_stack for shrink_list?
->> >>
->> >
->> > Hmm. about shirnk_zone(), I don't think uninlining functions directly =
-called
->> > by shrink_zone() can be a help.
->> > Total stack size of call-chain will be still big.
->>
->> Absolutely.
->> But above 500 byte usage is one of hogger and uninlining is not
->> critical about reclaim performance. So I think we don't get any lost
->> than gain.
->>
->
-> Beat in mind that uninlining can slightly increase the stack usage in som=
-e
-> cases because arguments, return addresses and the like have to be pushed
-> onto the stack. Inlining or unlining is only the answer when it reduces t=
-he
-> number of stack variables that exist at any given time.
+On Wed, Apr 14, 2010 at 12:06:36PM +0200, Andi Kleen wrote:
+> Chris Mason <chris.mason@oracle.com> writes:
+> >
+> > Huh, 912 bytes...for select, really?  From poll.h:
+> >
+> > /* ~832 bytes of stack space used max in sys_select/sys_poll before allocating
+> >    additional memory. */
+> > #define MAX_STACK_ALLOC 832
+> > #define FRONTEND_STACK_ALLOC    256
+> > #define SELECT_STACK_ALLOC      FRONTEND_STACK_ALLOC
+> > #define POLL_STACK_ALLOC        FRONTEND_STACK_ALLOC
+> > #define WQUEUES_STACK_ALLOC     (MAX_STACK_ALLOC - FRONTEND_STACK_ALLOC)
+> > #define N_INLINE_POLL_ENTRIES   (WQUEUES_STACK_ALLOC / sizeof(struct poll_table_entry))
+> >
+> > So, select is intentionally trying to use that much stack.  It should be using
+> > GFP_NOFS if it really wants to suck down that much stack...
+> 
+> There are lots of other call chains which use multiple KB bytes by itself,
+> so why not give select() that measly 832 bytes?
+> 
+> You think only file systems are allowed to use stack? :)
 
-Yes. I totally have missed it.
-Thanks, Mel.
+Grin, most definitely.
 
---=20
-Kind regards,
-Minchan Kim
+> 
+> Basically if you cannot tolerate 1K (or more likely more) of stack
+> used before your fs is called you're toast in lots of other situations
+> anyways.
+
+Well, on a 4K stack kernel, 832 bytes is a very large percentage for
+just one function.
+
+Direct reclaim is a problem because it splices parts of the kernel that
+normally aren't connected together.  The people that code in select see
+832 bytes and say that's teeny, I should have taken 3832 bytes.
+
+But they don't realize their function can dive down into ecryptfs then
+the filesystem then maybe loop and then perhaps raid6 on top of a
+network block device.
+
+> 
+> > kernel had some sort of way to dynamically allocate ram, it could try
+> > that too.
+> 
+> It does this for large inputs, but the whole point of the stack fast
+> path is to avoid it for common cases when a small number of fds is
+> only needed.
+> 
+> It's significantly slower to go to any external allocator.
+
+Yeah, but since the call chain does eventually go into the allocator,
+this function needs to be more stack friendly.
+
+I do agree that we can't really solve this with noinline_for_stack pixie
+dust, the long call chains are going to be a problem no matter what.
+
+Reading through all the comments so far, I think the short summary is:
+
+Cleaning pages in direct reclaim helps the VM because it is able to make
+sure that lumpy reclaim finds adjacent pages.  This isn't a fast
+operation, it has to wait for IO (infinitely slow compared to the CPU).
+
+Will it be good enough for the VM if we add a hint to the bdi writeback
+threads to work on a general area of the file?  The filesystem will get
+writepages(), the VM will get the IO it needs started.
+
+I know Mel mentioned before he wasn't interested in waiting for helper
+threads, but I don't see how we can work without it.
+
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
