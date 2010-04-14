@@ -1,10 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 759006B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 15:32:59 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B83126B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 16:14:38 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
 Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
-References: <20100317115855.GS18054@balbir.in.ibm.com>
+References: <1268609202-15581-2-git-send-email-arighi@develer.com>
+	<20100317115855.GS18054@balbir.in.ibm.com>
 	<20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
 	<20100318041944.GA18054@balbir.in.ibm.com>
 	<20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
@@ -13,12 +14,11 @@ References: <20100317115855.GS18054@balbir.in.ibm.com>
 	<20100319024039.GH18054@balbir.in.ibm.com>
 	<20100319120049.3dbf8440.kamezawa.hiroyu@jp.fujitsu.com>
 	<xr931veiplpr.fsf@ninji.mtv.corp.google.com>
-	<20100414182904.2f72a63d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414140430.GB13535@redhat.com>
-Date: Wed, 14 Apr 2010 12:31:59 -0700
-In-Reply-To: <20100414140430.GB13535@redhat.com> (Vivek Goyal's message of
-	"Wed, 14 Apr 2010 10:04:30 -0400")
-Message-ID: <xr93k4s9ygnk.fsf@ninji.mtv.corp.google.com>
+	<20100414140523.GC13535@redhat.com>
+Date: Wed, 14 Apr 2010 13:14:07 -0700
+In-Reply-To: <20100414140523.GC13535@redhat.com> (Vivek Goyal's message of
+	"Wed, 14 Apr 2010 10:05:23 -0400")
+Message-ID: <xr9339yxyepc.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -29,171 +29,91 @@ List-ID: <linux-mm.kvack.org>
 
 Vivek Goyal <vgoyal@redhat.com> writes:
 
-> On Wed, Apr 14, 2010 at 06:29:04PM +0900, KAMEZAWA Hiroyuki wrote:
->> On Tue, 13 Apr 2010 23:55:12 -0700
->> Greg Thelen <gthelen@google.com> wrote:
->>=20
->> > On Thu, Mar 18, 2010 at 8:00 PM, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp=
-.fujitsu.com> wrote:
->> > > On Fri, 19 Mar 2010 08:10:39 +0530
->> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> > >
->> > >> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-19 10=
-:23:32]:
->> > >>
->> > >> > On Thu, 18 Mar 2010 21:58:55 +0530
->> > >> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> > >> >
->> > >> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-1=
-8 13:35:27]:
->> > >> >
->> > >> > > > Then, no probelm. It's ok to add mem_cgroup_udpate_stat() ind=
-pendent from
->> > >> > > > mem_cgroup_update_file_mapped(). The look may be messy but it=
-'s not your
->> > >> > > > fault. But please write "why add new function" to patch descr=
-iption.
->> > >> > > >
->> > >> > > > I'm sorry for wasting your time.
->> > >> > >
->> > >> > > Do we need to go down this route? We could check the stat and d=
-o the
->> > >> > > correct thing. In case of FILE_MAPPED, always grab page_cgroup_=
-lock
->> > >> > > and for others potentially look at trylock. It is OK for differ=
-ent
->> > >> > > stats to be protected via different locks.
->> > >> > >
->> > >> >
->> > >> > I _don't_ want to see a mixture of spinlock and trylock in a func=
+> On Tue, Apr 13, 2010 at 11:55:12PM -0700, Greg Thelen wrote:
+>> On Thu, Mar 18, 2010 at 8:00 PM, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.f=
+ujitsu.com> wrote:
+>> > On Fri, 19 Mar 2010 08:10:39 +0530
+>> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>> >
+>> >> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-19 10:2=
+3:32]:
+>> >>
+>> >> > On Thu, 18 Mar 2010 21:58:55 +0530
+>> >> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>> >> >
+>> >> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 =
+13:35:27]:
+>> >> >
+>> >> > > > Then, no probelm. It's ok to add mem_cgroup_udpate_stat() indpe=
+ndent from
+>> >> > > > mem_cgroup_update_file_mapped(). The look may be messy but it's=
+ not your
+>> >> > > > fault. But please write "why add new function" to patch descrip=
 tion.
->> > >> >
->> > >>
->> > >> A well documented well written function can help. The other thing i=
-s to
->> > >> of-course solve this correctly by introducing different locking aro=
-und
->> > >> the statistics. Are you suggesting the later?
->> > >>
->> > >
->> > > No. As I wrote.
->> > > =C2=A0 =C2=A0 =C2=A0 =C2=A0- don't modify codes around FILE_MAPPED i=
-n this series.
->> > > =C2=A0 =C2=A0 =C2=A0 =C2=A0- add a new functions for new statistics
->> > > Then,
->> > > =C2=A0 =C2=A0 =C2=A0 =C2=A0- think about clean up later, after we co=
-nfirm all things work as expected.
->> >=20
->> > I have ported Andrea Righi's memcg dirty page accounting patches to la=
-test
->> > mmtom-2010-04-05-16-09.  In doing so I have to address this locking is=
-sue.  Does
->> > the following look good?  I will (of course) submit the entire patch f=
-or review,
->> > but I wanted make sure I was aiming in the right direction.
->> >=20
->> > void mem_cgroup_update_page_stat(struct page *page,
->> > 			enum mem_cgroup_write_page_stat_item idx, bool charge)
->> > {
->> > 	static int seq;
->> > 	struct page_cgroup *pc;
->> >=20
->> > 	if (mem_cgroup_disabled())
->> > 		return;
->> > 	pc =3D lookup_page_cgroup(page);
->> > 	if (!pc || mem_cgroup_is_root(pc->mem_cgroup))
->> > 		return;
->> >=20
->> > 	/*
->> > 	 * This routine does not disable irq when updating stats.  So it is
->> > 	 * possible that a stat update from within interrupt routine, could
->> > 	 * deadlock.  Use trylock_page_cgroup() to avoid such deadlock.  This
->> > 	 * makes the memcg counters fuzzy.  More complicated, or lower
->> > 	 * performing locking solutions avoid this fuzziness, but are not
->> > 	 * currently needed.
->> > 	 */
->> > 	if (irqs_disabled()) {
->> > 		if (! trylock_page_cgroup(pc))
->> > 			return;
->> > 	} else
->> > 		lock_page_cgroup(pc);
->> >=20
+>> >> > > >
+>> >> > > > I'm sorry for wasting your time.
+>> >> > >
+>> >> > > Do we need to go down this route? We could check the stat and do =
+the
+>> >> > > correct thing. In case of FILE_MAPPED, always grab page_cgroup_lo=
+ck
+>> >> > > and for others potentially look at trylock. It is OK for different
+>> >> > > stats to be protected via different locks.
+>> >> > >
+>> >> >
+>> >> > I _don't_ want to see a mixture of spinlock and trylock in a functi=
+on.
+>> >> >
+>> >>
+>> >> A well documented well written function can help. The other thing is =
+to
+>> >> of-course solve this correctly by introducing different locking around
+>> >> the statistics. Are you suggesting the later?
+>> >>
+>> >
+>> > No. As I wrote.
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0- don't modify codes around FILE_MAPPED in =
+this series.
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0- add a new functions for new statistics
+>> > Then,
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0- think about clean up later, after we conf=
+irm all things work as expected.
 >>=20
->> I prefer trylock_page_cgroup() always.
+>> I have ported Andrea Righi's memcg dirty page accounting patches to late=
+st
+>> mmtom-2010-04-05-16-09.  In doing so I have to address this locking issu=
+e.  Does
+>> the following look good?  I will (of course) submit the entire patch for=
+ review,
+>> but I wanted make sure I was aiming in the right direction.
 >>=20
->> I have another idea fixing this up _later_. (But I want to start from si=
-mple one.)
->>=20
->> My rough idea is following.  Similar to your idea which you gave me befo=
-re.
->>=20
->> =3D=3D
->> DEFINE_PERCPU(account_move_ongoing);
->> DEFINE_MUTEX(move_account_mutex):
->>=20
->> void memcg_start_account_move(void)
+>> void mem_cgroup_update_page_stat(struct page *page,
+>> 			enum mem_cgroup_write_page_stat_item idx, bool charge)
 >> {
->> 	mutex_lock(&move_account_mutex);
->> 	for_each_online_cpu(cpu)
->> 		per_cpu(cpu, account_move_ongoing) +=3D 1;
->> 	mutex_unlock(&move_account_mutex);
->> 	/* Wait until there are no lockless update */
->> 	synchronize_rcu();
->> 	return;
->> }
+>> 	static int seq;
+>> 	struct page_cgroup *pc;
 >>=20
->> void memcg_end_account_move(void)
->> {
->> 	mutex_lock(&move_account_mutex);
->> 	for_each_online_cpu(cpu)
->> 		per_cpu(cpu, account_move_ongoing) -=3D 1;
->> 	mutex_unlock(&move_account_mutex);
->> }
+>> 	if (mem_cgroup_disabled())
+>> 		return;
+>> 	pc =3D lookup_page_cgroup(page);
+>> 	if (!pc || mem_cgroup_is_root(pc->mem_cgroup))
+>> 		return;
 >>=20
->> /* return 1 when we took lock, return 0 if lockess OPs is guarantedd to =
-be safe */
->> int memcg_start_filecache_accounting(struct page_cgroup *pc)
->> {
->> 	rcu_read_lock();
->> 	smp_rmb();
->> 	if (!this_cpu_read(move_account_ongoing))
->> 		return 0; /* no move account is ongoing */
->> 	lock_page_cgroup(pc);
->> 	return 1;
->> }
->>=20
->> void memcg_end_filecache_accounting(struct page_cgroup *pc, int unlock)
->> {
->> 	if (unlock)
->> 		unlock_page_cgroup(pc);
->>=20
->> 	rcu_read_unlock();
->> }
->>=20
->> and call memcg_start_account_move()/end_account_move() in the start/end =
-of
->> migrainting chunk of pages.
->
-> Hi Kame-san,
->
-> May be I am missing something but how does it solve the issue of making s=
-ure
-> lock_page_cgroup() is not held in interrupt context? IIUC, above code will
-> make sure that for file cache accouting, lock_page_cgroup() is taken only
-> if task migration is on. But say task migration is on, and then some IO
-> completes and we update WRITEBACK stat (i think this is the one which can
-> be called from interrupt context), then we will still take the
-> lock_page_cgroup() and again run into the issue of deadlocks?
->
-> Thanks
-> Vivek
+>> 	/*
+>> 	 * This routine does not disable irq when updating stats.  So it is
+>> 	 * possible that a stat update from within interrupt routine, could
+>> 	 * deadlock.  Use trylock_page_cgroup() to avoid such deadlock.  This
+>> 	 * makes the memcg counters fuzzy.  More complicated, or lower
+>> 	 * performing locking solutions avoid this fuzziness, but are not
+>> 	 * currently needed.
+>> 	 */
+>> 	if (irqs_disabled()) {
+>             ^^^^^^^^^
+> Or may be in_interrupt()?
 
-I agree. I think the lock/unlock_page_cgrpoup() calls suggested by
-Kame-san should also include local_irq_save/restore() calls to prevent
-the interrupt context deadlock Vivek describes.  These new
-local_irq_save/restore() calls would only be used if
-move_account_ongoing is set.  They behave just like the optional calls
-to lock/unlock_page_cgroup().
+Good catch.  I will replace irqs_disabled() with in_interrupt().
+
+Thank you.
 
 --
 Greg
