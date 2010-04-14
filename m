@@ -1,261 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C014E6B0215
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 23:10:18 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3E3AEUx020129
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 14 Apr 2010 12:10:14 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D0CE45DE55
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 12:10:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0602545DE4E
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 12:10:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E09FE1DB803C
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 12:10:13 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A1AE1DB803A
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 12:10:13 +0900 (JST)
-Date: Wed, 14 Apr 2010 12:06:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][BUGFIX][PATCH] memcg: fix underflow of mapped_file stat
-Message-Id: <20100414120622.0a5c2983.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100414105608.d40c70ab.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
-	<20100413151400.cb89beb7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414095408.d7b352f1.nishimura@mxp.nes.nec.co.jp>
-	<20100414100308.693c5650.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414104010.7a359d04.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414105608.d40c70ab.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 578876B0216
+	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 23:12:19 -0400 (EDT)
+Date: Wed, 14 Apr 2010 13:12:05 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-ID: <20100414031205.GE2493@dastard>
+References: <20100413142445.D0FE.A69D9226@jp.fujitsu.com>
+ <20100413102938.GX2493@dastard>
+ <20100413201635.D119.A69D9226@jp.fujitsu.com>
+ <20100413143659.GA2493@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100413143659.GA2493@dastard>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Apr 2010 10:56:08 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Thinking again....new page is unlocked here. It means the new page may be
-> removed from radix-tree before commit_charge().
+On Wed, Apr 14, 2010 at 12:36:59AM +1000, Dave Chinner wrote:
+> On Tue, Apr 13, 2010 at 08:39:29PM +0900, KOSAKI Motohiro wrote:
+> > > FWIW, the biggest problem here is that I have absolutely no clue on
+> > > how to test what the impact on lumpy reclaim really is. Does anyone
+> > > have a relatively simple test that can be run to determine what the
+> > > impact is?
+> > 
+> > So, can you please run two workloads concurrently?
+> >  - Normal IO workload (fio, iozone, etc..)
+> >  - echo $NUM > /proc/sys/vm/nr_hugepages
 > 
-> Haha, it seems totally wrong. please wait..
-> 
+> What do I measure/observe/record that is meaningful?
 
-This is my answer. How do you think ?
-I think this logic is simple. (But yes, we should check corner cases.)
+So, a rough as guts first pass - just run a large dd (8 times the
+size of memory - 8GB file vs 1GB RAM) and repeated try to allocate
+the entire of memory in huge pages (500) every 5 seconds. The IO
+rate is roughly 100MB/s, so it takes 75-85s to complete the dd.
 
-==
+The script:
 
-At page migration, the new page is unlocked before calling end_migration().
-This is mis-understanding with page-migration code of memcg.
-And FILE_MAPPED of migrated file cache is not properly updated, now.
+$ cat t.sh
+#!/bin/bash
 
-At migrating mapped file, events happens in following sequence.
+echo 0 > /proc/sys/vm/nr_hugepages
+echo 3 > /proc/sys/vm/drop_caches
 
- 1. allocate a new page.
- 2. get memcg of an old page.
- 3. charge ageinst new page, before migration. But at this point
-    no changes to page_cgroup, no commit-charge.
- 4. page migration replaces radix-tree, old-page and new-page.
- 5. page migration remaps the new page if the old page was mapped.
- 6. memcg commits the charge for newpage.
+dd if=/dev/zero of=/mnt/scratch/test bs=1024k count=8000 > /dev/null 2>&1 &
 
-Because "commit" happens after page-remap, we lose file_mapped
-accounting information at migration.
+(
+for i in `seq 1 1 20`; do
+        sleep 5
+        /usr/bin/time --format="wall %e" sh -c "echo 500 > /proc/sys/vm/nr_hugepages" 2>&1
+        grep HugePages_Total /proc/meminfo
+done
+) | awk '
+        /wall/ { wall += $2; cnt += 1 }
+        /Pages/ { pages[cnt] = $2 }
+        END { printf "average wall time %f\nPages step: ", wall / cnt ;
+                for (i = 1; i <= cnt; i++) {
+                        printf "%d ", pages[i];
+                }
+        }'
+----
 
-For fixing all, this changes parepare/end migration.
-New migration sequence with memcg is:
+And the output looks like:
 
- 1. allocate a new page.
- 2. charge against a new page onto old page's memcg. (here, the new page
-    is marked as PageCgroupUsed.)
- 3. page migration replaces radix-tree, page table, etc...
- 4. At remapping, FILE_MAPPED will be properly updated. (because newpage is marked as
-    USED, already)
- 5. If anonymous page is freed before remap, check it and fixup accounting.
- 
+$ sudo ./t.sh
+average wall time 0.954500
+Pages step: 97 101 101 121 173 173 173 173 173 173 175 194 195 195 202 220 226 419 423 426
+$
 
-Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/memcontrol.h |    6 +-
- mm/memcontrol.c            |   95 ++++++++++++++++++++++++---------------------
- mm/migrate.c               |    2 
- 3 files changed, 56 insertions(+), 47 deletions(-)
+Run 50 times in a loop, and the outputs averaged, the existing lumpy
+reclaim resulted in:
 
-Index: mmotm-temp/mm/memcontrol.c
-===================================================================
---- mmotm-temp.orig/mm/memcontrol.c
-+++ mmotm-temp/mm/memcontrol.c
-@@ -2501,10 +2501,12 @@ static inline int mem_cgroup_move_swap_a
-  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
-  * page belongs to.
-  */
--int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
-+int mem_cgroup_prepare_migration(struct page *page,
-+	struct page *newpage, struct mem_cgroup **ptr)
- {
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *mem = NULL;
-+	enum charge_type ctype;
- 	int ret = 0;
- 
- 	if (mem_cgroup_disabled())
-@@ -2517,65 +2519,70 @@ int mem_cgroup_prepare_migration(struct 
- 		css_get(&mem->css);
- 	}
- 	unlock_page_cgroup(pc);
--
--	if (mem) {
--		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
--		css_put(&mem->css);
--	}
--	*ptr = mem;
-+	/*
-+	 * If the page is uncharged before migration (removed from radix-tree)
-+	 * we return here.
-+	 */
-+	if (!mem)
-+		return 0;
-+	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
-+	css_put(&mem->css); /* drop extra refcnt */
-+	if (ret)
-+		return ret;
-+	/*
-+ 	 * The old page is under lock_page().
-+ 	 * If the old_page is uncharged and freed while migration, page migration
-+ 	 * will fail and newpage will properly uncharged by end_migration.
-+ 	 * And commit_charge against newpage never fails.
-+  	 */
-+	pc = lookup_page_cgroup(newpage);
-+	if (PageAnon(page))
-+		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
-+	else if (!PageSwapBacked(page))
-+		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-+	else
-+		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-+	__mem_cgroup_commit_charge(mem, pc, ctype);
-+	/* FILE_MAPPED of this page will be updated at remap routine */
- 	return ret;
- }
- 
- /* remove redundant charge if migration failed*/
- void mem_cgroup_end_migration(struct mem_cgroup *mem,
--		struct page *oldpage, struct page *newpage)
-+	struct page *oldpage, struct page *newpage)
- {
--	struct page *target, *unused;
--	struct page_cgroup *pc;
--	enum charge_type ctype;
-+	struct page *used, *unused;
- 
- 	if (!mem)
- 		return;
- 	cgroup_exclude_rmdir(&mem->css);
-+
-+
- 	/* at migration success, oldpage->mapping is NULL. */
- 	if (oldpage->mapping) {
--		target = oldpage;
--		unused = NULL;
-+		used = oldpage;
-+		unused = newpage;
- 	} else {
--		target = newpage;
-+		used = newpage;
- 		unused = oldpage;
- 	}
--
--	if (PageAnon(target))
--		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
--	else if (page_is_file_cache(target))
--		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
--	else
--		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
--
--	/* unused page is not on radix-tree now. */
--	if (unused)
--		__mem_cgroup_uncharge_common(unused, ctype);
--
--	pc = lookup_page_cgroup(target);
--	/*
--	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
--	 * So, double-counting is effectively avoided.
--	 */
--	__mem_cgroup_commit_charge(mem, pc, ctype);
--
-+	/* PageCgroupUsed() flag check will do all we want */
-+	mem_cgroup_uncharge_page(unused);
- 	/*
--	 * Both of oldpage and newpage are still under lock_page().
--	 * Then, we don't have to care about race in radix-tree.
--	 * But we have to be careful that this page is unmapped or not.
--	 *
--	 * There is a case for !page_mapped(). At the start of
--	 * migration, oldpage was mapped. But now, it's zapped.
--	 * But we know *target* page is not freed/reused under us.
--	 * mem_cgroup_uncharge_page() does all necessary checks.
--	 */
--	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
--		mem_cgroup_uncharge_page(target);
-+ 	 * If old page was file cache, and removed from radix-tree
-+ 	 * before lock_page(), perepare_migration doesn't charge and we never
-+ 	 * reach here.
-+ 	 *
-+ 	 * Considering ANON pages, we can't depend on lock_page.
-+ 	 * If a page may be unmapped before it's remapped, new page's
-+ 	 * mapcount will not increase. (case that mapcount 0->1 never occur.)
-+ 	 * PageCgroupUsed() and SwapCache checks will be done.
-+ 	 *
-+ 	 * Once mapcount goes to 1, our hook to page_remove_rmap will do
-+ 	 * enough jobs.
-+ 	 */
-+	if (PageAnon(used) && !page_mapped(used))
-+		mem_cgroup_uncharge_page(used);
- 	/*
- 	 * At migration, we may charge account against cgroup which has no tasks
- 	 * So, rmdir()->pre_destroy() can be called while we do this charge.
-Index: mmotm-temp/mm/migrate.c
-===================================================================
---- mmotm-temp.orig/mm/migrate.c
-+++ mmotm-temp/mm/migrate.c
-@@ -576,7 +576,7 @@ static int unmap_and_move(new_page_t get
- 	}
- 
- 	/* charge against new page */
--	charge = mem_cgroup_prepare_migration(page, &mem);
-+	charge = mem_cgroup_prepare_migration(page, newpage, &mem);
- 	if (charge == -ENOMEM) {
- 		rc = -ENOMEM;
- 		goto unlock;
-Index: mmotm-temp/include/linux/memcontrol.h
-===================================================================
---- mmotm-temp.orig/include/linux/memcontrol.h
-+++ mmotm-temp/include/linux/memcontrol.h
-@@ -89,7 +89,8 @@ int mm_match_cgroup(const struct mm_stru
- extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem);
- 
- extern int
--mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
-+mem_cgroup_prepare_migration(struct page *page,
-+	struct page *newpage, struct mem_cgroup **ptr);
- extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
- 	struct page *oldpage, struct page *newpage);
- 
-@@ -228,7 +229,8 @@ static inline struct cgroup_subsys_state
- }
- 
- static inline int
--mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
-+mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
-+	struct mem_cgroup **ptr)
- {
- 	return 0;
- }
+dave@test-1:~$ cat current.txt | awk -f av.awk
+av. wall = 0.519385 secs
+av Pages step: 192 228 242 255 265 272 279 284 289 294 298 303 307 322 342 366 383 401 412 420
+
+And with my patch that disables ->writepage:
+
+dave@test-1:~$ cat no-direct.txt | awk -f av.awk
+av. wall = 0.554163 secs
+av Pages step: 231 283 310 316 323 328 336 340 345 351 356 359 364 377 388 397 413 423 432 439
+
+Basically, with my patch lumpy reclaim was *substantially* more
+effective with only a slight increase in average allocation latency
+with this test case.
+
+I need to add a marker to the output that records when the dd
+completes, but from monitoring the writeback rates via PCP, they
+were in the balllpark of 85-100MB/s for the existing code, and
+95-110MB/s with my patch.  Hence it improved both IO throughput and
+the effectiveness of lumpy reclaim.
+
+On the down side, I did have an OOM killer invocation with my patch
+after about 150 iterations - dd failed an order zero allocation
+because there were 455 huge pages allocated and there were only
+_320_ available pages for IO, all of which were under IO. i.e. lumpy
+reclaim worked so well that the machine got into order-0 page
+starvation.
+
+I know this is a simple test case, but it shows much better results
+than I think anyone (even me) is expecting...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
