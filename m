@@ -1,56 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 391AE6B01EF
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 13:50:10 -0400 (EDT)
-Message-ID: <4BC6004A.9020403@cs.helsinki.fi>
-Date: Wed, 14 Apr 2010 20:50:02 +0300
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id EB43B6B01EF
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 13:56:31 -0400 (EDT)
+Message-ID: <4BC601C5.5050404@cs.helsinki.fi>
+Date: Wed, 14 Apr 2010 20:56:21 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] change alloc function in alloc_slab_page
-References: <1271257119-30117-1-git-send-email-minchan.kim@gmail.com> <1271257119-30117-3-git-send-email-minchan.kim@gmail.com>
-In-Reply-To: <1271257119-30117-3-git-send-email-minchan.kim@gmail.com>
+Subject: Re: [PATCH - V2] Fix missing of last user while dumping slab corruption
+ 	log
+References: <w2z4810ea571004112250x855fadd5uecbc813726ae3412@mail.gmail.com>
+In-Reply-To: <w2z4810ea571004112250x855fadd5uecbc813726ae3412@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
+To: ShiYong LI <a22381@motorola.com>
+Cc: linux-kernel@vger.kernel.org, cl@linux-foundation.org, mpm@selenic.com, linux-mm@kvack.org, dwmw2@infradead.org, TAO HU <taohu@motorola.com>
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim wrote:
-> V2
-> * change changelog
-> * Add some reviewed-by 
+ShiYong LI wrote:
+> Hi,
 > 
-> alloc_slab_page always checks nid == -1, so alloc_page_node can't be
-> called with -1. 
-> It means node's validity check in alloc_pages_node is unnecessary. 
-> So we can use alloc_pages_exact_node instead of alloc_pages_node. 
-> It could avoid comparison and branch as 6484eb3e2a81807722 tried.
+> Compared to previous version, add alignment checking to make sure
+> memory space storing redzone2 and last user tags is 8 byte alignment.
 > 
-> Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Reviewed-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/slub.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+> From 949e8c29e8681a2359e23a8fbd8b9d4833f42344 Mon Sep 17 00:00:00 2001
+> From: Shiyong Li <shi-yong.li@motorola.com>
+> Date: Mon, 12 Apr 2010 13:48:21 +0800
+> Subject: [PATCH] Fix missing of last user info while getting
+> DEBUG_SLAB config enabled.
 > 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index b364844..9984165 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1084,7 +1084,7 @@ static inline struct page *alloc_slab_page(gfp_t flags, int node,
->  	if (node == -1)
->  		return alloc_pages(flags, order);
->  	else
-> -		return alloc_pages_node(node, flags, order);
-> +		return alloc_pages_exact_node(node, flags, order);
->  }
->  
->  static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+> Even with SLAB_RED_ZONE and SLAB_STORE_USER enabled, kernel would NOT
+> store redzone and last user data around allocated memory space if arch
+> cache line > sizeof(unsigned long long). As a result, last user information
+> is unexpectedly MISSED while dumping slab corruption log.
+> 
+> This fix makes sure that redzone and last user tags get stored unless
+> the required alignment breaks redzone's.
+> 
+> Signed-off-by: Shiyong Li <shi-yong.li@motorola.com>
 
-Applied, thanks!
+OK, I added this to linux-next for testing. Thanks!
+
+> ---
+>  mm/slab.c |    8 ++++----
+>  1 files changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/slab.c b/mm/slab.c
+> index a8a38ca..b97c57e 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -2267,8 +2267,8 @@ kmem_cache_create (const char *name, size_t
+> size, size_t align,
+>  	if (ralign < align) {
+>  		ralign = align;
+>  	}
+> -	/* disable debug if necessary */
+> -	if (ralign > __alignof__(unsigned long long))
+> +	/* disable debug if not aligning with REDZONE_ALIGN */
+> +	if (ralign & (__alignof__(unsigned long long) - 1))
+>  		flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
+>  	/*
+>  	 * 4) Store it.
+> @@ -2289,8 +2289,8 @@ kmem_cache_create (const char *name, size_t
+> size, size_t align,
+>  	 */
+>  	if (flags & SLAB_RED_ZONE) {
+>  		/* add space for red zone words */
+> -		cachep->obj_offset += sizeof(unsigned long long);
+> -		size += 2 * sizeof(unsigned long long);
+> +		cachep->obj_offset += align;
+> +		size += align + sizeof(unsigned long long);
+>  	}
+>  	if (flags & SLAB_STORE_USER) {
+>  		/* user store requires one word storage behind the end of
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
