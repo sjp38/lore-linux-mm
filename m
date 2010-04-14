@@ -1,65 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D1F546B01F5
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 11:00:51 -0400 (EDT)
-Received: by mail-ww0-f41.google.com with SMTP id 26so145811wwf.14
-        for <linux-mm@kvack.org>; Wed, 14 Apr 2010 08:00:49 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id ED7F96B01EF
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 11:13:59 -0400 (EDT)
+Received: by pzk28 with SMTP id 28so206951pzk.11
+        for <linux-mm@kvack.org>; Wed, 14 Apr 2010 08:13:58 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1271249354.7196.66.camel@localhost.localdomain>
+References: <1271089672.7196.63.camel@localhost.localdomain>
+	 <1271249354.7196.66.camel@localhost.localdomain>
+Date: Thu, 15 Apr 2010 00:13:57 +0900
+Message-ID: <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
+Subject: Re: vmalloc performance
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v2] Add comment in alloc_pages_exact_node
-Date: Wed, 14 Apr 2010 23:58:39 +0900
-Message-Id: <1271257119-30117-6-git-send-email-minchan.kim@gmail.com>
-In-Reply-To: <1271257119-30117-1-git-send-email-minchan.kim@gmail.com>
-References: <1271257119-30117-1-git-send-email-minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-V2
- o modify comment by suggestion. (Thanks to Mel)
+Cced Nick.
+He's Mr. Vmalloc.
 
-alloc_pages_exact_node naming makes some people misleading.
-They considered it following as.
-"This function will allocate pages from node which I wanted
-exactly".
-But it can allocate pages from fallback list if page allocator
-can't find free page from node user wanted.
+On Wed, Apr 14, 2010 at 9:49 PM, Steven Whitehouse <swhiteho@redhat.com> wr=
+ote:
+>
+> Since this didn't attract much interest the first time around, and at
+> the risk of appearing to be talking to myself, here is the patch from
+> the bugzilla to better illustrate the issue:
+>
+>
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index ae00746..63c8178 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -605,8 +605,7 @@ static void free_unmap_vmap_area_noflush(struct
+> vmap_area *va)
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0va->flags |=3D VM_LAZY_FREE;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0atomic_add((va->va_end - va->va_start) >> PAGE=
+_SHIFT, &vmap_lazy_nr);
+> - =C2=A0 =C2=A0 =C2=A0 if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max=
+_pages()))
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 try_purge_vmap_area_la=
+zy();
+> + =C2=A0 =C2=A0 =C2=A0 try_purge_vmap_area_lazy();
+> =C2=A0}
+>
+> =C2=A0/*
+>
+>
+> Steve.
+>
+> On Mon, 2010-04-12 at 17:27 +0100, Steven Whitehouse wrote:
+>> Hi,
+>>
+>> I've noticed that vmalloc seems to be rather slow. I wrote a test kernel
+>> module to track down what was going wrong. The kernel module does one
+>> million vmalloc/touch mem/vfree in a loop and prints out how long it
+>> takes.
+>>
+>> The source of the test kernel module can be found as an attachment to
+>> this bz: https://bugzilla.redhat.com/show_bug.cgi?id=3D581459
+>>
+>> When this module is run on my x86_64, 8 core, 12 Gb machine, then on an
+>> otherwise idle system I get the following results:
+>>
+>> vmalloc took 148798983 us
+>> vmalloc took 151664529 us
+>> vmalloc took 152416398 us
+>> vmalloc took 151837733 us
+>>
+>> After applying the two line patch (see the same bz) which disabled the
+>> delayed removal of the structures, which appears to be intended to
+>> improve performance in the smp case by reducing TLB flushes across cpus,
+>> I get the following results:
+>>
+>> vmalloc took 15363634 us
+>> vmalloc took 15358026 us
+>> vmalloc took 15240955 us
+>> vmalloc took 15402302 us
+>>
+>> So thats a speed up of around 10x, which isn't too bad. The question is
+>> whether it is possible to come to a compromise where it is possible to
+>> retain the benefits of the delayed TLB flushing code, but reduce the
+>> overhead for other users. My two line patch basically disables the delay
+>> by forcing a removal on each and every vfree.
+>>
+>> What is the correct way to fix this I wonder?
+>>
+>> Steve.
+>>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
-So let's comment this NOTE.
 
-Actually I wanted to change naming with better.
-ex) alloc_pages_explict_node.
-But I changed my mind since the comment would be enough.
 
-If anybody suggests better name, I will do with pleasure.
-
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Bob Liu <lliubbo@gmail.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- include/linux/gfp.h |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index b65f003..56b5fe6 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -288,6 +288,12 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
- 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
- }
- 
-+/*
-+ * Use this instead of alloc_pages_node when the caller knows
-+ * exactly which node they need (as opposed to passing in -1
-+ * for current). Fallback to other nodes will still occur
-+ * unless __GFP_THISNODE is specified.
-+ */
- static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
- 						unsigned int order)
- {
--- 
-1.7.0.5
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
