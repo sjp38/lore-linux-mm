@@ -1,95 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2252E6B0219
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 00:45:08 -0400 (EDT)
-Date: Wed, 14 Apr 2010 14:44:58 +1000
-From: Dave Chinner <david@fromorbit.com>
+	by kanga.kvack.org (Postfix) with SMTP id 39D51600370
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 01:03:49 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3E53kbm002939
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 14 Apr 2010 14:03:46 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7045F45DE53
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 14:03:46 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4176945DE51
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 14:03:46 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 181991DB8038
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 14:03:46 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C4BCD1DB8040
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 14:03:45 +0900 (JST)
+Date: Wed, 14 Apr 2010 13:59:45 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100414044458.GF2493@dastard>
+Message-Id: <20100414135945.2b0a1e0d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100414014041.GD2493@dastard>
 References: <1271117878-19274-1-git-send-email-david@fromorbit.com>
- <m2h28c262361004131724ycf9bf4a5xd9b1bad2b4797f50@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <m2h28c262361004131724ycf9bf4a5xd9b1bad2b4797f50@mail.gmail.com>
+	<20100413095815.GU25756@csn.ul.ie>
+	<20100413111902.GY2493@dastard>
+	<20100413193428.GI25756@csn.ul.ie>
+	<20100413202021.GZ13327@think>
+	<20100414014041.GD2493@dastard>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 09:24:33AM +0900, Minchan Kim wrote:
-> Hi, Dave.
-> 
-> On Tue, Apr 13, 2010 at 9:17 AM, Dave Chinner <david@fromorbit.com> wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> >
-> > When we enter direct reclaim we may have used an arbitrary amount of stack
-> > space, and hence enterring the filesystem to do writeback can then lead to
-> > stack overruns. This problem was recently encountered x86_64 systems with
-> > 8k stacks running XFS with simple storage configurations.
-> >
-> > Writeback from direct reclaim also adversely affects background writeback. The
-> > background flusher threads should already be taking care of cleaning dirty
-> > pages, and direct reclaim will kick them if they aren't already doing work. If
-> > direct reclaim is also calling ->writepage, it will cause the IO patterns from
-> > the background flusher threads to be upset by LRU-order writeback from
-> > pageout() which can be effectively random IO. Having competing sources of IO
-> > trying to clean pages on the same backing device reduces throughput by
-> > increasing the amount of seeks that the backing device has to do to write back
-> > the pages.
-> >
-> > Hence for direct reclaim we should not allow ->writepages to be entered at all.
-> > Set up the relevant scan_control structures to enforce this, and prevent
-> > sc->may_writepage from being set in other places in the direct reclaim path in
-> > response to other events.
-> 
-> I think your solution is rather aggressive change as Mel and Kosaki
-> already pointed out.
+On Wed, 14 Apr 2010 11:40:41 +1000
+Dave Chinner <david@fromorbit.com> wrote:
 
-It may be agressive, but writeback from direct reclaim is, IMO, one
-of the worst aspects of the current VM design because of it's
-adverse effect on the IO subsystem.
+>  50)     3168      64   xfs_vm_writepage+0xab/0x160 [xfs]
+>  51)     3104     384   shrink_page_list+0x65e/0x840
+>  52)     2720     528   shrink_zone+0x63f/0xe10
 
-I'd prefer to remove it completely that continue to try and patch
-around it, especially given that everyone seems to agree that it
-does have an adverse affect on IO...
+A bit OFF TOPIC.
 
-> Do flush thread aware LRU of dirty pages in system level recency not
-> dirty pages recency?
+Could you share disassemble of shrink_zone() ?
 
-It writes back in the order inodes were dirtied. i.e. the LRU is a
-coarser measure, but it it still definitely there. It also takes
-into account fairness of IO between dirty inodes, so no one dirty
-inode prevents IO beining issued on a other dirty inodes on the
-LRU...
+In my environ.
+00000000000115a0 <shrink_zone>:
+   115a0:       55                      push   %rbp
+   115a1:       48 89 e5                mov    %rsp,%rbp
+   115a4:       41 57                   push   %r15
+   115a6:       41 56                   push   %r14
+   115a8:       41 55                   push   %r13
+   115aa:       41 54                   push   %r12
+   115ac:       53                      push   %rbx
+   115ad:       48 83 ec 78             sub    $0x78,%rsp
+   115b1:       e8 00 00 00 00          callq  115b6 <shrink_zone+0x16>
+   115b6:       48 89 75 80             mov    %rsi,-0x80(%rbp)
 
-> Of course flush thread can clean dirty pages faster than direct reclaimer.
-> But if it don't aware LRUness, hot page thrashing can be happened by
-> corner case.
-> It could lost write merge.
-> 
-> And non-rotation storage might be not big of seek cost.
+disassemble seems to show 0x78 bytes for stack. And no changes to %rsp
+until retrun.
 
-Non-rotational storage still goes faster when it is fed large, well
-formed IOs.
+I may misunderstand something...
 
-> I think we have to consider that case if we decide to change direct reclaim I/O.
-> 
-> How do we separate the problem?
-> 
-> 1. stack hogging problem.
-> 2. direct reclaim random write.
-
-AFAICT, the only way to _reliably_ avoid the stack usage problem is
-to avoid writeback in direct reclaim. That has the side effect of
-fixing #2 as well, so do they really need separating?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
