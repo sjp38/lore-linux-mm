@@ -1,49 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 280B66B01F4
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 11:00:42 -0400 (EDT)
-Received: by wyg36 with SMTP id 36so101379wyg.14
-        for <linux-mm@kvack.org>; Wed, 14 Apr 2010 08:00:30 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D1F546B01F5
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 11:00:51 -0400 (EDT)
+Received: by mail-ww0-f41.google.com with SMTP id 26so145811wwf.14
+        for <linux-mm@kvack.org>; Wed, 14 Apr 2010 08:00:49 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v2] change alloc function in __vmalloc_area_node
-Date: Wed, 14 Apr 2010 23:58:38 +0900
-Message-Id: <1271257119-30117-5-git-send-email-minchan.kim@gmail.com>
+Subject: [PATCH v2] Add comment in alloc_pages_exact_node
+Date: Wed, 14 Apr 2010 23:58:39 +0900
+Message-Id: <1271257119-30117-6-git-send-email-minchan.kim@gmail.com>
 In-Reply-To: <1271257119-30117-1-git-send-email-minchan.kim@gmail.com>
 References: <1271257119-30117-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, Nick Piggin <npiggin@suse.de>
+Cc: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
 V2
-* Add some reviewed-by
+ o modify comment by suggestion. (Thanks to Mel)
 
-__vmalloc_area_node never pass -1 to alloc_pages_node.
-It means node's validity check is unnecessary.
-So we can use alloc_pages_exact_node instead of alloc_pages_node.
-It could avoid comparison and branch as 6484eb3e2a81807722 tried.
+alloc_pages_exact_node naming makes some people misleading.
+They considered it following as.
+"This function will allocate pages from node which I wanted
+exactly".
+But it can allocate pages from fallback list if page allocator
+can't find free page from node user wanted.
 
-Cc: Nick Piggin <npiggin@suse.de>
-Reviewed-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+So let's comment this NOTE.
+
+Actually I wanted to change naming with better.
+ex) alloc_pages_explict_node.
+But I changed my mind since the comment would be enough.
+
+If anybody suggests better name, I will do with pleasure.
+
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Bob Liu <lliubbo@gmail.com>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- mm/vmalloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ include/linux/gfp.h |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index ae00746..7abf423 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1499,7 +1499,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 		if (node < 0)
- 			page = alloc_page(gfp_mask);
- 		else
--			page = alloc_pages_node(node, gfp_mask, 0);
-+			page = alloc_pages_exact_node(node, gfp_mask, 0);
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index b65f003..56b5fe6 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -288,6 +288,12 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+ }
  
- 		if (unlikely(!page)) {
- 			/* Successfully allocated i pages, free them in __vunmap() */
++/*
++ * Use this instead of alloc_pages_node when the caller knows
++ * exactly which node they need (as opposed to passing in -1
++ * for current). Fallback to other nodes will still occur
++ * unless __GFP_THISNODE is specified.
++ */
+ static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
+ 						unsigned int order)
+ {
 -- 
 1.7.0.5
 
