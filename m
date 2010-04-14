@@ -1,198 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 789CC6B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 04:51:56 -0400 (EDT)
-Date: Wed, 14 Apr 2010 09:51:33 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100414085132.GJ25756@csn.ul.ie>
-References: <20100413202021.GZ13327@think> <20100414014041.GD2493@dastard> <20100414155233.D153.A69D9226@jp.fujitsu.com> <20100414072830.GK2493@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100414072830.GK2493@dastard>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B46296B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 05:33:10 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3E9X5bI027526
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 14 Apr 2010 18:33:05 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BA2D45DE60
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:33:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EC6F845DE4D
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:33:04 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D87251DB803F
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:33:04 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C5BA1DB8037
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 18:33:04 +0900 (JST)
+Date: Wed, 14 Apr 2010 18:29:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
+Message-Id: <20100414182904.2f72a63d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <xr931veiplpr.fsf@ninji.mtv.corp.google.com>
+References: <1268609202-15581-1-git-send-email-arighi@develer.com>
+	<1268609202-15581-2-git-send-email-arighi@develer.com>
+	<20100317115855.GS18054@balbir.in.ibm.com>
+	<20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100318041944.GA18054@balbir.in.ibm.com>
+	<20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100318162855.GG18054@balbir.in.ibm.com>
+	<20100319102332.f1d81c8d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100319024039.GH18054@balbir.in.ibm.com>
+	<20100319120049.3dbf8440.kamezawa.hiroyu@jp.fujitsu.com>
+	<xr931veiplpr.fsf@ninji.mtv.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: balbir@linux.vnet.ibm.com, Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 05:28:30PM +1000, Dave Chinner wrote:
-> On Wed, Apr 14, 2010 at 03:52:44PM +0900, KOSAKI Motohiro wrote:
-> > > On Tue, Apr 13, 2010 at 04:20:21PM -0400, Chris Mason wrote:
-> > > > On Tue, Apr 13, 2010 at 08:34:29PM +0100, Mel Gorman wrote:
-> > > > > > Basically, there is not enough stack space available to allow direct
-> > > > > > reclaim to enter ->writepage _anywhere_ according to the stack usage
-> > > > > > profiles we are seeing here....
-> > > > > > 
-> > > > > 
-> > > > > I'm not denying the evidence but how has it been gotten away with for years
-> > > > > then? Prevention of writeback isn't the answer without figuring out how
-> > > > > direct reclaimers can queue pages for IO and in the case of lumpy reclaim
-> > > > > doing sync IO, then waiting on those pages.
-> > > > 
-> > > > So, I've been reading along, nodding my head to Dave's side of things
-> > > > because seeks are evil and direct reclaim makes seeks.  I'd really loev
-> > > > for direct reclaim to somehow trigger writepages on large chunks instead
-> > > > of doing page by page spatters of IO to the drive.
-> > 
-> > I agree that "seeks are evil and direct reclaim makes seeks". Actually,
-> > making 4k io is not must for pageout. So, probably we can improve it.
-> > 
-> > 
-> > > Perhaps drop the lock on the page if it is held and call one of the
-> > > helpers that filesystems use to do this, like:
-> > > 
-> > > 	filemap_write_and_wait(page->mapping);
-> > 
-> > Sorry, I'm lost what you talk about. Why do we need per-file
-> > waiting? If file is 1GB file, do we need to wait 1GB writeout?
+On Tue, 13 Apr 2010 23:55:12 -0700
+Greg Thelen <gthelen@google.com> wrote:
+
+> On Thu, Mar 18, 2010 at 8:00 PM, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Fri, 19 Mar 2010 08:10:39 +0530
+> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >
+> >> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-19 10:23:32]:
+> >>
+> >> > On Thu, 18 Mar 2010 21:58:55 +0530
+> >> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >> >
+> >> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 13:35:27]:
+> >> >
+> >> > > > Then, no probelm. It's ok to add mem_cgroup_udpate_stat() indpendent from
+> >> > > > mem_cgroup_update_file_mapped(). The look may be messy but it's not your
+> >> > > > fault. But please write "why add new function" to patch description.
+> >> > > >
+> >> > > > I'm sorry for wasting your time.
+> >> > >
+> >> > > Do we need to go down this route? We could check the stat and do the
+> >> > > correct thing. In case of FILE_MAPPED, always grab page_cgroup_lock
+> >> > > and for others potentially look at trylock. It is OK for different
+> >> > > stats to be protected via different locks.
+> >> > >
+> >> >
+> >> > I _don't_ want to see a mixture of spinlock and trylock in a function.
+> >> >
+> >>
+> >> A well documented well written function can help. The other thing is to
+> >> of-course solve this correctly by introducing different locking around
+> >> the statistics. Are you suggesting the later?
+> >>
+> >
+> > No. As I wrote.
+> > A  A  A  A - don't modify codes around FILE_MAPPED in this series.
+> > A  A  A  A - add a new functions for new statistics
+> > Then,
+> > A  A  A  A - think about clean up later, after we confirm all things work as expected.
 > 
-> So use filemap_fdatawrite(page->mapping), or if it's better only
-> to start IO on a segment of the file, use
-> filemap_fdatawrite_range(page->mapping, start, end)....
+> I have ported Andrea Righi's memcg dirty page accounting patches to latest
+> mmtom-2010-04-05-16-09.  In doing so I have to address this locking issue.  Does
+> the following look good?  I will (of course) submit the entire patch for review,
+> but I wanted make sure I was aiming in the right direction.
+> 
+> void mem_cgroup_update_page_stat(struct page *page,
+> 			enum mem_cgroup_write_page_stat_item idx, bool charge)
+> {
+> 	static int seq;
+> 	struct page_cgroup *pc;
+> 
+> 	if (mem_cgroup_disabled())
+> 		return;
+> 	pc = lookup_page_cgroup(page);
+> 	if (!pc || mem_cgroup_is_root(pc->mem_cgroup))
+> 		return;
+> 
+> 	/*
+> 	 * This routine does not disable irq when updating stats.  So it is
+> 	 * possible that a stat update from within interrupt routine, could
+> 	 * deadlock.  Use trylock_page_cgroup() to avoid such deadlock.  This
+> 	 * makes the memcg counters fuzzy.  More complicated, or lower
+> 	 * performing locking solutions avoid this fuzziness, but are not
+> 	 * currently needed.
+> 	 */
+> 	if (irqs_disabled()) {
+> 		if (! trylock_page_cgroup(pc))
+> 			return;
+> 	} else
+> 		lock_page_cgroup(pc);
 > 
 
-That does not help the stack usage issue, the caller ends up in
-->writepages. From an IO perspective, it'll be better from a seek point of
-view but from a VM perspective, it may or may not be cleaning the right pages.
-So I think this is a red herring.
+I prefer trylock_page_cgroup() always.
 
-> > > > But, somewhere along the line I overlooked the part of Dave's stack trace
-> > > > that said:
-> > > > 
-> > > > 43)     1568     912   do_select+0x3d6/0x700
-> > > > 
-> > > > Huh, 912 bytes...for select, really?  From poll.h:
-> > > 
-> > > Sure, it's bad, but we focussing on the specific case misses the
-> > > point that even code that is using minimal stack can enter direct
-> > > reclaim after consuming 1.5k of stack. e.g.:
-> > 
-> > checkstack.pl says do_select() and __generic_file_splice_read() are one
-> > of worstest stack consumer. both sould be fixed.
-> 
-> the deepest call chain in queue_work() needs 700 bytes of stack
-> to complete, wait_for_completion() requires almost 2k of stack space
-> at it's deepest, the scheduler has some heavy stack users, etc,
-> and these are all functions that appear at the top of the stack.
-> 
+I have another idea fixing this up _later_. (But I want to start from simple one.)
 
-The real issue here then is that stack usage has gone out of control.
-Disabling ->writepage in direct reclaim does not guarantee that stack
-usage will not be a problem again. From your traces, page reclaim itself
-seems to be a big dirty hog.
+My rough idea is following.  Similar to your idea which you gave me before.
 
-Differences in what people see in their machines may be down to architecture,
-compiler but most likely inlining. Changing inlining will not fix the problem,
-it'll just move the stack usage around.
+==
+DEFINE_PERCPU(account_move_ongoing);
+DEFINE_MUTEX(move_account_mutex):
 
-> > also, checkstack.pl says such stack eater aren't so much.
-> 
-> Yeah, but when we have ia callchain 70 or more functions deep,
-> even 100 bytes of stack is a lot....
-> 
-> > > > So, select is intentionally trying to use that much stack.  It should be using
-> > > > GFP_NOFS if it really wants to suck down that much stack...
-> > > 
-> > > The code that did the allocation is called from multiple different
-> > > contexts - how is it supposed to know that in some of those contexts
-> > > it is supposed to treat memory allocation differently?
-> > > 
-> > > This is my point - if you introduce a new semantic to memory allocation
-> > > that is "use GFP_NOFS when you are using too much stack" and too much
-> > > stack is more than 15% of the stack, then pretty much every code path
-> > > will need to set that flag...
-> > 
-> > Nodding my head to Dave's side. changing caller argument seems not good
-> > solution. I mean
-> >  - do_select() should use GFP_KERNEL instead stack (as revert 70674f95c0)
-> >  - reclaim and xfs (and other something else) need to diet.
-> 
-> The list I'm seeing so far includes:
-> 	- scheduler
-> 	- completion interfaces
-> 	- radix tree
-> 	- memory allocation, memory reclaim
-> 	- anything that implements ->writepage
-> 	- select
-> 	- splice read
-> 
-> > Also, I believe stack eater function should be created waring. patch attached.
-> 
-> Good start, but 512 bytes will only catch select and splice read,
-> and there are 300-400 byte functions in the above list that sit near
-> the top of the stack....
-> 
+void memcg_start_account_move(void)
+{
+	mutex_lock(&move_account_mutex);
+	for_each_online_cpu(cpu)
+		per_cpu(cpu, account_move_ongoing) += 1;
+	mutex_unlock(&move_account_mutex);
+	/* Wait until there are no lockless update */
+	synchronize_rcu();
+	return;
+}
 
-They will need to be tackled in turn then but obviously there should be
-a focus on the common paths. The reclaim paths do seem particularly
-heavy and it's down to a lot of temporary variables. I might not get the
-time today but what I'm going to try do some time this week is
+void memcg_end_account_move(void)
+{
+	mutex_lock(&move_account_mutex);
+	for_each_online_cpu(cpu)
+		per_cpu(cpu, account_move_ongoing) -= 1;
+	mutex_unlock(&move_account_mutex);
+}
 
-o Look at what temporary variables are copies of other pieces of information
-o See what variables live for the duration of reclaim but are not needed
-  for all of it (i.e. uninline parts of it so variables do not persist)
-o See if it's possible to dynamically allocate scan_control
+/* return 1 when we took lock, return 0 if lockess OPs is guarantedd to be safe */
+int memcg_start_filecache_accounting(struct page_cgroup *pc)
+{
+	rcu_read_lock();
+	smp_rmb();
+	if (!this_cpu_read(move_account_ongoing))
+		return 0; /* no move account is ongoing */
+	lock_page_cgroup(pc);
+	return 1;
+}
 
-The last one is the trickiest. Basically, the idea would be to move as much
-into scan_control as possible. Then, instead of allocating it on the stack,
-allocate a fixed number of them at boot-time (NR_CPU probably) protected by
-a semaphore. Limit the number of direct reclaimers that can be active at a
-time to the number of scan_control variables. kswapd could still allocate
-its on the stack or with kmalloc.
+void memcg_end_filecache_accounting(struct page_cgroup *pc, int unlock)
+{
+	if (unlock)
+		unlock_page_cgroup(pc);
 
-If it works out, it would have two main benefits. Limits the number of
-processes in direct reclaim - if there is NR_CPU-worth of proceses in direct
-reclaim, there is too much going on. It would also shrink the stack usage
-particularly if some of the stack variables are moved into scan_control.
+	rcu_read_unlock();
+}
 
-Maybe someone will beat me to looking at the feasibility of this.
+and call memcg_start_account_move()/end_account_move() in the start/end of
+migrainting chunk of pages.
 
-> > > We need at least _700_ bytes of stack free just to call queue_work(),
-> > > and that now happens deep in the guts of the driver subsystem below XFS.
-> > > This trace shows 1.8k of stack usage on a simple, single sata disk
-> > > storage subsystem, so my estimate of 2k of stack for the storage system
-> > > below XFS is too small - a worst case of 2.5-3k of stack space is probably
-> > > closer to the mark.
-> > 
-> > your explanation is very interesting. I have a (probably dumb) question.
-> > Why nobody faced stack overflow issue in past? now I think every users
-> > easily get stack overflow if your explanation is correct.
-> 
-> It's always a problem, but the focus on minimising stack usage has
-> gone away since i386 has mostly disappeared from server rooms.
-> 
-> XFS has always been the thing that triggered stack usage problems
-> first - the first reports of problems on x86_64 with 8k stacks in low
-> memory situations have only just come in, and this is the first time
-> in a couple of years I've paid close attention to stack usage
-> outside XFS. What I'm seeing is not pretty....
-> 
-> > > This is the sort of thing I'm pointing at when I say that stack
-> > > usage outside XFS has grown significantly significantly over the
-> > > past couple of years. Given XFS has remained pretty much the same or
-> > > even reduced slightly over the same time period, blaming XFS or
-> > > saying "callers should use GFP_NOFS" seems like a cop-out to me.
-> > > Regardless of the IO pattern performance issues, writeback via
-> > > direct reclaim just uses too much stack to be safe these days...
-> > 
-> > Yeah, My answer is simple, All stack eater should be fixed.
-> > but XFS seems not innocence too. 3.5K is enough big although
-> > xfs have use such amount since very ago.
-> 
-> XFS used to use much more than that - significant effort has been
-> put into reduce the stack footprint over many years. There's not
-> much left to trim without rewriting half the filesystem...
-> 
+Bye.
+-Kame
 
-I don't think he is levelling a complain at XFS in particular - just pointing
-out that it's heavy too. Still, we should be gratful that XFS is sort of
-a "Stack Canary". If it dies, everyone else could be in trouble soon :)
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
