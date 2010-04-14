@@ -1,135 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3C8FF6B01F0
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 03:54:17 -0400 (EDT)
-Received: by iwn14 with SMTP id 14so5570627iwn.22
-        for <linux-mm@kvack.org>; Wed, 14 Apr 2010 00:54:17 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100414044458.GF2493@dastard>
-References: <1271117878-19274-1-git-send-email-david@fromorbit.com>
-	 <m2h28c262361004131724ycf9bf4a5xd9b1bad2b4797f50@mail.gmail.com>
-	 <20100414044458.GF2493@dastard>
-Date: Wed, 14 Apr 2010 16:54:17 +0900
-Message-ID: <t2r28c262361004140054t807b7edbzc69e7830f6978735@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 789CC6B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 04:51:56 -0400 (EDT)
+Date: Wed, 14 Apr 2010 09:51:33 +0100
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20100414085132.GJ25756@csn.ul.ie>
+References: <20100413202021.GZ13327@think> <20100414014041.GD2493@dastard> <20100414155233.D153.A69D9226@jp.fujitsu.com> <20100414072830.GK2493@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100414072830.GK2493@dastard>
 Sender: owner-linux-mm@kvack.org
 To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 1:44 PM, Dave Chinner <david@fromorbit.com> wrote:
-> On Wed, Apr 14, 2010 at 09:24:33AM +0900, Minchan Kim wrote:
->> Hi, Dave.
->>
->> On Tue, Apr 13, 2010 at 9:17 AM, Dave Chinner <david@fromorbit.com> wrote:
->> > From: Dave Chinner <dchinner@redhat.com>
->> >
->> > When we enter direct reclaim we may have used an arbitrary amount of stack
->> > space, and hence enterring the filesystem to do writeback can then lead to
->> > stack overruns. This problem was recently encountered x86_64 systems with
->> > 8k stacks running XFS with simple storage configurations.
->> >
->> > Writeback from direct reclaim also adversely affects background writeback. The
->> > background flusher threads should already be taking care of cleaning dirty
->> > pages, and direct reclaim will kick them if they aren't already doing work. If
->> > direct reclaim is also calling ->writepage, it will cause the IO patterns from
->> > the background flusher threads to be upset by LRU-order writeback from
->> > pageout() which can be effectively random IO. Having competing sources of IO
->> > trying to clean pages on the same backing device reduces throughput by
->> > increasing the amount of seeks that the backing device has to do to write back
->> > the pages.
->> >
->> > Hence for direct reclaim we should not allow ->writepages to be entered at all.
->> > Set up the relevant scan_control structures to enforce this, and prevent
->> > sc->may_writepage from being set in other places in the direct reclaim path in
->> > response to other events.
->>
->> I think your solution is rather aggressive change as Mel and Kosaki
->> already pointed out.
->
-> It may be agressive, but writeback from direct reclaim is, IMO, one
-> of the worst aspects of the current VM design because of it's
-> adverse effect on the IO subsystem.
+On Wed, Apr 14, 2010 at 05:28:30PM +1000, Dave Chinner wrote:
+> On Wed, Apr 14, 2010 at 03:52:44PM +0900, KOSAKI Motohiro wrote:
+> > > On Tue, Apr 13, 2010 at 04:20:21PM -0400, Chris Mason wrote:
+> > > > On Tue, Apr 13, 2010 at 08:34:29PM +0100, Mel Gorman wrote:
+> > > > > > Basically, there is not enough stack space available to allow direct
+> > > > > > reclaim to enter ->writepage _anywhere_ according to the stack usage
+> > > > > > profiles we are seeing here....
+> > > > > > 
+> > > > > 
+> > > > > I'm not denying the evidence but how has it been gotten away with for years
+> > > > > then? Prevention of writeback isn't the answer without figuring out how
+> > > > > direct reclaimers can queue pages for IO and in the case of lumpy reclaim
+> > > > > doing sync IO, then waiting on those pages.
+> > > > 
+> > > > So, I've been reading along, nodding my head to Dave's side of things
+> > > > because seeks are evil and direct reclaim makes seeks.  I'd really loev
+> > > > for direct reclaim to somehow trigger writepages on large chunks instead
+> > > > of doing page by page spatters of IO to the drive.
+> > 
+> > I agree that "seeks are evil and direct reclaim makes seeks". Actually,
+> > making 4k io is not must for pageout. So, probably we can improve it.
+> > 
+> > 
+> > > Perhaps drop the lock on the page if it is held and call one of the
+> > > helpers that filesystems use to do this, like:
+> > > 
+> > > 	filemap_write_and_wait(page->mapping);
+> > 
+> > Sorry, I'm lost what you talk about. Why do we need per-file
+> > waiting? If file is 1GB file, do we need to wait 1GB writeout?
+> 
+> So use filemap_fdatawrite(page->mapping), or if it's better only
+> to start IO on a segment of the file, use
+> filemap_fdatawrite_range(page->mapping, start, end)....
+> 
 
-Tend to agree. But De we need it by last resort if flusher thread
-can't catch up
-write stream?
-Or In my opinion, Could I/O layer have better throttle logic than now?
+That does not help the stack usage issue, the caller ends up in
+->writepages. From an IO perspective, it'll be better from a seek point of
+view but from a VM perspective, it may or may not be cleaning the right pages.
+So I think this is a red herring.
 
->
-> I'd prefer to remove it completely that continue to try and patch
-> around it, especially given that everyone seems to agree that it
-> does have an adverse affect on IO...
+> > > > But, somewhere along the line I overlooked the part of Dave's stack trace
+> > > > that said:
+> > > > 
+> > > > 43)     1568     912   do_select+0x3d6/0x700
+> > > > 
+> > > > Huh, 912 bytes...for select, really?  From poll.h:
+> > > 
+> > > Sure, it's bad, but we focussing on the specific case misses the
+> > > point that even code that is using minimal stack can enter direct
+> > > reclaim after consuming 1.5k of stack. e.g.:
+> > 
+> > checkstack.pl says do_select() and __generic_file_splice_read() are one
+> > of worstest stack consumer. both sould be fixed.
+> 
+> the deepest call chain in queue_work() needs 700 bytes of stack
+> to complete, wait_for_completion() requires almost 2k of stack space
+> at it's deepest, the scheduler has some heavy stack users, etc,
+> and these are all functions that appear at the top of the stack.
+> 
 
-Of course, If everybody agree, we can do it.
-For it, we need many benchmark result which is very hard.
-Maybe I will help it in embedded system.
+The real issue here then is that stack usage has gone out of control.
+Disabling ->writepage in direct reclaim does not guarantee that stack
+usage will not be a problem again. From your traces, page reclaim itself
+seems to be a big dirty hog.
 
->
->> Do flush thread aware LRU of dirty pages in system level recency not
->> dirty pages recency?
->
-> It writes back in the order inodes were dirtied. i.e. the LRU is a
-> coarser measure, but it it still definitely there. It also takes
-> into account fairness of IO between dirty inodes, so no one dirty
-> inode prevents IO beining issued on a other dirty inodes on the
-> LRU...
+Differences in what people see in their machines may be down to architecture,
+compiler but most likely inlining. Changing inlining will not fix the problem,
+it'll just move the stack usage around.
 
-Thanks.
-It seems to be lost recency.
-I am not sure how much it affects system performance.
+> > also, checkstack.pl says such stack eater aren't so much.
+> 
+> Yeah, but when we have ia callchain 70 or more functions deep,
+> even 100 bytes of stack is a lot....
+> 
+> > > > So, select is intentionally trying to use that much stack.  It should be using
+> > > > GFP_NOFS if it really wants to suck down that much stack...
+> > > 
+> > > The code that did the allocation is called from multiple different
+> > > contexts - how is it supposed to know that in some of those contexts
+> > > it is supposed to treat memory allocation differently?
+> > > 
+> > > This is my point - if you introduce a new semantic to memory allocation
+> > > that is "use GFP_NOFS when you are using too much stack" and too much
+> > > stack is more than 15% of the stack, then pretty much every code path
+> > > will need to set that flag...
+> > 
+> > Nodding my head to Dave's side. changing caller argument seems not good
+> > solution. I mean
+> >  - do_select() should use GFP_KERNEL instead stack (as revert 70674f95c0)
+> >  - reclaim and xfs (and other something else) need to diet.
+> 
+> The list I'm seeing so far includes:
+> 	- scheduler
+> 	- completion interfaces
+> 	- radix tree
+> 	- memory allocation, memory reclaim
+> 	- anything that implements ->writepage
+> 	- select
+> 	- splice read
+> 
+> > Also, I believe stack eater function should be created waring. patch attached.
+> 
+> Good start, but 512 bytes will only catch select and splice read,
+> and there are 300-400 byte functions in the above list that sit near
+> the top of the stack....
+> 
 
->
->> Of course flush thread can clean dirty pages faster than direct reclaimer.
->> But if it don't aware LRUness, hot page thrashing can be happened by
->> corner case.
->> It could lost write merge.
->>
->> And non-rotation storage might be not big of seek cost.
->
-> Non-rotational storage still goes faster when it is fed large, well
-> formed IOs.
+They will need to be tackled in turn then but obviously there should be
+a focus on the common paths. The reclaim paths do seem particularly
+heavy and it's down to a lot of temporary variables. I might not get the
+time today but what I'm going to try do some time this week is
 
-Agreed. I missed. Nand device is stronger than HDD about random read.
-But ramdom write is very weak in performance and wear-leveling.
+o Look at what temporary variables are copies of other pieces of information
+o See what variables live for the duration of reclaim but are not needed
+  for all of it (i.e. uninline parts of it so variables do not persist)
+o See if it's possible to dynamically allocate scan_control
 
->
->> I think we have to consider that case if we decide to change direct reclaim I/O.
->>
->> How do we separate the problem?
->>
->> 1. stack hogging problem.
->> 2. direct reclaim random write.
->
-> AFAICT, the only way to _reliably_ avoid the stack usage problem is
-> to avoid writeback in direct reclaim. That has the side effect of
-> fixing #2 as well, so do they really need separating?
+The last one is the trickiest. Basically, the idea would be to move as much
+into scan_control as possible. Then, instead of allocating it on the stack,
+allocate a fixed number of them at boot-time (NR_CPU probably) protected by
+a semaphore. Limit the number of direct reclaimers that can be active at a
+time to the number of scan_control variables. kswapd could still allocate
+its on the stack or with kmalloc.
 
-If we can do it, it's good.
-but 2. problem is not easy to fix, I think.
-Compared to 2, 1 is rather easy.
-So I thought we can solve 1 firstly and then focusing 2.
-If your suggestion is right, then we can apply your idea.
-Then we don't need to revert the patch of 1 since small stack usage is
-always good
-if we don't lost big performance.
+If it works out, it would have two main benefits. Limits the number of
+processes in direct reclaim - if there is NR_CPU-worth of proceses in direct
+reclaim, there is too much going on. It would also shrink the stack usage
+particularly if some of the stack variables are moved into scan_control.
 
->
-> Cheers,
->
-> Dave.
-> --
-> Dave Chinner
-> david@fromorbit.com
->
+Maybe someone will beat me to looking at the feasibility of this.
 
+> > > We need at least _700_ bytes of stack free just to call queue_work(),
+> > > and that now happens deep in the guts of the driver subsystem below XFS.
+> > > This trace shows 1.8k of stack usage on a simple, single sata disk
+> > > storage subsystem, so my estimate of 2k of stack for the storage system
+> > > below XFS is too small - a worst case of 2.5-3k of stack space is probably
+> > > closer to the mark.
+> > 
+> > your explanation is very interesting. I have a (probably dumb) question.
+> > Why nobody faced stack overflow issue in past? now I think every users
+> > easily get stack overflow if your explanation is correct.
+> 
+> It's always a problem, but the focus on minimising stack usage has
+> gone away since i386 has mostly disappeared from server rooms.
+> 
+> XFS has always been the thing that triggered stack usage problems
+> first - the first reports of problems on x86_64 with 8k stacks in low
+> memory situations have only just come in, and this is the first time
+> in a couple of years I've paid close attention to stack usage
+> outside XFS. What I'm seeing is not pretty....
+> 
+> > > This is the sort of thing I'm pointing at when I say that stack
+> > > usage outside XFS has grown significantly significantly over the
+> > > past couple of years. Given XFS has remained pretty much the same or
+> > > even reduced slightly over the same time period, blaming XFS or
+> > > saying "callers should use GFP_NOFS" seems like a cop-out to me.
+> > > Regardless of the IO pattern performance issues, writeback via
+> > > direct reclaim just uses too much stack to be safe these days...
+> > 
+> > Yeah, My answer is simple, All stack eater should be fixed.
+> > but XFS seems not innocence too. 3.5K is enough big although
+> > xfs have use such amount since very ago.
+> 
+> XFS used to use much more than that - significant effort has been
+> put into reduce the stack footprint over many years. There's not
+> much left to trim without rewriting half the filesystem...
+> 
 
+I don't think he is levelling a complain at XFS in particular - just pointing
+out that it's heavy too. Still, we should be gratful that XFS is sort of
+a "Stack Canary". If it dies, everyone else could be in trouble soon :)
 
 -- 
-Kind regards,
-Minchan Kim
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
