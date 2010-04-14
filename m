@@ -1,107 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 578876B0216
-	for <linux-mm@kvack.org>; Tue, 13 Apr 2010 23:12:19 -0400 (EDT)
-Date: Wed, 14 Apr 2010 13:12:05 +1000
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2252E6B0219
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 00:45:08 -0400 (EDT)
+Date: Wed, 14 Apr 2010 14:44:58 +1000
 From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100414031205.GE2493@dastard>
-References: <20100413142445.D0FE.A69D9226@jp.fujitsu.com>
- <20100413102938.GX2493@dastard>
- <20100413201635.D119.A69D9226@jp.fujitsu.com>
- <20100413143659.GA2493@dastard>
+Message-ID: <20100414044458.GF2493@dastard>
+References: <1271117878-19274-1-git-send-email-david@fromorbit.com>
+ <m2h28c262361004131724ycf9bf4a5xd9b1bad2b4797f50@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100413143659.GA2493@dastard>
+In-Reply-To: <m2h28c262361004131724ycf9bf4a5xd9b1bad2b4797f50@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 12:36:59AM +1000, Dave Chinner wrote:
-> On Tue, Apr 13, 2010 at 08:39:29PM +0900, KOSAKI Motohiro wrote:
-> > > FWIW, the biggest problem here is that I have absolutely no clue on
-> > > how to test what the impact on lumpy reclaim really is. Does anyone
-> > > have a relatively simple test that can be run to determine what the
-> > > impact is?
-> > 
-> > So, can you please run two workloads concurrently?
-> >  - Normal IO workload (fio, iozone, etc..)
-> >  - echo $NUM > /proc/sys/vm/nr_hugepages
+On Wed, Apr 14, 2010 at 09:24:33AM +0900, Minchan Kim wrote:
+> Hi, Dave.
 > 
-> What do I measure/observe/record that is meaningful?
+> On Tue, Apr 13, 2010 at 9:17 AM, Dave Chinner <david@fromorbit.com> wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> >
+> > When we enter direct reclaim we may have used an arbitrary amount of stack
+> > space, and hence enterring the filesystem to do writeback can then lead to
+> > stack overruns. This problem was recently encountered x86_64 systems with
+> > 8k stacks running XFS with simple storage configurations.
+> >
+> > Writeback from direct reclaim also adversely affects background writeback. The
+> > background flusher threads should already be taking care of cleaning dirty
+> > pages, and direct reclaim will kick them if they aren't already doing work. If
+> > direct reclaim is also calling ->writepage, it will cause the IO patterns from
+> > the background flusher threads to be upset by LRU-order writeback from
+> > pageout() which can be effectively random IO. Having competing sources of IO
+> > trying to clean pages on the same backing device reduces throughput by
+> > increasing the amount of seeks that the backing device has to do to write back
+> > the pages.
+> >
+> > Hence for direct reclaim we should not allow ->writepages to be entered at all.
+> > Set up the relevant scan_control structures to enforce this, and prevent
+> > sc->may_writepage from being set in other places in the direct reclaim path in
+> > response to other events.
+> 
+> I think your solution is rather aggressive change as Mel and Kosaki
+> already pointed out.
 
-So, a rough as guts first pass - just run a large dd (8 times the
-size of memory - 8GB file vs 1GB RAM) and repeated try to allocate
-the entire of memory in huge pages (500) every 5 seconds. The IO
-rate is roughly 100MB/s, so it takes 75-85s to complete the dd.
+It may be agressive, but writeback from direct reclaim is, IMO, one
+of the worst aspects of the current VM design because of it's
+adverse effect on the IO subsystem.
 
-The script:
+I'd prefer to remove it completely that continue to try and patch
+around it, especially given that everyone seems to agree that it
+does have an adverse affect on IO...
 
-$ cat t.sh
-#!/bin/bash
+> Do flush thread aware LRU of dirty pages in system level recency not
+> dirty pages recency?
 
-echo 0 > /proc/sys/vm/nr_hugepages
-echo 3 > /proc/sys/vm/drop_caches
+It writes back in the order inodes were dirtied. i.e. the LRU is a
+coarser measure, but it it still definitely there. It also takes
+into account fairness of IO between dirty inodes, so no one dirty
+inode prevents IO beining issued on a other dirty inodes on the
+LRU...
 
-dd if=/dev/zero of=/mnt/scratch/test bs=1024k count=8000 > /dev/null 2>&1 &
+> Of course flush thread can clean dirty pages faster than direct reclaimer.
+> But if it don't aware LRUness, hot page thrashing can be happened by
+> corner case.
+> It could lost write merge.
+> 
+> And non-rotation storage might be not big of seek cost.
 
-(
-for i in `seq 1 1 20`; do
-        sleep 5
-        /usr/bin/time --format="wall %e" sh -c "echo 500 > /proc/sys/vm/nr_hugepages" 2>&1
-        grep HugePages_Total /proc/meminfo
-done
-) | awk '
-        /wall/ { wall += $2; cnt += 1 }
-        /Pages/ { pages[cnt] = $2 }
-        END { printf "average wall time %f\nPages step: ", wall / cnt ;
-                for (i = 1; i <= cnt; i++) {
-                        printf "%d ", pages[i];
-                }
-        }'
-----
+Non-rotational storage still goes faster when it is fed large, well
+formed IOs.
 
-And the output looks like:
+> I think we have to consider that case if we decide to change direct reclaim I/O.
+> 
+> How do we separate the problem?
+> 
+> 1. stack hogging problem.
+> 2. direct reclaim random write.
 
-$ sudo ./t.sh
-average wall time 0.954500
-Pages step: 97 101 101 121 173 173 173 173 173 173 175 194 195 195 202 220 226 419 423 426
-$
-
-Run 50 times in a loop, and the outputs averaged, the existing lumpy
-reclaim resulted in:
-
-dave@test-1:~$ cat current.txt | awk -f av.awk
-av. wall = 0.519385 secs
-av Pages step: 192 228 242 255 265 272 279 284 289 294 298 303 307 322 342 366 383 401 412 420
-
-And with my patch that disables ->writepage:
-
-dave@test-1:~$ cat no-direct.txt | awk -f av.awk
-av. wall = 0.554163 secs
-av Pages step: 231 283 310 316 323 328 336 340 345 351 356 359 364 377 388 397 413 423 432 439
-
-Basically, with my patch lumpy reclaim was *substantially* more
-effective with only a slight increase in average allocation latency
-with this test case.
-
-I need to add a marker to the output that records when the dd
-completes, but from monitoring the writeback rates via PCP, they
-were in the balllpark of 85-100MB/s for the existing code, and
-95-110MB/s with my patch.  Hence it improved both IO throughput and
-the effectiveness of lumpy reclaim.
-
-On the down side, I did have an OOM killer invocation with my patch
-after about 150 iterations - dd failed an order zero allocation
-because there were 455 huge pages allocated and there were only
-_320_ available pages for IO, all of which were under IO. i.e. lumpy
-reclaim worked so well that the machine got into order-0 page
-starvation.
-
-I know this is a simple test case, but it shows much better results
-than I think anyone (even me) is expecting...
+AFAICT, the only way to _reliably_ avoid the stack usage problem is
+to avoid writeback in direct reclaim. That has the side effect of
+fixing #2 as well, so do they really need separating?
 
 Cheers,
 
