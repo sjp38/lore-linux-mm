@@ -1,118 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 965CA6B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 09:24:13 -0400 (EDT)
-Date: Wed, 14 Apr 2010 14:23:50 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100414132349.GL25756@csn.ul.ie>
-References: <1271117878-19274-1-git-send-email-david@fromorbit.com> <20100413095815.GU25756@csn.ul.ie> <20100413111902.GY2493@dastard> <20100413193428.GI25756@csn.ul.ie> <20100413202021.GZ13327@think> <877hoa9wlv.fsf@basil.nowhere.org> <20100414112015.GO13327@think>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4361A6B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 10:05:06 -0400 (EDT)
+Date: Wed, 14 Apr 2010 10:04:30 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
+Message-ID: <20100414140430.GB13535@redhat.com>
+References: <20100317115855.GS18054@balbir.in.ibm.com> <20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com> <20100318041944.GA18054@balbir.in.ibm.com> <20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com> <20100318162855.GG18054@balbir.in.ibm.com> <20100319102332.f1d81c8d.kamezawa.hiroyu@jp.fujitsu.com> <20100319024039.GH18054@balbir.in.ibm.com> <20100319120049.3dbf8440.kamezawa.hiroyu@jp.fujitsu.com> <xr931veiplpr.fsf@ninji.mtv.corp.google.com> <20100414182904.2f72a63d.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100414112015.GO13327@think>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20100414182904.2f72a63d.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, Andi Kleen <andi@firstfloor.org>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Greg Thelen <gthelen@google.com>, balbir@linux.vnet.ibm.com, Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 07:20:15AM -0400, Chris Mason wrote:
-> On Wed, Apr 14, 2010 at 12:06:36PM +0200, Andi Kleen wrote:
-> > Chris Mason <chris.mason@oracle.com> writes:
+On Wed, Apr 14, 2010 at 06:29:04PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 13 Apr 2010 23:55:12 -0700
+> Greg Thelen <gthelen@google.com> wrote:
+> 
+> > On Thu, Mar 18, 2010 at 8:00 PM, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > On Fri, 19 Mar 2010 08:10:39 +0530
+> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > > >
-> > > Huh, 912 bytes...for select, really?  From poll.h:
+> > >> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-19 10:23:32]:
+> > >>
+> > >> > On Thu, 18 Mar 2010 21:58:55 +0530
+> > >> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > >> >
+> > >> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 13:35:27]:
+> > >> >
+> > >> > > > Then, no probelm. It's ok to add mem_cgroup_udpate_stat() indpendent from
+> > >> > > > mem_cgroup_update_file_mapped(). The look may be messy but it's not your
+> > >> > > > fault. But please write "why add new function" to patch description.
+> > >> > > >
+> > >> > > > I'm sorry for wasting your time.
+> > >> > >
+> > >> > > Do we need to go down this route? We could check the stat and do the
+> > >> > > correct thing. In case of FILE_MAPPED, always grab page_cgroup_lock
+> > >> > > and for others potentially look at trylock. It is OK for different
+> > >> > > stats to be protected via different locks.
+> > >> > >
+> > >> >
+> > >> > I _don't_ want to see a mixture of spinlock and trylock in a function.
+> > >> >
+> > >>
+> > >> A well documented well written function can help. The other thing is to
+> > >> of-course solve this correctly by introducing different locking around
+> > >> the statistics. Are you suggesting the later?
+> > >>
 > > >
-> > > /* ~832 bytes of stack space used max in sys_select/sys_poll before allocating
-> > >    additional memory. */
-> > > #define MAX_STACK_ALLOC 832
-> > > #define FRONTEND_STACK_ALLOC    256
-> > > #define SELECT_STACK_ALLOC      FRONTEND_STACK_ALLOC
-> > > #define POLL_STACK_ALLOC        FRONTEND_STACK_ALLOC
-> > > #define WQUEUES_STACK_ALLOC     (MAX_STACK_ALLOC - FRONTEND_STACK_ALLOC)
-> > > #define N_INLINE_POLL_ENTRIES   (WQUEUES_STACK_ALLOC / sizeof(struct poll_table_entry))
-> > >
-> > > So, select is intentionally trying to use that much stack.  It should be using
-> > > GFP_NOFS if it really wants to suck down that much stack...
+> > > No. As I wrote.
+> > >        - don't modify codes around FILE_MAPPED in this series.
+> > >        - add a new functions for new statistics
+> > > Then,
+> > >        - think about clean up later, after we confirm all things work as expected.
 > > 
-> > There are lots of other call chains which use multiple KB bytes by itself,
-> > so why not give select() that measly 832 bytes?
+> > I have ported Andrea Righi's memcg dirty page accounting patches to latest
+> > mmtom-2010-04-05-16-09.  In doing so I have to address this locking issue.  Does
+> > the following look good?  I will (of course) submit the entire patch for review,
+> > but I wanted make sure I was aiming in the right direction.
 > > 
-> > You think only file systems are allowed to use stack? :)
-> 
-> Grin, most definitely.
-> 
+> > void mem_cgroup_update_page_stat(struct page *page,
+> > 			enum mem_cgroup_write_page_stat_item idx, bool charge)
+> > {
+> > 	static int seq;
+> > 	struct page_cgroup *pc;
 > > 
-> > Basically if you cannot tolerate 1K (or more likely more) of stack
-> > used before your fs is called you're toast in lots of other situations
-> > anyways.
+> > 	if (mem_cgroup_disabled())
+> > 		return;
+> > 	pc = lookup_page_cgroup(page);
+> > 	if (!pc || mem_cgroup_is_root(pc->mem_cgroup))
+> > 		return;
+> > 
+> > 	/*
+> > 	 * This routine does not disable irq when updating stats.  So it is
+> > 	 * possible that a stat update from within interrupt routine, could
+> > 	 * deadlock.  Use trylock_page_cgroup() to avoid such deadlock.  This
+> > 	 * makes the memcg counters fuzzy.  More complicated, or lower
+> > 	 * performing locking solutions avoid this fuzziness, but are not
+> > 	 * currently needed.
+> > 	 */
+> > 	if (irqs_disabled()) {
+> > 		if (! trylock_page_cgroup(pc))
+> > 			return;
+> > 	} else
+> > 		lock_page_cgroup(pc);
+> > 
 > 
-> Well, on a 4K stack kernel, 832 bytes is a very large percentage for
-> just one function.
+> I prefer trylock_page_cgroup() always.
 > 
-> Direct reclaim is a problem because it splices parts of the kernel that
-> normally aren't connected together.  The people that code in select see
-> 832 bytes and say that's teeny, I should have taken 3832 bytes.
+> I have another idea fixing this up _later_. (But I want to start from simple one.)
+> 
+> My rough idea is following.  Similar to your idea which you gave me before.
+> 
+> ==
+> DEFINE_PERCPU(account_move_ongoing);
+> DEFINE_MUTEX(move_account_mutex):
+> 
+> void memcg_start_account_move(void)
+> {
+> 	mutex_lock(&move_account_mutex);
+> 	for_each_online_cpu(cpu)
+> 		per_cpu(cpu, account_move_ongoing) += 1;
+> 	mutex_unlock(&move_account_mutex);
+> 	/* Wait until there are no lockless update */
+> 	synchronize_rcu();
+> 	return;
+> }
+> 
+> void memcg_end_account_move(void)
+> {
+> 	mutex_lock(&move_account_mutex);
+> 	for_each_online_cpu(cpu)
+> 		per_cpu(cpu, account_move_ongoing) -= 1;
+> 	mutex_unlock(&move_account_mutex);
+> }
+> 
+> /* return 1 when we took lock, return 0 if lockess OPs is guarantedd to be safe */
+> int memcg_start_filecache_accounting(struct page_cgroup *pc)
+> {
+> 	rcu_read_lock();
+> 	smp_rmb();
+> 	if (!this_cpu_read(move_account_ongoing))
+> 		return 0; /* no move account is ongoing */
+> 	lock_page_cgroup(pc);
+> 	return 1;
+> }
+> 
+> void memcg_end_filecache_accounting(struct page_cgroup *pc, int unlock)
+> {
+> 	if (unlock)
+> 		unlock_page_cgroup(pc);
+> 
+> 	rcu_read_unlock();
+> }
+> 
+> and call memcg_start_account_move()/end_account_move() in the start/end of
+> migrainting chunk of pages.
 > 
 
-Even without direct reclaim, I doubt stack usage is often at the top of
-peoples minds except for truly criminal large usages of it. Direct
-reclaim splicing is somewhat of a problem but it's separate to stack
-consumption overall.
+Hi Kame-san,
 
-> But they don't realize their function can dive down into ecryptfs then
-> the filesystem then maybe loop and then perhaps raid6 on top of a
-> network block device.
-> 
-> > 
-> > > kernel had some sort of way to dynamically allocate ram, it could try
-> > > that too.
-> > 
-> > It does this for large inputs, but the whole point of the stack fast
-> > path is to avoid it for common cases when a small number of fds is
-> > only needed.
-> > 
-> > It's significantly slower to go to any external allocator.
-> 
-> Yeah, but since the call chain does eventually go into the allocator,
-> this function needs to be more stack friendly.
-> 
-> I do agree that we can't really solve this with noinline_for_stack pixie
-> dust, the long call chains are going to be a problem no matter what.
-> 
-> Reading through all the comments so far, I think the short summary is:
-> 
-> Cleaning pages in direct reclaim helps the VM because it is able to make
-> sure that lumpy reclaim finds adjacent pages.  This isn't a fast
-> operation, it has to wait for IO (infinitely slow compared to the CPU).
-> 
-> Will it be good enough for the VM if we add a hint to the bdi writeback
-> threads to work on a general area of the file?  The filesystem will get
-> writepages(), the VM will get the IO it needs started.
-> 
+May be I am missing something but how does it solve the issue of making sure
+lock_page_cgroup() is not held in interrupt context? IIUC, above code will
+make sure that for file cache accouting, lock_page_cgroup() is taken only
+if task migration is on. But say task migration is on, and then some IO
+completes and we update WRITEBACK stat (i think this is the one which can
+be called from interrupt context), then we will still take the
+lock_page_cgroup() and again run into the issue of deadlocks?
 
-Bear in mind that the context of lumpy reclaim that the VM doesn't care
-about where the data is on the file or filesystem. It's only concerned
-about where the data is located in memory. There *may* be a correlation
-between location-of-data-in-file and location-of-data-in-memory but only
-if readahead was a factor and readahead happened to hit at a time the page
-allocator broke up a contiguous block of memory.
-
-> I know Mel mentioned before he wasn't interested in waiting for helper
-> threads, but I don't see how we can work without it.
-> 
-
-I'm not against the idea as such. It would have advantages in that the
-thread could reorder the IO for better seeks for example and lumpy
-reclaim is already potentially waiting a long time so another delay
-won't hurt. I would worry that it's just hiding the stack usage by
-moving it to another thread and that there would be communication cost
-between a direct reclaimer and this writeback thread. The main gain
-would be in hiding the "splicing" effect between subsystems that direct
-reclaim can have.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
