@@ -1,78 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EB43B6B01EF
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 13:56:31 -0400 (EDT)
-Message-ID: <4BC601C5.5050404@cs.helsinki.fi>
-Date: Wed, 14 Apr 2010 20:56:21 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: [PATCH - V2] Fix missing of last user while dumping slab corruption
- 	log
-References: <w2z4810ea571004112250x855fadd5uecbc813726ae3412@mail.gmail.com>
-In-Reply-To: <w2z4810ea571004112250x855fadd5uecbc813726ae3412@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 954936B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 14:13:43 -0400 (EDT)
+Date: Wed, 14 Apr 2010 11:11:46 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH] memcg: update documentation v7
+Message-Id: <20100414111146.c2907cd7.randy.dunlap@oracle.com>
+In-Reply-To: <20100414102221.2c540a0d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100408145800.ca90ad81.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100409134553.58096f80.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100409100430.7409c7c4.randy.dunlap@oracle.com>
+	<20100413134553.7e2c4d3d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100413060405.GF3994@balbir.in.ibm.com>
+	<20100413152048.55408738.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100413064855.GH3994@balbir.in.ibm.com>
+	<20100413155841.ca6bc425.kamezawa.hiroyu@jp.fujitsu.com>
+	<4BC493B4.2040709@oracle.com>
+	<20100414102221.2c540a0d.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: ShiYong LI <a22381@motorola.com>
-Cc: linux-kernel@vger.kernel.org, cl@linux-foundation.org, mpm@selenic.com, linux-mm@kvack.org, dwmw2@infradead.org, TAO HU <taohu@motorola.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-ShiYong LI wrote:
-> Hi,
-> 
-> Compared to previous version, add alignment checking to make sure
-> memory space storing redzone2 and last user tags is 8 byte alignment.
-> 
-> From 949e8c29e8681a2359e23a8fbd8b9d4833f42344 Mon Sep 17 00:00:00 2001
-> From: Shiyong Li <shi-yong.li@motorola.com>
-> Date: Mon, 12 Apr 2010 13:48:21 +0800
-> Subject: [PATCH] Fix missing of last user info while getting
-> DEBUG_SLAB config enabled.
-> 
-> Even with SLAB_RED_ZONE and SLAB_STORE_USER enabled, kernel would NOT
-> store redzone and last user data around allocated memory space if arch
-> cache line > sizeof(unsigned long long). As a result, last user information
-> is unexpectedly MISSED while dumping slab corruption log.
-> 
-> This fix makes sure that redzone and last user tags get stored unless
-> the required alignment breaks redzone's.
-> 
-> Signed-off-by: Shiyong Li <shi-yong.li@motorola.com>
-
-OK, I added this to linux-next for testing. Thanks!
-
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > ---
->  mm/slab.c |    8 ++++----
->  1 files changed, 4 insertions(+), 4 deletions(-)
+>  Documentation/cgroups/memory.txt |  289 ++++++++++++++++++++++++++-------------
+>  1 file changed, 197 insertions(+), 92 deletions(-)
 > 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index a8a38ca..b97c57e 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2267,8 +2267,8 @@ kmem_cache_create (const char *name, size_t
-> size, size_t align,
->  	if (ralign < align) {
->  		ralign = align;
->  	}
-> -	/* disable debug if necessary */
-> -	if (ralign > __alignof__(unsigned long long))
-> +	/* disable debug if not aligning with REDZONE_ALIGN */
-> +	if (ralign & (__alignof__(unsigned long long) - 1))
->  		flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
->  	/*
->  	 * 4) Store it.
-> @@ -2289,8 +2289,8 @@ kmem_cache_create (const char *name, size_t
-> size, size_t align,
->  	 */
->  	if (flags & SLAB_RED_ZONE) {
->  		/* add space for red zone words */
-> -		cachep->obj_offset += sizeof(unsigned long long);
-> -		size += 2 * sizeof(unsigned long long);
-> +		cachep->obj_offset += align;
-> +		size += align + sizeof(unsigned long long);
->  	}
->  	if (flags & SLAB_STORE_USER) {
->  		/* user store requires one word storage behind the end of
+> Index: mmotm-temp/Documentation/cgroups/memory.txt
+> ===================================================================
+> --- mmotm-temp.orig/Documentation/cgroups/memory.txt
+> +++ mmotm-temp/Documentation/cgroups/memory.txt
+> @@ -1,18 +1,15 @@
+>  Memory Resource Controller
+>  
+>  NOTE: The Memory Resource Controller has been generically been referred
+> -to as the memory controller in this document. Do not confuse memory controller
+> -used here with the memory controller that is used in hardware.
+> +      to as the memory controller in this document. Do not confuse memory
+> +      controller used here with the memory controller that is used in hardware.
+>  
+> -Salient features
+> -
+> -a. Enable control of Anonymous, Page Cache (mapped and unmapped) and
+> -   Swap Cache memory pages.
+> -b. The infrastructure allows easy addition of other types of memory to control
+> -c. Provides *zero overhead* for non memory controller users
+> -d. Provides a double LRU: global memory pressure causes reclaim from the
+> -   global LRU; a cgroup on hitting a limit, reclaims from the per
+> -   cgroup LRU
+> +(For editors)
+> +In this document:
+> +      When we mention a cgroup (cgroupfs's directory) with memory controller,
+> +      we call it "memory cgroup". When you see git-log and source code, you'll
+> +      see patch's title and function names tend to use "memcg".
+> +      In this document, we avoid to use it.
+
+	                   we avoid using it.
+
+>  
+>  Benefits and Purpose of the memory controller
+
+> @@ -501,27 +605,28 @@ It's applicable for root and non-root cg
+>  
+>  memory.oom_control file is for OOM notification and other controls.
+>  
+> -Memory controler implements oom notifier using cgroup notification
+> -API (See cgroups.txt). It allows to register multiple oom notification
+> -delivery and gets notification when oom happens.
+> +Memory cgroup implements OOM notifier using cgroup notification
+> +API (See cgroups.txt). It allows to register multiple OOM notification
+> +delivery and gets notification when OOM happens.
+>  
+>  To register a notifier, application need:
+>   - create an eventfd using eventfd(2)
+>   - open memory.oom_control file
+> - - write string like "<event_fd> <memory.oom_control>" to cgroup.event_control
+> + - write string like "<event_fd> <fd of memory.oom_control>" to
+> +   cgroup.event_control
+>  
+> -Application will be notifier through eventfd when oom happens.
+> +Application will be notified through eventfd when OOM happens.
+>  OOM notification doesn't work for root cgroup.
+>  
+> -You can disable oom-killer by writing "1" to memory.oom_control file.
+> +You can disable OOM-killer by writing "1" to memory.oom_control file.
+>  As.
+
+                                             to memory.oom_control file, as:
+
+>  	#echo 1 > memory.oom_control
+
+
+BTW:  it would be a lot easier [for reviewing] if you could freeze (or merge) this version
+and then apply fixes on top of it with a different (and shorter) patch.
+
+Reviewed-by: Randy Dunlap <randy.dunlap@oracle.com>
+
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
