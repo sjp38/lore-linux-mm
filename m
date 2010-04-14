@@ -1,75 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6822E6B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 08:15:20 -0400 (EDT)
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-From: Andi Kleen <andi@firstfloor.org>
-References: <1271117878-19274-1-git-send-email-david@fromorbit.com>
-	<20100413095815.GU25756@csn.ul.ie> <20100413111902.GY2493@dastard>
-	<20100413193428.GI25756@csn.ul.ie> <20100413202021.GZ13327@think>
-	<877hoa9wlv.fsf@basil.nowhere.org> <20100414112015.GO13327@think>
-Date: Wed, 14 Apr 2010 14:15:16 +0200
-In-Reply-To: <20100414112015.GO13327@think> (Chris Mason's message of "Wed, 14 Apr 2010 07:20:15 -0400")
-Message-ID: <8739yy9qnf.fsf@basil.nowhere.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 181FF6B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 08:23:29 -0400 (EDT)
+Received: by bwz2 with SMTP id 2so56870bwz.10
+        for <linux-mm@kvack.org>; Wed, 14 Apr 2010 05:23:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20100414091825.0bacfe48.kamezawa.hiroyu@jp.fujitsu.com>
+References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
+	 <8b348d9cc1ea4960488b193b7e8378876918c0d4.1271171877.git.minchan.kim@gmail.com>
+	 <20100414091825.0bacfe48.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 14 Apr 2010 15:23:27 +0300
+Message-ID: <s2x84144f021004140523t3092f6cbge410ab4e15afac3e@mail.gmail.com>
+Subject: Re: [PATCH 3/6] change alloc function in alloc_slab_page
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Chris Mason <chris.mason@oracle.com> writes:
->> 
->> Basically if you cannot tolerate 1K (or more likely more) of stack
->> used before your fs is called you're toast in lots of other situations
->> anyways.
+On Wed, Apr 14, 2010 at 3:18 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed, 14 Apr 2010 00:25:00 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
 >
-> Well, on a 4K stack kernel, 832 bytes is a very large percentage for
-> just one function.
+>> alloc_slab_page never calls alloc_pages_node with -1.
+>> It means node's validity check is unnecessary.
+>> So we can use alloc_pages_exact_node instead of alloc_pages_node.
+>> It could avoid comparison and branch as 6484eb3e2a81807722 tried.
+>>
+>> Cc: Christoph Lameter <cl@linux-foundation.org>
+>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-To be honest I think 4K stack simply has to go. I tend to call
-it "russian roulette" mode. 
-
-It was just a old workaround for a very old buggy VM that couldn't free 8K
-pages and the VM is a lot better at that now. And the general trend is
-to more complex code everywhere, so 4K stacks become more and more hazardous.
-
-It was a bad idea back then and is still a bad idea, getting
-worse and worse with each MLOC being added to the kernel each year.
-
-We don't have any good ways to verify that obscure paths through
-the more and more subsystems won't exceed it (in fact I'm pretty
-sure there are plenty of problems in exotic configurations)
-
-And even if you can make a specific load work there's basically
-no safety net.
-
-The only part of the 4K stack code that's good is the separate
-interrupt stack, but that one should be just combined with a sane 8K 
-process stack.
-
-But yes on a 4K kernel you probably don't want to do any direct reclaim. 
-Maybe for GFP_NOFS everywhere except user allocations when it's set? 
-Or simply drop it?
-
-> But they don't realize their function can dive down into ecryptfs then
-> the filesystem then maybe loop and then perhaps raid6 on top of a
-> network block device.
-
-Those stackings need to use separate threads anyways. A lot of them
-do in fact. Block avoided this problem by iterating instead of
-recursing.  Those that still recurse on the same stack simply
-need to be fixed.
-
-> Yeah, but since the call chain does eventually go into the allocator,
-> this function needs to be more stack friendly.
-
-For common fast paths it doesn't go into the allocator.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Minchan, care to send a v2 with proper changelog and reviewed-by attributions?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
