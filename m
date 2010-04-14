@@ -1,156 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3E624600374
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 03:19:05 -0400 (EDT)
-Received: by gyg4 with SMTP id 4so3967614gyg.14
-        for <linux-mm@kvack.org>; Wed, 14 Apr 2010 00:19:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <y2x28c262361004132313r1e2ca71frd042d5460d897730@mail.gmail.com>
-References: <20100414135945.2b0a1e0d.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100414054144.GH2493@dastard>
-	 <20100414145056.D147.A69D9226@jp.fujitsu.com>
-	 <y2x28c262361004132313r1e2ca71frd042d5460d897730@mail.gmail.com>
-Date: Wed, 14 Apr 2010 16:19:02 +0900
-Message-ID: <w2u28c262361004140019pd8fe696ez609ece4a35527658@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EA4AB6B01F0
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 03:28:37 -0400 (EDT)
+Date: Wed, 14 Apr 2010 17:28:30 +1000
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20100414072830.GK2493@dastard>
+References: <20100413202021.GZ13327@think>
+ <20100414014041.GD2493@dastard>
+ <20100414155233.D153.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100414155233.D153.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Dave Chinner <david@fromorbit.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 3:13 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Wed, Apr 14, 2010 at 2:54 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
->>> On Wed, Apr 14, 2010 at 01:59:45PM +0900, KAMEZAWA Hiroyuki wrote:
->>> > On Wed, 14 Apr 2010 11:40:41 +1000
->>> > Dave Chinner <david@fromorbit.com> wrote:
->>> >
->>> > > =C2=A050) =C2=A0 =C2=A0 3168 =C2=A0 =C2=A0 =C2=A064 =C2=A0 xfs_vm_w=
-ritepage+0xab/0x160 [xfs]
->>> > > =C2=A051) =C2=A0 =C2=A0 3104 =C2=A0 =C2=A0 384 =C2=A0 shrink_page_l=
-ist+0x65e/0x840
->>> > > =C2=A052) =C2=A0 =C2=A0 2720 =C2=A0 =C2=A0 528 =C2=A0 shrink_zone+0=
-x63f/0xe10
->>> >
->>> > A bit OFF TOPIC.
->>> >
->>> > Could you share disassemble of shrink_zone() ?
->>> >
->>> > In my environ.
->>> > 00000000000115a0 <shrink_zone>:
->>> > =C2=A0 =C2=A0115a0: =C2=A0 =C2=A0 =C2=A0 55 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %rbp
->>> > =C2=A0 =C2=A0115a1: =C2=A0 =C2=A0 =C2=A0 48 89 e5 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mov =C2=A0 =C2=A0%rsp,%rbp
->>> > =C2=A0 =C2=A0115a4: =C2=A0 =C2=A0 =C2=A0 41 57 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 push =C2=A0 %r15
->>> > =C2=A0 =C2=A0115a6: =C2=A0 =C2=A0 =C2=A0 41 56 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 push =C2=A0 %r14
->>> > =C2=A0 =C2=A0115a8: =C2=A0 =C2=A0 =C2=A0 41 55 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 push =C2=A0 %r13
->>> > =C2=A0 =C2=A0115aa: =C2=A0 =C2=A0 =C2=A0 41 54 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 push =C2=A0 %r12
->>> > =C2=A0 =C2=A0115ac: =C2=A0 =C2=A0 =C2=A0 53 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %rbx
->>> > =C2=A0 =C2=A0115ad: =C2=A0 =C2=A0 =C2=A0 48 83 ec 78 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 sub =C2=A0 =C2=A0$0x78,%rsp
->>> > =C2=A0 =C2=A0115b1: =C2=A0 =C2=A0 =C2=A0 e8 00 00 00 00 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0callq =C2=A0115b6 <shrink_zone+0x16>
->>> > =C2=A0 =C2=A0115b6: =C2=A0 =C2=A0 =C2=A0 48 89 75 80 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 mov =C2=A0 =C2=A0%rsi,-0x80(%rbp)
->>> >
->>> > disassemble seems to show 0x78 bytes for stack. And no changes to %rs=
-p
->>> > until retrun.
->>>
->>> I see the same. I didn't compile those kernels, though. IIUC,
->>> they were built through the Ubuntu build infrastructure, so there is
->>> something different in terms of compiler, compiler options or config
->>> to what we are both using. Most likely it is the compiler inlining,
->>> though Chris's patches to prevent that didn't seem to change the
->>> stack usage.
->>>
->>> I'm trying to get a stack trace from the kernel that has shrink_zone
->>> in it, but I haven't succeeded yet....
->>
->> I also got 0x78 byte stack usage. Umm.. Do we discussed real issue now?
->>
->
-> In my case, 0x110 byte in 32 bit machine.
-> I think it's possible in 64 bit machine.
->
-> 00001830 <shrink_zone>:
-> =C2=A0 =C2=A01830: =C2=A0 =C2=A0 =C2=A0 55 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %ebp
-> =C2=A0 =C2=A01831: =C2=A0 =C2=A0 =C2=A0 89 e5 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mov =C2=A0 =C2=A0%esp,%ebp
-> =C2=A0 =C2=A01833: =C2=A0 =C2=A0 =C2=A0 57 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %edi
-> =C2=A0 =C2=A01834: =C2=A0 =C2=A0 =C2=A0 56 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %esi
-> =C2=A0 =C2=A01835: =C2=A0 =C2=A0 =C2=A0 53 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0push =C2=A0 %ebx
-> =C2=A0 =C2=A01836: =C2=A0 =C2=A0 =C2=A0 81 ec 10 01 00 00 =C2=A0 =C2=A0 =
-=C2=A0 sub =C2=A0 =C2=A0$0x110,%esp
-> =C2=A0 =C2=A0183c: =C2=A0 =C2=A0 =C2=A0 89 85 24 ff ff ff =C2=A0 =C2=A0 =
-=C2=A0 mov =C2=A0 =C2=A0%eax,-0xdc(%ebp)
-> =C2=A0 =C2=A01842: =C2=A0 =C2=A0 =C2=A0 89 95 20 ff ff ff =C2=A0 =C2=A0 =
-=C2=A0 mov =C2=A0 =C2=A0%edx,-0xe0(%ebp)
-> =C2=A0 =C2=A01848: =C2=A0 =C2=A0 =C2=A0 89 8d 1c ff ff ff =C2=A0 =C2=A0 =
-=C2=A0 mov =C2=A0 =C2=A0%ecx,-0xe4(%ebp)
-> =C2=A0 =C2=A0184e: =C2=A0 =C2=A0 =C2=A0 8b 41 04 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mov =C2=A0 =C2=A00x4(%ecx)
->
-> my gcc is following as.
->
-> barrios@barriostarget:~/mmotm$ gcc -v
-> Using built-in specs.
-> Target: i486-linux-gnu
-> Configured with: ../src/configure -v --with-pkgversion=3D'Ubuntu
-> 4.3.3-5ubuntu4'
-> --with-bugurl=3Dfile:///usr/share/doc/gcc-4.3/README.Bugs
-> --enable-languages=3Dc,c++,fortran,objc,obj-c++ --prefix=3D/usr
-> --enable-shared --with-system-zlib --libexecdir=3D/usr/lib
-> --without-included-gettext --enable-threads=3Dposix --enable-nls
-> --with-gxx-include-dir=3D/usr/include/c++/4.3 --program-suffix=3D-4.3
-> --enable-clocale=3Dgnu --enable-libstdcxx-debug --enable-objc-gc
-> --enable-mpfr --enable-targets=3Dall --with-tune=3Dgeneric
-> --enable-checking=3Drelease --build=3Di486-linux-gnu --host=3Di486-linux-=
-gnu
-> --target=3Di486-linux-gnu
-> Thread model: posix
-> gcc version 4.3.3 (Ubuntu 4.3.3-5ubuntu4)
->
->
-> Is it depends on config?
-> I attach my config.
+On Wed, Apr 14, 2010 at 03:52:44PM +0900, KOSAKI Motohiro wrote:
+> > On Tue, Apr 13, 2010 at 04:20:21PM -0400, Chris Mason wrote:
+> > > On Tue, Apr 13, 2010 at 08:34:29PM +0100, Mel Gorman wrote:
+> > > > > Basically, there is not enough stack space available to allow direct
+> > > > > reclaim to enter ->writepage _anywhere_ according to the stack usage
+> > > > > profiles we are seeing here....
+> > > > > 
+> > > > 
+> > > > I'm not denying the evidence but how has it been gotten away with for years
+> > > > then? Prevention of writeback isn't the answer without figuring out how
+> > > > direct reclaimers can queue pages for IO and in the case of lumpy reclaim
+> > > > doing sync IO, then waiting on those pages.
+> > > 
+> > > So, I've been reading along, nodding my head to Dave's side of things
+> > > because seeks are evil and direct reclaim makes seeks.  I'd really loev
+> > > for direct reclaim to somehow trigger writepages on large chunks instead
+> > > of doing page by page spatters of IO to the drive.
+> 
+> I agree that "seeks are evil and direct reclaim makes seeks". Actually,
+> making 4k io is not must for pageout. So, probably we can improve it.
+> 
+> 
+> > Perhaps drop the lock on the page if it is held and call one of the
+> > helpers that filesystems use to do this, like:
+> > 
+> > 	filemap_write_and_wait(page->mapping);
+> 
+> Sorry, I'm lost what you talk about. Why do we need per-file
+> waiting? If file is 1GB file, do we need to wait 1GB writeout?
 
-I changed shrink list by noinline_for_stack.
-The result is following as.
+So use filemap_fdatawrite(page->mapping), or if it's better only
+to start IO on a segment of the file, use
+filemap_fdatawrite_range(page->mapping, start, end)....
 
+> > > But, somewhere along the line I overlooked the part of Dave's stack trace
+> > > that said:
+> > > 
+> > > 43)     1568     912   do_select+0x3d6/0x700
+> > > 
+> > > Huh, 912 bytes...for select, really?  From poll.h:
+> > 
+> > Sure, it's bad, but we focussing on the specific case misses the
+> > point that even code that is using minimal stack can enter direct
+> > reclaim after consuming 1.5k of stack. e.g.:
+> 
+> checkstack.pl says do_select() and __generic_file_splice_read() are one
+> of worstest stack consumer. both sould be fixed.
 
-00001fe0 <shrink_zone>:
-    1fe0:       55                      push   %ebp
-    1fe1:       89 e5                   mov    %esp,%ebp
-    1fe3:       57                      push   %edi
-    1fe4:       56                      push   %esi
-    1fe5:       53                      push   %ebx
-    1fe6:       83 ec 4c                sub    $0x4c,%esp
-    1fe9:       89 45 c0                mov    %eax,-0x40(%ebp)
-    1fec:       89 55 bc                mov    %edx,-0x44(%ebp)
-    1fef:       89 4d b8                mov    %ecx,-0x48(%ebp)
+the deepest call chain in queue_work() needs 700 bytes of stack
+to complete, wait_for_completion() requires almost 2k of stack space
+at it's deepest, the scheduler has some heavy stack users, etc,
+and these are all functions that appear at the top of the stack.
 
-0x110 -> 0x4c.
+> also, checkstack.pl says such stack eater aren't so much.
 
-Should we have to add noinline_for_stack for shrink_list?
+Yeah, but when we have ia callchain 70 or more functions deep,
+even 100 bytes of stack is a lot....
 
+> > > So, select is intentionally trying to use that much stack.  It should be using
+> > > GFP_NOFS if it really wants to suck down that much stack...
+> > 
+> > The code that did the allocation is called from multiple different
+> > contexts - how is it supposed to know that in some of those contexts
+> > it is supposed to treat memory allocation differently?
+> > 
+> > This is my point - if you introduce a new semantic to memory allocation
+> > that is "use GFP_NOFS when you are using too much stack" and too much
+> > stack is more than 15% of the stack, then pretty much every code path
+> > will need to set that flag...
+> 
+> Nodding my head to Dave's side. changing caller argument seems not good
+> solution. I mean
+>  - do_select() should use GFP_KERNEL instead stack (as revert 70674f95c0)
+>  - reclaim and xfs (and other something else) need to diet.
 
---=20
-Kind regards,
-Minchan Kim
+The list I'm seeing so far includes:
+	- scheduler
+	- completion interfaces
+	- radix tree
+	- memory allocation, memory reclaim
+	- anything that implements ->writepage
+	- select
+	- splice read
+
+> Also, I believe stack eater function should be created waring. patch attached.
+
+Good start, but 512 bytes will only catch select and splice read,
+and there are 300-400 byte functions in the above list that sit near
+the top of the stack....
+
+> > We need at least _700_ bytes of stack free just to call queue_work(),
+> > and that now happens deep in the guts of the driver subsystem below XFS.
+> > This trace shows 1.8k of stack usage on a simple, single sata disk
+> > storage subsystem, so my estimate of 2k of stack for the storage system
+> > below XFS is too small - a worst case of 2.5-3k of stack space is probably
+> > closer to the mark.
+> 
+> your explanation is very interesting. I have a (probably dumb) question.
+> Why nobody faced stack overflow issue in past? now I think every users
+> easily get stack overflow if your explanation is correct.
+
+It's always a problem, but the focus on minimising stack usage has
+gone away since i386 has mostly disappeared from server rooms.
+
+XFS has always been the thing that triggered stack usage problems
+first - the first reports of problems on x86_64 with 8k stacks in low
+memory situations have only just come in, and this is the first time
+in a couple of years I've paid close attention to stack usage
+outside XFS. What I'm seeing is not pretty....
+
+> > This is the sort of thing I'm pointing at when I say that stack
+> > usage outside XFS has grown significantly significantly over the
+> > past couple of years. Given XFS has remained pretty much the same or
+> > even reduced slightly over the same time period, blaming XFS or
+> > saying "callers should use GFP_NOFS" seems like a cop-out to me.
+> > Regardless of the IO pattern performance issues, writeback via
+> > direct reclaim just uses too much stack to be safe these days...
+> 
+> Yeah, My answer is simple, All stack eater should be fixed.
+> but XFS seems not innocence too. 3.5K is enough big although
+> xfs have use such amount since very ago.
+
+XFS used to use much more than that - significant effort has been
+put into reduce the stack footprint over many years. There's not
+much left to trim without rewriting half the filesystem...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
