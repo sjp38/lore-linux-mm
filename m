@@ -1,150 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B9015600374
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 02:55:53 -0400 (EDT)
-Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
-References: <1268609202-15581-1-git-send-email-arighi@develer.com>
-	<1268609202-15581-2-git-send-email-arighi@develer.com>
-	<20100317115855.GS18054@balbir.in.ibm.com>
-	<20100318085411.834e1e46.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100318041944.GA18054@balbir.in.ibm.com>
-	<20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100318162855.GG18054@balbir.in.ibm.com>
-	<20100319102332.f1d81c8d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100319024039.GH18054@balbir.in.ibm.com>
-	<20100319120049.3dbf8440.kamezawa.hiroyu@jp.fujitsu.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Tue, 13 Apr 2010 23:55:12 -0700
-In-Reply-To: <xr93hbnepmj6.fsf@ninji.mtv.corp.google.com> (Greg Thelen's message of "Tue\, 13 Apr 2010 23\:37\:33 -0700")
-Message-ID: <xr931veiplpr.fsf@ninji.mtv.corp.google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6AA7B600374
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 03:06:35 -0400 (EDT)
+Date: Wed, 14 Apr 2010 17:06:25 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-ID: <20100414070625.GJ2493@dastard>
+References: <20100414135945.2b0a1e0d.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100414054144.GH2493@dastard>
+ <20100414145056.D147.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100414145056.D147.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 18, 2010 at 8:00 PM, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fuji=
-tsu.com> wrote:
-> On Fri, 19 Mar 2010 08:10:39 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->
->> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-19 10:23:3=
-2]:
->>
->> > On Thu, 18 Mar 2010 21:58:55 +0530
->> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> >
->> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-03-18 13:=
-35:27]:
->> >
->> > > > Then, no probelm. It's ok to add mem_cgroup_udpate_stat() indpende=
-nt from
->> > > > mem_cgroup_update_file_mapped(). The look may be messy but it's no=
-t your
->> > > > fault. But please write "why add new function" to patch descriptio=
-n.
->> > > >
->> > > > I'm sorry for wasting your time.
->> > >
->> > > Do we need to go down this route? We could check the stat and do the
->> > > correct thing. In case of FILE_MAPPED, always grab page_cgroup_lock
->> > > and for others potentially look at trylock. It is OK for different
->> > > stats to be protected via different locks.
->> > >
->> >
->> > I _don't_ want to see a mixture of spinlock and trylock in a function.
->> >
->>
->> A well documented well written function can help. The other thing is to
->> of-course solve this correctly by introducing different locking around
->> the statistics. Are you suggesting the later?
->>
->
-> No. As I wrote.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0- don't modify codes around FILE_MAPPED in thi=
-s series.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0- add a new functions for new statistics
-> Then,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0- think about clean up later, after we confirm=
- all things work as expected.
+On Wed, Apr 14, 2010 at 02:54:14PM +0900, KOSAKI Motohiro wrote:
+> > On Wed, Apr 14, 2010 at 01:59:45PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Wed, 14 Apr 2010 11:40:41 +1000
+> > > Dave Chinner <david@fromorbit.com> wrote:
+> > > 
+> > > >  50)     3168      64   xfs_vm_writepage+0xab/0x160 [xfs]
+> > > >  51)     3104     384   shrink_page_list+0x65e/0x840
+> > > >  52)     2720     528   shrink_zone+0x63f/0xe10
+> > > 
+> > > A bit OFF TOPIC.
+> > > 
+> > > Could you share disassemble of shrink_zone() ?
+> > > 
+> > > In my environ.
+> > > 00000000000115a0 <shrink_zone>:
+> > >    115a0:       55                      push   %rbp
+> > >    115a1:       48 89 e5                mov    %rsp,%rbp
+> > >    115a4:       41 57                   push   %r15
+> > >    115a6:       41 56                   push   %r14
+> > >    115a8:       41 55                   push   %r13
+> > >    115aa:       41 54                   push   %r12
+> > >    115ac:       53                      push   %rbx
+> > >    115ad:       48 83 ec 78             sub    $0x78,%rsp
+> > >    115b1:       e8 00 00 00 00          callq  115b6 <shrink_zone+0x16>
+> > >    115b6:       48 89 75 80             mov    %rsi,-0x80(%rbp)
+> > > 
+> > > disassemble seems to show 0x78 bytes for stack. And no changes to %rsp
+> > > until retrun.
+> > 
+> > I see the same. I didn't compile those kernels, though. IIUC,
+> > they were built through the Ubuntu build infrastructure, so there is
+> > something different in terms of compiler, compiler options or config
+> > to what we are both using. Most likely it is the compiler inlining,
+> > though Chris's patches to prevent that didn't seem to change the
+> > stack usage.
+> > 
+> > I'm trying to get a stack trace from the kernel that has shrink_zone
+> > in it, but I haven't succeeded yet....
+> 
+> I also got 0x78 byte stack usage. Umm.. Do we discussed real issue now?
 
-I have ported Andrea Righi's memcg dirty page accounting patches to latest
-mmtom-2010-04-05-16-09.  In doing so I have to address this locking issue. =
- Does
-the following look good?  I will (of course) submit the entire patch for re=
-view,
-but I wanted make sure I was aiming in the right direction.
+Ok, so here's a trace at the top of the stack from a kernel with a
+the above shrink_zone disassembly:
 
-void mem_cgroup_update_page_stat(struct page *page,
-			enum mem_cgroup_write_page_stat_item idx, bool charge)
-{
-	static int seq;
-	struct page_cgroup *pc;
+$ cat /sys/kernel/debug/tracing/stack_trace
+        Depth    Size   Location    (49 entries)
+        -----    ----   --------
+  0)     6152     112   force_qs_rnp+0x58/0x150
+  1)     6040      48   force_quiescent_state+0x1a7/0x1f0
+  2)     5992      48   __call_rcu+0x13d/0x190
+  3)     5944      16   call_rcu_sched+0x15/0x20
+  4)     5928      16   call_rcu+0xe/0x10
+  5)     5912     240   radix_tree_delete+0x14a/0x2d0
+  6)     5672      32   __remove_from_page_cache+0x21/0x110
+  7)     5640      64   __remove_mapping+0x86/0x100
+  8)     5576     272   shrink_page_list+0x2fd/0x5a0
+  9)     5304     400   shrink_inactive_list+0x313/0x730
+ 10)     4904     176   shrink_zone+0x3d1/0x490
+ 11)     4728     128   do_try_to_free_pages+0x2b6/0x380
+ 12)     4600     112   try_to_free_pages+0x5e/0x60
+ 13)     4488     272   __alloc_pages_nodemask+0x3fb/0x730
+ 14)     4216      48   alloc_pages_current+0x87/0xd0
+ 15)     4168      32   __page_cache_alloc+0x67/0x70
+ 16)     4136      80   find_or_create_page+0x4f/0xb0
+ 17)     4056     160   _xfs_buf_lookup_pages+0x150/0x390
+.....
 
-	if (mem_cgroup_disabled())
-		return;
-	pc =3D lookup_page_cgroup(page);
-	if (!pc || mem_cgroup_is_root(pc->mem_cgroup))
-		return;
+So the differences are most likely from the compiler doing
+automatic inlining of static functions...
 
-	/*
-	 * This routine does not disable irq when updating stats.  So it is
-	 * possible that a stat update from within interrupt routine, could
-	 * deadlock.  Use trylock_page_cgroup() to avoid such deadlock.  This
-	 * makes the memcg counters fuzzy.  More complicated, or lower
-	 * performing locking solutions avoid this fuzziness, but are not
-	 * currently needed.
-	 */
-	if (irqs_disabled()) {
-		if (! trylock_page_cgroup(pc))
-			return;
-	} else
-		lock_page_cgroup(pc);
+Cheers,
 
-	__mem_cgroup_update_page_stat(pc, idx, charge);
-	unlock_page_cgroup(pc);
-}
-
-__mem_cgroup_update_page_stat() has a switch statement that updates all of =
-the
-MEMCG_NR_FILE_{MAPPED,DIRTY,WRITEBACK,WRITEBACK_TEMP,UNSTABLE_NFS} counters
-using the following form:
-	switch (idx) {
-	case MEMCG_NR_FILE_MAPPED:
-		if (charge) {
-			if (!PageCgroupFileMapped(pc))
-				SetPageCgroupFileMapped(pc);
-			else
-				val =3D 0;
-		} else {
-			if (PageCgroupFileMapped(pc))
-				ClearPageCgroupFileMapped(pc);
-			else
-				val =3D 0;
-		}
-		idx =3D MEM_CGROUP_STAT_FILE_MAPPED;
-		break;
-
-		...
-	}
-
-	/*
-	 * Preemption is already disabled. We can use __this_cpu_xxx
-	 */
-	if (val > 0) {
-		__this_cpu_inc(mem->stat->count[idx]);
-	} else if (val < 0) {
-		__this_cpu_dec(mem->stat->count[idx]);
-	}
-
-In my current tree, irq is never saved/restored by cgroup locking code.  To
-protect against interrupt reentrancy, trylock_page_cgroup() is used.  As the
-comment indicates, this makes the new counters fuzzy.
-
---
-Greg
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
