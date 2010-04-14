@@ -1,47 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F1D8F6B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 08:34:41 -0400 (EDT)
-Date: Wed, 14 Apr 2010 14:34:39 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100414123439.GS18855@one.firstfloor.org>
-References: <1271117878-19274-1-git-send-email-david@fromorbit.com> <20100413095815.GU25756@csn.ul.ie> <20100413111902.GY2493@dastard> <20100413193428.GI25756@csn.ul.ie> <20100413202021.GZ13327@think> <877hoa9wlv.fsf@basil.nowhere.org> <20100414112015.GO13327@think> <8739yy9qnf.fsf@basil.nowhere.org> <20100414133229.134264f0@lxorguk.ukuu.org.uk>
+	by kanga.kvack.org (Postfix) with SMTP id ECDCD6B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 08:49:17 -0400 (EDT)
+Subject: Re: vmalloc performance
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <1271089672.7196.63.camel@localhost.localdomain>
+References: <1271089672.7196.63.camel@localhost.localdomain>
+Content-Type: text/plain
+Date: Wed, 14 Apr 2010 13:49:14 +0100
+Message-Id: <1271249354.7196.66.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100414133229.134264f0@lxorguk.ukuu.org.uk>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andi Kleen <andi@firstfloor.org>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 01:32:29PM +0100, Alan Cox wrote:
-> > The only part of the 4K stack code that's good is the separate
-> > interrupt stack, but that one should be just combined with a sane 8K 
-> > process stack.
+
+Since this didn't attract much interest the first time around, and at
+the risk of appearing to be talking to myself, here is the patch from
+the bugzilla to better illustrate the issue:
+
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ae00746..63c8178 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -605,8 +605,7 @@ static void free_unmap_vmap_area_noflush(struct
+vmap_area *va)
+ {
+ 	va->flags |= VM_LAZY_FREE;
+ 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
+-	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
+-		try_purge_vmap_area_lazy();
++	try_purge_vmap_area_lazy();
+ }
+ 
+ /*
+
+
+Steve.
+
+On Mon, 2010-04-12 at 17:27 +0100, Steven Whitehouse wrote:
+> Hi,
 > 
-> The reality is that if you are blowing a 4K process stack you are
-> probably playing russian roulette on the current 8K x86-32 stack as well
-> because of the non IRQ split. So it needs fixing either way
-
-Yes I think the 8K stack on 32bit should be combined with a interrupt 
-stack too. There's no reason not to have an interrupt stack ever. 
-
-Again the problem with fixing it is that you won't have any safety net
-for a slightly different stacking etc. path that you didn't cover.
-
-That said extreme examples (like some of those Chris listed) definitely
-need fixing by moving them to different threads. But even after that
-you still want a safety net. 4K is just too near the edge.
-
-Maybe it would work if we never used any indirect calls, but that's
-clearly not the case.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+> I've noticed that vmalloc seems to be rather slow. I wrote a test kernel
+> module to track down what was going wrong. The kernel module does one
+> million vmalloc/touch mem/vfree in a loop and prints out how long it
+> takes.
+> 
+> The source of the test kernel module can be found as an attachment to
+> this bz: https://bugzilla.redhat.com/show_bug.cgi?id=581459
+> 
+> When this module is run on my x86_64, 8 core, 12 Gb machine, then on an
+> otherwise idle system I get the following results:
+> 
+> vmalloc took 148798983 us
+> vmalloc took 151664529 us
+> vmalloc took 152416398 us
+> vmalloc took 151837733 us
+> 
+> After applying the two line patch (see the same bz) which disabled the
+> delayed removal of the structures, which appears to be intended to
+> improve performance in the smp case by reducing TLB flushes across cpus,
+> I get the following results:
+> 
+> vmalloc took 15363634 us
+> vmalloc took 15358026 us
+> vmalloc took 15240955 us
+> vmalloc took 15402302 us
+> 
+> So thats a speed up of around 10x, which isn't too bad. The question is
+> whether it is possible to come to a compromise where it is possible to
+> retain the benefits of the delayed TLB flushing code, but reduce the
+> overhead for other users. My two line patch basically disables the delay
+> by forcing a removal on each and every vfree.
+> 
+> What is the correct way to fix this I wonder?
+> 
+> Steve.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
