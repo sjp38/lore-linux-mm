@@ -1,67 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D44996B01F5
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 00:15:18 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F4FCIb032451
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 13:15:12 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F4C245DE4E
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:15:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F40245DE4D
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:15:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 07317E08005
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:15:12 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B0132E08003
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:15:11 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 4/4] vmscan: delegate page cleaning io to flusher thread if VM pressure is low
-In-Reply-To: <20100415130212.D16E.A69D9226@jp.fujitsu.com>
-References: <20100415013436.GO2493@dastard> <20100415130212.D16E.A69D9226@jp.fujitsu.com>
-Message-Id: <20100415131420.D17D.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 660416B01F4
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 00:19:39 -0400 (EDT)
+Date: Thu, 15 Apr 2010 12:19:31 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: 32GB SSD on USB1.1 P3/700 == ___HELL___ (2.6.34-rc3)
+Message-ID: <20100415041931.GA14215@localhost>
+References: <20100407070050.GA10527@localhost> <20100407070842.GA18215@localhost> <20100415122928.D168.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Thu, 15 Apr 2010 13:15:11 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100415122928.D168.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Andreas Mohr <andi@lisas.de>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Even if pageout() is called from direct reclaim, we can delegate io to
-flusher thread if vm pressure is low.
+On Thu, Apr 15, 2010 at 11:31:52AM +0800, KOSAKI Motohiro wrote:
+> > > Many applications (this one and below) are stuck in
+> > > wait_on_page_writeback(). I guess this is why "heavy write to
+> > > irrelevant partition stalls the whole system".  They are stuck on page
+> > > allocation. Your 512MB system memory is a bit tight, so reclaim
+> > > pressure is a bit high, which triggers the wait-on-writeback logic.
+> > 
+> > I wonder if this hacking patch may help.
+> > 
+> > When creating 300MB dirty file with dd, it is creating continuous
+> > region of hard-to-reclaim pages in the LRU list. priority can easily
+> > go low when irrelevant applications' direct reclaim run into these
+> > regions..
+> 
+> Sorry I'm confused not. can you please tell us more detail explanation?
+> Why did lumpy reclaim cause OOM? lumpy reclaim might cause
+> direct reclaim slow down. but IIUC it's not cause OOM because OOM is
+> only occur when priority-0 reclaim failure.
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+No I'm not talking OOM. Nor lumpy reclaim.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8b78b49..eab6028 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -623,6 +623,13 @@ static enum page_references page_check_references(struct page *page,
- 	if (current_is_kswapd())
- 		return PAGEREF_RECLAIM_CLEAN;
- 
-+	/*
-+	 * Now VM pressure is not so high. then we can delegate
-+	 * page cleaning to flusher thread safely.
-+	 */
-+	if (!sc->order && sc->priority > DEF_PRIORITY/2)
-+		return PAGEREF_RECLAIM_CLEAN;
-+
- 	return PAGEREF_RECLAIM;
- }
- 
--- 
-1.6.5.2
+I mean the direct reclaim can get stuck for long time, when we do
+wait_on_page_writeback() on lumpy_reclaim=1.
 
+> IO get stcking also prevent priority reach to 0.
 
+Sure. But we can wait for IO a bit later -- after scanning 1/64 LRU
+(the below patch) instead of the current 1/1024.
+
+In Andreas' case, 512MB/1024 = 512KB, this is way too low comparing to
+the 22MB writeback pages. There can easily be a continuous range of
+512KB dirty/writeback pages in the LRU, which will trigger the wait
+logic.
+
+Thanks,
+Fengguang
+
+> 
+> 
+> > 
+> > Thanks,
+> > Fengguang
+> > ---
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index e0e5f15..f7179cf 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1149,7 +1149,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
+> >  	 */
+> >  	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+> >  		lumpy_reclaim = 1;
+> > -	else if (sc->order && priority < DEF_PRIORITY - 2)
+> > +	else if (sc->order && priority < DEF_PRIORITY / 2)
+> >  		lumpy_reclaim = 1;
+> >  
+> >  	pagevec_init(&pvec, 1);
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
