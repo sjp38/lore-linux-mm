@@ -1,88 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A21386B01E3
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 01:19:18 -0400 (EDT)
-Date: Thu, 15 Apr 2010 13:19:11 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: 32GB SSD on USB1.1 P3/700 == ___HELL___ (2.6.34-rc3)
-Message-ID: <20100415051911.GA17110@localhost>
-References: <20100415132312.D180.A69D9226@jp.fujitsu.com> <20100415044111.GA15682@localhost> <20100415135031.D186.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A45BE6B01E3
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 02:21:14 -0400 (EDT)
+Date: Thu, 15 Apr 2010 16:20:55 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-ID: <20100415062055.GQ2493@dastard>
+References: <20100414085132.GJ25756@csn.ul.ie>
+ <20100415013436.GO2493@dastard>
+ <20100415130212.D16E.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100415135031.D186.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100415130212.D16E.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andreas Mohr <andi@lisas.de>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 12:55:30PM +0800, KOSAKI Motohiro wrote:
-> > On Thu, Apr 15, 2010 at 12:32:50PM +0800, KOSAKI Motohiro wrote:
-> > > > On Thu, Apr 15, 2010 at 11:31:52AM +0800, KOSAKI Motohiro wrote:
-> > > > > > > Many applications (this one and below) are stuck in
-> > > > > > > wait_on_page_writeback(). I guess this is why "heavy write to
-> > > > > > > irrelevant partition stalls the whole system".  They are stuck on page
-> > > > > > > allocation. Your 512MB system memory is a bit tight, so reclaim
-> > > > > > > pressure is a bit high, which triggers the wait-on-writeback logic.
-> > > > > > 
-> > > > > > I wonder if this hacking patch may help.
-> > > > > > 
-> > > > > > When creating 300MB dirty file with dd, it is creating continuous
-> > > > > > region of hard-to-reclaim pages in the LRU list. priority can easily
-> > > > > > go low when irrelevant applications' direct reclaim run into these
-> > > > > > regions..
-> > > > > 
-> > > > > Sorry I'm confused not. can you please tell us more detail explanation?
-> > > > > Why did lumpy reclaim cause OOM? lumpy reclaim might cause
-> > > > > direct reclaim slow down. but IIUC it's not cause OOM because OOM is
-> > > > > only occur when priority-0 reclaim failure.
-> > > > 
-> > > > No I'm not talking OOM. Nor lumpy reclaim.
-> > > > 
-> > > > I mean the direct reclaim can get stuck for long time, when we do
-> > > > wait_on_page_writeback() on lumpy_reclaim=1.
-> > > > 
-> > > > > IO get stcking also prevent priority reach to 0.
-> > > > 
-> > > > Sure. But we can wait for IO a bit later -- after scanning 1/64 LRU
-> > > > (the below patch) instead of the current 1/1024.
-> > > > 
-> > > > In Andreas' case, 512MB/1024 = 512KB, this is way too low comparing to
-> > > > the 22MB writeback pages. There can easily be a continuous range of
-> > > > 512KB dirty/writeback pages in the LRU, which will trigger the wait
-> > > > logic.
-> > > 
-> > > In my feeling from your explanation, we need auto adjustment mechanism
-> > > instead change default value for special machine. no?
-> > 
-> > You mean the dumb DEF_PRIORITY/2 may be too large for a 1TB memory box?
-> > 
-> > However for such boxes, whether it be DEF_PRIORITY-2 or DEF_PRIORITY/2
-> > shall be irrelevant: it's trivial anyway to reclaim an order-1 or
-> > order-2 page. In other word, lumpy_reclaim will hardly go 1.  Do you
-> > think so?
+On Thu, Apr 15, 2010 at 01:09:01PM +0900, KOSAKI Motohiro wrote:
+> Hi
 > 
-> If my remember is correct, Its order-1 lumpy reclaim was introduced
-> for solving such big box + AIM7 workload made kernel stack (order-1 page)
-> allocation failure.
+> > How about this? For now, we stop direct reclaim from doing writeback
+> > only on order zero allocations, but allow it for higher order
+> > allocations. That will prevent the majority of situations where
+> > direct reclaim blows the stack and interferes with background
+> > writeout, but won't cause lumpy reclaim to change behaviour.
+> > This reduces the scope of impact and hence testing and validation
+> > the needs to be done.
 > 
-> Now, We are living on moore's law. so probably we need to pay attention
-> scalability always. today's big box is going to become desktop box after
-> 3-5 years.
+> Tend to agree. but I would proposed slightly different algorithm for
+> avoind incorrect oom.
 > 
-> Probably, Lee know such problem than me. cc to him.
+> for high order allocation
+> 	allow to use lumpy reclaim and pageout() for both kswapd and direct reclaim
 
-In Andreas' trace, the processes are blocked in
-- do_fork:              console-kit-d
-- __alloc_skb:          x-terminal-em, konqueror
-- handle_mm_fault:      tclsh
-- filemap_fault:        ls
+SO same as current.
 
-I'm a bit confused by the last one, and wonder what's the typical
-gfp order of __alloc_skb().
+> for low order allocation
+> 	- kswapd:          always delegate io to flusher thread
+> 	- direct reclaim:  delegate io to flusher thread only if vm pressure is low
 
-Thanks,
-Fengguang
+IMO, this really doesn't fix either of the problems - the bad IO
+patterns nor the stack usage. All it will take is a bit more memory
+pressure to trigger stack and IO problems, and the user reporting the
+problems is generating an awful lot of memory pressure...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
