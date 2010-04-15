@@ -1,65 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 94A476B01F5
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:33:27 -0400 (EDT)
-Received: by iwn40 with SMTP id 40so502462iwn.1
-        for <linux-mm@kvack.org>; Thu, 15 Apr 2010 03:33:29 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 69DB16B01F0
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 07:26:13 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FBQAa4011794
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 15 Apr 2010 20:26:10 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 151DF45DE4F
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:26:10 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E0C7245DE56
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:26:09 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CA6D51DB8042
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:26:09 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E5B71DB8038
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:26:09 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if current is kswapd
+In-Reply-To: <20100415103109.GC10966@csn.ul.ie>
+References: <20100415131106.D174.A69D9226@jp.fujitsu.com> <20100415103109.GC10966@csn.ul.ie>
+Message-Id: <20100415195227.D1B0.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
-	 <20100413154820.GC25756@csn.ul.ie> <4BC65237.5080408@kernel.org>
-	 <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>
-	 <4BC6BE78.1030503@kernel.org>
-	 <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>
-	 <4BC6CB30.7030308@kernel.org>
-	 <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>
-	 <4BC6E581.1000604@kernel.org>
-	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
-Date: Thu, 15 Apr 2010 19:33:28 +0900
-Message-ID: <n2i28c262361004150333nf1bac78dr13acc418496e6a6b@mail.gmail.com>
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 15 Apr 2010 20:26:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 7:21 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Thu, Apr 15, 2010 at 7:08 PM, Tejun Heo <tj@kernel.org> wrote:
->> Hello,
->>
->> On 04/15/2010 06:40 PM, Minchan Kim wrote:
->>>> I'm not an expert on that part of the kernel but isn't
->>>> alloc_pages_any_node() identical to alloc_pages_exact_node()? =C2=A0Al=
-l
->>>
->>> alloc_pages_any_node means user allows allocated pages in any
->>> node(most likely current node) alloc_pages_exact_node means user
->>> allows allocated pages in nid node if he doesn't use __GFP_THISNODE.
->>
->> Ooh, sorry, I meant alloc_pages(). =C2=A0What would be the difference
->> between alloc_pages_any_node() and alloc_pages()?
->
-> It's no different. It's same. Just naming is more explicit. :)
-> I think it could be following as.
->
-> #define alloc_pages alloc_pages_any_node.
-> strucdt page * alloc_pages_node() {
-typo. Sorry.
-struct page * alloc_pages_any_node {
+> On Thu, Apr 15, 2010 at 01:11:37PM +0900, KOSAKI Motohiro wrote:
+> > Now, vmscan pageout() is one of IO throuput degression source.
+> > Some IO workload makes very much order-0 allocation and reclaim
+> > and pageout's 4K IOs are making annoying lots seeks.
+> > 
+> > At least, kswapd can avoid such pageout() because kswapd don't
+> > need to consider OOM-Killer situation. that's no risk.
+> > 
+> 
+> Well, there is some risk here. Direct reclaimers may not be cleaning
+> more pages than it had to previously except it splices subsystems
+> together increasing stack usage and causing further problems.
+> 
+> It might not cause OOM-killer issues but it could increase the time
+> dirty pages spend on the LRU.
+> 
+> Am I missing something?
 
-> =C2=A0 int nid =3D numa_node_id();
-> =C2=A0 ...
-> =C2=A0 return page;
-> }
->
+No. you are right. I fully agree your previous mail. so, I need to cool down a bit ;)
 
 
---=20
-Kind regards,
-Minchan Kim
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
