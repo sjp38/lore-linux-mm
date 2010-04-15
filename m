@@ -1,123 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9F5CE6B01F4
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:24:07 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FAO7ZH002775
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 90B1A6B01F6
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:24:58 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FAOwA0003094
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 19:24:07 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 65DAA45DE4F
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:07 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EAD545DE53
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:07 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E6F9FE08008
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:06 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 969E1E08002
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:06 +0900 (JST)
+	Thu, 15 Apr 2010 19:24:59 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A390245DE4F
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:58 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 78E8E45DE4E
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:58 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EA541DB8038
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:58 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D8B941DB8061
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:54 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 2/4] [cleanup] mm: introduce free_pages_prepare
+Subject: [PATCH 3/4] mm: introduce free_pages_bulk
 In-Reply-To: <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
 References: <20100415085420.GT2493@dastard> <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
-Message-Id: <20100415192310.D1A7.A69D9226@jp.fujitsu.com>
+Message-Id: <20100415192412.D1AA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 15 Apr 2010 19:24:05 +0900 (JST)
+Date: Thu, 15 Apr 2010 19:24:53 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is used from [3/4]
+Now, vmscan is using __pagevec_free() for batch freeing. but
+pagevec consume slightly lots stack (sizeof(long)*8), and x86_64
+stack is very strictly limited.
 
-===================================
-Free_hot_cold_page() and __free_pages_ok() have very similar
-freeing preparation. This patch make consolicate it.
+Then, now we are planning to use page->lru list instead pagevec
+for reducing stack. and introduce new helper function.
+
+This is similar to __pagevec_free(), but receive list instead
+pagevec. and this don't use pcp cache. it is good characteristics
+for vmscan.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/page_alloc.c |   40 +++++++++++++++++++++-------------------
- 1 files changed, 21 insertions(+), 19 deletions(-)
+ include/linux/gfp.h |    1 +
+ mm/page_alloc.c     |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 0 deletions(-)
 
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 4c6d413..dbcac56 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -332,6 +332,7 @@ extern void free_hot_cold_page(struct page *page, int cold);
+ #define __free_page(page) __free_pages((page), 0)
+ #define free_page(addr) free_pages((addr),0)
+ 
++void free_pages_bulk(struct zone *zone, struct list_head *list);
+ void page_alloc_init(void);
+ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
+ void drain_all_pages(void);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 88513c0..ba9aea7 100644
+index ba9aea7..1f68832 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -599,20 +599,23 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
- 	spin_unlock(&zone->lock);
- }
+@@ -2049,6 +2049,50 @@ void free_pages(unsigned long addr, unsigned int order)
  
--static void __free_pages_ok(struct page *page, unsigned int order)
-+static int free_pages_prepare(struct page *page, unsigned int order)
- {
--	unsigned long flags;
- 	int i;
- 	int bad = 0;
--	int wasMlocked = __TestClearPageMlocked(page);
+ EXPORT_SYMBOL(free_pages);
  
- 	trace_mm_page_free_direct(page, order);
- 	kmemcheck_free_shadow(page, order);
- 
--	for (i = 0 ; i < (1 << order) ; ++i)
--		bad += free_pages_check(page + i);
-+	for (i = 0 ; i < (1 << order) ; ++i) {
-+		struct page *pg = page + i;
-+
-+		if (PageAnon(pg))
-+			pg->mapping = NULL;
-+		bad += free_pages_check(pg);
-+	}
- 	if (bad)
--		return;
-+		return -EINVAL;
- 
- 	if (!PageHighMem(page)) {
- 		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
-@@ -622,6 +625,17 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	arch_free_page(page, order);
- 	kernel_map_pages(page, 1 << order, 0);
- 
-+	return 0;
-+}
-+
-+static void __free_pages_ok(struct page *page, unsigned int order)
++/*
++ * Frees a number of pages from the list
++ * Assumes all pages on list are in same zone and order==0.
++ *
++ * This is similar to __pagevec_free(), but receive list instead pagevec.
++ * and this don't use pcp cache. it is good characteristics for vmscan.
++ */
++void free_pages_bulk(struct zone *zone, struct list_head *list)
 +{
 +	unsigned long flags;
-+	int wasMlocked = __TestClearPageMlocked(page);
++	struct page *page;
++	struct page *page2;
++	int nr_pages = 0;
 +
-+	if (free_pages_prepare(page, order))
-+		return;
++	list_for_each_entry_safe(page, page2, list, lru) {
++		int wasMlocked = __TestClearPageMlocked(page);
 +
- 	local_irq_save(flags);
- 	if (unlikely(wasMlocked))
- 		free_page_mlock(page);
-@@ -1107,21 +1121,9 @@ void free_hot_cold_page(struct page *page, int cold)
- 	int migratetype;
- 	int wasMlocked = __TestClearPageMlocked(page);
- 
--	trace_mm_page_free_direct(page, 0);
--	kmemcheck_free_shadow(page, 0);
--
--	if (PageAnon(page))
--		page->mapping = NULL;
--	if (free_pages_check(page))
-+	if (free_pages_prepare(page, 0))
- 		return;
- 
--	if (!PageHighMem(page)) {
--		debug_check_no_locks_freed(page_address(page), PAGE_SIZE);
--		debug_check_no_obj_freed(page_address(page), PAGE_SIZE);
--	}
--	arch_free_page(page, 0);
--	kernel_map_pages(page, 1, 0);
--
- 	migratetype = get_pageblock_migratetype(page);
- 	set_page_private(page, migratetype);
- 	local_irq_save(flags);
++		if (free_pages_prepare(page, 0)) {
++			/* Make orphan the corrupted page. */
++			list_del(&page->lru);
++			continue;
++		}
++		if (unlikely(wasMlocked)) {
++			local_irq_save(flags);
++			free_page_mlock(page);
++			local_irq_restore(flags);
++		}
++		nr_pages++;
++	}
++
++	spin_lock_irqsave(&zone->lock, flags);
++	__count_vm_events(PGFREE, nr_pages);
++	zone->all_unreclaimable = 0;
++	zone->pages_scanned = 0;
++	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
++
++	list_for_each_entry_safe(page, page2, list, lru) {
++		/* have to delete it as __free_one_page list manipulates */
++		list_del(&page->lru);
++		__free_one_page(page, zone, 0, page_private(page));
++	}
++	spin_unlock_irqrestore(&zone->lock, flags);
++}
++
+ /**
+  * alloc_pages_exact - allocate an exact number physically-contiguous pages.
+  * @size: the number of bytes to allocate
 -- 
 1.6.5.2
 
