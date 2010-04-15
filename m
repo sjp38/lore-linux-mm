@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BE7776B020A
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:27:54 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 07/10] vmscan: Remove unnecessary temporary variables in shrink_zone()
-Date: Thu, 15 Apr 2010 18:21:40 +0100
-Message-Id: <1271352103-2280-8-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1271352103-2280-1-git-send-email-mel@csn.ul.ie>
-References: <1271352103-2280-1-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DF4AC6B020C
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:30:25 -0400 (EDT)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Thu, 15 Apr 2010 13:29:50 -0400
+Message-Id: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
+Subject: [PATCH 0/8] Numa: Use Generic Per-cpu Variables for numa_*_id()
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>
+To: linux-mm@kvack.org, linux-numa@vger.kernel.org
+Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andi@domain.invalid, Kleen@domain.invalid, andi@firstfloor.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Two variables are declared that are unnecessary in shrink_zone() as they
-already exist int the scan_control. Remove them
+Use Generic Per cpu infrastructure for numa_*_id() V4
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/vmscan.c |    8 ++------
- 1 files changed, 2 insertions(+), 6 deletions(-)
+Series Against: 2.6.34-rc3-mmotm-100405-1609
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a374879..a232ad6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1633,8 +1633,6 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- {
- 	unsigned long nr[NR_LRU_LISTS];
- 	unsigned long nr_to_scan;
--	unsigned long nr_reclaimed = sc->nr_reclaimed;
--	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
- 	enum lru_list l;
- 
- 	calc_scan_trybatch(zone, sc, nr);
-@@ -1647,7 +1645,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 						   nr[l], SWAP_CLUSTER_MAX);
- 				nr[l] -= nr_to_scan;
- 
--				nr_reclaimed += shrink_list(l, nr_to_scan,
-+				sc->nr_reclaimed += shrink_list(l, nr_to_scan,
- 							    zone, sc);
- 			}
- 		}
-@@ -1659,13 +1657,11 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		 * with multiple processes reclaiming pages, the total
- 		 * freeing target can get unreasonably large.
- 		 */
--		if (nr_reclaimed >= nr_to_reclaim &&
-+		if (sc->nr_reclaimed >= sc->nr_to_reclaim &&
- 		    sc->priority < DEF_PRIORITY)
- 			break;
- 	}
- 
--	sc->nr_reclaimed = nr_reclaimed;
--
- 	/*
- 	 * Even if we did not try to evict anon pages at all, we want to
- 	 * rebalance the anon lru active/inactive ratio.
--- 
-1.6.5
+Background:
+
+V1 of this series resolved a fairly serious performance problem on our ia64
+platforms with memoryless nodes because SLAB cannot cache object from a remote
+node, even tho' that node is the effective "local memory node" for a given cpu.
+V1 caused no regression in x86_64 [a slight improvement even] for the admittedly
+few tests that I ran.
+
+Christoph Lameter suggested the approach implemented in V2 and later:  define
+a new function--numa_mem_id()--that returns the "local memory node" for cpus
+attached to memoryless nodes.  Christoph also suggested that, while at it, I
+could modify the implementation of numa_node_id() [and the related cpu_to_node()]
+to use the generic percpu variable implementation.
+
+While implementing V2, I encountered a circular header dependency between:
+
+	topology.h -> percpu.h -> slab.h -> gfp.h -> topology.h
+
+I resolved this by moving the generic percpu functions to
+include/asm-generic/percpu.h so that various arch asm/percpu.h could include
+that, and topology.h could include asm/percpu.h to avoid including slab.h,
+breaking the circular dependency.  Reviewers didn't like that.  Matthew Willcox
+suggested that I uninline percpu_alloc()/free() for the !SMP config and remove
+slab.h from percpu.h.  I tried that.  I broke the build of a LOT of files.  Tejun
+Heo mentioned that percpu-defs.h would be a better place for the generic function
+definitions.  V3 implemented that suggestion.
+
+Later, Tejun decided to jump in and remove slab.h from percpu.h and semi-
+automagically fix up all of the affected modules.  V4 is implemented atop Tejun's
+series now in mmotm.  Again, this solves the slab performance problem on our
+servers configured with memoryless nodes, and shows no regression with
+hackbench on x86_64.  Of course, more performance testing would be welcome.
+
+The slab changes in patch 6 of the series need review w/rt to node hot plug
+that could change the effective "local memory node" for a memoryless node
+by inserting a "nearer" node in the zonelists.  An additional patch may be
+required to address this.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
