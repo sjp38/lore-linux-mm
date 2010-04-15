@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 644576B01F5
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:21:45 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 157A76B01F8
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:21:47 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 06/10] vmscan: Split shrink_zone to reduce stack usage
-Date: Thu, 15 Apr 2010 18:21:39 +0100
-Message-Id: <1271352103-2280-7-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 09/10] vmscan: Setup pagevec as late as possible in shrink_page_list()
+Date: Thu, 15 Apr 2010 18:21:42 +0100
+Message-Id: <1271352103-2280-10-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1271352103-2280-1-git-send-email-mel@csn.ul.ie>
 References: <1271352103-2280-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,66 +13,89 @@ To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-shrink_zone() calculculates how many pages it needs to shrink from each
-LRU list in a given pass. It uses a number of temporary variables to
-work this out that then remain on the stack. This patch splits the
-function so that some of the stack variables can be discarded.
+shrink_page_list() sets up a pagevec to release pages as according as they
+are free. It uses significant amounts of stack on the pagevec. This
+patch adds pages to be freed via pagevec to a linked list which is then
+freed en-masse at the end. This avoids using stack in the main path that
+potentially calls writepage().
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- mm/vmscan.c |   29 +++++++++++++++++++----------
- 1 files changed, 19 insertions(+), 10 deletions(-)
+ mm/vmscan.c |   34 ++++++++++++++++++++++++++--------
+ 1 files changed, 26 insertions(+), 8 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1ace7c6..a374879 100644
+index 9bc1ede..2c22c83 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1595,19 +1595,14 @@ static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
- 	return nr;
+@@ -619,6 +619,22 @@ static enum page_references page_check_references(struct page *page,
+ 	return PAGEREF_RECLAIM;
  }
  
--/*
-- * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
-- */
--static void shrink_zone(struct zone *zone, struct scan_control *sc)
-+/* Calculate how many pages from each LRU list should be scanned */
-+static void calc_scan_trybatch(struct zone *zone,
-+				 struct scan_control *sc, unsigned long *nr)
- {
--	unsigned long nr[NR_LRU_LISTS];
--	unsigned long nr_to_scan;
--	unsigned long percent[2];	/* anon @ 0; file @ 1 */
- 	enum lru_list l;
--	unsigned long nr_reclaimed = sc->nr_reclaimed;
--	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-+	unsigned long percent[2];	/* anon @ 0; file @ 1 */
-+	int noswap = 0 ;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
--	int noswap = 0;
- 
- 	/* If we have no swap space, do not bother scanning anon pages. */
- 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
-@@ -1629,6 +1624,20 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		nr[l] = nr_scan_try_batch(scan,
- 					  &reclaim_stat->nr_saved_scan[l]);
- 	}
++static void free_page_list(struct list_head *free_list)
++{
++	struct pagevec freed_pvec;
++	struct page *page, *tmp;
++
++	pagevec_init(&freed_pvec, 1);
++
++	list_for_each_entry_safe(page, tmp, free_list, lru) {
++		list_del(&page->lru);
++		if (!pagevec_add(&freed_pvec, page)) {
++			__pagevec_free(&freed_pvec);
++			pagevec_reinit(&freed_pvec);
++		}
++	}
 +}
 +
-+/*
-+ * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
-+ */
-+static void shrink_zone(struct zone *zone, struct scan_control *sc)
-+{
-+	unsigned long nr[NR_LRU_LISTS];
-+	unsigned long nr_to_scan;
-+	unsigned long nr_reclaimed = sc->nr_reclaimed;
-+	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-+	enum lru_list l;
-+
-+	calc_scan_trybatch(zone, sc, nr);
+ /*
+  * shrink_page_list() returns the number of reclaimed pages
+  */
+@@ -627,13 +643,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 					enum pageout_io sync_writeback)
+ {
+ 	LIST_HEAD(ret_pages);
+-	struct pagevec freed_pvec;
++	LIST_HEAD(free_list);
+ 	int pgactivate = 0;
+ 	unsigned long nr_reclaimed = 0;
  
- 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
- 					nr[LRU_INACTIVE_FILE]) {
+ 	cond_resched();
+ 
+-	pagevec_init(&freed_pvec, 1);
+ 	while (!list_empty(page_list)) {
+ 		enum page_references references;
+ 		struct address_space *mapping;
+@@ -808,10 +823,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		__clear_page_locked(page);
+ free_it:
+ 		nr_reclaimed++;
+-		if (!pagevec_add(&freed_pvec, page)) {
+-			__pagevec_free(&freed_pvec);
+-			pagevec_reinit(&freed_pvec);
+-		}
++
++		/*
++		 * Is there need to periodically free_page_list? It would
++		 * appear not as the counts should be low
++		 */
++		list_add(&page->lru, &free_list);
+ 		continue;
+ 
+ cull_mlocked:
+@@ -834,9 +851,10 @@ keep:
+ 		list_add(&page->lru, &ret_pages);
+ 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+ 	}
++
++	free_page_list(&free_list);
++
+ 	list_splice(&ret_pages, page_list);
+-	if (pagevec_count(&freed_pvec))
+-		__pagevec_free(&freed_pvec);
+ 	count_vm_events(PGACTIVATE, pgactivate);
+ 	return nr_reclaimed;
+ }
 -- 
 1.6.5
 
