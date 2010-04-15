@@ -1,58 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 62E7C6B01F1
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 02:59:08 -0400 (EDT)
-Date: Thu, 15 Apr 2010 16:58:58 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100415065858.GS2493@dastard>
-References: <20100415133332.D183.A69D9226@jp.fujitsu.com>
- <20100415063219.GR2493@dastard>
- <20100415154328.D18F.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100415154328.D18F.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C2B426B0202
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 03:00:08 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F705xo013549
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 15 Apr 2010 16:00:06 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C98A45DE6E
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 16:00:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 427F745DE4D
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 16:00:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 26CEAE08001
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 16:00:05 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C0C041DB803B
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 16:00:04 +0900 (JST)
+Date: Thu, 15 Apr 2010 15:56:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][BUGFIX][PATCH 1/2] memcg: fix charge bypass route of
+ migration
+Message-Id: <20100415155611.da707913.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100415154324.834dace9.nishimura@mxp.nes.nec.co.jp>
+References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
+	<20100415120516.3891ce46.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100415154324.834dace9.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 03:44:50PM +0900, KOSAKI Motohiro wrote:
-> > > Now, kernel compile and/or backup operation seems keep nr_vmscan_write==0.
-> > > Dave, can you please try to run your pageout annoying workload?
+On Thu, 15 Apr 2010 15:43:24 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+
+> On Thu, 15 Apr 2010 12:05:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > I'd like to wait until next mmotm comes out. (So, [RFC]) I'll rebase
+> > This patch is based on
+> >  mmotm-2010/04/05
+> >  +
+> >  mm-migration-take-a-reference-to-the-anon_vma-before-migrating.patch
+> >  mm-migration-do-not-try-to-migrate-unmapped-anonymous-pages.patch
+> >  mm-share-the-anon_vma-ref-counts-between-ksm-and-page-migration.patch
+> >  mm-migration-allow-the-migration-of-pageswapcache-pages.patch
+> >  memcg-fix-prepare-migration.patch
 > > 
-> > It's just as easy for you to run and observe the effects. Start with a VM
-> > with 1GB RAM and a 10GB scratch block device:
+> > ==
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > 
-> > # mkfs.xfs -f /dev/<blah>
-> > # mount -o logbsize=262144,nobarrier /dev/<blah> /mnt/scratch
+> > This is an additonal fix to memcg-fix-prepare-migration.patch
 > > 
-> > in one shell:
+> > Now, try_charge can bypass charge if TIF_MEMDIE at el are marked on the caller.
+> > In this case, the charge is bypassed. This makes accounts corrupted.
+> > (PageCgroup will be marked as PCG_USED even if bypassed, and css->refcnt
+> >  can leak.)
 > > 
-> > # while [ 1 ]; do dd if=/dev/zero of=/mnt/scratch/foo bs=1024k ; done
+> > This patch clears passed "*memcg" in bypass route.
 > > 
-> > in another shell, if you have fs_mark installed, run:
+> > Because usual page allocater passes memcg=NULL, this patch only affects
+> > some special case as
+> >   - move account
+> >   - migration
+> >   - swapin.
 > > 
-> > # ./fs_mark -S0 -n 100000 -F -s 0 -d /mnt/scratch/0 -d /mnt/scratch/1 -d /mnt/scratch/3 -d /mnt/scratch/2 &
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  mm/memcontrol.c |    7 +++++--
+> >  1 file changed, 5 insertions(+), 2 deletions(-)
 > > 
-> > otherwise run a couple of these in parallel on different directories:
+> > Index: mmotm-temp/mm/memcontrol.c
+> > ===================================================================
+> > --- mmotm-temp.orig/mm/memcontrol.c
+> > +++ mmotm-temp/mm/memcontrol.c
+> > @@ -1606,8 +1606,12 @@ static int __mem_cgroup_try_charge(struc
+> >  	 * MEMDIE process.
+> >  	 */
+> >  	if (unlikely(test_thread_flag(TIF_MEMDIE)
+> > -		     || fatal_signal_pending(current)))
+> > +		     || fatal_signal_pending(current))) {
+> > +		/* Showing we skipped charge */
+> > +		if (memcg)
+> > +			*memcg = NULL;
+> >  		goto bypass;
+> > +	}
 > > 
-> > # for i in `seq 1 1 100000`; do echo > /mnt/scratch/0/foo.$i ; done
+> I'm sorry, I can't understand what this part fixes.
+> We set *memcg to NULL at "bypass" part already:
 > 
-> Thanks.
+>    1740 bypass:
+>    1741         *memcg = NULL;
+>    1742         return 0;
 > 
-> Unfortunately, I don't have unused disks. So, I'll try it at (probably)
-> next week.
+> and __mem_cgroup_try_charge() is never called with @memcg == NULL, IIUC.
+> 
 
-A filesystem on a loopback device will work just as well ;)
+I totally missed that..Sigh.
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> >  	/*
+> >  	 * We always charge the cgroup the mm_struct belongs to.
+> > @@ -2523,7 +2527,6 @@ int mem_cgroup_prepare_migration(struct 
+> >  		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
+> >  		css_put(&mem->css);
+> >  	}
+> > -	*ptr = mem;
+> >  	return ret;
+> >  }
+> >  
+> I sent a patch to Andrew to fix this part yesterday :)
+> 
+
+Ok, ignore this patch.
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
