@@ -1,82 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CF386B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 22:31:32 -0400 (EDT)
-Date: Thu, 15 Apr 2010 11:22:49 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][BUGFIX][PATCH] memcg: fix underflow of mapped_file stat
-Message-Id: <20100415112249.c02c12ba.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100414144015.0a0d2bd2.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
-	<20100413151400.cb89beb7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414095408.d7b352f1.nishimura@mxp.nes.nec.co.jp>
-	<20100414100308.693c5650.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414104010.7a359d04.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414105608.d40c70ab.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414120622.0a5c2983.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100414143132.179edc6e.nishimura@mxp.nes.nec.co.jp>
-	<20100414144015.0a0d2bd2.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id D58056B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 22:37:38 -0400 (EDT)
+Date: Thu, 15 Apr 2010 04:37:04 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-ID: <20100415023704.GC20640@cmpxchg.org>
+References: <20100413202021.GZ13327@think> <20100414014041.GD2493@dastard> <20100414155233.D153.A69D9226@jp.fujitsu.com> <20100414072830.GK2493@dastard> <20100414085132.GJ25756@csn.ul.ie>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100414085132.GJ25756@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > > @@ -2517,65 +2519,70 @@ int mem_cgroup_prepare_migration(struct 
-> > >  		css_get(&mem->css);
-> > >  	}
-> > >  	unlock_page_cgroup(pc);
-> > > -
-> > > -	if (mem) {
-> > > -		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
-> > > -		css_put(&mem->css);
-> > > -	}
-> > > -	*ptr = mem;
-> > > +	/*
-> > > +	 * If the page is uncharged before migration (removed from radix-tree)
-> > > +	 * we return here.
-> > > +	 */
-> > > +	if (!mem)
-> > > +		return 0;
-> > > +	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
-> > > +	css_put(&mem->css); /* drop extra refcnt */
-> > it should be:
-> > 
-> > 	*ptr = mem;
-> > 	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
-> > 	css_put(&mem->css);
-> > 
-> > as Andrea has fixed already.
-> > 
-> Ah, yes. I'll rebase this onto Andrea's fix.
+On Wed, Apr 14, 2010 at 09:51:33AM +0100, Mel Gorman wrote:
+> They will need to be tackled in turn then but obviously there should be
+> a focus on the common paths. The reclaim paths do seem particularly
+> heavy and it's down to a lot of temporary variables. I might not get the
+> time today but what I'm going to try do some time this week is
 > 
+> o Look at what temporary variables are copies of other pieces of information
+> o See what variables live for the duration of reclaim but are not needed
+>   for all of it (i.e. uninline parts of it so variables do not persist)
+> o See if it's possible to dynamically allocate scan_control
 > 
+> The last one is the trickiest. Basically, the idea would be to move as much
+> into scan_control as possible. Then, instead of allocating it on the stack,
+> allocate a fixed number of them at boot-time (NR_CPU probably) protected by
+> a semaphore. Limit the number of direct reclaimers that can be active at a
+> time to the number of scan_control variables. kswapd could still allocate
+> its on the stack or with kmalloc.
 > 
-> > > +	if (ret)
-We should check "if (ret || !*ptr)" not to do commit in !*ptr case.
+> If it works out, it would have two main benefits. Limits the number of
+> processes in direct reclaim - if there is NR_CPU-worth of proceses in direct
+> reclaim, there is too much going on. It would also shrink the stack usage
+> particularly if some of the stack variables are moved into scan_control.
+> 
+> Maybe someone will beat me to looking at the feasibility of this.
 
-> > > + 	 * Considering ANON pages, we can't depend on lock_page.
-> > > + 	 * If a page may be unmapped before it's remapped, new page's
-> > > + 	 * mapcount will not increase. (case that mapcount 0->1 never occur.)
-> > > + 	 * PageCgroupUsed() and SwapCache checks will be done.
-> > > + 	 *
-> > > + 	 * Once mapcount goes to 1, our hook to page_remove_rmap will do
-> > > + 	 * enough jobs.
-> > > + 	 */
-> > > +	if (PageAnon(used) && !page_mapped(used))
-> > > +		mem_cgroup_uncharge_page(used);
-> > mem_cgroup_uncharge_page() does the same check :)
-> > 
-> Ok. I'll fix.
-> 
-Considering more, we'd better to check PageAnon() at least not to call
-mem_cgroup_uncharge_page() for cache page.
+I already have some patches to remove trivial parts of struct scan_control,
+namely may_unmap, may_swap, all_unreclaimable and isolate_pages.  The rest
+needs a deeper look.
 
+A rather big offender in there is the combination of shrink_active_list (360
+bytes here) and shrink_page_list (200 bytes).  I am currently looking at
+breaking out all the accounting stuff from shrink_active_list into a separate
+leaf function so that the stack footprint does not add up.
 
-Thanks,
-Daisuke Nishimura.
+Your idea of per-cpu allocated scan controls reminds me of an idea I have
+had for some time now: moving reclaim into its own threads (per cpu?).
+
+Not only would it separate the allocator's stack from the writeback stack,
+we could also get rid of that too_many_isolated() workaround and coordinate
+reclaim work better to prevent overreclaim.
+
+But that is not a quick fix either...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
