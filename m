@@ -1,70 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 81D27600375
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:34:00 -0400 (EDT)
-Date: Fri, 16 Apr 2010 09:33:39 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if
- current is kswapd
-Message-ID: <20100415233339.GW2493@dastard>
-References: <20100415013436.GO2493@dastard>
- <20100415130212.D16E.A69D9226@jp.fujitsu.com>
- <20100415131106.D174.A69D9226@jp.fujitsu.com>
- <64BE60A8-EEF9-4AC6-AF0A-0ED3CB544726@freebsd.org>
- <20100415093214.GV2493@dastard>
- <85DB7083-8E78-4884-9E76-5BD803C530EF@freebsd.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <85DB7083-8E78-4884-9E76-5BD803C530EF@freebsd.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DFCC6B0218
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:40:14 -0400 (EDT)
+Date: Thu, 15 Apr 2010 16:38:28 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: [PATCH -mmotm] vmstat: fix build errors when PROC_FS is disabled
+Message-Id: <20100415163828.34f53758.randy.dunlap@oracle.com>
+In-Reply-To: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org>
+References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Suleiman Souhlal <ssouhlal@freebsd.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, suleiman@google.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 10:27:09AM -0700, Suleiman Souhlal wrote:
-> 
-> On Apr 15, 2010, at 2:32 AM, Dave Chinner wrote:
-> 
-> >On Thu, Apr 15, 2010 at 01:05:57AM -0700, Suleiman Souhlal wrote:
-> >>
-> >>On Apr 14, 2010, at 9:11 PM, KOSAKI Motohiro wrote:
-> >>
-> >>>Now, vmscan pageout() is one of IO throuput degression source.
-> >>>Some IO workload makes very much order-0 allocation and reclaim
-> >>>and pageout's 4K IOs are making annoying lots seeks.
-> >>>
-> >>>At least, kswapd can avoid such pageout() because kswapd don't
-> >>>need to consider OOM-Killer situation. that's no risk.
-> >>>
-> >>>Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> >>
-> >>What's your opinion on trying to cluster the writes done by pageout,
-> >>instead of not doing any paging out in kswapd?
-> >
-> >XFS already does this in ->writepage to try to minimise the impact
-> >of the way pageout issues IO. It helps, but it is still not as good
-> >as having all the writeback come from the flusher threads because
-> >it's still pretty much random IO.
-> 
-> Doesn't the randomness become irrelevant if you can cluster enough
-> pages?
+From: Randy Dunlap <randy.dunlap@oracle.com>
 
-No. If you are doing full disk seeks between random chunks, then you
-still lose a large amount of throughput. e.g. if the seek time is
-10ms and your IO time is 10ms for each 4k page, then increasing the
-size ito 64k makes it 10ms seek and 12ms for the IO. We might increase
-throughput but we are still limited to 100 IOs per second. We've
-gone from 400kB/s to 6MB/s, but that's still an order of magnitude
-short of the 100MB/s full size IOs with little in way of seeks
-between them will acheive on the same spindle...
+Fix vmstat.c to build when CONFIG_PROC_FS is disabled
+but CONFIG_DEBUG_FS is enabled.
 
-Cheers,
+Fixes around 25 errors.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/vmstat.c |  119 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 59 insertions(+), 60 deletions(-)
+
+--- mmotm-2010-0415-1442.orig/mm/vmstat.c
++++ mmotm-2010-0415-1442/mm/vmstat.c
+@@ -16,6 +16,7 @@
+ #include <linux/cpu.h>
+ #include <linux/vmstat.h>
+ #include <linux/sched.h>
++#include <linux/seq_file.h>
+ #include <linux/math64.h>
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+@@ -380,18 +381,57 @@ void zone_statistics(struct zone *prefer
+ }
+ #endif
+ 
+-#ifdef CONFIG_PROC_FS
+-#include <linux/proc_fs.h>
+-#include <linux/seq_file.h>
+-
+-static char * const migratetype_names[MIGRATE_TYPES] = {
+-	"Unmovable",
+-	"Reclaimable",
+-	"Movable",
+-	"Reserve",
+-	"Isolate",
++struct contig_page_info {
++	unsigned long free_pages;
++	unsigned long free_blocks_total;
++	unsigned long free_blocks_suitable;
+ };
+ 
++/* Walk all the zones in a node and print using a callback */
++static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
++		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
++{
++	struct zone *zone;
++	struct zone *node_zones = pgdat->node_zones;
++	unsigned long flags;
++
++	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
++		if (!populated_zone(zone))
++			continue;
++
++		spin_lock_irqsave(&zone->lock, flags);
++		print(m, pgdat, zone);
++		spin_unlock_irqrestore(&zone->lock, flags);
++	}
++}
++
++/*
++ * A fragmentation index only makes sense if an allocation of a requested
++ * size would fail. If that is true, the fragmentation index indicates
++ * whether external fragmentation or a lack of memory was the problem.
++ * The value can be used to determine if page reclaim or compaction
++ * should be used
++ */
++int __fragmentation_index(unsigned int order, struct contig_page_info *info)
++{
++	unsigned long requested = 1UL << order;
++
++	if (!info->free_blocks_total)
++		return 0;
++
++	/* Fragmentation index only makes sense when a request would fail */
++	if (info->free_blocks_suitable)
++		return -1000;
++
++	/*
++	 * Index is between 0 and 1 so return within 3 decimal places
++	 *
++	 * 0 => allocation would fail due to lack of memory
++	 * 1 => allocation would fail due to fragmentation
++	 */
++	return 1000 - div_u64( (1000+(div_u64(info->free_pages * 1000ULL, requested))), info->free_blocks_total);
++}
++
+ static void *frag_start(struct seq_file *m, loff_t *pos)
+ {
+ 	pg_data_t *pgdat;
+@@ -416,23 +456,16 @@ static void frag_stop(struct seq_file *m
+ {
+ }
+ 
+-/* Walk all the zones in a node and print using a callback */
+-static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+-		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
+-{
+-	struct zone *zone;
+-	struct zone *node_zones = pgdat->node_zones;
+-	unsigned long flags;
+-
+-	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+-		if (!populated_zone(zone))
+-			continue;
++#ifdef CONFIG_PROC_FS
++#include <linux/proc_fs.h>
+ 
+-		spin_lock_irqsave(&zone->lock, flags);
+-		print(m, pgdat, zone);
+-		spin_unlock_irqrestore(&zone->lock, flags);
+-	}
+-}
++static char * const migratetype_names[MIGRATE_TYPES] = {
++	"Unmovable",
++	"Reclaimable",
++	"Movable",
++	"Reserve",
++	"Isolate",
++};
+ 
+ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 						struct zone *zone)
+@@ -455,39 +488,6 @@ static int frag_show(struct seq_file *m,
+ 	return 0;
+ }
+ 
+-struct contig_page_info {
+-	unsigned long free_pages;
+-	unsigned long free_blocks_total;
+-	unsigned long free_blocks_suitable;
+-};
+-
+-/*
+- * A fragmentation index only makes sense if an allocation of a requested
+- * size would fail. If that is true, the fragmentation index indicates
+- * whether external fragmentation or a lack of memory was the problem.
+- * The value can be used to determine if page reclaim or compaction
+- * should be used
+- */
+-int __fragmentation_index(unsigned int order, struct contig_page_info *info)
+-{
+-	unsigned long requested = 1UL << order;
+-
+-	if (!info->free_blocks_total)
+-		return 0;
+-
+-	/* Fragmentation index only makes sense when a request would fail */
+-	if (info->free_blocks_suitable)
+-		return -1000;
+-
+-	/*
+-	 * Index is between 0 and 1 so return within 3 decimal places
+-	 *
+-	 * 0 => allocation would fail due to lack of memory
+-	 * 1 => allocation would fail due to fragmentation
+-	 */
+-	return 1000 - div_u64( (1000+(div_u64(info->free_pages * 1000ULL, requested))), info->free_blocks_total);
+-}
+-
+ static void pagetypeinfo_showfree_print(struct seq_file *m,
+ 					pg_data_t *pgdat, struct zone *zone)
+ {
+@@ -1001,7 +1001,6 @@ module_init(setup_vmstat)
+ 
+ #ifdef CONFIG_DEBUG_FS
+ #include <linux/debugfs.h>
+-#include <linux/seq_file.h>
+ 
+ static struct dentry *extfrag_debug_root;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
