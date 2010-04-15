@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 9CC046B01E3
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 05:23:52 -0400 (EDT)
-Date: Thu, 15 Apr 2010 19:23:30 +1000
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 195E96B01E3
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 05:32:30 -0400 (EDT)
+Date: Thu, 15 Apr 2010 19:32:14 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look
- please!...)
-Message-ID: <20100415092330.GU2493@dastard>
-References: <20100408025822.GL11036@dastard>
- <11b701cad9c8$93212530$0400a8c0@dcccs>
- <20100412001158.GA2493@dastard>
- <18b101cadadf$5edbb660$0400a8c0@dcccs>
- <20100413083931.GW2493@dastard>
- <190201cadaeb$02ec22c0$0400a8c0@dcccs>
- <20100413113445.GZ2493@dastard>
- <1cd501cadb62$3a93e790$0400a8c0@dcccs>
- <20100414001615.GC2493@dastard>
- <233401cadc69$64c1f4f0$0400a8c0@dcccs>
+Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if
+ current is kswapd
+Message-ID: <20100415093214.GV2493@dastard>
+References: <20100415013436.GO2493@dastard>
+ <20100415130212.D16E.A69D9226@jp.fujitsu.com>
+ <20100415131106.D174.A69D9226@jp.fujitsu.com>
+ <64BE60A8-EEF9-4AC6-AF0A-0ED3CB544726@freebsd.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <233401cadc69$64c1f4f0$0400a8c0@dcccs>
+In-Reply-To: <64BE60A8-EEF9-4AC6-AF0A-0ED3CB544726@freebsd.org>
 Sender: owner-linux-mm@kvack.org
-To: Janos Haar <janos.haar@netcenter.hu>
-Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
+To: Suleiman Souhlal <ssouhlal@freebsd.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, suleiman@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 09:00:49AM +0200, Janos Haar wrote:
-> Dave,
+On Thu, Apr 15, 2010 at 01:05:57AM -0700, Suleiman Souhlal wrote:
 > 
-> The corruption + crash reproduced. (unfortunately)
+> On Apr 14, 2010, at 9:11 PM, KOSAKI Motohiro wrote:
 > 
-> http://download.netcenter.hu/bughunt/20100413/messages-15
+> >Now, vmscan pageout() is one of IO throuput degression source.
+> >Some IO workload makes very much order-0 allocation and reclaim
+> >and pageout's 4K IOs are making annoying lots seeks.
+> >
+> >At least, kswapd can avoid such pageout() because kswapd don't
+> >need to consider OOM-Killer situation. that's no risk.
+> >
+> >Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> Apr 14 01:06:33 alfa kernel: XFS mounting filesystem sdb2
-> 
-> This was the point of the xfs_repair more times.
+> What's your opinion on trying to cluster the writes done by pageout,
+> instead of not doing any paging out in kswapd?
 
-OK, the inodes that are corrupted are different, so there's still
-something funky going on here. I still would suggest replacing the
-RAID controller to rule that out as the cause.
+XFS already does this in ->writepage to try to minimise the impact
+of the way pageout issues IO. It helps, but it is still not as good
+as having all the writeback come from the flusher threads because
+it's still pretty much random IO.
 
-FWIW, do you have any other servers with similar h/w, s/w and
-workloads? If so, are they seeing problems?
-
-Can you recompile the kernel with CONFIG_XFS_DEBUG enabled and
-reboot into it before you repair and remount the filesystem again?
-(i.e. so that we know that we have started with a clean filesystem
-and the debug kernel) I'm hoping that this will catch the corruption
-much sooner, perhaps before it gets to disk. Note that this will
-cause the machine to panic when corruption is detected, and it is
-much,much more careful about checking in memory structures so there
-is a CPU overhead involved as well.
+And, FWIW, it doesn't solve the stack usage problems, either. In
+fact, it will make them worse as write_one_page() puts another
+struct writeback_control on the stack...
 
 Cheers,
 
