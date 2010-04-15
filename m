@@ -1,91 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AC30D6B0202
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 04:18:13 -0400 (EDT)
-Date: Thu, 15 Apr 2010 10:17:43 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][BUGFIX][PATCH 1/2] memcg: fix charge bypass route of
- migration
-Message-ID: <20100415081743.GP32034@random.random>
-References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
- <20100415120516.3891ce46.kamezawa.hiroyu@jp.fujitsu.com>
- <20100415154324.834dace9.nishimura@mxp.nes.nec.co.jp>
- <20100415155611.da707913.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7435D6B0202
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 04:19:03 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F8J0Ko017042
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 15 Apr 2010 17:19:00 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8046345DE4D
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:19:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EFA545DE4E
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:19:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40EA0E08006
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:19:00 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EEB08E08004
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:18:56 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if current is kswapd
+In-Reply-To: <20100415131106.D174.A69D9226@jp.fujitsu.com>
+References: <20100415130212.D16E.A69D9226@jp.fujitsu.com> <20100415131106.D174.A69D9226@jp.fujitsu.com>
+Message-Id: <20100415171750.D195.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100415155611.da707913.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Thu, 15 Apr 2010 17:18:56 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 03:56:11PM +0900, KAMEZAWA Hiroyuki wrote:
-> Ok, ignore this patch.
+> Now, vmscan pageout() is one of IO throuput degression source.
+> Some IO workload makes very much order-0 allocation and reclaim
+> and pageout's 4K IOs are making annoying lots seeks.
+> 
+> At least, kswapd can avoid such pageout() because kswapd don't
+> need to consider OOM-Killer situation. that's no risk.
 
-Ok so I'll stick to my original patch on aa.git:
+I've found one bug in this patch myself. flusher thread don't
+pageout anon pages. then, we need PageAnon() check ;)
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=patch;h=f0a05fea58501298ab7b800ac8220f017c66f427
 
-I already also merged the move from /proc to debugfs from Mel of two
-files. So now I've to:
 
-1) finish the generic doc in Documentation/ (mostly taken from
-   transparent hugepage core changeset comments here:
-   http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=b901f7e1ab412241d4299954ae28505f2206af1d
-   )
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/vmscan.c |    7 +++++++
+>  1 files changed, 7 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 3ff3311..d392a50 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -614,6 +614,13 @@ static enum page_references page_check_references(struct page *page,
+>  	if (referenced_page)
+>  		return PAGEREF_RECLAIM_CLEAN;
+>  
+> +	/*
+> +	 * Delegate pageout IO to flusher thread. They can make more
+> +	 * effective IO pattern.
+> +	 */
+> +	if (current_is_kswapd())
+> +		return PAGEREF_RECLAIM_CLEAN;
+> +
+>  	return PAGEREF_RECLAIM;
+>  }
+>  
+> -- 
+> 1.6.5.2
+> 
+> 
+> 
 
-2) add alloc_pages_vma for numa awareness in the huge page faults
 
-3) have the kernel stack 2m aligned and growsdown the vm_start in 2m
-   chunks when enabled=always. I doubt it makes sense to decouple this
-   feature from enabled=always and to add a special sysfs control for
-   it, plus I don't like adding too many apis and it can always
-   decoupled later.
-
-4) I think I will not add a prctl to achieve Ingo's per-process enable
-   for now. I'm quite convinced in real life madvise is enough and
-   enabled=always|madvise|never is more than enough for the testing
-   without having to add a prctl. This is identical issue to KSM after
-   all, in the end also KSM is missing a prctl to enabled merging on a
-   per process basis and that's fine. prctl really looks very much
-   like libhugetlbfs to me so I'm not very attracted to it as I doubt
-   its usefulness strongly and if I add it, it becomes a
-   forever-existing API (actually even worse than the sysfs layout
-   from the kernel API point of view) so there has to be a strong
-   reason for it. And I don't think there's any point to add a
-   madvise(MADV_NO_HUGEPAGE) or a prctl to selectively _disable_
-   hugepages on mappings or processes when enabled=always. It makes no
-   sense to use enabled=always and then to disable hugepages in a few
-   apps. The opposite makes sense to save memory of course! I don't
-   want to add kernel APIs in prctl useful only for testing and
-   benchmarking. It can always be added later anyway...
-
-5) Ulrich sent me a _three_ liner that will make glibc fully cooperate
-   and guarantee all anon ram goes in hugepages without using
-   khugepaged (just like libhugetlbfs would cooperate with
-   hugetlbfs). For the posix threads it won't work yet and for that we
-   may need to add a MAP_ALIGN flag to mmap (suggested by him) to be
-   optimal and not waste address space on 32bit archs. That's no big
-   deal, it's still orders of magnitude simpler that backing an
-   mmap(4k) with a 2M page and collect the still unmapped parts of
-   the 2M pages when system is low on memory. Furthermore MAP_ALIGN
-   will involve the mmap paths with mmap_sem write mode, that aren't
-   really fast paths, while the mmap(4k) backed by 2M would slowdown
-   do_anonymous_pages and other core fast paths that are much more
-   performance critical than the mmap paths. So I think this is the
-   way to go. And if somebody don't want to risk wasting memory the
-   default should be enabled=madvise and then add madvise where
-   needed. One either has to choose between performance and memory,
-   and I don't want intermediate terms like "a bit faster but not as
-   fast as it can be, but waste a little less memory" which also
-   complicates the code a lot and microslowdown the fast paths.
-
-6) add a config option at kernel configuration time to select the
-   transparent hugepage default between always/madvise/never
-   (in-kernel set_recommended_min_free_kbytes late_initcall() will be
-   running only for always/madvise, as it already checks the built time
-   default and it won't run unless enabled=always|madvise).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
