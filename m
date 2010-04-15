@@ -1,287 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 35A976B01F0
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:23:06 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FAN5O8002451
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 19:23:06 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 96E5D45DE51
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:23:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A04F45DE50
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:23:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 613CE1DB8012
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:23:05 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 080861DB8014
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:23:05 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 1/4] vmscan: simplify shrink_inactive_list()
-In-Reply-To: <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
-References: <20100415085420.GT2493@dastard> <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
-Message-Id: <20100415192140.D1A4.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AAF86B01F2
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:23:26 -0400 (EDT)
+Message-ID: <24dd01cadc85$b1d9ea10$0400a8c0@dcccs>
+From: "Janos Haar" <janos.haar@netcenter.hu>
+References: <20100408025822.GL11036@dastard> <11b701cad9c8$93212530$0400a8c0@dcccs> <20100412001158.GA2493@dastard> <18b101cadadf$5edbb660$0400a8c0@dcccs> <20100413083931.GW2493@dastard> <190201cadaeb$02ec22c0$0400a8c0@dcccs> <20100413113445.GZ2493@dastard> <1cd501cadb62$3a93e790$0400a8c0@dcccs> <20100414001615.GC2493@dastard> <233401cadc69$64c1f4f0$0400a8c0@dcccs> <20100415092330.GU2493@dastard>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
+Date: Thu, 15 Apr 2010 12:23:26 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
 Content-Transfer-Encoding: 7bit
-Date: Thu, 15 Apr 2010 19:23:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-Now, max_scan of shrink_inactive_list() is always passed less than
-SWAP_CLUSTER_MAX. then, we can remove scanning pages loop in it.
-This patch also help stack diet.
 
-detail
- - remove "while (nr_scanned < max_scan)" loop
- - remove nr_freed (now, we use nr_reclaimed directly)
- - remove nr_scan (now, we use nr_scanned directly)
- - rename max_scan to nr_to_scan
- - pass nr_to_scan into isolate_pages() directly instead
-   using SWAP_CLUSTER_MAX
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |  190 ++++++++++++++++++++++++++++-------------------------------
- 1 files changed, 89 insertions(+), 101 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index eab6028..4de4029 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1137,16 +1137,22 @@ static int too_many_isolated(struct zone *zone, int file,
-  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
-  * of reclaimed pages
-  */
--static unsigned long shrink_inactive_list(unsigned long max_scan,
-+static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
- 			struct zone *zone, struct scan_control *sc,
- 			int file)
- {
- 	LIST_HEAD(page_list);
- 	struct pagevec pvec;
--	unsigned long nr_scanned = 0;
-+	unsigned long nr_scanned;
- 	unsigned long nr_reclaimed = 0;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
- 	int lumpy_reclaim = 0;
-+	struct page *page;
-+	unsigned long nr_taken;
-+	unsigned long nr_active;
-+	unsigned int count[NR_LRU_LISTS] = { 0, };
-+	unsigned long nr_anon;
-+	unsigned long nr_file;
- 
- 	while (unlikely(too_many_isolated(zone, file, sc))) {
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -1172,119 +1178,101 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
- 
- 	lru_add_drain();
- 	spin_lock_irq(&zone->lru_lock);
--	do {
--		struct page *page;
--		unsigned long nr_taken;
--		unsigned long nr_scan;
--		unsigned long nr_freed;
--		unsigned long nr_active;
--		unsigned int count[NR_LRU_LISTS] = { 0, };
--		int mode = lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE;
--		unsigned long nr_anon;
--		unsigned long nr_file;
--
--		nr_taken = sc->isolate_pages(SWAP_CLUSTER_MAX,
--			     &page_list, &nr_scan, sc->order, mode,
--				zone, sc->mem_cgroup, 0, file);
-+	nr_taken = sc->isolate_pages(nr_to_scan,
-+				     &page_list, &nr_scanned, sc->order,
-+				     lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE,
-+				     zone, sc->mem_cgroup, 0, file);
- 
--		if (scanning_global_lru(sc)) {
--			zone->pages_scanned += nr_scan;
--			if (current_is_kswapd())
--				__count_zone_vm_events(PGSCAN_KSWAPD, zone,
--						       nr_scan);
--			else
--				__count_zone_vm_events(PGSCAN_DIRECT, zone,
--						       nr_scan);
--		}
-+	if (scanning_global_lru(sc)) {
-+		zone->pages_scanned += nr_scanned;
-+		if (current_is_kswapd())
-+			__count_zone_vm_events(PGSCAN_KSWAPD, zone, nr_scanned);
-+		else
-+			__count_zone_vm_events(PGSCAN_DIRECT, zone, nr_scanned);
-+	}
- 
--		if (nr_taken == 0)
--			goto done;
-+	if (nr_taken == 0)
-+		goto done;
- 
--		nr_active = clear_active_flags(&page_list, count);
--		__count_vm_events(PGDEACTIVATE, nr_active);
-+	nr_active = clear_active_flags(&page_list, count);
-+	__count_vm_events(PGDEACTIVATE, nr_active);
- 
--		__mod_zone_page_state(zone, NR_ACTIVE_FILE,
--						-count[LRU_ACTIVE_FILE]);
--		__mod_zone_page_state(zone, NR_INACTIVE_FILE,
--						-count[LRU_INACTIVE_FILE]);
--		__mod_zone_page_state(zone, NR_ACTIVE_ANON,
--						-count[LRU_ACTIVE_ANON]);
--		__mod_zone_page_state(zone, NR_INACTIVE_ANON,
--						-count[LRU_INACTIVE_ANON]);
-+	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
-+			      -count[LRU_ACTIVE_FILE]);
-+	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
-+			      -count[LRU_INACTIVE_FILE]);
-+	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
-+			      -count[LRU_ACTIVE_ANON]);
-+	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
-+			      -count[LRU_INACTIVE_ANON]);
- 
--		nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
--		nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
--		__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
--		__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
-+	nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
-+	nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
-+	__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
-+	__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
- 
--		reclaim_stat->recent_scanned[0] += nr_anon;
--		reclaim_stat->recent_scanned[1] += nr_file;
-+	reclaim_stat->recent_scanned[0] += nr_anon;
-+	reclaim_stat->recent_scanned[1] += nr_file;
- 
--		spin_unlock_irq(&zone->lru_lock);
-+	spin_unlock_irq(&zone->lru_lock);
- 
--		nr_scanned += nr_scan;
--		nr_freed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
-+	nr_reclaimed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
-+
-+	/*
-+	 * If we are direct reclaiming for contiguous pages and we do
-+	 * not reclaim everything in the list, try again and wait
-+	 * for IO to complete. This will stall high-order allocations
-+	 * but that should be acceptable to the caller
-+	 */
-+	if (nr_reclaimed < nr_taken && !current_is_kswapd() && lumpy_reclaim) {
-+		congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 		/*
--		 * If we are direct reclaiming for contiguous pages and we do
--		 * not reclaim everything in the list, try again and wait
--		 * for IO to complete. This will stall high-order allocations
--		 * but that should be acceptable to the caller
-+		 * The attempt at page out may have made some
-+		 * of the pages active, mark them inactive again.
- 		 */
--		if (nr_freed < nr_taken && !current_is_kswapd() &&
--		    lumpy_reclaim) {
--			congestion_wait(BLK_RW_ASYNC, HZ/10);
--
--			/*
--			 * The attempt at page out may have made some
--			 * of the pages active, mark them inactive again.
--			 */
--			nr_active = clear_active_flags(&page_list, count);
--			count_vm_events(PGDEACTIVATE, nr_active);
--
--			nr_freed += shrink_page_list(&page_list, sc,
--							PAGEOUT_IO_SYNC);
--		}
-+		nr_active = clear_active_flags(&page_list, count);
-+		count_vm_events(PGDEACTIVATE, nr_active);
- 
--		nr_reclaimed += nr_freed;
-+		nr_reclaimed += shrink_page_list(&page_list, sc,
-+						 PAGEOUT_IO_SYNC);
-+	}
- 
--		local_irq_disable();
--		if (current_is_kswapd())
--			__count_vm_events(KSWAPD_STEAL, nr_freed);
--		__count_zone_vm_events(PGSTEAL, zone, nr_freed);
-+	local_irq_disable();
-+	if (current_is_kswapd())
-+		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
-+	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
- 
--		spin_lock(&zone->lru_lock);
--		/*
--		 * Put back any unfreeable pages.
--		 */
--		while (!list_empty(&page_list)) {
--			int lru;
--			page = lru_to_page(&page_list);
--			VM_BUG_ON(PageLRU(page));
--			list_del(&page->lru);
--			if (unlikely(!page_evictable(page, NULL))) {
--				spin_unlock_irq(&zone->lru_lock);
--				putback_lru_page(page);
--				spin_lock_irq(&zone->lru_lock);
--				continue;
--			}
--			SetPageLRU(page);
--			lru = page_lru(page);
--			add_page_to_lru_list(zone, page, lru);
--			if (is_active_lru(lru)) {
--				int file = is_file_lru(lru);
--				reclaim_stat->recent_rotated[file]++;
--			}
--			if (!pagevec_add(&pvec, page)) {
--				spin_unlock_irq(&zone->lru_lock);
--				__pagevec_release(&pvec);
--				spin_lock_irq(&zone->lru_lock);
--			}
-+	spin_lock(&zone->lru_lock);
-+	/*
-+	 * Put back any unfreeable pages.
-+	 */
-+	while (!list_empty(&page_list)) {
-+		int lru;
-+		page = lru_to_page(&page_list);
-+		VM_BUG_ON(PageLRU(page));
-+		list_del(&page->lru);
-+		if (unlikely(!page_evictable(page, NULL))) {
-+			spin_unlock_irq(&zone->lru_lock);
-+			putback_lru_page(page);
-+			spin_lock_irq(&zone->lru_lock);
-+			continue;
- 		}
--		__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
--		__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
--
--  	} while (nr_scanned < max_scan);
-+		SetPageLRU(page);
-+		lru = page_lru(page);
-+		add_page_to_lru_list(zone, page, lru);
-+		if (is_active_lru(lru)) {
-+			int file = is_file_lru(lru);
-+			reclaim_stat->recent_rotated[file]++;
-+		}
-+		if (!pagevec_add(&pvec, page)) {
-+			spin_unlock_irq(&zone->lru_lock);
-+			__pagevec_release(&pvec);
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+	}
-+	__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
-+	__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
- 
- done:
- 	spin_unlock_irq(&zone->lru_lock);
--- 
-1.6.5.2
+----- Original Message ----- 
+From: "Dave Chinner" <david@fromorbit.com>
+To: "Janos Haar" <janos.haar@netcenter.hu>
+Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
+<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
+<axboe@kernel.dk>
+Sent: Thursday, April 15, 2010 11:23 AM
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
+please!...)
 
 
+> On Thu, Apr 15, 2010 at 09:00:49AM +0200, Janos Haar wrote:
+>> Dave,
+>>
+>> The corruption + crash reproduced. (unfortunately)
+>>
+>> http://download.netcenter.hu/bughunt/20100413/messages-15
+>>
+>> Apr 14 01:06:33 alfa kernel: XFS mounting filesystem sdb2
+>>
+>> This was the point of the xfs_repair more times.
+>
+> OK, the inodes that are corrupted are different, so there's still
+> something funky going on here. I still would suggest replacing the
+> RAID controller to rule that out as the cause.
+
+This was not a cheap card and i can't replace, because have only one, and 
+the owner decided allready about i need to replace the entire server @ 
+saturday.
+I have only 2 day to get useful debug information when the server is online.
+This is bad too for testing, becasue the workload will disappear, and we 
+need to figure out something to reproduce the problem offline...
+
+>
+> FWIW, do you have any other servers with similar h/w, s/w and
+> workloads? If so, are they seeing problems?
+
+This is a web based game, wich generates a loooot of small files on the 
+corrupted filesystem, and as far as i see, the corruption happens only @ 
+writing, but not when reading.
+Because i can copy multiple times big gz files across the partitions, and 
+compare, and test for crc, and there is a cron-tester wich tests 12GB gz 
+files hourly but can't find any problem, this shows me, the corruption only 
+happens when writing, and not on the content, but on the FS.
+This scores the RAID card problem more lower, am i right? :-)
+
+Additionally in the last 3 days i have tried 2 times to cp -aR the entire 
+partition to another, and both times the corruption appears ON THE SOURCE 
+and finally the kernel crashed.
+
+step 1. repair
+step 2 run the game (files generated...)
+step 3 start copy partition's data in background
+step 4 corruption reported by kernel
+step 5 kernel crashed during write
+
+Can this be a race between read and write?
+
+Btw i have 2 server with this game, the difference are these:
+
+- The game's language
+- The HW's structure similar, but totally different branded all the parts, 
+except the Intel CPU. :-)
+- The workload is lower on the stable server
+- The stable server is not selected for replace. :-)
+
+The important matches:
+- The base OS is FC6 on both
+- The actual kernel on the stable server is 2.6.28.10
+(This kernel starts to crash @ the beginnig of Marc. month on which we are 
+working on.)
+- The FS and the internal structure is the same
+
+>
+> Can you recompile the kernel with CONFIG_XFS_DEBUG enabled and
+> reboot into it before you repair and remount the filesystem again?
+
+Yes, of course!
+I will do it now, we have 2 days left to get useful infos....
+
+> (i.e. so that we know that we have started with a clean filesystem
+> and the debug kernel) I'm hoping that this will catch the corruption
+> much sooner, perhaps before it gets to disk. Note that this will
+> cause the machine to panic when corruption is detected, and it is
+> much,much more careful about checking in memory structures so there
+> is a CPU overhead involved as well.
+
+not a problem.
+
+
+>
+> Cheers,
+>
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
