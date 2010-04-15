@@ -1,62 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 69DB16B01F0
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 07:26:13 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FBQAa4011794
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 20:26:10 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 151DF45DE4F
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:26:10 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E0C7245DE56
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:26:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CA6D51DB8042
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:26:09 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E5B71DB8038
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:26:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if current is kswapd
-In-Reply-To: <20100415103109.GC10966@csn.ul.ie>
-References: <20100415131106.D174.A69D9226@jp.fujitsu.com> <20100415103109.GC10966@csn.ul.ie>
-Message-Id: <20100415195227.D1B0.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 779926B01F1
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 07:40:04 -0400 (EDT)
+Message-ID: <4BC6FBC8.9090204@kernel.org>
+Date: Thu, 15 Apr 2010 20:43:04 +0900
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
+References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>	 <d5d70d4b57376bc89f178834cf0e424eaa681ab4.1271171877.git.minchan.kim@gmail.com>	 <20100413154820.GC25756@csn.ul.ie> <4BC65237.5080408@kernel.org>	 <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>	 <4BC6BE78.1030503@kernel.org>	 <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>	 <4BC6CB30.7030308@kernel.org>	 <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>	 <4BC6E581.1000604@kernel.org> <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
+In-Reply-To: <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Thu, 15 Apr 2010 20:26:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, Apr 15, 2010 at 01:11:37PM +0900, KOSAKI Motohiro wrote:
-> > Now, vmscan pageout() is one of IO throuput degression source.
-> > Some IO workload makes very much order-0 allocation and reclaim
-> > and pageout's 4K IOs are making annoying lots seeks.
-> > 
-> > At least, kswapd can avoid such pageout() because kswapd don't
-> > need to consider OOM-Killer situation. that's no risk.
-> > 
-> 
-> Well, there is some risk here. Direct reclaimers may not be cleaning
-> more pages than it had to previously except it splices subsystems
-> together increasing stack usage and causing further problems.
-> 
-> It might not cause OOM-killer issues but it could increase the time
-> dirty pages spend on the LRU.
-> 
-> Am I missing something?
+Hello,
 
-No. you are right. I fully agree your previous mail. so, I need to cool down a bit ;)
+On 04/15/2010 07:21 PM, Minchan Kim wrote:
+> kill alloc_pages_exact_node?
+> Sorry but I can't understand your point.
+> I don't want to kill user of alloc_pages_exact_node.
+> That's opposite.
+> I want to kill user of alloc_pages_node and change it with
+> alloc_pages_any_node or alloc_pages_exact_node. :)
 
+I see, so...
 
+ alloc_pages()		-> alloc_pages_any_node()
+ alloc_pages_node()	-> alloc_pages_exact_node()
 
+right?  It just seems strange to me and different from usual naming
+convention - ie. something which doesn't care about nodes usually
+doesn't carry _node postfix.  Anyways, no big deal, those names just
+felt a bit strange to me.
 
+Thanks.
 
-
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
