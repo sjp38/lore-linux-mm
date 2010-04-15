@@ -1,121 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AAF86B01F2
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:23:26 -0400 (EDT)
-Message-ID: <24dd01cadc85$b1d9ea10$0400a8c0@dcccs>
-From: "Janos Haar" <janos.haar@netcenter.hu>
-References: <20100408025822.GL11036@dastard> <11b701cad9c8$93212530$0400a8c0@dcccs> <20100412001158.GA2493@dastard> <18b101cadadf$5edbb660$0400a8c0@dcccs> <20100413083931.GW2493@dastard> <190201cadaeb$02ec22c0$0400a8c0@dcccs> <20100413113445.GZ2493@dastard> <1cd501cadb62$3a93e790$0400a8c0@dcccs> <20100414001615.GC2493@dastard> <233401cadc69$64c1f4f0$0400a8c0@dcccs> <20100415092330.GU2493@dastard>
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
-Date: Thu, 15 Apr 2010 12:23:26 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9F5CE6B01F4
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:24:07 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FAO7ZH002775
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 15 Apr 2010 19:24:07 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 65DAA45DE4F
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:07 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EAD545DE53
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:07 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E6F9FE08008
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:06 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 969E1E08002
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:06 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 2/4] [cleanup] mm: introduce free_pages_prepare
+In-Reply-To: <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
+References: <20100415085420.GT2493@dastard> <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
+Message-Id: <20100415192310.D1A7.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-1";
-	reply-type=original
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 15 Apr 2010 19:24:05 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+This patch is used from [3/4]
 
------ Original Message ----- 
-From: "Dave Chinner" <david@fromorbit.com>
-To: "Janos Haar" <janos.haar@netcenter.hu>
-Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
-<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
-<axboe@kernel.dk>
-Sent: Thursday, April 15, 2010 11:23 AM
-Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
-please!...)
+===================================
+Free_hot_cold_page() and __free_pages_ok() have very similar
+freeing preparation. This patch make consolicate it.
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/page_alloc.c |   40 +++++++++++++++++++++-------------------
+ 1 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 88513c0..ba9aea7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -599,20 +599,23 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
+ 	spin_unlock(&zone->lock);
+ }
+ 
+-static void __free_pages_ok(struct page *page, unsigned int order)
++static int free_pages_prepare(struct page *page, unsigned int order)
+ {
+-	unsigned long flags;
+ 	int i;
+ 	int bad = 0;
+-	int wasMlocked = __TestClearPageMlocked(page);
+ 
+ 	trace_mm_page_free_direct(page, order);
+ 	kmemcheck_free_shadow(page, order);
+ 
+-	for (i = 0 ; i < (1 << order) ; ++i)
+-		bad += free_pages_check(page + i);
++	for (i = 0 ; i < (1 << order) ; ++i) {
++		struct page *pg = page + i;
++
++		if (PageAnon(pg))
++			pg->mapping = NULL;
++		bad += free_pages_check(pg);
++	}
+ 	if (bad)
+-		return;
++		return -EINVAL;
+ 
+ 	if (!PageHighMem(page)) {
+ 		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
+@@ -622,6 +625,17 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	arch_free_page(page, order);
+ 	kernel_map_pages(page, 1 << order, 0);
+ 
++	return 0;
++}
++
++static void __free_pages_ok(struct page *page, unsigned int order)
++{
++	unsigned long flags;
++	int wasMlocked = __TestClearPageMlocked(page);
++
++	if (free_pages_prepare(page, order))
++		return;
++
+ 	local_irq_save(flags);
+ 	if (unlikely(wasMlocked))
+ 		free_page_mlock(page);
+@@ -1107,21 +1121,9 @@ void free_hot_cold_page(struct page *page, int cold)
+ 	int migratetype;
+ 	int wasMlocked = __TestClearPageMlocked(page);
+ 
+-	trace_mm_page_free_direct(page, 0);
+-	kmemcheck_free_shadow(page, 0);
+-
+-	if (PageAnon(page))
+-		page->mapping = NULL;
+-	if (free_pages_check(page))
++	if (free_pages_prepare(page, 0))
+ 		return;
+ 
+-	if (!PageHighMem(page)) {
+-		debug_check_no_locks_freed(page_address(page), PAGE_SIZE);
+-		debug_check_no_obj_freed(page_address(page), PAGE_SIZE);
+-	}
+-	arch_free_page(page, 0);
+-	kernel_map_pages(page, 1, 0);
+-
+ 	migratetype = get_pageblock_migratetype(page);
+ 	set_page_private(page, migratetype);
+ 	local_irq_save(flags);
+-- 
+1.6.5.2
 
 
-> On Thu, Apr 15, 2010 at 09:00:49AM +0200, Janos Haar wrote:
->> Dave,
->>
->> The corruption + crash reproduced. (unfortunately)
->>
->> http://download.netcenter.hu/bughunt/20100413/messages-15
->>
->> Apr 14 01:06:33 alfa kernel: XFS mounting filesystem sdb2
->>
->> This was the point of the xfs_repair more times.
->
-> OK, the inodes that are corrupted are different, so there's still
-> something funky going on here. I still would suggest replacing the
-> RAID controller to rule that out as the cause.
-
-This was not a cheap card and i can't replace, because have only one, and 
-the owner decided allready about i need to replace the entire server @ 
-saturday.
-I have only 2 day to get useful debug information when the server is online.
-This is bad too for testing, becasue the workload will disappear, and we 
-need to figure out something to reproduce the problem offline...
-
->
-> FWIW, do you have any other servers with similar h/w, s/w and
-> workloads? If so, are they seeing problems?
-
-This is a web based game, wich generates a loooot of small files on the 
-corrupted filesystem, and as far as i see, the corruption happens only @ 
-writing, but not when reading.
-Because i can copy multiple times big gz files across the partitions, and 
-compare, and test for crc, and there is a cron-tester wich tests 12GB gz 
-files hourly but can't find any problem, this shows me, the corruption only 
-happens when writing, and not on the content, but on the FS.
-This scores the RAID card problem more lower, am i right? :-)
-
-Additionally in the last 3 days i have tried 2 times to cp -aR the entire 
-partition to another, and both times the corruption appears ON THE SOURCE 
-and finally the kernel crashed.
-
-step 1. repair
-step 2 run the game (files generated...)
-step 3 start copy partition's data in background
-step 4 corruption reported by kernel
-step 5 kernel crashed during write
-
-Can this be a race between read and write?
-
-Btw i have 2 server with this game, the difference are these:
-
-- The game's language
-- The HW's structure similar, but totally different branded all the parts, 
-except the Intel CPU. :-)
-- The workload is lower on the stable server
-- The stable server is not selected for replace. :-)
-
-The important matches:
-- The base OS is FC6 on both
-- The actual kernel on the stable server is 2.6.28.10
-(This kernel starts to crash @ the beginnig of Marc. month on which we are 
-working on.)
-- The FS and the internal structure is the same
-
->
-> Can you recompile the kernel with CONFIG_XFS_DEBUG enabled and
-> reboot into it before you repair and remount the filesystem again?
-
-Yes, of course!
-I will do it now, we have 2 days left to get useful infos....
-
-> (i.e. so that we know that we have started with a clean filesystem
-> and the debug kernel) I'm hoping that this will catch the corruption
-> much sooner, perhaps before it gets to disk. Note that this will
-> cause the machine to panic when corruption is detected, and it is
-> much,much more careful about checking in memory structures so there
-> is a CPU overhead involved as well.
-
-not a problem.
-
-
->
-> Cheers,
->
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
