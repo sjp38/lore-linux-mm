@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 489926B01E3
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 00:35:22 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F4ZJug007996
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 13:35:19 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F5E245DE52
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:35:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 004E545DE51
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:35:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D0A141DB8037
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:35:18 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 87CBC1DB803B
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:35:18 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-In-Reply-To: <20100415130212.D16E.A69D9226@jp.fujitsu.com>
-References: <20100415013436.GO2493@dastard> <20100415130212.D16E.A69D9226@jp.fujitsu.com>
-Message-Id: <20100415133332.D183.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 951386B01E3
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 00:41:23 -0400 (EDT)
+Date: Thu, 15 Apr 2010 12:41:11 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: 32GB SSD on USB1.1 P3/700 == ___HELL___ (2.6.34-rc3)
+Message-ID: <20100415044111.GA15682@localhost>
+References: <20100415122928.D168.A69D9226@jp.fujitsu.com> <20100415041931.GA14215@localhost> <20100415132312.D180.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Thu, 15 Apr 2010 13:35:17 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100415132312.D180.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andreas Mohr <andi@lisas.de>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> Hi
+On Thu, Apr 15, 2010 at 12:32:50PM +0800, KOSAKI Motohiro wrote:
+> > On Thu, Apr 15, 2010 at 11:31:52AM +0800, KOSAKI Motohiro wrote:
+> > > > > Many applications (this one and below) are stuck in
+> > > > > wait_on_page_writeback(). I guess this is why "heavy write to
+> > > > > irrelevant partition stalls the whole system".  They are stuck on page
+> > > > > allocation. Your 512MB system memory is a bit tight, so reclaim
+> > > > > pressure is a bit high, which triggers the wait-on-writeback logic.
+> > > > 
+> > > > I wonder if this hacking patch may help.
+> > > > 
+> > > > When creating 300MB dirty file with dd, it is creating continuous
+> > > > region of hard-to-reclaim pages in the LRU list. priority can easily
+> > > > go low when irrelevant applications' direct reclaim run into these
+> > > > regions..
+> > > 
+> > > Sorry I'm confused not. can you please tell us more detail explanation?
+> > > Why did lumpy reclaim cause OOM? lumpy reclaim might cause
+> > > direct reclaim slow down. but IIUC it's not cause OOM because OOM is
+> > > only occur when priority-0 reclaim failure.
+> > 
+> > No I'm not talking OOM. Nor lumpy reclaim.
+> > 
+> > I mean the direct reclaim can get stuck for long time, when we do
+> > wait_on_page_writeback() on lumpy_reclaim=1.
+> > 
+> > > IO get stcking also prevent priority reach to 0.
+> > 
+> > Sure. But we can wait for IO a bit later -- after scanning 1/64 LRU
+> > (the below patch) instead of the current 1/1024.
+> > 
+> > In Andreas' case, 512MB/1024 = 512KB, this is way too low comparing to
+> > the 22MB writeback pages. There can easily be a continuous range of
+> > 512KB dirty/writeback pages in the LRU, which will trigger the wait
+> > logic.
 > 
-> > How about this? For now, we stop direct reclaim from doing writeback
-> > only on order zero allocations, but allow it for higher order
-> > allocations. That will prevent the majority of situations where
-> > direct reclaim blows the stack and interferes with background
-> > writeout, but won't cause lumpy reclaim to change behaviour.
-> > This reduces the scope of impact and hence testing and validation
-> > the needs to be done.
-> 
-> Tend to agree. but I would proposed slightly different algorithm for
-> avoind incorrect oom.
-> 
-> for high order allocation
-> 	allow to use lumpy reclaim and pageout() for both kswapd and direct reclaim
-> 
-> for low order allocation
-> 	- kswapd:          always delegate io to flusher thread
-> 	- direct reclaim:  delegate io to flusher thread only if vm pressure is low
-> 
-> This seems more safely. I mean Who want see incorrect oom regression?
-> I've made some pathes for this. I'll post it as another mail.
+> In my feeling from your explanation, we need auto adjustment mechanism
+> instead change default value for special machine. no?
 
-Now, kernel compile and/or backup operation seems keep nr_vmscan_write==0.
-Dave, can you please try to run your pageout annoying workload?
+You mean the dumb DEF_PRIORITY/2 may be too large for a 1TB memory box?
 
+However for such boxes, whether it be DEF_PRIORITY-2 or DEF_PRIORITY/2
+shall be irrelevant: it's trivial anyway to reclaim an order-1 or
+order-2 page. In other word, lumpy_reclaim will hardly go 1.  Do you
+think so?
 
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
