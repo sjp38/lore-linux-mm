@@ -1,73 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 063316B01F5
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:31:28 -0400 (EDT)
-Date: Thu, 15 Apr 2010 11:31:10 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if
-	current is kswapd
-Message-ID: <20100415103109.GC10966@csn.ul.ie>
-References: <20100415013436.GO2493@dastard> <20100415130212.D16E.A69D9226@jp.fujitsu.com> <20100415131106.D174.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 94A476B01F5
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:33:27 -0400 (EDT)
+Received: by iwn40 with SMTP id 40so502462iwn.1
+        for <linux-mm@kvack.org>; Thu, 15 Apr 2010 03:33:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100415131106.D174.A69D9226@jp.fujitsu.com>
+In-Reply-To: <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
+References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
+	 <20100413154820.GC25756@csn.ul.ie> <4BC65237.5080408@kernel.org>
+	 <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>
+	 <4BC6BE78.1030503@kernel.org>
+	 <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>
+	 <4BC6CB30.7030308@kernel.org>
+	 <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>
+	 <4BC6E581.1000604@kernel.org>
+	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
+Date: Thu, 15 Apr 2010 19:33:28 +0900
+Message-ID: <n2i28c262361004150333nf1bac78dr13acc418496e6a6b@mail.gmail.com>
+Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 01:11:37PM +0900, KOSAKI Motohiro wrote:
-> Now, vmscan pageout() is one of IO throuput degression source.
-> Some IO workload makes very much order-0 allocation and reclaim
-> and pageout's 4K IOs are making annoying lots seeks.
-> 
-> At least, kswapd can avoid such pageout() because kswapd don't
-> need to consider OOM-Killer situation. that's no risk.
-> 
+On Thu, Apr 15, 2010 at 7:21 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> On Thu, Apr 15, 2010 at 7:08 PM, Tejun Heo <tj@kernel.org> wrote:
+>> Hello,
+>>
+>> On 04/15/2010 06:40 PM, Minchan Kim wrote:
+>>>> I'm not an expert on that part of the kernel but isn't
+>>>> alloc_pages_any_node() identical to alloc_pages_exact_node()? =C2=A0Al=
+l
+>>>
+>>> alloc_pages_any_node means user allows allocated pages in any
+>>> node(most likely current node) alloc_pages_exact_node means user
+>>> allows allocated pages in nid node if he doesn't use __GFP_THISNODE.
+>>
+>> Ooh, sorry, I meant alloc_pages(). =C2=A0What would be the difference
+>> between alloc_pages_any_node() and alloc_pages()?
+>
+> It's no different. It's same. Just naming is more explicit. :)
+> I think it could be following as.
+>
+> #define alloc_pages alloc_pages_any_node.
+> strucdt page * alloc_pages_node() {
+typo. Sorry.
+struct page * alloc_pages_any_node {
 
-Well, there is some risk here. Direct reclaimers may not be cleaning
-more pages than it had to previously except it splices subsystems
-together increasing stack usage and causing further problems.
+> =C2=A0 int nid =3D numa_node_id();
+> =C2=A0 ...
+> =C2=A0 return page;
+> }
+>
 
-It might not cause OOM-killer issues but it could increase the time
-dirty pages spend on the LRU.
 
-Am I missing something?
-
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/vmscan.c |    7 +++++++
->  1 files changed, 7 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 3ff3311..d392a50 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -614,6 +614,13 @@ static enum page_references page_check_references(struct page *page,
->  	if (referenced_page)
->  		return PAGEREF_RECLAIM_CLEAN;
->  
-> +	/*
-> +	 * Delegate pageout IO to flusher thread. They can make more
-> +	 * effective IO pattern.
-> +	 */
-> +	if (current_is_kswapd())
-> +		return PAGEREF_RECLAIM_CLEAN;
-> +
->  	return PAGEREF_RECLAIM;
->  }
->  
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
