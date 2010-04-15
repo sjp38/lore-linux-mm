@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 98A466B01E3
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 00:32:55 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 489926B01E3
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 00:35:22 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F4Wq0s007337
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F4ZJug007996
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 13:32:53 +0900
+	Thu, 15 Apr 2010 13:35:19 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AD2145DE53
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:32:52 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F5E245DE52
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:35:19 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 39D8F45DE4D
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:32:52 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 004E545DE51
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:35:19 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BE001DB8044
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:32:52 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 85C871DB8042
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:32:51 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D0A141DB8037
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:35:18 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 87CBC1DB803B
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:35:18 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: 32GB SSD on USB1.1 P3/700 == ___HELL___ (2.6.34-rc3)
-In-Reply-To: <20100415041931.GA14215@localhost>
-References: <20100415122928.D168.A69D9226@jp.fujitsu.com> <20100415041931.GA14215@localhost>
-Message-Id: <20100415132312.D180.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+In-Reply-To: <20100415130212.D16E.A69D9226@jp.fujitsu.com>
+References: <20100415013436.GO2493@dastard> <20100415130212.D16E.A69D9226@jp.fujitsu.com>
+Message-Id: <20100415133332.D183.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 15 Apr 2010 13:32:50 +0900 (JST)
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Thu, 15 Apr 2010 13:35:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andreas Mohr <andi@lisas.de>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, Apr 15, 2010 at 11:31:52AM +0800, KOSAKI Motohiro wrote:
-> > > > Many applications (this one and below) are stuck in
-> > > > wait_on_page_writeback(). I guess this is why "heavy write to
-> > > > irrelevant partition stalls the whole system".  They are stuck on page
-> > > > allocation. Your 512MB system memory is a bit tight, so reclaim
-> > > > pressure is a bit high, which triggers the wait-on-writeback logic.
-> > > 
-> > > I wonder if this hacking patch may help.
-> > > 
-> > > When creating 300MB dirty file with dd, it is creating continuous
-> > > region of hard-to-reclaim pages in the LRU list. priority can easily
-> > > go low when irrelevant applications' direct reclaim run into these
-> > > regions..
-> > 
-> > Sorry I'm confused not. can you please tell us more detail explanation?
-> > Why did lumpy reclaim cause OOM? lumpy reclaim might cause
-> > direct reclaim slow down. but IIUC it's not cause OOM because OOM is
-> > only occur when priority-0 reclaim failure.
+> Hi
 > 
-> No I'm not talking OOM. Nor lumpy reclaim.
+> > How about this? For now, we stop direct reclaim from doing writeback
+> > only on order zero allocations, but allow it for higher order
+> > allocations. That will prevent the majority of situations where
+> > direct reclaim blows the stack and interferes with background
+> > writeout, but won't cause lumpy reclaim to change behaviour.
+> > This reduces the scope of impact and hence testing and validation
+> > the needs to be done.
 > 
-> I mean the direct reclaim can get stuck for long time, when we do
-> wait_on_page_writeback() on lumpy_reclaim=1.
+> Tend to agree. but I would proposed slightly different algorithm for
+> avoind incorrect oom.
 > 
-> > IO get stcking also prevent priority reach to 0.
+> for high order allocation
+> 	allow to use lumpy reclaim and pageout() for both kswapd and direct reclaim
 > 
-> Sure. But we can wait for IO a bit later -- after scanning 1/64 LRU
-> (the below patch) instead of the current 1/1024.
+> for low order allocation
+> 	- kswapd:          always delegate io to flusher thread
+> 	- direct reclaim:  delegate io to flusher thread only if vm pressure is low
 > 
-> In Andreas' case, 512MB/1024 = 512KB, this is way too low comparing to
-> the 22MB writeback pages. There can easily be a continuous range of
-> 512KB dirty/writeback pages in the LRU, which will trigger the wait
-> logic.
+> This seems more safely. I mean Who want see incorrect oom regression?
+> I've made some pathes for this. I'll post it as another mail.
 
-In my feeling from your explanation, we need auto adjustment mechanism
-instead change default value for special machine. no?
+Now, kernel compile and/or backup operation seems keep nr_vmscan_write==0.
+Dave, can you please try to run your pageout annoying workload?
 
 
 
