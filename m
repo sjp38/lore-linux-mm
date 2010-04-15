@@ -1,86 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E33296B01E3
-	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 21:56:41 -0400 (EDT)
-Date: Thu, 15 Apr 2010 11:56:25 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100415015625.GP2493@dastard>
-References: <20100413143659.GA2493@dastard>
- <20100414031205.GE2493@dastard>
- <20100414155222.D150.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100414155222.D150.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 8CF386B01E3
+	for <linux-mm@kvack.org>; Wed, 14 Apr 2010 22:31:32 -0400 (EDT)
+Date: Thu, 15 Apr 2010 11:22:49 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][BUGFIX][PATCH] memcg: fix underflow of mapped_file stat
+Message-Id: <20100415112249.c02c12ba.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100414144015.0a0d2bd2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
+	<20100413151400.cb89beb7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100414095408.d7b352f1.nishimura@mxp.nes.nec.co.jp>
+	<20100414100308.693c5650.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100414104010.7a359d04.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100414105608.d40c70ab.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100414120622.0a5c2983.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100414143132.179edc6e.nishimura@mxp.nes.nec.co.jp>
+	<20100414144015.0a0d2bd2.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 14, 2010 at 03:52:32PM +0900, KOSAKI Motohiro wrote:
-> > On Wed, Apr 14, 2010 at 12:36:59AM +1000, Dave Chinner wrote:
-> > > On Tue, Apr 13, 2010 at 08:39:29PM +0900, KOSAKI Motohiro wrote:
-> > > > > FWIW, the biggest problem here is that I have absolutely no clue on
-> > > > > how to test what the impact on lumpy reclaim really is. Does anyone
-> > > > > have a relatively simple test that can be run to determine what the
-> > > > > impact is?
-> > > > 
-> > > > So, can you please run two workloads concurrently?
-> > > >  - Normal IO workload (fio, iozone, etc..)
-> > > >  - echo $NUM > /proc/sys/vm/nr_hugepages
-> > > 
-> > > What do I measure/observe/record that is meaningful?
+> > > @@ -2517,65 +2519,70 @@ int mem_cgroup_prepare_migration(struct 
+> > >  		css_get(&mem->css);
+> > >  	}
+> > >  	unlock_page_cgroup(pc);
+> > > -
+> > > -	if (mem) {
+> > > -		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
+> > > -		css_put(&mem->css);
+> > > -	}
+> > > -	*ptr = mem;
+> > > +	/*
+> > > +	 * If the page is uncharged before migration (removed from radix-tree)
+> > > +	 * we return here.
+> > > +	 */
+> > > +	if (!mem)
+> > > +		return 0;
+> > > +	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
+> > > +	css_put(&mem->css); /* drop extra refcnt */
+> > it should be:
 > > 
-> > So, a rough as guts first pass - just run a large dd (8 times the
-> > size of memory - 8GB file vs 1GB RAM) and repeated try to allocate
-> > the entire of memory in huge pages (500) every 5 seconds. The IO
-> > rate is roughly 100MB/s, so it takes 75-85s to complete the dd.
-.....
-> > Basically, with my patch lumpy reclaim was *substantially* more
-> > effective with only a slight increase in average allocation latency
-> > with this test case.
-....
-> > I know this is a simple test case, but it shows much better results
-> > than I think anyone (even me) is expecting...
+> > 	*ptr = mem;
+> > 	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
+> > 	css_put(&mem->css);
+> > 
+> > as Andrea has fixed already.
+> > 
+> Ah, yes. I'll rebase this onto Andrea's fix.
 > 
-> Ummm...
 > 
-> Probably, I have to say I'm sorry. I guess my last mail give you
-> a misunderstand.
-> To be honest, I'm not interest this artificial non fragmentation case.
+> 
+> > > +	if (ret)
+We should check "if (ret || !*ptr)" not to do commit in !*ptr case.
 
-And to be brutally honest, I'm not interested in wasting my time
-trying to come up with a test case that you are interested in.
+> > > + 	 * Considering ANON pages, we can't depend on lock_page.
+> > > + 	 * If a page may be unmapped before it's remapped, new page's
+> > > + 	 * mapcount will not increase. (case that mapcount 0->1 never occur.)
+> > > + 	 * PageCgroupUsed() and SwapCache checks will be done.
+> > > + 	 *
+> > > + 	 * Once mapcount goes to 1, our hook to page_remove_rmap will do
+> > > + 	 * enough jobs.
+> > > + 	 */
+> > > +	if (PageAnon(used) && !page_mapped(used))
+> > > +		mem_cgroup_uncharge_page(used);
+> > mem_cgroup_uncharge_page() does the same check :)
+> > 
+> Ok. I'll fix.
+> 
+Considering more, we'd better to check PageAnon() at least not to call
+mem_cgroup_uncharge_page() for cache page.
 
-Instead, can you please you provide me with your test cases
-(scripts, preferably) that you use to measure the effectiveness of
-reclaim changes and I'll run them.
 
-> The above test-case does 1) discard all cache 2) fill pages by streaming
-> io. then, it makes artificial "file offset neighbor == block neighbor == PFN neighbor"
-> situation. then, file offset order writeout by flusher thread can make
-> PFN contenious pages effectively.
-
-Yes, that's true, but it does indicate that in that situation, it is
-more effective than the current code. FWIW, in the case of HPC
-applications (which often use huge pages and clear the cache before
-starting anew job), large streaming IO is a pretty common IO
-pattern, so I don't think this situation is as artificial as you are
-indicating.
-
-> Why I dont interest it? because lumpy reclaim is a technique for
-> avoiding external fragmentation mess. IOW, it is for avoiding
-> worst case. but your test case seems to mesure best one.
-
-Then please provide test cases that you consider valid.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
