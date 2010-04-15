@@ -1,121 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 90B1A6B01F6
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:24:58 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FAOwA0003094
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 03D546B01F4
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:26:17 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FAQI4q015226
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 19:24:59 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A390245DE4F
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:58 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 78E8E45DE4E
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:58 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EA541DB8038
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:58 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D8B941DB8061
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:24:54 +0900 (JST)
+	Thu, 15 Apr 2010 19:26:18 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D25DB45DE80
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:26:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 86DF745DE7D
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:26:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 82418E08003
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:26:16 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E49D1DB803F
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:26:12 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 3/4] mm: introduce free_pages_bulk
+Subject: [PATCH 4/4] vmscan: replace the pagevec in shrink_inactive_list() with list
 In-Reply-To: <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
 References: <20100415085420.GT2493@dastard> <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
-Message-Id: <20100415192412.D1AA.A69D9226@jp.fujitsu.com>
+Message-Id: <20100415192501.D1AD.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 15 Apr 2010 19:24:53 +0900 (JST)
+Date: Thu, 15 Apr 2010 19:26:11 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Now, vmscan is using __pagevec_free() for batch freeing. but
-pagevec consume slightly lots stack (sizeof(long)*8), and x86_64
-stack is very strictly limited.
-
-Then, now we are planning to use page->lru list instead pagevec
-for reducing stack. and introduce new helper function.
-
-This is similar to __pagevec_free(), but receive list instead
-pagevec. and this don't use pcp cache. it is good characteristics
-for vmscan.
+On x86_64, sizeof(struct pagevec) is 8*16=128, but
+sizeof(struct list_head) is 8*2=16. So, to replace pagevec with list
+makes to reduce 112 bytes stack.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- include/linux/gfp.h |    1 +
- mm/page_alloc.c     |   44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 0 deletions(-)
+ mm/vmscan.c |   22 ++++++++++++++--------
+ 1 files changed, 14 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 4c6d413..dbcac56 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -332,6 +332,7 @@ extern void free_hot_cold_page(struct page *page, int cold);
- #define __free_page(page) __free_pages((page), 0)
- #define free_page(addr) free_pages((addr),0)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4de4029..fbc26d8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -93,6 +93,8 @@ struct scan_control {
+ 			unsigned long *scanned, int order, int mode,
+ 			struct zone *z, struct mem_cgroup *mem_cont,
+ 			int active, int file);
++
++	struct list_head free_batch_list;
+ };
  
-+void free_pages_bulk(struct zone *zone, struct list_head *list);
- void page_alloc_init(void);
- void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
- void drain_all_pages(void);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ba9aea7..1f68832 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2049,6 +2049,50 @@ void free_pages(unsigned long addr, unsigned int order)
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+@@ -641,13 +643,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 					enum pageout_io sync_writeback)
+ {
+ 	LIST_HEAD(ret_pages);
+-	struct pagevec freed_pvec;
+ 	int pgactivate = 0;
+ 	unsigned long nr_reclaimed = 0;
  
- EXPORT_SYMBOL(free_pages);
+ 	cond_resched();
  
-+/*
-+ * Frees a number of pages from the list
-+ * Assumes all pages on list are in same zone and order==0.
-+ *
-+ * This is similar to __pagevec_free(), but receive list instead pagevec.
-+ * and this don't use pcp cache. it is good characteristics for vmscan.
-+ */
-+void free_pages_bulk(struct zone *zone, struct list_head *list)
-+{
-+	unsigned long flags;
-+	struct page *page;
-+	struct page *page2;
-+	int nr_pages = 0;
+-	pagevec_init(&freed_pvec, 1);
+ 	while (!list_empty(page_list)) {
+ 		enum page_references references;
+ 		struct address_space *mapping;
+@@ -822,10 +822,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		__clear_page_locked(page);
+ free_it:
+ 		nr_reclaimed++;
+-		if (!pagevec_add(&freed_pvec, page)) {
+-			__pagevec_free(&freed_pvec);
+-			pagevec_reinit(&freed_pvec);
+-		}
++		list_add(&page->lru, &sc->free_batch_list);
+ 		continue;
+ 
+ cull_mlocked:
+@@ -849,8 +846,6 @@ keep:
+ 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+ 	}
+ 	list_splice(&ret_pages, page_list);
+-	if (pagevec_count(&freed_pvec))
+-		__pagevec_free(&freed_pvec);
+ 	count_vm_events(PGACTIVATE, pgactivate);
+ 	return nr_reclaimed;
+ }
+@@ -1238,6 +1233,11 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
+ 						 PAGEOUT_IO_SYNC);
+ 	}
+ 
++	/*
++	 * Free unused pages.
++	 */
++	free_pages_bulk(zone, &sc->free_batch_list);
 +
-+	list_for_each_entry_safe(page, page2, list, lru) {
-+		int wasMlocked = __TestClearPageMlocked(page);
-+
-+		if (free_pages_prepare(page, 0)) {
-+			/* Make orphan the corrupted page. */
-+			list_del(&page->lru);
-+			continue;
-+		}
-+		if (unlikely(wasMlocked)) {
-+			local_irq_save(flags);
-+			free_page_mlock(page);
-+			local_irq_restore(flags);
-+		}
-+		nr_pages++;
-+	}
-+
-+	spin_lock_irqsave(&zone->lock, flags);
-+	__count_vm_events(PGFREE, nr_pages);
-+	zone->all_unreclaimable = 0;
-+	zone->pages_scanned = 0;
-+	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
-+
-+	list_for_each_entry_safe(page, page2, list, lru) {
-+		/* have to delete it as __free_one_page list manipulates */
-+		list_del(&page->lru);
-+		__free_one_page(page, zone, 0, page_private(page));
-+	}
-+	spin_unlock_irqrestore(&zone->lock, flags);
-+}
-+
- /**
-  * alloc_pages_exact - allocate an exact number physically-contiguous pages.
-  * @size: the number of bytes to allocate
+ 	local_irq_disable();
+ 	if (current_is_kswapd())
+ 		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+@@ -1844,6 +1844,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.mem_cgroup = NULL,
+ 		.isolate_pages = isolate_pages_global,
+ 		.nodemask = nodemask,
++		.free_batch_list = LIST_HEAD_INIT(sc.free_batch_list),
+ 	};
+ 
+ 	return do_try_to_free_pages(zonelist, &sc);
+@@ -1864,6 +1865,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 		.order = 0,
+ 		.mem_cgroup = mem,
+ 		.isolate_pages = mem_cgroup_isolate_pages,
++		.free_batch_list = LIST_HEAD_INIT(sc.free_batch_list),
+ 	};
+ 	nodemask_t nm  = nodemask_of_node(nid);
+ 
+@@ -1900,6 +1902,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+ 		.mem_cgroup = mem_cont,
+ 		.isolate_pages = mem_cgroup_isolate_pages,
+ 		.nodemask = NULL, /* we don't care the placement */
++		.free_batch_list = LIST_HEAD_INIT(sc.free_batch_list),
+ 	};
+ 
+ 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+@@ -1976,6 +1979,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
+ 		.order = order,
+ 		.mem_cgroup = NULL,
+ 		.isolate_pages = isolate_pages_global,
++		.free_batch_list = LIST_HEAD_INIT(sc.free_batch_list),
+ 	};
+ loop_again:
+ 	total_scanned = 0;
+@@ -2333,6 +2337,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ 		.swappiness = vm_swappiness,
+ 		.order = 0,
+ 		.isolate_pages = isolate_pages_global,
++		.free_batch_list = LIST_HEAD_INIT(sc.free_batch_list),
+ 	};
+ 	struct zonelist * zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
+ 	struct task_struct *p = current;
+@@ -2517,6 +2522,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
+ 		.isolate_pages = isolate_pages_global,
++		.free_batch_list = LIST_HEAD_INIT(sc.free_batch_list),
+ 	};
+ 	unsigned long slab_reclaimable;
+ 
 -- 
 1.6.5.2
 
