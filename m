@@ -1,88 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DA3626B01E3
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:21:23 -0400 (EDT)
-Received: by pzk28 with SMTP id 28so969648pzk.11
-        for <linux-mm@kvack.org>; Thu, 15 Apr 2010 03:21:25 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 45EFD6B01E3
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 06:21:25 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3FALNeL001880
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 15 Apr 2010 19:21:24 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CFC8045DE4F
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:21:23 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B1C6C45DE4E
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:21:23 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B43B1DB803C
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:21:23 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 46824E08002
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 19:21:23 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+In-Reply-To: <20100415085420.GT2493@dastard>
+References: <20100415152816.D18C.A69D9226@jp.fujitsu.com> <20100415085420.GT2493@dastard>
+Message-Id: <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <4BC6E581.1000604@kernel.org>
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
-	 <d5d70d4b57376bc89f178834cf0e424eaa681ab4.1271171877.git.minchan.kim@gmail.com>
-	 <20100413154820.GC25756@csn.ul.ie> <4BC65237.5080408@kernel.org>
-	 <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>
-	 <4BC6BE78.1030503@kernel.org>
-	 <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>
-	 <4BC6CB30.7030308@kernel.org>
-	 <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>
-	 <4BC6E581.1000604@kernel.org>
-Date: Thu, 15 Apr 2010 19:21:22 +0900
-Message-ID: <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 15 Apr 2010 19:21:22 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 7:08 PM, Tejun Heo <tj@kernel.org> wrote:
-> Hello,
->
-> On 04/15/2010 06:40 PM, Minchan Kim wrote:
->>> I'm not an expert on that part of the kernel but isn't
->>> alloc_pages_any_node() identical to alloc_pages_exact_node()? =C2=A0All
->>
->> alloc_pages_any_node means user allows allocated pages in any
->> node(most likely current node) alloc_pages_exact_node means user
->> allows allocated pages in nid node if he doesn't use __GFP_THISNODE.
->
-> Ooh, sorry, I meant alloc_pages(). =C2=A0What would be the difference
-> between alloc_pages_any_node() and alloc_pages()?
+> On Thu, Apr 15, 2010 at 03:35:14PM +0900, KOSAKI Motohiro wrote:
+> > > On Thu, Apr 15, 2010 at 01:09:01PM +0900, KOSAKI Motohiro wrote:
+> > > > Hi
+> > > > 
+> > > > > How about this? For now, we stop direct reclaim from doing writeback
+> > > > > only on order zero allocations, but allow it for higher order
+> > > > > allocations. That will prevent the majority of situations where
+> > > > > direct reclaim blows the stack and interferes with background
+> > > > > writeout, but won't cause lumpy reclaim to change behaviour.
+> > > > > This reduces the scope of impact and hence testing and validation
+> > > > > the needs to be done.
+> > > > 
+> > > > Tend to agree. but I would proposed slightly different algorithm for
+> > > > avoind incorrect oom.
+> > > > 
+> > > > for high order allocation
+> > > > 	allow to use lumpy reclaim and pageout() for both kswapd and direct reclaim
+> > > 
+> > > SO same as current.
+> > 
+> > Yes. as same as you propsed.
+> > 
+> > > 
+> > > > for low order allocation
+> > > > 	- kswapd:          always delegate io to flusher thread
+> > > > 	- direct reclaim:  delegate io to flusher thread only if vm pressure is low
+> > > 
+> > > IMO, this really doesn't fix either of the problems - the bad IO
+> > > patterns nor the stack usage. All it will take is a bit more memory
+> > > pressure to trigger stack and IO problems, and the user reporting the
+> > > problems is generating an awful lot of memory pressure...
+> > 
+> > This patch doesn't care stack usage. because
+> >   - again, I think all stack eater shold be diet.
+> 
+> Agreed (again), but we've already come to the conclusion that a
+> stack diet is not enough.
 
-It's no different. It's same. Just naming is more explicit. :)
-I think it could be following as.
+ok.
 
-#define alloc_pages alloc_pages_any_node.
-strucdt page * alloc_pages_node() {
-   int nid =3D numa_node_id();
-   ...
-   return page;
-}
 
->
->>> introducing new API just to weed out invalid usages seems like an
->>> overkill.
->>
->> It might be.
->>
->> It think it's almost same add_to_page_cache and add_to_page_cache_locked=
-.
->> If user knows the page is already locked, he can use
->> add_to_page_cache_locked for performance gain and code readability
->> which we need to lock the page before calling it.
->
-> Yeah, if both APIs are necessary at the end of the conversion, sure.
-> I was just saying that introducing new APIs just to weed out invalid
-> usages and then later killing the old API would be rather excessive.
->
-> I was just wondering whether we could just clean up alloc_pages_node()
-> users and kill alloc_pages_exact_node().
+> >   - under allowing lumpy reclaim world, only deny low order reclaim
+> >     doesn't solve anything.
+> 
+> Yes, I suggested it *as a first step*, not as the end goal. Your
+> patches don't reach the first step which is fixing the reported
+> stack problem for order-0 allocations...
 
-kill alloc_pages_exact_node?
-Sorry but I can't understand your point.
-I don't want to kill user of alloc_pages_exact_node.
-That's opposite.
-I want to kill user of alloc_pages_node and change it with
-alloc_pages_any_node or alloc_pages_exact_node. :)
+I have some diet patch as another patches. I'll post todays diet patch
+by another mail. I didn't hope mixing perfectly unrelated patches.
 
-I think we can do it. That's because all of caller already can check nid =
-=3D=3D -1
-before calling allocation function explicitly if he cares node locality.
 
---=20
-Kind regards,
-Minchan Kim
+> > Please don't forget priority=0 recliam failure incvoke OOM-killer.
+> > I don't imagine anyone want it.
+> 
+> Given that I haven't been able to trigger OOM without writeback from
+> direct reclaim so far (*) I'm not finding any evidence that it is a
+> problem or that there are regressions.  I want to be able to say
+> that this change has no known regressions. I want to find the
+> regression and  work to fix them, but without test cases there's no
+> way I can do this.
+> 
+> This is what I'm getting frustrated about - I want to fix this
+> problem once and for all, but I can't find out what I need to do to
+> robustly test such a change so we can have a high degree of
+> confidence that it doesn't introduce major regressions. Can anyone
+> help here?
+> 
+> (*) except in one case I've already described where it mananged to
+> allocate enough huge pages to starve the system of order zero pages,
+> which is what I asked it to do.
+
+Agreed. I'm sorry that thing. Probably nobody in the world have
+enough VM test case even though include no linux people. Modern general
+purpose OS are used really really various purpose and various machine.
+So, I haven't seen perfectly zero regression VM change. I'm getting 
+the same frustration anytime. 
+
+Because, Many VM mess is for avoiding extream starvation case. but If
+it can be reproduced easily, it's VM bug ;)
+
+
+
+> > And, Which IO workload trigger <6 priority vmscan?
+> 
+> You're asking me? I've been asking you for workloads that wind up
+> reclaim priority.... :/
+
+??? Do I misunderstand your last mail?
+You wrote
+
+> IMO, this really doesn't fix either of the problems - the bad IO
+> patterns nor the stack usage. All it will take is a bit more memory
+> pressure to trigger stack and IO problems, and the user reporting the
+> problems is generating an awful lot of memory pressure...
+
+and, I ask which is "the bad IO patterns". if it's not your intention,
+What do you talked about io pattern?
+
+If my understand is correct, you asked me about vmscan hurt case,
+and I asked you your the bad IO pattern. 
+
+now guessing, your intention was "bad IO patterns", not "the IO patterns"??
+
+
+
+> All I can say is that the most common trigger I see for OOM is
+> copying a large file on a busy system that is running off a single
+> spindle.  When that happens on my laptop I walk away and get a cup
+> of coffee when that happens and when I come back I pick up all the
+> broken bits the OOM killer left behind.....
+
+As far as I understand, you are talking about no specific general thing.
+then, I also talking general one. In general, I think slow down is
+better than OOM-killer. So, even though we need more and more improvement,
+we always care about avoiding incorrect oom. iow, I'd prefer step by
+step development.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
