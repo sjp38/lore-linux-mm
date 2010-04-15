@@ -1,80 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B12096B01E3
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 04:26:36 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F8QXcn014556
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 17:26:33 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C9AE45DE4F
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:26:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B52645DE4D
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:26:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 19CD5E08002
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:26:33 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CB74D1DB8040
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:26:28 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if current is kswapd
-In-Reply-To: <20100415171142.D192.A69D9226@jp.fujitsu.com>
-References: <64BE60A8-EEF9-4AC6-AF0A-0ED3CB544726@freebsd.org> <20100415171142.D192.A69D9226@jp.fujitsu.com>
-Message-Id: <20100415172215.D19B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6FA736B01E3
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 04:29:02 -0400 (EDT)
+Subject: Re: vmalloc performance
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <1271262948.2233.14.camel@barrios-desktop>
+References: <1271089672.7196.63.camel@localhost.localdomain>
+	 <1271249354.7196.66.camel@localhost.localdomain>
+	 <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
+	 <1271262948.2233.14.camel@barrios-desktop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 15 Apr 2010 09:33:08 +0100
+Message-ID: <1271320388.2537.30.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Thu, 15 Apr 2010 17:26:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Suleiman Souhlal <ssouhlal@freebsd.org>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, suleiman@google.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Cc to Johannes
+Hi,
 
+On Thu, 2010-04-15 at 01:35 +0900, Minchan Kim wrote:
+> On Thu, 2010-04-15 at 00:13 +0900, Minchan Kim wrote:
+> > Cced Nick.
+> > He's Mr. Vmalloc.
 > > 
-> > On Apr 14, 2010, at 9:11 PM, KOSAKI Motohiro wrote:
-> > 
-> > > Now, vmscan pageout() is one of IO throuput degression source.
-> > > Some IO workload makes very much order-0 allocation and reclaim
-> > > and pageout's 4K IOs are making annoying lots seeks.
+> > On Wed, Apr 14, 2010 at 9:49 PM, Steven Whitehouse <swhiteho@redhat.com> wrote:
 > > >
-> > > At least, kswapd can avoid such pageout() because kswapd don't
-> > > need to consider OOM-Killer situation. that's no risk.
+> > > Since this didn't attract much interest the first time around, and at
+> > > the risk of appearing to be talking to myself, here is the patch from
+> > > the bugzilla to better illustrate the issue:
 > > >
-> > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > 
-> > What's your opinion on trying to cluster the writes done by pageout,  
-> > instead of not doing any paging out in kswapd?
-> > Something along these lines:
+> > >
+> > > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > > index ae00746..63c8178 100644
+> > > --- a/mm/vmalloc.c
+> > > +++ b/mm/vmalloc.c
+> > > @@ -605,8 +605,7 @@ static void free_unmap_vmap_area_noflush(struct
+> > > vmap_area *va)
+> > >  {
+> > >        va->flags |= VM_LAZY_FREE;
+> > >        atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
+> > > -       if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
+> > > -               try_purge_vmap_area_lazy();
+> > > +       try_purge_vmap_area_lazy();
+> > >  }
+> > >
+> > >  /*
+> > >
+> > >
+> > > Steve.
+> > >
+> > > On Mon, 2010-04-12 at 17:27 +0100, Steven Whitehouse wrote:
+> > >> Hi,
+> > >>
+> > >> I've noticed that vmalloc seems to be rather slow. I wrote a test kernel
+> > >> module to track down what was going wrong. The kernel module does one
+> > >> million vmalloc/touch mem/vfree in a loop and prints out how long it
+> > >> takes.
+> > >>
+> > >> The source of the test kernel module can be found as an attachment to
+> > >> this bz: https://bugzilla.redhat.com/show_bug.cgi?id=581459
+> > >>
+> > >> When this module is run on my x86_64, 8 core, 12 Gb machine, then on an
+> > >> otherwise idle system I get the following results:
+> > >>
+> > >> vmalloc took 148798983 us
+> > >> vmalloc took 151664529 us
+> > >> vmalloc took 152416398 us
+> > >> vmalloc took 151837733 us
+> > >>
+> > >> After applying the two line patch (see the same bz) which disabled the
+> > >> delayed removal of the structures, which appears to be intended to
+> > >> improve performance in the smp case by reducing TLB flushes across cpus,
+> > >> I get the following results:
+> > >>
+> > >> vmalloc took 15363634 us
+> > >> vmalloc took 15358026 us
+> > >> vmalloc took 15240955 us
+> > >> vmalloc took 15402302 us
 > 
-> Interesting. 
-> So, I'd like to review your patch carefully. can you please give me one
-> day? :)
+> 
+> > >>
+> > >> So thats a speed up of around 10x, which isn't too bad. The question is
+> > >> whether it is possible to come to a compromise where it is possible to
+> > >> retain the benefits of the delayed TLB flushing code, but reduce the
+> > >> overhead for other users. My two line patch basically disables the delay
+> > >> by forcing a removal on each and every vfree.
+> > >>
+> > >> What is the correct way to fix this I wonder?
+> > >>
+> > >> Steve.
+> > >>
+> 
+> In my case(2 core, mem 2G system), 50300661 vs 11569357. 
+> It improves 4 times. 
+> 
+Looking at the code, it seems that the limit, against which my patch
+removes a test, scales according to the number of cpu cores. So with
+more cores, I'd expect the difference to be greater. I have a feeling
+that the original reporter had a greater number than the 8 of my test
+machine.
 
-Hannes, if my remember is correct, you tried similar swap-cluster IO
-long time ago. now I can't remember why we didn't merged such patch.
-Do you remember anything?
+> It would result from larger number of lazy_max_pages.
+> It would prevent many vmap_area freed.
+> So alloc_vmap_area takes long time to find new vmap_area. (ie, lookup
+> rbtree)
+> 
+> How about calling purge_vmap_area_lazy at the middle of loop in
+> alloc_vmap_area if rbtree lookup were long?
+> 
+That may be a good solution - I'm happy to test any patches but my worry
+is that any change here might result in a regression in whatever
+workload the lazy purge code was originally designed to improve. Is
+there any way to test that I wonder?
 
+> BTW, Steve. Is is real issue or some test?
+> I doubt such vmalloc bomb workload is real. 
 
-> 
-> 
-> > 
-> >      Cluster writes to disk due to memory pressure.
-> > 
-> >      Write out logically adjacent pages to the one we're paging out
-> >      so that we may get better IOs in these situations:
-> >      These pages are likely to be contiguous on disk to the one we're
-> >      writing out, so they should get merged into a single disk IO.
-> > 
-> >      Signed-off-by: Suleiman Souhlal <suleiman@google.com>
-> 
-> 
-> 
-> 
+Well the answer is both yes and no :-) So this is how I came across the
+issue. I received a report that GFS2 performance had regressed in recent
+kernels in relation to a test which basically fires lots of requests at
+it via NFS. The reporter of this problem gave me two bits of
+information: firstly that by eliminating all readdir calls from the
+test, the regression is never seen and secondly that oprofile showed
+that two functions related to vmalloc (rb_next, find_vmap_area,
+alloc_vmap_area in that order) were taking between them about 60% of the
+total cpu time.
 
+Now between the two kernel versions being tested, probably not a single
+line of GFS2 code for readdir has changed since that code has been
+stable for a fair while now. So my attention turned to vmalloc, even
+though it would be unusual for a filesystem to be limited by cpu, it did
+seem odd that it was so high in the oprofile result. I should also
+mention at this point that the backing device for the fs is a very high
+performance disk array, so that increases the chances of cpu being a
+limiting factor.
+
+Anyway, having looked briefly at the vmalloc code, I spotted that there
+was a cache of objects which might have an effect, so I wrote the test
+kernel module in the bz to test the two line patch just to see what
+effect it had.
+
+Since I got a good speed up, I sent the patch to the reporter who was
+able to get further on the NFS/GFS2 tests before running into the oops.
+I hadn't spotted that there had been a fix for that bug in the mean time
+though, so I'll get that applied. Thanks for pointing it out.
+
+We'll try and get some more testing done in order to try and prove
+whether the regression we are seeing in GFS2 readdir performance is
+entirely due to this factor, or only partially. I think it does have a
+measurable effect though, even if it is not the whole story,
+
+Steve.
 
 
 --
