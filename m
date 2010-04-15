@@ -1,122 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C2B426B0202
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 03:00:08 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F705xo013549
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 15 Apr 2010 16:00:06 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C98A45DE6E
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 16:00:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 427F745DE4D
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 16:00:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 26CEAE08001
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 16:00:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C0C041DB803B
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 16:00:04 +0900 (JST)
-Date: Thu, 15 Apr 2010 15:56:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][BUGFIX][PATCH 1/2] memcg: fix charge bypass route of
- migration
-Message-Id: <20100415155611.da707913.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100415154324.834dace9.nishimura@mxp.nes.nec.co.jp>
-References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
-	<20100415120516.3891ce46.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100415154324.834dace9.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C68196B0203
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 03:01:18 -0400 (EDT)
+Message-ID: <233401cadc69$64c1f4f0$0400a8c0@dcccs>
+From: "Janos Haar" <janos.haar@netcenter.hu>
+References: <20100405224522.GZ3335@dastard> <3a5f01cad6c5$8a722c00$0400a8c0@dcccs> <20100408025822.GL11036@dastard> <11b701cad9c8$93212530$0400a8c0@dcccs> <20100412001158.GA2493@dastard> <18b101cadadf$5edbb660$0400a8c0@dcccs> <20100413083931.GW2493@dastard> <190201cadaeb$02ec22c0$0400a8c0@dcccs> <20100413113445.GZ2493@dastard> <1cd501cadb62$3a93e790$0400a8c0@dcccs> <20100414001615.GC2493@dastard>
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look please!...)
+Date: Thu, 15 Apr 2010 09:00:49 +0200
+MIME-Version: 1.0
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: xiyou.wangcong@gmail.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, xfs@oss.sgi.com, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Apr 2010 15:43:24 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Dave,
 
-> On Thu, 15 Apr 2010 12:05:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > I'd like to wait until next mmotm comes out. (So, [RFC]) I'll rebase
-> > This patch is based on
-> >  mmotm-2010/04/05
-> >  +
-> >  mm-migration-take-a-reference-to-the-anon_vma-before-migrating.patch
-> >  mm-migration-do-not-try-to-migrate-unmapped-anonymous-pages.patch
-> >  mm-share-the-anon_vma-ref-counts-between-ksm-and-page-migration.patch
-> >  mm-migration-allow-the-migration-of-pageswapcache-pages.patch
-> >  memcg-fix-prepare-migration.patch
-> > 
-> > ==
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > This is an additonal fix to memcg-fix-prepare-migration.patch
-> > 
-> > Now, try_charge can bypass charge if TIF_MEMDIE at el are marked on the caller.
-> > In this case, the charge is bypassed. This makes accounts corrupted.
-> > (PageCgroup will be marked as PCG_USED even if bypassed, and css->refcnt
-> >  can leak.)
-> > 
-> > This patch clears passed "*memcg" in bypass route.
-> > 
-> > Because usual page allocater passes memcg=NULL, this patch only affects
-> > some special case as
-> >   - move account
-> >   - migration
-> >   - swapin.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > ---
-> >  mm/memcontrol.c |    7 +++++--
-> >  1 file changed, 5 insertions(+), 2 deletions(-)
-> > 
-> > Index: mmotm-temp/mm/memcontrol.c
-> > ===================================================================
-> > --- mmotm-temp.orig/mm/memcontrol.c
-> > +++ mmotm-temp/mm/memcontrol.c
-> > @@ -1606,8 +1606,12 @@ static int __mem_cgroup_try_charge(struc
-> >  	 * MEMDIE process.
-> >  	 */
-> >  	if (unlikely(test_thread_flag(TIF_MEMDIE)
-> > -		     || fatal_signal_pending(current)))
-> > +		     || fatal_signal_pending(current))) {
-> > +		/* Showing we skipped charge */
-> > +		if (memcg)
-> > +			*memcg = NULL;
-> >  		goto bypass;
-> > +	}
-> > 
-> I'm sorry, I can't understand what this part fixes.
-> We set *memcg to NULL at "bypass" part already:
-> 
->    1740 bypass:
->    1741         *memcg = NULL;
->    1742         return 0;
-> 
-> and __mem_cgroup_try_charge() is never called with @memcg == NULL, IIUC.
-> 
+The corruption + crash reproduced. (unfortunately)
 
-I totally missed that..Sigh.
+http://download.netcenter.hu/bughunt/20100413/messages-15
+
+Apr 14 01:06:33 alfa kernel: XFS mounting filesystem sdb2
+
+This was the point of the xfs_repair more times.
+
+Regards,
+Janos
+
+----- Original Message ----- 
+From: "Dave Chinner" <david@fromorbit.com>
+To: "Janos Haar" <janos.haar@netcenter.hu>
+Cc: <xiyou.wangcong@gmail.com>; <linux-kernel@vger.kernel.org>; 
+<kamezawa.hiroyu@jp.fujitsu.com>; <linux-mm@kvack.org>; <xfs@oss.sgi.com>; 
+<axboe@kernel.dk>
+Sent: Wednesday, April 14, 2010 2:16 AM
+Subject: Re: Kernel crash in xfs_iflush_cluster (was Somebody take a look 
+please!...)
 
 
-> >  	/*
-> >  	 * We always charge the cgroup the mm_struct belongs to.
-> > @@ -2523,7 +2527,6 @@ int mem_cgroup_prepare_migration(struct 
-> >  		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
-> >  		css_put(&mem->css);
-> >  	}
-> > -	*ptr = mem;
-> >  	return ret;
-> >  }
-> >  
-> I sent a patch to Andrew to fix this part yesterday :)
-> 
-
-Ok, ignore this patch.
-
--Kame
+> On Wed, Apr 14, 2010 at 01:36:56AM +0200, Janos Haar wrote:
+>> ----- Original Message ----- From: "Dave Chinner"
+>> >On Tue, Apr 13, 2010 at 11:23:36AM +0200, Janos Haar wrote:
+>> >>>If you run:
+>> >>>
+>> >>>$ xfs_db -r -c "inode 474253940" -c p /dev/sdb2
+>> >>>
+>> >>>Then I can can confirm whether there is corruption on disk or not.
+>> >>>Probably best to sample multiple of the inode numbers from the above
+>> >>>list of bad inodes.
+>> >>
+>> >>Here is the log:
+>> >>http://download.netcenter.hu/bughunt/20100413/debug.log
+>> >
+>> >There are multiple fields in the inode that are corrupted.
+>> >I am really surprised that xfs-repair - even an old version - is not
+>> >picking up the corruption....
+>>
+>> I think i know now the reason....
+>> My case starting to turn into more and more interesting.
+>>
+>> (Just a little note for remember: tuesday night, i have run the old
+>> 2.8.11 xfs_repair on the partiton wich was reported as corrupt by
+>> the kernel, but it was clean.
+>> The system was not restarted!)
+>>
+>> Like you suggested, today, i have tried to make a backup from the data.
+>> During the copy, the kernel reported a lot of corrupted entries
+>> again, and finally the kernel crashed! (with the 19 patch pack)
+>> Unfortunately the kernel can't write the debug info into the syslog.
+>> The system restarted automatically, the service runs again, and i
+>> can't do another backup attempt because force of the owner.
+>> Today night, when the traffic was in the low period, i have stopped
+>> the service, umount the partition, and repeat the xfs_repair on the
+>> previously reported partition on more ways.
+>>
+>> Here you can see the results:
+>> xfs_repair 2.8.11 run #1:
+>> http://download.netcenter.hu/bughunt/20100413/repair2811-nr1.log
+>
+> So this successfully detected and repaired the corruption.  I don't
+> think this is new corruption - the corrupted inode numbers are the
+> same as you reported a few days back.
+>
+>> xfs_repair 2.8.11 run #2:
+>> http://download.netcenter.hu/bughunt/20100413/repair2811-nr2.log
+>>
+>> echo 3 >/proc/sys/vm/drop_caches - performed
+>>
+>> xfs_repair 2.8.11 run #3:
+>> http://download.netcenter.hu/bughunt/20100413/repair2811-nr3.log
+>
+> These two are clearing lost+found and rediscovering the
+> diesconnected inodes that were discovered in the first pass. Nothing
+> wrng here, that's just the way older repair versions behaved.
+>
+>> xfs_reapir 3.1.1 run #1:
+>> http://download.netcenter.hu/bughunt/20100413/repair311-nr1.log
+>
+> And this detected nothing wrong, either.
+>
+>> For me, it looks like the FS gets corrupted between tuesday night
+>> and today night.
+>> Note: because i am expecting kernel crashes, the dirty data flush
+>> was set for some miliseconds timeout only for prevent too much data
+>> lost.
+>> It was one kernel crash in this period, but the XFS have journal,
+>> and should be cleaned correctly. (i don't think this is the problem)
+>>
+>> The other interesting thing is, why only this partition gets
+>> corrupted? (again, and again?)
+>
+> Can you reporduce the corruption again now that the filesystem has
+> been repaired? I want to know (if the corruption appears again)
+> whether it appears in the same location as this one.
+>
+>> >>I mean, if i am right, the hw memory problem makes only 1-2 bit
+>> >>corruption seriously, and the sw page handling problem makes bad
+>> >>memory pages, no?
+>> >
+>> >RAM ECC guarantees correction of single bit errors and detection of
+>> >double bit errors (which cause the kernel to panic, IIRC). I can't
+>> >tell you what happens when larger errors occur, though...
+>>
+>> Yes, but this system have non-ECC ram unfortunately.
+>
+> If your hardware doesn't have ECC, then you can't rule out anything
+> - even a dodgy power supply can cause this sort of transient
+> problem. I'm not saying that this is the cause, but I've been
+> assuming that you're actually running hardware with ECC on RAM,
+> caches, buses, etc.
+>
+>> This makes me think this is sw problem, and not a simple memory
+>> corruption, or the corruption can appear only for a short of time in
+>> the hw.
+>
+> If you can take the performance hit, turn on the kernel memory leak
+> detector and see if that catches anything.
+>
+> Cheers,
+>
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
