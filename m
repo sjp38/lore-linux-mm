@@ -1,157 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EDB86B01F5
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 09:43:18 -0400 (EDT)
-Date: Thu, 15 Apr 2010 09:42:17 -0400
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100415134217.GB3794@think>
-References: <20100413202021.GZ13327@think>
- <20100414014041.GD2493@dastard>
- <20100414155233.D153.A69D9226@jp.fujitsu.com>
- <20100414072830.GK2493@dastard>
- <20100414085132.GJ25756@csn.ul.ie>
- <20100415013436.GO2493@dastard>
- <20100415102837.GB10966@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F2F156B01F7
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 09:47:09 -0400 (EDT)
+Date: Thu, 15 Apr 2010 14:46:48 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 3/4] mm: introduce free_pages_bulk
+Message-ID: <20100415134648.GF10966@csn.ul.ie>
+References: <20100415085420.GT2493@dastard> <20100415185310.D1A1.A69D9226@jp.fujitsu.com> <20100415192412.D1AA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100415102837.GB10966@csn.ul.ie>
+In-Reply-To: <20100415192412.D1AA.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 11:28:37AM +0100, Mel Gorman wrote:
-> On Thu, Apr 15, 2010 at 11:34:36AM +1000, Dave Chinner wrote:
-> > On Wed, Apr 14, 2010 at 09:51:33AM +0100, Mel Gorman wrote:
-> > > On Wed, Apr 14, 2010 at 05:28:30PM +1000, Dave Chinner wrote:
-> > > > On Wed, Apr 14, 2010 at 03:52:44PM +0900, KOSAKI Motohiro wrote:
-> > > > > > On Tue, Apr 13, 2010 at 04:20:21PM -0400, Chris Mason wrote:
-> > > > > > > On Tue, Apr 13, 2010 at 08:34:29PM +0100, Mel Gorman wrote:
-> > > > > > > > > Basically, there is not enough stack space available to allow direct
-> > > > > > > > > reclaim to enter ->writepage _anywhere_ according to the stack usage
-> > > > > > > > > profiles we are seeing here....
-> > > > > > > > > 
-> > > > > > > > 
-> > > > > > > > I'm not denying the evidence but how has it been gotten away with for years
-> > > > > > > > then? Prevention of writeback isn't the answer without figuring out how
-> > > > > > > > direct reclaimers can queue pages for IO and in the case of lumpy reclaim
-> > > > > > > > doing sync IO, then waiting on those pages.
-> > > > > > > 
-> > > > > > > So, I've been reading along, nodding my head to Dave's side of things
-> > > > > > > because seeks are evil and direct reclaim makes seeks.  I'd really loev
-> > > > > > > for direct reclaim to somehow trigger writepages on large chunks instead
-> > > > > > > of doing page by page spatters of IO to the drive.
-> > > > > 
-> > > > > I agree that "seeks are evil and direct reclaim makes seeks". Actually,
-> > > > > making 4k io is not must for pageout. So, probably we can improve it.
-> > > > > 
-> > > > > 
-> > > > > > Perhaps drop the lock on the page if it is held and call one of the
-> > > > > > helpers that filesystems use to do this, like:
-> > > > > > 
-> > > > > > 	filemap_write_and_wait(page->mapping);
-> > > > > 
-> > > > > Sorry, I'm lost what you talk about. Why do we need per-file
-> > > > > waiting? If file is 1GB file, do we need to wait 1GB writeout?
-> > > > 
-> > > > So use filemap_fdatawrite(page->mapping), or if it's better only
-> > > > to start IO on a segment of the file, use
-> > > > filemap_fdatawrite_range(page->mapping, start, end)....
-> > > 
-> > > That does not help the stack usage issue, the caller ends up in
-> > > ->writepages. From an IO perspective, it'll be better from a seek point of
-> > > view but from a VM perspective, it may or may not be cleaning the right pages.
-> > > So I think this is a red herring.
-> > 
-> > If you ask it to clean a bunch of pages around the one you want to
-> > reclaim on the LRU, there is a good chance it will also be cleaning
-> > pages that are near the end of the LRU or physically close by as
-> > well. It's not a guarantee, but for the additional IO cost of about
-> > 10% wall time on that IO to clean the page you need, you also get
-> > 1-2 orders of magnitude other pages cleaned. That sounds like a
-> > win any way you look at it...
-> > 
+On Thu, Apr 15, 2010 at 07:24:53PM +0900, KOSAKI Motohiro wrote:
+> Now, vmscan is using __pagevec_free() for batch freeing. but
+> pagevec consume slightly lots stack (sizeof(long)*8), and x86_64
+> stack is very strictly limited.
 > 
-> At worst, it'll distort the LRU ordering slightly. Lets say the the
-> file-adjacent-page you clean was near the end of the LRU. Before such a
-> patch, it may have gotten cleaned and done another lap of the LRU.
-> After, it would be reclaimed sooner. I don't know if we depend on such
-> behaviour (very doubtful) but it's a subtle enough change. I can't
-> predict what it'll do for IO congestion. Simplistically, there is more
-> IO so it's bad but if the write pattern is less seeky and we needed to
-> write the pages anyway, it might be improved.
+> Then, now we are planning to use page->lru list instead pagevec
+> for reducing stack. and introduce new helper function.
 > 
-> > I agree that it doesn't solve the stack problem (Chris' suggestion
-> > that we enable the bdi flusher interface would fix this);
+> This is similar to __pagevec_free(), but receive list instead
+> pagevec. and this don't use pcp cache. it is good characteristics
+> for vmscan.
 > 
-> I'm afraid I'm not familiar with this interface. Can you point me at
-> some previous discussion so that I am sure I am looking at the right
-> thing?
-
-vi fs/direct-reclaim-helper.c, it has a few placeholders for where the
-real code needs to go....just look for the ~ marks.
-
-I mostly meant that the bdi helper threads were the best place to add
-knowledge about which pages we want to write for reclaim.  We might need
-to add a thread dedicated to just doing the VM's dirty work, but that's
-where I would start discussing fancy new interfaces.
-
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  include/linux/gfp.h |    1 +
+>  mm/page_alloc.c     |   44 ++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 45 insertions(+), 0 deletions(-)
 > 
-> > what I'm
-> > pointing out is that the arguments that it is too hard or there are
-> > no interfaces available to issue larger IO from reclaim are not at
-> > all valid.
-> > 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 4c6d413..dbcac56 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -332,6 +332,7 @@ extern void free_hot_cold_page(struct page *page, int cold);
+>  #define __free_page(page) __free_pages((page), 0)
+>  #define free_page(addr) free_pages((addr),0)
+>  
+> +void free_pages_bulk(struct zone *zone, struct list_head *list);
+>  void page_alloc_init(void);
+>  void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
+>  void drain_all_pages(void);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ba9aea7..1f68832 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2049,6 +2049,50 @@ void free_pages(unsigned long addr, unsigned int order)
+>  
+>  EXPORT_SYMBOL(free_pages);
+>  
+> +/*
+> + * Frees a number of pages from the list
+> + * Assumes all pages on list are in same zone and order==0.
+> + *
+> + * This is similar to __pagevec_free(), but receive list instead pagevec.
+> + * and this don't use pcp cache. it is good characteristics for vmscan.
+> + */
+> +void free_pages_bulk(struct zone *zone, struct list_head *list)
+> +{
+> +	unsigned long flags;
+> +	struct page *page;
+> +	struct page *page2;
+> +	int nr_pages = 0;
+> +
+> +	list_for_each_entry_safe(page, page2, list, lru) {
+> +		int wasMlocked = __TestClearPageMlocked(page);
+> +
+> +		if (free_pages_prepare(page, 0)) {
+> +			/* Make orphan the corrupted page. */
+> +			list_del(&page->lru);
+> +			continue;
+> +		}
+> +		if (unlikely(wasMlocked)) {
+> +			local_irq_save(flags);
+> +			free_page_mlock(page);
+> +			local_irq_restore(flags);
+> +		}
+
+You could clear this under the zone->lock below before calling
+__free_one_page. It'd avoid a large number of IRQ enables and disables which
+are a problem on some CPUs (P4 and Itanium both blow in this regard according
+to PeterZ).
+
+> +		nr_pages++;
+> +	}
+> +
+> +	spin_lock_irqsave(&zone->lock, flags);
+> +	__count_vm_events(PGFREE, nr_pages);
+> +	zone->all_unreclaimable = 0;
+> +	zone->pages_scanned = 0;
+> +	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
+> +
+> +	list_for_each_entry_safe(page, page2, list, lru) {
+> +		/* have to delete it as __free_one_page list manipulates */
+> +		list_del(&page->lru);
+> +		__free_one_page(page, zone, 0, page_private(page));
+> +	}
+
+This has the effect of bypassing the per-cpu lists as well as making the
+zone lock hotter. The cache hotness of the data within the page is
+probably not a factor but the cache hotness of the stuct page is.
+
+The zone lock getting hotter is a greater problem. Large amounts of page
+reclaim or dumping of page cache will now contend on the zone lock where
+as previously it would have dumped into the per-cpu lists (potentially
+but not necessarily avoiding the zone lock).
+
+While there might be a stack saving in the next patch, there would appear
+to be definite performance implications in taking this patch.
+
+Functionally, I see no problem but I'd put this sort of patch on the
+very long finger until the performance aspects of it could be examined.
+
+> +	spin_unlock_irqrestore(&zone->lock, flags);
+> +}
+> +
+>  /**
+>   * alloc_pages_exact - allocate an exact number physically-contiguous pages.
+>   * @size: the number of bytes to allocate
+> -- 
+> 1.6.5.2
 > 
-> Sure, I'm not resisting fixing this, just your first patch :) There are four
-> goals here
 > 
-> 1. Reduce stack usage
-> 2. Avoid the splicing of subsystem stack usage with direct reclaim
-> 3. Preserve lumpy reclaims cleaning of contiguous pages
-> 4. Try and not drastically alter LRU aging
 > 
-> 1 and 2 are important for you, 3 is important for me and 4 will have to
-> be dealt with on a case-by-case basis.
-> 
-> Your patch fixes 2, avoids 1, breaks 3 and haven't thought about 4 but I
-> guess dirty pages can cycle around more so it'd need to be cared for.
 
-I'd like to add one more:
-
-5. Don't dive into filesystem locks during reclaim.
-
-This is different from splicing code paths together, but
-the filesystem writepage code has become the center of our attempts at
-doing big fat contiguous writes on disk.  We push off work as late as we
-can until just before the pages go down to disk.
-
-I'll pick on ext4 and btrfs for a minute, just to broaden the scope
-outside of XFS.  Writepage comes along and the filesystem needs to
-actually find blocks on disk for all the dirty pages it has promised to
-write.
-
-So, we start a transaction, we take various allocator locks, modify
-different metadata, log changed blocks, take a break (logging is hard
-work you know, need_resched() triggered a by now), stuff it
-all into the file's metadata, log that, and finally return.
-
-Each of the steps above can block for a long time.  Ext4 solves
-this by not doing them.  ext4_writepage only writes pages that
-are already fully allocated on disk.
-
-Btrfs is much more efficient at not doing them, it just returns right
-away for PF_MEMALLOC.
-
-This is a long way of saying the filesystem writepage code is the
-opposite of what direct reclaim wants.  Direct reclaim wants to
-find free ram now, and if it does end up in the mess describe above,
-it'll just get stuck for a long time on work entirely unrelated to
-finding free pages.
-
--chris
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
