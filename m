@@ -1,75 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7435D6B0202
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 04:19:03 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F8J0Ko017042
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B12096B01E3
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 04:26:36 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3F8QXcn014556
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Apr 2010 17:19:00 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8046345DE4D
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:19:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EFA545DE4E
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:19:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40EA0E08006
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:19:00 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EEB08E08004
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:18:56 +0900 (JST)
+	Thu, 15 Apr 2010 17:26:33 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C9AE45DE4F
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:26:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B52645DE4D
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:26:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 19CD5E08002
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:26:33 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CB74D1DB8040
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 17:26:28 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if current is kswapd
-In-Reply-To: <20100415131106.D174.A69D9226@jp.fujitsu.com>
-References: <20100415130212.D16E.A69D9226@jp.fujitsu.com> <20100415131106.D174.A69D9226@jp.fujitsu.com>
-Message-Id: <20100415171750.D195.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100415171142.D192.A69D9226@jp.fujitsu.com>
+References: <64BE60A8-EEF9-4AC6-AF0A-0ED3CB544726@freebsd.org> <20100415171142.D192.A69D9226@jp.fujitsu.com>
+Message-Id: <20100415172215.D19B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Thu, 15 Apr 2010 17:18:56 +0900 (JST)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 15 Apr 2010 17:26:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Suleiman Souhlal <ssouhlal@freebsd.org>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, suleiman@google.com
 List-ID: <linux-mm.kvack.org>
 
-> Now, vmscan pageout() is one of IO throuput degression source.
-> Some IO workload makes very much order-0 allocation and reclaim
-> and pageout's 4K IOs are making annoying lots seeks.
+Cc to Johannes
+
+> > 
+> > On Apr 14, 2010, at 9:11 PM, KOSAKI Motohiro wrote:
+> > 
+> > > Now, vmscan pageout() is one of IO throuput degression source.
+> > > Some IO workload makes very much order-0 allocation and reclaim
+> > > and pageout's 4K IOs are making annoying lots seeks.
+> > >
+> > > At least, kswapd can avoid such pageout() because kswapd don't
+> > > need to consider OOM-Killer situation. that's no risk.
+> > >
+> > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > 
+> > What's your opinion on trying to cluster the writes done by pageout,  
+> > instead of not doing any paging out in kswapd?
+> > Something along these lines:
 > 
-> At least, kswapd can avoid such pageout() because kswapd don't
-> need to consider OOM-Killer situation. that's no risk.
+> Interesting. 
+> So, I'd like to review your patch carefully. can you please give me one
+> day? :)
 
-I've found one bug in this patch myself. flusher thread don't
-pageout anon pages. then, we need PageAnon() check ;)
-
+Hannes, if my remember is correct, you tried similar swap-cluster IO
+long time ago. now I can't remember why we didn't merged such patch.
+Do you remember anything?
 
 
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/vmscan.c |    7 +++++++
->  1 files changed, 7 insertions(+), 0 deletions(-)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 3ff3311..d392a50 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -614,6 +614,13 @@ static enum page_references page_check_references(struct page *page,
->  	if (referenced_page)
->  		return PAGEREF_RECLAIM_CLEAN;
->  
-> +	/*
-> +	 * Delegate pageout IO to flusher thread. They can make more
-> +	 * effective IO pattern.
-> +	 */
-> +	if (current_is_kswapd())
-> +		return PAGEREF_RECLAIM_CLEAN;
-> +
->  	return PAGEREF_RECLAIM;
->  }
->  
-> -- 
-> 1.6.5.2
+> > 
+> >      Cluster writes to disk due to memory pressure.
+> > 
+> >      Write out logically adjacent pages to the one we're paging out
+> >      so that we may get better IOs in these situations:
+> >      These pages are likely to be contiguous on disk to the one we're
+> >      writing out, so they should get merged into a single disk IO.
+> > 
+> >      Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+> 
 > 
 > 
 > 
