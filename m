@@ -1,250 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 574D7600373
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:31:05 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 60618600375
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 13:31:06 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 15 Apr 2010 13:30:30 -0400
-Message-Id: <20100415173030.8801.84836.sendpatchset@localhost.localdomain>
+Date: Thu, 15 Apr 2010 13:30:16 -0400
+Message-Id: <20100415173016.8801.34970.sendpatchset@localhost.localdomain>
 In-Reply-To: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
 References: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
-Subject: [PATCH 6/8] numa: slab:  use numa_mem_id() for slab local memory node
+Subject: [PATCH 4/8] numa:  Introduce numa_mem_id()- effective local memory node id
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-numa@vger.kernel.org
 Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andi@domain.invalid, Kleen@domain.invalid, andi@firstfloor.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-
 Against:  2.6.34-rc3-mmotm-100405-1609
 
-Example usage of generic "numa_mem_id()":
+Introduce numa_mem_id(), based on generic percpu variable infrastructure
+to track "nearest node with memory" for archs that support memoryless
+nodes.
 
-The mainline slab code, since ~ 2.6.19, does not handle memoryless
-nodes well.  Specifically, the "fast path"--____cache_alloc()--will
-never succeed as slab doesn't cache offnode object on the per cpu
-queues, and for memoryless nodes, all memory will be "off node"
-relative to numa_node_id().  This adds significant overhead to all
-kmem cache allocations, incurring a significant regression relative
-to earlier kernels [from before slab.c was reorganized].
+Define API in <linux/topology.h> when CONFIG_HAVE_MEMORYLESS_NODES
+defined, else stubs. Architectures will define HAVE_MEMORYLESS_NODES
+if/when they support them.
 
-This patch uses the generic topology function "numa_mem_id()" to
-return the "effective local memory node" for the calling context.
-This is the first node in the local node's generic fallback zonelist--
-the same node that "local" mempolicy-based allocations would use.
-This lets slab cache these "local" allocations and avoid
-fallback/refill on every allocation.
+Archs can override definitions of:
 
-N.B.:  Slab will need to handle node and memory hotplug events that
-could change the value returned by numa_mem_id() for any given
-node if recent changes to address memory hotplug don't already
-address this.  E.g., flush all per cpu slab queues before rebuilding
-the zonelists while the "machine" is held in the stopped state.
+numa_mem_id() - returns node number of "local memory" node
+set_numa_mem() - initialize [this cpus'] per cpu variable 'numa_mem'
+cpu_to_mem()  - return numa_mem for specified cpu; may be used as lvalue
 
-Performance impact on "hackbench 400 process 200"
-
-2.6.34-rc3-mmotm-100405-1609		no-patch	this-patch
-ia64 no memoryless nodes [avg of 10]:     11.713       11.637  ~0.65 diff
-ia64 cpus all on memless nodes  [10]:    228.259       26.484  ~8.6x speedup
-
-The slowdown of the patched kernel from ~12 sec to ~28 seconds when
-configured with memoryless nodes is the result of all cpus allocating
-from a single node's mm pagepool.  The cache lines of the single node
-are distributed/interleaved over the memory of the real physical nodes,
-but the zone lock, list heads, ... of the single node with memory still
-each live in a single cache line that is accessed from all processors.
-
-x86_64 [8x6 AMD] [avg of 40]:		2.883	   2.845
+Generic initialization of 'numa_mem' occurs in __build_all_zonelists().
+This will initialize the boot cpu at boot time, and all cpus on change of
+numa_zonelist_order, or when node or memory hot-plug requires zonelist rebuild.
+Archs that support memoryless nodes will need to initialize 'numa_mem' for
+secondary cpus as they're brought on-line.
 
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
 
-V4:	no change to code.  rebased patch and updated test results
-	in description.
+V2:  + split this out of Christoph's incomplete "starter patch"
+     + flesh out the definition
 
+V3,V4:  no change
 
- mm/slab.c |   43 ++++++++++++++++++++++---------------------
- 1 files changed, 22 insertions(+), 21 deletions(-)
+ include/asm-generic/topology.h |    3 +++
+ include/linux/mmzone.h         |    6 ++++++
+ include/linux/topology.h       |   24 ++++++++++++++++++++++++
+ mm/page_alloc.c                |   39 ++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 71 insertions(+), 1 deletion(-)
 
-Index: linux-2.6.34-rc3-mmotm-100405-1609/mm/slab.c
+Index: linux-2.6.34-rc3-mmotm-100405-1609/include/linux/topology.h
 ===================================================================
---- linux-2.6.34-rc3-mmotm-100405-1609.orig/mm/slab.c	2010-04-07 10:04:02.000000000 -0400
-+++ linux-2.6.34-rc3-mmotm-100405-1609/mm/slab.c	2010-04-07 10:11:34.000000000 -0400
-@@ -844,7 +844,7 @@ static void init_reap_node(int cpu)
- {
- 	int node;
+--- linux-2.6.34-rc3-mmotm-100405-1609.orig/include/linux/topology.h	2010-04-07 10:10:23.000000000 -0400
++++ linux-2.6.34-rc3-mmotm-100405-1609/include/linux/topology.h	2010-04-07 10:10:28.000000000 -0400
+@@ -233,6 +233,30 @@ DECLARE_PER_CPU(int, numa_node);
  
--	node = next_node(cpu_to_node(cpu), node_online_map);
-+	node = next_node(cpu_to_mem(cpu), node_online_map);
- 	if (node == MAX_NUMNODES)
- 		node = first_node(node_online_map);
+ #endif	/* [!]CONFIG_USE_PERCPU_NUMA_NODE_ID */
  
-@@ -1073,7 +1073,7 @@ static inline int cache_free_alien(struc
- 	struct array_cache *alien = NULL;
- 	int node;
- 
--	node = numa_node_id();
-+	node = numa_mem_id();
- 
- 	/*
- 	 * Make sure we are not freeing a object from another node to the array
-@@ -1106,7 +1106,7 @@ static void __cpuinit cpuup_canceled(lon
- {
- 	struct kmem_cache *cachep;
- 	struct kmem_list3 *l3 = NULL;
--	int node = cpu_to_node(cpu);
-+	int node = cpu_to_mem(cpu);
- 	const struct cpumask *mask = cpumask_of_node(node);
- 
- 	list_for_each_entry(cachep, &cache_chain, next) {
-@@ -1171,7 +1171,7 @@ static int __cpuinit cpuup_prepare(long
- {
- 	struct kmem_cache *cachep;
- 	struct kmem_list3 *l3 = NULL;
--	int node = cpu_to_node(cpu);
-+	int node = cpu_to_mem(cpu);
- 	const int memsize = sizeof(struct kmem_list3);
- 
- 	/*
-@@ -1418,7 +1418,7 @@ void __init kmem_cache_init(void)
- 	 * 6) Resize the head arrays of the kmalloc caches to their final sizes.
- 	 */
- 
--	node = numa_node_id();
-+	node = numa_mem_id();
- 
- 	/* 1) create the cache_cache */
- 	INIT_LIST_HEAD(&cache_chain);
-@@ -2052,7 +2052,7 @@ static int __init_refok setup_cpu_cache(
- 			}
- 		}
- 	}
--	cachep->nodelists[numa_node_id()]->next_reap =
-+	cachep->nodelists[numa_mem_id()]->next_reap =
- 			jiffies + REAPTIMEOUT_LIST3 +
- 			((unsigned long)cachep) % REAPTIMEOUT_LIST3;
- 
-@@ -2383,7 +2383,7 @@ static void check_spinlock_acquired(stru
- {
- #ifdef CONFIG_SMP
- 	check_irq_off();
--	assert_spin_locked(&cachep->nodelists[numa_node_id()]->list_lock);
-+	assert_spin_locked(&cachep->nodelists[numa_mem_id()]->list_lock);
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++
++DECLARE_PER_CPU(int, numa_mem);
++
++#ifndef set_numa_mem
++#define set_numa_mem(__node) percpu_write(numa_mem, __node)
++#endif
++
++#else	/* !CONFIG_HAVE_MEMORYLESS_NODES */
++
++#define numa_mem numa_node
++static inline void set_numa_mem(int node) {}
++
++#endif	/* [!]CONFIG_HAVE_MEMORYLESS_NODES */
++
++#ifndef numa_mem_id
++/* Returns the number of the nearest Node with memory */
++#define numa_mem_id()		__this_cpu_read(numa_mem)
++#endif
++
++#ifndef cpu_to_mem
++#define cpu_to_mem(__cpu)	per_cpu(numa_mem, (__cpu))
++#endif
++
+ #ifndef topology_physical_package_id
+ #define topology_physical_package_id(cpu)	((void)(cpu), -1)
  #endif
+Index: linux-2.6.34-rc3-mmotm-100405-1609/mm/page_alloc.c
+===================================================================
+--- linux-2.6.34-rc3-mmotm-100405-1609.orig/mm/page_alloc.c	2010-04-07 10:10:23.000000000 -0400
++++ linux-2.6.34-rc3-mmotm-100405-1609/mm/page_alloc.c	2010-04-07 10:10:28.000000000 -0400
+@@ -61,6 +61,11 @@ DEFINE_PER_CPU(int, numa_node);
+ EXPORT_PER_CPU_SYMBOL(numa_node);
+ #endif
+ 
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++DEFINE_PER_CPU(int, numa_mem);		/* Kernel "local memory" node */
++EXPORT_PER_CPU_SYMBOL(numa_mem);
++#endif
++
+ /*
+  * Array of node states.
+  */
+@@ -2752,6 +2757,24 @@ static void build_zonelist_cache(pg_data
+ 		zlc->z_to_n[z - zonelist->_zonerefs] = zonelist_node_idx(z);
  }
  
-@@ -2410,7 +2410,7 @@ static void do_drain(void *arg)
- {
- 	struct kmem_cache *cachep = arg;
- 	struct array_cache *ac;
--	int node = numa_node_id();
-+	int node = numa_mem_id();
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++/*
++ * Return node id of node used for "local" allocations.
++ * I.e., first node id of first zone in arg node's generic zonelist.
++ * Used for initializing percpu 'numa_mem', which is used primarily
++ * for kernel allocations, so use GFP_KERNEL flags to locate zonelist.
++ */
++int local_memory_node(int node)
++{
++	struct zone *zone;
++
++	(void)first_zones_zonelist(node_zonelist(node, GFP_KERNEL),
++				   gfp_zone(GFP_KERNEL),
++				   NULL,
++				   &zone);
++	return zone->node;
++}
++#endif
  
- 	check_irq_off();
- 	ac = cpu_cache_get(cachep);
-@@ -2943,7 +2943,7 @@ static void *cache_alloc_refill(struct k
+ #else	/* CONFIG_NUMA */
  
- retry:
- 	check_irq_off();
--	node = numa_node_id();
-+	node = numa_mem_id();
- 	ac = cpu_cache_get(cachep);
- 	batchcount = ac->batchcount;
- 	if (!ac->touched && batchcount > BATCHREFILL_LIMIT) {
-@@ -3147,7 +3147,7 @@ static void *alternate_node_alloc(struct
- 
- 	if (in_interrupt() || (flags & __GFP_THISNODE))
- 		return NULL;
--	nid_alloc = nid_here = numa_node_id();
-+	nid_alloc = nid_here = numa_mem_id();
- 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
- 		nid_alloc = cpuset_mem_spread_node();
- 	else if (current->mempolicy)
-@@ -3209,7 +3209,7 @@ retry:
- 		if (local_flags & __GFP_WAIT)
- 			local_irq_enable();
- 		kmem_flagcheck(cache, flags);
--		obj = kmem_getpages(cache, local_flags, numa_node_id());
-+		obj = kmem_getpages(cache, local_flags, numa_mem_id());
- 		if (local_flags & __GFP_WAIT)
- 			local_irq_disable();
- 		if (obj) {
-@@ -3316,6 +3316,7 @@ __cache_alloc_node(struct kmem_cache *ca
- {
- 	unsigned long save_flags;
- 	void *ptr;
-+	int slab_node = numa_mem_id();
- 
- 	flags &= gfp_allowed_mask;
- 
-@@ -3328,7 +3329,7 @@ __cache_alloc_node(struct kmem_cache *ca
- 	local_irq_save(save_flags);
- 
- 	if (nodeid == -1)
--		nodeid = numa_node_id();
-+		nodeid = slab_node;
- 
- 	if (unlikely(!cachep->nodelists[nodeid])) {
- 		/* Node not bootstrapped yet */
-@@ -3336,7 +3337,7 @@ __cache_alloc_node(struct kmem_cache *ca
- 		goto out;
- 	}
- 
--	if (nodeid == numa_node_id()) {
-+	if (nodeid == slab_node) {
- 		/*
- 		 * Use the locally cached objects if possible.
- 		 * However ____cache_alloc does not allow fallback
-@@ -3380,8 +3381,8 @@ __do_cache_alloc(struct kmem_cache *cach
- 	 * We may just have run out of memory on the local node.
- 	 * ____cache_alloc_node() knows how to locate memory on other nodes
+@@ -2851,9 +2874,23 @@ static int __build_all_zonelists(void *d
+ 	 * needs the percpu allocator in order to allocate its pagesets
+ 	 * (a chicken-egg dilemma).
  	 */
-- 	if (!objp)
-- 		objp = ____cache_alloc_node(cache, flags, numa_node_id());
-+	if (!objp)
-+		objp = ____cache_alloc_node(cache, flags, numa_mem_id());
+-	for_each_possible_cpu(cpu)
++	for_each_possible_cpu(cpu) {
+ 		setup_pageset(&per_cpu(boot_pageset, cpu), 0);
  
-   out:
- 	return objp;
-@@ -3478,7 +3479,7 @@ static void cache_flusharray(struct kmem
- {
- 	int batchcount;
- 	struct kmem_list3 *l3;
--	int node = numa_node_id();
-+	int node = numa_mem_id();
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++		/*
++		 * We now know the "local memory node" for each node--
++		 * i.e., the node of the first zone in the generic zonelist.
++		 * Set up numa_mem percpu variable for on-line cpus.  During
++		 * boot, only the boot cpu should be on-line;  we'll init the
++		 * secondary cpus' numa_mem as they come on-line.  During
++		 * node/memory hotplug, we'll fixup all on-line cpus.
++		 */
++		if (cpu_online(cpu))
++			cpu_to_mem(cpu) = local_memory_node(cpu_to_node(cpu));
++#endif
++	}
++
+ 	return 0;
+ }
  
- 	batchcount = ac->batchcount;
- #if DEBUG
-@@ -3923,7 +3924,7 @@ static int do_tune_cpucache(struct kmem_
- 		return -ENOMEM;
+Index: linux-2.6.34-rc3-mmotm-100405-1609/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.34-rc3-mmotm-100405-1609.orig/include/linux/mmzone.h	2010-04-07 10:03:46.000000000 -0400
++++ linux-2.6.34-rc3-mmotm-100405-1609/include/linux/mmzone.h	2010-04-07 10:10:28.000000000 -0400
+@@ -661,6 +661,12 @@ void memory_present(int nid, unsigned lo
+ static inline void memory_present(int nid, unsigned long start, unsigned long end) {}
+ #endif
  
- 	for_each_online_cpu(i) {
--		new->new[i] = alloc_arraycache(cpu_to_node(i), limit,
-+		new->new[i] = alloc_arraycache(cpu_to_mem(i), limit,
- 						batchcount, gfp);
- 		if (!new->new[i]) {
- 			for (i--; i >= 0; i--)
-@@ -3945,9 +3946,9 @@ static int do_tune_cpucache(struct kmem_
- 		struct array_cache *ccold = new->new[i];
- 		if (!ccold)
- 			continue;
--		spin_lock_irq(&cachep->nodelists[cpu_to_node(i)]->list_lock);
--		free_block(cachep, ccold->entry, ccold->avail, cpu_to_node(i));
--		spin_unlock_irq(&cachep->nodelists[cpu_to_node(i)]->list_lock);
-+		spin_lock_irq(&cachep->nodelists[cpu_to_mem(i)]->list_lock);
-+		free_block(cachep, ccold->entry, ccold->avail, cpu_to_mem(i));
-+		spin_unlock_irq(&cachep->nodelists[cpu_to_mem(i)]->list_lock);
- 		kfree(ccold);
- 	}
- 	kfree(new);
-@@ -4053,7 +4054,7 @@ static void cache_reap(struct work_struc
- {
- 	struct kmem_cache *searchp;
- 	struct kmem_list3 *l3;
--	int node = numa_node_id();
-+	int node = numa_mem_id();
- 	struct delayed_work *work = to_delayed_work(w);
- 
- 	if (!mutex_trylock(&cache_chain_mutex))
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++int local_memory_node(int node_id);
++#else
++static inline int local_memory_node(int node_id) { return node_id; };
++#endif
++
+ #ifdef CONFIG_NEED_NODE_MEMMAP_SIZE
+ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
+ #endif
+Index: linux-2.6.34-rc3-mmotm-100405-1609/include/asm-generic/topology.h
+===================================================================
+--- linux-2.6.34-rc3-mmotm-100405-1609.orig/include/asm-generic/topology.h	2010-04-07 09:49:13.000000000 -0400
++++ linux-2.6.34-rc3-mmotm-100405-1609/include/asm-generic/topology.h	2010-04-07 10:10:28.000000000 -0400
+@@ -34,6 +34,9 @@
+ #ifndef cpu_to_node
+ #define cpu_to_node(cpu)	((void)(cpu),0)
+ #endif
++#ifndef cpu_to_mem
++#define cpu_to_mem(cpu)		(void)(cpu),0)
++#endif
+ #ifndef parent_node
+ #define parent_node(node)	((void)(node),0)
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
