@@ -1,28 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 030EF6B0200
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 12:13:40 -0400 (EDT)
-Date: Fri, 16 Apr 2010 11:10:01 -0500 (CDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 830986B0203
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 12:13:41 -0400 (EDT)
+Date: Fri, 16 Apr 2010 11:13:10 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 3/6] change alloc function in alloc_slab_page
-In-Reply-To: <s2x84144f021004140523t3092f6cbge410ab4e15afac3e@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1004161109070.7710@router.home>
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>  <8b348d9cc1ea4960488b193b7e8378876918c0d4.1271171877.git.minchan.kim@gmail.com>  <20100414091825.0bacfe48.kamezawa.hiroyu@jp.fujitsu.com>
- <s2x84144f021004140523t3092f6cbge410ab4e15afac3e@mail.gmail.com>
+Subject: Interleave policy on 2M pages (was Re: [RFC][BUGFIX][PATCH 1/2]
+ memcg: fix charge bypass route of migration)
+In-Reply-To: <20100415081743.GP32034@random.random>
+Message-ID: <alpine.DEB.2.00.1004161111380.7710@router.home>
+References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp> <20100415120516.3891ce46.kamezawa.hiroyu@jp.fujitsu.com> <20100415154324.834dace9.nishimura@mxp.nes.nec.co.jp> <20100415155611.da707913.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100415081743.GP32034@random.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Apr 2010, Pekka Enberg wrote:
+On Thu, 15 Apr 2010, Andrea Arcangeli wrote:
 
-> Minchan, care to send a v2 with proper changelog and reviewed-by attributions?
+> 2) add alloc_pages_vma for numa awareness in the huge page faults
 
-Still wondering what the big deal about alloc_pages_node_exact is. Its not
-exact since we can fall back to another node. It is better to clarify the
-API for alloc_pages_node and forbid / clarify the use of -1.
+How do interleave policies work with alloc_pages_vma? So far the semantics
+is to spread 4k pages over different nodes. With 2M pages this can no
+longer work the way is was.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
