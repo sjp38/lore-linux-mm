@@ -1,64 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 73BC56B01FC
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 11:05:32 -0400 (EDT)
-Date: Fri, 16 Apr 2010 16:05:10 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id 582406B01F3
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 11:14:28 -0400 (EDT)
+Date: Fri, 16 Apr 2010 16:14:03 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100416150510.GL19264@csn.ul.ie>
-References: <20100413202021.GZ13327@think> <20100414014041.GD2493@dastard> <20100414155233.D153.A69D9226@jp.fujitsu.com> <20100414072830.GK2493@dastard> <20100414085132.GJ25756@csn.ul.ie> <20100415013436.GO2493@dastard> <20100415102837.GB10966@csn.ul.ie> <20100415134217.GB3794@think>
+Message-ID: <20100416151403.GM19264@csn.ul.ie>
+References: <20100413202021.GZ13327@think> <20100414014041.GD2493@dastard> <20100414155233.D153.A69D9226@jp.fujitsu.com> <20100414072830.GK2493@dastard> <20100414085132.GJ25756@csn.ul.ie> <20100415013436.GO2493@dastard> <20100415102837.GB10966@csn.ul.ie> <20100416041412.GY2493@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100415134217.GB3794@think>
+In-Reply-To: <20100416041412.GY2493@dastard>
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 09:42:17AM -0400, Chris Mason wrote:
+On Fri, Apr 16, 2010 at 02:14:12PM +1000, Dave Chinner wrote:
 > On Thu, Apr 15, 2010 at 11:28:37AM +0100, Mel Gorman wrote:
 > > On Thu, Apr 15, 2010 at 11:34:36AM +1000, Dave Chinner wrote:
 > > > On Wed, Apr 14, 2010 at 09:51:33AM +0100, Mel Gorman wrote:
-> > > > On Wed, Apr 14, 2010 at 05:28:30PM +1000, Dave Chinner wrote:
-> > > > > On Wed, Apr 14, 2010 at 03:52:44PM +0900, KOSAKI Motohiro wrote:
-> > > > > > > On Tue, Apr 13, 2010 at 04:20:21PM -0400, Chris Mason wrote:
-> > > > > > > > On Tue, Apr 13, 2010 at 08:34:29PM +0100, Mel Gorman wrote:
-> > > > > > > > > > Basically, there is not enough stack space available to allow direct
-> > > > > > > > > > reclaim to enter ->writepage _anywhere_ according to the stack usage
-> > > > > > > > > > profiles we are seeing here....
-> > > > > > > > > > 
-> > > > > > > > > 
-> > > > > > > > > I'm not denying the evidence but how has it been gotten away with for years
-> > > > > > > > > then? Prevention of writeback isn't the answer without figuring out how
-> > > > > > > > > direct reclaimers can queue pages for IO and in the case of lumpy reclaim
-> > > > > > > > > doing sync IO, then waiting on those pages.
-> > > > > > > > 
-> > > > > > > > So, I've been reading along, nodding my head to Dave's side of things
-> > > > > > > > because seeks are evil and direct reclaim makes seeks.  I'd really loev
-> > > > > > > > for direct reclaim to somehow trigger writepages on large chunks instead
-> > > > > > > > of doing page by page spatters of IO to the drive.
-> > > > > > 
-> > > > > > I agree that "seeks are evil and direct reclaim makes seeks". Actually,
-> > > > > > making 4k io is not must for pageout. So, probably we can improve it.
-> > > > > > 
-> > > > > > 
-> > > > > > > Perhaps drop the lock on the page if it is held and call one of the
-> > > > > > > helpers that filesystems use to do this, like:
-> > > > > > > 
-> > > > > > > 	filemap_write_and_wait(page->mapping);
-> > > > > > 
-> > > > > > Sorry, I'm lost what you talk about. Why do we need per-file
-> > > > > > waiting? If file is 1GB file, do we need to wait 1GB writeout?
-> > > > > 
-> > > > > So use filemap_fdatawrite(page->mapping), or if it's better only
-> > > > > to start IO on a segment of the file, use
-> > > > > filemap_fdatawrite_range(page->mapping, start, end)....
-> > > > 
-> > > > That does not help the stack usage issue, the caller ends up in
-> > > > ->writepages. From an IO perspective, it'll be better from a seek point of
-> > > > view but from a VM perspective, it may or may not be cleaning the right pages.
-> > > > So I think this is a red herring.
-> > > 
 > > > If you ask it to clean a bunch of pages around the one you want to
 > > > reclaim on the LRU, there is a good chance it will also be cleaning
 > > > pages that are near the end of the LRU or physically close by as
@@ -66,7 +27,6 @@ On Thu, Apr 15, 2010 at 09:42:17AM -0400, Chris Mason wrote:
 > > > 10% wall time on that IO to clean the page you need, you also get
 > > > 1-2 orders of magnitude other pages cleaned. That sounds like a
 > > > win any way you look at it...
-> > > 
 > > 
 > > At worst, it'll distort the LRU ordering slightly. Lets say the the
 > > file-adjacent-page you clean was near the end of the LRU. Before such a
@@ -76,27 +36,23 @@ On Thu, Apr 15, 2010 at 09:42:17AM -0400, Chris Mason wrote:
 > > predict what it'll do for IO congestion. Simplistically, there is more
 > > IO so it's bad but if the write pattern is less seeky and we needed to
 > > write the pages anyway, it might be improved.
-> > 
-> > > I agree that it doesn't solve the stack problem (Chris' suggestion
-> > > that we enable the bdi flusher interface would fix this);
-> > 
-> > I'm afraid I'm not familiar with this interface. Can you point me at
-> > some previous discussion so that I am sure I am looking at the right
-> > thing?
 > 
-> vi fs/direct-reclaim-helper.c, it has a few placeholders for where the
-> real code needs to go....just look for the ~ marks.
-> 
+> Fundamentally, we have so many pages on the LRU, getting a few out
+> of order at the back end of it is going to be in the noise. If we
+> trade off "perfect" LRU behaviour for cleaning pages an order of
 
-I must be blind. What tree is this in? I can't see it v2.6.34-rc4,
-mmotm or google.
+haha, I don't think anyone pretends the LRU behaviour is perfect.
+Altering its existing behaviour tends to be done with great care but
+from what I gather that is often a case of "better the devil you know".
 
-> I mostly meant that the bdi helper threads were the best place to add
-> knowledge about which pages we want to write for reclaim.  We might need
-> to add a thread dedicated to just doing the VM's dirty work, but that's
-> where I would start discussing fancy new interfaces.
+> magnitude faster, reclaim will find candidate pages for a whole lot
+> faster. And if we have more clean pages available, faster, overall
+> system throughput is going to improve and be much less likely to
+> fall into deep, dark holes where the OOM-killer is the light at the
+> end.....
 > 
-> > 
+> [ snip questions Chris answered ]
+> 
 > > > what I'm
 > > > pointing out is that the arguments that it is too hard or there are
 > > > no interfaces available to issue larger IO from reclaim are not at
@@ -113,55 +69,96 @@ mmotm or google.
 > > 
 > > 1 and 2 are important for you, 3 is important for me and 4 will have to
 > > be dealt with on a case-by-case basis.
-> > 
+> 
+> #4 is important to me, too, because that has direct impact on large
+> file IO workloads. however, it is gross changes in behaviour that
+> concern me, not subtle, probably-in-the-noise changes that you're
+> concerned about. :)
+> 
+
+I'm also less concerned with this aspect. I brought it up because it was
+a factor. I don't think it'll cause us problems but if problems do
+arise, it's nice to have a few potential candidates to examine in
+advance.
+
 > > Your patch fixes 2, avoids 1, breaks 3 and haven't thought about 4 but I
 > > guess dirty pages can cycle around more so it'd need to be cared for.
 > 
-> I'd like to add one more:
-> 
-> 5. Don't dive into filesystem locks during reclaim.
-> 
-
-Good add. It's not a new problem either. This came up at least two years
-ago at around the first VM/FS summit and the response was a long the lines
-of shuffling uncomfortably :/
-
-> This is different from splicing code paths together, but
-> the filesystem writepage code has become the center of our attempts at
-> doing big fat contiguous writes on disk.  We push off work as late as we
-> can until just before the pages go down to disk.
-> 
-> I'll pick on ext4 and btrfs for a minute, just to broaden the scope
-> outside of XFS.  Writepage comes along and the filesystem needs to
-> actually find blocks on disk for all the dirty pages it has promised to
-> write.
-> 
-> So, we start a transaction, we take various allocator locks, modify
-> different metadata, log changed blocks, take a break (logging is hard
-> work you know, need_resched() triggered a by now), stuff it
-> all into the file's metadata, log that, and finally return.
-> 
-> Each of the steps above can block for a long time.  Ext4 solves
-> this by not doing them.  ext4_writepage only writes pages that
-> are already fully allocated on disk.
-> 
-> Btrfs is much more efficient at not doing them, it just returns right
-> away for PF_MEMALLOC.
-> 
-> This is a long way of saying the filesystem writepage code is the
-> opposite of what direct reclaim wants.  Direct reclaim wants to
-> find free ram now, and if it does end up in the mess describe above,
-> it'll just get stuck for a long time on work entirely unrelated to
-> finding free pages.
+> Well, you keep saying that they break #3, but I haven't seen any
+> test cases or results showing that. I've been unable to confirm that
+> lumpy reclaim is broken by disallowing writeback in my testing, so
+> I'm interested to know what tests you are running that show it is
+> broken...
 > 
 
-Ok, good summary, thanks. I was only partially aware of some of these.
-i.e. I knew it was a problem but was not sensitive to how bad it was.
-Your last point is interesting because lumpy reclaim for large orders under
-heavy pressure can make the system stutter badly (e.g. during a huge
-page pool resize). I had blamed just plain IO but messing around with
-locks and tranactions could have been a large factor and I didn't go
-looking for it.
+Ok, I haven't actually tested this. The machines I use are tied up
+retesting the compaction patches at the moment. The reason why I reckon
+it'll be a problem is that when these sync-writeback changes were
+introduced, it significantly helped lumpy reclaim for huge pages. I am
+making an assumption that backing out those changes will hurt it.
+
+I'll test for real on Monday and see what falls out.
+
+> > > How about this? For now, we stop direct reclaim from doing writeback
+> > > only on order zero allocations, but allow it for higher order
+> > > allocations. That will prevent the majority of situations where
+> > > direct reclaim blows the stack and interferes with background
+> > > writeout, but won't cause lumpy reclaim to change behaviour.
+> > > This reduces the scope of impact and hence testing and validation
+> > > the needs to be done.
+> > > 
+> > > Then we can work towards allowing lumpy reclaim to use background
+> > > threads as Chris suggested for doing specific writeback operations
+> > > to solve the remaining problems being seen. Does this seem like a
+> > > reasonable compromise and approach to dealing with the problem?
+> > > 
+> > 
+> > I'd like this to be plan b (or maybe c or d) if we cannot reduce stack usage
+> > enough or come up with an alternative fix. From the goals above it mitigates
+> > 1, mitigates 2, addresses 3 but potentially allows dirty pages to remain on
+> > the LRU with 4 until the background cleaner or kswapd comes along.
+> 
+> We've been through this already, but I'll repeat it again in the
+> hope it sinks in: reducing stack usage is not sufficient to stay
+> within an 8k stack if we can enter writeback with an arbitrary
+> amount of stack already consumed.
+> 
+> We've already got a report of 9k of stack usage (7200 bytes left on
+> a order-2 stack) and this is without a complex storage stack - it's
+> just a partition on a SATA drive. We can easily add another 1k,
+> possibly 2k to that stack depth with a complex storage subsystem.
+> Trimming this much (3-4k) is simply not feasible in a callchain that
+> is 50-70 functions deep...
+> 
+
+Ok, based on this, I'll stop working on the stack-reduction patches.
+I'll test what I have and push it but I won't bring it further for the
+moment and instead look at putting writeback into its own thread. If
+someone else works on it in the meantime, I'll review and test from the
+perspective of lumpy reclaim.
+
+> > One reason why I am edgy about this is that lumpy reclaim can kick in
+> > for low-enough orders too like order-1 pages for stacks in some cases or
+> > order-2 pages for network cards using jumbo frames or some wireless
+> > cards. The network cards in particular could still cause the stack
+> > overflow but be much harder to reproduce and detect.
+> 
+> So push lumpy reclaim into a separate thread. It already blocks, so
+> waiting for some other thread to do the work won't change anything.
+
+No, it wouldn't. As long as it can wait on the right pages, it doesn't
+really matter who does the work.
+
+> Separating high-order reclaim from LRU reclaim is probably a good
+> idea, anyway - they use different algorithms and while the two are
+> intertwined it's hard to optimise/improve either....
+> 
+
+They are not a million miles apart either. Lumpy reclaim uses the LRU to
+select a cursor page and then reclaims around it. Improvements on LRU tend
+to help lumpy reclaim as well. It's why during the tests I run I can often
+allocate 80-95% of memory as huge pages on x86-64 as opposed to when anti-frag
+was being developed first where getting 30% was a cause for celebration :)
 
 -- 
 Mel Gorman
