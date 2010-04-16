@@ -1,117 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id CD9AB6B0218
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 03:21:00 -0400 (EDT)
-Received: by iwn14 with SMTP id 14so1154278iwn.22
-        for <linux-mm@kvack.org>; Fri, 16 Apr 2010 00:20:58 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E7ADC6B021A
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 03:54:08 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3G7s5VH023910
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 16 Apr 2010 16:54:05 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4223C45DE55
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 16:54:05 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DBB1845DE50
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 16:54:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A27D2E08011
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 16:54:04 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4108CE08008
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 16:54:04 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 09/10] vmscan: Setup pagevec as late as possible in shrink_page_list()
+In-Reply-To: <1271352103-2280-10-git-send-email-mel@csn.ul.ie>
+References: <1271352103-2280-1-git-send-email-mel@csn.ul.ie> <1271352103-2280-10-git-send-email-mel@csn.ul.ie>
+Message-Id: <20100416115248.27A7.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20100416061226.GJ5683@laptop>
-References: <1271089672.7196.63.camel@localhost.localdomain>
-	 <1271249354.7196.66.camel@localhost.localdomain>
-	 <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
-	 <1271262948.2233.14.camel@barrios-desktop>
-	 <1271320388.2537.30.camel@localhost> <20100416061226.GJ5683@laptop>
-Date: Fri, 16 Apr 2010 16:20:58 +0900
-Message-ID: <m2g28c262361004160020r6c85f5e6g61c3cb0d03b9cc6e@mail.gmail.com>
-Subject: Re: vmalloc performance
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 16 Apr 2010 16:54:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Steven Whitehouse <swhiteho@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 16, 2010 at 3:12 PM, Nick Piggin <npiggin@suse.de> wrote:
-> On Thu, Apr 15, 2010 at 09:33:08AM +0100, Steven Whitehouse wrote:
->> Hi,
->>
->> On Thu, 2010-04-15 at 01:35 +0900, Minchan Kim wrote:
->> > On Thu, 2010-04-15 at 00:13 +0900, Minchan Kim wrote:
->> > > On Wed, Apr 14, 2010 at 9:49 PM, Steven Whitehouse <swhiteho@redhat.com> wrote:
->> > > >> When this module is run on my x86_64, 8 core, 12 Gb machine, then on an
->> > > >> otherwise idle system I get the following results:
->> > > >>
->> > > >> vmalloc took 148798983 us
->> > > >> vmalloc took 151664529 us
->> > > >> vmalloc took 152416398 us
->> > > >> vmalloc took 151837733 us
->> > > >>
->> > > >> After applying the two line patch (see the same bz) which disabled the
->> > > >> delayed removal of the structures, which appears to be intended to
->> > > >> improve performance in the smp case by reducing TLB flushes across cpus,
->> > > >> I get the following results:
->> > > >>
->> > > >> vmalloc took 15363634 us
->> > > >> vmalloc took 15358026 us
->> > > >> vmalloc took 15240955 us
->> > > >> vmalloc took 15402302 us
->> >
->> >
->> > > >>
->> > > >> So thats a speed up of around 10x, which isn't too bad. The question is
->> > > >> whether it is possible to come to a compromise where it is possible to
->> > > >> retain the benefits of the delayed TLB flushing code, but reduce the
->> > > >> overhead for other users. My two line patch basically disables the delay
->> > > >> by forcing a removal on each and every vfree.
->> > > >>
->> > > >> What is the correct way to fix this I wonder?
->> > > >>
->> > > >> Steve.
->> > > >>
->> >
->> > In my case(2 core, mem 2G system), 50300661 vs 11569357.
->> > It improves 4 times.
->> >
->> Looking at the code, it seems that the limit, against which my patch
->> removes a test, scales according to the number of cpu cores. So with
->> more cores, I'd expect the difference to be greater. I have a feeling
->> that the original reporter had a greater number than the 8 of my test
->> machine.
->>
->> > It would result from larger number of lazy_max_pages.
->> > It would prevent many vmap_area freed.
->> > So alloc_vmap_area takes long time to find new vmap_area. (ie, lookup
->> > rbtree)
->> >
->> > How about calling purge_vmap_area_lazy at the middle of loop in
->> > alloc_vmap_area if rbtree lookup were long?
->> >
->> That may be a good solution - I'm happy to test any patches but my worry
->> is that any change here might result in a regression in whatever
->> workload the lazy purge code was originally designed to improve. Is
->> there any way to test that I wonder?
->
-> Ah this is interesting. What we could do is have a "free area cache"
-> like the user virtual memory allocator has, which basically avoids
-> restarting the search from scratch.
->
-> Or we could perhaps go one better and do a more sophisticated free space
-> allocator.
+> shrink_page_list() sets up a pagevec to release pages as according as they
+> are free. It uses significant amounts of stack on the pagevec. This
+> patch adds pages to be freed via pagevec to a linked list which is then
+> freed en-masse at the end. This avoids using stack in the main path that
+> potentially calls writepage().
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/vmscan.c |   34 ++++++++++++++++++++++++++--------
+>  1 files changed, 26 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 9bc1ede..2c22c83 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -619,6 +619,22 @@ static enum page_references page_check_references(struct page *page,
+>  	return PAGEREF_RECLAIM;
+>  }
+>  
+> +static void free_page_list(struct list_head *free_list)
+> +{
+> +	struct pagevec freed_pvec;
+> +	struct page *page, *tmp;
+> +
+> +	pagevec_init(&freed_pvec, 1);
+> +
+> +	list_for_each_entry_safe(page, tmp, free_list, lru) {
+> +		list_del(&page->lru);
+> +		if (!pagevec_add(&freed_pvec, page)) {
+> +			__pagevec_free(&freed_pvec);
+> +			pagevec_reinit(&freed_pvec);
+> +		}
+> +	}
+
+Need this two line at this? because we need consider number of
+list element are not 14xN.
+
+	if (pagevec_count(&freed_pvec))
+		__pagevec_free(&freed_pvec);
 
 
-AFAIR, vmalloc's performance regression is first. I am not sure
-whoever suffers from it and
-didn't report. Anyway, with fist report, complicated allocator
-implement is rather overkill, I think.
+> +}
+> +
+>  /*
+>   * shrink_page_list() returns the number of reclaimed pages
+>   */
+> @@ -627,13 +643,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  					enum pageout_io sync_writeback)
+>  {
+>  	LIST_HEAD(ret_pages);
+> -	struct pagevec freed_pvec;
+> +	LIST_HEAD(free_list);
+>  	int pgactivate = 0;
+>  	unsigned long nr_reclaimed = 0;
+>  
+>  	cond_resched();
+>  
+> -	pagevec_init(&freed_pvec, 1);
+>  	while (!list_empty(page_list)) {
+>  		enum page_references references;
+>  		struct address_space *mapping;
+> @@ -808,10 +823,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		__clear_page_locked(page);
+>  free_it:
+>  		nr_reclaimed++;
+> -		if (!pagevec_add(&freed_pvec, page)) {
+> -			__pagevec_free(&freed_pvec);
+> -			pagevec_reinit(&freed_pvec);
+> -		}
+> +
+> +		/*
+> +		 * Is there need to periodically free_page_list? It would
+> +		 * appear not as the counts should be low
+> +		 */
+> +		list_add(&page->lru, &free_list);
+>  		continue;
+>  
+>  cull_mlocked:
+> @@ -834,9 +851,10 @@ keep:
+>  		list_add(&page->lru, &ret_pages);
+>  		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+>  	}
+> +
+> +	free_page_list(&free_list);
+> +
+>  	list_splice(&ret_pages, page_list);
+> -	if (pagevec_count(&freed_pvec))
+> -		__pagevec_free(&freed_pvec);
+>  	count_vm_events(PGACTIVATE, pgactivate);
+>  	return nr_reclaimed;
+>  }
+> -- 
+> 1.6.5
+> 
 
-So I votes free_area_cache.
 
-Early ending of lookup from last cache point makes overflow fast and
-it results in flush.
-I think it's good in that it doesn't depends on system resource environment.
-And it could improve search time than one from scratch unless it's
-very unfortunate.
-
->
-> Bigger systems will indeed get hurt by increasing flushes so I'd prefer
-> to avoid that. But that's not a good justification for a slowdown for
-> small systems. What good is having cake if you can't also eat it? :)
-
-Indeed. :)
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
