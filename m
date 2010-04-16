@@ -1,58 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A87136B01F5
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 13:52:01 -0400 (EDT)
-Date: Fri, 16 Apr 2010 19:51:26 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Interleave policy on 2M pages (was Re: [RFC][BUGFIX][PATCH
- 1/2] memcg: fix charge bypass route of migration)
-Message-ID: <20100416175126.GP32034@random.random>
-References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
- <20100415120516.3891ce46.kamezawa.hiroyu@jp.fujitsu.com>
- <20100415154324.834dace9.nishimura@mxp.nes.nec.co.jp>
- <20100415155611.da707913.kamezawa.hiroyu@jp.fujitsu.com>
- <20100415081743.GP32034@random.random>
- <alpine.DEB.2.00.1004161111380.7710@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1004161111380.7710@router.home>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E486B01F2
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 15:13:16 -0400 (EDT)
+Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.2.00.1004161105120.7710@router.home>
+References: 
+	 <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
+	 <4BC65237.5080408@kernel.org>
+	 <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>
+	 <4BC6BE78.1030503@kernel.org>
+	 <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>
+	 <4BC6CB30.7030308@kernel.org>
+	 <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>
+	 <4BC6E581.1000604@kernel.org>
+	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
+	 <4BC6FBC8.9090204@kernel.org>
+	 <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
+	 <alpine.DEB.2.00.1004161105120.7710@router.home>
+Content-Type: text/plain
+Date: Fri, 16 Apr 2010 15:13:09 -0400
+Message-Id: <1271445189.30360.280.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 16, 2010 at 11:13:10AM -0500, Christoph Lameter wrote:
-> On Thu, 15 Apr 2010, Andrea Arcangeli wrote:
+On Fri, 2010-04-16 at 11:07 -0500, Christoph Lameter wrote:
+> On Thu, 15 Apr 2010, Minchan Kim wrote:
 > 
-> > 2) add alloc_pages_vma for numa awareness in the huge page faults
+> > I don't want to remove alloc_pages for UMA system.
 > 
-> How do interleave policies work with alloc_pages_vma? So far the semantics
-> is to spread 4k pages over different nodes. With 2M pages this can no
-> longer work the way is was.
+> alloc_pages is the same as alloc_pages_any_node so why have it?
+> 
+> > #define alloc_pages alloc_page_sexact_node
+> >
+> > What I want to remove is just alloc_pages_node. :)
+> 
+> Why remove it? If you want to get rid of -1 handling then check all the
+> callsites and make sure that they are not using  -1.
+> 
+> Also could you define a constant for -1? -1 may have various meanings. One
+> is the local node and the other is any node. 
 
-static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
-       	      	   				     unsigned nid)
+NUMA_NO_NODE is #defined as (-1) and can be used for this purpose.  '-1'
+has been replaced by this in many cases.   It can be interpreted as "No
+node specified" == "any node is acceptable".  But, it also has multiple
+meanings.  E.g., in the hugetlb sysfs attribute and sysctl functions it
+indicates the global hstates [all nodes] vs a per node hstate.  So, I
+suppose one could define a NUMA_ANY_NODE, to make the intention clear at
+the call site.
 
-See the order parameter, so I hope it's already solved. I assume the
-idea would be to interleave 2M pages to avoid the CPU the memory
-overhead of the pte layer and to decrease the tlb misses, but still
-maxing out the bandwidth of the system when multiple threads accesses
-memory that is stored in different nodes with random access. It should
-be ideal for hugetlbfs too for the large shared memory pools of the
-DB. Surely it'll be better than having all hugepages from the same
-node despite MPOL_INTERLEAVE is set.
+I believe that all usage of -1 to mean the local node has been removed,
+unless I missed one.  Local allocation is now indicated by a mempolicy
+mode flag--MPOL_F_LOCAL.  It's treated as a special case of
+MPOL_PREFERRED.
 
-Said that, it'd also be possible to disable hugepages if the vma has
-MPOL_INTERLEAVE set, but I doubt we want to do that by default. Maybe
-we can add a sysfs control later for that which can be further tweaked
-at boot time by per-arch quirks, dunno... It's really up to you, you
-know numa better, but I've no doubt that MPOL_INTERLEAVE also can make
-sense with hugepages (both hugetlbfs and transparent hugepage
-support).
-
-Thanks,
-Andrea
+> The difference is if memory
+> policies are obeyed or not. Note that alloc_pages follows memory policies
+> whereas alloc_pages_node does not.
+> 
+> Therefore
+> 
+> alloc_pages() != alloc_pages_node(  , -1)
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
