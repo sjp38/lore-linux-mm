@@ -1,124 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 974E86B0210
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 02:12:33 -0400 (EDT)
-Date: Fri, 16 Apr 2010 16:12:26 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: vmalloc performance
-Message-ID: <20100416061226.GJ5683@laptop>
-References: <1271089672.7196.63.camel@localhost.localdomain>
- <1271249354.7196.66.camel@localhost.localdomain>
- <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
- <1271262948.2233.14.camel@barrios-desktop>
- <1271320388.2537.30.camel@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8A79F6B0212
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 02:27:05 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3G6R3cV012764
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 16 Apr 2010 15:27:03 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E6B9145DE54
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 15:27:02 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C4F0C45DE51
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 15:27:02 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A3E84E08001
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 15:27:02 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 514771DB8017
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 15:26:59 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 06/10] vmscan: Split shrink_zone to reduce stack usage
+In-Reply-To: <1271352103-2280-7-git-send-email-mel@csn.ul.ie>
+References: <1271352103-2280-1-git-send-email-mel@csn.ul.ie> <1271352103-2280-7-git-send-email-mel@csn.ul.ie>
+Message-Id: <20100416115016.279E.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1271320388.2537.30.camel@localhost>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 16 Apr 2010 15:26:58 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Steven Whitehouse <swhiteho@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 09:33:08AM +0100, Steven Whitehouse wrote:
-> Hi,
+> shrink_zone() calculculates how many pages it needs to shrink from each
+> LRU list in a given pass. It uses a number of temporary variables to
+> work this out that then remain on the stack. This patch splits the
+> function so that some of the stack variables can be discarded.
 > 
-> On Thu, 2010-04-15 at 01:35 +0900, Minchan Kim wrote:
-> > On Thu, 2010-04-15 at 00:13 +0900, Minchan Kim wrote:
-> > > On Wed, Apr 14, 2010 at 9:49 PM, Steven Whitehouse <swhiteho@redhat.com> wrote:
-> > > >> When this module is run on my x86_64, 8 core, 12 Gb machine, then on an
-> > > >> otherwise idle system I get the following results:
-> > > >>
-> > > >> vmalloc took 148798983 us
-> > > >> vmalloc took 151664529 us
-> > > >> vmalloc took 152416398 us
-> > > >> vmalloc took 151837733 us
-> > > >>
-> > > >> After applying the two line patch (see the same bz) which disabled the
-> > > >> delayed removal of the structures, which appears to be intended to
-> > > >> improve performance in the smp case by reducing TLB flushes across cpus,
-> > > >> I get the following results:
-> > > >>
-> > > >> vmalloc took 15363634 us
-> > > >> vmalloc took 15358026 us
-> > > >> vmalloc took 15240955 us
-> > > >> vmalloc took 15402302 us
-> > 
-> > 
-> > > >>
-> > > >> So thats a speed up of around 10x, which isn't too bad. The question is
-> > > >> whether it is possible to come to a compromise where it is possible to
-> > > >> retain the benefits of the delayed TLB flushing code, but reduce the
-> > > >> overhead for other users. My two line patch basically disables the delay
-> > > >> by forcing a removal on each and every vfree.
-> > > >>
-> > > >> What is the correct way to fix this I wonder?
-> > > >>
-> > > >> Steve.
-> > > >>
-> > 
-> > In my case(2 core, mem 2G system), 50300661 vs 11569357. 
-> > It improves 4 times. 
-> > 
-> Looking at the code, it seems that the limit, against which my patch
-> removes a test, scales according to the number of cpu cores. So with
-> more cores, I'd expect the difference to be greater. I have a feeling
-> that the original reporter had a greater number than the 8 of my test
-> machine.
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+
+Looks good to me.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+> ---
+>  mm/vmscan.c |   29 +++++++++++++++++++----------
+>  1 files changed, 19 insertions(+), 10 deletions(-)
 > 
-> > It would result from larger number of lazy_max_pages.
-> > It would prevent many vmap_area freed.
-> > So alloc_vmap_area takes long time to find new vmap_area. (ie, lookup
-> > rbtree)
-> > 
-> > How about calling purge_vmap_area_lazy at the middle of loop in
-> > alloc_vmap_area if rbtree lookup were long?
-> > 
-> That may be a good solution - I'm happy to test any patches but my worry
-> is that any change here might result in a regression in whatever
-> workload the lazy purge code was originally designed to improve. Is
-> there any way to test that I wonder?
-
-Ah this is interesting. What we could do is have a "free area cache"
-like the user virtual memory allocator has, which basically avoids
-restarting the search from scratch.
-
-Or we could perhaps go one better and do a more sophisticated free space
-allocator.
-
-Bigger systems will indeed get hurt by increasing flushes so I'd prefer
-to avoid that. But that's not a good justification for a slowdown for
-small systems. What good is having cake if you can't also eat it? :)
-
-
-> > BTW, Steve. Is is real issue or some test?
-> > I doubt such vmalloc bomb workload is real. 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 1ace7c6..a374879 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1595,19 +1595,14 @@ static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
+>  	return nr;
+>  }
+>  
+> -/*
+> - * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+> - */
+> -static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> +/* Calculate how many pages from each LRU list should be scanned */
+> +static void calc_scan_trybatch(struct zone *zone,
+> +				 struct scan_control *sc, unsigned long *nr)
+>  {
+> -	unsigned long nr[NR_LRU_LISTS];
+> -	unsigned long nr_to_scan;
+> -	unsigned long percent[2];	/* anon @ 0; file @ 1 */
+>  	enum lru_list l;
+> -	unsigned long nr_reclaimed = sc->nr_reclaimed;
+> -	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+> +	unsigned long percent[2];	/* anon @ 0; file @ 1 */
+> +	int noswap = 0 ;
+>  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+> -	int noswap = 0;
+>  
+>  	/* If we have no swap space, do not bother scanning anon pages. */
+>  	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+> @@ -1629,6 +1624,20 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  		nr[l] = nr_scan_try_batch(scan,
+>  					  &reclaim_stat->nr_saved_scan[l]);
+>  	}
+> +}
+> +
+> +/*
+> + * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+> + */
+> +static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> +{
+> +	unsigned long nr[NR_LRU_LISTS];
+> +	unsigned long nr_to_scan;
+> +	unsigned long nr_reclaimed = sc->nr_reclaimed;
+> +	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+> +	enum lru_list l;
+> +
+> +	calc_scan_trybatch(zone, sc, nr);
+>  
+>  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+>  					nr[LRU_INACTIVE_FILE]) {
+> -- 
+> 1.6.5
 > 
-> Well the answer is both yes and no :-) So this is how I came across the
-> issue. I received a report that GFS2 performance had regressed in recent
-> kernels in relation to a test which basically fires lots of requests at
-> it via NFS. The reporter of this problem gave me two bits of
-> information: firstly that by eliminating all readdir calls from the
-> test, the regression is never seen and secondly that oprofile showed
-> that two functions related to vmalloc (rb_next, find_vmap_area,
-> alloc_vmap_area in that order) were taking between them about 60% of the
-> total cpu time.
 
-Thanks for tracking this down. I didn't realize GFS2 used vmalloc
-extensively. How large are typical vmalloc requests here, can you
-tell me? There is a per-cpu virtual memory allocator that is more
-scalable than the global one, and would help avoid these problems
-too.
 
-XFS is using it at the moment, but we are looking for some more
-users of the API so as to get more testing coverage. I was
-considering moving vmalloc over to use it (vm_map_ram).
-
-It's still probably a good idea to improve the global allocator
-regression first, but that might get you even more performance.
-
-Thanks,
-Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
