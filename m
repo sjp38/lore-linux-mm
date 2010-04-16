@@ -1,41 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 765FF6B01FF
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 12:47:10 -0400 (EDT)
-Date: Fri, 16 Apr 2010 11:46:51 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/8] numa:  x86_64:  use generic percpu var numa_node_id()
- implementation
-In-Reply-To: <20100415173003.8801.48519.sendpatchset@localhost.localdomain>
-Message-ID: <alpine.DEB.2.00.1004161144350.8664@router.home>
-References: <20100415172950.8801.60358.sendpatchset@localhost.localdomain> <20100415173003.8801.48519.sendpatchset@localhost.localdomain>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A87136B01F5
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 13:52:01 -0400 (EDT)
+Date: Fri, 16 Apr 2010 19:51:26 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: Interleave policy on 2M pages (was Re: [RFC][BUGFIX][PATCH
+ 1/2] memcg: fix charge bypass route of migration)
+Message-ID: <20100416175126.GP32034@random.random>
+References: <20100413134207.f12cdc9c.nishimura@mxp.nes.nec.co.jp>
+ <20100415120516.3891ce46.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100415154324.834dace9.nishimura@mxp.nes.nec.co.jp>
+ <20100415155611.da707913.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100415081743.GP32034@random.random>
+ <alpine.DEB.2.00.1004161111380.7710@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1004161111380.7710@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andi@domain.invalid, Kleen@domain.invalid, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Apr 2010, Lee Schermerhorn wrote:
+On Fri, Apr 16, 2010 at 11:13:10AM -0500, Christoph Lameter wrote:
+> On Thu, 15 Apr 2010, Andrea Arcangeli wrote:
+> 
+> > 2) add alloc_pages_vma for numa awareness in the huge page faults
+> 
+> How do interleave policies work with alloc_pages_vma? So far the semantics
+> is to spread 4k pages over different nodes. With 2M pages this can no
+> longer work the way is was.
 
-> x86 arch specific changes to use generic numa_node_id() based on
-> generic percpu variable infrastructure.  Back out x86's custom
-> version of numa_node_id()
->
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> [Christoph's signoff here?]
+static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+       	      	   				     unsigned nid)
 
-Hmmm. Its mostly your work now. Maybe Reviewed-by will be ok?
+See the order parameter, so I hope it's already solved. I assume the
+idea would be to interleave 2M pages to avoid the CPU the memory
+overhead of the pte layer and to decrease the tlb misses, but still
+maxing out the bandwidth of the system when multiple threads accesses
+memory that is stored in different nodes with random access. It should
+be ideal for hugetlbfs too for the large shared memory pools of the
+DB. Surely it'll be better than having all hugepages from the same
+node despite MPOL_INTERLEAVE is set.
 
-> @@ -809,7 +806,7 @@ void __cpuinit numa_set_node(int cpu, in
->  	per_cpu(x86_cpu_to_node_map, cpu) = node;
->
->  	if (node != NUMA_NO_NODE)
-> -		per_cpu(node_number, cpu) = node;
-> +		per_cpu(numa_node, cpu) = node;
->  }
+Said that, it'd also be possible to disable hugepages if the vma has
+MPOL_INTERLEAVE set, but I doubt we want to do that by default. Maybe
+we can add a sysfs control later for that which can be further tweaked
+at boot time by per-arch quirks, dunno... It's really up to you, you
+know numa better, but I've no doubt that MPOL_INTERLEAVE also can make
+sense with hugepages (both hugetlbfs and transparent hugepage
+support).
 
-Maybe provide a generic function to set the node for cpu X?
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
