@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E6D086B0200
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 00:23:41 -0400 (EDT)
-Date: Fri, 16 Apr 2010 14:23:08 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 06/10] vmscan: Split shrink_zone to reduce stack usage
-Message-ID: <20100416042308.GZ2493@dastard>
-References: <1271352103-2280-1-git-send-email-mel@csn.ul.ie>
- <1271352103-2280-7-git-send-email-mel@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1271352103-2280-7-git-send-email-mel@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 176946B0207
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 00:23:48 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3G4NjOU023372
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 16 Apr 2010 13:23:45 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D2D4145DE51
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 13:23:44 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AC99645DE4E
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 13:23:44 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 85FFC1DB8013
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 13:23:44 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BD90E08010
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 13:23:41 +0900 (JST)
+Date: Fri, 16 Apr 2010 13:18:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-Id: <20100416131823.c874125a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100416101339.a501f554.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1271117878-19274-1-git-send-email-david@fromorbit.com>
+	<20100416101339.a501f554.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 06:21:39PM +0100, Mel Gorman wrote:
-> shrink_zone() calculculates how many pages it needs to shrink from each
-> LRU list in a given pass. It uses a number of temporary variables to
-> work this out that then remain on the stack. This patch splits the
-> function so that some of the stack variables can be discarded.
+On Fri, 16 Apr 2010 10:13:39 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+ 
+> Hmm. Then, if memoy cgroup is filled by dirty pages, it can't kick writeback
+> and has to wait for someone else's writeback ?
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/vmscan.c |   29 +++++++++++++++++++----------
->  1 files changed, 19 insertions(+), 10 deletions(-)
+> How long this will take ?
+> # mount -t cgroup none /cgroup -o memory
+> # mkdir /cgroup/A
+> # echo 20M > /cgroup/A/memory.limit_in_bytes
+> # echo $$ > /cgroup/A/tasks
+> # dd if=/dev/zero of=./tmpfile bs=4096 count=1000000
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 1ace7c6..a374879 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1595,19 +1595,14 @@ static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
->  	return nr;
->  }
->  
-> -/*
-> - * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
-> - */
-> -static void shrink_zone(struct zone *zone, struct scan_control *sc)
-> +/* Calculate how many pages from each LRU list should be scanned */
-> +static void calc_scan_trybatch(struct zone *zone,
-> +				 struct scan_control *sc, unsigned long *nr)
+> Can memcg ask writeback thread to "Wake Up Now! and Write this out!" effectively ?
+> 
 
-Needs "noinline_for_stack" to stop the compiler re-inlining it.
+Hmm.. I saw an oom-kill while testing several cases but performance itself
+seems not to be far different with or without patch.
+But I'm unhappy with oom-kill, so some tweak for memcg will be necessary
+if we'll go with this.
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
