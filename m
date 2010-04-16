@@ -1,47 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7739C6B021C
-	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:17:20 -0400 (EDT)
-Date: Fri, 16 Apr 2010 08:50:03 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: + memcg-fix-prepare-migration.patch added to -mm tree
-Message-Id: <20100416085003.23e5b476.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <201004130430.o3D4U2wE012716@imap1.linux-foundation.org>
-References: <201004130430.o3D4U2wE012716@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CD86D6B01F9
+	for <linux-mm@kvack.org>; Thu, 15 Apr 2010 20:42:12 -0400 (EDT)
+Date: Thu, 15 Apr 2010 19:41:28 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
+In-Reply-To: <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1004151939310.17800@router.home>
+References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>  <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com>  <20100413083855.GS25756@csn.ul.ie> <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: nishimura@mxp.nes.nec.co.jp, aarcange@redhat.com, balbir@in.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, stable@kernel.org, linux-mm <linux-mm@kvack.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-(Resend with adding Cc: linux-mm@kvack.org)
+On Tue, 13 Apr 2010, Bob Liu wrote:
 
-Andrew, please fold this one into memcg-fix-prepare-migration.patch.
+> If move to the next node instead of early return, the relative position of the
+> page to the beginning of the node set will be break;
 
-===
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Right.
 
-It seems that the original patch was mangled a bit when it was adjusted to mainline.
+> (BTW:I am still not very clear about the preservation of the relative
+> position of the
+> page to the beginning of the node set. I think if the user call
+> migrate_pages() with
+> different count of src and dest nodes, the  relative position will also break.
+> eg. if call migrate_pags() from nodes is node(1,2,3) , dest nodes is
+> just node(3).
+> the current code logical will move pages in node 1, 2 to node 3. this case the
+> relative position is breaked).
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7a4c07a..eb25d93 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2522,7 +2522,6 @@ int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
- 		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
- 		css_put(&mem->css);
- 	}
--	*ptr = mem;
- 	return ret;
- }
- 
+But in that case the user has specified that the set of nodes should be
+compacted during migration and therefore requested what ocurred.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
