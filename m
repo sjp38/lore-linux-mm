@@ -1,38 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B5D116B01E3
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 05:40:07 -0400 (EDT)
-Date: Fri, 16 Apr 2010 10:39:43 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/4] vmscan: simplify shrink_inactive_list()
-Message-ID: <20100416093943.GA19264@csn.ul.ie>
-References: <20100415085420.GT2493@dastard> <20100415185310.D1A1.A69D9226@jp.fujitsu.com> <20100415192140.D1A4.A69D9226@jp.fujitsu.com> <20100415131532.GD10966@csn.ul.ie> <16363.1271355721@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <16363.1271355721@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 994BA6B01E3
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 05:46:30 -0400 (EDT)
+Date: Fri, 16 Apr 2010 10:50:02 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if
+ current is kswapd
+Message-ID: <20100416105002.191adeb1@lxorguk.ukuu.org.uk>
+In-Reply-To: <20100415233339.GW2493@dastard>
+References: <20100415013436.GO2493@dastard>
+	<20100415130212.D16E.A69D9226@jp.fujitsu.com>
+	<20100415131106.D174.A69D9226@jp.fujitsu.com>
+	<64BE60A8-EEF9-4AC6-AF0A-0ED3CB544726@freebsd.org>
+	<20100415093214.GV2493@dastard>
+	<85DB7083-8E78-4884-9E76-5BD803C530EF@freebsd.org>
+	<20100415233339.GW2493@dastard>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Valdis.Kletnieks@vt.edu
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, suleiman@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 15, 2010 at 02:22:01PM -0400, Valdis.Kletnieks@vt.edu wrote:
-> On Thu, 15 Apr 2010 14:15:33 BST, Mel Gorman said:
-> 
-> > Yep. I modified bloat-o-meter to work with stacks (imaginatively calling it
-> > stack-o-meter) and got the following. The prereq patches are from
-> > earlier in the thread with the subjects
-> 
-> Think that's a script worth having in-tree?
+> No. If you are doing full disk seeks between random chunks, then you
+> still lose a large amount of throughput. e.g. if the seek time is
+> 10ms and your IO time is 10ms for each 4k page, then increasing the
+> size ito 64k makes it 10ms seek and 12ms for the IO. We might increase
+> throughput but we are still limited to 100 IOs per second. We've
+> gone from 400kB/s to 6MB/s, but that's still an order of magnitude
+> short of the 100MB/s full size IOs with little in way of seeks
+> between them will acheive on the same spindle...
 
-Ahh, it's a hatchet-job at the moment. I copied bloat-o-meter and
-altered one function. I made a TODO note to extend bloat-o-meter
-properly and that would be worth merging.
+The usual armwaving numbers for ops/sec for an ATA disk are in the 200
+ops/sec range so that seems horribly credible.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+But then I've never quite understood why our anonymous paging isn't
+sorting stuff as best it can and then using the drive as a log structure
+with in memory metadata so it can stream the pages onto disk. Read
+performance is goig to be similar (maybe better if you have a log tidy
+when idle), write ought to be far better.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
