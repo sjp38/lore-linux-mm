@@ -1,123 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BDB126B01E3
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 07:22:12 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3GBM9qn012709
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 16 Apr 2010 20:22:09 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 81A4B45DE4C
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 20:22:09 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6144245DE4F
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 20:22:09 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4737C1DB8016
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 20:22:09 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F28571DB8013
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 20:22:08 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] [cleanup] mm: introduce free_pages_prepare
-Message-Id: <20100416202125.27C4.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 098F86B01F0
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 09:42:04 -0400 (EDT)
+Message-ID: <4BC86920.3080101@humyo.com>
+Date: Fri, 16 Apr 2010 14:41:52 +0100
+From: John Berthels <john@humyo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: PROBLEM + POSS FIX: kernel stack overflow, xfs, many disks, heavy
+ write load, 8k stack, x86-64
+References: <4BBC6719.7080304@humyo.com> <20100407140523.GJ11036@dastard> <4BBCAB57.3000106@humyo.com> <20100407234341.GK11036@dastard> <20100408030347.GM11036@dastard> <4BBDC92D.8060503@humyo.com> <4BBDEC9A.9070903@humyo.com> <20100408233837.GP11036@dastard> <20100409113850.GE13327@think>
+In-Reply-To: <20100409113850.GE13327@think>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Fri, 16 Apr 2010 20:22:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, John Berthels <john@humyo.com>, linux-kernel@vger.kernel.org, Nick Gregory <nick@humyo.com>, Rob Sanderson <rob@humyo.com>, xfs@oss.sgi.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Free_hot_cold_page() and __free_pages_ok() have very similar
-freeing preparation. This patch make consolicate it.
+Chris Mason wrote:
+> shrink_zone on my box isn't 500 bytes, but lets try the easy stuff
+> first.  This is against .34, if you have any trouble applying to .32,
+> just add the word noinline after the word static on the function
+> definitions.
+> 
+> This makes shrink_zone disappear from my check_stack.pl output.
+> Basically I think the compiler is inlining the shrink_active_zone and
+> shrink_inactive_zone code into shrink_zone.
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/page_alloc.c |   40 +++++++++++++++++++++-------------------
- 1 files changed, 21 insertions(+), 19 deletions(-)
+Hi Chris,
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d03c946..6a7d0d0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -599,20 +599,23 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
- 	spin_unlock(&zone->lock);
- }
- 
--static void __free_pages_ok(struct page *page, unsigned int order)
-+static bool free_pages_prepare(struct page *page, unsigned int order)
- {
--	unsigned long flags;
- 	int i;
- 	int bad = 0;
--	int wasMlocked = __TestClearPageMlocked(page);
- 
- 	trace_mm_page_free_direct(page, order);
- 	kmemcheck_free_shadow(page, order);
- 
--	for (i = 0 ; i < (1 << order) ; ++i)
--		bad += free_pages_check(page + i);
-+	for (i = 0 ; i < (1 << order) ; ++i) {
-+		struct page *pg = page + i;
-+
-+		if (PageAnon(pg))
-+			pg->mapping = NULL;
-+		bad += free_pages_check(pg);
-+	}
- 	if (bad)
--		return;
-+		return false;
- 
- 	if (!PageHighMem(page)) {
- 		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
-@@ -622,6 +625,17 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	arch_free_page(page, order);
- 	kernel_map_pages(page, 1 << order, 0);
- 
-+	return true;
-+}
-+
-+static void __free_pages_ok(struct page *page, unsigned int order)
-+{
-+	unsigned long flags;
-+	int wasMlocked = __TestClearPageMlocked(page);
-+
-+	if (!free_pages_prepare(page, order))
-+		return;
-+
- 	local_irq_save(flags);
- 	if (unlikely(wasMlocked))
- 		free_page_mlock(page);
-@@ -1107,21 +1121,9 @@ void free_hot_cold_page(struct page *page, int cold)
- 	int migratetype;
- 	int wasMlocked = __TestClearPageMlocked(page);
- 
--	trace_mm_page_free_direct(page, 0);
--	kmemcheck_free_shadow(page, 0);
--
--	if (PageAnon(page))
--		page->mapping = NULL;
--	if (free_pages_check(page))
-+	if (!free_pages_prepare(page, 0))
- 		return;
- 
--	if (!PageHighMem(page)) {
--		debug_check_no_locks_freed(page_address(page), PAGE_SIZE);
--		debug_check_no_obj_freed(page_address(page), PAGE_SIZE);
--	}
--	arch_free_page(page, 0);
--	kernel_map_pages(page, 1, 0);
--
- 	migratetype = get_pageblock_migratetype(page);
- 	set_page_private(page, migratetype);
- 	local_irq_save(flags);
--- 
-1.6.5.2
+I hadn't seen the followup discussion on lkml until today, but this message:
+
+http://marc.info/?l=linux-mm&m=127122143303771&w=2
+
+allowed me to look at stack usage in our build environment. If I've 
+understood correctly, it seems that a build with gcc-4.4 and gcc-4.3 
+have very different stack usages for shrink_zone(): 0x88 versus 0x1d8. 
+(details below).
+
+The reason appears to be the -fconserve-stack compilation option 
+specified when using 4.4, since running the cmdline from mm/.vmscan.cmd 
+with gcc-4.4 but *without* -fconserve-stack gives the same result as 
+with 4.3.
+
+According to the discussion when the flag was added, 
+http://www.gossamer-threads.com/lists/linux/kernel/1131612
+this flag seems to primarily affects inlining, so I double-checked the 
+noinline patch you sent to the list and discovered that it had been 
+incorrectly applied to the build tree. Correctly applying that patch to 
+mm/vmscan.c (and using gcc-4.3) gives a
+
+sub    $0x78,%rsp
+
+line. I'm very sorry that this test or ours wasn't correct and I'm sorry 
+for sending bad info to the list.
+
+We're currently building a kernel with gcc-4.4 and will let you know if 
+it blows the 8k limit or not.
+
+Thanks for your help.
+
+regards,
+
+jb
+
+$ gcc-4.3 --version
+gcc-4.3 (Ubuntu 4.3.4-5ubuntu1) 4.3.4
+$ gcc-4.4 --version
+gcc-4.4 (Ubuntu 4.4.1-4ubuntu9) 4.4.1
 
 
+$ make CC=gcc-4.4 mm/vmscan.o
+$ objdump -d mm/vmscan.o  | less +/shrink_zone
+0000000000002830 <shrink_zone>:
+     2830:       55                      push   %rbp
+     2831:       48 89 e5                mov    %rsp,%rbp
+     2834:       41 57                   push   %r15
+     2836:       41 56                   push   %r14
+     2838:       41 55                   push   %r13
+     283a:       41 54                   push   %r12
+     283c:       53                      push   %rbx
+     283d:       48 81 ec 88 00 00 00    sub    $0x88,%rsp
+     2844:       e8 00 00 00 00          callq  2849 <shrink_zone+0x19>
+$ make clean
+$ make CC=gcc-4.3 mm/vmscan.o
+$ objdump -d mm/vmscan.o  | less +/shrink_zone
+0000000000001ca0 <shrink_zone>:
+     1ca0:       55                      push   %rbp
+     1ca1:       48 89 e5                mov    %rsp,%rbp
+     1ca4:       41 57                   push   %r15
+     1ca6:       41 56                   push   %r14
+     1ca8:       41 55                   push   %r13
+     1caa:       41 54                   push   %r12
+     1cac:       53                      push   %rbx
+     1cad:       48 81 ec d8 01 00 00    sub    $0x1d8,%rsp
+     1cb4:       e8 00 00 00 00          callq  1cb9 <shrink_zone+0x19>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
