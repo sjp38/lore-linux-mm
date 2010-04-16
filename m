@@ -1,101 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 026696B01E3
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 07:16:01 -0400 (EDT)
-Date: Fri, 16 Apr 2010 12:15:40 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
-Message-ID: <20100416111539.GC19264@csn.ul.ie>
-References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com> <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com> <20100413083855.GS25756@csn.ul.ie> <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 9E6D66B01EF
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 07:19:17 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3GBJ5ih012053
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 16 Apr 2010 20:19:05 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E542745DE4F
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 20:19:04 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C6A8D45DE4E
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 20:19:04 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B0ADC1DB8038
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 20:19:04 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 61D391DB803B
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 20:19:01 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 10/10] vmscan: Update isolated page counters outside of main path in shrink_inactive_list()
+In-Reply-To: <1271352103-2280-11-git-send-email-mel@csn.ul.ie>
+References: <1271352103-2280-1-git-send-email-mel@csn.ul.ie> <1271352103-2280-11-git-send-email-mel@csn.ul.ie>
+Message-Id: <20100416115315.27AA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 16 Apr 2010 20:19:00 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com, cl@linux-foundation.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 13, 2010 at 10:28:35PM +0800, Bob Liu wrote:
-> On Tue, Apr 13, 2010 at 4:38 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > On Tue, Apr 13, 2010 at 04:20:53PM +0800, Bob Liu wrote:
-> >> On 4/6/10, Bob Liu <lliubbo@gmail.com> wrote:
-> >> > In funtion migrate_pages(), if the dest node have no
-> >> > enough free pages,it will fallback to other nodes.
-> >> > Add GFP_THISNODE to avoid this, the same as what
-> >> > funtion new_page_node() do in migrate.c.
-> >> >
-> >> > Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> >> > ---
-> >> >  mm/mempolicy.c |    3 ++-
-> >> >  1 files changed, 2 insertions(+), 1 deletions(-)
-> >> >
-> >> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> >> > index 08f40a2..fc5ddf5 100644
-> >> > --- a/mm/mempolicy.c
-> >> > +++ b/mm/mempolicy.c
-> >> > @@ -842,7 +842,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
-> >> >
-> >> >  static struct page *new_node_page(struct page *page, unsigned long node, int **x)
-> >> >  {
-> >> > -       return alloc_pages_exact_node(node, GFP_HIGHUSER_MOVABLE, 0);
-> >> > +       return alloc_pages_exact_node(node,
-> >> > +                               GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
-> >> >  }
-> >> >
-> >>
-> >> Hi, Minchan and Kame
-> >>      Would you please add ack or review to this thread. It's BUGFIX
-> >> and not change, so i don't resend one.
-> >>
-> >
-> > Sorry for taking so long to get around to this thread. I talked on this
-> > patch already but it's in another thread. Here is what I said there
-> >
-> > ====
-> > This appears to be a valid bug fix.  I agree that the way things are structured
-> > that __GFP_THISNODE should be used in new_node_page(). But maybe a follow-on
-> > patch is also required. The behaviour is now;
-> >
-> > o new_node_page will not return NULL if the target node is empty (fine).
-> > o migrate_pages will translate this into -ENOMEM (fine)
-> > o do_migrate_pages breaks early if it gets -ENOMEM ?
-> >
-> > It's the last part I'd like you to double check. migrate_pages() takes a
-> > nodemask of allowed nodes to migrate to. Rather than sending this down
-> > to the allocator, it iterates over the nodes allowed in the mask. If one
-> > of those nodes is full, it returns -ENOMEM.
-> >
-> > If -ENOMEM is returned from migrate_pages, should it not move to the
-> > next node?
-> > ====
+> When shrink_inactive_list() isolates pages, it updates a number of
+> counters using temporary variables to gather them. These consume stack
+> and it's in the main path that calls ->writepage(). This patch moves the
+> accounting updates outside of the main path to reduce stack usage.
 > 
-> Hm.I think early return is ok but not sure about it :)
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/vmscan.c |   63 +++++++++++++++++++++++++++++++++++-----------------------
+>  1 files changed, 38 insertions(+), 25 deletions(-)
 > 
-> As Christoph said
-> "The intended semantic is the preservation of the relative position of the
-> page to the beginning of the node set."
-> "F.e. if you use page
-> migration (or cpuset automigration) to shift an application running on 10
-> nodes up by two nodes to make a hole that would allow you to run another
-> application on the lower nodes. Applications place pages intentionally on
-> certain nodes to be able to manage memory distances."
-> 
-> If move to the next node instead of early return, the relative position of the
-> page to the beginning of the node set will be break;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2c22c83..4225319 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1061,7 +1061,8 @@ static unsigned long clear_active_flags(struct list_head *page_list,
+>  			ClearPageActive(page);
+>  			nr_active++;
+>  		}
+> -		count[lru]++;
+> +		if (count)
+> +			count[lru]++;
+>  	}
+>  
+>  	return nr_active;
+> @@ -1141,12 +1142,13 @@ static int too_many_isolated(struct zone *zone, int file,
+>   * TODO: Try merging with migrations version of putback_lru_pages
+>   */
+>  static noinline void putback_lru_pages(struct zone *zone,
+> -				struct zone_reclaim_stat *reclaim_stat,
+> +				struct scan_control *sc,
+>  				unsigned long nr_anon, unsigned long nr_file,
+>   				struct list_head *page_list)
+>  {
+>  	struct page *page;
+>  	struct pagevec pvec;
+> +	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+
+Seems unrelated change here.
+Otherwise looks good.
+
+ - kosaki
+>  
+>  	pagevec_init(&pvec, 1);
+>  
+> @@ -1185,6 +1187,37 @@ static noinline void putback_lru_pages(struct zone *zone,
+>  	pagevec_release(&pvec);
+>  }
+>  
+> +static noinline void update_isolated_counts(struct zone *zone, 
+> +					struct scan_control *sc,
+> +					unsigned long *nr_anon,
+> +					unsigned long *nr_file,
+> +					struct list_head *isolated_list)
+> +{
+> +	unsigned long nr_active;
+> +	unsigned int count[NR_LRU_LISTS] = { 0, };
+> +	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+> +
+> +	nr_active = clear_active_flags(isolated_list, count);
+> +	__count_vm_events(PGDEACTIVATE, nr_active);
+> +
+> +	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
+> +			      -count[LRU_ACTIVE_FILE]);
+> +	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
+> +			      -count[LRU_INACTIVE_FILE]);
+> +	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
+> +			      -count[LRU_ACTIVE_ANON]);
+> +	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
+> +			      -count[LRU_INACTIVE_ANON]);
+> +
+> +	*nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+> +	*nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+> +	__mod_zone_page_state(zone, NR_ISOLATED_ANON, *nr_anon);
+> +	__mod_zone_page_state(zone, NR_ISOLATED_FILE, *nr_file);
+> +
+> +	reclaim_stat->recent_scanned[0] += *nr_anon;
+> +	reclaim_stat->recent_scanned[1] += *nr_file;
+> +}
+> +
+>  /*
+>   * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+>   * of reclaimed pages
+> @@ -1196,11 +1229,9 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
+>  	LIST_HEAD(page_list);
+>  	unsigned long nr_scanned;
+>  	unsigned long nr_reclaimed = 0;
+> -	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+>  	int lumpy_reclaim = 0;
+>  	unsigned long nr_taken;
+>  	unsigned long nr_active;
+> -	unsigned int count[NR_LRU_LISTS] = { 0, };
+>  	unsigned long nr_anon;
+>  	unsigned long nr_file;
+>  
+> @@ -1244,25 +1275,7 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
+>  		return 0;
+>  	}
+>  
+> -	nr_active = clear_active_flags(&page_list, count);
+> -	__count_vm_events(PGDEACTIVATE, nr_active);
+> -
+> -	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
+> -			      -count[LRU_ACTIVE_FILE]);
+> -	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
+> -			      -count[LRU_INACTIVE_FILE]);
+> -	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
+> -			      -count[LRU_ACTIVE_ANON]);
+> -	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
+> -			      -count[LRU_INACTIVE_ANON]);
+> -
+> -	nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+> -	nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+> -	__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
+> -	__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
+> -
+> -	reclaim_stat->recent_scanned[0] += nr_anon;
+> -	reclaim_stat->recent_scanned[1] += nr_file;
+> +	update_isolated_counts(zone, sc, &nr_anon, &nr_file, &page_list);
+>  
+>  	spin_unlock_irq(&zone->lru_lock);
+>  
+> @@ -1281,7 +1294,7 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
+>  		 * The attempt at page out may have made some
+>  		 * of the pages active, mark them inactive again.
+>  		 */
+> -		nr_active = clear_active_flags(&page_list, count);
+> +		nr_active = clear_active_flags(&page_list, NULL);
+>  		count_vm_events(PGDEACTIVATE, nr_active);
+>  
+>  		nr_reclaimed += shrink_page_list(&page_list, sc,
+> @@ -1293,7 +1306,7 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
+>  		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+>  	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
+>  
+> -	putback_lru_pages(zone, reclaim_stat, nr_anon, nr_file, &page_list);
+> +	putback_lru_pages(zone, sc, nr_anon, nr_file, &page_list);
+>  	return nr_reclaimed;
+>  }
+>  
+> -- 
+> 1.6.5
 > 
 
-Yeah, but the user requested that a number of nodes to be used. Sure, if the
-first node is not free, a page will be allocated on the second node instead
-but is that not what was requested? If the user wanted one and only one
-node to be used, they wouldn't have specified multiple nodes. I'm not
-convinced an early return is what was intended here.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
