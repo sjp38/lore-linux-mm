@@ -1,55 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 937F86B01F0
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 16:34:57 -0400 (EDT)
-Date: Fri, 16 Apr 2010 13:33:24 -0700
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9932F6B01F0
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 17:18:54 -0400 (EDT)
+Date: Fri, 16 Apr 2010 14:18:41 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/8] numa:  add generic percpu var numa_node_id()
- implementation
-Message-Id: <20100416133324.fcb1c168.akpm@linux-foundation.org>
-In-Reply-To: <20100415172956.8801.18133.sendpatchset@localhost.localdomain>
-References: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
-	<20100415172956.8801.18133.sendpatchset@localhost.localdomain>
+Subject: Re: [PATCH] vmscan: page_check_references() check low order lumpy
+ reclaim properly
+Message-Id: <20100416141841.300d2361.akpm@linux-foundation.org>
+In-Reply-To: <20100416115437.27AD.A69D9226@jp.fujitsu.com>
+References: <20100415135031.D186.A69D9226@jp.fujitsu.com>
+	<20100415051911.GA17110@localhost>
+	<20100416115437.27AD.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, andi@firstfloor.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andreas Mohr <andi@lisas.de>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Apr 2010 13:29:56 -0400
-Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+On Fri, 16 Apr 2010 12:16:18 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> Rework the generic version of the numa_node_id() function to use the
-> new generic percpu variable infrastructure.
+> If vmscan is under lumpy reclaim mode, it have to ignore referenced bit
+> for making contenious free pages. but current page_check_references()
+> doesn't.
 > 
-> Guard the new implementation with a new config option:
+> Fixes it.
 > 
->         CONFIG_USE_PERCPU_NUMA_NODE_ID.
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/vmscan.c |   32 +++++++++++++++++---------------
+>  1 files changed, 17 insertions(+), 15 deletions(-)
 > 
-> Archs which support this new implemention will default this option
-> to 'y' when NUMA is configured.  This config option could be removed
-> if/when all archs switch over to the generic percpu implementation
-> of numa_node_id().  Arch support involves:
-> 
->   1) converting any existing per cpu variable implementations to use
->      this implementation.  x86_64 is an instance of such an arch.
->   2) archs that don't use a per cpu variable for numa_node_id() will
->      need to initialize the new per cpu variable "numa_node" as cpus
->      are brought on-line.  ia64 is an example.
->   3) Defining USE_PERCPU_NUMA_NODE_ID in arch dependent Kconfig--e.g.,
->      when NUMA is configured.  This is required because I have
->      retained the old implementation by default to allow archs to
->      be modified incrementally, as desired.
-> 
-> Subsequent patches will convert x86_64 and ia64 to use this
-> implemenation.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 3ff3311..13d9546 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -77,6 +77,8 @@ struct scan_control {
+>  
+>  	int order;
+>  
+> +	int lumpy_reclaim;
+> +
 
-So which arches _aren't_ converted?  powerpc, sparc and alpha?
+Needs a comment explaining its role, please.  Something like "direct
+this reclaim run to perform lumpy reclaim"?
 
-Is there sufficient info here for the maintainers to be able to
-perform the conversion with minimal head-scratching?
+A clearer name might be "lumpy_relcaim_mode"?
+
+Making it a `bool' would clarify things too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
