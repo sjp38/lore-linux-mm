@@ -1,76 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 71E486B01F2
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 15:13:16 -0400 (EDT)
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.2.00.1004161105120.7710@router.home>
-References: 
-	 <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
-	 <4BC65237.5080408@kernel.org>
-	 <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>
-	 <4BC6BE78.1030503@kernel.org>
-	 <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>
-	 <4BC6CB30.7030308@kernel.org>
-	 <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>
-	 <4BC6E581.1000604@kernel.org>
-	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
-	 <4BC6FBC8.9090204@kernel.org>
-	 <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
-	 <alpine.DEB.2.00.1004161105120.7710@router.home>
-Content-Type: text/plain
-Date: Fri, 16 Apr 2010 15:13:09 -0400
-Message-Id: <1271445189.30360.280.camel@useless.americas.hpqcorp.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 937F86B01F0
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 16:34:57 -0400 (EDT)
+Date: Fri, 16 Apr 2010 13:33:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/8] numa:  add generic percpu var numa_node_id()
+ implementation
+Message-Id: <20100416133324.fcb1c168.akpm@linux-foundation.org>
+In-Reply-To: <20100415172956.8801.18133.sendpatchset@localhost.localdomain>
+References: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
+	<20100415172956.8801.18133.sendpatchset@localhost.localdomain>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, andi@firstfloor.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-04-16 at 11:07 -0500, Christoph Lameter wrote:
-> On Thu, 15 Apr 2010, Minchan Kim wrote:
-> 
-> > I don't want to remove alloc_pages for UMA system.
-> 
-> alloc_pages is the same as alloc_pages_any_node so why have it?
-> 
-> > #define alloc_pages alloc_page_sexact_node
-> >
-> > What I want to remove is just alloc_pages_node. :)
-> 
-> Why remove it? If you want to get rid of -1 handling then check all the
-> callsites and make sure that they are not using  -1.
-> 
-> Also could you define a constant for -1? -1 may have various meanings. One
-> is the local node and the other is any node. 
+On Thu, 15 Apr 2010 13:29:56 -0400
+Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 
-NUMA_NO_NODE is #defined as (-1) and can be used for this purpose.  '-1'
-has been replaced by this in many cases.   It can be interpreted as "No
-node specified" == "any node is acceptable".  But, it also has multiple
-meanings.  E.g., in the hugetlb sysfs attribute and sysctl functions it
-indicates the global hstates [all nodes] vs a per node hstate.  So, I
-suppose one could define a NUMA_ANY_NODE, to make the intention clear at
-the call site.
+> Rework the generic version of the numa_node_id() function to use the
+> new generic percpu variable infrastructure.
+> 
+> Guard the new implementation with a new config option:
+> 
+>         CONFIG_USE_PERCPU_NUMA_NODE_ID.
+> 
+> Archs which support this new implemention will default this option
+> to 'y' when NUMA is configured.  This config option could be removed
+> if/when all archs switch over to the generic percpu implementation
+> of numa_node_id().  Arch support involves:
+> 
+>   1) converting any existing per cpu variable implementations to use
+>      this implementation.  x86_64 is an instance of such an arch.
+>   2) archs that don't use a per cpu variable for numa_node_id() will
+>      need to initialize the new per cpu variable "numa_node" as cpus
+>      are brought on-line.  ia64 is an example.
+>   3) Defining USE_PERCPU_NUMA_NODE_ID in arch dependent Kconfig--e.g.,
+>      when NUMA is configured.  This is required because I have
+>      retained the old implementation by default to allow archs to
+>      be modified incrementally, as desired.
+> 
+> Subsequent patches will convert x86_64 and ia64 to use this
+> implemenation.
 
-I believe that all usage of -1 to mean the local node has been removed,
-unless I missed one.  Local allocation is now indicated by a mempolicy
-mode flag--MPOL_F_LOCAL.  It's treated as a special case of
-MPOL_PREFERRED.
+So which arches _aren't_ converted?  powerpc, sparc and alpha?
 
-> The difference is if memory
-> policies are obeyed or not. Note that alloc_pages follows memory policies
-> whereas alloc_pages_node does not.
-> 
-> Therefore
-> 
-> alloc_pages() != alloc_pages_node(  , -1)
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Is there sufficient info here for the maintainers to be able to
+perform the conversion with minimal head-scratching?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
