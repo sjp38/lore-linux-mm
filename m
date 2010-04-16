@@ -1,43 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2A5DB6B01FE
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 12:08:26 -0400 (EDT)
-Date: Fri, 16 Apr 2010 11:07:55 -0500 (CDT)
+	by kanga.kvack.org (Postfix) with SMTP id 030EF6B0200
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 12:13:40 -0400 (EDT)
+Date: Fri, 16 Apr 2010 11:10:01 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-In-Reply-To: <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1004161105120.7710@router.home>
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>  <4BC65237.5080408@kernel.org>  <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>  <4BC6BE78.1030503@kernel.org>  <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>
-  <4BC6CB30.7030308@kernel.org>  <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>  <4BC6E581.1000604@kernel.org>  <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>  <4BC6FBC8.9090204@kernel.org>
- <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
+Subject: Re: [PATCH 3/6] change alloc function in alloc_slab_page
+In-Reply-To: <s2x84144f021004140523t3092f6cbge410ab4e15afac3e@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1004161109070.7710@router.home>
+References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>  <8b348d9cc1ea4960488b193b7e8378876918c0d4.1271171877.git.minchan.kim@gmail.com>  <20100414091825.0bacfe48.kamezawa.hiroyu@jp.fujitsu.com>
+ <s2x84144f021004140523t3092f6cbge410ab4e15afac3e@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Apr 2010, Minchan Kim wrote:
+On Wed, 14 Apr 2010, Pekka Enberg wrote:
 
-> I don't want to remove alloc_pages for UMA system.
+> Minchan, care to send a v2 with proper changelog and reviewed-by attributions?
 
-alloc_pages is the same as alloc_pages_any_node so why have it?
-
-> #define alloc_pages alloc_page_sexact_node
->
-> What I want to remove is just alloc_pages_node. :)
-
-Why remove it? If you want to get rid of -1 handling then check all the
-callsites and make sure that they are not using  -1.
-
-Also could you define a constant for -1? -1 may have various meanings. One
-is the local node and the other is any node. The difference is if memory
-policies are obeyed or not. Note that alloc_pages follows memory policies
-whereas alloc_pages_node does not.
-
-Therefore
-
-alloc_pages() != alloc_pages_node(  , -1)
+Still wondering what the big deal about alloc_pages_node_exact is. Its not
+exact since we can fall back to another node. It is better to clarify the
+API for alloc_pages_node and forbid / clarify the use of -1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
