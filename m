@@ -1,171 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3414D6B01F2
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 10:35:43 -0400 (EDT)
-Date: Fri, 16 Apr 2010 15:35:21 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 905AF6B01F6
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 10:50:49 -0400 (EDT)
+Date: Fri, 16 Apr 2010 15:50:24 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 10/10] vmscan: Update isolated page counters outside of
-	main path in shrink_inactive_list()
-Message-ID: <20100416143521.GH19264@csn.ul.ie>
-References: <1271352103-2280-1-git-send-email-mel@csn.ul.ie> <1271352103-2280-11-git-send-email-mel@csn.ul.ie> <20100416115315.27AA.A69D9226@jp.fujitsu.com>
+Subject: Re: [RFC PATCH 00/10] Reduce stack usage used by page reclaim V1
+Message-ID: <20100416145023.GI19264@csn.ul.ie>
+References: <1271352103-2280-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100416115315.27AA.A69D9226@jp.fujitsu.com>
+In-Reply-To: <1271352103-2280-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 16, 2010 at 08:19:00PM +0900, KOSAKI Motohiro wrote:
-> > When shrink_inactive_list() isolates pages, it updates a number of
-> > counters using temporary variables to gather them. These consume stack
-> > and it's in the main path that calls ->writepage(). This patch moves the
-> > accounting updates outside of the main path to reduce stack usage.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  mm/vmscan.c |   63 +++++++++++++++++++++++++++++++++++-----------------------
-> >  1 files changed, 38 insertions(+), 25 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 2c22c83..4225319 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1061,7 +1061,8 @@ static unsigned long clear_active_flags(struct list_head *page_list,
-> >  			ClearPageActive(page);
-> >  			nr_active++;
-> >  		}
-> > -		count[lru]++;
-> > +		if (count)
-> > +			count[lru]++;
-> >  	}
-> >  
-> >  	return nr_active;
-> > @@ -1141,12 +1142,13 @@ static int too_many_isolated(struct zone *zone, int file,
-> >   * TODO: Try merging with migrations version of putback_lru_pages
-> >   */
-> >  static noinline void putback_lru_pages(struct zone *zone,
-> > -				struct zone_reclaim_stat *reclaim_stat,
-> > +				struct scan_control *sc,
-> >  				unsigned long nr_anon, unsigned long nr_file,
-> >   				struct list_head *page_list)
-> >  {
-> >  	struct page *page;
-> >  	struct pagevec pvec;
-> > +	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-> 
-> Seems unrelated change here.
-> Otherwise looks good.
+On Thu, Apr 15, 2010 at 06:21:33PM +0100, Mel Gorman wrote:
+> This is just an RFC to reduce some of the more obvious stack usage in page
+> reclaim. It's a bit rushed and I haven't tested this yet but am sending
+> it out as there may be others working on similar material and would rather
+> avoid overlap. I built on some of Kosaki Motohiro's work.
 > 
 
-It was needed somewhat otherwise the split in accounting looked odd. It
-could be done as two patches but it felt trickier to review.
+So the first pass seems to have been reasonably well received. Kosaki,
+Rik and Johannes, how you do typically test reclaim-related patches for
+regressions? My initial sniff-tests look ok with the page leak sorted out
+but I typically am not searching for vmscan regressions other than lumpy
+reclaim.
 
->  - kosaki
-> >  
-> >  	pagevec_init(&pvec, 1);
-> >  
-> > @@ -1185,6 +1187,37 @@ static noinline void putback_lru_pages(struct zone *zone,
-> >  	pagevec_release(&pvec);
-> >  }
-> >  
-> > +static noinline void update_isolated_counts(struct zone *zone, 
-> > +					struct scan_control *sc,
-> > +					unsigned long *nr_anon,
-> > +					unsigned long *nr_file,
-> > +					struct list_head *isolated_list)
-> > +{
-> > +	unsigned long nr_active;
-> > +	unsigned int count[NR_LRU_LISTS] = { 0, };
-> > +	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-> > +
-> > +	nr_active = clear_active_flags(isolated_list, count);
-> > +	__count_vm_events(PGDEACTIVATE, nr_active);
-> > +
-> > +	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
-> > +			      -count[LRU_ACTIVE_FILE]);
-> > +	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
-> > +			      -count[LRU_INACTIVE_FILE]);
-> > +	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
-> > +			      -count[LRU_ACTIVE_ANON]);
-> > +	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
-> > +			      -count[LRU_INACTIVE_ANON]);
-> > +
-> > +	*nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
-> > +	*nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
-> > +	__mod_zone_page_state(zone, NR_ISOLATED_ANON, *nr_anon);
-> > +	__mod_zone_page_state(zone, NR_ISOLATED_FILE, *nr_file);
-> > +
-> > +	reclaim_stat->recent_scanned[0] += *nr_anon;
-> > +	reclaim_stat->recent_scanned[1] += *nr_file;
-> > +}
-> > +
-> >  /*
-> >   * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
-> >   * of reclaimed pages
-> > @@ -1196,11 +1229,9 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
-> >  	LIST_HEAD(page_list);
-> >  	unsigned long nr_scanned;
-> >  	unsigned long nr_reclaimed = 0;
-> > -	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-> >  	int lumpy_reclaim = 0;
-> >  	unsigned long nr_taken;
-> >  	unsigned long nr_active;
-> > -	unsigned int count[NR_LRU_LISTS] = { 0, };
-> >  	unsigned long nr_anon;
-> >  	unsigned long nr_file;
-> >  
-> > @@ -1244,25 +1275,7 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
-> >  		return 0;
-> >  	}
-> >  
-> > -	nr_active = clear_active_flags(&page_list, count);
-> > -	__count_vm_events(PGDEACTIVATE, nr_active);
-> > -
-> > -	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
-> > -			      -count[LRU_ACTIVE_FILE]);
-> > -	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
-> > -			      -count[LRU_INACTIVE_FILE]);
-> > -	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
-> > -			      -count[LRU_ACTIVE_ANON]);
-> > -	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
-> > -			      -count[LRU_INACTIVE_ANON]);
-> > -
-> > -	nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
-> > -	nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
-> > -	__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
-> > -	__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
-> > -
-> > -	reclaim_stat->recent_scanned[0] += nr_anon;
-> > -	reclaim_stat->recent_scanned[1] += nr_file;
-> > +	update_isolated_counts(zone, sc, &nr_anon, &nr_file, &page_list);
-> >  
-> >  	spin_unlock_irq(&zone->lru_lock);
-> >  
-> > @@ -1281,7 +1294,7 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
-> >  		 * The attempt at page out may have made some
-> >  		 * of the pages active, mark them inactive again.
-> >  		 */
-> > -		nr_active = clear_active_flags(&page_list, count);
-> > +		nr_active = clear_active_flags(&page_list, NULL);
-> >  		count_vm_events(PGDEACTIVATE, nr_active);
-> >  
-> >  		nr_reclaimed += shrink_page_list(&page_list, sc,
-> > @@ -1293,7 +1306,7 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
-> >  		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
-> >  	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
-> >  
-> > -	putback_lru_pages(zone, reclaim_stat, nr_anon, nr_file, &page_list);
-> > +	putback_lru_pages(zone, sc, nr_anon, nr_file, &page_list);
-> >  	return nr_reclaimed;
-> >  }
-> >  
-> > -- 
-> > 1.6.5
-> > 
+> On X86 bit, stack usage figures (generated using a modified bloat-o-meter
+
+This should have been X86-64. The stack shrinkage is less on X86
+obviously because of the difference size of pointers and the like.
+
+> that uses checkstack.pl as its input) change in the following ways after
+> the series of patches.
 > 
+> add/remove: 2/0 grow/shrink: 0/4 up/down: 804/-1688 (-884)
+> function                                     old     new   delta
+> putback_lru_pages                              -     676    +676
+> update_isolated_counts                         -     128    +128
+> do_try_to_free_pages                         172     128     -44
+> kswapd                                      1324    1168    -156
+> shrink_page_list                            1616    1224    -392
+> shrink_zone                                 2320    1224   -1096
 > 
+> There are some growths there but critically they are no longer in the path
+> that would call writepages. In the main path, there is about 1K of stack
+> lopped off giving a small amount of breathing room.
+> 
+> KOSAKI Motohiro (3):
+>   vmscan: kill prev_priority completely
+>   vmscan: move priority variable into scan_control
+>   vmscan: simplify shrink_inactive_list()
+> 
+> Mel Gorman (7):
+>   vmscan: Remove useless loop at end of do_try_to_free_pages
+>   vmscan: Remove unnecessary temporary vars in do_try_to_free_pages
+>   vmscan: Split shrink_zone to reduce stack usage
+>   vmscan: Remove unnecessary temporary variables in shrink_zone()
+>   vmscan: Setup pagevec as late as possible in shrink_inactive_list()
+>   vmscan: Setup pagevec as late as possible in shrink_page_list()
+>   vmscan: Update isolated page counters outside of main path in
+>     shrink_inactive_list()
+> 
+>  include/linux/mmzone.h |   15 --
+>  mm/page_alloc.c        |    2 -
+>  mm/vmscan.c            |  447 +++++++++++++++++++++++-------------------------
+>  mm/vmstat.c            |    2 -
+>  4 files changed, 210 insertions(+), 256 deletions(-)
 > 
 
 -- 
