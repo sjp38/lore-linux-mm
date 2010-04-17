@@ -1,82 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3C2556B01EF
-	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 22:38:08 -0400 (EDT)
-Date: Sat, 17 Apr 2010 12:37:52 +1000
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9ECA46B01EF
+	for <linux-mm@kvack.org>; Fri, 16 Apr 2010 23:07:14 -0400 (EDT)
+Date: Sat, 17 Apr 2010 13:06:48 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/4] vmscan: simplify shrink_inactive_list()
-Message-ID: <20100417023752.GG2493@dastard>
-References: <20100415085420.GT2493@dastard>
- <20100415185310.D1A1.A69D9226@jp.fujitsu.com>
- <20100415192140.D1A4.A69D9226@jp.fujitsu.com>
- <20100415131532.GD10966@csn.ul.ie>
- <87tyrc92un.fsf@basil.nowhere.org>
- <20100415154442.GG10966@csn.ul.ie>
- <20100415165416.GV18855@one.firstfloor.org>
- <20100415234013.GX2493@dastard>
- <20100416145706.GK19264@csn.ul.ie>
+Subject: Re: [PATCH 1/4] vmscan: delegate pageout io to flusher thread if
+ current is kswapd
+Message-ID: <20100417030648.GH2493@dastard>
+References: <20100415013436.GO2493@dastard>
+ <20100415130212.D16E.A69D9226@jp.fujitsu.com>
+ <20100415131106.D174.A69D9226@jp.fujitsu.com>
+ <64BE60A8-EEF9-4AC6-AF0A-0ED3CB544726@freebsd.org>
+ <20100415093214.GV2493@dastard>
+ <85DB7083-8E78-4884-9E76-5BD803C530EF@freebsd.org>
+ <20100415233339.GW2493@dastard>
+ <20100416105002.191adeb1@lxorguk.ukuu.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100416145706.GK19264@csn.ul.ie>
+In-Reply-To: <20100416105002.191adeb1@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, suleiman@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 16, 2010 at 03:57:07PM +0100, Mel Gorman wrote:
-> On Fri, Apr 16, 2010 at 09:40:13AM +1000, Dave Chinner wrote:
-> > On Thu, Apr 15, 2010 at 06:54:16PM +0200, Andi Kleen wrote:
-> > > > It's a buying-time venture, I'll agree but as both approaches are only
-> > > > about reducing stack stack they wouldn't be long-term solutions by your
-> > > > criteria. What do you suggest?
-> > > 
-> > > (from easy to more complicated):
-> > > 
-> > > - Disable direct reclaim with 4K stacks
-> > 
-> > Just to re-iterate: we're blowing the stack with direct reclaim on
-> > x86_64  w/ 8k stacks. 
+On Fri, Apr 16, 2010 at 10:50:02AM +0100, Alan Cox wrote:
+> > No. If you are doing full disk seeks between random chunks, then you
+> > still lose a large amount of throughput. e.g. if the seek time is
+> > 10ms and your IO time is 10ms for each 4k page, then increasing the
+> > size ito 64k makes it 10ms seek and 12ms for the IO. We might increase
+> > throughput but we are still limited to 100 IOs per second. We've
+> > gone from 400kB/s to 6MB/s, but that's still an order of magnitude
+> > short of the 100MB/s full size IOs with little in way of seeks
+> > between them will acheive on the same spindle...
 > 
-> Yep, that is not being disputed. By the way, what did you use to
-> generate your report? Was it CONFIG_DEBUG_STACK_USAGE or something else?
-> I used a modified bloat-o-meter to gather my data but it'd be nice to
-> be sure I'm seeing the same things as you (minus XFS unless I
-> specifically set it up).
+> The usual armwaving numbers for ops/sec for an ATA disk are in the 200
+> ops/sec range so that seems horribly credible.
 
-I'm using the tracing subsystem to get them. Doesn't everyone use
-that now? ;)
+Yeah, in my experience 7200rpm SATA will get you 200 ops/s when you
+are doing really small seeks as the typical minimum seek time is
+around 4-5ms. Average seek time, however, is usually in the range of
+10ms, because full head sweep + spindle rotation seeks take in the
+order of 15ms.
 
-$ grep STACK .config
-CONFIG_STACKTRACE_SUPPORT=y
-CONFIG_HAVE_REGS_AND_STACK_ACCESS_API=y
-# CONFIG_CC_STACKPROTECTOR is not set
-CONFIG_STACKTRACE=y
-CONFIG_USER_STACKTRACE_SUPPORT=y
-CONFIG_STACK_TRACER=y
-# CONFIG_DEBUG_STACKOVERFLOW is not set
-# CONFIG_DEBUG_STACK_USAGE is not set
+Hence small random IO tends to result in seek times nearer the
+average seek time than the minimum, so that's what i tend to use for
+determining the number of ops/s a disk will sustain.
 
-Then:
+> But then I've never quite understood why our anonymous paging isn't
+> sorting stuff as best it can and then using the drive as a log structure
+> with in memory metadata so it can stream the pages onto disk. Read
+> performance is goig to be similar (maybe better if you have a log tidy
+> when idle), write ought to be far better.
 
-# echo 1 > /proc/sys/kernel/stack_tracer_enabled
-
-<run workloads>
-
-Monitor the worst recorded stack usage as it changes via:
-
-# cat /sys/kernel/debug/tracing/stack_trace
-        Depth    Size   Location    (44 entries)
-        -----    ----   --------
-  0)     5584     288   get_page_from_freelist+0x5c0/0x830
-  1)     5296     272   __alloc_pages_nodemask+0x102/0x730
-  2)     5024      48   kmem_getpages+0x62/0x160
-  3)     4976      96   cache_grow+0x308/0x330
-  4)     4880      96   cache_alloc_refill+0x27f/0x2c0
-  5)     4784      96   __kmalloc+0x241/0x250
-  6)     4688     112   vring_add_buf+0x233/0x420
-......
-
+Sounds like a worthy project for someone to sink their teeth into.
+Lots of people would like to have a system that can page out at
+hundreds of megabytes a second....
 
 Cheers,
 
