@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0E06B01EF
-	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 17:19:15 -0400 (EDT)
-Message-ID: <4BCB780C.1030001@kernel.org>
-Date: Mon, 19 Apr 2010 06:22:20 +0900
-From: Tejun Heo <tj@kernel.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>	 <4BC65237.5080408@kernel.org>	 <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>	 <4BC6BE78.1030503@kernel.org>	 <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>	 <4BC6CB30.7030308@kernel.org>	 <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>	 <4BC6E581.1000604@kernel.org>	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>	 <4BC6FBC8.9090204@kernel.org>	 <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>	 <alpine.DEB.2.00.1004161105120.7710@router.home> <1271606079.2100.159.camel@barrios-desktop>
-In-Reply-To: <1271606079.2100.159.camel@barrios-desktop>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E2F526B01EF
+	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 17:30:52 -0400 (EDT)
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+From: James Bottomley <James.Bottomley@suse.de>
+In-Reply-To: <op.vbdgq3hhrwwil4@sfaibish1.corp.emc.com>
+References: <20100413202021.GZ13327@think> <20100414014041.GD2493@dastard>
+	 <20100414155233.D153.A69D9226@jp.fujitsu.com>
+	 <20100414072830.GK2493@dastard> <20100414085132.GJ25756@csn.ul.ie>
+	 <20100415013436.GO2493@dastard> <20100415102837.GB10966@csn.ul.ie>
+	 <20100416041412.GY2493@dastard> <20100416151403.GM19264@csn.ul.ie>
+	 <20100417203239.dda79e88.akpm@linux-foundation.org>
+	 <op.vbdgq3hhrwwil4@sfaibish1.corp.emc.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sun, 18 Apr 2010 16:30:36 -0500
+Message-ID: <1271626236.27350.70.camel@mulgrave.site>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sorin Faibish <sfaibish@emc.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/19/2010 12:54 AM, Minchan Kim wrote:
->> alloc_pages is the same as alloc_pages_any_node so why have it?
+On Sun, 2010-04-18 at 15:10 -0400, Sorin Faibish wrote:
+> On Sat, 17 Apr 2010 20:32:39 -0400, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
 > 
-> I don't want to force using '_node' postfix on UMA users.
-> Maybe they don't care getting page from any node and event don't need to
-> know about _NODE_. 
+> >
+> > There are two issues here: stack utilisation and poor IO patterns in
+> > direct reclaim.  They are different.
+> >
+> > The poor IO patterns thing is a regression.  Some time several years
+> > ago (around 2.6.16, perhaps), page reclaim started to do a LOT more
+> > dirty-page writeback than it used to.  AFAIK nobody attempted to work
+> > out why, nor attempted to try to fix it.
 
-Yeah, then, remove alloc_pages_any_node().  I can't really see the
-point of any_/exact_node.  alloc_pages() and alloc_pages_node() are
-fine and in line with other functions.  Why change it?
+> I for one am looking very seriously at this problem together with Bruce.
+> We plan to have a discussion on this topic at the next LSF meeting
+> in Boston.
 
->> Why remove it? If you want to get rid of -1 handling then check all the
-> 
-> alloc_pages_node have multiple meaning as you said. So some of users
-> misuses that API. I want to clear intention of user.
+As luck would have it, the Memory Management summit is co-located with
+the Storage and Filesystem workshop ... how about just planning to lock
+all the protagonists in a room if it's not solved by August.  The less
+extreme might even like to propose topics for the plenary sessions ...
 
-The name is fine.  Just clean up the users and make the intended usage
-clear in documentation and implementation (ie. trigger a big fat
-warning) and make all the callers use named constants instead of -1
-for special meanings.
+James
 
-Thanks.
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
