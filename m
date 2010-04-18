@@ -1,33 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AC9BD6B01EF
-	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 14:49:51 -0400 (EDT)
-Message-ID: <4BCB5448.3010209@cs.helsinki.fi>
-Date: Sun, 18 Apr 2010 21:49:44 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D0D96B01EF
+	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 15:05:48 -0400 (EDT)
+Date: Sun, 18 Apr 2010 15:05:26 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-ID: <20100418190526.GA1692@infradead.org>
+References: <20100413202021.GZ13327@think> <20100414014041.GD2493@dastard> <20100414155233.D153.A69D9226@jp.fujitsu.com> <20100414072830.GK2493@dastard> <20100414085132.GJ25756@csn.ul.ie> <20100415013436.GO2493@dastard> <20100415102837.GB10966@csn.ul.ie> <20100416041412.GY2493@dastard> <20100416151403.GM19264@csn.ul.ie> <20100417203239.dda79e88.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/6] change alloc function in alloc_slab_page
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>  <8b348d9cc1ea4960488b193b7e8378876918c0d4.1271171877.git.minchan.kim@gmail.com>  <20100414091825.0bacfe48.kamezawa.hiroyu@jp.fujitsu.com> <s2x84144f021004140523t3092f6cbge410ab4e15afac3e@mail.gmail.com> <alpine.DEB.2.00.1004161109070.7710@router.home>
-In-Reply-To: <alpine.DEB.2.00.1004161109070.7710@router.home>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100417203239.dda79e88.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Wed, 14 Apr 2010, Pekka Enberg wrote:
-> 
->> Minchan, care to send a v2 with proper changelog and reviewed-by attributions?
-> 
-> Still wondering what the big deal about alloc_pages_node_exact is. Its not
-> exact since we can fall back to another node. It is better to clarify the
-> API for alloc_pages_node and forbid / clarify the use of -1.
+On Sat, Apr 17, 2010 at 08:32:39PM -0400, Andrew Morton wrote:
+> The poor IO patterns thing is a regression.  Some time several years
+> ago (around 2.6.16, perhaps), page reclaim started to do a LOT more
+> dirty-page writeback than it used to.  AFAIK nobody attempted to work
+> out why, nor attempted to try to fix it.
 
-Minchan's patch is a continuation of this patch:
+I just know that we XFS guys have been complaining about it a lot..
 
-http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commit;h=6484eb3e2a81807722
+But that was mostly a tuning issue - before writeout mostly happened
+from pdflush.  If we got into kswapd or direct reclaim we already
+did get horrible I/O patterns - it just happened far less often.
+
+> Regarding simply not doing any writeout in direct reclaim (Dave's
+> initial proposal): the problem is that pageout() will clean a page in
+> the target zone.  Normal writeout won't do that, so we could get into a
+> situation where vast amounts of writeout is happening, but none of it
+> is cleaning pages in the zone which we're trying to allocate from. 
+> It's quite possibly livelockable, too.
+
+As Chris mentioned currently btrfs and ext4 do not actually do delalloc
+conversions from this path, so for typical workloads the amount of
+writeout that can happen from this path is extremly limited.  And unless
+we get things fixed we will have to do the same for XFS.  I'd be much
+more happy if we could just sort it out at the VM level, because this
+means we have one sane place for this kind of policy instead of three
+or more hacks down inside the filesystems.  It's rather interesting
+that all people on the modern fs side completely agree here what the
+problem is, but it seems rather hard to convince the VM side to do
+anything about it.
+
+> To solve the stack-usage thing: dunno, really.  One could envisage code
+> which skips pageout() if we're using more than X amount of stack, but
+> that sucks.
+
+And it doesn't solve other issues, like the whole lock taking problem.
+
+> Another possibility might be to hand the target page over
+> to another thread (I suppose kswapd will do) and then synchronise with
+> that thread - get_page()+wait_on_page_locked() is one way.  The helper
+> thread could of course do writearound.
+
+Allowing the flusher threads to do targeted writeout would be the
+best from the FS POV.  We'll still have one source of the I/O, just
+with another know on how to select the exact region to write out.
+We can still synchronously wait for the I/O for lumpy reclaim if really
+nessecary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
