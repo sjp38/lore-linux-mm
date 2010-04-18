@@ -1,289 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B3B356B01EF
-	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 11:14:18 -0400 (EDT)
-Received: by gyg4 with SMTP id 4so2191931gyg.14
-        for <linux-mm@kvack.org>; Sun, 18 Apr 2010 08:14:16 -0700 (PDT)
-Subject: Re: vmalloc performance
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CFFDA6B01EF
+	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 11:54:47 -0400 (EDT)
+Received: by gwb15 with SMTP id 15so2207732gwb.14
+        for <linux-mm@kvack.org>; Sun, 18 Apr 2010 08:54:45 -0700 (PDT)
+Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
 From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <1271427056.7196.163.camel@localhost.localdomain>
-References: <1271089672.7196.63.camel@localhost.localdomain>
-	 <1271249354.7196.66.camel@localhost.localdomain>
-	 <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
-	 <1271262948.2233.14.camel@barrios-desktop>
-	 <1271320388.2537.30.camel@localhost>
-	 <1271350270.2013.29.camel@barrios-desktop>
-	 <1271427056.7196.163.camel@localhost.localdomain>
+In-Reply-To: <alpine.DEB.2.00.1004161105120.7710@router.home>
+References: 
+	 <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
+	 <4BC65237.5080408@kernel.org>
+	 <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>
+	 <4BC6BE78.1030503@kernel.org>
+	 <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>
+	 <4BC6CB30.7030308@kernel.org>
+	 <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>
+	 <4BC6E581.1000604@kernel.org>
+	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
+	 <4BC6FBC8.9090204@kernel.org>
+	 <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
+	 <alpine.DEB.2.00.1004161105120.7710@router.home>
 Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 19 Apr 2010 00:14:09 +0900
-Message-ID: <1271603649.2100.122.camel@barrios-desktop>
+Date: Mon, 19 Apr 2010 00:54:39 +0900
+Message-ID: <1271606079.2100.159.camel@barrios-desktop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Steven Whitehouse <swhiteho@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-04-16 at 15:10 +0100, Steven Whitehouse wrote:
-> Hi,
+Hi, Christoph. 
+
+On Fri, 2010-04-16 at 11:07 -0500, Christoph Lameter wrote:
+> On Thu, 15 Apr 2010, Minchan Kim wrote:
 > 
-> On Fri, 2010-04-16 at 01:51 +0900, Minchan Kim wrote:
-> [snip]
-> > Thanks for the explanation. It seems to be real issue. 
-> > 
-> > I tested to see effect with flush during rb tree search.
-> > 
-> > Before I applied your patch, the time is 50300661 us. 
-> > After your patch, 11569357 us. 
-> > After my debug patch, 6104875 us.
-> > 
-> > I tested it as changing threshold value.
-> > 
-> > threshold	time
-> > 1000		13892809
-> > 500		9062110
-> > 200		6714172
-> > 100		6104875
-> > 50		6758316
-> > 
-> My results show:
+> > I don't want to remove alloc_pages for UMA system.
 > 
-> threshold        time
-> 100000           139309948
-> 1000             13555878
-> 500              10069801
-> 200              7813667
-> 100              18523172
-> 50               18546256
+> alloc_pages is the same as alloc_pages_any_node so why have it?
+
+I don't want to force using '_node' postfix on UMA users.
+Maybe they don't care getting page from any node and event don't need to
+know about _NODE_. 
+
 > 
-> > And perf shows smp_call_function is very low percentage.
-> > 
-> > In my cases, 100 is best. 
-> > 
-> Looks like 200 for me.
+> > #define alloc_pages alloc_page_sexact_node
+> >
+> > What I want to remove is just alloc_pages_node. :)
 > 
-> I think you meant to use the non _minmax version of proc_dointvec too?
+> Why remove it? If you want to get rid of -1 handling then check all the
 
-Yes. My fault :)
+alloc_pages_node have multiple meaning as you said. So some of users
+misuses that API. I want to clear intention of user.
 
-> Although it doesn't make any difference for this basic test.
+> callsites and make sure that they are not using  -1.
+
+Sure. I must do it before any progressing. 
+
 > 
-> The original reporter also has 8 cpu cores I've discovered. In his case
-> divided by 4 cpus where as mine are divided by 2 cpus, but I think that
-> makes no real difference in this case.
+> Also could you define a constant for -1? -1 may have various meanings. One
+> is the local node and the other is any node. The difference is if memory
+> policies are obeyed or not. Note that alloc_pages follows memory policies
+> whereas alloc_pages_node does not.
 > 
-> I'll try and get some further test results ready shortly. Many thanks
-> for all your efforts in tracking this down,
+> Therefore
 > 
-> Steve.
+> alloc_pages() != alloc_pages_node(  , -1)
+> 
 
-I voted "free area cache".
-I tested below patch in my machine. 
+Yes, now it's totally different. 
+On UMA, It's any node but on NUMA, local node.
 
-The result is following as. 
+My concern is following as. 
 
-1) vanilla
-elapsed time			# search of rbtree
-vmalloc took 49121724 us		5535
-vmalloc took 50675245 us		5535
-vmalloc took 48987711 us		5535
-vmalloc took 54232479 us		5535
-vmalloc took 50258117 us		5535
-vmalloc took 49424859 us		5535
+alloc_pages_node means any node but it has nid argument. 
+Why should user of alloc_pages who want to get page from any node pass
+nid argument? It's rather awkward. 
 
-3) Steven's patch
+Some of user misunderstood it and used alloc_pages_node instead of
+alloc_pages_exact_node although he already know exact _NID_. 
+Of course, it's not a BUG since if nid >= 0 it works well.
 
-elapsed time 			# search of rbtree
-vmalloc took 11363341 us		62
-vmalloc took 12798868 us		62
-vmalloc took 13247942 us		62
-vmalloc took 11434647 us		62
-vmalloc took 13221733 us		62
-vmalloc took 12134019 us		62
-
-2) my patch(vmap cache)
-elapsed time 			# search of rbtree
-vmalloc took 5159893 us			8
-vmalloc took 5124434 us			8
-vmalloc took 5123291 us			8
-vmalloc took 5145396 us			12
-vmalloc took 5163605 us			8
-vmalloc took 5945663 us			8
-
-My version is faster than 9 times of vanilla.
-Steve, Could you measure this patch with your test?
-(Sorry, maybe you have to apply the patch by hands.
-That's because patch is based on mmotm-2010-04-05-16-09)
-
-Nick, What do you think about "free area cache" approach?
-
-In this version, I don't consider last hole and backward cache movement which is 
-like mmap's cached_hole_size
-That's because I want to flush vmap_areas freed intentionally if we meet vend.
-It makes flush frequent than old but it's trade-off. In addition, vmalloc isn't 
-critical compared to mmap about performance. So I think that's enough. 
-
-If you don't opposed, I will repost formal patch without code related to debug.
-
----
- kernel/sysctl.c |    9 +++++++++
- mm/vmalloc.c    |   55 +++++++++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 50 insertions(+), 14 deletions(-)
-
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 8686b0f..20d7bfd 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -933,7 +933,16 @@ static struct ctl_table kern_table[] = {
- 	{ }
- };
- 
-+extern unsigned long max_lookup_count;
-+
- static struct ctl_table vm_table[] = {
-+        {
-+               .procname       = "max_lookup_count",
-+               .data           = &max_lookup_count,
-+               .maxlen         = sizeof(max_lookup_count),
-+               .mode           = 0644,
-+               .proc_handler   = proc_dointvec,
-+        },
- 	{
- 		.procname	= "overcommit_memory",
- 		.data		= &sysctl_overcommit_memory,
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index ae00746..dac3223 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -263,6 +263,7 @@ struct vmap_area {
- 
- static DEFINE_SPINLOCK(vmap_area_lock);
- static struct rb_root vmap_area_root = RB_ROOT;
-+static struct rb_node *free_vmap_cache;
- static LIST_HEAD(vmap_area_list);
- static unsigned long vmap_area_pcpu_hole;
- 
-@@ -319,6 +320,7 @@ static void __insert_vmap_area(struct vmap_area *va)
- 
- static void purge_vmap_area_lazy(void);
- 
-+unsigned long max_lookup_count;
- /*
-  * Allocate a region of KVA of the specified size and alignment, within the
-  * vstart and vend.
-@@ -332,6 +334,9 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	struct rb_node *n;
- 	unsigned long addr;
- 	int purged = 0;
-+	int lookup_cache = 0;
-+	struct vmap_area *first;
-+	unsigned int nlookup = 0;
- 
- 	BUG_ON(!size);
- 	BUG_ON(size & ~PAGE_MASK);
-@@ -342,35 +347,50 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 		return ERR_PTR(-ENOMEM);
- 
- retry:
-+	first = NULL;
- 	addr = ALIGN(vstart, align);
- 
- 	spin_lock(&vmap_area_lock);
- 	if (addr + size - 1 < addr)
- 		goto overflow;
- 
--	/* XXX: could have a last_hole cache */
- 	n = vmap_area_root.rb_node;
--	if (n) {
--		struct vmap_area *first = NULL;
-+	if (free_vmap_cache && !purged) {
-+		struct vmap_area *cache;
-+		cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-+		if (cache->va_start >= addr && cache->va_end < vend) {
-+			lookup_cache = 1;
-+			n = free_vmap_cache;
-+		}
-+	}
- 
--		do {
--			struct vmap_area *tmp;
--			tmp = rb_entry(n, struct vmap_area, rb_node);
--			if (tmp->va_end >= addr) {
--				if (!first && tmp->va_start < addr + size)
-+	if (n) {
-+		if (!lookup_cache) {
-+			do {
-+				struct vmap_area *tmp;
-+				tmp = rb_entry(n, struct vmap_area, rb_node);
-+				if (tmp->va_end >= addr) {
-+					if (!first && tmp->va_start < addr + size)
-+						first = tmp;
-+					n = n->rb_left;
-+				} else {
- 					first = tmp;
--				n = n->rb_left;
--			} else {
--				first = tmp;
--				n = n->rb_right;
--			}
--		} while (n);
-+					n = n->rb_right;
-+				}
-+				nlookup++;
-+			} while (n);
-+		}
-+		else {
-+			first = rb_entry(n, struct vmap_area, rb_node);
-+			addr = first->va_start;
-+		}
- 
- 		if (!first)
- 			goto found;
- 
- 		if (first->va_end < addr) {
- 			n = rb_next(&first->rb_node);
-+			nlookup++;
- 			if (n)
- 				first = rb_entry(n, struct vmap_area, rb_node);
- 			else
-@@ -383,6 +403,7 @@ retry:
- 				goto overflow;
- 
- 			n = rb_next(&first->rb_node);
-+			nlookup++;
- 			if (n)
- 				first = rb_entry(n, struct vmap_area, rb_node);
- 			else
-@@ -396,6 +417,7 @@ overflow:
- 		if (!purged) {
- 			purge_vmap_area_lazy();
- 			purged = 1;
-+			lookup_cache = 0;
- 			goto retry;
- 		}
- 		if (printk_ratelimit())
-@@ -412,6 +434,9 @@ overflow:
- 	va->va_end = addr + size;
- 	va->flags = 0;
- 	__insert_vmap_area(va);
-+	free_vmap_cache = &va->rb_node;
-+	if (max_lookup_count < nlookup)
-+		max_lookup_count = nlookup;
- 	spin_unlock(&vmap_area_lock);
- 
- 	return va;
-@@ -426,7 +451,9 @@ static void rcu_free_va(struct rcu_head *head)
- 
- static void __free_vmap_area(struct vmap_area *va)
- {
-+	struct rb_node *prev;
- 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-+	free_vmap_cache = rb_prev(&va->rb_node);
- 	rb_erase(&va->rb_node, &vmap_area_root);
- 	RB_CLEAR_NODE(&va->rb_node);
- 	list_del_rcu(&va->list);
--- 
-1.7.0.5
+But I want to remove such multiple meaning to clear intention of user. 
 
 
 
