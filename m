@@ -1,88 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A416D6B01EF
-	for <linux-mm@kvack.org>; Sat, 17 Apr 2010 23:35:07 -0400 (EDT)
-Date: Sat, 17 Apr 2010 20:32:39 -0400
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-Id: <20100417203239.dda79e88.akpm@linux-foundation.org>
-In-Reply-To: <20100416151403.GM19264@csn.ul.ie>
-References: <20100413202021.GZ13327@think>
-	<20100414014041.GD2493@dastard>
-	<20100414155233.D153.A69D9226@jp.fujitsu.com>
-	<20100414072830.GK2493@dastard>
-	<20100414085132.GJ25756@csn.ul.ie>
-	<20100415013436.GO2493@dastard>
-	<20100415102837.GB10966@csn.ul.ie>
-	<20100416041412.GY2493@dastard>
-	<20100416151403.GM19264@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F8466B01EF
+	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 04:32:26 -0400 (EDT)
+Message-ID: <4BCA7A26.9040208@kernel.org>
+Date: Sun, 18 Apr 2010 12:19:02 +0900
+From: Tejun Heo <tj@kernel.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/8] Numa: Use Generic Per-cpu Variables for numa_*_id()
+References: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
+In-Reply-To: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Dave Chinner <david@fromorbit.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andi@domain.invalid, Kleen@domain.invalid, andi@firstfloor.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+On 04/16/2010 02:29 AM, Lee Schermerhorn wrote:
+> Use Generic Per cpu infrastructure for numa_*_id() V4
+> 
+> Series Against: 2.6.34-rc3-mmotm-100405-1609
 
-There are two issues here: stack utilisation and poor IO patterns in
-direct reclaim.  They are different.
+Other than the minor nitpicks, the patchset looks great to me.
+Through which tree should this be routed?  If no one else is gonna
+take it, I can route it through percpu after patchset refresh.
 
-The poor IO patterns thing is a regression.  Some time several years
-ago (around 2.6.16, perhaps), page reclaim started to do a LOT more
-dirty-page writeback than it used to.  AFAIK nobody attempted to work
-out why, nor attempted to try to fix it.
+Thanks.
 
-
-Doing writearound in pageout() might help.  The kernel was in fact was
-doing that around 2.5.10, but I took it out again because it wasn't
-obviously beneficial.
-
-Writearound is hard to do, because direct-reclaim doesn't have an easy
-way of pinning the address_space: it can disappear and get freed under
-your feet.  I was able to make this happen under intense MM loads.  The
-current page-at-a-time pageout code pins the address_space by taking a
-lock on one of its pages.  Once that lock is released, we cannot touch
-*mapping.
-
-And lo, the pageout() code is presently buggy:
-
-		res = mapping->a_ops->writepage(page, &wbc);
-		if (res < 0)
-			handle_write_error(mapping, page, res);
-
-The ->writepage can/will unlock the page, and we're passing a hand
-grenade into handle_write_error().
-
-Any attempt to implement writearound in pageout will need to find a way
-to safely pin that address_space.  One way is to take a temporary ref
-on mapping->host, but IIRC that introduced nasties with inode_lock. 
-Certainly it'll put more load on that worrisomely-singleton lock.
-
-
-Regarding simply not doing any writeout in direct reclaim (Dave's
-initial proposal): the problem is that pageout() will clean a page in
-the target zone.  Normal writeout won't do that, so we could get into a
-situation where vast amounts of writeout is happening, but none of it
-is cleaning pages in the zone which we're trying to allocate from. 
-It's quite possibly livelockable, too.
-
-Doing writearound (if we can get it going) will solve that adequately
-(assuming that the target page gets reliably written), but it won't
-help the stack usage problem.
-
-
-To solve the IO-pattern thing I really do think we should first work
-out ytf we started doing much more IO off the LRU.  What caused it?  Is
-it really unavoidable?
-
-
-To solve the stack-usage thing: dunno, really.  One could envisage code
-which skips pageout() if we're using more than X amount of stack, but
-that sucks.  Another possibility might be to hand the target page over
-to another thread (I suppose kswapd will do) and then synchronise with
-that thread - get_page()+wait_on_page_locked() is one way.  The helper
-thread could of course do writearound.
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
