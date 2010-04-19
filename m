@@ -1,71 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A642A6B01F2
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 13:48:14 -0400 (EDT)
-Date: Mon, 19 Apr 2010 12:47:55 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
-In-Reply-To: <m2vcf18f8341004170654tc743e4b0s73a0e234cfdcda93@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1004191245250.9855@router.home>
-References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>  <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com>  <20100413083855.GS25756@csn.ul.ie>  <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>  <20100416111539.GC19264@csn.ul.ie>
-  <o2kcf18f8341004160803v9663d602g8813b639024b5eca@mail.gmail.com>  <alpine.DEB.2.00.1004161049130.7710@router.home> <m2vcf18f8341004170654tc743e4b0s73a0e234cfdcda93@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A07476B01EF
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 14:14:34 -0400 (EDT)
+Date: Mon, 19 Apr 2010 19:14:42 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: error at compaction  (Re: mmotm 2010-04-15-14-42 uploaded
+Message-ID: <20100419181442.GA19264@csn.ul.ie>
+References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org> <20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 17 Apr 2010, Bob Liu wrote:
+On Mon, Apr 19, 2010 at 07:01:33PM +0900, KAMEZAWA Hiroyuki wrote:
+> 
+> mmotm 2010-04-15-14-42 
+> 
+> When I tried 
+>  # echo 0 > /proc/sys/vm/compaction
+> 
+> I see following.
+> 
+> My enviroment was 
+>   2.6.34-rc4-mm1+ (2010-04-15-14-42) (x86-64) CPUx8
+>   allocating tons of hugepages and reduce free memory.
+> 
+> What I did was:
+>   # echo 0 > /proc/sys/vm/compact_memory
+> 
+> Hmm, I see this kind of error at migation for the 1st time..
+> my.config is attached. Hmm... ?
+> 
+> (I'm sorry I'll be offline soon.)
 
-> > GFP_THISNODE forces allocation from the node. Without it we will fallback.
-> >
->
-> Yeah, but I think we shouldn't fallback at this case, what we want is
-> alloc a page
-> from exactly the dest node during migrate_to_node(dest).So I added
-> GFP_THISNODE.
+That's ok, thanks you for the report. I'm afraid I made little progress
+as I spent most of the day on other bugs but I do have something for
+you.
 
-Why would we want that?
+First, I reproduced the problem using your .config. However, the problem does
+not manifest with the .config I normally use which is derived from the distro
+kernel configuration (Debian Lenny). So, there is something in your .config
+that triggers the problem. I very strongly suspect this is an interaction
+between migration, compaction and page allocation debug. Compaction takes
+pages directly off the buddy list and I bet you a shiny penny they are still
+unmapped when the copy takes place resulting in your oops.
 
->
-> And mel concerned that
-> ====
-> This appears to be a valid bug fix.  I agree that the way things are structured
-> that __GFP_THISNODE should be used in new_node_page(). But maybe a follow-on
-> patch is also required. The behaviour is now;
->
-> o new_node_page will not return NULL if the target node is empty (fine).
-> o migrate_pages will translate this into -ENOMEM (fine)
-> o do_migrate_pages breaks early if it gets -ENOMEM ?
->
-> It's the last part I'd like you to double check. migrate_pages() takes a
-> nodemask of allowed nodes to migrate to. Rather than sending this down
-> to the allocator, it iterates over the nodes allowed in the mask. If one
-> of those nodes is full, it returns -ENOMEM.
->
-> If -ENOMEM is returned from migrate_pages, should it not move to the
-> next node?
-> ====
+I'll verify the theory tomorrow but it's a plausible explanation. On a
+different note, where did config options like the following come out of?
 
-?? It will move onto the next node if you leave things as is. If you add
-GFP_THISNODE then you can get NULL back from the page allocator because
-there is no memory on the local node. Without GFP_THISNODe the allocation
-will fallback.
+CONFIG_ARCH_HWEIGHT_CFLAGS="-fcall-saved-rdi -fcall-saved-rsi -fcall-saved-rdx -fcall-saved-rcx -fcall-saved-r8 -fcall-saved-r9 -fcall-saved-r10 -fcall-saved-r11" 
 
-> In my opinion, when we want to preserve the relative position of the page to
-> the beginning of the node set, early return is ok. Else should try to alloc the
-> new page from the next node(to_nodes).
+I don't think they are a factor but I'm curious.
 
-???
-
-> So I added retry path to allocate new page from next node only when
-> from_nodes' weight is different from to_nodes', this case the user should
-> konw the relative position of the page to the beginning of the node set
-> can be changed.
-
-There is no point in your patch since the functionality is already there
-without it.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
