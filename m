@@ -1,33 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CFAB6B01EF
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 18:26:05 -0400 (EDT)
-Message-ID: <4BCCD8BD.1020307@kernel.org>
-Date: Tue, 20 Apr 2010 07:27:09 +0900
-From: Tejun Heo <tj@kernel.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5D5236B01EF
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 19:26:20 -0400 (EDT)
+Received: by gyg4 with SMTP id 4so2890919gyg.14
+        for <linux-mm@kvack.org>; Mon, 19 Apr 2010 16:28:08 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>  <4BC65237.5080408@kernel.org>  <v2j28c262361004141831h8f2110d5pa7a1e3063438cbf8@mail.gmail.com>  <4BC6BE78.1030503@kernel.org>  <h2w28c262361004150100ne936d943u28f76c0f171d3db8@mail.gmail.com>  <4BC6CB30.7030308@kernel.org>  <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>  <4BC6E581.1000604@kernel.org>  <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>  <4BC6FBC8.9090204@kernel.org>  <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>  <alpine.DEB.2.00.1004161105120.7710@router.home> <1271606079.2100.159.camel@barrios-desktop> <alpine.DEB.2.00.1004191235160.9855@router.home>
-In-Reply-To: <alpine.DEB.2.00.1004191235160.9855@router.home>
+From: Marcelo Jimenez <mroberto@cpti.cetuc.puc-rio.br>
+Date: Mon, 19 Apr 2010 20:27:43 -0300
+Message-ID: <k2ncecb6d8f1004191627w3cd36450xf797f746460abb09@mail.gmail.com>
+Subject: Suspicious compilation warning
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Yinghai Lu <yinghai@kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Christoph.
+Hi,
 
-On 04/20/2010 02:38 AM, Christoph Lameter wrote:
-> alloc_pages_exact_node results in more confusion because it does suggest
-> that fallback to other nodes is not allowed.
+I get this warning while compiling for ARM/SA1100:
 
-I can't see why alloc_pages_exact_node() exists at all.  It's in the
-mainline and if you look at the difference between alloc_pages_node()
-and alloc_pages_exact_node(), it's almost silly.  :-(
+mm/sparse.c: In function '__section_nr':
+mm/sparse.c:135: warning: 'root' is used uninitialized in this function
 
--- 
-tejun
+With a small patch in fs/proc/meminfo.c, I find that NR_SECTION_ROOTS
+is zero, which certainly explains the warning.
+
+# cat /proc/meminfo
+NR_SECTION_ROOTS=0
+NR_MEM_SECTIONS=32
+SECTIONS_PER_ROOT=512
+SECTIONS_SHIFT=5
+MAX_PHYSMEM_BITS=32
+SECTION_SIZE_BITS=27
+MemTotal:          28848 kB
+MemFree:           15516 kB
+Buffers:             112 kB
+Cached:             2312 kB
+SwapCached:            0 kB
+Active:              984 kB
+Inactive:           1628 kB
+Active(anon):        188 kB
+Inactive(anon):        0 kB
+Active(file):        796 kB
+Inactive(file):     1628 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:                24 kB
+Writeback:             0 kB
+AnonPages:           208 kB
+Mapped:              292 kB
+Shmem:                 0 kB
+Slab:               1472 kB
+SReclaimable:        744 kB
+SUnreclaim:          728 kB
+KernelStack:         200 kB
+PageTables:           32 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:       14424 kB
+Committed_AS:        772 kB
+VmallocTotal:     614400 kB
+VmallocUsed:       33316 kB
+VmallocChunk:     573436 kB
+
+Regards,
+Marcelo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
