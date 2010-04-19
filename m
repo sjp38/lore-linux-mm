@@ -1,142 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7DC376B01F1
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 13:45:24 -0400 (EDT)
-Date: Mon, 19 Apr 2010 12:45:04 -0500 (CDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A642A6B01F2
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 13:48:14 -0400 (EDT)
+Date: Mon, 19 Apr 2010 12:47:55 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-In-Reply-To: <j2h28c262361004181703gd3f4bc19r6d00451e01b779a7@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1004191238450.9855@router.home>
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>  <4BC6CB30.7030308@kernel.org>  <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com>  <4BC6E581.1000604@kernel.org>  <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
-  <4BC6FBC8.9090204@kernel.org>  <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>  <alpine.DEB.2.00.1004161105120.7710@router.home>  <1271606079.2100.159.camel@barrios-desktop>  <4BCB780C.1030001@kernel.org>
- <j2h28c262361004181703gd3f4bc19r6d00451e01b779a7@mail.gmail.com>
+Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
+In-Reply-To: <m2vcf18f8341004170654tc743e4b0s73a0e234cfdcda93@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1004191245250.9855@router.home>
+References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>  <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com>  <20100413083855.GS25756@csn.ul.ie>  <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>  <20100416111539.GC19264@csn.ul.ie>
+  <o2kcf18f8341004160803v9663d602g8813b639024b5eca@mail.gmail.com>  <alpine.DEB.2.00.1004161049130.7710@router.home> <m2vcf18f8341004170654tc743e4b0s73a0e234cfdcda93@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/Mixed; BOUNDARY=0016e64c0616293a2d04848bb0cc
-Content-ID: <alpine.DEB.2.00.1004191238451.9855@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Sat, 17 Apr 2010, Bob Liu wrote:
 
---0016e64c0616293a2d04848bb0cc
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.00.1004191238452.9855@router.home>
-
-On Mon, 19 Apr 2010, Minchan Kim wrote:
-
-> Let's tidy my table.
+> > GFP_THISNODE forces allocation from the node. Without it we will fallback.
+> >
 >
-> I made quick patch to show the concept with one example of pci-dma.
-> (Sorry but I attach patch since web gmail's mangling.)
+> Yeah, but I think we shouldn't fallback at this case, what we want is
+> alloc a page
+> from exactly the dest node during migrate_to_node(dest).So I added
+> GFP_THISNODE.
+
+Why would we want that?
+
 >
-> On UMA, we can change alloc_pages with
-> alloc_pages_exact_node(numa_node_id(),....)
-> (Actually, the patch is already merged mmotm)
-
-UMA does not have the concept of nodes. Whatever node you specify is
-irrelevant. Please remove the patch from mmotm.
-
-> on NUMA, alloc_pages is some different meaning, so I don't want to change it.
-
-No it has the same meaning. It means allocate a page.
-
-> on NUMA, alloc_pages_node means _ANY_NODE_.
-
-It means allocate on the indicated node if possible. Memory could come
-from any node due to fallback (in order of node preference).
-
-> So let's remove nid argument and change naming with alloc_pages_any_node.
-
-??? What in the world are you doing?
-
-> Then, whole users of alloc_pages_node can be changed between
-> alloc_pages_exact_node and alloc_pages_any_node.
+> And mel concerned that
+> ====
+> This appears to be a valid bug fix.  I agree that the way things are structured
+> that __GFP_THISNODE should be used in new_node_page(). But maybe a follow-on
+> patch is also required. The behaviour is now;
 >
-> It was my intention. What's your concern?
-
-I dont see the point.
-
->  again:
-> -       page = alloc_pages_node(dev_to_node(dev), flag, get_order(size));
-> +       nid = dev_to_node(dev);
-> +       /*
-> +        * If pci-dma maintainer makes sure nid never has NUMA_NO_NODE
-> +        * we can remove this ugly checking.
-> +        */
-> +       if (nid == NUMA_NO_NODE)
-> +               page = alloc_pages_any_node(flag, get_order(size));
-
-s/alloc_pages_any_node/alloc_pages/
-
-> +       else
-> +               page = alloc_pages_exact_node(nid, flag, get_order(size));
-
-s/alloc_pages_exact_node/alloc_pages_node/
-
-> -static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
-> +static inline struct page *alloc_pagse_any_node(gfp_t gfp_mask,
->                                                 unsigned int order)
->  {
-> -       /* Unknown node is current node */
-> -       if (nid < 0)
-> -               nid = numa_node_id();
-> -
-> +       int nid = numa_node_id();
->         return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
->  }
+> o new_node_page will not return NULL if the target node is empty (fine).
+> o migrate_pages will translate this into -ENOMEM (fine)
+> o do_migrate_pages breaks early if it gets -ENOMEM ?
 >
+> It's the last part I'd like you to double check. migrate_pages() takes a
+> nodemask of allowed nodes to migrate to. Rather than sending this down
+> to the allocator, it iterates over the nodes allowed in the mask. If one
+> of those nodes is full, it returns -ENOMEM.
+>
+> If -ENOMEM is returned from migrate_pages, should it not move to the
+> next node?
+> ====
 
-This is very confusing. Because it is
+?? It will move onto the next node if you leave things as is. If you add
+GFP_THISNODE then you can get NULL back from the page allocator because
+there is no memory on the local node. Without GFP_THISNODe the allocation
+will fallback.
 
-	alloc_pages_numa_node_id()
+> In my opinion, when we want to preserve the relative position of the page to
+> the beginning of the node set, early return is ok. Else should try to alloc the
+> new page from the next node(to_nodes).
 
+???
 
-alloca_pages_any_node suggests that the kernel randomly picks a node?
+> So I added retry path to allocate new page from next node only when
+> from_nodes' weight is different from to_nodes', this case the user should
+> konw the relative position of the page to the beginning of the node set
+> can be changed.
 
---0016e64c0616293a2d04848bb0cc
-Content-Type: TEXT/X-DIFF; CHARSET=US-ASCII; NAME=change_alloc_functions_naming.patch
-Content-Transfer-Encoding: BASE64
-Content-ID: <alpine.DEB.2.00.1004191238453.9855@router.home>
-Content-Description: 
-Content-Disposition: ATTACHMENT; FILENAME=change_alloc_functions_naming.patch
-
-ZGlmZiAtLWdpdCBhL2FyY2gveDg2L2tlcm5lbC9wY2ktZG1hLmMgYi9hcmNoL3g4Ni9rZXJuZWwv
-cGNpLWRtYS5jCmluZGV4IGE0YWM3NjQuLmRjNTExY2IgMTAwNjQ0Ci0tLSBhL2FyY2gveDg2L2tl
-cm5lbC9wY2ktZG1hLmMKKysrIGIvYXJjaC94ODYva2VybmVsL3BjaS1kbWEuYwpAQCAtMTUyLDEy
-ICsxNTIsMjEgQEAgdm9pZCAqZG1hX2dlbmVyaWNfYWxsb2NfY29oZXJlbnQoc3RydWN0IGRldmlj
-ZSAqZGV2LCBzaXplX3Qgc2l6ZSwKIAl1bnNpZ25lZCBsb25nIGRtYV9tYXNrOwogCXN0cnVjdCBw
-YWdlICpwYWdlOwogCWRtYV9hZGRyX3QgYWRkcjsKKwlpbnQgbmlkOwogCiAJZG1hX21hc2sgPSBk
-bWFfYWxsb2NfY29oZXJlbnRfbWFzayhkZXYsIGZsYWcpOwogCiAJZmxhZyB8PSBfX0dGUF9aRVJP
-OwogYWdhaW46Ci0JcGFnZSA9IGFsbG9jX3BhZ2VzX25vZGUoZGV2X3RvX25vZGUoZGV2KSwgZmxh
-ZywgZ2V0X29yZGVyKHNpemUpKTsKKwluaWQgPSBkZXZfdG9fbm9kZShkZXYpOworCS8qCisJICog
-SWYgcGNpLWRtYSBtYWludGFpbmVyIG1ha2VzIHN1cmUgbmlkIG5ldmVyIGhhcyBOVU1BX05PX05P
-REUKKwkgKiB3ZSBjYW4gcmVtb3ZlIHRoaXMgdWdseSBjaGVja2luZy4KKwkgKi8KKwlpZiAobmlk
-ID09IE5VTUFfTk9fTk9ERSkKKwkJcGFnZSA9IGFsbG9jX3BhZ2VzX2FueV9ub2RlKGZsYWcsIGdl
-dF9vcmRlcihzaXplKSk7CisJZWxzZQorCQlwYWdlID0gYWxsb2NfcGFnZXNfZXhhY3Rfbm9kZShu
-aWQsIGZsYWcsIGdldF9vcmRlcihzaXplKSk7CiAJaWYgKCFwYWdlKQogCQlyZXR1cm4gTlVMTDsK
-IApkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9nZnAuaCBiL2luY2x1ZGUvbGludXgvZ2ZwLmgK
-aW5kZXggNGM2ZDQxMy4uNDdmYmEyMSAxMDA2NDQKLS0tIGEvaW5jbHVkZS9saW51eC9nZnAuaAor
-KysgYi9pbmNsdWRlL2xpbnV4L2dmcC5oCkBAIC0yNzgsMTMgKzI3OCwxMCBAQCBfX2FsbG9jX3Bh
-Z2VzKGdmcF90IGdmcF9tYXNrLCB1bnNpZ25lZCBpbnQgb3JkZXIsCiAJcmV0dXJuIF9fYWxsb2Nf
-cGFnZXNfbm9kZW1hc2soZ2ZwX21hc2ssIG9yZGVyLCB6b25lbGlzdCwgTlVMTCk7CiB9CiAKLXN0
-YXRpYyBpbmxpbmUgc3RydWN0IHBhZ2UgKmFsbG9jX3BhZ2VzX25vZGUoaW50IG5pZCwgZ2ZwX3Qg
-Z2ZwX21hc2ssCitzdGF0aWMgaW5saW5lIHN0cnVjdCBwYWdlICphbGxvY19wYWdzZV9hbnlfbm9k
-ZShnZnBfdCBnZnBfbWFzaywKIAkJCQkJCXVuc2lnbmVkIGludCBvcmRlcikKIHsKLQkvKiBVbmtu
-b3duIG5vZGUgaXMgY3VycmVudCBub2RlICovCi0JaWYgKG5pZCA8IDApCi0JCW5pZCA9IG51bWFf
-bm9kZV9pZCgpOwotCisJaW50IG5pZCA9IG51bWFfbm9kZV9pZCgpOwogCXJldHVybiBfX2FsbG9j
-X3BhZ2VzKGdmcF9tYXNrLCBvcmRlciwgbm9kZV96b25lbGlzdChuaWQsIGdmcF9tYXNrKSk7CiB9
-CiAKQEAgLTMwOCw3ICszMDUsNyBAQCBleHRlcm4gc3RydWN0IHBhZ2UgKmFsbG9jX3BhZ2Vfdm1h
-KGdmcF90IGdmcF9tYXNrLAogCQkJc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEsIHVuc2lnbmVk
-IGxvbmcgYWRkcik7CiAjZWxzZQogI2RlZmluZSBhbGxvY19wYWdlcyhnZnBfbWFzaywgb3JkZXIp
-IFwKLQkJYWxsb2NfcGFnZXNfbm9kZShudW1hX25vZGVfaWQoKSwgZ2ZwX21hc2ssIG9yZGVyKQor
-CQlhbGxvY19wYWdlc19leGFjdF9ub2RlKG51bWFfbm9kZV9pZCgpLCBnZnBfbWFzaywgb3JkZXIp
-CiAjZGVmaW5lIGFsbG9jX3BhZ2Vfdm1hKGdmcF9tYXNrLCB2bWEsIGFkZHIpIGFsbG9jX3BhZ2Vz
-KGdmcF9tYXNrLCAwKQogI2VuZGlmCiAjZGVmaW5lIGFsbG9jX3BhZ2UoZ2ZwX21hc2spIGFsbG9j
-X3BhZ2VzKGdmcF9tYXNrLCAwKQo=
---0016e64c0616293a2d04848bb0cc--
+There is no point in your patch since the functionality is already there
+without it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
