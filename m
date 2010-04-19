@@ -1,62 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B87D6B01EF
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 11:20:57 -0400 (EDT)
-Date: Mon, 19 Apr 2010 16:20:34 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 381B26B01EF
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 12:56:21 -0400 (EDT)
+Date: Mon, 19 Apr 2010 17:55:58 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100419152034.GW19264@csn.ul.ie>
-References: <20100413202021.GZ13327@think> <20100414014041.GD2493@dastard> <20100414155233.D153.A69D9226@jp.fujitsu.com> <20100414072830.GK2493@dastard> <20100414085132.GJ25756@csn.ul.ie> <20100415013436.GO2493@dastard> <20100415102837.GB10966@csn.ul.ie> <20100416041412.GY2493@dastard> <20100416151403.GM19264@csn.ul.ie>
+Subject: [PATCH] Fix infinite loop in get_futex_key when backed by huge
+	pages
+Message-ID: <20100419165558.GZ19264@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100416151403.GM19264@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, r6144 <rainy6144@gmail.com>, linux-kernel@vger.kernel.org, tglx <tglx@linutronix.de>, Andrea Arcangeli <aarcange@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 16, 2010 at 04:14:03PM +0100, Mel Gorman wrote:
-> > > Your patch fixes 2, avoids 1, breaks 3 and haven't thought about 4 but I
-> > > guess dirty pages can cycle around more so it'd need to be cared for.
-> > 
-> > Well, you keep saying that they break #3, but I haven't seen any
-> > test cases or results showing that. I've been unable to confirm that
-> > lumpy reclaim is broken by disallowing writeback in my testing, so
-> > I'm interested to know what tests you are running that show it is
-> > broken...
-> > 
-> 
-> Ok, I haven't actually tested this. The machines I use are tied up
-> retesting the compaction patches at the moment. The reason why I reckon
-> it'll be a problem is that when these sync-writeback changes were
-> introduced, it significantly helped lumpy reclaim for huge pages. I am
-> making an assumption that backing out those changes will hurt it.
-> 
-> I'll test for real on Monday and see what falls out.
-> 
+If a futex key happens to be located within a huge page mapped MAP_PRIVATE,
+get_futex_key() can go into an infinite loop waiting for a page->mapping that
+will never exist. This was reported and documented in an external bugzilla at
 
-One machine has completed the test and the results are as expected. When
-allocating huge pages under stress, your patch drops the success rates
-significantly. On X86-64, it showed
+https://bugzilla.redhat.com/show_bug.cgi?id=552257
 
-STRESS-HIGHALLOC
-              stress-highalloc   stress-highalloc
-            enable-directreclaim disable-directreclaim
-Under Load 1    89.00 ( 0.00)    73.00 (-16.00)
-Under Load 2    90.00 ( 0.00)    85.00 (-5.00)
-At Rest         90.00 ( 0.00)    90.00 ( 0.00)
+This patch makes page->mapping a poisoned value that includes
+PAGE_MAPPING_ANON mapped MAP_PRIVATE.  This is enough for futex to continue
+but because of PAGE_MAPPING_ANON, the poisoned value is not dereferenced
+or used by futex. No other part of the VM should be dereferencing the
+page->mapping of a hugetlbfs page as its page cache is not on the LRU.
 
-So with direct reclaim, it gets 89% of memory as huge pages at the first
-attempt but 73% with your patch applied. The "Under Load 2" test happens
-immediately after. With the start kernel, the first and second attempts
-are usually the same or very close together. With your patch applied,
-there are big differences as it was no longer trying to clean pages.
+This patch fixes the problem with the test case described in the bugzilla.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+This patch if merged to mainline should also be considered for -stable.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Peter Zijlstra <peterz@infradead.org>
+Acked-by: Darren Hart <darren@dvhart.com>
+---
+ include/linux/poison.h |    9 +++++++++
+ mm/hugetlb.c           |    5 ++++-
+ 2 files changed, 13 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/poison.h b/include/linux/poison.h
+index 2110a81..bab71f3 100644
+--- a/include/linux/poison.h
++++ b/include/linux/poison.h
+@@ -48,6 +48,15 @@
+ #define POISON_FREE	0x6b	/* for use-after-free poisoning */
+ #define	POISON_END	0xa5	/* end-byte of poisoning */
+ 
++/********** mm/hugetlb.c **********/
++/*
++ * Private mappings of hugetlb pages use this poisoned value for
++ * page->mapping. The core VM should not be doing anything with this mapping
++ * but futex requires the existance of some page->mapping value even though it
++ * is unused if PAGE_MAPPING_ANON is set.
++ */
++#define HUGETLB_POISON	((void *)(0x00300300 + POISON_POINTER_DELTA + PAGE_MAPPING_ANON))
++
+ /********** arch/$ARCH/mm/init.c **********/
+ #define POISON_FREE_INITMEM	0xcc
+ 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 6034dc9..ffbdfc8 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -546,6 +546,7 @@ static void free_huge_page(struct page *page)
+ 
+ 	mapping = (struct address_space *) page_private(page);
+ 	set_page_private(page, 0);
++	page->mapping = NULL;
+ 	BUG_ON(page_count(page));
+ 	INIT_LIST_HEAD(&page->lru);
+ 
+@@ -2447,8 +2448,10 @@ retry:
+ 			spin_lock(&inode->i_lock);
+ 			inode->i_blocks += blocks_per_huge_page(h);
+ 			spin_unlock(&inode->i_lock);
+-		} else
++		} else {
+ 			lock_page(page);
++			page->mapping = HUGETLB_POISON;
++		}
+ 	}
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
