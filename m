@@ -1,65 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A07476B01EF
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 14:14:34 -0400 (EDT)
-Date: Mon, 19 Apr 2010 19:14:42 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: error at compaction  (Re: mmotm 2010-04-15-14-42 uploaded
-Message-ID: <20100419181442.GA19264@csn.ul.ie>
-References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org> <20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 117536B01F1
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 14:32:00 -0400 (EDT)
+Date: Mon, 19 Apr 2010 11:19:49 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [Bugme-new] [Bug 15618] New: 2.6.18->2.6.32->2.6.33 huge
+ regression in performance
+Message-ID: <20100419181949.GC32347@kroah.com>
+References: <20100323173409.GA24845@elte.hu>
+ <alpine.LFD.2.00.1003231037410.18017@i5.linux-foundation.org>
+ <9D040E9A-80F2-468F-A6CD-A4912615CD3F@gmail.com>
+ <alpine.LFD.2.00.1003231253570.18017@i5.linux-foundation.org>
+ <9FC34DA1-D6DD-41E5-8B76-0712A813C549@gmail.com>
+ <alpine.LFD.2.00.1003231602130.18017@i5.linux-foundation.org>
+ <20100323233640.GA16798@elte.hu>
+ <alpine.LFD.2.00.1003231653260.18017@i5.linux-foundation.org>
+ <871vfah3db.fsf@basil.nowhere.org>
+ <alpine.LFD.2.00.1003231957420.18017@i5.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LFD.2.00.1003231957420.18017@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, Anton Starikov <ant.starikov@gmail.com>, stable@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 19, 2010 at 07:01:33PM +0900, KAMEZAWA Hiroyuki wrote:
+On Tue, Mar 23, 2010 at 08:00:54PM -0700, Linus Torvalds wrote:
 > 
-> mmotm 2010-04-15-14-42 
 > 
-> When I tried 
->  # echo 0 > /proc/sys/vm/compaction
+> On Wed, 24 Mar 2010, Andi Kleen wrote:
+> > 
+> > It would be also nice to get that change into 2.6.32 stable. That is
+> > widely used on larger systems.
 > 
-> I see following.
+> Looking at the changes to the files in question, it looks like it should 
+> all apply cleanly to 2.6.32, so I don't see any reason not to backport 
+> further back.
 > 
-> My enviroment was 
->   2.6.34-rc4-mm1+ (2010-04-15-14-42) (x86-64) CPUx8
->   allocating tons of hugepages and reduce free memory.
-> 
-> What I did was:
->   # echo 0 > /proc/sys/vm/compact_memory
-> 
-> Hmm, I see this kind of error at migation for the 1st time..
-> my.config is attached. Hmm... ?
-> 
-> (I'm sorry I'll be offline soon.)
+> Somebody should double-check, though.
 
-That's ok, thanks you for the report. I'm afraid I made little progress
-as I spent most of the day on other bugs but I do have something for
-you.
+I have queued them all up for .33 and .32-stable kernel releases now.
 
-First, I reproduced the problem using your .config. However, the problem does
-not manifest with the .config I normally use which is derived from the distro
-kernel configuration (Debian Lenny). So, there is something in your .config
-that triggers the problem. I very strongly suspect this is an interaction
-between migration, compaction and page allocation debug. Compaction takes
-pages directly off the buddy list and I bet you a shiny penny they are still
-unmapped when the copy takes place resulting in your oops.
+thanks,
 
-I'll verify the theory tomorrow but it's a plausible explanation. On a
-different note, where did config options like the following come out of?
-
-CONFIG_ARCH_HWEIGHT_CFLAGS="-fcall-saved-rdi -fcall-saved-rsi -fcall-saved-rdx -fcall-saved-rcx -fcall-saved-r8 -fcall-saved-r9 -fcall-saved-r10 -fcall-saved-r11" 
-
-I don't think they are a factor but I'm curious.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
