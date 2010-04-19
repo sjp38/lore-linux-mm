@@ -1,80 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9968D6B01F1
-	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 21:08:30 -0400 (EDT)
-Date: Mon, 19 Apr 2010 11:08:05 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100419010805.GD2520@dastard>
-References: <20100414155233.D153.A69D9226@jp.fujitsu.com>
- <20100414072830.GK2493@dastard>
- <20100414085132.GJ25756@csn.ul.ie>
- <20100415013436.GO2493@dastard>
- <20100415102837.GB10966@csn.ul.ie>
- <20100416041412.GY2493@dastard>
- <20100416151403.GM19264@csn.ul.ie>
- <20100417203239.dda79e88.akpm@linux-foundation.org>
- <20100419003556.GC2520@dastard>
- <20100418174944.7b9716ad@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100418174944.7b9716ad@infradead.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 39DD76B01EF
+	for <linux-mm@kvack.org>; Sun, 18 Apr 2010 21:54:55 -0400 (EDT)
+Date: Mon, 19 Apr 2010 10:49:17 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: mmotm 2010-04-15-14-42 uploaded (shmem, CGROUP_MEM_RES_CTLR)
+Message-Id: <20100419104917.1a568b17.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100416090315.22b7d361.randy.dunlap@oracle.com>
+References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org>
+	<20100416090315.22b7d361.randy.dunlap@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 18, 2010 at 05:49:44PM -0700, Arjan van de Ven wrote:
-> On Mon, 19 Apr 2010 10:35:56 +1000
-> Dave Chinner <david@fromorbit.com> wrote:
+On Fri, 16 Apr 2010 09:03:15 -0700, Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> On Thu, 15 Apr 2010 14:42:59 -0700 akpm@linux-foundation.org wrote:
 > 
-> > On Sat, Apr 17, 2010 at 08:32:39PM -0400, Andrew Morton wrote:
-> > > 
-> > > There are two issues here: stack utilisation and poor IO patterns in
-> > > direct reclaim.  They are different.
-> > > 
-> > > The poor IO patterns thing is a regression.  Some time several years
-> > > ago (around 2.6.16, perhaps), page reclaim started to do a LOT more
-> > > dirty-page writeback than it used to.  AFAIK nobody attempted to
-> > > work out why, nor attempted to try to fix it.
+> > The mm-of-the-moment snapshot 2010-04-15-14-42 has been uploaded to
 > > 
-> > I think that part of the problem is that at roughly the same time
-> > writeback started on a long down hill slide as well, and we've
-> > really only fixed that in the last couple of kernel releases. Also,
-> > it tends to take more that just writing a few large files to invoke
-> > the LRU-based writeback code is it is generally not invoked in
-> > filesystem "performance" testing. Hence my bet is on the fact that
-> > the effects of LRU-based writeback are rarely noticed in common
-> > testing.
+> >    http://userweb.kernel.org/~akpm/mmotm/
+> > 
+> > and will soon be available at
+> > 
+> >    git://zen-kernel.org/kernel/mmotm.git
+> > 
+> > It contains the following patches against 2.6.34-rc4:
 > 
-> Would this also be the time where we started real dirty accounting, and
-> started playing with the dirty page thresholds?
-
-Yes, I think that was introduced in 2.6.16/17, so it's definitely in
-the ballpark.
-
-> Background writeback is that interesting tradeoff between writing out
-> to make the VM easier (and the data safe) and the chance of someone
-> either rewriting the same data (as benchmarks do regularly... not sure
-> about real workloads) or deleting the temporary file.
 > 
-> Maybe we need to do the background dirty writes a bit more aggressive...
-> or play with heuristics where we get an adaptive timeout (say, if the
-> file got closed by the last opener, then do a shorter timeout)
+> memcg-move-charge-of-file-pages.patch:
+> 
+> when CONFIG_SHMFS is not enabled:
+> 
+> mm/shmem.c:2721: error: implicit declaration of function 'SHMEM_I'
+> mm/shmem.c:2721: warning: initialization makes pointer from integer without a cast
+> mm/shmem.c:2726: error: dereferencing pointer to incomplete type
+> mm/shmem.c:2727: error: implicit declaration of function 'shmem_swp_entry'
+> mm/shmem.c:2727: warning: assignment makes pointer from integer without a cast
+> mm/shmem.c:2734: error: implicit declaration of function 'shmem_swp_unmap'
+> mm/shmem.c:2735: error: dereferencing pointer to incomplete type
+> 
+Thank you very much for your report.
 
-Realistically, I'm concerned about preventing the worst case
-behaviour from occurring - making the background writes more
-agressive without preventing writeback in LRU order simply means it
-will be harder to test the VM corner case that triggers these
-writeout patterns...
+I attach a fix patch.
 
-Cheers,
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Dave.
+build fix for !CONFIG_SHMEM case.
+
+  CC      mm/shmem.o
+mm/shmem.c: In function 'mem_cgroup_get_shmem_target':
+mm/shmem.c:2721: error: implicit declaration of function 'SHMEM_I'
+mm/shmem.c:2721: warning: initialization makes pointer from integer without a cast
+mm/shmem.c:2726: error: dereferencing pointer to incomplete type
+mm/shmem.c:2727: error: implicit declaration of function 'shmem_swp_entry'
+mm/shmem.c:2727: warning: assignment makes pointer from integer without a cast
+mm/shmem.c:2734: error: implicit declaration of function 'shmem_swp_unmap'
+mm/shmem.c:2735: error: dereferencing pointer to incomplete type
+make[1]: *** [mm/shmem.o] Error 1
+
+Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/shmem.c |   99 +++++++++++++++++++++++++++++++++++++----------------------
+ 1 files changed, 62 insertions(+), 37 deletions(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index cb87365..6f183ef 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2568,6 +2568,43 @@ out4:
+ 	return error;
+ }
+ 
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++/**
++ * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
++ * @inode: the inode to be searched
++ * @pgoff: the offset to be searched
++ * @pagep: the pointer for the found page to be stored
++ * @ent: the pointer for the found swap entry to be stored
++ *
++ * If a page is found, refcount of it is incremented. Callers should handle
++ * these refcount.
++ */
++void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
++					struct page **pagep, swp_entry_t *ent)
++{
++	swp_entry_t entry = { .val = 0 }, *ptr;
++	struct page *page = NULL;
++	struct shmem_inode_info *info = SHMEM_I(inode);
++
++	if ((pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
++		goto out;
++
++	spin_lock(&info->lock);
++	ptr = shmem_swp_entry(info, pgoff, NULL);
++	if (ptr && ptr->val) {
++		entry.val = ptr->val;
++		page = find_get_page(&swapper_space, entry.val);
++	} else
++		page = find_get_page(inode->i_mapping, pgoff);
++	if (ptr)
++		shmem_swp_unmap(ptr);
++	spin_unlock(&info->lock);
++out:
++	*pagep = page;
++	*ent = entry;
++}
++#endif
++
+ #else /* !CONFIG_SHMEM */
+ 
+ /*
+@@ -2607,6 +2644,31 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++/**
++ * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
++ * @inode: the inode to be searched
++ * @pgoff: the offset to be searched
++ * @pagep: the pointer for the found page to be stored
++ * @ent: the pointer for the found swap entry to be stored
++ *
++ * If a page is found, refcount of it is incremented. Callers should handle
++ * these refcount.
++ */
++void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
++					struct page **pagep, swp_entry_t *ent)
++{
++	struct page *page = NULL;
++
++	if ((pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
++		goto out;
++	page = find_get_page(inode->i_mapping, pgoff);
++out:
++	*pagep = page;
++	*ent = (swp_entry_t){ .val = 0 };
++}
++#endif
++
+ #define shmem_vm_ops				generic_file_vm_ops
+ #define shmem_file_operations			ramfs_file_operations
+ #define shmem_get_inode(sb, mode, dev, flags)	ramfs_get_inode(sb, mode, dev)
+@@ -2701,40 +2763,3 @@ int shmem_zero_setup(struct vm_area_struct *vma)
+ 	vma->vm_ops = &shmem_vm_ops;
+ 	return 0;
+ }
+-
+-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+-/**
+- * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
+- * @inode: the inode to be searched
+- * @pgoff: the offset to be searched
+- * @pagep: the pointer for the found page to be stored
+- * @ent: the pointer for the found swap entry to be stored
+- *
+- * If a page is found, refcount of it is incremented. Callers should handle
+- * these refcount.
+- */
+-void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
+-					struct page **pagep, swp_entry_t *ent)
+-{
+-	swp_entry_t entry = { .val = 0 }, *ptr;
+-	struct page *page = NULL;
+-	struct shmem_inode_info *info = SHMEM_I(inode);
+-
+-	if ((pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
+-		goto out;
+-
+-	spin_lock(&info->lock);
+-	ptr = shmem_swp_entry(info, pgoff, NULL);
+-	if (ptr && ptr->val) {
+-		entry.val = ptr->val;
+-		page = find_get_page(&swapper_space, entry.val);
+-	} else
+-		page = find_get_page(inode->i_mapping, pgoff);
+-	if (ptr)
+-		shmem_swp_unmap(ptr);
+-	spin_unlock(&info->lock);
+-out:
+-	*pagep = page;
+-	*ent = entry;
+-}
+-#endif
 -- 
-Dave Chinner
-david@fromorbit.com
+1.5.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
