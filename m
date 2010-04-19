@@ -1,529 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5F6916B01F1
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 08:55:23 -0400 (EDT)
-Message-ID: <4BCC52B9.8070200@tauceti.net>
-Date: Mon, 19 Apr 2010 14:55:21 +0200
-From: Robert Wimmer <kernel@tauceti.net>
-MIME-Version: 1.0
-Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
-References: <bug-15709-10286@https.bugzilla.kernel.org/> <20100408123438.1cadc5b6.akpm@linux-foundation.org> <4BBE30F6.30607@redhat.com> <20100408200449.GA6044@redhat.com> <4BBEFE25.7000807@tauceti.net> <20100411110303.GD8992@redhat.com> <4BC2E706.7010108@tauceti.net> <20100412112330.GA16908@redhat.com> <4BC32527.9090301@tauceti.net> <20100412135223.GA17887@redhat.com> <4BC43097.3060000@tauceti.net>
-In-Reply-To: <4BC43097.3060000@tauceti.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E2A416B01F0
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 08:58:56 -0400 (EDT)
+Subject: Re: vmalloc performance
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <1271603649.2100.122.camel@barrios-desktop>
+References: <1271089672.7196.63.camel@localhost.localdomain>
+	 <1271249354.7196.66.camel@localhost.localdomain>
+	 <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
+	 <1271262948.2233.14.camel@barrios-desktop>
+	 <1271320388.2537.30.camel@localhost>
+	 <1271350270.2013.29.camel@barrios-desktop>
+	 <1271427056.7196.163.camel@localhost.localdomain>
+	 <1271603649.2100.122.camel@barrios-desktop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 19 Apr 2010 13:58:49 +0100
+Message-Id: <1271681929.7196.175.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Is there a possibility to track this further down?
-I've problems on two other KVMs since a few weeks
-which I think that they're related to this. Host for
-this KVMs are kernel 2.6.32. Guests until today were
-also running 2.6.32. Inside the KVMs we're using GlusterFS,
-NFSv4 and Apache with PHP. From time to time the
-httpd-processes are "hanging". When this happens
-then we're seeing a lot of soft lockups. This
-hosts are running Xeon X5560 processors. Until
-today I suspected that this problems only happens
-on older Xeon's but this doesn't seems to be true.
-I've attached the output from /var/log/messages
-(https://bugzilla.kernel.org/attachment.cgi?id=26048)
-from one of the hosts with GlusterFS. I've now
-downgraded to kernel 2.6.30 in the guests. But since
-this problem also exists in 2.6.34-rc3 I suspect that
-we're never ever will be able to do a kernel update
-in the guests when they're using NFS :-(
+Hi,
 
-But what I definitely can say is that all the problems
-only happens with guests running kernel >= 2.6.31
-and with a remote file system (NFS, GlusterFS). Some
-days ago another KVM have had a network shutdown using
-kernel 2.6.32 in host and guest + NFSv4. But this only
-happend once until now and there isn't so much
-traffic running through the interfaces of that host.
+On Mon, 2010-04-19 at 00:14 +0900, Minchan Kim wrote:
+> On Fri, 2010-04-16 at 15:10 +0100, Steven Whitehouse wrote:
+> > Hi,
+> > 
+> > On Fri, 2010-04-16 at 01:51 +0900, Minchan Kim wrote:
+> > [snip]
+> > > Thanks for the explanation. It seems to be real issue. 
+> > > 
+> > > I tested to see effect with flush during rb tree search.
+> > > 
+> > > Before I applied your patch, the time is 50300661 us. 
+> > > After your patch, 11569357 us. 
+> > > After my debug patch, 6104875 us.
+> > > 
+> > > I tested it as changing threshold value.
+> > > 
+> > > threshold	time
+> > > 1000		13892809
+> > > 500		9062110
+> > > 200		6714172
+> > > 100		6104875
+> > > 50		6758316
+> > > 
+> > My results show:
+> > 
+> > threshold        time
+> > 100000           139309948
+> > 1000             13555878
+> > 500              10069801
+> > 200              7813667
+> > 100              18523172
+> > 50               18546256
+> > 
+> > > And perf shows smp_call_function is very low percentage.
+> > > 
+> > > In my cases, 100 is best. 
+> > > 
+> > Looks like 200 for me.
+> > 
+> > I think you meant to use the non _minmax version of proc_dointvec too?
+> 
+> Yes. My fault :)
+> 
+> > Although it doesn't make any difference for this basic test.
+> > 
+> > The original reporter also has 8 cpu cores I've discovered. In his case
+> > divided by 4 cpus where as mine are divided by 2 cpus, but I think that
+> > makes no real difference in this case.
+> > 
+> > I'll try and get some further test results ready shortly. Many thanks
+> > for all your efforts in tracking this down,
+> > 
+> > Steve.
+> 
+> I voted "free area cache".
+My results with this patch are:
 
-All other guests with kernel 2.6.30 (about 80 guests on
-18 hosts) with NFS and KVM 0.12.3 are really running
-perfectly.
+vmalloc took 5419238 us
+vmalloc took 5432874 us
+vmalloc took 5425568 us
+vmalloc took 5423867 us
 
-Thanks!
-Robert
+So thats about a third of the time it took with my original patch, so
+very much going in the right direction :-)
 
+I did get a compile warning:
+  CC      mm/vmalloc.o
+mm/vmalloc.c: In function a??__free_vmap_areaa??:
+mm/vmalloc.c:454: warning: unused variable a??preva??
 
+....harmless, but it should be fixed before the final version,
 
-On 04/13/10 10:51, Robert Wimmer wrote:
-> I've tried to do my very best. In general I can
-> say: All 2.6.30 versions work, all 2.6.31 fail. 2.6.31-rc3
-> fails with "soft lockup" and is the only one which
-> don't show any "swapper page allocation failure".
-> But the result is finally the same... 2.6.31-rc4
-> don't show "soft lockups" but "swapper page allocation failure".
-> Here is the dmesg output for 2.6.31-rc3:
-> https://bugzilla.kernel.org/attachment.cgi?id=25986
->
-> So here is what I've done. Started with a fresh tree
-> and my 2.6.30 .config:
->
-> rm -fr /usr/src/linux
-> cd /usr/src
-> git clone
-> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git linux
-> cd linux
-> git checkout 0b4f2928f14c4a9770b0866923fc81beb7f4aa57
->
-> Here is the "git bisect log" output:
->
-> # bad: [74fca6a42863ffacaf7ba6f1936a9f228950f657] Linux 2.6.31
-> # good: [07a2039b8eb0af4ff464efd3dfd95de5c02648c6] Linux 2.6.30
-> git bisect start 'v2.6.31' 'v2.6.30' '--' 'drivers/virtio/'
-> 'drivers/net/virtio_net.c'
-> # good: [e3353853730eb99c56b7b0aed1667d51c0e3699a] virtio: enhance
-> id_matching for virtio drivers
-> git bisect good e3353853730eb99c56b7b0aed1667d51c0e3699a
-> # good: [9cbc1cb8cd46ce1f7645b9de249b2ce8460129bb] Merge branch 'master'
-> of master.kernel.org:/pub/scm/linux/kernel/git/torvalds/linux-2.6
-> git bisect good 9cbc1cb8cd46ce1f7645b9de249b2ce8460129bb
-> # bad: [ff52c3fc7188855ede75d87b022271f0da309e5b] virtio: fix memory
-> leak on device removal
-> git bisect bad ff52c3fc7188855ede75d87b022271f0da309e5b
-> # good: [31278e71471399beaff9280737e52b47db4dc345] net: group address
-> list and its count
-> git bisect good 31278e71471399beaff9280737e52b47db4dc345
-> # bad: [4b892e6582e3a4fe01f623aea386907270d5bf83] virtio-pci: correctly
-> unregister root device on error
-> git bisect bad 4b892e6582e3a4fe01f623aea386907270d5bf83
->
-> Hopefully this gives you some hints. The problem
-> for me is that I don't know what commit I should
-> consider good or bad. Should I consider the
-> commit with the "soft lockup" as good because it
-> don't show the allocation failure? Currently it is
-> marked as bad (4b892e6582e3a4fe01f623aea386907270d5bf83).
-> What should I do next?
->
-> Thanks!
-> Robert
->
-> On 04/12/10 15:52, Michael S. Tsirkin wrote:
->   
->> On Mon, Apr 12, 2010 at 03:50:31PM +0200, Robert Wimmer wrote:
->>   
->>     
->>> Sorry but I need some more git help. Here is what I've done.
->>> Started with a fresh clone of the kernel:
->>>
->>> cd /usr/src
->>> git clone
->>> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git linux
->>> cd linux
->>> git checkout 0b4f2928f14c4a9770b0866923fc81beb7f4aa57
->>>
->>> Since I already knew that this commit wasn't good I did
->>>
->>> git bisect start
->>> git bisect bad
->>>     
->>>       
->> I think what you miss is marking the good commit.
->> bisect does a binary search but it needs to know
->> both good and bad commits to search in the range.
->>
->> Optionally, you can use '-- drivers/virtio/ drivers/net/virtio_net.c'
->> what this does is limit bisect to commits that touch files in
->> question. This way you get much less tests to run
->> (about 4) but after you find a first problematic commit
->> you must verify that a commit just before it does not have the issue.
->>
->> If this turns out not to be the case, you'll have to
->> fallback on full bisect, and we will now this is some
->> other change in kernel that triggered the regression.
->>
->>
->>   
->>     
->>> compiled and started over. As expected the problem returns.
->>> So I've done another
->>>
->>> git bisect bad
->>>
->>> but I always get the same commit:
->>>
->>> kabul:/usr/src/linux # git bisect log
->>> git bisect start
->>> # bad: [0b4f2928f14c4a9770b0866923fc81beb7f4aa57] smc91x: fix
->>> compilation on SMP
->>> git bisect bad 0b4f2928f14c4a9770b0866923fc81beb7f4aa57
->>> # bad: [0b4f2928f14c4a9770b0866923fc81beb7f4aa57] smc91x: fix
->>> compilation on SMP
->>> git bisect bad 0b4f2928f14c4a9770b0866923fc81beb7f4aa57
->>> # bad: [0b4f2928f14c4a9770b0866923fc81beb7f4aa57] smc91x: fix
->>> compilation on SMP
->>> git bisect bad 0b4f2928f14c4a9770b0866923fc81beb7f4aa57
->>>
->>> I've expected that after each "git bisect bad" I get the previous
->>> commit before the "bad" one. How can get the previous commit?
->>> The bisect documentation couldn't help me.
->>>
->>> Thanks!
->>> Robert
->>>
->>>
->>>
->>> On 04/12/10 13:23, Michael S. Tsirkin wrote:
->>>     
->>>       
->>>> On Mon, Apr 12, 2010 at 11:25:26AM +0200, Robert Wimmer wrote:
->>>>   
->>>>       
->>>>         
->>>>> server10:/usr/src/linux # git bisect start v2.6.31 v2.6.30 --
->>>>> drivers/virtio/ drivers/net/virtio_net.c
->>>>> Bisecting: 12 revisions left to test after this (roughly 4 steps)
->>>>> [e3353853730eb99c56b7b0aed1667d51c0e3699a] virtio: enhance id_matching
->>>>> for virtio drivers
->>>>>
->>>>>     
->>>>>         
->>>>>           
->>>> Sorry I wasn't clear. the way to use bisect is as follows:
->>>> - first start as you did now.
->>>> 1. now build kernel, install and test
->>>> 2. if bug is there, type 'git bisect bad'
->>>> 3. if bug is not there, type 'git bisect good'
->>>> 4. The above will give you another kernel version to test
->>>>    if so go back to step 1
->>>> 6. this will be repeated about 4 times (number of steps above)
->>>> 7. in the end you will get the first revision which has the
->>>>    problem. Let's assume it is revision ABCDEF.
->>>>
->>>>    Type git bisect log to see your history.
->>>>
->>>> 8. Now git reset --hard ABCDEF~1 and try again.
->>>>
->>>> If you see the problem with ABCDEF but not ABCDEF~1
->>>> then we will have a good guess at the culprit.
->>>>
->>>> Some more tips here:
->>>> http://www.kernel.org/pub/software/scm/git/docs/git-bisect.html
->>>>
->>>>
->>>>   
->>>>       
->>>>         
->>>>> Today I've upgraded to qemu-kvm-0.12.3-r1 (Gentoo package)
->>>>> but doesn't help. Still getting "page allocation failure" with
->>>>> 2.6.31-rc5.
->>>>>
->>>>> Does it makes sense to use the same 2.6.31-rc5 kernel
->>>>> in the host and guest for testing? Currently I'm still using 2.6.32
->>>>> in host and testing 2.6.31-rc5 in guest until "crashes".
->>>>> Then I start the guest with 2.6.30 again which works
->>>>> without trouble with 2.6.32 as host.
->>>>>
->>>>> This is really strange. I have hosts with 2.6.32 running
->>>>> guests with 2.6.32 which works perfectly. These hosts
->>>>> and guests running on HP DL 380 G6 with Intel Xeon X5560.
->>>>> The guests which don't work with 2.6.32 (and 2.6.32
->>>>> as host) running on HP DL 380 G5 with Intel Xeon L5420.
->>>>>     
->>>>>         
->>>>>           
->>>> Hmm. Some subtle race?
->>>>
->>>>   
->>>>       
->>>>         
->>>>> (All guests) and (all hosts) have the same packages
->>>>> and the same versions installed and the same kernel
->>>>> configs (hosts and guests using different .config but the
->>>>> difference is very small e.g. CONFIG_PARAVIRT_SPINLOCKS=y,
->>>>> CONFIG_PARAVIRT_GUEST=y in guests but not in hosts
->>>>> .config).
->>>>>
->>>>> I've had problems with qemu-kvm 0.12.2 with high network
->>>>> traffic which was solved by a patch submitted by Tom
->>>>> Lendacky:
->>>>>
->>>>> "Fix a race condition where qemu finds that there are not enough virtio
->>>>> ring buffers available and the guest make more buffers available before
->>>>> qemu can enable notifications."
->>>>> http://www.mail-archive.com/kvm@vger.kernel.org/msg28667.html
->>>>>
->>>>> It was a real lifesaver for the HP DL 380 G6 mentioned
->>>>> above but maybe this is now causing the problems with the G5 machines.
->>>>> The symptoms are the same. I can still log into the guest
->>>>> via VNC but the network is down.
->>>>>
->>>>> Thanks!
->>>>> Robert
->>>>>
->>>>>     
->>>>>         
->>>>>           
->>>> For now the only thing we seem to know for sure is that on
->>>> specific hardware there's a regression between 2.6.30 and
->>>> 2.6.31-rc5. Yes, it is possible that all it does
->>>> is expose a qemu bug, but it's hard to say.
->>>> Let's find out what change
->>>> does that, this should give us a hint.
->>>>
->>>>   
->>>>       
->>>>         
->>>>> On 04/11/10 13:03, Michael S. Tsirkin wrote:
->>>>>     
->>>>>         
->>>>>           
->>>>>> On Fri, Apr 09, 2010 at 12:15:01PM +0200, Robert Wimmer wrote:
->>>>>>   
->>>>>>       
->>>>>>           
->>>>>>             
->>>>>>> I'm not really a git hero so here is what I've done:
->>>>>>>
->>>>>>> cd /usr/src
->>>>>>> git clone
->>>>>>> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git linux
->>>>>>> cd linux
->>>>>>> git checkout -b mykernel 0b4f2928f14c4a9770b0866923fc81beb7f4aa57
->>>>>>>     
->>>>>>>         
->>>>>>>             
->>>>>>>               
->>>>>> Looks right.
->>>>>>
->>>>>>   
->>>>>>       
->>>>>>           
->>>>>>             
->>>>>>> Then I've checked
->>>>>>>
->>>>>>> drivers/net/virtio_net.c
->>>>>>> drivers/net/smc91x.c
->>>>>>>
->>>>>>> if the changes commited where not in there.
->>>>>>> Next I build my kernel as usual. I used my .config
->>>>>>> from 2.6.30 (which is working fine in a several
->>>>>>> guests / .config see here:
->>>>>>> https://bugzilla.kernel.org/attachment.cgi?id=25925)
->>>>>>> and build the kernel
->>>>>>>
->>>>>>> genkernel --menuconfig --lvm --oldconfig all
->>>>>>>
->>>>>>> which finally gave me a 2.6.31-rc5.
->>>>>>>     
->>>>>>>         
->>>>>>>             
->>>>>>>               
->>>>>> That's right.
->>>>>>
->>>>>>   
->>>>>>       
->>>>>>           
->>>>>>             
->>>>>>> I should mention
->>>>>>> that 2.6.30 was using SLUB. So here is the output
->>>>>>> from the 2.6.31-rc5 kernel running about 20 min.:
->>>>>>> https://bugzilla.kernel.org/attachment.cgi?id=25926
->>>>>>>     
->>>>>>>         
->>>>>>>             
->>>>>>>               
->>>>>> Hmm, so we see the error here as well?
->>>>>>
->>>>>>   
->>>>>>       
->>>>>>           
->>>>>>             
->>>>>>> Seems not very usefull to me. I'm currently compiling
->>>>>>> the same kernel with SLAB.
->>>>>>>
->>>>>>> Please let me know if the git commands above are
->>>>>>> right and/or if you need other kernel options enabled.
->>>>>>>     
->>>>>>>         
->>>>>>>             
->>>>>>>               
->>>>>> Looks right. You don't have to add -b flag if you don't
->>>>>> want to.
->>>>>>
->>>>>>   
->>>>>>       
->>>>>>           
->>>>>>             
->>>>>>> Thanks!
->>>>>>> Robert
->>>>>>>     
->>>>>>>         
->>>>>>>             
->>>>>>>               
->>>>>> Hmm, I do not see anything else that seems related.
->>>>>> Could you please try to bisect?
->>>>>>
->>>>>> git bisect start v2.6.31 v2.6.30 -- drivers/virtio/ drivers/net/virtio_net.c
->>>>>>
->>>>>> should help assuming the change that triggers this is in virtio.
->>>>>>
->>>>>>
->>>>>>   
->>>>>>       
->>>>>>           
->>>>>>             
->>>>>>> On 04/08/10 22:04, Michael S. Tsirkin wrote:
->>>>>>>     
->>>>>>>         
->>>>>>>             
->>>>>>>               
->>>>>>>> On Thu, Apr 08, 2010 at 10:39:34PM +0300, Avi Kivity wrote:
->>>>>>>>   
->>>>>>>>       
->>>>>>>>           
->>>>>>>>               
->>>>>>>>                 
->>>>>>>>> cc: mst
->>>>>>>>>
->>>>>>>>> On 04/08/2010 10:34 PM, Andrew Morton wrote:
->>>>>>>>>     
->>>>>>>>>         
->>>>>>>>>             
->>>>>>>>>                 
->>>>>>>>>                   
->>>>>>>>>> (switched to email.  Please respond via emailed reply-to-all, not via the
->>>>>>>>>> bugzilla web interface).
->>>>>>>>>>
->>>>>>>>>> On Wed, 7 Apr 2010 10:29:20 GMT
->>>>>>>>>> bugzilla-daemon@bugzilla.kernel.org wrote:
->>>>>>>>>>
->>>>>>>>>>    
->>>>>>>>>>       
->>>>>>>>>>           
->>>>>>>>>>               
->>>>>>>>>>                   
->>>>>>>>>>                     
->>>>>>>>>>> https://bugzilla.kernel.org/show_bug.cgi?id=15709
->>>>>>>>>>>
->>>>>>>>>>>             Summary: swapper page allocation failure
->>>>>>>>>>>             Product: Memory Management
->>>>>>>>>>>             Version: 2.5
->>>>>>>>>>>      Kernel Version: 2.6.32 and 2.6.33
->>>>>>>>>>>            Platform: All
->>>>>>>>>>>          OS/Version: Linux
->>>>>>>>>>>                Tree: Mainline
->>>>>>>>>>>              Status: NEW
->>>>>>>>>>>            Severity: normal
->>>>>>>>>>>            Priority: P1
->>>>>>>>>>>           Component: Slab Allocator
->>>>>>>>>>>          AssignedTo: akpm@linux-foundation.org
->>>>>>>>>>>          ReportedBy: kernel@tauceti.net
->>>>>>>>>>>          Regression: No
->>>>>>>>>>>
->>>>>>>>>>>
->>>>>>>>>>> Created an attachment (id=25903)
->>>>>>>>>>>   -->  (https://bugzilla.kernel.org/attachment.cgi?id=25903)
->>>>>>>>>>> dmesg output
->>>>>>>>>>>
->>>>>>>>>>> I'm having problems with "swapper page allocation failure's" since upgrading
->>>>>>>>>>> from kernel 2.6.30 to 2.6.32/2.6.33. The problems occur inside a kernel virtual
->>>>>>>>>>> maschine (KVM). Running Gentoo with kernel 2.6.32 as host which works fine. As
->>>>>>>>>>> long as kernel 2.6.30 is used as guest kernel the guest runs fine. But after
->>>>>>>>>>> upgrading to 2.6.32 and 2.6.33 I get "swapper page allocation failure's" (see
->>>>>>>>>>> attachment of dmesg output). The guest is only running a Apache webserver and
->>>>>>>>>>> serves files from a NFS share. It has 1 GB RAM and 2 virtual CPUs. I've tried
->>>>>>>>>>> different kernel configurations (e.g. a unmodified version from Sabayon Linux
->>>>>>>>>>> Distribution) but doesn't help. Load of the guest (and host) is very low.
->>>>>>>>>>> Network traffic is about 20-50 MBit/s.
->>>>>>>>>>>
->>>>>>>>>>>      
->>>>>>>>>>>         
->>>>>>>>>>>             
->>>>>>>>>>>                 
->>>>>>>>>>>                     
->>>>>>>>>>>                       
->>>>>>>>>> hm, this is a regression.
->>>>>>>>>>
->>>>>>>>>> : [  454.006706] users: page allocation failure. order:0, mode:0x20
->>>>>>>>>> : [  454.006712] Pid: 7992, comm: users Not tainted 2.6.34-rc3-git6 #2
->>>>>>>>>> : [  454.006714] Call Trace:
->>>>>>>>>> : [  454.006717]<IRQ>   [<ffffffff8109dff7>] __alloc_pages_nodemask+0x5c8/0x615
->>>>>>>>>> : [  454.006796]  [<ffffffff817860ce>] ? ip_local_deliver+0x65/0x6d
->>>>>>>>>> : [  454.006820]  [<ffffffff810c39c4>] alloc_pages_current+0x96/0x9f
->>>>>>>>>> : [  454.006842]  [<ffffffff8167f2c7>] try_fill_recv+0x5e/0x20f
->>>>>>>>>> : [  454.006846]  [<ffffffff8167fe13>] virtnet_poll+0x52a/0x5c7
->>>>>>>>>> : [  454.006858]  [<ffffffff8104fe74>] ? run_timer_softirq+0x1dc/0x1f4
->>>>>>>>>> : [  454.006873]  [<ffffffff8176035d>] net_rx_action+0xad/0x1a5
->>>>>>>>>> : [  454.006882]  [<ffffffff8104b6cd>] __do_softirq+0x9c/0x127
->>>>>>>>>> : [  454.006897]  [<ffffffff81008ffc>] call_softirq+0x1c/0x30
->>>>>>>>>> : [  454.006901]  [<ffffffff8100af01>] do_softirq+0x41/0x7e
->>>>>>>>>> : [  454.006904]  [<ffffffff8104b3e3>] irq_exit+0x36/0x75
->>>>>>>>>> : [  454.006907]  [<ffffffff8100a5ee>] do_IRQ+0xaa/0xc1
->>>>>>>>>> : [  454.006926]  [<ffffffff8183bc13>] ret_from_intr+0x0/0x11
->>>>>>>>>> : [  454.006928]<EOI>   [<ffffffff81026b25>] ? kvm_deferred_mmu_op+0x5e/0xe7
->>>>>>>>>> : [  454.006942]  [<ffffffff81026b19>] ? kvm_deferred_mmu_op+0x52/0xe7
->>>>>>>>>> : [  454.006946]  [<ffffffff81026c03>] kvm_mmu_write+0x2e/0x35
->>>>>>>>>> : [  454.006949]  [<ffffffff81026c7d>] kvm_set_pte_at+0x19/0x1b
->>>>>>>>>> : [  454.006953]  [<ffffffff810aba67>] __do_fault+0x3c4/0x492
->>>>>>>>>> : [  454.006957]  [<ffffffff810adcf4>] handle_mm_fault+0x478/0x9d8
->>>>>>>>>> : [  454.006966]  [<ffffffff810deb59>] ? path_put+0x2c/0x30
->>>>>>>>>> : [  454.006975]  [<ffffffff8102f162>] do_page_fault+0x2f6/0x31a
->>>>>>>>>> : [  454.006979]  [<ffffffff8183b81e>] ? _raw_spin_lock+0x9/0xd
->>>>>>>>>> : [  454.006982]  [<ffffffff8183bef5>] page_fault+0x25/0x30
->>>>>>>>>> : [  454.006985] Mem-Info:
->>>>>>>>>> : [  454.006987] Node 0 DMA per-cpu:
->>>>>>>>>> : [  454.006990] CPU    0: hi:    0, btch:   1 usd:   0
->>>>>>>>>> : [  454.006992] CPU    1: hi:    0, btch:   1 usd:   0
->>>>>>>>>> : [  454.006993] Node 0 DMA32 per-cpu:
->>>>>>>>>> : [  454.006996] CPU    0: hi:  186, btch:  31 usd: 185
->>>>>>>>>> : [  454.006998] CPU    1: hi:  186, btch:  31 usd: 112
->>>>>>>>>> : [  454.007003] active_anon:8308 inactive_anon:8544 isolated_anon:0
->>>>>>>>>> : [  454.007005]  active_file:4882 inactive_file:205902 isolated_file:0
->>>>>>>>>> : [  454.007006]  unevictable:0 dirty:11 writeback:0 unstable:0
->>>>>>>>>> : [  454.007007]  free:1385 slab_reclaimable:2445 slab_unreclaimable:4466
->>>>>>>>>> : [  454.007008]  mapped:1895 shmem:113 pagetables:1370 bounce:0
->>>>>>>>>> : [  454.007010] Node 0 DMA free:4000kB min:60kB low:72kB high:88kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:11844kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15768kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:64kB slab_unreclaimable:32kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
->>>>>>>>>> : [  454.007021] lowmem_reserve[]: 0 994 994 994
->>>>>>>>>> : [  454.007025] Node 0 DMA32 free:1540kB min:4000kB low:5000kB high:6000kB active_anon:33232kB inactive_anon:34176kB active_file:19528kB inactive_file:811764kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:1018068kB mlocked:0kB dirty:44kB writeback:0kB mapped:7580kB shmem:452kB slab_reclaimable:9716kB slab_unreclaimable:17832kB kernel_stack:1144kB pagetables:5480kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
->>>>>>>>>> : [  454.007036] lowmem_reserve[]: 0 0 0 0
->>>>>>>>>> : [  454.007040] Node 0 DMA: 0*4kB 4*8kB 6*16kB 5*32kB 6*64kB 4*128kB 1*256kB 1*512kB 0*1024kB 1*2048kB 0*4096kB = 4000kB
->>>>>>>>>> : [  454.007050] Node 0 DMA32: 13*4kB 2*8kB 3*16kB 1*32kB 2*64kB 0*128kB 1*256kB 0*512kB 1*1024kB 0*2048kB 0*4096kB = 1556kB
->>>>>>>>>> : [  454.007059] 210914 total pagecache pages
->>>>>>>>>> : [  454.007061] 0 pages in swap cache
->>>>>>>>>> : [  454.007063] Swap cache stats: add 0, delete 0, find 0/0
->>>>>>>>>> : [  454.007065] Free swap  = 1959924kB
->>>>>>>>>> : [  454.007067] Total swap = 1959924kB
->>>>>>>>>> : [  454.014238] 262140 pages RAM
->>>>>>>>>> : [  454.014241] 7489 pages reserved
->>>>>>>>>> : [  454.014242] 21430 pages shared
->>>>>>>>>> : [  454.014244] 247174 pages non-shared
->>>>>>>>>>
->>>>>>>>>> Either page reclaim got worse or kvm/virtio-net got more aggressive.
->>>>>>>>>>
->>>>>>>>>> Avi, Rusty: can you think of any changes in the KVM/virtio area in the
->>>>>>>>>> 2.6.30 ->  2.6.32 timeframe which may have increased the GFP_ATOMIC
->>>>>>>>>> demands upon the page allocator?
->>>>>>>>>>
->>>>>>>>>> Thanks.
->>>>>>>>>>    
->>>>>>>>>>       
->>>>>>>>>>           
->>>>>>>>>>               
->>>>>>>>>>                   
->>>>>>>>>>                     
->>>>>>>> On the contrary, with commit
->>>>>>>> 3161e453e496eb5643faad30fff5a5ab183da0fe
->>>>>>>> we should be using GFP_ATOMIC less.
->>>>>>>> But maybe there's a bug and it has the reverse effect somehow ...
->>>>>>>>
->>>>>>>> Robert, could you pls try 3161e453e496eb5643faad30fff5a5ab183da0fe
->>>>>>>> and if that *does* have the problem,
->>>>>>>> 0b4f2928f14c4a9770b0866923fc81beb7f4aa57?
->>>>>>>>
->>>>>>>>   
->>>>>>>>       
->>>>>>>>           
->>>>>>>>               
->>>>>>>>                 
->   
+Steve.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
