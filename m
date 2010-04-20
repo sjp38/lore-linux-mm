@@ -1,74 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 340B86B01EF
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 03:56:20 -0400 (EDT)
-Message-ID: <4BCD5E47.4020507@gmx.at>
-Date: Tue, 20 Apr 2010 09:56:55 +0200
-From: Walter Haidinger <walter.haidinger@gmx.at>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1556B01F0
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 04:20:32 -0400 (EDT)
+Date: Tue, 20 Apr 2010 09:20:57 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: error at compaction (Re: mmotm 2010-04-15-14-42 uploaded
+Message-ID: <20100420082057.GC19264@csn.ul.ie>
+References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org> <20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com> <20100419181442.GA19264@csn.ul.ie> <20100419193919.GB19264@csn.ul.ie> <s2v28c262361004191939we64e5490ld59b21dc4fa5bc8d@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [Bugme-new] [Bug 15783] New: slow dd and multiple "page allocation
- failure" messages
-References: <bug-15783-10286@https.bugzilla.kernel.org/> <20100419140948.0b748c69.akpm@linux-foundation.org>
-In-Reply-To: <20100419140948.0b748c69.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <s2v28c262361004191939we64e5490ld59b21dc4fa5bc8d@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Am 19.04.2010 23:09, schrieb Andrew Morton:
+On Tue, Apr 20, 2010 at 11:39:46AM +0900, Minchan Kim wrote:
+> On Tue, Apr 20, 2010 at 4:39 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > On Mon, Apr 19, 2010 at 07:14:42PM +0100, Mel Gorman wrote:
+> >> On Mon, Apr 19, 2010 at 07:01:33PM +0900, KAMEZAWA Hiroyuki wrote:
+> >> >
+> >> > mmotm 2010-04-15-14-42
+> >> >
+> >> > When I tried
+> >> >  # echo 0 > /proc/sys/vm/compaction
+> >> >
+> >> > I see following.
+> >> >
+> >> > My enviroment was
+> >> >   2.6.34-rc4-mm1+ (2010-04-15-14-42) (x86-64) CPUx8
+> >> >   allocating tons of hugepages and reduce free memory.
+> >> >
+> >> > What I did was:
+> >> >   # echo 0 > /proc/sys/vm/compact_memory
+> >> >
+> >> > Hmm, I see this kind of error at migation for the 1st time..
+> >> > my.config is attached. Hmm... ?
+> >> >
+> >> > (I'm sorry I'll be offline soon.)
+> >>
+> >> That's ok, thanks you for the report. I'm afraid I made little progress
+> >> as I spent most of the day on other bugs but I do have something for
+> >> you.
+> >>
+> >> First, I reproduced the problem using your .config. However, the problem does
+> >> not manifest with the .config I normally use which is derived from the distro
+> >> kernel configuration (Debian Lenny). So, there is something in your .config
+> >> that triggers the problem. I very strongly suspect this is an interaction
+> >> between migration, compaction and page allocation debug.
+> >
+> > I unexpecedly had the time to dig into this. Does the following patch fix
+> > your problem? It Worked For Me.
 > 
-> (switched to email.  Please respond via emailed reply-to-all, not
-> via the bugzilla web interface).
-
-ok.
-
-> Sigh.  This shouldn't happen.
+> Nice catch during shot time. Below is comment.
 > 
-> I'm going to go ahead and assume that some earlier kernels didn't
-> do this :(
+> >
+> > ==== CUT HERE ====
+> > mm,compaction: Map free pages in the address space after they get split for compaction
+> >
+> > split_free_page() is a helper function which takes a free page from the
+> > buddy lists and splits it into order-0 pages. It is used by memory
+> > compaction to build a list of destination pages. If
+> > CONFIG_DEBUG_PAGEALLOC is set, a kernel paging request bug is triggered
+> > because split_free_page() did not call the arch-allocation hooks or map
+> > the page into the kernel address space.
+> >
+> > This patch does not update split_free_page() as it is called with
+> > interrupts held. Instead it documents that callers of split_free_page()
+> > are responsible for calling the arch hooks and to map the page and fixes
+> > compaction.
+> 
+> Dumb question. Why can't we call arch_alloc_page and kernel_map_pages
+> as interrupt disabled?
 
-No, I don't _think_ so. Problem is, I only noticed this when zeroing out
-the device. Haven't done this recently with earlier kernels. Besides,
-as reported, not all write operations are slow.
+In theory, it isn't known what arch_alloc_page is going to do but more
+practically kernel_map_pages() is updating mappings and should be
+flushing all the TLBs. It can't do that with interrupts disabled.
 
-> Is the writeout to /dev/sde1 slow right from the start, or does it 
-> start out fast and later slow down?
+I checked X86 and it should be fine but only because it flushes the
+local CPU and appears to just hope for the best that this doesn't cause
+problems.
 
-It seems to me that write speed does not change very much, but the
-actual speed varies. One time it's just 10 MiB/s, another time about 30.
-But for a couple of tests writes, speed is pretty stable.
+> It's deadlock issue or latency issue?
 
-Also, only writing directly to the device seems to be slow.
-Perhaps that's why is hard to notice.
+deadlock
 
-e.g.: when /dev/sde1 is mounted as ext3 fs:
-Copying a 5 GiB file takes about 50s,
-mbuffer </dev/zero >/mnt1/foo1 writes with >100 MiB/s,
-dd if=/dev/zero of=/mnt1/foo2 manages >75 MiB/s.
+> I don't found any comment about it.
 
-After unmounting and writing directly from /dev/zero to /dev/sde1:
-mbuffer writes about 40 MiB/s and dd less than 30.
+I'm not aware of any. arch_alloc_page() is only used by s390 so it's not
+well known. kernel_map_pages() is only active for a rarely used
+debugging option.
 
-But then badblocks -svw -t 0x00 /dev/sde1 writes about 120 MiB/s.
-Btw, dd if=/dev/zero of=/dev/null runs with >500 MiB/s.
+> It should have added the comment around that functions. :)
+> 
+> And now compaction only uses split_free_page and it is exposed by mm.h.
+> I think it would be better to map pages inside split_free_page to
+> export others.(ie, making generic function).
 
-Needless to say, I'm confused by the numbers...
+I considered that and it would not be ideal. It would have to disable and
+reenable interrupts as each page is taken from the list or alternatively
+require that the caller not have the zone lock taken. The latter of these
+options is more reasonable but would still result in more interrupt enabling
+and disabling.
 
-> `dd' isn't very efficient without the `bs' option - it reads and
-> writes in 512-byte chunks.   But that shouldn't be causing these
-> problems.
+split_free_page() is extremely specialised and requires knowledge of the
+page allocator internals to call properly. There is little pressure to
+make this easier to use at the cost of increased locking.
 
-Tried mbuffer instead. Shows similar results, only a bit faster.
-Still, even if dd is inefficient, it is way slower than expected.
+> If we can't do, how about making split_free_page static as static function?
+> And only uses it in compaction.
+> 
 
-If you want me to test anything, please let me know.
+It pretty much has to be in page_alloc.c because it uses internal
+functions of the page allocator - e.g. rmv_page_order. I could move it
+to mm/internal.h because whatever about split_page, I can't imagine why
+anyone else would need to call split_free_page.
 
-Walter
-
-PS: The short tests above triggered no "page allocation failures"
-    (vm.vfs_cache_pressure = 1000).
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
