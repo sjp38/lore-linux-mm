@@ -1,95 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 272526B01EF
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 20:40:06 -0400 (EDT)
-Date: Tue, 20 Apr 2010 10:41:49 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
-Message-ID: <20100420004149.GA14744@dastard>
-References: <1271118255-21070-1-git-send-email-david@fromorbit.com>
- <1271118255-21070-2-git-send-email-david@fromorbit.com>
- <20100418001514.GA26575@infradead.org>
- <20100419140039.GQ5683@laptop>
+	by kanga.kvack.org (Postfix) with SMTP id 3A44B6B01EF
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 22:08:28 -0400 (EDT)
+Received: by pwi2 with SMTP id 2so3722589pwi.14
+        for <linux-mm@kvack.org>; Mon, 19 Apr 2010 19:08:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100419140039.GQ5683@laptop>
+In-Reply-To: <alpine.DEB.2.00.1004191245250.9855@router.home>
+References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
+	 <s2wcf18f8341004130120jc473e334pa6407b8d2e1ccf0a@mail.gmail.com>
+	 <20100413083855.GS25756@csn.ul.ie>
+	 <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>
+	 <20100416111539.GC19264@csn.ul.ie>
+	 <o2kcf18f8341004160803v9663d602g8813b639024b5eca@mail.gmail.com>
+	 <alpine.DEB.2.00.1004161049130.7710@router.home>
+	 <m2vcf18f8341004170654tc743e4b0s73a0e234cfdcda93@mail.gmail.com>
+	 <alpine.DEB.2.00.1004191245250.9855@router.home>
+Date: Tue, 20 Apr 2010 10:08:26 +0800
+Message-ID: <w2ucf18f8341004191908v2546cfffo3cc7615802ca1c80@mail.gmail.com>
+Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 20, 2010 at 12:00:39AM +1000, Nick Piggin wrote:
-> On Sat, Apr 17, 2010 at 08:15:14PM -0400, Christoph Hellwig wrote:
-> > Any chance we can still get this into 2.6.34?  It's really needed to fix
-> > a regression in XFS that would be hard to impossible to work around
-> > inside the fs.  While it touches quite a few places the changes are
-> > trivial and well understood.
-> 
-> Why do you even need this context argument?  Reclaim is not doing anything
-> smart about this, it would just call each call shrinker in turn.
+On Tue, Apr 20, 2010 at 1:47 AM, Christoph Lameter
+<cl@linux-foundation.org> wrote:
+> On Sat, 17 Apr 2010, Bob Liu wrote:
+>
+>> > GFP_THISNODE forces allocation from the node. Without it we will fallback.
+>> >
+>>
+>> Yeah, but I think we shouldn't fallback at this case, what we want is
+>> alloc a page
+>> from exactly the dest node during migrate_to_node(dest).So I added
+>> GFP_THISNODE.
+>
+> Why would we want that?
+>
 
-It's not being smart, but it is detemining how many objects to
-reclaim in each shrinker call based on memory pressure and the
-number of reclimable objects in the cache the shrinker works on.
-That's exactly the semantics I want for per-filesystem inode cache
-reclaim.
+Because if dest node have no memory, it will fallback to other nodes.
+The dest node's fallback nodes may be nodes in nodemask from_nodes.
+It maybe make circulation ?.(I am not sure.)
 
-> Do you not have an easily traversable list of mountpoints?
+What's more,i think it against the user's request.
+The user wants to move pages from from_nodes to to_nodes, if fallback
+happened, the pages may be moved to other nodes instead of any node in
+nodemask to_nodes.
+I am not sure if the user can expect this and accept.
 
-No, XFS does not have one, and I'm actively trying to remove any
-global state that crosses mounts that does exist (e.g. the global
-dquot caches and freelist).
-
-> Can you just
-> make a list of them? It would be cheaper than putting a whole shrinker
-> structure into them anyway.
-
-It's not cheaper or simpler. To make it work properly, I'd
-need to aggregate counters over all the filesystems in the list,
-work out how much to reclaim from each, etc. It is quite messy
-compared to deferecing the context to check one variable and either
-return or invoke the existing inode reclaim code.
-
-I also don't want to have a situation where i have to implement
-fairness heuristics to avoid reclaiming one filesystem too much or
-only end up reclaiming one or two inodes per filesystem per shrinker
-call because of the number of filesytems is similar to the shrinker
-batch size.  The high level shrinker code already does this reclaim
-proportioning and does it far better than can be done in the scope
-of a shrinker callback. IOWs, adding a context allows XFS to do
-inode reclaim far more efficiently than if it was implemented
-through global state and a single shrinker.
-
-FWIW, we have this problem in the inode and dentry cache - we've got
-all sorts of complexity for being fair about reclaiming across all
-superblocks. I don't want to duplicate that complexity - instead I
-want to avoid it entirely.
-
-> The main reason I would be against proliferation of dynamic shrinker
-> registration would be that it could change reclaim behaviour depending
-> on how they get ordered (in the cache the caches are semi-dependent,
-> like inode cache and dentry cache).
-
-Adding a context does not change that implicit ordering based on
-registration order. Any filesystem based shrinker is going to be
-registered after the core infrastructure shrnikers, so they are not
-going to perturb the current ordering.
-
-And if this is enough of a problem to disallow context based cache
-shrinkers, then lets fix the interface so that we encode the
-dependencies explicitly in the registration interface rather than
-doing it implicitly.
-
-IOWs, I don't think this is a valid reason for not allowing a
-context to be passed with a shrinker because it is easily fixed.
-
-Cheers,
-
-Dave.
+Thanks a lot for your patient reply. :)
 -- 
-Dave Chinner
-david@fromorbit.com
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
