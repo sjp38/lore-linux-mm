@@ -1,154 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 426C36B01F3
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 04:31:25 -0400 (EDT)
-Received: by ywh26 with SMTP id 26so3126859ywh.12
-        for <linux-mm@kvack.org>; Tue, 20 Apr 2010 01:32:13 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 098506B01F5
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 04:37:56 -0400 (EDT)
+Date: Tue, 20 Apr 2010 18:38:40 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
+Message-ID: <20100420083840.GR5683@laptop>
+References: <1271118255-21070-1-git-send-email-david@fromorbit.com>
+ <1271118255-21070-2-git-send-email-david@fromorbit.com>
+ <20100418001514.GA26575@infradead.org>
+ <20100419140039.GQ5683@laptop>
+ <20100420004149.GA14744@dastard>
 MIME-Version: 1.0
-In-Reply-To: <20100420082057.GC19264@csn.ul.ie>
-References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org>
-	 <20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100419181442.GA19264@csn.ul.ie> <20100419193919.GB19264@csn.ul.ie>
-	 <s2v28c262361004191939we64e5490ld59b21dc4fa5bc8d@mail.gmail.com>
-	 <20100420082057.GC19264@csn.ul.ie>
-Date: Tue, 20 Apr 2010 17:32:13 +0900
-Message-ID: <x2h28c262361004200132q39fe5d5ex79251643a80d28b3@mail.gmail.com>
-Subject: Re: error at compaction (Re: mmotm 2010-04-15-14-42 uploaded
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100420004149.GA14744@dastard>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 20, 2010 at 5:20 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Tue, Apr 20, 2010 at 11:39:46AM +0900, Minchan Kim wrote:
->> On Tue, Apr 20, 2010 at 4:39 AM, Mel Gorman <mel@csn.ul.ie> wrote:
->> > On Mon, Apr 19, 2010 at 07:14:42PM +0100, Mel Gorman wrote:
->> >> On Mon, Apr 19, 2010 at 07:01:33PM +0900, KAMEZAWA Hiroyuki wrote:
->> >> >
->> >> > mmotm 2010-04-15-14-42
->> >> >
->> >> > When I tried
->> >> > =C2=A0# echo 0 > /proc/sys/vm/compaction
->> >> >
->> >> > I see following.
->> >> >
->> >> > My enviroment was
->> >> > =C2=A0 2.6.34-rc4-mm1+ (2010-04-15-14-42) (x86-64) CPUx8
->> >> > =C2=A0 allocating tons of hugepages and reduce free memory.
->> >> >
->> >> > What I did was:
->> >> > =C2=A0 # echo 0 > /proc/sys/vm/compact_memory
->> >> >
->> >> > Hmm, I see this kind of error at migation for the 1st time..
->> >> > my.config is attached. Hmm... ?
->> >> >
->> >> > (I'm sorry I'll be offline soon.)
->> >>
->> >> That's ok, thanks you for the report. I'm afraid I made little progre=
-ss
->> >> as I spent most of the day on other bugs but I do have something for
->> >> you.
->> >>
->> >> First, I reproduced the problem using your .config. However, the prob=
-lem does
->> >> not manifest with the .config I normally use which is derived from th=
-e distro
->> >> kernel configuration (Debian Lenny). So, there is something in your .=
-config
->> >> that triggers the problem. I very strongly suspect this is an interac=
-tion
->> >> between migration, compaction and page allocation debug.
->> >
->> > I unexpecedly had the time to dig into this. Does the following patch =
-fix
->> > your problem? It Worked For Me.
->>
->> Nice catch during shot time. Below is comment.
->>
->> >
->> > =3D=3D=3D=3D CUT HERE =3D=3D=3D=3D
->> > mm,compaction: Map free pages in the address space after they get spli=
-t for compaction
->> >
->> > split_free_page() is a helper function which takes a free page from th=
-e
->> > buddy lists and splits it into order-0 pages. It is used by memory
->> > compaction to build a list of destination pages. If
->> > CONFIG_DEBUG_PAGEALLOC is set, a kernel paging request bug is triggere=
-d
->> > because split_free_page() did not call the arch-allocation hooks or ma=
-p
->> > the page into the kernel address space.
->> >
->> > This patch does not update split_free_page() as it is called with
->> > interrupts held. Instead it documents that callers of split_free_page(=
-)
->> > are responsible for calling the arch hooks and to map the page and fix=
-es
->> > compaction.
->>
->> Dumb question. Why can't we call arch_alloc_page and kernel_map_pages
->> as interrupt disabled?
->
-> In theory, it isn't known what arch_alloc_page is going to do but more
-> practically kernel_map_pages() is updating mappings and should be
-> flushing all the TLBs. It can't do that with interrupts disabled.
->
-> I checked X86 and it should be fine but only because it flushes the
-> local CPU and appears to just hope for the best that this doesn't cause
-> problems.
+On Tue, Apr 20, 2010 at 10:41:49AM +1000, Dave Chinner wrote:
+> On Tue, Apr 20, 2010 at 12:00:39AM +1000, Nick Piggin wrote:
+> > On Sat, Apr 17, 2010 at 08:15:14PM -0400, Christoph Hellwig wrote:
+> > > Any chance we can still get this into 2.6.34?  It's really needed to fix
+> > > a regression in XFS that would be hard to impossible to work around
+> > > inside the fs.  While it touches quite a few places the changes are
+> > > trivial and well understood.
+> > 
+> > Why do you even need this context argument?  Reclaim is not doing anything
+> > smart about this, it would just call each call shrinker in turn.
+> 
+> It's not being smart, but it is detemining how many objects to
+> reclaim in each shrinker call based on memory pressure and the
+> number of reclimable objects in the cache the shrinker works on.
+> That's exactly the semantics I want for per-filesystem inode cache
+> reclaim.
 
-Okay.
+And you can easily do that in the filesystem code because either
+way you have to know the number of objects you have.
 
->> And now compaction only uses split_free_page and it is exposed by mm.h.
->> I think it would be better to map pages inside split_free_page to
->> export others.(ie, making generic function).
->
-> I considered that and it would not be ideal. It would have to disable and
-> reenable interrupts as each page is taken from the list or alternatively
-> require that the caller not have the zone lock taken. The latter of these
-> options is more reasonable but would still result in more interrupt enabl=
-ing
-> and disabling.
->
-> split_free_page() is extremely specialised and requires knowledge of the
-> page allocator internals to call properly. There is little pressure to
-> make this easier to use at the cost of increased locking.
->
->> If we can't do, how about making split_free_page static as static functi=
-on?
->> And only uses it in compaction.
->>
->
-> It pretty much has to be in page_alloc.c because it uses internal
-> functions of the page allocator - e.g. rmv_page_order. I could move it
-> to mm/internal.h because whatever about split_page, I can't imagine why
-> anyone else would need to call split_free_page.
+> 
+> > Do you not have an easily traversable list of mountpoints?
+> 
+> No, XFS does not have one, and I'm actively trying to remove any
+> global state that crosses mounts that does exist (e.g. the global
+> dquot caches and freelist).
 
-Yes. Then, Let's add comment like split_page. :)
- /*
- * Note: this is probably too low level an operation for use in drivers.
- * Please consult with lkml before using this in your driver.
- */
+The shrinker list is global state too, so it's not a big deal. A
+simple list and an rwsem will work fine and be smaller than adding
+the full shrinker structure in the mount point.
+
+And that way you get a mountpoint list to potentially use for other
+things. Wheras with the shrinker you still cannot.
+
+ 
+> > Can you just
+> > make a list of them? It would be cheaper than putting a whole shrinker
+> > structure into them anyway.
+> 
+> It's not cheaper or simpler. To make it work properly, I'd
+> need to aggregate counters over all the filesystems in the list,
+> work out how much to reclaim from each, etc. It is quite messy
+> compared to deferecing the context to check one variable and either
+> return or invoke the existing inode reclaim code.
+
+It most definitely is cheaper, in terms of memory footprint. For
+cost of doing the traversals, letting the shrinker code do it is
+doing the *exact* same thing -- it's just traversing all your mount
+points.
+
+ 
+> I also don't want to have a situation where i have to implement
+> fairness heuristics to avoid reclaiming one filesystem too much or
+> only end up reclaiming one or two inodes per filesystem per shrinker
+> call because of the number of filesytems is similar to the shrinker
+> batch size.  The high level shrinker code already does this reclaim
+> proportioning and does it far better than can be done in the scope
+> of a shrinker callback. IOWs, adding a context allows XFS to do
+> inode reclaim far more efficiently than if it was implemented
+> through global state and a single shrinker.
+
+You would just do it proportionately with the size of each fliesystem,
+simple, dumb, and exactly what the shrinker does.
+
+ 
+> FWIW, we have this problem in the inode and dentry cache - we've got
+> all sorts of complexity for being fair about reclaiming across all
+> superblocks. I don't want to duplicate that complexity - instead I
+> want to avoid it entirely.
+
+The dcache pruning is not complex.
+
+                if (prune_ratio != 1)
+                        w_count = (sb->s_nr_dentry_unused / prune_ratio)
++ 1;
+                else
+                        w_count = sb->s_nr_dentry_unused;
+
+Inode pruning is the same.
 
 
->
-> --
-> Mel Gorman
-> Part-time Phd Student =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Linux Technology Center
-> University of Limerick =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 IBM Dublin Software Lab
->
+> > The main reason I would be against proliferation of dynamic shrinker
+> > registration would be that it could change reclaim behaviour depending
+> > on how they get ordered (in the cache the caches are semi-dependent,
+> > like inode cache and dentry cache).
+> 
+> Adding a context does not change that implicit ordering based on
+> registration order. Any filesystem based shrinker is going to be
+> registered after the core infrastructure shrnikers, so they are not
+> going to perturb the current ordering.
+ 
+By definition the ordering changes based on the order of registration.
+You can't argue with that.
 
 
+> And if this is enough of a problem to disallow context based cache
+> shrinkers, then lets fix the interface so that we encode the
+> dependencies explicitly in the registration interface rather than
+> doing it implicitly.
+> 
+> IOWs, I don't think this is a valid reason for not allowing a
+> context to be passed with a shrinker because it is easily fixed.
 
---=20
-Kind regards,
-Minchan Kim
+Well yeah you could do all that maybe. I think it would definitely be
+required if we were to do context shrinkers like this. But AFAIKS there
+is simply no need at all. Definitely it is not preventing XFS from
+following more like the existing shrinker implementations.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
