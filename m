@@ -1,44 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D457A6B01EF
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 13:16:41 -0400 (EDT)
-Date: Tue, 20 Apr 2010 19:16:37 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: accessing stack of non-current task
-Message-ID: <20100420171637.GN20640@cmpxchg.org>
-References: <y2t448a67a1004200538l45d46338vcd77b63a0e53d54e@mail.gmail.com> <20100420134322.GM20640@cmpxchg.org> <s2i448a67a1004200700n4242a936tbaf4df2b4c710ab2@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <s2i448a67a1004200700n4242a936tbaf4df2b4c710ab2@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9957B6B01EF
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 13:23:30 -0400 (EDT)
+Message-ID: <4BCDE2F0.3010009@redhat.com>
+Date: Tue, 20 Apr 2010 13:22:56 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone pressure
+References: <20100322235053.GD9590@csn.ul.ie> <4BA940E7.2030308@redhat.com> <20100324145028.GD2024@csn.ul.ie> <4BCC4B0C.8000602@linux.vnet.ibm.com> <20100419214412.GB5336@cmpxchg.org> <4BCD55DA.2020000@linux.vnet.ibm.com> <20100420153202.GC5336@cmpxchg.org>
+In-Reply-To: <20100420153202.GC5336@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Uma shankar <shankar.vk@gmail.com>
-Cc: linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com, Corrado Zoccolo <czoccolo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 20, 2010 at 07:30:15PM +0530, Uma shankar wrote:
-> On Tue, Apr 20, 2010 at 7:13 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Tue, Apr 20, 2010 at 06:08:14PM +0530, Uma shankar wrote:
-> >> Hi,
-> >>
-> >> Is it possible for the kernel to access the user-stack data of a
-> >> task different from "current" ? ( This is needed for stack-dump as
-> >> well as backtrace. )
-> >
-> > Yes, have a look at __get_user_pages() in mm/memory.c.
-> >
-> 
-> Yes,  I understand this.
-> 
-> But  have a look  at  "void show_stack(struct task_struct *tsk,
-> unsigned long *sp)  "  in traps.c (  arch specific  ).
-> 
-> Is there a implicit assumption that  "tsk"  and "current"  are threads
-> sharing same  "mm_strct"  ?
+On 04/20/2010 11:32 AM, Johannes Weiner wrote:
 
-No, this is dumping the _kernel stack_ of a process, not the user stack.
+> The idea is that it pans out on its own.  If the workload changes, new
+> pages get activated and when that set grows too large, we start shrinking
+> it again.
+>
+> Of course, right now this unscanned set is way too large and we can end
+> up wasting up to 50% of usable page cache on false active pages.
 
-The mm_struct does not matter.
+Thing is, changing workloads often change back.
+
+Specifically, think of a desktop system that is doing
+work for the user during the day and gets backed up
+at night.
+
+You do not want the backup to kick the working set
+out of memory, because when the user returns in the
+morning the desktop should come back quickly after
+the screensaver is unlocked.
+
+The big question is, what workload suffers from
+having the inactive list at 50% of the page cache?
+
+So far the only big problem we have seen is on a
+very unbalanced virtual machine, with 256MB RAM
+and 4 fast disks.  The disks simply have more IO
+in flight at once than what fits in the inactive
+list.
+
+This is a very untypical situation, and we can
+probably solve it by excluding the in-flight pages
+from the active/inactive file calculation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
