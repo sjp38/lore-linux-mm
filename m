@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DECFA6B01F3
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 17:01:16 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D1C76B01F4
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 17:01:20 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 05/14] mm: Allow CONFIG_MIGRATION to be set without CONFIG_NUMA or memory hot-remove
-Date: Tue, 20 Apr 2010 22:01:07 +0100
-Message-Id: <1271797276-31358-6-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 07/14] mm: Export fragmentation index via debugfs
+Date: Tue, 20 Apr 2010 22:01:09 +0100
+Message-Id: <1271797276-31358-8-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
 References: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,60 +13,145 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CONFIG_MIGRATION currently depends on CONFIG_NUMA or on the architecture
-being able to hot-remove memory.  The main users of page migration such as
-sys_move_pages(), sys_migrate_pages() and cpuset process migration are
-only beneficial on NUMA so it makes sense.
+The fragmentation fragmentation index, is only meaningful if an allocation
+would fail and indicates what the failure is due to. A value of -1 such as
+in many of the examples above states that the allocation would succeed.
+If it would fail, the value is between 0 and 1. A value tending towards
+0 implies the allocation failed due to a lack of memory. A value tending
+towards 1 implies it failed due to external fragmentation.
 
-As memory compaction will operate within a zone and is useful on both NUMA
-and non-NUMA systems, this patch allows CONFIG_MIGRATION to be set if the
-user selects CONFIG_COMPACTION as an option.
+For the most part, the huge page size will be the size
+of interest but not necessarily so it is exported on a per-order and per-zo
+basis via /sys/kernel/debug/extfrag/extfrag_index
 
-[akpm@linux-foundation.org: Depend on CONFIG_HUGETLB_PAGE]
+> cat /sys/kernel/debug/extfrag/extfrag_index
+Node 0, zone      DMA -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.00
+Node 0, zone   Normal -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.954
+
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/Kconfig |   18 +++++++++++++++---
- 1 files changed, 15 insertions(+), 3 deletions(-)
+ mm/vmstat.c |   84 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 84 insertions(+), 0 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c61158..a275a7d 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -172,6 +172,16 @@ config SPLIT_PTLOCK_CPUS
- 	default "4"
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index d3e0fa1..23a5899 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -16,6 +16,7 @@
+ #include <linux/cpu.h>
+ #include <linux/vmstat.h>
+ #include <linux/sched.h>
++#include <linux/math64.h>
  
- #
-+# support for memory compaction
-+config COMPACTION
-+	bool "Allow for memory compaction"
-+	def_bool y
-+	select MIGRATION
-+	depends on EXPERIMENTAL && HUGETLB_PAGE && MMU
-+	help
-+	  Allows the compaction of memory for the allocation of huge pages.
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+@@ -420,6 +421,33 @@ static void fill_contig_page_info(struct zone *zone,
+ 						(order - suitable_order);
+ 	}
+ }
 +
-+#
- # support for page migration
- #
- config MIGRATION
-@@ -180,9 +190,11 @@ config MIGRATION
- 	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
- 	help
- 	  Allows the migration of the physical location of pages of processes
--	  while the virtual addresses are not changed. This is useful for
--	  example on NUMA systems to put pages nearer to the processors accessing
--	  the page.
-+	  while the virtual addresses are not changed. This is useful in
-+	  two situations. The first is on NUMA systems to put pages nearer
-+	  to the processors accessing. The second is when allocating huge
-+	  pages as migration can relocate pages to satisfy a huge page
-+	  allocation instead of reclaiming.
++/*
++ * A fragmentation index only makes sense if an allocation of a requested
++ * size would fail. If that is true, the fragmentation index indicates
++ * whether external fragmentation or a lack of memory was the problem.
++ * The value can be used to determine if page reclaim or compaction
++ * should be used
++ */
++int fragmentation_index(unsigned int order, struct contig_page_info *info)
++{
++	unsigned long requested = 1UL << order;
++
++	if (!info->free_blocks_total)
++		return 0;
++
++	/* Fragmentation index only makes sense when a request would fail */
++	if (info->free_blocks_suitable)
++		return -1000;
++
++	/*
++	 * Index is between 0 and 1 so return within 3 decimal places
++	 *
++	 * 0 => allocation would fail due to lack of memory
++	 * 1 => allocation would fail due to fragmentation
++	 */
++	return 1000 - div_u64( (1000+(div_u64(info->free_pages * 1000ULL, requested))), info->free_blocks_total);
++}
+ #endif
  
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+ #if defined(CONFIG_PROC_FS) || defined(CONFIG_COMPACTION)
+@@ -1087,6 +1115,58 @@ static const struct file_operations unusable_file_ops = {
+ 	.release	= seq_release,
+ };
+ 
++static void extfrag_show_print(struct seq_file *m,
++					pg_data_t *pgdat, struct zone *zone)
++{
++	unsigned int order;
++	int index;
++
++	/* Alloc on stack as interrupts are disabled for zone walk */
++	struct contig_page_info info;
++
++	seq_printf(m, "Node %d, zone %8s ",
++				pgdat->node_id,
++				zone->name);
++	for (order = 0; order < MAX_ORDER; ++order) {
++		fill_contig_page_info(zone, order, &info);
++		index = fragmentation_index(order, &info);
++		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
++	}
++
++	seq_putc(m, '\n');
++}
++
++/*
++ * Display fragmentation index for orders that allocations would fail for
++ */
++static int extfrag_show(struct seq_file *m, void *arg)
++{
++	pg_data_t *pgdat = (pg_data_t *)arg;
++
++	walk_zones_in_node(m, pgdat, extfrag_show_print);
++
++	return 0;
++}
++
++static const struct seq_operations extfrag_op = {
++	.start	= frag_start,
++	.next	= frag_next,
++	.stop	= frag_stop,
++	.show	= extfrag_show,
++};
++
++static int extfrag_open(struct inode *inode, struct file *file)
++{
++	return seq_open(file, &extfrag_op);
++}
++
++static const struct file_operations extfrag_file_ops = {
++	.open		= extfrag_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= seq_release,
++};
++
+ static int __init extfrag_debug_init(void)
+ {
+ 	extfrag_debug_root = debugfs_create_dir("extfrag", NULL);
+@@ -1097,6 +1177,10 @@ static int __init extfrag_debug_init(void)
+ 			extfrag_debug_root, NULL, &unusable_file_ops))
+ 		return -ENOMEM;
+ 
++	if (!debugfs_create_file("extfrag_index", 0444,
++			extfrag_debug_root, NULL, &extfrag_file_ops))
++		return -ENOMEM;
++
+ 	return 0;
+ }
+ 
 -- 
 1.6.5
 
