@@ -1,92 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A29E86B01EF
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 20:18:27 -0400 (EDT)
-Received: by yxe39 with SMTP id 39so935855yxe.12
-        for <linux-mm@kvack.org>; Mon, 19 Apr 2010 17:20:27 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 272526B01EF
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 20:40:06 -0400 (EDT)
+Date: Tue, 20 Apr 2010 10:41:49 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
+Message-ID: <20100420004149.GA14744@dastard>
+References: <1271118255-21070-1-git-send-email-david@fromorbit.com>
+ <1271118255-21070-2-git-send-email-david@fromorbit.com>
+ <20100418001514.GA26575@infradead.org>
+ <20100419140039.GQ5683@laptop>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1004191238450.9855@router.home>
-References: <9918f566ab0259356cded31fd1dd80da6cae0c2b.1271171877.git.minchan.kim@gmail.com>
-	 <4BC6E581.1000604@kernel.org>
-	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
-	 <4BC6FBC8.9090204@kernel.org>
-	 <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
-	 <alpine.DEB.2.00.1004161105120.7710@router.home>
-	 <1271606079.2100.159.camel@barrios-desktop>
-	 <4BCB780C.1030001@kernel.org>
-	 <j2h28c262361004181703gd3f4bc19r6d00451e01b779a7@mail.gmail.com>
-	 <alpine.DEB.2.00.1004191238450.9855@router.home>
-Date: Tue, 20 Apr 2010 09:20:27 +0900
-Message-ID: <o2p28c262361004191720n1c2bc086ub93a195b612c7f01@mail.gmail.com>
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100419140039.GQ5683@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 20, 2010 at 2:45 AM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
-> On Mon, 19 Apr 2010, Minchan Kim wrote:
->
->> Let's tidy my table.
->>
->> I made quick patch to show the concept with one example of pci-dma.
->> (Sorry but I attach patch since web gmail's mangling.)
->>
->> On UMA, we can change alloc_pages with
->> alloc_pages_exact_node(numa_node_id(),....)
->> (Actually, the patch is already merged mmotm)
->
-> UMA does not have the concept of nodes. Whatever node you specify is
-> irrelevant. Please remove the patch from mmotm.
+On Tue, Apr 20, 2010 at 12:00:39AM +1000, Nick Piggin wrote:
+> On Sat, Apr 17, 2010 at 08:15:14PM -0400, Christoph Hellwig wrote:
+> > Any chance we can still get this into 2.6.34?  It's really needed to fix
+> > a regression in XFS that would be hard to impossible to work around
+> > inside the fs.  While it touches quite a few places the changes are
+> > trivial and well understood.
+> 
+> Why do you even need this context argument?  Reclaim is not doing anything
+> smart about this, it would just call each call shrinker in turn.
 
-I didn't change API name. The patch is just for optimization.
-http://lkml.org/lkml/2010/4/14/225
-I think it's reasonable in UMA.
-Why do you want to remove it?
+It's not being smart, but it is detemining how many objects to
+reclaim in each shrinker call based on memory pressure and the
+number of reclimable objects in the cache the shrinker works on.
+That's exactly the semantics I want for per-filesystem inode cache
+reclaim.
 
-Do you dislike alloc_pages_exact_node naming?
-I added comment.
-http://lkml.org/lkml/2010/4/14/230
-Do you think it isn't enough?
+> Do you not have an easily traversable list of mountpoints?
 
-This patch results from misunderstanding of alloc_pages_exact_node.
-(http://marc.info/?l=linux-mm&m=127109064101184&w=2)
-At that time, I thought naming changing is worth.
-But many people don't like it.
-Okay. It was just trial and if everyone dislike, I don't have any strong cause.
-But this patch series don't relate to it. Again said, It's just for
-optimization patch.
+No, XFS does not have one, and I'm actively trying to remove any
+global state that crosses mounts that does exist (e.g. the global
+dquot caches and freelist).
 
-Let's clarify other's opinion.
+> Can you just
+> make a list of them? It would be cheaper than putting a whole shrinker
+> structure into them anyway.
 
-1. "I dislike alloc_pages_exact_node naming. Let's change it with more
-clear name."
-2. "I hate alloc_pages_exact_node. It's trivial optimization. Let's
-remove it and replace it with alloc_pages_node."
-3. "alloc_pages_exact_node naming is not bad. Let's add the comment to
-clear name"
-4. "Let's cleanup alloc_pages_xxx in this change as well as 3.
-5. "Please, don't touch. Remain whole of thing like as-is."
+It's not cheaper or simpler. To make it work properly, I'd
+need to aggregate counters over all the filesystems in the list,
+work out how much to reclaim from each, etc. It is quite messy
+compared to deferecing the context to check one variable and either
+return or invoke the existing inode reclaim code.
 
-I think Chrsitop selects 5 or 1, Tejun selects 2, Mel selects 3, me
-want to 4 but is satisfied with 3. Right?
+I also don't want to have a situation where i have to implement
+fairness heuristics to avoid reclaiming one filesystem too much or
+only end up reclaiming one or two inodes per filesystem per shrinker
+call because of the number of filesytems is similar to the shrinker
+batch size.  The high level shrinker code already does this reclaim
+proportioning and does it far better than can be done in the scope
+of a shrinker callback. IOWs, adding a context allows XFS to do
+inode reclaim far more efficiently than if it was implemented
+through global state and a single shrinker.
 
-If we selects 5, In future, there are confusing between
-alloc_pages_node and alloc_pages_exact_node.So I don't want it.
+FWIW, we have this problem in the inode and dentry cache - we've got
+all sorts of complexity for being fair about reclaiming across all
+superblocks. I don't want to duplicate that complexity - instead I
+want to avoid it entirely.
 
-If we select 2, We already have many place of alloc_pages_exact_node.
-And I add this patch series. So most of caller uses alloc_pages_exact_node now.
-Isn't it trivial?
+> The main reason I would be against proliferation of dynamic shrinker
+> registration would be that it could change reclaim behaviour depending
+> on how they get ordered (in the cache the caches are semi-dependent,
+> like inode cache and dentry cache).
 
-So I want 3 at lest although you guys don't like 4.
-Please, suggest better idea to me. :)
+Adding a context does not change that implicit ordering based on
+registration order. Any filesystem based shrinker is going to be
+registered after the core infrastructure shrnikers, so they are not
+going to perturb the current ordering.
 
+And if this is enough of a problem to disallow context based cache
+shrinkers, then lets fix the interface so that we encode the
+dependencies explicitly in the registration interface rather than
+doing it implicitly.
+
+IOWs, I don't think this is a valid reason for not allowing a
+context to be passed with a shrinker because it is easily fixed.
+
+Cheers,
+
+Dave.
 -- 
-Kind regards,
-Minchan Kim
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
